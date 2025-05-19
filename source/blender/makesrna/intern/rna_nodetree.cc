@@ -4217,12 +4217,13 @@ static const char node_input_straight_alpha[] = "Straight Alpha";
 static const char node_input_extend_bounds[] = "Extend Bounds";
 
 /* Color Balance node. */
-static const char node_input_lift[] = "Lift";
-static const char node_input_gain[] = "Gain";
-static const char node_input_offset[] = "Offset";
-static const char node_input_power[] = "Power";
-static const char node_input_slope[] = "Slope";
-static const char node_input_offset_basis[] = "Offset Basis";
+static const char node_input_color_lift[] = "Color Lift";
+static const char node_input_color_gamma[] = "Color Gamma";
+static const char node_input_color_gain[] = "Color Gain";
+static const char node_input_color_offset[] = "Color Offset";
+static const char node_input_color_power[] = "Color Power";
+static const char node_input_color_slope[] = "Color Slope";
+static const char node_input_base_offset[] = "Base Offset";
 static const char node_input_input_temperature[] = "Input Temperature";
 static const char node_input_input_tint[] = "Input Tint";
 static const char node_input_output_temperature[] = "Output Temperature";
@@ -9196,10 +9197,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_struct_sdna_from(srna, "NodeColorBalance", "storage");
 
   prop = RNA_def_property(srna, "lift", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_lift>",
-                               "rna_node_array_property_to_input_setter<float, node_input_lift>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_lift>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_lift>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
@@ -9208,10 +9210,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "gamma", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_gamma>",
-                               "rna_node_array_property_to_input_setter<float, node_input_gamma>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_gamma>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_gamma>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
@@ -9220,10 +9223,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "gain", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_gain>",
-                               "rna_node_array_property_to_input_setter<float, node_input_gain>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_gain>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_gain>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
@@ -9232,10 +9236,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_offset>",
-                               "rna_node_array_property_to_input_setter<float, node_input_offset>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_offset>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_offset>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_range(prop, 0, 1, 0.1, 3);
   RNA_def_property_ui_text(
@@ -9245,10 +9250,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "power", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_power>",
-                               "rna_node_array_property_to_input_setter<float, node_input_power>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_power>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_power>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
@@ -9259,10 +9265,11 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "slope", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_funcs(prop,
-                               "rna_node_array_property_to_input_getter<float, node_input_slope>",
-                               "rna_node_array_property_to_input_setter<float, node_input_slope>",
-                               nullptr);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_array_property_to_input_getter<float, node_input_color_slope>",
+      "rna_node_array_property_to_input_setter<float, node_input_color_slope>",
+      nullptr);
   RNA_def_property_array(prop, 3);
   RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_range(prop, 0.0f, FLT_MAX);
@@ -9273,8 +9280,8 @@ static void def_cmp_colorbalance(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "offset_basis", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_funcs(prop,
-                               "rna_node_property_to_input_getter<float, node_input_offset_basis>",
-                               "rna_node_property_to_input_setter<float, node_input_offset_basis>",
+                               "rna_node_property_to_input_getter<float, node_input_base_offset>",
+                               "rna_node_property_to_input_setter<float, node_input_base_offset>",
                                nullptr);
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, -1.0, 1.0, 1.0, 2);

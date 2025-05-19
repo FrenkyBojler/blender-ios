@@ -34,6 +34,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_rotation_types.hh"
+#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -1033,25 +1034,72 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
 
     if (node->type_legacy == CMP_NODE_COLORBALANCE) {
       NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
-      write_input_to_property_float_color("Lift", 0, storage->lift[0]);
-      write_input_to_property_float_color("Lift", 1, storage->lift[1]);
-      write_input_to_property_float_color("Lift", 2, storage->lift[2]);
-      write_input_to_property_float_color("Gamma", 0, storage->gamma[0]);
-      write_input_to_property_float_color("Gamma", 1, storage->gamma[1]);
-      write_input_to_property_float_color("Gamma", 2, storage->gamma[2]);
-      write_input_to_property_float_color("Gain", 0, storage->gain[0]);
-      write_input_to_property_float_color("Gain", 1, storage->gain[1]);
-      write_input_to_property_float_color("Gain", 2, storage->gain[2]);
-      write_input_to_property_float_color("Offset", 0, storage->offset[0]);
-      write_input_to_property_float_color("Offset", 1, storage->offset[1]);
-      write_input_to_property_float_color("Offset", 2, storage->offset[2]);
-      write_input_to_property_float_color("Power", 0, storage->power[0]);
-      write_input_to_property_float_color("Power", 1, storage->power[1]);
-      write_input_to_property_float_color("Power", 2, storage->power[2]);
-      write_input_to_property_float_color("Slope", 0, storage->slope[0]);
-      write_input_to_property_float_color("Slope", 1, storage->slope[1]);
-      write_input_to_property_float_color("Slope", 2, storage->slope[2]);
-      write_input_to_property_float("Offset Basis", storage->offset_basis);
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Lift");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Lift");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value +
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->lift, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gamma");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gamma");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gamma, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gain");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gain");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gain, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Power");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Power");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->power, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Slope");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Slope");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->slope, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Offset");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Offset");
+        storage->offset_basis = base_input->default_value_typed<bNodeSocketValueFloat>()->value;
+        copy_v3_v3(storage->offset,
+                   color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      }
+
       write_input_to_property_float("Input Temperature", storage->input_temperature);
       write_input_to_property_float("Input Tint", storage->input_tint);
       write_input_to_property_float("Output Temperature", storage->output_temperature);

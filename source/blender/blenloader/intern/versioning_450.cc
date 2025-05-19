@@ -3511,45 +3511,45 @@ static void do_version_color_balance_node_options_to_inputs(bNodeTree *node_tree
     return;
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Lift")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Lift")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Lift", "Lift");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Lift", "Lift");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->lift);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Gamma")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Gamma")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Gamma", "Gamma");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Gamma", "Gamma");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->gamma);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Gain")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Gain")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Gain", "Gain");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Gain", "Gain");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->gain);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Offset")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Offset")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Offset", "Offset");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Offset", "Offset");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->offset);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Power")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Power")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Power", "Power");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Power", "Power");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->power);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Slope")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Slope")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_COLOR_GAMMA, "Slope", "Slope");
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Slope", "Slope");
     copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->slope);
   }
 
-  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Offset Basis")) {
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Base Offset")) {
     bNodeSocket *input = blender::bke::node_add_static_socket(
-        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Offset Basis", "Offset Basis");
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Base Offset", "Offset");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->offset_basis;
   }
 
@@ -3608,37 +3608,37 @@ static void do_version_color_balance_node_options_to_inputs_animation(bNodeTree 
      * values of the FCurves frames when needed. */
     char *old_rna_path = fcurve->rna_path;
     if (BLI_str_endswith(fcurve->rna_path, "lift")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[2].default_value");
-    }
-    else if (BLI_str_endswith(fcurve->rna_path, "gamma")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "gain")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[4].default_value");
-    }
-    else if (BLI_str_endswith(fcurve->rna_path, "offset")) {
+    else if (BLI_str_endswith(fcurve->rna_path, "gamma")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "power")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[6].default_value");
-    }
-    else if (BLI_str_endswith(fcurve->rna_path, "slope")) {
+    else if (BLI_str_endswith(fcurve->rna_path, "gain")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
     }
     else if (BLI_str_endswith(fcurve->rna_path, "offset_basis")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value");
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "input_temperature")) {
+    else if (BLI_str_endswith(fcurve->rna_path, "offset")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value");
     }
-    else if (BLI_str_endswith(fcurve->rna_path, "input_tint")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[10].default_value");
-    }
-    else if (BLI_str_endswith(fcurve->rna_path, "output_temperature")) {
+    else if (BLI_str_endswith(fcurve->rna_path, "power")) {
       fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value");
     }
+    else if (BLI_str_endswith(fcurve->rna_path, "slope")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "input_temperature")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "input_tint")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "output_temperature")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value");
+    }
     else if (BLI_str_endswith(fcurve->rna_path, "output_tint")) {
-      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[12].default_value");
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value");
     }
 
     /* The RNA path was changed, free the old path. */
@@ -4219,7 +4219,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_BOKEHBLUR) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
             do_version_color_balance_node_options_to_inputs_animation(node_tree, node);
           }
         }
@@ -5323,7 +5323,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
-          if (node->type_legacy == CMP_NODE_BOKEHBLUR) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
             do_version_color_balance_node_options_to_inputs(node_tree, node);
           }
         }

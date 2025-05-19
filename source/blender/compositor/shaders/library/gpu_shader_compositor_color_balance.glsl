@@ -7,62 +7,87 @@
 
 void node_composite_color_balance_lgg(float factor,
                                       float4 color,
-                                      float4 lift,
-                                      float4 gamma,
-                                      float4 gain,
-                                      float4 offset,
-                                      float4 power,
-                                      float4 slope,
-                                      float offset_basis,
+                                      float base_lift,
+                                      float4 color_lift,
+                                      float base_gamma,
+                                      float4 color_gamma,
+                                      float base_gain,
+                                      float4 color_gain,
+                                      float base_offset,
+                                      float4 color_offset,
+                                      float base_power,
+                                      float4 color_power,
+                                      float base_slope,
+                                      float4 color_slope,
                                       float input_temperature,
                                       float input_tint,
                                       float output_temperature,
                                       float output_tint,
                                       out float4 result)
 {
-  float3 srgb_color = linear_rgb_to_srgb(color.rgb);
-  float3 lift_balanced = ((srgb_color - 1.0f) * (2.0f - lift.xyz)) + 1.0f;
+  const float3 srgb_color = linear_rgb_to_srgb(color.rgb);
 
-  float3 gain_balanced = lift_balanced * gain.xyz;
+  const float3 lift = base_lift + color_lift.xyz();
+  const float3 lift_balanced = ((srgb_color - 1.0f) * (2.0f - lift)) + 1.0f;
+
+  const float3 gain = base_gain * color_gain.xyz();
+  float3 gain_balanced = lift_balanced * gain;
   gain_balanced = max(gain_balanced, float3(0.0f));
 
   float3 linear_color = srgb_to_linear_rgb(gain_balanced);
-  float3 gamma_balanced = pow(linear_color, 1.0f / max(gamma.xyz, float3(1e-6)));
 
-  result = float4(mix(color.rgb, gamma_balanced, min(factor, 1.0f)), color.a);
+  const float3 gamma = base_gamma * color_gamma.xyz();
+  float3 gamma_balanced = pow(linear_color, 1.0f / max(gamma, float3(1e-6)));
+
+  result = float4(mix(color.xyz(), gamma_balanced, min(factor, 1.0f)), color.w);
 }
 
 void node_composite_color_balance_asc_cdl(float factor,
                                           float4 color,
-                                          float4 lift,
-                                          float4 gamma,
-                                          float4 gain,
-                                          float4 offset,
-                                          float4 power,
-                                          float4 slope,
-                                          float offset_basis,
+                                          float base_lift,
+                                          float4 color_lift,
+                                          float base_gamma,
+                                          float4 color_gamma,
+                                          float base_gain,
+                                          float4 color_gain,
+                                          float base_offset,
+                                          float4 color_offset,
+                                          float base_power,
+                                          float4 color_power,
+                                          float base_slope,
+                                          float4 color_slope,
                                           float input_temperature,
                                           float input_tint,
                                           float output_temperature,
                                           float output_tint,
                                           out float4 result)
 {
-  const float3 full_offset = offset_basis + offset.xyz;
-  const float3 slope_balanced = color.xyz * slope.xyz;
-  const float3 offset_balanced = slope_balanced + full_offset;
-  const float3 power_balanced = pow(max(offset_balanced, float3(0.0f)), power.xyz);
-  result = float4(mix(color.xyz, power_balanced, min(factor, 1.0f)), color.w);
+  const float3 slope = base_slope * color_slope.xyz();
+  const float3 slope_balanced = color.xyz() * slope;
+
+  const float3 offset = base_offset + color_offset.xyz();
+  const float3 offset_balanced = slope_balanced + offset;
+
+  const float3 power = base_power * color_power.xyz();
+  const float3 power_balanced = pow(max(offset_balanced, float3(0.0f)), power);
+
+  result = float4(mix(color.xyz(), power_balanced, min(factor, 1.0f)), color.w);
 }
 
 void node_composite_color_balance_white_point_constant(float factor,
                                                        float4 color,
-                                                       float4 lift,
-                                                       float4 gamma,
-                                                       float4 gain,
-                                                       float4 offset,
-                                                       float4 power,
-                                                       float4 slope,
-                                                       float offset_basis,
+                                                       float base_lift,
+                                                       float4 color_lift,
+                                                       float base_gamma,
+                                                       float4 color_gamma,
+                                                       float base_gain,
+                                                       float4 color_gain,
+                                                       float base_offset,
+                                                       float4 color_offset,
+                                                       float base_power,
+                                                       float4 color_power,
+                                                       float base_slope,
+                                                       float4 color_slope,
                                                        float input_temperature,
                                                        float input_tint,
                                                        float output_temperature,
@@ -237,13 +262,18 @@ float3x3 chromatic_adaption_matrix(const float3 from_XYZ, const float3 to_XYZ)
 
 void node_composite_color_balance_white_point_variable(float factor,
                                                        float4 color,
-                                                       float4 lift,
-                                                       float4 gamma,
-                                                       float4 gain,
-                                                       float4 offset,
-                                                       float4 power,
-                                                       float4 slope,
-                                                       float offset_basis,
+                                                       float base_lift,
+                                                       float4 color_lift,
+                                                       float base_gamma,
+                                                       float4 color_gamma,
+                                                       float base_gain,
+                                                       float4 color_gain,
+                                                       float base_offset,
+                                                       float4 color_offset,
+                                                       float base_power,
+                                                       float4 color_power,
+                                                       float base_slope,
+                                                       float4 color_slope,
                                                        float input_temperature,
                                                        float input_tint,
                                                        float output_temperature,

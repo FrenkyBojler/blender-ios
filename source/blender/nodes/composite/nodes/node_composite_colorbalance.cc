@@ -56,33 +56,61 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
 
-  b.add_input<decl::Color>("Lift")
+  b.add_input<decl::Float>("Lift", "Base Lift")
+      .default_value(0.0f)
+      .min(-1.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description("Correction for shadows");
+  b.add_input<decl::Color>("Lift", "Color Lift")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Correction for shadows");
-  b.add_input<decl::Color>("Gamma")
+  b.add_input<decl::Float>("Gamma", "Base Gamma")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(2.0f)
+      .subtype(PROP_FACTOR)
+      .description("Correction for midtones");
+  b.add_input<decl::Color>("Gamma", "Color Gamma")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Correction for midtones");
-  b.add_input<decl::Color>("Gain")
+  b.add_input<decl::Float>("Gain", "Base Gain")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(2.0f)
+      .subtype(PROP_FACTOR)
+      .description("Correction for highlights");
+  b.add_input<decl::Color>("Gain", "Color Gain")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Correction for highlights");
 
-  b.add_input<decl::Color>("Offset")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .description("Correction for shadows");
-  b.add_input<decl::Color>("Power")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .description("Correction for midtones");
-  b.add_input<decl::Color>("Slope")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .description("Correction for highlights");
-  b.add_input<decl::Float>("Offset Basis")
+  b.add_input<decl::Float>("Offset", "Base Offset")
       .default_value(0.0f)
-      .subtype(PROP_FACTOR)
       .min(-1.0f)
       .max(1.0f)
-      .description(
-          "An additional offset for all channels. This can be used to easily input negative "
-          "offsets");
+      .subtype(PROP_FACTOR)
+      .description("Correction for shadows");
+  b.add_input<decl::Color>("Offset", "Color Offset")
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .description("Correction for shadows");
+  b.add_input<decl::Float>("Power", "Base Power")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(2.0f)
+      .subtype(PROP_FACTOR)
+      .description("Correction for midtones");
+  b.add_input<decl::Color>("Power", "Color Power")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .description("Correction for midtones");
+  b.add_input<decl::Float>("Slope", "Base Slope")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(2.0f)
+      .subtype(PROP_FACTOR)
+      .description("Correction for highlights");
+  b.add_input<decl::Color>("Slope", "Color Slope")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .description("Correction for highlights");
 
   PanelDeclarationBuilder &input_panel = b.add_panel("Input");
   input_panel.add_input<decl::Float>("Temperature", "Input Temperature")
@@ -94,8 +122,8 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
   input_panel.add_input<decl::Float>("Tint", "Input Tint")
       .default_value(10.0f)
       .subtype(PROP_FACTOR)
-      .min(-500.0f)
-      .max(500.0f)
+      .min(-150.0f)
+      .max(150.0f)
       .description("Color tint of the input's white point (the default of 10 matches daylight)");
   input_panel.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
     uiLayout *split = &layout->split(0.2f, false);
@@ -112,8 +140,8 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
   output_panel.add_input<decl::Float>("Tint", "Output Tint")
       .default_value(10.0f)
       .subtype(PROP_FACTOR)
-      .min(-500.0f)
-      .max(500.0f)
+      .min(-150.0f)
+      .max(150.0f)
       .description("Color tint of the output's white point (the default of 10 matches daylight)");
   output_panel.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
     uiLayout *split = &layout->split(0.2f, false);
@@ -137,22 +165,32 @@ static CMPNodeColorBalanceMethod get_color_balance_method(const bNode &node)
 static void node_update(bNodeTree *ntree, bNode *node)
 {
   const bool is_lgg = get_color_balance_method(*node) == CMP_NODE_COLOR_BALANCE_LGG;
-  bNodeSocket *lift_input = bke::node_find_socket(*node, SOCK_IN, "Lift");
-  bNodeSocket *gamma_input = bke::node_find_socket(*node, SOCK_IN, "Gamma");
-  bNodeSocket *gain_input = bke::node_find_socket(*node, SOCK_IN, "Gain");
-  blender::bke::node_set_socket_availability(*ntree, *lift_input, is_lgg);
-  blender::bke::node_set_socket_availability(*ntree, *gamma_input, is_lgg);
-  blender::bke::node_set_socket_availability(*ntree, *gain_input, is_lgg);
+  bNodeSocket *base_lift_input = bke::node_find_socket(*node, SOCK_IN, "Base Lift");
+  bNodeSocket *base_gamma_input = bke::node_find_socket(*node, SOCK_IN, "Base Gamma");
+  bNodeSocket *base_gain_input = bke::node_find_socket(*node, SOCK_IN, "Base Gain");
+  bNodeSocket *color_lift_input = bke::node_find_socket(*node, SOCK_IN, "Color Lift");
+  bNodeSocket *color_gamma_input = bke::node_find_socket(*node, SOCK_IN, "Color Gamma");
+  bNodeSocket *color_gain_input = bke::node_find_socket(*node, SOCK_IN, "Color Gain");
+  blender::bke::node_set_socket_availability(*ntree, *base_lift_input, is_lgg);
+  blender::bke::node_set_socket_availability(*ntree, *base_gamma_input, is_lgg);
+  blender::bke::node_set_socket_availability(*ntree, *base_gain_input, is_lgg);
+  blender::bke::node_set_socket_availability(*ntree, *color_lift_input, is_lgg);
+  blender::bke::node_set_socket_availability(*ntree, *color_gamma_input, is_lgg);
+  blender::bke::node_set_socket_availability(*ntree, *color_gain_input, is_lgg);
 
   const bool is_cdl = get_color_balance_method(*node) == CMP_NODE_COLOR_BALANCE_ASC_CDL;
-  bNodeSocket *offset_input = bke::node_find_socket(*node, SOCK_IN, "Offset");
-  bNodeSocket *power_input = bke::node_find_socket(*node, SOCK_IN, "Power");
-  bNodeSocket *slope_input = bke::node_find_socket(*node, SOCK_IN, "Slope");
-  bNodeSocket *offset_basis_input = bke::node_find_socket(*node, SOCK_IN, "Offset Basis");
-  blender::bke::node_set_socket_availability(*ntree, *offset_input, is_cdl);
-  blender::bke::node_set_socket_availability(*ntree, *power_input, is_cdl);
-  blender::bke::node_set_socket_availability(*ntree, *slope_input, is_cdl);
-  blender::bke::node_set_socket_availability(*ntree, *offset_basis_input, is_cdl);
+  bNodeSocket *base_offset_input = bke::node_find_socket(*node, SOCK_IN, "Base Offset");
+  bNodeSocket *base_power_input = bke::node_find_socket(*node, SOCK_IN, "Base Power");
+  bNodeSocket *base_slope_input = bke::node_find_socket(*node, SOCK_IN, "Base Slope");
+  bNodeSocket *color_offset_input = bke::node_find_socket(*node, SOCK_IN, "Color Offset");
+  bNodeSocket *color_power_input = bke::node_find_socket(*node, SOCK_IN, "Color Power");
+  bNodeSocket *color_slope_input = bke::node_find_socket(*node, SOCK_IN, "Color Slope");
+  blender::bke::node_set_socket_availability(*ntree, *base_offset_input, is_cdl);
+  blender::bke::node_set_socket_availability(*ntree, *base_power_input, is_cdl);
+  blender::bke::node_set_socket_availability(*ntree, *base_slope_input, is_cdl);
+  blender::bke::node_set_socket_availability(*ntree, *color_offset_input, is_cdl);
+  blender::bke::node_set_socket_availability(*ntree, *color_power_input, is_cdl);
+  blender::bke::node_set_socket_availability(*ntree, *color_slope_input, is_cdl);
 
   const bool is_white_point = get_color_balance_method(*node) == CMP_NODE_COLOR_BALANCE_WHITEPOINT;
   bNodeSocket *input_temperature_input = bke::node_find_socket(
@@ -235,35 +273,50 @@ static int node_gpu_material(GPUMaterial *material,
 
 static float4 color_balance_lgg(const float factor,
                                 const float4 &color,
-                                const float4 &lift,
-                                const float4 &gamma,
-                                const float4 &gain)
+                                const float &base_lift,
+                                const float4 &color_lift,
+                                const float &base_gamma,
+                                const float4 &color_gamma,
+                                const float &base_gain,
+                                const float4 &color_gain)
 {
   float3 srgb_color;
   linearrgb_to_srgb_v3_v3(srgb_color, color);
 
-  float3 lift_balanced = ((srgb_color - 1.0f) * (2.0f - lift.xyz())) + 1.0f;
-  float3 gain_balanced = lift_balanced * gain.xyz();
+  const float3 lift = base_lift + color_lift.xyz();
+  const float3 lift_balanced = ((srgb_color - 1.0f) * (2.0f - lift)) + 1.0f;
+
+  const float3 gain = base_gain * color_gain.xyz();
+  float3 gain_balanced = lift_balanced * gain;
   gain_balanced = math::max(gain_balanced, float3(0.0f));
 
   float3 linear_color;
   srgb_to_linearrgb_v3_v3(linear_color, gain_balanced);
-  float3 gamma_balanced = math::pow(linear_color, 1.0f / math::max(gamma.xyz(), float3(1e-6f)));
+
+  const float3 gamma = base_gamma * color_gamma.xyz();
+  float3 gamma_balanced = math::pow(linear_color, 1.0f / math::max(gamma, float3(1e-6f)));
 
   return float4(math::interpolate(color.xyz(), gamma_balanced, math::min(factor, 1.0f)), color.w);
 }
 
 static float4 color_balance_asc_cdl(const float factor,
                                     const float4 &color,
-                                    const float4 &offset,
-                                    const float4 &power,
-                                    const float4 &slope,
-                                    const float offset_basis)
+                                    const float &base_offset,
+                                    const float4 &color_offset,
+                                    const float &base_power,
+                                    const float4 &color_power,
+                                    const float &base_slope,
+                                    const float4 &color_slope)
 {
-  const float3 full_offset = offset_basis + offset.xyz();
-  const float3 slope_balanced = color.xyz() * slope.xyz();
-  const float3 offset_balanced = slope_balanced + full_offset;
-  const float3 power_balanced = math::pow(math::max(offset_balanced, float3(0.0f)), power.xyz());
+  const float3 slope = base_slope * color_slope.xyz();
+  const float3 slope_balanced = color.xyz() * slope;
+
+  const float3 offset = base_offset + color_offset.xyz();
+  const float3 offset_balanced = slope_balanced + offset;
+
+  const float3 power = base_power * color_power.xyz();
+  const float3 power_balanced = math::pow(math::max(offset_balanced, float3(0.0f)), power);
+
   return float4(math::interpolate(color.xyz(), power_balanced, math::min(factor, 1.0f)), color.w);
 }
 
@@ -366,32 +419,53 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   switch (get_color_balance_method(builder.node())) {
     case CMP_NODE_COLOR_BALANCE_LGG: {
       builder.construct_and_set_matching_fn_cb([=]() {
-        return mf::build::SI5_SO<float, float4, float4, float4, float4, float4>(
-            "Color Balance LGG",
-            [=](const float factor,
-                const float4 &color,
-                const float4 &lift,
-                const float4 &gamma,
-                const float4 &gain) -> float4 {
-              return color_balance_lgg(factor, color, lift, gamma, gain);
-            },
-            mf::build::exec_presets::SomeSpanOrSingle<1>());
+        return mf::build::
+            SI8_SO<float, float4, float, float4, float, float4, float, float4, float4>(
+                "Color Balance LGG",
+                [=](const float factor,
+                    const float4 &color,
+                    const float base_lift,
+                    const float4 &color_lift,
+                    const float base_gamma,
+                    const float4 &color_gamma,
+                    const float base_gain,
+                    const float4 &color_gain) -> float4 {
+                  return color_balance_lgg(factor,
+                                           color,
+                                           base_lift,
+                                           color_lift,
+                                           base_gamma,
+                                           color_gamma,
+                                           base_gain,
+                                           color_gain);
+                },
+                mf::build::exec_presets::SomeSpanOrSingle<1>());
       });
       break;
     }
     case CMP_NODE_COLOR_BALANCE_ASC_CDL: {
       builder.construct_and_set_matching_fn_cb([=]() {
-        return mf::build::SI6_SO<float, float4, float4, float4, float4, float, float4>(
-            "Color Balance ASC CDL",
-            [=](const float factor,
-                const float4 &color,
-                const float4 &offset,
-                const float4 &power,
-                const float4 &slope,
-                const float offset_basis) -> float4 {
-              return color_balance_asc_cdl(factor, color, offset, power, slope, offset_basis);
-            },
-            mf::build::exec_presets::SomeSpanOrSingle<1>());
+        return mf::build::
+            SI8_SO<float, float4, float, float4, float, float4, float, float4, float4>(
+                "Color Balance ASC CDL",
+                [=](const float factor,
+                    const float4 &color,
+                    const float base_offset,
+                    const float4 &color_offset,
+                    const float base_power,
+                    const float4 &color_power,
+                    const float base_slope,
+                    const float4 &color_slope) -> float4 {
+                  return color_balance_asc_cdl(factor,
+                                               color,
+                                               base_offset,
+                                               color_offset,
+                                               base_power,
+                                               color_power,
+                                               base_slope,
+                                               color_slope);
+                },
+                mf::build::exec_presets::SomeSpanOrSingle<1>());
       });
       break;
     }
