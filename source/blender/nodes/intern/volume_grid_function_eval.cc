@@ -390,7 +390,8 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
 
   for ([[maybe_unused]] const int output_i : output_values.index_range()) {
     const int param_index = input_values.size() + output_i;
-    const CPPType &type = fn.param_type(param_index).data_type().single_type();
+    const mf::ParamType param_type = fn.param_type(param_index);
+    const CPPType &type = param_type.data_type().single_type();
     void *buffer = scope.allocator().allocate(voxels_num * type.size, type.alignment);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, voxels_num});
   }
@@ -470,7 +471,8 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 
   for ([[maybe_unused]] const int output_i : output_values.index_range()) {
     const int param_index = input_values.size() + output_i;
-    const CPPType &type = fn.param_type(param_index).data_type().single_type();
+    const mf::ParamType param_type = fn.param_type(param_index);
+    const CPPType &type = param_type.data_type().single_type();
     void *buffer = scope.allocator().allocate(tiles_num * type.size, type.alignment);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, tiles_num});
   }
@@ -590,7 +592,8 @@ void execute_multi_function_on_value_variant__volume_grid(
 #endif
     for (const int i : output_values.index_range()) {
       const int param_index = input_values.size() + i;
-      const CPPType &cpp_type = fn.param_type(param_index).data_type().single_type();
+      const mf::ParamType param_type = fn.param_type(param_index);
+      const CPPType &cpp_type = param_type.data_type().single_type();
       /* TODO: Cleanup and error handling. */
       const VolumeGridType grid_type = *bke::socket_type_to_grid_type(
           *bke::geo_nodes_base_cpp_type_to_socket_type(cpp_type));
