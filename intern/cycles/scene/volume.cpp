@@ -258,8 +258,10 @@ void VolumeMeshBuilder::add_grid(openvdb::GridBase::ConstPtr grid,
 void VolumeMeshBuilder::add_padding(const int pad_size)
 {
 #ifdef WITH_OPENVDB
-  openvdb::tools::dilateActiveValues(
-      topology_grid->tree(), pad_size, openvdb::tools::NN_FACE, openvdb::tools::IGNORE_TILES);
+  openvdb::tools::dilateActiveValues(topology_grid->tree(),
+                                     pad_size,
+                                     openvdb::tools::NN_FACE_EDGE_VERTEX,
+                                     openvdb::tools::IGNORE_TILES);
 #else
   (void)pad_size;
 #endif
