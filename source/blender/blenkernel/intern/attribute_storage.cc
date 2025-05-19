@@ -499,7 +499,7 @@ void attribute_storage_blend_write_prepare(
     }
   }
   data.foreach([&](Attribute &attr) {
-    if (!U.experimental.use_attribute_storage_write) {
+    if (!U.experimental.use_attribute_storage_write && !layers_to_write.is_empty()) {
       /* In version 4.5, all attribute data is written in the #CustomData format (at least when the
        * debug option is not enabled), so the #Attribute needs to be converted to a
        * #CustomDataLayer in the proper list. This is only relevant when #AttributeStorage is
