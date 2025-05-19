@@ -62,8 +62,6 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
 
   struct ImportedMemory {
     char view_idx;
-    int width;
-    int height;
     VkImage vk_image_blender;
     VkImage vk_image_xr;
     VkDeviceMemory vk_device_memory_xr;

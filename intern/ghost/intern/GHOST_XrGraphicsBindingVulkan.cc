@@ -577,18 +577,15 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
   }
   /* No previous imported memory found, creating a new. */
   if (imported_memory == nullptr) {
-    m_imported_memory.push_back({draw_info.view_idx,
-                                 draw_info.width,
-                                 draw_info.height,
-                                 VK_NULL_HANDLE,
-                                 VK_NULL_HANDLE,
-                                 VK_NULL_HANDLE});
+    m_imported_memory.push_back(
+        {draw_info.view_idx, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE});
     imported_memory = &m_imported_memory.back();
   }
 
   GHOST_VulkanOpenXRData openxr_data = {m_data_transfer_mode};
   openxr_data.gpu.vk_image_blender = imported_memory->vk_image_blender;
   m_ghost_ctx.openxr_acquire_framebuffer_image_callback_(&openxr_data);
+  imported_memory->vk_image_blender = openxr_data.gpu.vk_image_blender;
 
   /* Create an image handle */
   if (openxr_data.gpu.new_handle) {
