@@ -70,7 +70,7 @@ static StructRNA *rna_NodeTreeInterfaceItem_refine(PointerRNA *ptr)
 {
   bNodeTreeInterfaceItem *item = static_cast<bNodeTreeInterfaceItem *>(ptr->data);
 
-  switch (item->item_type) {
+  switch (NodeTreeInterfaceItemType(item->item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
           *item);
@@ -774,7 +774,9 @@ void rna_NodeTreeInterfaceSocketInt_default_value_range(
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocketVector_subtype_itemf(
     bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
 {
-  return rna_subtype_filter_itemf({PROP_TRANSLATION,
+  return rna_subtype_filter_itemf({PROP_FACTOR,
+                                   PROP_PERCENTAGE,
+                                   PROP_TRANSLATION,
                                    PROP_DIRECTION,
                                    PROP_VELOCITY,
                                    PROP_ACCELERATION,
@@ -877,7 +879,7 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
 
   ntree->ensure_interface_cache();
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
-    switch (item->item_type) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         if (STREQ(socket->name, key)) {

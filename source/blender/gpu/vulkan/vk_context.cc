@@ -350,19 +350,18 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   render_graph::VKBlitImageNode::CreateInfo blit_image = {};
   blit_image.src_image = color_attachment->vk_image_handle();
   blit_image.dst_image = swap_chain_data.image;
-  blit_image.filter = VK_FILTER_NEAREST;
+  blit_image.filter = VK_FILTER_LINEAR;
 
   VkImageBlit &region = blit_image.region;
-  region.srcOffsets[0] = {0, color_attachment->height_get(), 0};
-  region.srcOffsets[1] = {color_attachment->width_get(), 0, 1};
+  region.srcOffsets[0] = {0, 0, 0};
+  region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
   region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.srcSubresource.mipLevel = 0;
   region.srcSubresource.baseArrayLayer = 0;
   region.srcSubresource.layerCount = 1;
 
-  region.dstOffsets[0] = {0, 0, 0};
-  region.dstOffsets[1] = {
-      int32_t(swap_chain_data.extent.width), int32_t(swap_chain_data.extent.height), 1};
+  region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
+  region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
   region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
@@ -445,12 +444,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                          RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      VKMemoryExport exported_memory = color_attachment->export_memory(
-          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
-      openxr_data.gpu.image_handle = exported_memory.handle;
-      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-      openxr_data.gpu.memory_size = exported_memory.memory_size;
-      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
+        VKMemoryExport exported_memory = color_attachment->export_memory(
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
+        openxr_data.gpu.image_handle = exported_memory.handle;
+        openxr_data.gpu.new_handle = true;
+        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+        openxr_data.gpu.memory_size = exported_memory.memory_size;
+        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
+      }
       break;
     }
 
@@ -458,12 +461,16 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
                          RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      VKMemoryExport exported_memory = color_attachment->export_memory(
-          VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-      openxr_data.gpu.image_handle = exported_memory.handle;
-      openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-      openxr_data.gpu.memory_size = exported_memory.memory_size;
-      openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
+        VKMemoryExport exported_memory = color_attachment->export_memory(
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+        openxr_data.gpu.image_handle = exported_memory.handle;
+        openxr_data.gpu.new_handle = true;
+        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+        openxr_data.gpu.memory_size = exported_memory.memory_size;
+        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
+      }
       break;
     }
   }
@@ -486,9 +493,11 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeWin32:
 #ifdef _WIN32
-      /* Exported handle isn't consumed during import and should be freed after use. */
-      CloseHandle(HANDLE(openxr_data.gpu.image_handle));
-      openxr_data.gpu.image_handle = 0;
+      if (openxr_data.gpu.new_handle) {
+        /* Exported handle isn't consumed during import and should be freed after use. */
+        CloseHandle(HANDLE(openxr_data.gpu.image_handle));
+        openxr_data.gpu.image_handle = 0;
+      }
 #endif
       break;
   }
