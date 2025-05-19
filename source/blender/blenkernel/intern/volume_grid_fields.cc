@@ -32,8 +32,8 @@ GVArray VoxelFieldContext::get_varray_for_input(const fn::FieldInput &field_inpu
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (const int64_t i : range) {
       const openvdb::Coord &voxel = voxels_[i];
-      const openvdb::Vec3d center = transform_.indexToWorld(voxel);
-      positions[i] = float3(center.x(), center.y(), center.z());
+      const openvdb::Vec3d position = transform_.indexToWorld(voxel);
+      positions[i] = float3(position.x(), position.y(), position.z());
     }
   });
   return VArray<float3>::ForContainer(std::move(positions));
