@@ -52,7 +52,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const Field<float3> uv_field,
                                            const bool rotate,
                                            const float margin,
-                                           const int shape_method, // Added shape_method
+                                           const eUVPackIsland_ShapeMethod shape_method,
                                            const AttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
@@ -104,7 +104,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   geometry::uv_parametrizer_construct_end(handle, true, true, nullptr);
 
   blender::geometry::UVPackIsland_Params params;
-  params.shape_method = static_cast<eUVPackIsland_ShapeMethod>(shape_method);
+  params.shape_method = shape_method;
 
   geometry::uv_parametrizer_pack(handle, margin, rotate, true, params);
   geometry::uv_parametrizer_flush(handle);
@@ -120,20 +120,20 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
   const Field<float3> uv_field_;
   const bool rotate_;
   const float margin_;
-  const int shape_method_; // Added shape_method
+  const eUVPackIsland_ShapeMethod shape_method_;
 
  public:
   PackIslandsFieldInput(const Field<bool> selection_field,
                         const Field<float3> uv_field,
                         const bool rotate,
                         const float margin,
-                        const int shape_method) // Added shape_method
+                        const eUVPackIsland_ShapeMethod shape_method)
       : bke::MeshFieldInput(CPPType::get<float3>(), "Pack UV Islands Field"),
         selection_field_(selection_field),
         uv_field_(uv_field),
         rotate_(rotate),
         margin_(margin),
-        shape_method_(shape_method) // Added shape_method
+        shape_method_(shape_method)
   {
     category_ = Category::Generated;
   }
@@ -160,7 +160,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryUVPackIslands &storage = node_storage(params.node());
-  const GeometryNodeUVPackIslandsShapeMethod shape_method = (GeometryNodeUVPackIslandsShapeMethod)storage.shape_method;
+  const eUVPackIsland_ShapeMethod shape_method = static_cast<eUVPackIsland_ShapeMethod>(storage.shape_method);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float3> uv_field = params.extract_input<Field<float3>>("UV");

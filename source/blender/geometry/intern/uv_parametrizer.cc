@@ -4244,14 +4244,10 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
 
   Vector<PackIsland *> pack_island_vector;
 
-  // Create the params with our shape_method but keeping other settings from the original function
-  UVPackIsland_Params local_params;
-  // UVPackIsland_Params local_params = params;
+  UVPackIsland_Params local_params = params;
   local_params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
   local_params.margin = margin;
   local_params.margin_method = ED_UVPACK_MARGIN_SCALED;
-  local_params.shape_method = params.shape_method;
-  // shape_method is already in params
   
   for (int i = 0; i < handle->ncharts; i++) {
     PChart *chart = handle->charts[i];
