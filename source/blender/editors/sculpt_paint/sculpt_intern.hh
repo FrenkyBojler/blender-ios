@@ -252,7 +252,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = 0;
+  int paint_face_set = SCULPT_FACE_SET_NONE;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
@@ -311,7 +311,7 @@ struct StrokeCache {
     float wet_mix = 0.0f;
     float wet_persistence = 0.0f;
 
-    float density_seed = 0.0f;
+    std::optional<float> density_seed;
     float density = 0.0f;
 
     /**
@@ -850,10 +850,13 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
 }
 
 void ensure_valid_pivot(const Object &ob, Scene &scene);
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         float3 location);
+
+/** Retrieve or calculate the object space radius depending on brush settings. */
+float object_space_radius_get(const ViewContext &vc,
+                              const Scene &scene,
+                              const Brush &brush,
+                              const float3 &location,
+                              float scale_factor = 1.0);
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */

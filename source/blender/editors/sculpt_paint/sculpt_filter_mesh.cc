@@ -172,13 +172,7 @@ void cache_init(bContext *C,
 
     float radius;
     if (brush) {
-      if (BKE_brush_use_locked_size(scene, brush)) {
-        radius = paint_calc_object_space_radius(
-            vc, co, float(BKE_brush_size_get(scene, brush) * area_normal_radius));
-      }
-      else {
-        radius = BKE_brush_unprojected_radius_get(scene, brush) * area_normal_radius;
-      }
+      object_space_radius_get(vc, *scene, *brush, co, area_normal_radius);
     }
     else {
       radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);
@@ -2445,7 +2439,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   sculpt_filter_specific_init(*depsgraph, filter_type, op, ob);
 
