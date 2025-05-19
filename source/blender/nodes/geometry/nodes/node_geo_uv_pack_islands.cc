@@ -52,6 +52,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
                                            const Field<float3> uv_field,
                                            const bool rotate,
                                            const float margin,
+                                           const int shape_method, // Added shape_method
                                            const AttrDomain domain)
 {
   const Span<float3> positions = mesh.vert_positions();
@@ -116,17 +117,20 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
   const Field<float3> uv_field_;
   const bool rotate_;
   const float margin_;
+  const int shape_method_; // Added shape_method
 
  public:
   PackIslandsFieldInput(const Field<bool> selection_field,
                         const Field<float3> uv_field,
                         const bool rotate,
-                        const float margin)
+                        const float margin,
+                        const int shape_method) // Added shape_method
       : bke::MeshFieldInput(CPPType::get<float3>(), "Pack UV Islands Field"),
         selection_field_(selection_field),
         uv_field_(uv_field),
         rotate_(rotate),
-        margin_(margin)
+        margin_(margin),
+        shape_method_(shape_method) // Added shape_method
   {
     category_ = Category::Generated;
   }
@@ -135,7 +139,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
                                  const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    return construct_uv_gvarray(mesh, selection_field_, uv_field_, rotate_, margin_, domain);
+    return construct_uv_gvarray(mesh, selection_field_, uv_field_, rotate_, margin_, shape_method_, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -161,7 +165,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float margin = params.extract_input<float>("Margin");
   params.set_output("UV",
                     Field<float3>(std::make_shared<PackIslandsFieldInput>(
-                        selection_field, uv_field, rotate, margin)));
+                        selection_field, uv_field, rotate, margin, shape_method)));
 }
 
 static void node_rna(StructRNA *srna)
