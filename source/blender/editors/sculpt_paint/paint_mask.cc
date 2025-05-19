@@ -496,7 +496,6 @@ static void fill_mask_bmesh(const Depsgraph &depsgraph,
                             const float value,
                             const IndexMask &node_mask)
 {
-  SculptSession &ss = *object.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
 
