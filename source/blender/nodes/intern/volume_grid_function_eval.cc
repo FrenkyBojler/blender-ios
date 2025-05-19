@@ -239,8 +239,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       /* The input is a grid, so we can attempt to reference the grid values directly. */
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
-        using ValueT = typename GridT::ValueType;
-        BLI_assert(param_cpp_type.size == sizeof(ValueT));
+        BLI_assert(param_cpp_type.size == sizeof(typename GridT::ValueType));
         const auto &tree = grid.tree();
 
         if (const auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf)) {
