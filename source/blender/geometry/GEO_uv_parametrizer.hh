@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include "GEO_uv_pack.hh"
 
 namespace slim {
 struct MatrixTransfer;
@@ -167,6 +168,10 @@ void uv_parametrizer_stretch_end(ParamHandle *handle);
  * \{ */
 
 void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned);
+
+// Add this new overloaded function
+void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned, const UVPackIsland_Params &params);
+
 
 /** \} */
 

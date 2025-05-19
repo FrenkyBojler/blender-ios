@@ -103,7 +103,10 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   });
   geometry::uv_parametrizer_construct_end(handle, true, true, nullptr);
 
-  geometry::uv_parametrizer_pack(handle, margin, rotate, true);
+  blender::geometry::UVPackIsland_Params params;
+  params.shape_method = static_cast<eUVPackIsland_ShapeMethod>(shape_method);
+
+  geometry::uv_parametrizer_pack(handle, margin, rotate, true, params);
   geometry::uv_parametrizer_flush(handle);
   delete (handle);
 
