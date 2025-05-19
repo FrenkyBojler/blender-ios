@@ -529,7 +529,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
   }
 }
 
-void execute_multi_function_on_value_variant__volume_grid(
+bool execute_multi_function_on_value_variant__volume_grid(
     const mf::MultiFunction &fn,
     const Span<bke::SocketValueVariant *> input_values,
     const Span<bke::SocketValueVariant *> output_values)
@@ -574,9 +574,7 @@ void execute_multi_function_on_value_variant__volume_grid(
   BLI_assert(transform != nullptr);
 
   if (has_incompatible_transforms) {
-    /* TODO */
-    BLI_assert_unreachable();
-    return;
+    return false;
   }
 
   openvdb::MaskTree mask_tree;
@@ -603,9 +601,7 @@ void execute_multi_function_on_value_variant__volume_grid(
       const CPPType &cpp_type = param_type.data_type().single_type();
       const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
       if (!grid_type) {
-        /* TODO: Cleanup and error handling. */
-        BLI_assert_unreachable();
-        continue;
+        return false;
       }
 
       openvdb::GridBase::Ptr grid;
@@ -653,6 +649,8 @@ void execute_multi_function_on_value_variant__volume_grid(
       output_value->set(bke::GVolumeGrid(std::move(output_grids[i])));
     }
   }
+
+  return true;
 }
 
 }  // namespace blender::nodes
