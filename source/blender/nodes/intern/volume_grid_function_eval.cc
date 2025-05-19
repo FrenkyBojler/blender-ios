@@ -308,9 +308,8 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       get_voxels_fn(voxels);
       VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, &index_mask};
-      GMutableSpan values{type,
-                          scope.allocator().allocate(voxels.size() * type.size, type.alignment),
-                          voxels.size()};
+      GMutableSpan values{
+          type, scope.allocator().allocate_array(type, voxels.size()), voxels.size()};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -377,8 +376,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
       const CPPType &type = field.cpp_type();
       VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, voxels_num};
-      GMutableSpan values{
-          type, scope.allocator().allocate(voxels_num * type.size, type.alignment), voxels_num};
+      GMutableSpan values{type, scope.allocator().allocate_array(type, voxels_num), voxels_num};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -392,7 +390,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
     const int param_index = input_values.size() + output_i;
     const mf::ParamType param_type = fn.param_type(param_index);
     const CPPType &type = param_type.data_type().single_type();
-    void *buffer = scope.allocator().allocate(voxels_num * type.size, type.alignment);
+    void *buffer = scope.allocator().allocate_array(type, voxels_num);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, voxels_num});
   }
 
@@ -458,8 +456,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
       const CPPType &type = field.cpp_type();
       TilesFieldContext field_context{transform, tiles};
       fn::FieldEvaluator evaluator{field_context, tiles_num};
-      GMutableSpan values{
-          type, scope.allocator().allocate(tiles_num * type.size, type.alignment), tiles_num};
+      GMutableSpan values{type, scope.allocator().allocate_array(type, tiles_num), tiles_num};
       evaluator.add_with_destination(field, values);
       evaluator.evaluate();
       params.add_readonly_single_input(values);
@@ -473,7 +470,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
     const int param_index = input_values.size() + output_i;
     const mf::ParamType param_type = fn.param_type(param_index);
     const CPPType &type = param_type.data_type().single_type();
-    void *buffer = scope.allocator().allocate(tiles_num * type.size, type.alignment);
+    void *buffer = scope.allocator().allocate_array(type, tiles_num);
     params.add_uninitialized_single_output(GMutableSpan{type, buffer, tiles_num});
   }
 
