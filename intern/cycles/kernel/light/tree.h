@@ -228,7 +228,7 @@ ccl_device void light_tree_importance(const float3 N_or_D,
   float cos_max_outgoing_angle;
   const float cos_theta_plus_theta_u = cos_theta * cos_theta_u - sin_theta * sin_theta_u;
   if (bcone.theta_e - bcone.theta_o < 0 || cos_theta < 0 || cos_theta_u < 0 ||
-      cos_theta_plus_theta_u < cosf(bcone.theta_e - bcone.theta_o))
+      cos_theta_plus_theta_u < fast_cosf(bcone.theta_e - bcone.theta_o))
   {
     min_importance = 0.0f;
   }
@@ -323,10 +323,15 @@ ccl_device void light_tree_node_importance(KernelGlobals kg,
     cos_theta_u = fast_cosf(bcone.theta_o + bcone.theta_e);
     distance = 1.0f;
     /* For distant lights, the integral in Eq. (4) gives the ray length. */
-    theta_d = t;
     if (t == FLT_MAX) {
-      /* In world volume, distant light has no contribution. */
-      return;
+      /* In world volumes, distant lights can contribute to the lighting of the volume with
+       * specific configurations of procedurally generated volumes. Use a ray length of 1.0 in this
+       * case to give the distant light some weight, but one that isn't too high for a typical
+       * world volume use case. */
+      theta_d = 1.0f;
+    }
+    else {
+      theta_d = t;
     }
   }
   else {

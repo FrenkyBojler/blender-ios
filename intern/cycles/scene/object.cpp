@@ -95,6 +95,8 @@ NODE_DEFINE(Object)
   SOCKET_BOOLEAN(is_caustics_caster, "Cast Shadow Caustics", false);
   SOCKET_BOOLEAN(is_caustics_receiver, "Receive Shadow Caustics", false);
 
+  SOCKET_BOOLEAN(is_bake_target, "Bake Target", false);
+
   SOCKET_NODE(particle_system, "Particle System", ParticleSystem::get_node_type());
   SOCKET_INT(particle_index, "Particle Index", 0);
 
@@ -574,8 +576,8 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.dupli_generated[2] = ob->dupli_generated[2];
   kobject.dupli_uv[0] = ob->dupli_uv[0];
   kobject.dupli_uv[1] = ob->dupli_uv[1];
-  int totalsteps = geom->get_motion_steps();
-  kobject.numsteps = (totalsteps - 1) / 2;
+  kobject.num_geom_steps = (geom->get_motion_steps() - 1) / 2;
+  kobject.num_tfm_steps = ob->motion.size();
   kobject.numverts = (geom->geometry_type == Geometry::MESH ||
                       geom->geometry_type == Geometry::VOLUME) ?
                          static_cast<Mesh *>(geom)->get_verts().size() :
@@ -1049,9 +1051,11 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
       Mesh *mesh = static_cast<Mesh *>(geom);
       apply = apply && mesh->get_subdivision_type() == Mesh::SUBDIVISION_NONE;
     }
-    else if (geom->geometry_type == Geometry::HAIR) {
-      /* Can't apply non-uniform scale to curves, this can't be represented by
-       * control points and radius alone. */
+    else if ((geom->geometry_type == Geometry::HAIR) ||
+             (geom->geometry_type == Geometry::POINTCLOUD))
+    {
+      /* Can't apply non-uniform scale to curves and points, this can't be
+       * represented by control points and radius alone. */
       float scale;
       apply = apply && transform_uniform_scale(object->tfm, scale);
     }

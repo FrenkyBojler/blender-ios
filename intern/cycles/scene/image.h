@@ -146,18 +146,20 @@ class ImageHandle {
 
   bool empty() const;
   int num_tiles() const;
+  int num_svm_slots() const;
 
   ImageMetaData metadata();
-  int svm_slot(const int tile_index = 0) const;
+  int svm_slot(const int slot_index = 0) const;
   vector<int4> get_svm_slots() const;
-  device_texture *image_memory(const int tile_index = 0) const;
+  device_texture *image_memory() const;
 
-  VDBImageLoader *vdb_loader(const int tile_index = 0) const;
+  VDBImageLoader *vdb_loader() const;
 
   ImageManager *get_manager() const;
 
  protected:
-  vector<size_t> tile_slots;
+  vector<size_t> slots;
+  bool is_tiled = false;
   ImageManager *manager;
 
   friend class ImageManager;
@@ -227,6 +229,7 @@ class ImageManager {
   size_t add_image_slot(ImageLoader *loader, const ImageParams &params, const bool builtin);
   void add_image_user(size_t slot);
   void remove_image_user(size_t slot);
+  Image *get_image_slot(const size_t slot);
 
   void load_image_metadata(Image *img);
 
