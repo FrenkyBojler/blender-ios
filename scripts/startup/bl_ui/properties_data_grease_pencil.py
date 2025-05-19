@@ -115,6 +115,7 @@ class GreasePencil_LayerAdjustmentsPanel:
         col = layout.row(align=True)
         col.prop(layer, "radius_offset", text="Stroke Thickness")
 
+
 class GREASE_PENCIL_MT_layer_relations_menu(Menu):
     bl_label = "Inverse"
 
@@ -126,6 +127,7 @@ class GREASE_PENCIL_MT_layer_relations_menu(Menu):
         layout = self.layout
         layout.operator("grease_pencil.layer_set_inverse", text="Set Inverse").unset = False
         layout.operator("grease_pencil.layer_set_inverse", text="Clear Inverse").unset = True
+
 
 class GreasePencil_LayerRelationsPanel:
     def draw(self, context):
