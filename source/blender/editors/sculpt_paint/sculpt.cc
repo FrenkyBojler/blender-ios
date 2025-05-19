@@ -850,8 +850,7 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
 {
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  return ((pbvh.type() == bke::pbvh::Type::BMesh) &&
-          (!ss.cache || (!ss.cache->alt_smooth)) &&
+  return ((pbvh.type() == bke::pbvh::Type::BMesh) && (!ss.cache || (!ss.cache->alt_smooth)) &&
           /* Requires mesh restore, which doesn't work with
            * dynamic-topology. */
           !(brush.flag & BRUSH_ANCHORED) && !(brush.flag & BRUSH_DRAG_DOT) &&
