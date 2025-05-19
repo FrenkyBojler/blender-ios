@@ -305,7 +305,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
       BKE_report(op->reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
       return OPERATOR_CANCELLED;
     }
-    bke::AttributeStorage attributes = pointcloud.attribute_storage.wrap();
+    bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
     const int domain_size = accessor.domain_size(bke::AttrDomain(domain));
     std::string unique_name = attributes.unique_name_calc(name);
 

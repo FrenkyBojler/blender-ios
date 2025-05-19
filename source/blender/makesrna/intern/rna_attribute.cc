@@ -619,7 +619,7 @@ static PointerRNA rna_AttributeGroupID_new(
     }
     const int domain_size = accessor.domain_size(AttrDomain(domain));
 
-    bke::AttributeStorage attributes = pointcloud.attribute_storage.wrap();
+    bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
     const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(eCustomDataType(type));
     bke::Attribute &attr = attributes.add(
         attributes.unique_name_calc(name),
