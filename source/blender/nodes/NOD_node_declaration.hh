@@ -536,6 +536,7 @@ class PanelDeclarationBuilder : public DeclarationListBuilder {
   }
 
   Self &description(std::string value = "");
+  Self &translation_context(std::optional<std::string> value = std::nullopt);
   Self &default_closed(bool closed);
 };
 
