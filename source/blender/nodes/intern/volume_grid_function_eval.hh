@@ -17,6 +17,7 @@ namespace blender::nodes {
 [[nodiscard]] bool execute_multi_function_on_value_variant__volume_grid(
     const mf::MultiFunction &fn,
     const Span<SocketValueVariant *> input_values,
-    const Span<SocketValueVariant *> output_values);
+    const Span<SocketValueVariant *> output_values,
+    std::string &r_error_message);
 
 }

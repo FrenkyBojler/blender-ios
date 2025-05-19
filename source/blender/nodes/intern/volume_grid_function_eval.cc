@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_customdata.hh"
+#include "BLT_translation.hh"
 #include "FN_multi_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
@@ -532,7 +533,8 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
 bool execute_multi_function_on_value_variant__volume_grid(
     const mf::MultiFunction &fn,
     const Span<bke::SocketValueVariant *> input_values,
-    const Span<bke::SocketValueVariant *> output_values)
+    const Span<bke::SocketValueVariant *> output_values,
+    std::string &r_error_message)
 {
 #ifdef DEBUG_TIME
   SCOPED_TIMER(__func__);
@@ -555,7 +557,6 @@ bool execute_multi_function_on_value_variant__volume_grid(
     }
   }
 
-  bool has_incompatible_transforms = false;
   const openvdb::math::Transform *transform = nullptr;
   for (const openvdb::GridBase *grid : input_grids) {
     if (!grid) {
@@ -567,15 +568,11 @@ bool execute_multi_function_on_value_variant__volume_grid(
       continue;
     }
     if (*transform != other_transform) {
-      has_incompatible_transforms = true;
-      break;
+      r_error_message = IFACE_("Input grids have incompatible transforms");
+      return false;
     }
   }
   BLI_assert(transform != nullptr);
-
-  if (has_incompatible_transforms) {
-    return false;
-  }
 
   openvdb::MaskTree mask_tree;
   {
@@ -601,6 +598,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
       const CPPType &cpp_type = param_type.data_type().single_type();
       const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
       if (!grid_type) {
+        r_error_message = IFACE_("Grid type not supported");
         return false;
       }
 

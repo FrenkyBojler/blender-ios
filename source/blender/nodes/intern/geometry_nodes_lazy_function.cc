@@ -536,7 +536,8 @@ static void execute_multi_function_on_value_variant__field(
     const MultiFunction &fn,
     const std::shared_ptr<MultiFunction> &owned_fn,
     const Span<SocketValueVariant *> input_values,
-    const Span<SocketValueVariant *> output_values)
+    const Span<SocketValueVariant *> output_values,
+    std::string &r_error_message)
 {
   /* Check input types which determine how the function is evaluated. */
   bool any_input_is_field = false;
@@ -552,7 +553,8 @@ static void execute_multi_function_on_value_variant__field(
   }
 
   if (any_input_is_volume_grid) {
-    return execute_multi_function_on_value_variant__volume_grid(fn, input_values, output_values);
+    return execute_multi_function_on_value_variant__volume_grid(
+        fn, input_values, output_values, r_error_message);
   }
   if (any_input_is_field) {
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
@@ -583,7 +585,9 @@ bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
         mf::DataType::ForSingle(*from_cpp_type), mf::DataType::ForSingle(*to_cpp_type));
     SocketValueVariant input_variant = *static_cast<const SocketValueVariant *>(from_value);
     SocketValueVariant *output_variant = new (r_to_value) SocketValueVariant();
-    if (!execute_multi_function_on_value_variant(multi_fn, {}, {&input_variant}, {output_variant}))
+    std::string error_message;
+    if (!execute_multi_function_on_value_variant(
+            multi_fn, {}, {&input_variant}, {output_variant}, error_message))
     {
       std::destroy_at(output_variant);
       return false;
@@ -613,7 +617,9 @@ class LazyFunctionForImplicitConversion : public LazyFunction {
     SocketValueVariant *to_value = new (params.get_output_data_ptr(0)) SocketValueVariant();
     BLI_assert(from_value != nullptr);
     BLI_assert(to_value != nullptr);
-    if (!execute_multi_function_on_value_variant(fn_, {}, {from_value}, {to_value})) {
+    std::string error_message;
+    if (!execute_multi_function_on_value_variant(fn_, {}, {from_value}, {to_value}, error_message))
+    {
       std::destroy_at(to_value);
       construct_socket_default_value(dst_type_, to_value);
     }
@@ -736,7 +742,7 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
     lazy_function_interface_from_node(node, inputs_, outputs_, r_lf_index_by_bsocket);
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     Vector<SocketValueVariant *> input_values(inputs_.size());
     Vector<SocketValueVariant *> output_values(outputs_.size());
@@ -751,8 +757,9 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         output_values[i] = nullptr;
       }
     }
+    std::string error_message;
     if (!execute_multi_function_on_value_variant(
-            *fn_item_.fn, fn_item_.owned_fn, input_values, output_values))
+            *fn_item_.fn, fn_item_.owned_fn, input_values, output_values, error_message))
     {
       int available_output_index = 0;
       for (const bNodeSocket *bsocket : node_.output_sockets()) {
@@ -766,6 +773,19 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         std::destroy_at(output_value);
         construct_socket_default_value(*bsocket->typeinfo, output_value);
         available_output_index++;
+      }
+
+      if (!error_message.empty()) {
+        const auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+        const auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(
+            context.local_user_data);
+        if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+                user_data))
+        {
+          tree_logger->node_warnings.append(
+              *tree_logger->allocator,
+              {node_.identifier, {NodeWarningType::Error, error_message}});
+        }
       }
     }
     for (const int i : outputs_.index_range()) {
