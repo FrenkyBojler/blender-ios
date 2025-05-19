@@ -532,8 +532,16 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator("action.clean", text="Clean Channels").channels = True
 
         layout.separator()
-        layout.operator("anim.channels_group")
-        layout.operator("anim.channels_ungroup")
+        space_data = _context.space_data
+
+        if space_data.mode == 'GPENCIL':
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.operator("grease_pencil.layer_group_manage", text="Group Layers").action = "GROUP"
+            layout.operator("grease_pencil.layer_group_manage", text="Ungroup Layers").action = "UNGROUP"
+            #layout.operator("grease_pencil.layer_group_manage", text="Move Into Group").action = "MOVE_INTO"
+        else:
+            layout.operator("anim.channels_group")
+            layout.operator("anim.channels_ungroup")
 
         layout.separator()
         layout.operator_menu_enum("anim.channels_setting_toggle", "type")
@@ -820,8 +828,16 @@ class DOPESHEET_MT_channel_context_menu(Menu):
         layout.operator("anim.channels_setting_disable", text="Unprotect Channels").type = 'PROTECT'
 
         layout.separator()
-        layout.operator("anim.channels_group")
-        layout.operator("anim.channels_ungroup")
+
+        space_data = context.space_data
+        if space_data.mode == 'GPENCIL':
+            layout.operator_context = 'INVOKE_DEFAULT'
+            layout.operator("grease_pencil.layer_group_manage", text="Group Layers").action = "GROUP"
+            layout.operator("grease_pencil.layer_group_manage", text="Ungroup Layers").action = "UNGROUP"
+            #layout.operator("grease_pencil.layer_group_manage", text="Move Into Group").action = "MOVE_INTO"
+        else:
+            layout.operator("anim.channels_group")
+            layout.operator("anim.channels_ungroup")
 
         layout.separator()
         layout.operator("anim.channels_editable_toggle")
