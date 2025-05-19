@@ -87,11 +87,6 @@ static void extract_dense_float_voxels(const VolumeGridType grid_type,
           grid, bbox, reinterpret_cast<openvdb::Vec3f *>(r_voxels));
       return;
     }
-    case VOLUME_GRID_VECTOR_FLOAT_4D: {
-      extract_dense_voxels<openvdb::Vec4fGrid, openvdb::Vec4f>(
-          grid, bbox, reinterpret_cast<openvdb::Vec4f *>(&r_voxels));
-      return;
-    }
     case VOLUME_GRID_POINTS:
     case VOLUME_GRID_UNKNOWN:
       /* Zero channels to copy. */

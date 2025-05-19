@@ -332,9 +332,6 @@ VolumeGridType get_type(const openvdb::GridBase &grid)
   if (grid.isType<openvdb::Vec3fGrid>()) {
     return VOLUME_GRID_VECTOR_FLOAT;
   }
-  if (grid.isType<openvdb::Vec4fGrid>()) {
-    return VOLUME_GRID_VECTOR_FLOAT_4D;
-  }
   if (grid.isType<openvdb::BoolGrid>()) {
     return VOLUME_GRID_BOOLEAN;
   }
@@ -429,8 +426,6 @@ int get_channels_num(const VolumeGridType type)
     case VOLUME_GRID_VECTOR_DOUBLE:
     case VOLUME_GRID_VECTOR_INT:
       return 3;
-    case VOLUME_GRID_VECTOR_FLOAT_4D:
-      return 4;
     case VOLUME_GRID_POINTS:
     case VOLUME_GRID_UNKNOWN:
       return 0;

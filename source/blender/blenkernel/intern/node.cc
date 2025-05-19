@@ -4710,8 +4710,6 @@ std::optional<VolumeGridType> socket_type_to_grid_type(const eNodeSocketDatatype
       return VOLUME_GRID_INT;
     case SOCK_VECTOR:
       return VOLUME_GRID_VECTOR_FLOAT;
-    case SOCK_RGBA:
-      return VOLUME_GRID_VECTOR_FLOAT_4D;
     default:
       return std::nullopt;
   }
@@ -4728,8 +4726,6 @@ std::optional<eNodeSocketDatatype> grid_type_to_socket_type(const VolumeGridType
       return SOCK_INT;
     case VOLUME_GRID_VECTOR_FLOAT:
       return SOCK_VECTOR;
-    case VOLUME_GRID_VECTOR_FLOAT_4D:
-      return SOCK_RGBA;
     default:
       return std::nullopt;
   }
