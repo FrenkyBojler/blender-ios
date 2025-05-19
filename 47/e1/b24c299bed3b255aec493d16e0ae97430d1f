@@ -1,1 +1,2 @@
 Referenced by issue #139010, Motion Blur with USDs causes shading artefacts
+Referenced by commit 358de9e6c9f90a61b52c19f07494ca6e675fe745, Fix #139010: Cycles USD motion blur shading artifacts
