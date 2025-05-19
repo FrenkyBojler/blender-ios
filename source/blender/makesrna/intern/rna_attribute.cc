@@ -901,26 +901,20 @@ static PointerRNA rna_AttributeGroupID_active_get(PointerRNA *ptr)
 {
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
+  const std::optional<blender::StringRef> name = BKE_attributes_active_name_get(owner);
+  if (!name) {
+    return PointerRNA_NULL;
+  }
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::AttributeStorage &storage = pointcloud.attribute_storage.wrap();
-    int index = 0;
-    bke::Attribute *active_attr = nullptr;
-    storage.foreach_with_stop([&](bke::Attribute &attr) {
-      if (index == pointcloud.attributes_active_index) {
-        active_attr = &attr;
-        return false;
-      }
-      index++;
-      return true;
-    });
-    return RNA_pointer_create_with_parent(*ptr, &RNA_Attribute, active_attr);
+    bke::Attribute &attr = storage.lookup(*name);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_Attribute, &attr);
   }
 
-  CustomDataLayer *layer = BKE_attributes_active_get(owner);
-
-  PointerRNA attribute_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_Attribute, layer);
-  return attribute_ptr;
+  CustomDataLayer *layer = BKE_attribute_search_for_write(
+      owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_Attribute, layer);
 }
 
 static void rna_AttributeGroupID_active_set(PointerRNA *ptr,
@@ -1191,10 +1185,13 @@ static PointerRNA rna_AttributeGroupGreasePencilDrawing_active_get(PointerRNA *p
 {
   GreasePencilDrawing *drawing = static_cast<GreasePencilDrawing *>(ptr->data);
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
-  CustomDataLayer *layer = BKE_attributes_active_get(owner);
-
-  PointerRNA attribute_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Attribute, layer);
-  return attribute_ptr;
+  const std::optional<blender::StringRef> name = BKE_attributes_active_name_get(owner);
+  if (!name) {
+    return PointerRNA_NULL;
+  }
+  CustomDataLayer *layer = BKE_attribute_search_for_write(
+      owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_Attribute, layer);
 }
 
 static void rna_AttributeGroupGreasePencilDrawing_active_set(PointerRNA *ptr,
