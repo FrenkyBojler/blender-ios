@@ -195,6 +195,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   friend struct PaintOperationExecutor;
 
+  Brush *saved_active_brush_;
+
  public:
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
@@ -208,6 +210,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
                                       std::optional<int> start_point,
                                       float from_depth,
                                       float to_depth);
+  void toggle_pencil_brush_on(const bContext &C);
+  void toggle_pencil_brush_off(const bContext &C);
 };
 
 /**
@@ -1068,17 +1072,23 @@ void PaintOperation::toggle_pencil_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Main *bmain = CTX_data_main(&C);
-  Scene *scene = CTX_data_scene(&C);
   Brush *current_brush = BKE_paint_brush(paint);
 
-  /* Switch to the smooth brush if possible. */
+  /* Switch to the pencil brush if possible. */
   BKE_paint_brush_set_essentials(bmain, paint, "Pencil");
-  Brush *pencil = BKE_paint_brush(paint);
-  BLI_assert(pencil != nullptr);
-
-  init_brush(*smooth_brush);
+  Brush *pencil_brush = BKE_paint_brush(paint);
+  BLI_assert(pencil_brush != nullptr);
 
   saved_active_brush_ = current_brush;
+}
+
+void PaintOperation::toggle_pencil_brush_off(const bContext &C)
+{
+  Paint *paint = BKE_paint_get_active_from_context(&C);
+  if (saved_active_brush_) {
+    BKE_paint_brush_set(paint, saved_active_brush_);
+    saved_active_brush_ = nullptr;
+  }
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
@@ -1092,7 +1102,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
   if (do_fill_boundary_) {
-    toggle_pencil_brush_on(C);
+    this->toggle_pencil_brush_on(C);
   }
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
@@ -1680,6 +1690,10 @@ void PaintOperation::on_stroke_done(const bContext &C)
 
   /* Now we're done drawing. */
   grease_pencil.runtime->is_drawing_stroke = false;
+
+  if (do_fill_boundary_) {
+    this->toggle_pencil_brush_off(C);
+  }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
