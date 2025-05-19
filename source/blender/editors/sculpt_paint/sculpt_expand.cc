@@ -1559,7 +1559,7 @@ static void write_mask_data(Object &object, const Span<float> mask)
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
       const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
-      BM_mesh_elem_table_ensure(&bm, BM_VERT);
+      vertex_random_access_ensure(object);
       for (const int i : mask.index_range()) {
         BM_ELEM_CD_SET_FLOAT(BM_vert_at_index(&bm, i), offset, mask[i]);
       }
@@ -2778,7 +2778,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ob.sculpt->bm;
-      BM_mesh_elem_table_ensure(&bm, BM_VERT);
+      vertex_random_access_ensure(ob);
       if (boundary::vert_is_boundary(BM_vert_at_index(&bm, initial_vert))) {
         falloff_type = FalloffType::BoundaryTopology;
       }
