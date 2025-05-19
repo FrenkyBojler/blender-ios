@@ -613,7 +613,7 @@ static PointerRNA rna_AttributeGroupID_new(
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::MutableAttributeAccessor accessor = pointcloud.attributes_for_write();
-    if (accessor.domain_supported(AttrDomain(domain))) {
+    if (!accessor.domain_supported(AttrDomain(domain))) {
       BKE_report(reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
       return PointerRNA_NULL;
     }
