@@ -23,8 +23,8 @@ class VoxelFieldContext : public fn::FieldContext {
   VoxelFieldContext(const openvdb::math::Transform &transform, Span<openvdb::Coord> voxels);
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
-                               const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const override;
+                               const IndexMask &mask,
+                               ResourceScope &scope) const override;
 };
 
 /**
@@ -41,8 +41,8 @@ class TilesFieldContext : public fn::FieldContext {
                     const Span<openvdb::CoordBBox> tiles);
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
-                               const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const override;
+                               const IndexMask &mask,
+                               ResourceScope &scope) const override;
 };
 
 }  // namespace blender::bke
