@@ -32,7 +32,7 @@ const EnumPropertyItem rna_enum_volume_grid_data_type_items[] = {
     {VOLUME_GRID_VECTOR_FLOAT, "VECTOR_FLOAT", 0, "Float Vector", "3D float vector"},
     {VOLUME_GRID_VECTOR_DOUBLE, "VECTOR_DOUBLE", 0, "Double Vector", "3D double vector"},
     {VOLUME_GRID_VECTOR_INT, "VECTOR_INT", 0, "Integer Vector", "3D integer vector"},
-    {VOLUME_GRID_COLOR_FLOAT4, "COLOR_FLOAT4", 0, "Float Color", "RGBA"},
+    {VOLUME_GRID_VECTOR_FLOAT_4D, "VECTOR_FLOAT_4D", 0, "Float Vector 4D", "4D float vector"},
     {VOLUME_GRID_POINTS,
      "POINTS",
      0,

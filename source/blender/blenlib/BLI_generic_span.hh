@@ -259,6 +259,13 @@ class GMutableSpan {
     return GMutableSpan(*type_, POINTER_OFFSET(data_, type_->size * (size_ - new_size)), new_size);
   }
 
+  GMutableSpan cast(const CPPType &new_type) const
+  {
+    BLI_assert((size_ * type_->size) % new_type.size == 0);
+    const int64_t new_size = size_ * type_->size / new_type.size;
+    return GMutableSpan(new_type, data_, new_size);
+  }
+
   /**
    * Copy all values from another span into this span. This invokes undefined behavior when the
    * destination contains uninitialized data and T is not trivially copy constructible.

@@ -55,7 +55,7 @@ auto BKE_volume_grid_type_operation(const VolumeGridType grid_type, OpType &&op)
       return op.template operator()<openvdb::FloatGrid>();
     case VOLUME_GRID_VECTOR_FLOAT:
       return op.template operator()<openvdb::Vec3fGrid>();
-    case VOLUME_GRID_COLOR_FLOAT4:
+    case VOLUME_GRID_VECTOR_FLOAT_4D:
       return op.template operator()<openvdb::Vec4fGrid>();
     case VOLUME_GRID_BOOLEAN:
       return op.template operator()<openvdb::BoolGrid>();
@@ -90,7 +90,7 @@ void BKE_volume_grid_type_to_static_type(const VolumeGridType grid_type, Fn &&fn
       return fn(blender::TypeTag<openvdb::FloatGrid>());
     case VOLUME_GRID_VECTOR_FLOAT:
       return fn(blender::TypeTag<openvdb::Vec3fGrid>());
-    case VOLUME_GRID_COLOR_FLOAT4:
+    case VOLUME_GRID_VECTOR_FLOAT_4D:
       return fn(blender::TypeTag<openvdb::Vec4fGrid>());
     case VOLUME_GRID_BOOLEAN:
       return fn(blender::TypeTag<openvdb::BoolGrid>());

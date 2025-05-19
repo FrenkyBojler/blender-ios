@@ -119,23 +119,23 @@ template<> struct TraitsByOpenVDBValueType<openvdb::Vec3f> {
   using Traits = VolumeGridTraits<float3>;
 };
 
-template<> struct VolumeGridTraits<ColorGeometry4f> {
-  using BlenderType = ColorGeometry4f;
+template<> struct VolumeGridTraits<float4> {
+  using BlenderType = float4;
   using PrimitiveType = openvdb::Vec4f;
   using TreeType = openvdb::Vec4STree;
-  static constexpr VolumeGridType EnumType = VOLUME_GRID_COLOR_FLOAT4;
+  static constexpr VolumeGridType EnumType = VOLUME_GRID_VECTOR_FLOAT_4D;
 
-  static openvdb::Vec4f to_openvdb(const ColorGeometry4f &value)
+  static openvdb::Vec4f to_openvdb(const float4 &value)
   {
     return openvdb::Vec4f(*value);
   }
-  static ColorGeometry4f to_blender(const openvdb::Vec4f &value)
+  static float4 to_blender(const openvdb::Vec4f &value)
   {
-    return ColorGeometry4f(value.asV());
+    return float4(value.asV());
   }
 };
 template<> struct TraitsByOpenVDBValueType<openvdb::Vec4f> {
-  using Traits = VolumeGridTraits<ColorGeometry4f>;
+  using Traits = VolumeGridTraits<float4>;
 };
 
 template<typename T> using OpenvdbTreeType = typename VolumeGridTraits<T>::TreeType;

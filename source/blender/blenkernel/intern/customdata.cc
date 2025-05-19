@@ -5478,7 +5478,7 @@ std::optional<VolumeGridType> custom_data_type_to_volume_grid_type(const eCustom
     case CD_PROP_BOOL:
       return VOLUME_GRID_BOOLEAN;
     case CD_PROP_COLOR:
-      return VOLUME_GRID_COLOR_FLOAT4;
+      return VOLUME_GRID_VECTOR_FLOAT_4D;
     default:
       return std::nullopt;
   }
@@ -5495,7 +5495,7 @@ std::optional<eCustomDataType> volume_grid_type_to_custom_data_type(const Volume
       return CD_PROP_INT32;
     case VOLUME_GRID_BOOLEAN:
       return CD_PROP_BOOL;
-    case VOLUME_GRID_COLOR_FLOAT4:
+    case VOLUME_GRID_VECTOR_FLOAT_4D:
       return CD_PROP_COLOR;
     default:
       return std::nullopt;

@@ -173,8 +173,8 @@ template<typename Fn> void convert_to_static_type(const VolumeGridType type, con
     case VOLUME_GRID_VECTOR_FLOAT:
       fn(float3());
       break;
-    case VOLUME_GRID_COLOR_FLOAT4:
-      fn(ColorGeometry4f());
+    case VOLUME_GRID_VECTOR_FLOAT_4D:
+      fn(float4());
       break;
     default:
       break;
@@ -205,6 +205,9 @@ class SampleGridFunction : public mf::MultiFunction {
   {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+    if (dst.type().is<ColorGeometry4f>()) {
+      dst = dst.cast(CPPType::get<float4>());
+    }
 
     bke::VolumeTreeAccessToken tree_token;
     convert_to_static_type(grid_->grid_type(), [&](auto dummy) {
