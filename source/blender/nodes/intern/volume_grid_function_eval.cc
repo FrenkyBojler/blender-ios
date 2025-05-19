@@ -87,8 +87,11 @@ static void parallel_grid_topology_tasks_leaf_node(const LeafNodeT &node,
   using NodeMaskT = typename LeafNodeT::NodeMaskType;
 
   const int on_count = node.onVoxelCount();
-  const int on_count_threshold = 50;
-  if (on_count < on_count_threshold) {
+  /* This number is somewhat arbitrary. 64 is a 1/8th of the number of voxels in a standard leaf
+   * which is 8x8x8. It's a trade-off between benefitting from the better performance of
+   * leaf-processing vs. processing more voxels in a batch. */
+  const int on_count_threshold = 64;
+  if (on_count <= on_count_threshold) {
     /* The leaf contains only a few active voxels. It's beneficial to process them in a batch with
      * active voxels from other leafs. So only gather them here for later processing. */
     for (auto value_iter = node.cbeginValueOn(); value_iter.test(); ++value_iter) {
