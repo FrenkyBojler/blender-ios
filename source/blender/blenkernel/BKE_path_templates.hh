@@ -132,14 +132,23 @@ bool operator==(const Error &left, const Error &right);
 
 }  // namespace blender::bke::path_templates
 
+/**
+ * Given an RNA pointer to a property, build the path template variables
+ * relevant to it.
+ *
+ * The passed property *must* support path templates (i.e.
+ * PROP_PATH_SUPPORTS_TEMPLATES is set). Both `ptr` and `prop` must be non-null.
+ *
+ * \return The template variables for the property, or std::nullopt if the
+ * passed property doesn't support path templates.
+ */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
     PointerRNA *ptr, PropertyRNA *prop, const bContext &context);
 
 /**
- * Build a template variable map based on available information.
+ * Build a template variable map for render output paths.
  *
- * All parameters are allowed to be null, in which case the variables derived
- * from those parameters will simply not be included.
+ * All parameters should be non-null.
  *
  * This is typically used to create the variables passed to
  * `BKE_path_apply_template()`.

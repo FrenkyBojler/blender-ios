@@ -6,6 +6,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BLI_span.hh"
+
 #include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -13,6 +15,9 @@
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+
+#include "DNA_ID_enums.h"
+#include "DNA_node_types.h"
 
 namespace blender::bke::path_templates {
 
@@ -111,18 +116,74 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
                                                                  PropertyRNA *prop,
                                                                  const bContext &context)
 {
-  /* TODO: dispatch based on the specific property. */
+  BLI_assert(ptr != nullptr);
+  BLI_assert(prop != nullptr);
 
-  const blender::bke::path_templates::VariableMap variables =
-      BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                   &CTX_data_scene(&context)->r);
+  /* Properties that don't support path templates should never get passed to
+   * this function. */
+  BLI_assert((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0);
 
-  return variables;
+  const ID_Type id_type = GS(ptr->owner_id->name);
+  const char *struct_identifier = RNA_struct_identifier(ptr->type);
+  const char *prop_identifier = RNA_property_identifier(prop);
+
+  /* Check if an ordered set of strings is equal to another ordered set of
+   * strings. */
+  const auto streq = [](blender::Span<const char *> strings_1,
+                        blender::Span<const char *> strings_2) -> bool {
+    if (strings_1.size() != strings_2.size()) {
+      return false;
+    }
+
+    for (int i = 0; i < strings_1.size(); i++) {
+      if (strcmp(strings_1[i], strings_2[i]) != 0) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  /* Uncomment when adding new properties, to see what the values should be to
+   * identify the property. */
+  /*
+   * printf("---------------------------------\n");
+   * printf("ID type: '%c%c'\n", char(id_type), char(id_type >> 8));
+   * printf("PointerRNA identifier: '%s'\n", struct_identifier);
+   * printf("Prop identifier: '%s'\n", prop_identifier);
+   */
+
+  /* Render output path. */
+  if (id_type == ID_SCE &&
+      streq({struct_identifier, prop_identifier}, {"RenderSettings", "filepath"}))
+  {
+    return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
+                                                        &CTX_data_scene(&context)->r);
+  }
+
+  /* Compositor's File Output node's paths. */
+  if (id_type == ID_NT &&
+      reinterpret_cast<const bNodeTree *>(ptr->owner_id)->type == NTREE_COMPOSIT &&
+      (streq({struct_identifier, prop_identifier}, {"CompositorNodeOutputFile", "base_path"}) ||
+       streq({struct_identifier, prop_identifier}, {"NodeOutputFileSlotFile", "path"})))
+  {
+    return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
+                                                        &CTX_data_scene(&context)->r);
+  }
+
+  /* All paths that support path templates should be handled above, and any that
+   * aren't should already be rejected by the test at the top of the function. */
+  BLI_assert_unreachable();
+
+  return std::nullopt;
 }
 
 VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_path,
                                                          const RenderData *render_data)
 {
+  BLI_assert(blend_file_path != nullptr);
+  BLI_assert(render_data != nullptr);
+
   VariableMap variables;
 
   /* Blend file name. */
