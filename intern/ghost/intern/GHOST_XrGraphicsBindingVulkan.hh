@@ -64,7 +64,9 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
     char view_idx;
     int width;
     int height;
-    VkBuffer vk_buffer;
+    VkImage vk_image_blender;
+    VkImage vk_image_xr;
+    VkDeviceMemory vk_device_memory_xr;
   };
   std::vector<ImportedMemory> m_imported_memory;
 
