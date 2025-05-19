@@ -18,11 +18,6 @@
 #include <openvdb/math/Transform.h>
 #include <openvdb/tools/Merge.h>
 
-// #define DEBUG_TIME
-#ifdef DEBUG_TIME
-#  include "BLI_timeit.hh"
-#endif
-
 #include "volume_grid_function_eval.hh"
 
 namespace blender::nodes {
@@ -239,9 +234,6 @@ static void parallel_grid_topology_tasks(const openvdb::MaskTree &mask_tree,
                                          const ProcessVoxelsFn process_voxels_fn,
                                          const ProcessTilesFn process_tiles_fn)
 {
-#ifdef DEBUG_TIME
-  SCOPED_TIMER(__func__);
-#endif
   for (auto root_child_iter = mask_tree.cbeginRootChildren(); root_child_iter.test();
        ++root_child_iter)
   {
@@ -544,9 +536,6 @@ bool execute_multi_function_on_value_variant__volume_grid(
     const Span<bke::SocketValueVariant *> output_values,
     std::string &r_error_message)
 {
-#ifdef DEBUG_TIME
-  SCOPED_TIMER(__func__);
-#endif
   const int inputs_num = input_values.size();
   Array<bke::VolumeTreeAccessToken> input_volume_tokens(inputs_num);
   Array<const openvdb::GridBase *> input_grids(inputs_num, nullptr);
@@ -584,9 +573,6 @@ bool execute_multi_function_on_value_variant__volume_grid(
 
   openvdb::MaskTree mask_tree;
   {
-#ifdef DEBUG_TIME
-    SCOPED_TIMER("create_mask_tree");
-#endif
     for (const openvdb::GridBase *grid : input_grids) {
       if (!grid) {
         continue;
@@ -597,9 +583,6 @@ bool execute_multi_function_on_value_variant__volume_grid(
 
   Array<openvdb::GridBase::Ptr> output_grids(output_values.size());
   {
-#ifdef DEBUG_TIME
-    SCOPED_TIMER("create_output_grids");
-#endif
     for (const int i : output_values.index_range()) {
       const int param_index = input_values.size() + i;
       const mf::ParamType param_type = fn.param_type(param_index);
