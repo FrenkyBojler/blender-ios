@@ -40,7 +40,7 @@ static void cmp_node_map_uv_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_map_uv(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_composit_init_map_uv(bNodeTree * /*ntree*/, bNode *node)
@@ -266,7 +266,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_map_uv_cc
 
-void register_node_type_cmp_mapuv()
+static void register_node_type_cmp_mapuv()
 {
   namespace file_ns = blender::nodes::node_composite_map_uv_cc;
 
@@ -285,3 +285,4 @@ void register_node_type_cmp_mapuv()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_mapuv)
