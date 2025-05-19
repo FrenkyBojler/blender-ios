@@ -1084,7 +1084,7 @@ static Array<bool> duplicate_visibility_bmesh(const Object &object)
 {
   /* TODO: This const_cast shouldn't be needed, but it requires further refactoring of the related
    * bmesh methods */
-  BMesh &bm = *const_cast<BMesh*>(bke::object::bmesh_get(object));
+  BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
   Array<bool> result(bm.totvert);
   BM_mesh_elem_table_ensure(&bm, BM_VERT);
   for (const int i : result.index_range()) {

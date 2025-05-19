@@ -140,22 +140,23 @@ bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
 
 void SCULPT_vertex_random_access_ensure(Object &object)
 {
-  SculptSession &ss = *object.sculpt;
   if (blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::BMesh) {
-    BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-    BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+    BMesh &bm = *blender::bke::object::bmesh_get(object);
+    BM_mesh_elem_index_ensure(&bm, BM_VERT);
+    BM_mesh_elem_table_ensure(&bm, BM_VERT);
   }
 }
 
 int SCULPT_vertex_count_get(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
   switch (blender::bke::object::pbvh_get(object)->type()) {
     case blender::bke::pbvh::Type::Mesh:
       BLI_assert(object.type == OB_MESH);
       return static_cast<const Mesh *>(object.data)->verts_num;
-    case blender::bke::pbvh::Type::BMesh:
-      return BM_mesh_elem_count(ss.bm, BM_VERT);
+    case blender::bke::pbvh::Type::BMesh: {
+      BMesh &bm = *const_cast<BMesh *>(blender::bke::object::bmesh_get(object));
+      return BM_mesh_elem_count(&bm, BM_VERT);
+    }
     case blender::bke::pbvh::Type::Grids:
       return BKE_pbvh_get_grid_num_verts(object);
   }
@@ -796,16 +797,18 @@ static bool brush_type_needs_original(const char sculpt_brush_type)
               SCULPT_BRUSH_TYPE_POSE);
 }
 
-static bool brush_uses_topology_rake(const SculptSession &ss, const Brush &brush)
+static bool brush_uses_topology_rake(const Object &object, const Brush &brush)
 {
   return bke::brush::supports_topology_rake(brush) && (brush.topology_rake_factor > 0.0f) &&
-         (ss.bm != nullptr);
+         BKE_sculpt_dyntopo_active(object);
 }
 
 /**
  * Test whether the #StrokeCache.sculpt_normal needs update in #do_brush_action
  */
-static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush)
+static int sculpt_brush_needs_normal(const Object &object,
+                                     const SculptSession &ss,
+                                     const Brush &brush)
 {
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
@@ -823,7 +826,8 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
                SCULPT_BRUSH_TYPE_THUMB) ||
 
           (mask_tex->tex && mask_tex->brush_map_mode == MTEX_MAP_MODE_AREA)) ||
-         brush_uses_topology_rake(ss, brush) || BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);
+         brush_uses_topology_rake(object, brush) ||
+         BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);
 }
 
 static bool brush_needs_rake_rotation(const Brush &brush)
@@ -853,7 +857,7 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   return ((pbvh.type() == bke::pbvh::Type::BMesh) &&
 
-          bke::object::bmesh_get(object) &&
+          BKE_sculpt_dyntopo_active(object) &&
 
           (!ss.cache || (!ss.cache->alt_smooth)) &&
 
@@ -905,7 +909,8 @@ static void restore_mask_from_undo_step(Object &object)
     }
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      const int offset = CustomData_get_offset_named(&ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
+      const BMesh &bm = *bke::object::bmesh_get(object);
+      const int offset = CustomData_get_offset_named(&bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
       if (offset != -1) {
         node_mask.foreach_index(GrainSize(1), [&](const int i) {
           for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
@@ -3001,6 +3006,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  BMesh &bm = *bke::object::bmesh_get(ob);
 
   /* Build a list of all nodes that are potentially within the brush's area of influence. */
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
@@ -3044,7 +3050,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   pbvh.tag_topology_changed(node_mask);
   node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false);
+    BKE_pbvh_bmesh_node_save_orig(&bm, ss.bm_log, &nodes[i], false);
   });
 
   float max_edge_len;
@@ -3060,7 +3066,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   }
   const float min_edge_len = max_edge_len * dyntopo::detail_size::EDGE_LENGTH_MIN_FACTOR;
 
-  bke::pbvh::bmesh_update_topology(*ss.bm,
+  bke::pbvh::bmesh_update_topology(bm,
                                    pbvh,
                                    *ss.bm_log,
                                    mode,
@@ -3231,7 +3237,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
-  if (sculpt_brush_needs_normal(ss, brush)) {
+  if (sculpt_brush_needs_normal(ob, ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
 
@@ -3411,7 +3417,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  if (brush_uses_topology_rake(ss, brush)) {
+  if (brush_uses_topology_rake(ob, brush)) {
     brushes::do_bmesh_topology_rake_brush(
         depsgraph, sd, ob, node_mask, brush.topology_rake_factor);
   }
@@ -4146,7 +4152,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
             SCULPT_BRUSH_TYPE_BOUNDARY,
             SCULPT_BRUSH_TYPE_SMEAR,
             SCULPT_BRUSH_TYPE_THUMB) &&
-      !brush_uses_topology_rake(ss, brush))
+      !brush_uses_topology_rake(ob, brush))
   {
     return;
   }
@@ -5186,8 +5192,8 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
 
   if (update_type == UpdateType::Position) {
     if (pbvh.type() == bke::pbvh::Type::BMesh) {
-      SculptSession &ss = *ob.sculpt;
-      BKE_pbvh_bmesh_after_stroke(*ss.bm, pbvh);
+      BMesh &bm = *bke::object::bmesh_get(ob);
+      BKE_pbvh_bmesh_after_stroke(bm, pbvh);
     }
   }
 
@@ -5456,7 +5462,7 @@ namespace blender::ed::sculpt_paint {
 
 bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
 {
-  if (const SculptSession &ss = *object.sculpt; ss.bm) {
+  if (BKE_sculpt_dyntopo_active(object)) {
     BKE_report(reports, RPT_ERROR, "Not supported in dynamic topology mode");
     return false;
   }
@@ -6011,7 +6017,7 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const BMesh &bm = *ss.bm;
+      const BMesh &bm = *bke::object::bmesh_get(ob);
       for (const int vert : IndexRange(bm.totvert)) {
         if (fake_neighbors[vert] != FAKE_NEIGHBOR_NONE) {
           continue;
@@ -6258,10 +6264,9 @@ static SculptTopologyIslandCache calc_topology_islands_grids(const Object &objec
 
 static SculptTopologyIslandCache calc_topology_islands_bmesh(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *const_cast<BMesh *>(bke::object::bmesh_get(object));
   BM_mesh_elem_index_ensure(&bm, BM_VERT);
 
   IndexMaskMemory memory;
@@ -6627,13 +6632,14 @@ void calc_factors_common_bmesh(const Depsgraph &depsgraph,
                                Vector<float> &r_distances)
 {
   const SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
   r_factors.resize(verts.size());
   const MutableSpan<float> factors = r_factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, verts, factors);
@@ -6732,13 +6738,14 @@ void calc_factors_common_from_orig_data_bmesh(const Depsgraph &depsgraph,
                                               Vector<float> &r_distances)
 {
   SculptSession &ss = *object.sculpt;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
   r_factors.resize(verts.size());
   const MutableSpan<float> factors = r_factors;
-  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  fill_factor_from_hide_and_mask(bm, verts, factors);
   filter_region_clip_factors(ss, positions, factors);
   if (brush.flag & BRUSH_FRONTFACE) {
     calc_front_face(cache.view_normal_symm, normals, factors);

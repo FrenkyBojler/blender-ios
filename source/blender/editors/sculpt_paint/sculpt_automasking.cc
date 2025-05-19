@@ -980,7 +980,7 @@ void calc_vert_factors(const Depsgraph &depsgraph,
                        const MutableSpan<float> factors)
 {
   SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  const BMesh &bm = *bke::object::bmesh_get(object);
   const int face_set_offset = CustomData_get_offset_named(
       &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
 
@@ -1176,7 +1176,7 @@ static void fill_topology_automasking_factors_bmesh(const Sculpt &sd,
   const int num_verts = BM_mesh_elem_count(&bm, BM_VERT);
   flood_fill::FillDataBMesh flood = flood_fill::FillDataBMesh(num_verts);
 
-  flood.add_initial(*ss.bm, find_symm_verts_bmesh(ob, BM_elem_index_get(active_vert), radius));
+  flood.add_initial(bm, find_symm_verts_bmesh(ob, BM_elem_index_get(active_vert), radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
@@ -1207,6 +1207,7 @@ static void fill_topology_automasking_factors(const Depsgraph &depsgraph,
   /* TODO: This method is to be removed when more of the automasking code handles the different
    * pbvh types. */
   SculptSession &ss = *ob.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(ob);
 
   switch (bke::object::pbvh_get(ob)->type()) {
     case bke::pbvh::Type::Mesh:
@@ -1217,7 +1218,7 @@ static void fill_topology_automasking_factors(const Depsgraph &depsgraph,
       fill_topology_automasking_factors_grids(sd, ob, *ss.subdiv_ccg, factors);
       break;
     case bke::pbvh::Type::BMesh:
-      fill_topology_automasking_factors_bmesh(sd, ob, *ss.bm, factors);
+      fill_topology_automasking_factors_bmesh(sd, ob, bm, factors);
       break;
   }
 }
@@ -1273,8 +1274,7 @@ static void init_face_sets_masking(const Sculpt &sd, Object &ob, MutableSpan<flo
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const SculptSession &ss = *ob.sculpt;
-      const BMesh &bm = *ss.bm;
+      const BMesh &bm = *bke::object::bmesh_get(ob);
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       if (face_set_offset == -1) {
@@ -1438,8 +1438,7 @@ static void init_boundary_masking_bmesh(Object &object,
                                         const int propagation_steps,
                                         MutableSpan<float> factors)
 {
-  SculptSession &ss = *object.sculpt;
-  BMesh &bm = *ss.bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
   const int face_set_offset = CustomData_get_offset_named(
       &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
   const int num_verts = BM_mesh_elem_count(&bm, BM_VERT);
@@ -1601,8 +1600,7 @@ static void normal_occlusion_automasking_fill(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const SculptSession &ss = *ob.sculpt;
-      BMesh &bm = *ss.bm;
+      BMesh &bm = *bke::object::bmesh_get(ob);
       threading::parallel_for(IndexRange(bm.totvert), 1024, [&](const IndexRange range) {
         for (const int i : range) {
           const BMVert *vert = BM_vert_at_index(&bm, i);

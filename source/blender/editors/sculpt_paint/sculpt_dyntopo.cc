@@ -67,7 +67,7 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
   BKE_mesh_mselect_clear(mesh);
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
-  BMesh& bm = bke::object::bmesh_ensure(ob, allocsize);
+  BMesh &bm = bke::object::bmesh_ensure(ob, allocsize);
 
   BMeshFromMeshParams convert_params{};
   convert_params.calc_face_normal = true;

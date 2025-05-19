@@ -174,7 +174,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
       if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
               name))
       {
-        if (const BMesh* bm = bke::object::bmesh_get(*ob)) {
+        if (const BMesh *bm = bke::object::bmesh_get(*ob)) {
           if (bmesh_attribute_exists(*bm, *meta_data, name)) {
             attrs.append(pbvh::GenericRequest(name));
           }

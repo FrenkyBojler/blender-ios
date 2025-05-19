@@ -2061,7 +2061,7 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
 {
   SculptSession &ss = *ob->sculpt;
 
-  BMesh* bm = blender::bke::object::bmesh_get(*ob);
+  BMesh *bm = blender::bke::object::bmesh_get(*ob);
   if (bm) {
     if (ob->data) {
       if (reorder) {
@@ -2317,7 +2317,7 @@ MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
   return sculpt_multires_modifier_get(scene, ob, false);
 }
 
-bool BKE_sculpt_dyntopo_active(const Object& object)
+bool BKE_sculpt_dyntopo_active(const Object &object)
 {
   const Mesh &mesh = *static_cast<Mesh *>(object.data);
   return mesh.flag & ME_SCULPT_DYNAMIC_TOPOLOGY;
@@ -2855,9 +2855,10 @@ pbvh::Tree *pbvh_get(Object &object)
   return object.sculpt->pbvh.get();
 }
 
-BMesh &bmesh_ensure(Object &object, const BMAllocTemplate& alloc_template) {
+BMesh &bmesh_ensure(Object &object, const BMAllocTemplate &alloc_template)
+{
   BLI_assert(object.type == OB_MESH);
-  if (BMesh* bm = bmesh_get(object)) {
+  if (BMesh *bm = bmesh_get(object)) {
     return *bm;
   }
 
@@ -2888,7 +2889,8 @@ BMesh *bmesh_get(Object &object)
   return object.sculpt->bm;
 }
 
-const BMesh *bmesh_get(const Object &object) {
+const BMesh *bmesh_get(const Object &object)
+{
   BLI_assert(object.type == OB_MESH);
   const Mesh *mesh = static_cast<Mesh *>(object.data);
   BLI_assert(mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
@@ -2901,11 +2903,6 @@ const BMesh *bmesh_get(const Object &object) {
 }
 
 }  // namespace blender::bke::object
-
-bool BKE_object_sculpt_use_dyntopo(const Object *object)
-{
-  return object->sculpt && object->sculpt->bm;
-}
 
 bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
 {

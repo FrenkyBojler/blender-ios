@@ -400,7 +400,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* BMesh for dynamic topology sculpting */
   /* TODO: Make this a unique_ptr */
-  BMesh* bm = nullptr;
+  BMesh *bm = nullptr;
   /* Undo/redo log for dynamic topology sculpting */
   BMLog *bm_log = nullptr;
 
@@ -610,7 +610,7 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
-bool BKE_sculpt_dyntopo_active(const Object& object);
+bool BKE_sculpt_dyntopo_active(const Object &object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,
@@ -652,7 +652,6 @@ BMesh *bmesh_get(Object &object);
 const BMesh *bmesh_get(const Object &object);
 
 }  // namespace blender::bke::object
-bool BKE_object_sculpt_use_dyntopo(const Object *object);
 
 /* paint_canvas.cc */
 

@@ -3150,7 +3150,7 @@ static void init_boundary_bmesh(Object &object,
   const SculptSession &ss = *object.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
-  BMesh *bm = ss.bm;
+  BMesh &bm = *bke::object::bmesh_get(object);
 
   ActiveVert initial_vert_ref = ss.active_vert();
   if (std::holds_alternative<std::monostate>(initial_vert_ref)) {
@@ -3177,13 +3177,13 @@ static void init_boundary_bmesh(Object &object,
   if (ss.cache->boundaries[symm_area]) {
     switch (brush.boundary_deform_type) {
       case BRUSH_BOUNDARY_DEFORM_BEND:
-        bend_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        bend_data_init_bmesh(&bm, *ss.cache->boundaries[symm_area]);
         break;
       case BRUSH_BOUNDARY_DEFORM_EXPAND:
-        slide_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        slide_data_init_bmesh(&bm, *ss.cache->boundaries[symm_area]);
         break;
       case BRUSH_BOUNDARY_DEFORM_TWIST:
-        twist_data_init_bmesh(bm, *ss.cache->boundaries[symm_area]);
+        twist_data_init_bmesh(&bm, *ss.cache->boundaries[symm_area]);
         break;
       case BRUSH_BOUNDARY_DEFORM_INFLATE:
       case BRUSH_BOUNDARY_DEFORM_GRAB:
@@ -3192,7 +3192,7 @@ static void init_boundary_bmesh(Object &object,
         break;
     }
 
-    init_falloff_bmesh(bm, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
+    init_falloff_bmesh(&bm, brush, ss.cache->initial_radius, *ss.cache->boundaries[symm_area]);
   }
 }
 
@@ -3342,6 +3342,7 @@ std::unique_ptr<SculptBoundary> data_init(const Depsgraph &depsgraph,
   /* TODO: Temporary bridge method to help in refactoring, this method should be deprecated
    * entirely. */
   const SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   switch (pbvh.type()) {
@@ -3354,7 +3355,7 @@ std::unique_ptr<SculptBoundary> data_init(const Depsgraph &depsgraph,
       return data_init_grids(object, brush, vert, radius);
     }
     case (bke::pbvh::Type::BMesh): {
-      BMVert *vert = BM_vert_at_index(ss.bm, initial_vert);
+      BMVert *vert = BM_vert_at_index(&bm, initial_vert);
       return data_init_bmesh(object, brush, vert, radius);
     }
   }
@@ -3498,13 +3499,13 @@ std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
                                                 BMVert *initial_vert,
                                                 const float radius)
 {
-  SculptSession &ss = *object.sculpt;
+  BMesh &bm = *bke::object::bmesh_get(object);
 
   SCULPT_vertex_random_access_ensure(object);
   boundary::ensure_boundary_info(object);
 
   const std::optional<BMVert *> boundary_initial_vert = get_closest_boundary_vert_bmesh(
-      object, ss.bm, *initial_vert, radius);
+      object, &bm, *initial_vert, radius);
 
   if (!boundary_initial_vert) {
     return nullptr;
@@ -3523,10 +3524,10 @@ std::unique_ptr<SculptBoundary> data_init_bmesh(Object &object,
   boundary->initial_vert_i = boundary_initial_vert_index;
   boundary->initial_vert_position = (*boundary_initial_vert)->co;
 
-  indices_init_bmesh(object, ss.bm, **boundary_initial_vert, *boundary);
+  indices_init_bmesh(object, &bm, **boundary_initial_vert, *boundary);
 
   const float boundary_radius = brush ? radius * (1.0f + brush->boundary_offset) : radius;
-  edit_data_init_bmesh(ss.bm, boundary_initial_vert_index, boundary_radius, *boundary);
+  edit_data_init_bmesh(&bm, boundary_initial_vert_index, boundary_radius, *boundary);
 
   return boundary;
 }

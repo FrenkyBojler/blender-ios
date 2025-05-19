@@ -1202,7 +1202,7 @@ void Tree::update_bounds(const Depsgraph &depsgraph, const Object &object)
       break;
     }
     case Type::BMesh: {
-      const BMesh& bm = *object::bmesh_get(object);
+      const BMesh &bm = *object::bmesh_get(object);
       this->update_bounds_bmesh(bm);
       break;
     }
