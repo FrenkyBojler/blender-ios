@@ -639,6 +639,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
+  /* Allow to use Reverse-Z on OpenGL. Does nothing in other backend. */
+  info.builtins(BuiltinBits::CLIP_CONTROL);
+
   std::stringstream global_vars;
   switch (geometry_type) {
     case MAT_GEOM_MESH:
