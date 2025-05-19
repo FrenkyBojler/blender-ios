@@ -146,6 +146,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
 
   /* Uncomment when adding new properties, to see what the values should be to
    * identify the property. */
+
   /*
    * printf("---------------------------------\n");
    * printf("ID type: '%c%c'\n", char(id_type), char(id_type >> 8));
