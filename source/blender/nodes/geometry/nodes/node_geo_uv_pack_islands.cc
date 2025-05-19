@@ -13,8 +13,13 @@
 #include "UI_interface.hh"
 
 namespace blender::nodes::node_geo_uv_pack_islands_cc {
-
-NODE_STORAGE_FUNCS(NodeGeometryUVPackIslands)
+  
+/** Local node enum that maps to eUVPackIsland_ShapeMethod in GEO_uv_pack.hh*/
+enum class UVPackIslandsShapeMethod : int16_t {
+  AABB = 0,    // ED_UVPACK_SHAPE_AABB
+  CONVEX = 1,  // ED_UVPACK_SHAPE_CONVEX
+  CONCAVE = 2, // ED_UVPACK_SHAPE_CONCAVE
+};
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -35,16 +40,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
   layout->prop(ptr, "shape_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryUVPackIslands *data = MEM_callocN<NodeGeometryUVPackIslands>(__func__);
-  data->shape_method = GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB;
-  node->storage = data;
+  node->custom1 = int(UVPackIslandsShapeMethod::AABB);
 }
 
 static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
@@ -160,9 +161,9 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const NodeGeometryUVPackIslands &storage = node_storage(params.node());
+  const bNode &node = params.node();
   const eUVPackIsland_ShapeMethod shape_method = static_cast<eUVPackIsland_ShapeMethod>(
-      storage.shape_method);
+      node.custom1);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
@@ -176,17 +177,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem shape_method_items[] = {
-      {GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB,
+      {int(UVPackIslandsShapeMethod::AABB),
        "AABB",
        0,
        "Bounding Box",
        "Uses axis-aligned bounding boxes for packing (fastest, least efficient)"},
-      {GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_CONVEX,
+      {int(UVPackIslandsShapeMethod::CONVEX),
        "CONVEX",
        0,
        "Convex Hull",
        "Uses convex hull approximation of islands (good balance of speed and efficiency)"},
-      {GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_CONCAVE,
+      {int(UVPackIslandsShapeMethod::CONCAVE),
        "CONCAVE",
        0,
        "Exact Shape",
@@ -199,8 +200,8 @@ static void node_rna(StructRNA *srna)
                     "Shape method",
                     "Method used for packing UV islands",
                     shape_method_items,
-                    NOD_storage_enum_accessors(shape_method),
-                    GEO_NODE_UV_PACK_ISLANDS_SHAPE_METHOD_AABB);
+                    NOD_inline_enum_accessors(custom1),
+                    int(UVPackIslandsShapeMethod::AABB));
 }
 
 static void node_register()
@@ -214,8 +215,6 @@ static void node_register()
   ntype.enum_name_legacy = "UV_PACK_ISLANDS";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
-      ntype, "NodeGeometryUVPackIslands", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
