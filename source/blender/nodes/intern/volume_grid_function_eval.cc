@@ -7,10 +7,10 @@
 #include "FN_multi_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
-#include "BKE_geometry_fields.hh"
 #include "BKE_node.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid_fields.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include <fmt/format.h>
@@ -74,79 +74,6 @@ using ProcessLeafFn = FunctionRef<void(const LeafNodeMask &leaf_node_mask,
                                        GetVoxelsFn get_voxels_fn)>;
 using ProcessTilesFn = FunctionRef<void(Span<openvdb::CoordBBox> tiles)>;
 using ProcessVoxelsFn = FunctionRef<void(Span<openvdb::Coord> voxels)>;
-
-class VoxelFieldContext : public fn::FieldContext {
- private:
-  const openvdb::math::Transform &transform_;
-  Span<openvdb::Coord> voxels_;
-
- public:
-  VoxelFieldContext(const openvdb::math::Transform &transform, const Span<openvdb::Coord> voxels)
-      : transform_(transform), voxels_(voxels)
-  {
-  }
-
-  GVArray get_varray_for_input(const fn::FieldInput &field_input,
-                               const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const override
-  {
-    const bke::AttributeFieldInput *attribute_field_input =
-        dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
-    if (attribute_field_input == nullptr) {
-      return {};
-    }
-    if (attribute_field_input->attribute_name() != "position") {
-      return {};
-    }
-
-    Array<float3> positions(voxels_.size());
-    threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-      for (const int64_t i : range) {
-        const openvdb::Coord &voxel = voxels_[i];
-        const openvdb::Vec3d center = transform_.indexToWorld(voxel);
-        positions[i] = float3(center.x(), center.y(), center.z());
-      }
-    });
-    return VArray<float3>::ForContainer(std::move(positions));
-  }
-};
-
-class TilesFieldContext : public fn::FieldContext {
- private:
-  const openvdb::math::Transform &transform_;
-  Span<openvdb::CoordBBox> tiles_;
-
- public:
-  TilesFieldContext(const openvdb::math::Transform &transform,
-                    const Span<openvdb::CoordBBox> tiles)
-      : transform_(transform), tiles_(tiles)
-  {
-  }
-
-  GVArray get_varray_for_input(const fn::FieldInput &field_input,
-                               const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const override
-  {
-    const bke::AttributeFieldInput *attribute_field_input =
-        dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
-    if (attribute_field_input == nullptr) {
-      return {};
-    }
-    if (attribute_field_input->attribute_name() != "position") {
-      return {};
-    }
-
-    Array<float3> positions(tiles_.size());
-    threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-      for (const int64_t i : range) {
-        const openvdb::CoordBBox &tile = tiles_[i];
-        const openvdb::Vec3d center = transform_.indexToWorld(tile.getCenter());
-        positions[i] = float3(center.x(), center.y(), center.z());
-      }
-    });
-    return VArray<float3>::ForContainer(std::move(positions));
-  }
-};
 
 template<typename LeafNodeT>
 static void parallel_grid_topology_tasks_leaf_node(const LeafNodeT &node,
@@ -288,8 +215,6 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
             params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), values.size()));
           }
           else {
-            /* TODO: Sometimes it may be guaranteed that the background values are set
-             * correctly. */
             MutableSpan copied_values = scope.allocator().construct_array_copy(values);
             const auto &background = tree.background();
             for (auto missing_it = missing_mask.beginOn(); missing_it.test(); ++missing_it) {
@@ -311,7 +236,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       const CPPType &type = field.cpp_type();
       Array<openvdb::Coord> voxels(index_mask.min_array_size());
       get_voxels_fn(voxels);
-      VoxelFieldContext field_context{transform, voxels};
+      bke::VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, &index_mask};
       GMutableSpan values{
           type, scope.allocator().allocate_array(type, voxels.size()), voxels.size()};
@@ -382,7 +307,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
     else if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
-      VoxelFieldContext field_context{transform, voxels};
+      bke::VoxelFieldContext field_context{transform, voxels};
       fn::FieldEvaluator evaluator{field_context, voxels_num};
       GMutableSpan values{type, scope.allocator().allocate_array(type, voxels_num), voxels_num};
       evaluator.add_with_destination(field, values);
@@ -465,7 +390,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
     else if (value_variant.is_context_dependent_field()) {
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
-      TilesFieldContext field_context{transform, tiles};
+      bke::TilesFieldContext field_context{transform, tiles};
       fn::FieldEvaluator evaluator{field_context, tiles_num};
       GMutableSpan values{type, scope.allocator().allocate_array(type, tiles_num), tiles_num};
       evaluator.add_with_destination(field, values);
@@ -633,7 +558,6 @@ bool execute_multi_function_on_value_variant__volume_grid(
       });
 
   for (const int i : output_values.index_range()) {
-    /* TODO: Don't compute unused outputs. */
     if (bke::SocketValueVariant *output_value = output_values[i]) {
       output_value->set(bke::GVolumeGrid(std::move(output_grids[i])));
     }
