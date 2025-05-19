@@ -61,6 +61,12 @@ struct uiItem {
 
 enum eUI_Item_Flag : uint16_t;
 
+enum class LayoutSeparatorType : int8_t {
+  Auto,
+  Space,
+  Line,
+};
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -243,6 +249,33 @@ struct uiLayout : uiItem {
   void label(blender::StringRef name, int icon);
 
   /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(MenuType *mt, std::optional<blender::StringRef> name, int icon);
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(blender::StringRef menuname, std::optional<blender::StringRef> name, int icon);
+
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * \param name: Label to show in the menu button.
+   * \param func: Function that generates the menu layout.
+   * \param arg: Pointer to data used as last argument in \a func.
+   */
+  void menu_fn(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *arg);
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * \param name: Label to show in the menu button.
+   * \param func: Function that generates the menu layout.
+   * \param argN: Pointer to data used as last argument in \a func, it will be
+   * freed with the menu button.
+   */
+  void menu_fn_argN_free(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *argN);
+
+  /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param opname: Operator id name.
    * \param name: Text to show in the layout.
@@ -261,15 +294,18 @@ struct uiLayout : uiItem {
             int index,
             int value,
             eUI_Item_Flag flag,
-            std::optional<blender::StringRefNull> name_opt,
+            std::optional<blender::StringRef> name_opt,
             int icon,
-            std::optional<blender::StringRefNull> placeholder = std::nullopt);
+            std::optional<blender::StringRef> placeholder = std::nullopt);
   /** Adds a RNA property item, and exposes it into the layout. */
   void prop(PointerRNA *ptr,
             blender::StringRefNull propname,
             eUI_Item_Flag flag,
-            std::optional<blender::StringRefNull> name,
+            std::optional<blender::StringRef> name,
             int icon);
+
+  /** Adds a separator item, that adds empty space between items. */
+  void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
 enum {
@@ -439,12 +475,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 /* Layout create functions. */
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
-
-enum class LayoutSeparatorType : int8_t {
-  Auto,
-  Space,
-  Line,
-};
 
 /* items */
 
@@ -648,14 +678,6 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
 /**
- * Menu.
- */
-void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
-void uiItemM(uiLayout *layout,
-             blender::StringRef menuname,
-             std::optional<blender::StringRef> name,
-             int icon);
-/**
  * Menu contents.
  */
 void uiItemMContents(uiLayout *layout, blender::StringRef menuname);
@@ -675,12 +697,7 @@ void uiItemDecoratorR(uiLayout *layout,
                       PointerRNA *ptr,
                       std::optional<blender::StringRefNull> propname,
                       int index);
-/** Separator item */
-void uiItemS(uiLayout *layout);
-/** Separator item */
-void uiItemS_ex(uiLayout *layout,
-                float factor,
-                LayoutSeparatorType type = LayoutSeparatorType::Auto);
+
 /** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
 
@@ -715,13 +732,6 @@ void uiItemPopoverPanelFromGroup(uiLayout *layout,
 /**
  * Level items.
  */
-void uiItemMenuF(
-    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *arg);
-/**
- * Version of #uiItemMenuF that free's `argN`.
- */
-void uiItemMenuFN(
-    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumFullO_ptr(uiLayout *layout,
                              const bContext *C,
                              wmOperatorType *ot,
