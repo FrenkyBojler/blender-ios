@@ -2253,7 +2253,7 @@ static void ensure_sculptsession_data(Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
   islands::ensure_cache(ob);
-  SCULPT_vertex_random_access_ensure(ob);
+  vertex_random_access_ensure(ob);
   boundary::ensure_boundary_info(ob);
   if (!ss.tex_pool) {
     ss.tex_pool = BKE_image_pool_new();
