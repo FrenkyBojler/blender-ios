@@ -704,6 +704,10 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     WM_cursor_set(win, WM_CURSOR_X_MOVE);
     return;
   }
+  if (find_hovered_column_header(sspreadsheet, *region, cursor_re)) {
+    WM_cursor_set(win, WM_CURSOR_HAND);
+    return;
+  }
   WM_cursor_set(win, WM_CURSOR_DEFAULT);
 }
 

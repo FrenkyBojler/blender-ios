@@ -321,6 +321,8 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
     return OPERATOR_PASS_THROUGH;
   }
 
+  WM_cursor_set(CTX_wm_window(C), WM_CURSOR_HAND_CLOSED);
+
   ReorderColumnData *data = MEM_new<ReorderColumnData>(__func__);
   data->column = column_to_move;
   data->initial_cursor_x_view = UI_view2d_region_to_view_x(&region.v2d, cursor_re.x);
@@ -370,13 +372,18 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
     }
   }
 
+  auto cleanup_on_finish = [&]() {
+    sspreadsheet.runtime->reorder_column_visualization_data.reset();
+    MEM_delete(&data);
+    ED_region_tag_redraw(&region);
+    WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+  };
+
   switch (event->type) {
     case RIGHTMOUSE:
     case EVT_ESCKEY: {
       UI_view2d_edge_pan_cancel(C, &data.pan_data);
-      sspreadsheet.runtime->reorder_column_visualization_data.reset();
-      MEM_delete(&data);
-      ED_region_tag_redraw(&region);
+      cleanup_on_finish();
       return OPERATOR_CANCELLED;
     }
     case LEFTMOUSE: {
@@ -384,9 +391,7 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
         BLI_remlink(&sspreadsheet.columns, data.column);
         BLI_insertlinkafter(&sspreadsheet.columns, new_prev_column, data.column);
       }
-      sspreadsheet.runtime->reorder_column_visualization_data.reset();
-      MEM_delete(&data);
-      ED_region_tag_redraw(&region);
+      cleanup_on_finish();
       return OPERATOR_FINISHED;
     }
     case MOUSEMOVE: {
