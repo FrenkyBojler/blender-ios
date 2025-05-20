@@ -10,6 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
@@ -529,7 +532,7 @@ static void brush_defaults(Brush *brush)
 
 Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 {
-  Brush *brush = (Brush *)BKE_id_new(bmain, ID_BR, name);
+  Brush *brush = BKE_id_new<Brush>(bmain, name);
 
   brush->ob_mode = ob_mode;
 
