@@ -29,6 +29,7 @@ class GHOST_XrGraphicsBindingVulkanBase : public GHOST_IXrGraphicsBinding {
 
  protected:
   GHOST_ContextVK &m_ghost_ctx;
+  uint32_t m_view_count = 0;
 
  private:
   std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
@@ -134,6 +135,18 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
   void submitToSwapchainEnd() override;
 
  private:
+  /**
+   * Semaphore to synchronize multi view rendering. Each Semaphore is signalled by a view and
+   * waited for by the next view. Semaphores are reused by the next frame.
+   */
+  std::vector<VkSemaphore> m_vk_semaphores;
+  /**
+   * Fence to signal by the last swap chain image. This will inform OpenXR to proceed and temp
+   * resources can be freed.
+   */
+  VkFence m_vk_fence = VK_NULL_HANDLE;
+  std::vector<GHOST_VulkanOpenXRData> m_openxr_datas;
+
   static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn;
   static PFN_xrGetVulkanGraphicsDeviceKHR s_xrGetVulkanGraphicsDeviceKHR_fn;
   static PFN_xrGetVulkanInstanceExtensionsKHR s_xrGetVulkanInstanceExtensionsKHR;

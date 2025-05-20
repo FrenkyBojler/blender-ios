@@ -101,6 +101,7 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkanBase::cre
     base_images.push_back(reinterpret_cast<XrSwapchainImageBaseHeader *>(&image));
   }
   m_image_cache.push_back(std::move(vulkan_images));
+  m_view_count = image_count;
 
   return base_images;
 }

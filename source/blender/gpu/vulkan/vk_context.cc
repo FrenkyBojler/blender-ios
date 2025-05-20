@@ -522,11 +522,12 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       synchronization.vk_image_layout = VK_IMAGE_LAYOUT_GENERAL;
       synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
       render_graph.add_node(synchronization);
-      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+      flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         openxr_data.shared.xr_wait_semaphore,
+                         openxr_data.shared.xr_signal_semaphore,
+                         openxr_data.shared.xr_fence);
 
-      device.resources.remove_image(openxr_data.shared.xr_swapchain_image);
       break;
     }
   }
@@ -557,8 +558,11 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 #endif
       break;
 
-    case GHOST_kVulkanXRModeShared:
+    case GHOST_kVulkanXRModeShared: {
+      VKDevice &device = VKBackend::get().device;
+      device.resources.remove_image(openxr_data.shared.xr_swapchain_image);
       break;
+    }
   }
 }
 

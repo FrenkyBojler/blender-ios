@@ -29,7 +29,15 @@ PFN_xrGetVulkanInstanceExtensionsKHR
 PFN_xrGetVulkanDeviceExtensionsKHR
     GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanDeviceExtensionsKHR = nullptr;
 
-GHOST_XrGraphicsBindingVulkanShared::~GHOST_XrGraphicsBindingVulkanShared() {}
+GHOST_XrGraphicsBindingVulkanShared::~GHOST_XrGraphicsBindingVulkanShared()
+{
+  for (VkSemaphore vk_semaphore : m_vk_semaphores) {
+    vkDestroySemaphore(oxr_binding.vk.device, vk_semaphore, nullptr);
+  }
+  m_vk_semaphores.clear();
+
+  vkDestroyFence(oxr_binding.vk.device, m_vk_fence, nullptr);
+}
 
 bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
     GHOST_Context &ghost_ctx,
@@ -101,9 +109,9 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
   return true;
 }
 
-void GHOST_XrGraphicsBindingVulkanShared::initFromGhostContext(GHOST_Context &ghost_ctx,
-                                                               XrInstance instance,
-                                                               XrSystemId system_id)
+void GHOST_XrGraphicsBindingVulkanShared::initFromGhostContext(GHOST_Context & /*ghost_ctx*/,
+                                                               XrInstance /*instance*/,
+                                                               XrSystemId /*system_id*/)
 {
   GHOST_VulkanHandles vulkan_handles = {};
   m_ghost_ctx.getVulkanHandles(vulkan_handles);
@@ -114,6 +122,17 @@ void GHOST_XrGraphicsBindingVulkanShared::initFromGhostContext(GHOST_Context &gh
                     vulkan_handles.device,
                     vulkan_handles.graphic_queue_family,
                     0};
+
+  m_openxr_datas.resize(m_view_count, {});
+  m_vk_semaphores.resize(m_view_count);
+  for (int view_idx = 0; view_idx < m_view_count; view_idx++) {
+    VkSemaphoreCreateInfo vk_semaphore_create_info = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+    vkCreateSemaphore(
+        vulkan_handles.device, &vk_semaphore_create_info, nullptr, &m_vk_semaphores[view_idx]);
+  }
+  VkFenceCreateInfo vk_fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, 0};
+  vkCreateFence(vulkan_handles.device, &vk_fence_create_info, nullptr, &m_vk_fence);
 }
 
 void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainBegin() {}
@@ -123,11 +142,27 @@ void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainImage(
   XrSwapchainImageVulkan2KHR &vulkan_image = *reinterpret_cast<XrSwapchainImageVulkan2KHR *>(
       &swapchain_image);
 
-  GHOST_VulkanOpenXRData openxr_data = {GHOST_kVulkanXRModeShared};
+  GHOST_VulkanOpenXRData &openxr_data = m_openxr_datas[draw_info.view_idx];
+  openxr_data.data_transfer_mode = GHOST_kVulkanXRModeShared;
   openxr_data.shared.view_offset = {draw_info.ofsx, draw_info.ofsy};
   openxr_data.shared.xr_swapchain_image = vulkan_image.image;
+  openxr_data.shared.xr_wait_semaphore = draw_info.view_idx == 0 ?
+                                             VK_NULL_HANDLE :
+                                             m_vk_semaphores[draw_info.view_idx - 1];
+  openxr_data.shared.xr_signal_semaphore = (draw_info.view_idx == m_view_count - 1) ?
+                                               VK_NULL_HANDLE :
+                                               m_vk_semaphores[draw_info.view_idx];
+  openxr_data.shared.xr_fence = (draw_info.view_idx == m_view_count - 1) ? m_vk_fence :
+                                                                           VK_NULL_HANDLE;
 
   m_ghost_ctx.openxr_acquire_framebuffer_image_callback_(&openxr_data);
-  m_ghost_ctx.openxr_release_framebuffer_image_callback_(&openxr_data);
 }
-void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainEnd() {}
+
+void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainEnd()
+{
+  vkWaitForFences(oxr_binding.vk.device, 1, &m_vk_fence, false, UINT64_MAX);
+  vkResetFences(oxr_binding.vk.device, 1, &m_vk_fence);
+  for (GHOST_VulkanOpenXRData &openxr_data : m_openxr_datas) {
+    m_ghost_ctx.openxr_release_framebuffer_image_callback_(&openxr_data);
+  }
+}
