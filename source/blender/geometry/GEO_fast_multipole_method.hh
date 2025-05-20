@@ -62,13 +62,13 @@ void akdbh_accumulate_in(OffsetIndices<int> buckets_offsets,
                          int total_depth,
                          Span<float> src_joints_min_distance,
                          Span<float3> src_joints_centre,
-                         GSpan src_joints_value,
-                         Span<float3> src_bucket_position,
-                         GSpan src_bucket_value,
+                         Span<Span<float>> src_joints_value,
+                         std::array<Span<float>, 3> src_bucket_position,
+                         Span<Span<float>> src_bucket_value,
                          int power_value,
                          float offset_value,
-                         Span<float3> sample_position,
-                         GMutableSpan dst_buckets_data,
+                         std::array<Span<float>, 3> sample_position,
+                         Span<MutableSpan<float>> dst_buckets_data,
                          std::optional<IndexRange> sampler_to_bucket_range = std::nullopt);
 
 }  // namespace blender::geometry::fmm

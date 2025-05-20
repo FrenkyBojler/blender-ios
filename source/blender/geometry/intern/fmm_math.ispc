@@ -113,63 +113,6 @@ export void gather_distances(const uniform int indices[],
   }
 }
 
-export void zero_if_in_range_n(const uniform int indices[],
-                               uniform float values[],
-                               const uniform int range_start,
-                               const uniform int range_size,
-                               const uniform int count)
-{
-    const uniform int range_end = range_start + range_size;
-
-    const uniform int batch_count = (count / programCount) * programCount;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        varying int indices_batch = streaming_load(&indices[index]);
-        varying float values_batch = streaming_load(&values[index]);
-        const varying bool mask = indices_batch >= range_start && indices_batch < range_end;
-        values[index + programIndex] = mask ? values_batch : 0.0f;
-    }
-
-    uniform int indices_sufix[programCount];
-    uniform float values_sufix[programCount];
-
-    memcpy(&indices_sufix[0], (uniform int * uniform)&indices[batch_count], sizeof(uniform int) * (count - batch_count));
-    memcpy(&values_sufix[0], (uniform float * uniform)&values[batch_count], sizeof(uniform float) * (count - batch_count));
-
-    uniform float sufix_result[programCount];
-
-    const varying bool mask = indices_sufix[programIndex] >= range_start && indices_sufix[programIndex] < range_end;
-    sufix_result[programIndex] = mask ? values_sufix[programIndex] : 0.0f;
-
-    memcpy((uniform float * uniform)&values[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
-}
-
-export void zero_if_in_index_n(const uniform int indices[],
-                               uniform float values[],
-                               const uniform int index_value,
-                               const uniform int count)
-{
-    const uniform int batch_count = (count / programCount) * programCount;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        varying int indices_batch = streaming_load(&indices[index]);
-        varying float values_batch = streaming_load(&values[index]);
-        const varying bool mask = indices_batch != index_value;
-        values[index + programIndex] = mask ? values_batch : 0.0f;
-    }
-
-    uniform int indices_sufix[programCount];
-    uniform float values_sufix[programCount];
-
-    memcpy(&indices_sufix[0], (uniform int * uniform)&indices[batch_count], sizeof(uniform int) * (count - batch_count));
-    memcpy(&values_sufix[0], (uniform float * uniform)&values[batch_count], sizeof(uniform float) * (count - batch_count));
-
-    uniform float sufix_result[programCount];
-
-    const varying bool mask = indices_sufix[programIndex] != index_value;
-    sufix_result[programIndex] = mask ? values_sufix[programIndex] : 0.0f;
-
-    memcpy((uniform float * uniform)&values[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
-}
-
 export void squared_distance_to_n(const uniform float src_a_x[],
                                   const uniform float src_a_y[],
                                   const uniform float src_a_z[],
@@ -188,11 +131,11 @@ export void squared_distance_to_n(const uniform float src_a_x[],
   }
 
   varying float<3> a;
-
+  
   memcpy(&a.x, (uniform float * uniform)&src_a_z[batch_count], sizeof(uniform float) * (count - batch_count));
   memcpy(&a.y, (uniform float * uniform)&src_a_y[batch_count], sizeof(uniform float) * (count - batch_count));
   memcpy(&a.z, (uniform float * uniform)&src_a_x[batch_count], sizeof(uniform float) * (count - batch_count));
-
+  
   const varying float<3> batch = square<3>(a - b);
   uniform float sufix_result[programCount];
   sufix_result[programIndex] = batch.x + batch.y + batch.z;
@@ -268,6 +211,38 @@ export uniform int table_product_reduce(const uniform float rows_and_cols[],
   }
 }
 
+export void chunked_zero_if_index_in_range(const uniform int row_indices[][16],
+                                           const uniform int col_count,
+                                           const uniform int col_range_start,
+                                           const uniform int row_count,
+                                           uniform float rows_and_cols[][16])
+{
+  assert(programCount == 16);
+
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    const uniform int range_index = col_range_start + row_index;
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
+      rows_and_cols[row_index * col_count + col_index][programIndex] *= (int)(row_indices[row_index][programIndex] != range_index);
+    }
+  }
+}
+
+export void zero_if_index_in_range(const uniform int row_indices[],
+                                   const uniform int col_count,
+                                   const uniform int col_range_start,
+                                   const uniform int row_count,
+                                   uniform float rows_and_cols[])
+{
+  assert(programCount == 16);
+
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    const uniform int range_index = col_range_start + row_index;
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
+      rows_and_cols[row_index * col_count + col_index] *= (int)(row_indices[row_index] != range_index);
+    }
+  }
+}
+
 export void sqrt_n_add_single(float uniform values[], const uniform int count, const uniform float offset)
 {
     const uniform int batch_count = (count / programCount) * programCount;
@@ -277,9 +252,9 @@ export void sqrt_n_add_single(float uniform values[], const uniform int count, c
 
     uniform float sufix[programCount];
     memcpy(&sufix[0], &values[batch_count], sizeof(uniform float) * (count - batch_count));
-
+    
     sufix[programIndex] = sqrt(sufix[programIndex]) + offset;
-
+    
     memcpy(&values[batch_count], sufix, sizeof(uniform float) * (count - batch_count));
 }
 
@@ -603,6 +578,7 @@ static void gather_ints(
 {
   uniform int tr = 0;
   for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
+    assert(indices[index] >= 0);
     dst[tr] = src[indices[index]];
     tr++;
   }
@@ -737,7 +713,7 @@ export void parition_as_gather_front(
     memmove(values, values + total_front_size, (count - total_front_size) * sizeof(uniform float));
 }
 
-export uniform int count_float_less_than(
+export uniform int count_floats_less_than(
     uniform float values[],
     uniform float min_predicate_value,
     uniform int count)

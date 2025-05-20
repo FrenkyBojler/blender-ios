@@ -207,18 +207,18 @@ class GradientSumFunction : public mf::MultiFunction {
     results.type().value_initialize_n(task_results.data(), task_results.size());
 
     using namespace blender::geometry;
-    fmm::akdbh_accumulate_in(OffsetIndices<int>(start_indices_),
-                             total_depth_,
-                             joints_min_distance_,
-                             joints_positions_,
-                             joints_values_,
-                             bucket_positions_,
-                             bucket_values_,
-                             power_value_,
-                             offset_value_,
-                             task_positions,
-                             task_results,
-                             std::nullopt);
+    // fmm::akdbh_accumulate_in(OffsetIndices<int>(start_indices_),
+    //                          total_depth_,
+    //                          joints_min_distance_,
+    //                          joints_positions_,
+    //                          joints_values_,
+    //                          bucket_positions_,
+    //                          bucket_values_,
+    //                          power_value_,
+    //                          offset_value_,
+    //                          task_positions,
+    //                          task_results,
+    //                          std::nullopt);
 
     geometry::akdbh::to_static_type(results.type(), [&](auto dummy) {
       using T = decltype(dummy);

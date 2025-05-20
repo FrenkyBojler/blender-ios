@@ -65,7 +65,8 @@ extern "C" {
 #endif // __cplusplus
     extern void chunked_squared_distances_table(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][16]);
     extern int32_t chunked_table_product_reduce(const float rows_and_cols[][16], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][16]);
-    extern int32_t count_float_less_than(float * values, float min_predicate_value, int32_t count);
+    extern void chunked_zero_if_index_in_range(const int32_t row_indices[][16], const int32_t col_count, const int32_t col_range_start, const int32_t row_count, float rows_and_cols[][16]);
+    extern int32_t count_floats_less_than(float * values, float min_predicate_value, int32_t count);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_11_rpow_n(float * values, const int32_t count);
@@ -102,8 +103,7 @@ extern "C" {
     extern void squared_distance_to_n(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
     extern void squared_distances_table(const float * row_x, const float * row_y, const float * row_z, const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float * distances);
     extern int32_t table_product_reduce(const float * rows_and_cols, const int32_t col_count, const float * col_values, const int32_t row_count, float * row_values);
-    extern void zero_if_in_index_n(const int32_t * indices, float * values, const int32_t index_value, const int32_t count);
-    extern void zero_if_in_range_n(const int32_t * indices, float * values, const int32_t range_start, const int32_t range_size, const int32_t count);
+    extern void zero_if_index_in_range(const int32_t * row_indices, const int32_t col_count, const int32_t col_range_start, const int32_t row_count, float * rows_and_cols);
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 } /* end extern C */
 #endif // __cplusplus

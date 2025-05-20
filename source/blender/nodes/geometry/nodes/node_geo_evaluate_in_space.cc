@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
 #include "BLI_timeit.hh"
+#include <iostream>
 
 #include "BKE_attribute_math.hh"
 
@@ -120,7 +120,8 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     const int total_joints = akdbh::total_joints_for_depth(total_depth);
 
     Array<int, 0> start_indices(total_buckets + 1);
-    OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices);
+    OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
+                                                                         start_indices);
 
     Array<int, 0> indices(domain_size);
     {
@@ -147,6 +148,53 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     GArray<> joints_values(data_type, total_joints);
     akdbh::mean_sums(base_offsets, total_depth, bucket_values, joints_values);
 
+    const int data_axes_count = bucket_values.type().is<float3>() ? 3 : 1;
+    BLI_assert(bucket_values.type().is<float3>() || bucket_values.type().is<float>());
+
+    Array<Array<float, 0>, 3> bucket_values_splited(data_axes_count);
+    {
+      SCOPED_TIMER_AVERAGED("split buckets values");
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        bucket_values_splited[axis_i].reinitialize(domain_size);
+      }
+      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
+        if (bucket_values.type().is<float3>()) {
+          for (const int i : range) {
+            bucket_values_splited[0][i] = bucket_values.as_span().typed<float3>()[i].x;
+            bucket_values_splited[1][i] = bucket_values.as_span().typed<float3>()[i].y;
+            bucket_values_splited[2][i] = bucket_values.as_span().typed<float3>()[i].z;
+          }
+        }
+        else {
+          for (const int i : range) {
+            bucket_values_splited[0][i] = bucket_values.as_span().typed<float>()[i];
+          }
+        }
+      });
+    }
+
+    Array<Array<float, 0>, 3> joints_values_splited(data_axes_count);
+    {
+      SCOPED_TIMER_AVERAGED("split joint values");
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        joints_values_splited[axis_i].reinitialize(total_joints);
+      }
+      threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
+        if (joints_values.type().is<float3>()) {
+          for (const int i : range) {
+            joints_values_splited[0][i] = joints_values.as_span().typed<float3>()[i].x;
+            joints_values_splited[1][i] = joints_values.as_span().typed<float3>()[i].y;
+            joints_values_splited[2][i] = joints_values.as_span().typed<float3>()[i].z;
+          }
+        }
+        else {
+          for (const int i : range) {
+            joints_values_splited[0][i] = joints_values.as_span().typed<float>()[i];
+          }
+        }
+      });
+    }
+
     Array<float3, 0> joints_positions(total_joints);
     Array<float, 0> joints_min_distance(total_joints);
     {
@@ -165,30 +213,94 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
                                   joints_min_distance.as_mutable_span());
     }
 
-    GArray<> sampled_bucket_values(data_type, domain_size);
-    data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
-    
+    std::array<Array<float, 0>, 3> bucket_positions_splited;
+    {
+      SCOPED_TIMER_AVERAGED("split positions");
+      bucket_positions_splited[0].reinitialize(bucket_positions.size());
+      bucket_positions_splited[1].reinitialize(bucket_positions.size());
+      bucket_positions_splited[2].reinitialize(bucket_positions.size());
+      threading::parallel_for(bucket_positions.index_range(), 4096, [&](const IndexRange range) {
+        for (const int i : range) {
+          bucket_positions_splited[0][i] = bucket_positions[i].x;
+          bucket_positions_splited[1][i] = bucket_positions[i].y;
+          bucket_positions_splited[2][i] = bucket_positions[i].z;
+        }
+      });
+    }
+
+    Array<Array<float, 0>, 3> sampled_bucket_values_splitted(data_axes_count);
+    for (const int axis_i : IndexRange(data_axes_count)) {
+      sampled_bucket_values_splitted[axis_i].reinitialize(domain_size);
+    }
+
     {
       SCOPED_TIMER_AVERAGED("akdbh_accumulate_in");
+
+      const std::array<Span<float>, 3> bucket_positions = {bucket_positions_splited[0].as_span(),
+                                                           bucket_positions_splited[1].as_span(),
+                                                           bucket_positions_splited[2].as_span()};
+
+      Array<Span<float>, 3> joints_values(data_axes_count);
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        joints_values[axis_i] = joints_values_splited[axis_i].as_span();
+      }
+
+      Array<Span<float>, 3> bucket_values(data_axes_count);
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        bucket_values[axis_i] = bucket_values_splited[axis_i].as_span();
+      }
+
       threading::parallel_for(
           IndexRange(domain_size),
           1024,
           [&](const IndexRange range) {
+            const std::array<Span<float>, 3> sample_bucket_positions = {
+                bucket_positions[0].slice(range),
+                bucket_positions[1].slice(range),
+                bucket_positions[2].slice(range)};
+            Array<MutableSpan<float>, 3> sampled_bucket_values(data_axes_count);
+            for (const int axis_i : IndexRange(data_axes_count)) {
+              sampled_bucket_values[axis_i] =
+                  sampled_bucket_values_splitted[axis_i].as_mutable_span().slice(range);
+            }
+
             fmm::akdbh_accumulate_in(base_offsets,
                                      total_depth,
                                      joints_min_distance,
                                      joints_positions,
-                                     joints_values,
+                                     joints_values.as_span(),
                                      bucket_positions,
-                                     bucket_values,
+                                     bucket_values.as_span(),
                                      power_value_,
                                      offset_value_,
-                                     bucket_positions.as_span().slice(range),
-                                     sampled_bucket_values.as_mutable_span().slice(range),
+                                     sample_bucket_positions,
+                                     sampled_bucket_values.as_span(),
                                      range);
           },
           threading::detail::TaskSizeHints_Static(total_depth));
     }
+
+    GArray<> sampled_bucket_values(data_type, domain_size);
+    data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
+
+    threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
+      if (sampled_bucket_values.type().is<float3>()) {
+        for (const int i : range) {
+          sampled_bucket_values.as_mutable_span().typed<float3>()[i].x =
+              sampled_bucket_values_splitted[0][i];
+          sampled_bucket_values.as_mutable_span().typed<float3>()[i].y =
+              sampled_bucket_values_splitted[1][i];
+          sampled_bucket_values.as_mutable_span().typed<float3>()[i].z =
+              sampled_bucket_values_splitted[2][i];
+        }
+      }
+      else {
+        for (const int i : range) {
+          sampled_bucket_values.as_mutable_span().typed<float>()[i] =
+              sampled_bucket_values_splitted[0][i];
+        }
+      }
+    });
 
     GArray<> dst_values(data_type, domain_size);
     {
