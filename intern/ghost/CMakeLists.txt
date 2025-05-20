@@ -596,7 +596,9 @@ if(WITH_XR_OPENXR)
   if(WITH_VULKAN_BACKEND)
     list(APPEND XR_PLATFORM_DEFINES -DXR_USE_GRAPHICS_API_VULKAN)
     list(APPEND SRC
+      intern/GHOST_XrGraphicsBindingVulkanBase.cc
       intern/GHOST_XrGraphicsBindingVulkan.cc
+      intern/GHOST_XrGraphicsBindingVulkanShared.cc
 
       intern/GHOST_XrGraphicsBindingVulkan.hh
     )

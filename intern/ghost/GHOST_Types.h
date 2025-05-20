@@ -784,6 +784,12 @@ typedef enum {
    * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
    */
   GHOST_kVulkanXRModeWin32,
+
+  /**
+   * Blender and OpenXR share the same logical device and queue. Blender will update the OpenXR
+   * swapchain image directly.
+   */
+  GHOST_kVulkanXRModeShared,
 } GHOST_TVulkanXRModes;
 
 typedef struct {
@@ -841,6 +847,11 @@ typedef struct {
        */
       VkDeviceSize memory_offset;
     } gpu;
+
+    struct {
+      VkImage xr_swapchain_image;
+      VkOffset2D view_offset;
+    } shared;
   };
 
 } GHOST_VulkanOpenXRData;
@@ -903,13 +914,12 @@ struct GHOST_XrError;
 typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
+  GHOST_kXrGraphicsVulkanShared,
   GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
   GHOST_kXrGraphicsOpenGLD3D11,
   GHOST_kXrGraphicsVulkanD3D11,
 #  endif
-  /* For later */
-  //  GHOST_kXrGraphicsVulkan,
 } GHOST_TXrGraphicsBinding;
 
 typedef void (*GHOST_XrErrorHandlerFn)(const struct GHOST_XrError *);

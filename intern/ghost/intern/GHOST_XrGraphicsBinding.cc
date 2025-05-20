@@ -317,6 +317,8 @@ std::unique_ptr<GHOST_IXrGraphicsBinding> GHOST_XrGraphicsBindingCreateFromType(
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkan:
       return std::make_unique<GHOST_XrGraphicsBindingVulkan>(context);
+    case GHOST_kXrGraphicsVulkanShared:
+      return std::make_unique<GHOST_XrGraphicsBindingVulkanShared>(context);
 #endif
 #ifdef WIN32
 #  ifdef WITH_OPENGL_BACKEND

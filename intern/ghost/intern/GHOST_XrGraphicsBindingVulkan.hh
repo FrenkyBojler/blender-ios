@@ -17,9 +17,36 @@
 #include "GHOST_IXrGraphicsBinding.hh"
 #include "GHOST_Types.h"
 
-class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
+class GHOST_XrGraphicsBindingVulkanBase : public GHOST_IXrGraphicsBinding {
  public:
-  GHOST_XrGraphicsBindingVulkan(GHOST_Context &ghost_ctx);
+  GHOST_XrGraphicsBindingVulkanBase(GHOST_Context &ghost_ctx);
+
+  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> &runtime_formats,
+                                               GHOST_TXrSwapchainFormat &r_format,
+                                               bool &r_is_srgb_format) const override;
+  std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(uint32_t image_count) override;
+  bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
+
+ protected:
+  GHOST_ContextVK &m_ghost_ctx;
+
+ private:
+  std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
+};
+
+/**
+ * Vulkan graphics binding where OpenXR has its own logical device and external
+ * memory/semaphores/fence are used to sync the GPU work.
+ *
+ * This decreases performance due to the many steps involved to sync the images.
+ */
+class GHOST_XrGraphicsBindingVulkan : public GHOST_XrGraphicsBindingVulkanBase {
+ public:
+  GHOST_XrGraphicsBindingVulkan(GHOST_Context &ghost_ctx)
+      : GHOST_XrGraphicsBindingVulkanBase(ghost_ctx)
+  {
+  }
+
   ~GHOST_XrGraphicsBindingVulkan() override;
 
   /**
@@ -33,21 +60,13 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   void initFromGhostContext(GHOST_Context &ghost_ctx,
                             XrInstance instance,
                             XrSystemId system_id) override;
-  std::optional<int64_t> chooseSwapchainFormat(const std::vector<int64_t> &runtime_formats,
-                                               GHOST_TXrSwapchainFormat &r_format,
-                                               bool &r_is_srgb_format) const override;
-  std::vector<XrSwapchainImageBaseHeader *> createSwapchainImages(uint32_t image_count) override;
 
   void submitToSwapchainBegin() override;
   void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                               const GHOST_XrDrawViewInfo &draw_info) override;
   void submitToSwapchainEnd() override;
 
-  bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
-
  private:
-  GHOST_ContextVK &m_ghost_ctx;
-
   VkInstance m_vk_instance = VK_NULL_HANDLE;
   VkPhysicalDevice m_vk_physical_device = VK_NULL_HANDLE;
   uint32_t m_graphics_queue_family = 0;
@@ -59,7 +78,6 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   VmaAllocationInfo m_vk_buffer_allocation_info = {};
   GHOST_TVulkanXRModes m_data_transfer_mode = GHOST_kVulkanXRModeCPU;
 
-  std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
   VkCommandPool m_vk_command_pool = VK_NULL_HANDLE;
 
   struct ImportedMemory {
@@ -87,4 +105,37 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;
   static PFN_xrCreateVulkanInstanceKHR s_xrCreateVulkanInstanceKHR_fn;
   static PFN_xrCreateVulkanDeviceKHR s_xrCreateVulkanDeviceKHR_fn;
+};
+
+class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkanBase {
+ public:
+  GHOST_XrGraphicsBindingVulkanShared(GHOST_Context &ghost_ctx)
+      : GHOST_XrGraphicsBindingVulkanBase(ghost_ctx)
+  {
+  }
+
+  ~GHOST_XrGraphicsBindingVulkanShared() override;
+
+  /**
+   * Check the version requirements to use OpenXR with the Vulkan backend.
+   */
+  bool checkVersionRequirements(GHOST_Context &ghost_ctx,
+                                XrInstance instance,
+                                XrSystemId system_id,
+                                std::string *r_requirement_info) const override;
+
+  void initFromGhostContext(GHOST_Context &ghost_ctx,
+                            XrInstance instance,
+                            XrSystemId system_id) override;
+
+  void submitToSwapchainBegin() override;
+  void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
+                              const GHOST_XrDrawViewInfo &draw_info) override;
+  void submitToSwapchainEnd() override;
+
+ private:
+  static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn;
+  static PFN_xrGetVulkanGraphicsDeviceKHR s_xrGetVulkanGraphicsDeviceKHR_fn;
+  static PFN_xrGetVulkanInstanceExtensionsKHR s_xrGetVulkanInstanceExtensionsKHR;
+  static PFN_xrGetVulkanDeviceExtensionsKHR s_xrGetVulkanDeviceExtensionsKHR;
 };

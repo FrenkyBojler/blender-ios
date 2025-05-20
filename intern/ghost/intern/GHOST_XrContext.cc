@@ -123,6 +123,7 @@ void GHOST_XrContext::storeInstanceProperties()
 {
   const std::map<std::string, GHOST_TXrOpenXRRuntimeID> runtime_map = {
       {"Monado(XRT) by Collabora et al", OPENXR_RUNTIME_MONADO},
+      {"Monado(XRT) by Collabora et al 'GIT-NOTFOUND'", OPENXR_RUNTIME_MONADO},
       {"Oculus", OPENXR_RUNTIME_OCULUS},
       {"SteamVR/OpenXR", OPENXR_RUNTIME_STEAMVR},
       {"Windows Mixed Reality Runtime", OPENXR_RUNTIME_WMR},
@@ -391,6 +392,9 @@ static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding 
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkan:
       return XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME;
+
+    case GHOST_kXrGraphicsVulkanShared:
+      return XR_KHR_VULKAN_ENABLE_EXTENSION_NAME;
 #endif
 
 #ifdef WIN32
@@ -512,6 +516,14 @@ GHOST_TXrGraphicsBinding GHOST_XrContext::determineGraphicsBindingTypeToUse(
 #else
     ((void)create_info);
 #endif
+
+    /* Only allow sharing handles on platforms we know the required instance and device extensions.
+     * These extensions are already enabled in Blender. */
+    if (type == GHOST_kXrGraphicsVulkanShared &&
+        (m_runtime_id != OPENXR_RUNTIME_MONADO && m_runtime_id != OPENXR_RUNTIME_STEAMVR))
+    {
+      continue;
+    }
 
     assert(type != GHOST_kXrGraphicsUnknown);
     return type;

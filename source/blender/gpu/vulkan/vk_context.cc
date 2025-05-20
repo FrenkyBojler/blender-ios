@@ -481,6 +481,54 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       }
       break;
     }
+
+    case GHOST_kVulkanXRModeShared: {
+      VKFrameBuffer &framebuffer = *unwrap(active_fb);
+      VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+
+      render_graph::VKBlitImageNode::CreateInfo blit_image = {};
+      blit_image.src_image = color_attachment->vk_image_handle();
+      blit_image.dst_image = openxr_data.shared.xr_swapchain_image;
+      blit_image.filter = VK_FILTER_LINEAR;
+
+      VkImageBlit &region = blit_image.region;
+      region.srcOffsets[0] = {0, 0, 0};
+      region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
+      region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      region.srcSubresource.mipLevel = 0;
+      region.srcSubresource.baseArrayLayer = 0;
+      region.srcSubresource.layerCount = 1;
+
+      region.dstOffsets[0] = {0, 0, 0};
+      region.dstOffsets[1] = {
+          int32_t(openxr_data.extent.width), int32_t(openxr_data.extent.width), 1};
+      region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      region.dstSubresource.mipLevel = 0;
+      region.dstSubresource.baseArrayLayer = 0;
+      region.dstSubresource.layerCount = 1;
+
+      /* Swap chain commands are CPU synchronized at this moment, allowing to temporary add the
+       * swap chain image as device resources. When we move towards GPU swap chain synchronization
+       * we need to keep track of the swap chain image between frames. */
+      VKDevice &device = VKBackend::get().device;
+      device.resources.add_image(openxr_data.shared.xr_swapchain_image, 1, "XRSwapchainImage");
+
+      framebuffer.rendering_end(*this);
+      render_graph::VKRenderGraph &render_graph = this->render_graph();
+      render_graph.add_node(blit_image);
+
+      render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
+      synchronization.vk_image = openxr_data.shared.xr_swapchain_image;
+      synchronization.vk_image_layout = VK_IMAGE_LAYOUT_GENERAL;
+      synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+      render_graph.add_node(synchronization);
+      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+
+      device.resources.remove_image(openxr_data.shared.xr_swapchain_image);
+      break;
+    }
   }
 }
 
@@ -507,6 +555,9 @@ void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData 
         openxr_data.gpu.image_handle = 0;
       }
 #endif
+      break;
+
+    case GHOST_kVulkanXRModeShared:
       break;
   }
 }
