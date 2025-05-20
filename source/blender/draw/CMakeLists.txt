@@ -248,7 +248,7 @@ set(SRC
   engines/overlay/overlay_camera.hh
   engines/overlay/overlay_cursor.hh
   engines/overlay/overlay_curve.hh
-  engines/overlay/overlay_edit_text.hh
+  engines/overlay/overlay_text.hh
   engines/overlay/overlay_empty.hh
   engines/overlay/overlay_engine.h
   engines/overlay/overlay_facing.hh
@@ -428,6 +428,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_ray_trace_screen_comp.glsl
   engines/eevee/shaders/eevee_ray_trace_screen_lib.glsl
   engines/eevee/shaders/eevee_ray_types_lib.glsl
+  engines/eevee/shaders/eevee_reverse_z_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_sphere_convolve_comp.glsl
   engines/eevee/shaders/eevee_lightprobe_sphere_eval_lib.glsl
   engines/eevee/shaders/eevee_lightprobe_sphere_irradiance_comp.glsl

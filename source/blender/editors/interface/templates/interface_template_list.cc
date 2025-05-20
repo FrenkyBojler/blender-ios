@@ -104,16 +104,16 @@ static void uilist_draw_item_default(uiList *ui_list,
   /* Simplest one! */
   switch (ui_list->layout_type) {
     case UILST_LAYOUT_GRID:
-      uiItemL(layout, "", icon);
+      layout->label("", icon);
       break;
     case UILST_LAYOUT_DEFAULT:
     case UILST_LAYOUT_COMPACT:
     default:
       if (nameprop) {
-        uiItemFullR(layout, itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
+        layout->prop(itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
       }
       else {
-        uiItemL(layout, "", icon);
+        layout->label("", icon);
       }
       break;
   }
@@ -126,28 +126,23 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
   uiLayout *row = &layout->row(false);
 
   uiLayout *subrow = &row->row(true);
-  uiItemR(subrow, &listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(subrow,
-          &listptr,
-          "use_filter_invert",
-          UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-          "",
-          ICON_ARROW_LEFTRIGHT);
+  subrow->prop(&listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
+  subrow->prop(&listptr,
+               "use_filter_invert",
+               UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
+               "",
+               ICON_ARROW_LEFTRIGHT);
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_LOCK) == 0) {
     subrow = &row->row(true);
-    uiItemR(subrow,
-            &listptr,
-            "use_filter_sort_alpha",
-            UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-            "",
-            ICON_NONE);
-    uiItemR(subrow,
-            &listptr,
-            "use_filter_sort_reverse",
-            UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
-            "",
-            (ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) ? ICON_SORT_DESC : ICON_SORT_ASC);
+    subrow->prop(
+        &listptr, "use_filter_sort_alpha", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+    subrow->prop(&listptr,
+                 "use_filter_sort_reverse",
+                 UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
+                 "",
+                 (ui_list->filter_sort_flag & UILST_FLT_SORT_REVERSE) ? ICON_SORT_DESC :
+                                                                        ICON_SORT_ASC);
   }
 }
 
@@ -318,8 +313,12 @@ bool UI_list_item_index_is_filtered_visible(const uiList *ui_list, const int ite
     return false;
   }
 
-  const int filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
-  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM) ^ filter_exclude;
+  if (ui_list->filter_byname[0] == '\0') {
+    /* Show all elements when search string is empty. */
+    return true;
+  }
+
+  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM);
 }
 
 /**
@@ -821,7 +820,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
       /* add dummy buttons to fill space */
       for (; i < visual_info.start_idx + visual_info.visual_items; i++) {
-        uiItemL(col, "", ICON_NONE);
+        col->label("", ICON_NONE);
       }
 
       /* Add scroll-bar. */
@@ -870,7 +869,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       }
       /* if list is empty, add in dummy button */
       else {
-        uiItemL(row, "", ICON_NONE);
+        row->label("", ICON_NONE);
       }
 
       /* next/prev button */
@@ -968,7 +967,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         if (!(i % layout_data->columns)) {
           subrow = &col->row(false);
         }
-        uiItemL(subrow, "", ICON_NONE);
+        subrow->label("", ICON_NONE);
       }
 
       /* Add scroll-bar. */
