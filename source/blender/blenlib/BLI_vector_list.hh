@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "BLI_math_bits.h"
 #include "BLI_vector.hh"
 
 namespace blender {
@@ -123,15 +124,15 @@ class VectorList {
  private:
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
   {
-    /* TODO: Replace log2 with std::countr_zero (requires C++20). */
+    auto log2 = [](int64_t value) -> int64_t {
+      return 63 - bitscan_forward_uint64(uint64_t(value));
+    };
     auto geometric_sum = [](int64_t index) -> int64_t {
       return CapacityStart * ((2 << index) - 1);
     };
-    auto index_from_sum = [](int64_t sum) -> int64_t {
-      return int64_t(std::log2((double(sum) / CapacityStart) + 1));
-    };
-    static const int64_t start_log2 = int64_t(std::log2(CapacityStart));
-    static const int64_t end_log2 = int64_t(std::log2(CapacitySoftLimit));
+    auto index_from_sum = [](int64_t sum) -> int64_t { return log2((sum / CapacityStart) + 1); };
+    static const int64_t start_log2 = log2(CapacityStart);
+    static const int64_t end_log2 = log2(CapacitySoftLimit);
     /* The number of vectors until CapacitySoftLimit size is reached. */
     static const int64_t geometric_steps = end_log2 - start_log2 + 1;
     /* The number of elements until CapacitySoftLimit size is reached. */
