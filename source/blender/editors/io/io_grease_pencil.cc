@@ -350,8 +350,13 @@ enum class GreasePencilExportFiletype {
   PDF = 1,
 };
 
+/**
+ * Defines the layout of the exporter properties.
+ *
+ * \param ptr: RNA pointer to access the export operator's properties.
+ */
 static void ui_gpencil_export_settings(uiLayout *layout,
-                                       PointerRNA *imfptr,
+                                       PointerRNA *ptr,
                                        GreasePencilExportFiletype file_type)
 {
   uiLayout *box, *row, *col, *sub;
@@ -365,7 +370,7 @@ static void ui_gpencil_export_settings(uiLayout *layout,
   row->label(IFACE_("Scene Options"), ICON_NONE);
 
   row = &box->row(false);
-  row->prop(imfptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "selected_object_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   box = &layout->box();
   row = &box->row(false);
@@ -373,17 +378,17 @@ static void ui_gpencil_export_settings(uiLayout *layout,
 
   col = &box->column(false);
   sub = &col->column(false);
-  sub->prop(imfptr, "frame_mode", UI_ITEM_NONE, IFACE_("Frame"), ICON_NONE);
+  sub->prop(ptr, "frame_mode", UI_ITEM_NONE, IFACE_("Frame"), ICON_NONE);
 
   uiLayoutSetPropSep(box, true);
 
   sub = &col->column(true);
-  sub->prop(imfptr, "stroke_sample", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  sub->prop(imfptr, "use_fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  sub->prop(imfptr, "use_uniform_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "stroke_sample", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "use_fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "use_uniform_width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (file_type == GreasePencilExportFiletype::SVG) {
-    col->prop(imfptr, "use_clip_camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "use_clip_camera", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
