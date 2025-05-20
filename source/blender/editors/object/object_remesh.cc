@@ -206,7 +206,6 @@ static int calc_estimated_remesh_vert_count(const Mesh &mesh, const double voxel
   for (const int i : IndexRange(samples)) {
     const int face = int(noise::hash_to_float(seed, i) * (faces.size() - 1));
     total_sampled_area += bke::mesh::face_area_calc(positions, corner_verts.slice(faces[face]));
-
     total_axis_alignment_score += math::reduce_max(math::abs(face_normals[face]));
   }
 
