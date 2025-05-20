@@ -596,7 +596,7 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
 Brush *BKE_brush_duplicate(Main *bmain,
                            Brush *brush,
                            eDupli_ID_Flags /*dupflag*/,
-                           uint duplicate_options)
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
   const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
   const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
