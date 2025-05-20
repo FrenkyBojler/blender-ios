@@ -423,6 +423,19 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingVulkan::createS
   return base_images;
 }
 
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainBegin()
+{
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD:
+    case GHOST_kVulkanXRModeWin32:
+      submitToSwapchainBeginGpu();
+      break;
+
+    case GHOST_kVulkanXRModeCPU:
+      break;
+  }
+}
+
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
     XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
@@ -437,6 +450,19 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
 
     case GHOST_kVulkanXRModeCPU:
       submitToSwapchainImageCpu(vulkan_image, draw_info);
+      break;
+  }
+}
+
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainEnd()
+{
+  switch (m_data_transfer_mode) {
+    case GHOST_kVulkanXRModeFD:
+    case GHOST_kVulkanXRModeWin32:
+      submitToSwapchainEndGpu();
+      break;
+
+    case GHOST_kVulkanXRModeCPU:
       break;
   }
 }
@@ -565,6 +591,19 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 /** \name Data transfer GPU
  * \{ */
 
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainBeginGpu()
+{
+  VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
+
+  /* Begin command recording */
+  VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      nullptr,
+      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+      nullptr};
+  vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info);
+}
+
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
@@ -684,14 +723,6 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
   /* Copy frame buffer image to swapchain image. */
   VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
 
-  /* Begin command recording */
-  VkCommandBufferBeginInfo vk_command_buffer_begin_info = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      nullptr,
-      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-      nullptr};
-  vkBeginCommandBuffer(vk_command_buffer, &vk_command_buffer_begin_info);
-
   /* Transfer imported render result & swap chain image (UNDEFINED -> GENERAL) */
   VkImageMemoryBarrier vk_image_memory_barrier[] = {{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                                      nullptr,
@@ -759,6 +790,11 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
                        nullptr,
                        1,
                        &vk_image_memory_barrier2);
+}
+
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainEndGpu()
+{
+  VkCommandBuffer vk_command_buffer = m_vk_command_buffer;
 
   /* End command recording. */
   vkEndCommandBuffer(vk_command_buffer);
