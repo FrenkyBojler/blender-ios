@@ -48,12 +48,7 @@ ShaderModule::ShaderModule()
     const char *name = static_shader_create_info_name_get(eShaderType(i));
     const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
 
-    if (GPU_use_parallel_compilation()) {
-      infos.append(create_info);
-    }
-    else {
-      shaders_[i] = {name};
-    }
+    infos.append(create_info);
 
 #ifndef NDEBUG
     if (name == nullptr) {
@@ -65,9 +60,7 @@ ShaderModule::ShaderModule()
 #endif
   }
 
-  if (GPU_use_parallel_compilation()) {
-    compilation_handle_ = GPU_shader_batch_create_from_infos(infos);
-  }
+  compilation_handle_ = GPU_shader_batch_create_from_infos(infos);
 }
 
 ShaderModule::~ShaderModule()
@@ -96,10 +89,6 @@ ShaderModule::~ShaderModule()
 
 bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
 {
-  if (!GPU_use_parallel_compilation()) {
-    return true;
-  }
-
   std::lock_guard lock(mutex_);
 
   if (compilation_handle_) {
@@ -121,10 +110,6 @@ bool ShaderModule::request_specializations(bool block_until_ready,
                                            bool use_split_indirect,
                                            bool use_lightprobe_eval)
 {
-  if (!GPU_use_parallel_compilation()) {
-    return true;
-  }
-
   BLI_assert(static_shaders_are_ready(false));
 
   std::lock_guard lock(mutex_);
@@ -410,7 +395,7 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
 GPUShader *ShaderModule::static_shader_get(eShaderType shader_type)
 {
   BLI_assert(compilation_handle_ == 0);
-  if (GPU_use_parallel_compilation() && shaders_[shader_type].get() == nullptr) {
+  if (shaders_[shader_type].get() == nullptr) {
     const char *shader_name = static_shader_create_info_name_get(shader_type);
     fprintf(stderr, "EEVEE: error: Could not compile static shader \"%s\"\n", shader_name);
     BLI_assert(0);
