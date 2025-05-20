@@ -216,19 +216,19 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
 static void append_keyframe_snap_target(bContext *C,
                                         FrameChangeModalData &op_data,
                                         const float timeline_frame,
-                                        blender::Vector<SnapTarget> &targets)
+                                        blender::Vector<SnapTarget> &r_targets)
 {
   ensure_change_frame_keylist(C, op_data);
   const ActKeyColumn *closest_column = ED_keylist_find_closest(op_data.keylist, timeline_frame);
   if (!closest_column) {
     return;
   }
-  targets.append({closest_column->cfra, true});
+  r_targets.append({closest_column->cfra, true});
 }
 
 static void append_marker_snap_target(Scene *scene,
                                       const float timeline_frame,
-                                      blender::Vector<SnapTarget> &targets)
+                                      blender::Vector<SnapTarget> &r_targets)
 {
   if (BLI_listbase_is_empty(&scene->markers)) {
     /* This check needs to be here because `ED_markers_find_nearest_marker_time` returns the
@@ -237,30 +237,30 @@ static void append_marker_snap_target(Scene *scene,
   }
   const float nearest_marker = ED_markers_find_nearest_marker_time(&scene->markers,
                                                                    timeline_frame);
-  targets.append({nearest_marker, true});
+  r_targets.append({nearest_marker, true});
 }
 
 static void append_second_snap_target(Scene *scene,
                                       const float timeline_frame,
                                       const int step,
-                                      blender::Vector<SnapTarget> &targets)
+                                      blender::Vector<SnapTarget> &r_targets)
 {
   const int start_frame = scene->r.sfra;
   const float snap_frame = BKE_scene_frame_snap_by_seconds(
                                scene, step, timeline_frame - start_frame) +
                            start_frame;
-  targets.append({snap_frame, false});
+  r_targets.append({snap_frame, false});
 }
 
 static void append_frame_snap_target(const Scene *scene,
                                      const float timeline_frame,
                                      const int step,
-                                     blender::Vector<SnapTarget> &targets)
+                                     blender::Vector<SnapTarget> &r_targets)
 {
   const int start_frame = scene->r.sfra;
   const float snap_frame = (round((timeline_frame - start_frame) / float(step)) * step) +
                            start_frame;
-  targets.append({snap_frame, false});
+  r_targets.append({snap_frame, false});
 }
 
 static void seq_frame_snap_update_best(const float position,
@@ -277,7 +277,7 @@ static void seq_frame_snap_update_best(const float position,
 static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
                                                const Scene *scene,
                                                const float timeline_frame,
-                                               blender::Vector<SnapTarget> &targets)
+                                               blender::Vector<SnapTarget> &r_targets)
 {
   float best_frame = FLT_MAX;
   float best_distance = FLT_MAX;
@@ -295,13 +295,13 @@ static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
 
   /* best_frame will be FLT_MAX if no target was found. */
   if (best_distance != FLT_MAX) {
-    targets.append({best_frame, true});
+    r_targets.append({best_frame, true});
   }
 }
 
 static void append_nla_strip_snap_target(bContext *C,
                                          const float timeline_frame,
-                                         blender::Vector<SnapTarget> &targets)
+                                         blender::Vector<SnapTarget> &r_targets)
 {
 
   bAnimContext ac;
@@ -337,7 +337,7 @@ static void append_nla_strip_snap_target(bContext *C,
 
   /* If no strip was found, best_frame will be FLT_MAX. */
   if (best_frame != FLT_MAX) {
-    targets.append({best_frame, true});
+    r_targets.append({best_frame, true});
   }
 }
 
