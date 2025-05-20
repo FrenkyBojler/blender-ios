@@ -532,14 +532,8 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator("action.clean", text="Clean Channels").channels = True
 
         layout.separator()
-        space_data = _context.space_data
-
-        if space_data.mode == 'GPENCIL':
-            layout.operator("grease_pencil.layer_group")
-            layout.operator("grease_pencil.layer_ungroup")
-        else:
-            layout.operator("anim.channels_group")
-            layout.operator("anim.channels_ungroup")
+        layout.operator("anim.channels_group")
+        layout.operator("anim.channels_ungroup")
 
         layout.separator()
         layout.operator_menu_enum("anim.channels_setting_toggle", "type")
@@ -730,6 +724,10 @@ class DOPESHEET_MT_gpencil_channel(Menu):
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.operator("anim.channels_delete")
+
+        layout.separator()
+        layout.operator("grease_pencil.layer_group")
+        layout.operator("grease_pencil.layer_ungroup")
 
         layout.separator()
         layout.operator("anim.channels_setting_toggle")
