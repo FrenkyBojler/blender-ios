@@ -1,1 +1,2 @@
 Referenced by commit eb030204f19, windows/deps: Fix TBB build issues.
+Referenced by pull request #137670, Deps: Add support for ARM64 assembly in x264 and update FFmpeg version
