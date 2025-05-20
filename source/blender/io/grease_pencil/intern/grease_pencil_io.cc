@@ -585,7 +585,7 @@ bool GreasePencilExporter::is_selected_frame(const GreasePencil &grease_pencil,
 {
   for (const bke::greasepencil::Layer *layer : grease_pencil.layers()) {
     if (layer->is_visible()) {
-      const GreasePencilFrame *frame = layer->frames().lookup_ptr(frame_number);
+      const GreasePencilFrame *frame = layer->frame_at(frame_number);
       if ((frame != nullptr) && frame->is_selected()) {
         return true;
       }
