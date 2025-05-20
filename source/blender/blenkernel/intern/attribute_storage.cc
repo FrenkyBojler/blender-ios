@@ -374,7 +374,7 @@ void AttributeStorage::count_memory(MemoryCounter &memory) const
         shared_memory.add(data->size * type.size);
       });
     }
-    if (const auto *data = std::get_if<Attribute::SingleData>(&attr->data())) {
+    else if (const auto *data = std::get_if<Attribute::SingleData>(&attr->data())) {
       memory.add_shared(data->sharing_info.get(),
                         [&](MemoryCounter &shared_memory) { shared_memory.add(type.size); });
     }
