@@ -208,7 +208,7 @@ if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
   else()
-    message("-- ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
+    message(WARNING "ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
   endif()
 endif()
 
@@ -881,6 +881,23 @@ if(WITH_OPENIMAGEDENOISE)
   set(OPENIMAGEDENOISE_DEFINITIONS)
 endif()
 
+if(WITH_MANIFOLD)
+  set(MANIFOLD ${LIBDIR}/manifold)
+  if(EXISTS ${MANIFOLD})
+    set(MANIFOLD_INCLUDE_DIR ${MANIFOLD}/include)
+    set(MANIFOLD_INCLUDE_DIRS ${MANIFOLD_INCLUDE_DIR})
+    set(MANIFOLD_LIBDIR ${MANIFOLD}/lib)
+    set(MANIFOLD_LIBRARIES
+      optimized ${MANIFOLD_LIBDIR}/manifold.lib
+      debug ${MANIFOLD_LIBDIR}/manifold_d.lib
+    )
+    set(MANIFOLD_FOUND 1)
+  else()
+    set(WITH_MANIFOLD OFF)
+    message(STATUS "Manifold not found, disabling WITH_MANIFOLD")
+  endif()
+endif()
+
 if(WITH_ALEMBIC)
   set(ALEMBIC ${LIBDIR}/alembic)
   set(ALEMBIC_INCLUDE_DIR ${ALEMBIC}/include)
@@ -1295,8 +1312,7 @@ if(WITH_VULKAN_BACKEND)
     set(SHADERC_INCLUDE_DIR ${SHADERC_ROOT_DIR}/include)
     set(SHADERC_INCLUDE_DIRS ${SHADERC_INCLUDE_DIR})
     set(SHADERC_LIBRARY
-      DEBUG ${SHADERC_ROOT_DIR}/lib/shaderc_shared_d.lib
-      OPTIMIZED ${SHADERC_ROOT_DIR}/lib/shaderc_shared.lib
+      ${SHADERC_ROOT_DIR}/lib/shaderc_shared.lib
     )
     set(SHADERC_LIBRARIES ${SHADERC_LIBRARY})
   else()

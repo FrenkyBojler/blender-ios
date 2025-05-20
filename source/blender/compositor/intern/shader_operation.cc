@@ -13,6 +13,7 @@
 #include "DNA_customdata_types.h"
 
 #include "GPU_context.hh"
+#include "GPU_debug.hh"
 #include "GPU_material.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -54,6 +55,7 @@ ShaderOperation::~ShaderOperation()
 
 void ShaderOperation::execute()
 {
+  GPU_debug_group_begin("ShaderOperation");
   const Domain domain = compute_domain();
   for (StringRef identifier : output_sockets_to_output_identifiers_map_.values()) {
     Result &result = get_result(identifier);
@@ -73,6 +75,7 @@ void ShaderOperation::execute()
   GPU_texture_image_unbind_all();
   GPU_uniformbuf_debug_unbind_all();
   GPU_shader_unbind();
+  GPU_debug_group_end();
 }
 
 void ShaderOperation::bind_material_resources(GPUShader *shader)
@@ -571,15 +574,15 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Float3:
     case ResultType::Color:
     case ResultType::Float4:
-      return ImageType::FLOAT_2D;
+      return ImageType::Float2D;
     case ResultType::Int:
     case ResultType::Int2:
     case ResultType::Bool:
-      return ImageType::INT_2D;
+      return ImageType::Int2D;
   }
 
   BLI_assert_unreachable();
-  return ImageType::FLOAT_2D;
+  return ImageType::Float2D;
 }
 
 void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_info)
@@ -639,8 +642,8 @@ void ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_create_
     /* Add a write-only image for this output where its values will be written. */
     shader_create_info.image(output_index,
                              result.get_gpu_texture_format(),
-                             Qualifier::WRITE,
-                             gpu_image_type_from_result_type(result.type()),
+                             Qualifier::write,
+                             ImageReadWriteType(gpu_image_type_from_result_type(result.type())),
                              output_identifier,
                              Frequency::PASS);
     output_index++;

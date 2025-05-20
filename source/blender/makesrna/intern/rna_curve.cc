@@ -211,17 +211,17 @@ static Nurb *curve_nurb_from_point(Curve *cu, const void *point, int *nu_index, 
 
 static StructRNA *rna_Curve_refine(PointerRNA *ptr)
 {
-  Curve *cu = static_cast<Curve *>(ptr->data);
-  short obtype = BKE_curve_type_get(cu);
-
-  if (obtype == OB_FONT) {
-    return &RNA_TextCurve;
-  }
-  else if (obtype == OB_SURF) {
-    return &RNA_SurfaceCurve;
-  }
-  else {
-    return &RNA_Curve;
+  const Curve *cu = static_cast<Curve *>(ptr->data);
+  switch (cu->ob_type) {
+    case OB_FONT: {
+      return &RNA_TextCurve;
+    }
+    case OB_SURF: {
+      return &RNA_SurfaceCurve;
+    }
+    default: {
+      return &RNA_Curve;
+    }
   }
 }
 
@@ -595,11 +595,10 @@ static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
     MEM_freeN(cu->strinfo);
   }
 
-  cu->str = static_cast<char *>(MEM_mallocN(len_bytes + sizeof(char32_t), "str"));
+  cu->str = MEM_malloc_arrayN<char>(len_bytes + sizeof(char32_t), "str");
   memcpy(cu->str, value, len_bytes + 1);
 
-  cu->strinfo = static_cast<CharInfo *>(
-      MEM_callocN((len_chars + 4) * sizeof(CharInfo), "strinfo"));
+  cu->strinfo = MEM_calloc_arrayN<CharInfo>((len_chars + 4), "strinfo");
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -824,9 +823,8 @@ static void rna_Curve_splines_begin(CollectionPropertyIterator *iter, PointerRNA
 
 static bool rna_Curve_is_editmode_get(PointerRNA *ptr)
 {
-  Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  const short type = BKE_curve_type_get(cu);
-  if (type == OB_FONT) {
+  const Curve *cu = reinterpret_cast<const Curve *>(ptr->owner_id);
+  if (cu->ob_type == OB_FONT) {
     return (cu->editfont != nullptr);
   }
   else {

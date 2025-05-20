@@ -55,6 +55,11 @@ typedef struct MovieClip_Runtime {
 } MovieClip_Runtime;
 
 typedef struct MovieClip {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_MC;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -144,7 +149,8 @@ typedef struct MovieClipScopes {
   float slide_scale[2];
 } MovieClipScopes;
 
-/** #MovieClipProxy.build_size_flag */
+/** #MovieClipProxy.build_size_flag
+ * NOTE: Keep in sync with #IMB_Proxy_Size. */
 enum {
   MCLIP_PROXY_SIZE_25 = (1 << 0),
   MCLIP_PROXY_SIZE_50 = (1 << 1),
@@ -154,6 +160,13 @@ enum {
   MCLIP_PROXY_UNDISTORTED_SIZE_50 = (1 << 5),
   MCLIP_PROXY_UNDISTORTED_SIZE_75 = (1 << 6),
   MCLIP_PROXY_UNDISTORTED_SIZE_100 = (1 << 7),
+};
+
+/** #MovieClipProxy.build_tc_flag
+ * NOTE: Keep in sync with #IMB_Timecode_Type. */
+enum {
+  MCLIP_TC_RECORD_RUN = 1,
+  MCLIP_TC_RECORD_RUN_NO_GAPS = 8,
 };
 
 /** #MovieClip.source */

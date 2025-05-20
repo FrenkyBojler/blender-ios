@@ -133,6 +133,7 @@
 #define SH_NODE_BSDF_RAY_PORTAL 714
 #define SH_NODE_TEX_GABOR 715
 #define SH_NODE_BSDF_METALLIC 716
+#define SH_NODE_VOLUME_COEFFICIENTS 717
 
 /** \} */
 
@@ -257,11 +258,6 @@
 /* channel toggles */
 #define CMP_CHAN_RGB 1
 #define CMP_CHAN_A 2
-
-/* Default SMAA configuration values. */
-#define CMP_DEFAULT_SMAA_THRESHOLD 1.0f
-#define CMP_DEFAULT_SMAA_CONTRAST_LIMIT 0.2f
-#define CMP_DEFAULT_SMAA_CORNER_ROUNDING 0.25f
 
 /** \} */
 

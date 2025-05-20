@@ -71,7 +71,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
       /* 2D polys are filled with #DispList.type == #DL_INDEX3. */
       (CU_DO_2DFILL(cu) == false) ||
       /* surf polys are never filled */
-      BKE_curve_type_get(cu) == OB_SURF);
+      (cu->ob_type == OB_SURF));
 
   /* count */
   int totvert = 0;
@@ -383,7 +383,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
   ListBase edges = {nullptr, nullptr};
 
   /* get boundary edges */
-  edge_users = MEM_calloc_arrayN<int>(size_t(mesh_edges.size()), __func__);
+  edge_users = MEM_calloc_arrayN<int>(mesh_edges.size(), __func__);
   for (const int i : polys.index_range()) {
     for (const int edge : corner_edges.slice(polys[i])) {
       edge_users[edge]++;
@@ -482,7 +482,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
         nu->flagu = CU_NURB_ENDPOINT | (closed ? CU_NURB_CYCLIC : 0); /* endpoint */
         nu->resolu = 12;
 
-        nu->bp = MEM_calloc_arrayN<BPoint>(size_t(faces_num), "bpoints");
+        nu->bp = MEM_calloc_arrayN<BPoint>(faces_num, "bpoints");
 
         /* add points */
         vl = (VertLink *)polyline.first;
@@ -504,7 +504,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
 
 void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
   }
@@ -534,8 +534,10 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
 
 void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   BLI_assert(ob->type == OB_MESH);
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
   }
@@ -545,11 +547,12 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   }
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
-
-  CustomData_free(&pointcloud->pdata);
   pointcloud->totpoint = mesh_eval->verts_num;
-  CustomData_merge(
-      &mesh_eval->vert_data, &pointcloud->pdata, CD_MASK_PROP_ALL, mesh_eval->verts_num);
+  copy_attributes(mesh_eval->attributes(),
+                  AttrDomain::Point,
+                  AttrDomain::Point,
+                  {},
+                  pointcloud->attributes_for_write());
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)pointcloud);
 
@@ -562,17 +565,21 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
 void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   BLI_assert(ob->type == OB_POINTCLOUD);
 
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-  const blender::bke::GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(
-      *ob_eval);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+  const GeometrySet geometry = object_get_evaluated_geometry_set(*ob_eval);
 
   Mesh *mesh = BKE_mesh_add(bmain, ob->id.name + 2);
-
   if (const PointCloud *points = geometry.get_pointcloud()) {
     mesh->verts_num = points->totpoint;
-    CustomData_merge(&points->pdata, &mesh->vert_data, CD_MASK_PROP_ALL, points->totpoint);
+    copy_attributes(points->attributes(),
+                    AttrDomain::Point,
+                    AttrDomain::Point,
+                    {},
+                    mesh->attributes_for_write());
   }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)mesh);
@@ -717,7 +724,7 @@ static Mesh *mesh_new_from_curve_type_object(const Object *object)
 {
   /* If the object is evaluated, it should either have an evaluated mesh or curve data already.
    * The mesh can be duplicated, or the curve converted to wire mesh edges. */
-  if (DEG_is_evaluated_object(object)) {
+  if (DEG_is_evaluated(object)) {
     return mesh_new_from_evaluated_curve_type_object(object);
   }
 
@@ -754,13 +761,13 @@ static Mesh *mesh_new_from_mball_object(Object *object)
    * ball).
    *
    * Create empty mesh so script-authors don't run into None objects. */
-  if (!DEG_is_evaluated_object(object)) {
-    return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
+  if (!DEG_is_evaluated(object)) {
+    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
   }
 
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
   if (mesh_eval == nullptr) {
-    return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
+    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
   }
 
   return BKE_mesh_copy_for_eval(*mesh_eval);
@@ -790,7 +797,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
                                                    const bool preserve_origindex,
                                                    const bool ensure_subdivision)
 {
-  if (DEG_is_original_id(&object->id)) {
+  if (DEG_is_original(object)) {
     return mesh_new_from_mesh(object, (Mesh *)object->data, ensure_subdivision);
   }
 
@@ -896,7 +903,7 @@ static int foreach_libblock_make_original_callback(LibraryIDLinkCallbackData *cb
   if (*id_p == nullptr) {
     return IDWALK_RET_NOP;
   }
-  *id_p = DEG_get_original_id(*id_p);
+  *id_p = DEG_get_original(*id_p);
 
   return IDWALK_RET_NOP;
 }
@@ -1035,7 +1042,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     MEM_SAFE_FREE(kb->data);
 
     kb->totelem = mesh.verts_num;
-    kb->data = MEM_malloc_arrayN(size_t(kb->totelem), sizeof(float3), __func__);
+    kb->data = MEM_malloc_arrayN<float3>(size_t(kb->totelem), __func__);
     MutableSpan<float3> kb_coords(static_cast<float3 *>(kb->data), kb->totelem);
     if (kb->uid == actshape_uid) {
       mesh.attributes().lookup<float3>("position").varray.materialize(kb_coords);
@@ -1049,7 +1056,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     if (kb->totelem != mesh.verts_num) {
       MEM_SAFE_FREE(kb->data);
       kb->totelem = mesh.verts_num;
-      kb->data = MEM_calloc_arrayN<float3>(size_t(kb->totelem), __func__);
+      kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
       CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
     }
   }

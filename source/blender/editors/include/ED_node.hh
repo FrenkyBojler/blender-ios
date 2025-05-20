@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "BLI_compute_context.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -54,6 +55,12 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    bool is_new_node);
 
 /**
+ * Tag the editor to highlight the frame that currently transformed nodes will be attached to.
+ */
+void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cursor);
+void node_insert_on_frame_flag_clear(SpaceNode &snode);
+
+/**
  * Assumes link with #NODE_LINK_INSERT_TARGET set.
  */
 void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node);
@@ -96,6 +103,14 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
  */
 [[nodiscard]] const ComputeContext *compute_context_for_edittree(
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache);
+
+/**
+ * Get the active compute context for the given socket in the current edittree.
+ */
+[[nodiscard]] const ComputeContext *compute_context_for_edittree_socket(
+    const SpaceNode &snode,
+    bke::ComputeContextCache &compute_context_cache,
+    const bNodeSocket &socket);
 
 /**
  * Attempts to find a compute context that the closure is evaluated in. If none is found, null is

@@ -296,7 +296,7 @@ void OBJECT_OT_vertex_parent_set(wmOperatorType *ot)
   ot->description = "Parent selected objects to the selected vertices";
   ot->idname = "OBJECT_OT_vertex_parent_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = vertex_parent_set_poll;
   ot->exec = vertex_parent_set_exec;
 
@@ -439,7 +439,7 @@ void OBJECT_OT_parent_clear(wmOperatorType *ot)
   ot->description = "Clear the object's parenting";
   ot->idname = "OBJECT_OT_parent_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = parent_clear_exec;
 
@@ -495,21 +495,21 @@ const EnumPropertyItem prop_make_parent_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-bool parent_set(ReportList *reports,
-                const bContext *C,
-                Scene *scene,
-                Object *const ob,
-                Object *const par,
-                int partype,
-                const bool xmirror,
-                const bool keep_transform,
-                const int vert_par[3])
+static bool parent_set_with_depsgraph(ReportList *reports,
+                                      const bContext *C,
+                                      Scene *scene,
+                                      Depsgraph *depsgraph,
+                                      Object *const ob,
+                                      Object *const par,
+                                      Object *const parent_eval,
+                                      int partype,
+                                      const bool xmirror,
+                                      const bool keep_transform,
+                                      const int vert_par[3])
 {
   Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   bPoseChannel *pchan = nullptr;
   bPoseChannel *pchan_eval = nullptr;
-  Object *parent_eval = DEG_get_evaluated_object(depsgraph, par);
 
   /* Preconditions. */
   if (ob == par) {
@@ -766,6 +766,32 @@ bool parent_set(ReportList *reports,
   return true;
 }
 
+bool parent_set(ReportList *reports,
+                const bContext *C,
+                Scene *scene,
+                Object *const ob,
+                Object *const par,
+                int partype,
+                const bool xmirror,
+                const bool keep_transform,
+                const int vert_par[3])
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object *parent_eval = DEG_get_evaluated(depsgraph, par);
+
+  return parent_set_with_depsgraph(reports,
+                                   C,
+                                   scene,
+                                   depsgraph,
+                                   ob,
+                                   par,
+                                   parent_eval,
+                                   partype,
+                                   xmirror,
+                                   keep_transform,
+                                   vert_par);
+}
+
 static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
@@ -803,6 +829,9 @@ struct ParentingContext {
 
 static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting_context)
 {
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object *parent_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
+
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob == parenting_context->par) {
       /* parent_set() will fail (and thus return false), but this case
@@ -810,15 +839,17 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
       continue;
     }
 
-    if (!parent_set(parenting_context->reports,
-                    C,
-                    parenting_context->scene,
-                    ob,
-                    parenting_context->par,
-                    parenting_context->partype,
-                    parenting_context->xmirror,
-                    parenting_context->keep_transform,
-                    nullptr))
+    if (!parent_set_with_depsgraph(parenting_context->reports,
+                                   C,
+                                   parenting_context->scene,
+                                   depsgraph,
+                                   ob,
+                                   parenting_context->par,
+                                   parent_eval,
+                                   parenting_context->partype,
+                                   parenting_context->xmirror,
+                                   parenting_context->keep_transform,
+                                   nullptr))
     {
       return false;
     }
@@ -865,7 +896,7 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *par_eval = DEG_get_evaluated_object(depsgraph, parenting_context->par);
+  Object *par_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
   tree = BKE_object_as_kdtree(par_eval, &tree_tot);
   BLI_assert(tree != nullptr);
@@ -1011,8 +1042,7 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   }
   else if (parent->type == OB_MESH) {
     if (can_support.attach_surface) {
-      uiItemO(
-          layout, IFACE_("Object (Attach Curves to Surface)"), ICON_NONE, "CURVES_OT_surface_set");
+      layout->op("CURVES_OT_surface_set", IFACE_("Object (Attach Curves to Surface)"), ICON_NONE);
     }
   }
 
@@ -1060,7 +1090,7 @@ void OBJECT_OT_parent_set(wmOperatorType *ot)
   ot->description = "Set the object's parenting";
   ot->idname = "OBJECT_OT_parent_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = parent_set_invoke;
   ot->exec = parent_set_exec;
   ot->poll = ED_operator_object_active;
@@ -1139,7 +1169,7 @@ void OBJECT_OT_parent_no_inverse_set(wmOperatorType *ot)
   ot->description = "Set the object's parenting without setting the inverse parent correction";
   ot->idname = "OBJECT_OT_parent_no_inverse_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = parent_noinv_set_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -1222,7 +1252,7 @@ void OBJECT_OT_track_clear(wmOperatorType *ot)
   ot->description = "Clear tracking constraint or flag from object";
   ot->idname = "OBJECT_OT_track_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_track_clear_exec;
 
@@ -1344,7 +1374,7 @@ void OBJECT_OT_track_set(wmOperatorType *ot)
   ot->description = "Make the object track another object, using various methods/constraints";
   ot->idname = "OBJECT_OT_track_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = track_set_exec;
 
@@ -1655,7 +1685,7 @@ void OBJECT_OT_make_links_scene(wmOperatorType *ot)
   ot->description = "Link selection to another scene";
   ot->idname = "OBJECT_OT_make_links_scene";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_enum_search_invoke;
   ot->exec = make_links_scene_exec;
   /* better not run the poll check */
@@ -1702,7 +1732,7 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
   ot->description = "Transfer data from active object to selected objects";
   ot->idname = "OBJECT_OT_make_links_data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = make_links_data_exec;
   ot->poll = ED_operator_object_active;
 
@@ -2308,7 +2338,7 @@ void OBJECT_OT_make_local(wmOperatorType *ot)
   ot->description = "Make library linked data-blocks local to this file";
   ot->idname = "OBJECT_OT_make_local";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = make_local_exec;
   ot->poll = ED_operator_objectmode;
@@ -2663,7 +2693,7 @@ void OBJECT_OT_make_override_library(wmOperatorType *ot)
       "dependencies";
   ot->idname = "OBJECT_OT_make_override_library";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = make_override_library_invoke;
   ot->exec = make_override_library_exec;
   ot->poll = make_override_library_poll;
@@ -2734,7 +2764,7 @@ void OBJECT_OT_reset_override_library(wmOperatorType *ot)
   ot->description = "Reset the selected local overrides to their linked references values";
   ot->idname = "OBJECT_OT_reset_override_library";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reset_override_library_exec;
   ot->poll = reset_clear_override_library_poll;
 
@@ -2811,7 +2841,7 @@ void OBJECT_OT_clear_override_library(wmOperatorType *ot)
       "possible, else reset them and mark them as non editable";
   ot->idname = "OBJECT_OT_clear_override_library";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_override_library_exec;
   ot->poll = reset_clear_override_library_poll;
 
@@ -2905,7 +2935,7 @@ void OBJECT_OT_make_single_user(wmOperatorType *ot)
   /* Note that the invoke callback is only used from operator search,    * otherwise this does
    * nothing by default. */
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = make_single_user_invoke;
   ot->exec = make_single_user_exec;
   ot->poll = ED_operator_objectmode;
@@ -2993,7 +3023,7 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
   ot->name = "Drop Named Material on Object";
   ot->idname = "OBJECT_OT_drop_named_material";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = drop_named_material_invoke;
   ot->poll = ED_operator_objectmode_with_view3d_poll_msg;
 
@@ -3168,7 +3198,7 @@ void OBJECT_OT_unlink_data(wmOperatorType *ot)
   ot->name = "Unlink";
   ot->idname = "OBJECT_OT_unlink_data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_unlink_data_exec;
 
   /* flags */

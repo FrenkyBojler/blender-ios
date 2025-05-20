@@ -221,7 +221,7 @@ void MASK_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all curve points";
   ot->idname = "MASK_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_all_exec;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 
@@ -397,7 +397,7 @@ void MASK_OT_select(wmOperatorType *ot)
   ot->description = "Select spline points";
   ot->idname = "MASK_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_exec;
   ot->invoke = select_invoke;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
@@ -434,7 +434,7 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   rcti rect;
   rctf rectf;
@@ -504,7 +504,7 @@ void MASK_OT_select_box(wmOperatorType *ot)
   ot->description = "Select curve points using box selection";
   ot->idname = "MASK_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -531,7 +531,7 @@ static bool do_lasso_select_mask(bContext *C, const Span<int2> mcoords, const eS
 
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   rcti rect;
   bool changed = false;
@@ -624,7 +624,7 @@ void MASK_OT_select_lasso(wmOperatorType *ot)
   ot->description = "Select curve points using lasso selection";
   ot->idname = "MASK_OT_select_lasso";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_lasso_invoke;
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = clip_lasso_select_exec;
@@ -665,7 +665,7 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 
   Mask *mask_orig = CTX_data_edit_mask(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_orig->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   float zoomx, zoomy, offset[2], ellipse[2];
   int width, height;
@@ -745,7 +745,7 @@ void MASK_OT_select_circle(wmOperatorType *ot)
   ot->description = "Select curve points using circle selection";
   ot->idname = "MASK_OT_select_circle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_circle_invoke;
   ot->modal = WM_gesture_circle_modal;
   ot->exec = circle_select_exec;
@@ -814,7 +814,7 @@ void MASK_OT_select_linked_pick(wmOperatorType *ot)
   ot->idname = "MASK_OT_select_linked_pick";
   ot->description = "(De)select all points linked to the curve under the mouse cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = mask_select_linked_pick_invoke;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 
@@ -869,7 +869,7 @@ void MASK_OT_select_linked(wmOperatorType *ot)
   ot->idname = "MASK_OT_select_linked";
   ot->description = "Select all curve points linked to already selected ones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mask_select_linked_exec;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 
@@ -968,7 +968,7 @@ void MASK_OT_select_more(wmOperatorType *ot)
   ot->idname = "MASK_OT_select_more";
   ot->description = "Select more spline points connected to initial selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mask_select_more_exec;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 
@@ -988,7 +988,7 @@ void MASK_OT_select_less(wmOperatorType *ot)
   ot->idname = "MASK_OT_select_less";
   ot->description = "Deselect spline points at the boundary of each selection region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mask_select_less_exec;
   ot->poll = ED_maskedit_mask_visible_splines_poll;
 

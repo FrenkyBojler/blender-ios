@@ -120,6 +120,26 @@ static ListBase selected_objects_get(bContext *C);
 /** \name Internal Utilities
  * \{ */
 
+static bool object_mode_set_ok_or_report(ReportList *reports)
+{
+  /* NOTE(@ideasman42): toggling modes while transforming should not be allowed by the key-map,
+   * so users should not be able do this. Python scripts can though,
+   * so check here to report an error instead of crashing.
+   *
+   * This is *not* a comprehensive check, since users might be trying to change modes
+   * while in the middle of *any* modal operator (painting or dragging a UI slider... etc).
+   *
+   * This check could be removed if it causes any problems since the error it prevents
+   * is quite obscure. See: #137380. */
+
+  if (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT)) {
+    BKE_reportf(reports, RPT_ERROR, "Unable to change object mode while transforming");
+    return false;
+  }
+
+  return true;
+}
+
 Object *context_object(const bContext *C)
 {
   return static_cast<Object *>(CTX_data_pointer_get_type(C, "object", &RNA_Object).data);
@@ -313,7 +333,7 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
   ot->description = "Reveal temporarily hidden objects";
   ot->idname = "OBJECT_OT_hide_view_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_view_clear_exec;
   ot->poll = object_hide_poll;
 
@@ -379,7 +399,7 @@ void OBJECT_OT_hide_view_set(wmOperatorType *ot)
   ot->description = "Temporarily hide objects from the viewport";
   ot->idname = "OBJECT_OT_hide_view_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_view_set_exec;
   ot->poll = object_hide_poll;
 
@@ -443,7 +463,7 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
 
   LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
-    uiLayout *row = uiLayoutRow(layout, false);
+    uiLayout *row = &layout->row(false);
 
     if (lc->flag & LAYER_COLLECTION_EXCLUDE) {
       continue;
@@ -505,7 +525,7 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
   ot->description = "Show only objects in collection (Shift to extend)";
   ot->idname = "OBJECT_OT_hide_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hide_collection_exec;
   ot->invoke = object_hide_collection_invoke;
   ot->poll = ED_operator_view3d_active;
@@ -938,6 +958,9 @@ static wmOperatorStatus editmode_toggle_exec(bContext *C, wmOperator *op)
   const bool is_mode_set = (obact->mode & mode_flag) != 0;
   wmMsgBus *mbus = CTX_wm_message_bus(C);
 
+  if (!object_mode_set_ok_or_report(op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
   if (!is_mode_set) {
     if (!mode_compat_set(C, obact, eObjectMode(mode_flag), op->reports)) {
       return OPERATOR_CANCELLED;
@@ -980,7 +1003,11 @@ static wmOperatorStatus editmode_toggle_exec(bContext *C, wmOperator *op)
 
 static bool editmode_toggle_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  /* Get object the same way as in editmode_toggle_exec(). Otherwise overriding context can crash,
+   * see #137998. */
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* Covers liboverrides too. */
   if (ELEM(nullptr, ob, ob->data) || !ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob) ||
@@ -1005,7 +1032,7 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
   ot->description = "Toggle object's edit mode";
   ot->idname = "OBJECT_OT_editmode_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = editmode_toggle_exec;
   ot->poll = editmode_toggle_poll;
 
@@ -1026,6 +1053,10 @@ static wmOperatorStatus posemode_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Base *base = CTX_data_active_base(C);
+
+  if (!object_mode_set_ok_or_report(op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
 
   /* If the base is nullptr it means we have an active object, but the object itself is hidden. */
   if (base == nullptr) {
@@ -1097,7 +1128,7 @@ void OBJECT_OT_posemode_toggle(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_posemode_toggle";
   ot->description = "Enable or disable posing/selecting bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = posemode_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -1168,7 +1199,7 @@ void OBJECT_OT_forcefield_toggle(wmOperatorType *ot)
   ot->description = "Toggle object's force field";
   ot->idname = "OBJECT_OT_forcefield_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = forcefield_toggle_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -1360,7 +1391,7 @@ void OBJECT_OT_paths_calculate(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_calculate";
   ot->description = "Generate motion paths for the selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_calculate_paths_invoke;
   ot->exec = object_calculate_paths_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -1432,7 +1463,7 @@ void OBJECT_OT_paths_update(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_update";
   ot->description = "Recalculate motion paths for selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_update_paths_exec;
   ot->poll = object_update_paths_poll;
 
@@ -1473,7 +1504,7 @@ void OBJECT_OT_paths_update_visible(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_paths_update_visible";
   ot->description = "Recalculate all visible motion paths for objects and poses";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_update_all_paths_exec;
   ot->poll = object_update_all_paths_poll;
 
@@ -1549,7 +1580,7 @@ void OBJECT_OT_paths_clear(wmOperatorType *ot)
   ot->name = "Clear Object Paths";
   ot->idname = "OBJECT_OT_paths_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_clear_paths_exec;
   ot->poll = ED_operator_object_active_editable;
   ot->get_description = object_clear_paths_get_description;
@@ -1708,7 +1739,7 @@ void OBJECT_OT_shade_flat(wmOperatorType *ot)
   ot->description = "Render and display faces uniform, using face normals";
   ot->idname = "OBJECT_OT_shade_flat";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shade_poll;
   ot->exec = shade_smooth_exec;
 
@@ -1729,7 +1760,7 @@ void OBJECT_OT_shade_smooth(wmOperatorType *ot)
   ot->description = "Render and display faces smooth, using interpolated vertex normals";
   ot->idname = "OBJECT_OT_shade_smooth";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shade_poll;
   ot->exec = shade_smooth_exec;
 
@@ -1901,11 +1932,11 @@ static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *col = uiLayoutColumn(layout, false);
+  uiLayout *col = &layout->column(false);
   uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_auto_smooth"));
-  uiItemR(layout, op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void OBJECT_OT_shade_auto_smooth(wmOperatorType *ot)
@@ -1994,6 +2025,9 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
 
   if (!mode_compat_test(ob, mode)) {
     return OPERATOR_PASS_THROUGH;
+  }
+  if (!object_mode_set_ok_or_report(op->reports)) {
+    return OPERATOR_CANCELLED;
   }
 
   /**
@@ -2089,7 +2123,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
   ot->description = "Sets the object interaction mode";
   ot->idname = "OBJECT_OT_mode_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_mode_set_exec;
   ot->poll = object_mode_set_poll;
 
@@ -2313,7 +2347,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
                   UI_ITEM_NONE,
                   nullptr);
 
-  uiItemS(layout);
+  layout->separator();
 
   Scene *scene = CTX_data_scene(C);
   const int icon = (menu->collection == scene->master_collection) ?
@@ -2339,7 +2373,7 @@ static void move_to_collection_menus_items(uiLayout *layout, MoveToCollectionDat
                menu->index);
   }
   else {
-    uiItemMenuF(layout, menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
+    layout->menu_fn(menu->collection->id.name + 2, icon, move_to_collection_menu_create, menu);
   }
 }
 
@@ -2426,7 +2460,7 @@ void OBJECT_OT_move_to_collection(wmOperatorType *ot)
   ot->description = "Move objects to a collection";
   ot->idname = "OBJECT_OT_move_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;
@@ -2465,7 +2499,7 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
   ot->description = "Link objects to a collection";
   ot->idname = "OBJECT_OT_link_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;

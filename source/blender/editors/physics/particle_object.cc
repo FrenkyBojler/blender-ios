@@ -91,7 +91,7 @@ void OBJECT_OT_particle_system_add(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_particle_system_add";
   ot->description = "Add a particle system";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_object_active_local_editable;
   ot->exec = particle_system_add_exec;
 
@@ -140,7 +140,7 @@ void OBJECT_OT_particle_system_remove(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_particle_system_remove";
   ot->description = "Remove the selected particle system";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_object_active_local_editable;
   ot->exec = particle_system_remove_exec;
 
@@ -202,7 +202,7 @@ void PARTICLE_OT_new(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_new";
   ot->description = "Add new particle settings";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = new_particle_settings_exec;
   ot->poll = psys_poll;
 
@@ -230,7 +230,7 @@ static wmOperatorStatus new_particle_target_exec(bContext *C, wmOperator * /*op*
     pt->flag &= ~PTARGET_CURRENT;
   }
 
-  pt = static_cast<ParticleTarget *>(MEM_callocN(sizeof(ParticleTarget), "keyed particle target"));
+  pt = MEM_callocN<ParticleTarget>("keyed particle target");
 
   pt->flag |= PTARGET_CURRENT;
   pt->psys = 1;
@@ -252,7 +252,7 @@ void PARTICLE_OT_new_target(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_new_target";
   ot->description = "Add a new particle target";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = new_particle_target_exec;
 
   /* flags */
@@ -301,7 +301,7 @@ void PARTICLE_OT_target_remove(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_target_remove";
   ot->description = "Remove the selected particle target";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = remove_particle_target_exec;
 
   /* flags */
@@ -491,7 +491,7 @@ void PARTICLE_OT_dupliob_copy(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_dupliob_copy";
   ot->description = "Duplicate the current instance object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = copy_particle_dupliob_exec;
 
   /* flags */
@@ -535,7 +535,7 @@ void PARTICLE_OT_dupliob_remove(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_dupliob_remove";
   ot->description = "Remove the selected instance object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = remove_particle_dupliob_exec;
 
   /* flags */
@@ -585,7 +585,7 @@ void PARTICLE_OT_dupliob_move_down(wmOperatorType *ot)
 
 static void disconnect_hair(Depsgraph *depsgraph, Scene *scene, Object *ob, ParticleSystem *psys)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
   ParticleSystemModifierData *psmd_eval = psys_get_modifier(object_eval, psys_eval);
   ParticleEditSettings *pset = PE_settings(scene);
@@ -696,7 +696,7 @@ static bool remap_hair_emitter(Depsgraph *depsgraph,
                                bool from_global,
                                bool to_global)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   ParticleSystem *psys_eval = psys_eval_get(depsgraph, ob, psys);
   ParticleSystemModifierData *target_psmd = psys_get_modifier(object_eval, psys_eval);
   ParticleData *pa, *tpa;
@@ -1115,8 +1115,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
 #define PSYS_FROM_NEXT(cur) (single_psys_from ? nullptr : (cur)->next)
   totpsys = single_psys_from ? 1 : BLI_listbase_count(&ob_from->particlesystem);
 
-  tmp_psys = static_cast<ParticleSystem **>(
-      MEM_mallocN(sizeof(ParticleSystem *) * totpsys, "temporary particle system array"));
+  tmp_psys = MEM_malloc_arrayN<ParticleSystem *>(totpsys, "temporary particle system array");
 
   for (psys_from = PSYS_FROM_FIRST, i = 0; psys_from; psys_from = PSYS_FROM_NEXT(psys_from), i++) {
     psys = BKE_object_copy_particlesystem(psys_from, 0);
