@@ -268,7 +268,9 @@ static void update_view2d_tot_rect(const SpreadsheetDrawer &drawer,
 }
 
 static void draw_column_reorder_overlay(const ARegion &region,
-                                        const SpaceSpreadsheet &sspreadsheet)
+                                        const SpaceSpreadsheet &sspreadsheet,
+                                        const SpreadsheetDrawer &drawer,
+                                        const int scroll_offset_x)
 {
   const ReorderColumnVisualizationData &data =
       *sspreadsheet.runtime->reorder_column_visualization_data;
@@ -279,8 +281,10 @@ static void draw_column_reorder_overlay(const ARegion &region,
     UI_GetThemeColorShade4fv(TH_BACK, -20, color);
     color.a = 0.3f;
     rctf offset_column_rect;
-    offset_column_rect.xmin = data.column_to_move->runtime->left_x + data.current_offset_x_px;
-    offset_column_rect.xmax = data.column_to_move->runtime->right_x + data.current_offset_x_px;
+    offset_column_rect.xmin = data.column_to_move->runtime->left_x + data.current_offset_x_px -
+                              scroll_offset_x;
+    offset_column_rect.xmax = offset_column_rect.xmin +
+                              data.column_to_move->width * SPREADSHEET_WIDTH_UNIT;
     offset_column_rect.ymin = 0;
     offset_column_rect.ymax = region.winy;
     UI_draw_roundbox_4fv(&offset_column_rect, true, 0, color);
@@ -294,10 +298,16 @@ static void draw_column_reorder_overlay(const ARegion &region,
                                                        first_column->runtime->left_x;
     const int width = UI_UNIT_X * 0.1f;
     rctf insert_rect;
-    insert_rect.xmin = insert_column_x - width / 2;
+    insert_rect.xmin = insert_column_x - width / 2 - scroll_offset_x;
     insert_rect.xmax = insert_rect.xmin + width;
     insert_rect.ymin = 0;
     insert_rect.ymax = region.winy;
+
+    /* Don't draw on top of index column. */
+    const int left_bound = drawer.left_column_width - width / 2;
+    insert_rect.xmin = std::max<float>(insert_rect.xmin, left_bound);
+    insert_rect.xmax = std::max<float>(insert_rect.xmax, left_bound);
+
     UI_draw_roundbox_4fv(&insert_rect, true, 0, color);
   }
 }
@@ -332,7 +342,7 @@ void draw_spreadsheet_in_region(const bContext *C,
   draw_cell_contents(C, region, drawer, scroll_offset_x, scroll_offset_y);
 
   if (sspreadsheet.runtime->reorder_column_visualization_data.has_value()) {
-    draw_column_reorder_overlay(*region, sspreadsheet);
+    draw_column_reorder_overlay(*region, sspreadsheet, drawer, scroll_offset_x);
   }
 
   rcti scroller_mask;

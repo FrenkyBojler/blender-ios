@@ -300,7 +300,7 @@ static void SPREADSHEET_OT_fit_column(wmOperatorType *ot)
 
 struct ReorderColumnData {
   SpreadsheetColumn *column = nullptr;
-  int2 initial_cursor_re;
+  int initial_cursor_x_view;
 };
 
 static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -321,7 +321,7 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
 
   ReorderColumnData *data = MEM_new<ReorderColumnData>(__func__);
   data->column = column_to_move;
-  data->initial_cursor_re = cursor_re;
+  data->initial_cursor_x_view = UI_view2d_region_to_view_x(&region.v2d, cursor_re.x);
   op->customdata = data;
 
   ReorderColumnVisualizationData &visualization_data =
@@ -384,8 +384,19 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
       ReorderColumnVisualizationData &visualization_data =
           *sspreadsheet.runtime->reorder_column_visualization_data;
       visualization_data.new_prev_column = new_prev_column;
-      visualization_data.current_offset_x_px = cursor_re.x - data.initial_cursor_re.x;
+      visualization_data.current_offset_x_px = UI_view2d_region_to_view_x(&region.v2d,
+                                                                          cursor_re.x) -
+                                               data.initial_cursor_x_view;
       ED_region_tag_redraw(&region);
+
+      return OPERATOR_RUNNING_MODAL;
+    }
+    case WHEELLEFTMOUSE:
+    case WHEELRIGHTMOUSE: {
+      if (BLI_rcti_isect_pt_v(&region.winrct, event->xy)) {
+        /* Support scrolling left and right. */
+        return OPERATOR_PASS_THROUGH;
+      }
       return OPERATOR_RUNNING_MODAL;
     }
     default: {
