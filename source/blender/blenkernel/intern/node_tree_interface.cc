@@ -23,6 +23,8 @@
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
 
+#include "NOD_node_declaration.hh"
+
 using blender::StringRef;
 
 /**
@@ -1131,6 +1133,10 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
 
     iosock = ntree.tree_interface.add_socket(
         name, from_sock.description, socket_type, flag, nullptr);
+
+    if (const nodes::SocketDeclaration *decl = from_sock.runtime->declaration) {
+      iosock->default_input = decl->default_input_type;
+    }
   }
   if (iosock == nullptr) {
     return nullptr;
