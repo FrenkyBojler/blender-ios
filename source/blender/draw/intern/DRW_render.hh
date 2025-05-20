@@ -123,24 +123,6 @@ struct DrawEngine {
   };
 };
 
-GPUMaterial *DRW_shader_from_world(World *wo,
-                                   bNodeTree *ntree,
-                                   eGPUMaterialEngine engine,
-                                   const uint64_t shader_id,
-                                   bool deferred,
-                                   GPUCodegenCallbackFn callback,
-                                   void *thunk);
-
-GPUMaterial *DRW_shader_from_material(
-    Material *ma,
-    bNodeTree *ntree,
-    eGPUMaterialEngine engine,
-    const uint64_t shader_id,
-    bool deferred,
-    GPUCodegenCallbackFn callback,
-    void *thunk,
-    GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);
-
 /* Viewport. */
 
 /**

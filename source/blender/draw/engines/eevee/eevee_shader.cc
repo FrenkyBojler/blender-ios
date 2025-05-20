@@ -12,6 +12,7 @@
 #include "GPU_capabilities.hh"
 
 #include "BKE_material.hh"
+#include "DNA_world_types.h"
 
 #include "gpu_shader_create_info.hh"
 
@@ -997,16 +998,16 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   bool is_default_material = ELEM(
       blender_mat, BKE_material_default_surface(), BKE_material_default_volume());
 
-  GPUMaterial *mat = DRW_shader_from_material(blender_mat,
-                                              nodetree,
-                                              GPU_MAT_EEVEE,
-                                              shader_uuid,
-                                              deferred_compilation,
-                                              codegen_callback,
-                                              this,
-                                              is_default_material ? nullptr : pass_replacement_cb);
-
-  return mat;
+  return GPU_material_from_nodetree(blender_mat,
+                                    nodetree,
+                                    &blender_mat->gpumaterial,
+                                    blender_mat->id.name,
+                                    GPU_MAT_EEVEE,
+                                    shader_uuid,
+                                    deferred_compilation,
+                                    codegen_callback,
+                                    this,
+                                    is_default_material ? nullptr : pass_replacement_cb);
 }
 
 GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
@@ -1016,13 +1017,15 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
 {
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
-  return DRW_shader_from_world(blender_world,
-                               nodetree,
-                               GPU_MAT_EEVEE,
-                               shader_uuid,
-                               deferred_compilation,
-                               codegen_callback,
-                               this);
+  return GPU_material_from_nodetree(nullptr,
+                                    nodetree,
+                                    &blender_world->gpumaterial,
+                                    blender_world->id.name,
+                                    GPU_MAT_EEVEE,
+                                    shader_uuid,
+                                    deferred_compilation,
+                                    codegen_callback,
+                                    this);
 }
 
 /** \} */
