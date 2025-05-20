@@ -1001,8 +1001,8 @@ static inline void sort_points(int2 &p1, int2 &p2)
   }
 }
 
-/* Ensures that the x and y distance to from p1 to p2 is equal. Does not change the fact that p1 is
- * the top-left corner. */
+/* Ensures that the x and y distance to from p1 to p2 is equal. The two points can be in any
+ * spacial relation to each other. Only p2 is altered. */
 static inline void square_points(const int2 &p1, int2 &p2)
 {
   int2 delta = p2 - p1;
@@ -1230,20 +1230,18 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   switch (event->type) {
     case LEFTMOUSE: {
       switch (event->val) {
-        case KM_PRESS: {
+        case KM_PRESS:
           data->is_mouse_down = true;
           data->crossed_threshold = false;
           data->drag_start = screen_space_cursor;
           break;
-        }
-        case KM_RELEASE: {
+        case KM_RELEASE:
           data->is_mouse_down = false;
           data->drag_end = screen_space_cursor;
           screenshot_area_transfer_to_rna(op, data);
           screenshot_preview_exec(C, op);
           screenshot_preview_exit(C, op);
           return OPERATOR_FINISHED;
-        }
       }
       break;
     }
