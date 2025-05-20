@@ -5281,6 +5281,30 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 73)) {
+    /* Make #Curve::type the source of truth for the curve type.
+     * Previously #Curve::vfont was checked which is error prone
+     * since the member can become null at run-time, see: #139133. */
+    LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
+      if (ELEM(cu->ob_type, OB_CURVES_LEGACY, OB_FONT, OB_SURF)) {
+        continue;
+      }
+      short ob_type = OB_CURVES_LEGACY;
+      if (cu->vfont) {
+        ob_type = OB_FONT;
+      }
+      else {
+        LISTBASE_FOREACH (const Nurb *, nu, &cu->nurb) {
+          if (nu->pntsv > 1) {
+            ob_type = OB_SURF;
+            break;
+          }
+        }
+      }
+      cu->ob_type = ob_type;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 74)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         do_version_translate_node_remove_relative(node_tree);
