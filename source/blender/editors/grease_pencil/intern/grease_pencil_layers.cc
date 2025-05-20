@@ -1361,6 +1361,10 @@ static wmOperatorStatus grease_pencil_layer_ungroup_exec(bContext *C, wmOperator
       if (parent.name().size() != 0) {  // Check if parent name is non-empty.
         grease_pencil.move_node_before(layer->as_node(), const_cast<TreeNode &>(parent.as_node()));
       }
+      // Remove the group if it has no other children.
+      if (parent.num_direct_nodes() == 0) {
+        grease_pencil.remove_group(const_cast<LayerGroup &>(parent), true);
+      }
     }
   }
 
