@@ -1719,7 +1719,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
-      vertex_random_access_ensure(object);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int node_index) {
@@ -2128,7 +2128,7 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
   const float strength = RNA_float_get(op->ptr, "strength");
 
-  vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
   if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
@@ -2428,7 +2428,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
     cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
-  vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   if (needs_topology_info) {
     boundary::ensure_boundary_info(ob);
   }

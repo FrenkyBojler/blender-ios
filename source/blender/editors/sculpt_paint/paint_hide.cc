@@ -1085,7 +1085,7 @@ static Array<bool> duplicate_visibility_bmesh(const Object &object)
   const SculptSession &ss = *object.sculpt;
   BMesh &bm = *ss.bm;
   Array<bool> result(bm.totvert);
-  vertex_random_access_ensure(const_cast<Object &>(object));
+  vert_random_access_ensure(const_cast<Object &>(object));
   for (const int i : result.index_range()) {
     result[i] = BM_elem_flag_test_bool(BM_vert_at_index(&bm, i), BM_ELEM_HIDDEN);
   }

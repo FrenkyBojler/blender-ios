@@ -308,7 +308,7 @@ void do_smooth_mask_brush(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       threading::EnumerableThreadSpecific<LocalData> all_tls;
-      vertex_random_access_ensure(object);
+      vert_random_access_ensure(object);
       const int mask_offset = CustomData_get_offset_named(
           &ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       for (const float strength : iteration_strengths(brush_strength)) {

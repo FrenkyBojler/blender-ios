@@ -759,7 +759,7 @@ static void initialize_cursor_info(bContext &C,
 {
   Object &ob = *CTX_data_active_object(&C);
 
-  vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   int mval[2];
   RNA_int_get_array(op.ptr, "location", mval);

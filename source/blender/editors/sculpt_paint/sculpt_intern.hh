@@ -549,7 +549,7 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 
 namespace blender::ed::sculpt_paint {
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
-void vertex_random_access_ensure(Object &object);
+void vert_random_access_ensure(Object &object);
 }  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object);
