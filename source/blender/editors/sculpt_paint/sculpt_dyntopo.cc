@@ -162,7 +162,6 @@ void disable(bContext *C, undo::StepData *undo_step)
 
 void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
   BMesh *bm = bke::object::bmesh_get(ob);
   if (bm != nullptr) {
     /* May be false in background mode. */
@@ -180,7 +179,6 @@ void disable_with_undo(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &
 
 static void enable_with_undo(Main &bmain, Depsgraph &depsgraph, const Scene &scene, Object &ob)
 {
-  SculptSession &ss = *ob.sculpt;
   BMesh *bm = bke::object::bmesh_get(ob);
   if (bm == nullptr) {
     /* May be false in background mode. */
@@ -202,7 +200,6 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOpera
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
   Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
-  SculptSession &ss = *ob.sculpt;
 
   WM_cursor_wait(true);
 
