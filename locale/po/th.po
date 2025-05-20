@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:42+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -630,6 +630,10 @@ msgid "Volume"
 msgstr "ปริมาตร"
 
 
+msgid "Wire"
+msgstr "เส้น"
+
+
 msgid "Head"
 msgstr "หัว"
 
@@ -1218,10 +1222,6 @@ msgstr "ผู้ใช้"
 
 msgid "Layers"
 msgstr "ชั้น"
-
-
-msgid "Wire"
-msgstr "เส้น"
 
 
 msgid "Add Alpha"

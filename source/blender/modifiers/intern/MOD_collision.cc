@@ -39,9 +39,7 @@ static void init_data(ModifierData *md)
 {
   CollisionModifierData *collmd = (CollisionModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(collmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(collmd, DNA_struct_default_get(CollisionModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(collmd, DNA_struct_default_get(CollisionModifierData), modifier);
 }
 
 static void free_data(ModifierData *md)
@@ -233,9 +231,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

@@ -27,9 +27,7 @@ static void speaker_init_data(ID *id)
 {
   Speaker *speaker = (Speaker *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(speaker, id));
-
-  MEMCPY_STRUCT_AFTER(speaker, DNA_struct_default_get(Speaker), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(speaker, DNA_struct_default_get(Speaker), id);
 }
 
 static void speaker_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -49,7 +47,7 @@ static void speaker_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 }
 
 IDTypeInfo IDType_ID_SPK = {
-    /*id_code*/ ID_SPK,
+    /*id_code*/ Speaker::id_type,
     /*id_filter*/ FILTER_ID_SPK,
     /*dependencies_id_types*/ FILTER_ID_SO,
     /*main_listbase_index*/ INDEX_ID_SPK,
@@ -82,7 +80,7 @@ Speaker *BKE_speaker_add(Main *bmain, const char *name)
 {
   Speaker *spk;
 
-  spk = static_cast<Speaker *>(BKE_id_new(bmain, ID_SPK, name));
+  spk = BKE_id_new<Speaker>(bmain, name);
 
   return spk;
 }

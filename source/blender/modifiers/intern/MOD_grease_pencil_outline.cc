@@ -56,9 +56,8 @@ static void init_data(ModifierData *md)
 {
   auto *omd = reinterpret_cast<GreasePencilOutlineModifierData *>(md);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(omd, modifier));
-
-  MEMCPY_STRUCT_AFTER(omd, DNA_struct_default_get(GreasePencilOutlineModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(
+      omd, DNA_struct_default_get(GreasePencilOutlineModifierData), modifier);
   modifier::greasepencil::init_influence_data(&omd->influence, false);
 }
 
@@ -274,26 +273,26 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "sample_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_keep_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "sample_length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   Scene *scene = CTX_data_scene(C);
   if (scene->camera == nullptr) {
-    uiItemL(layout, RPT_("Outline requires an active camera"), ICON_ERROR);
+    layout->label(RPT_("Outline requires an active camera"), ICON_ERROR);
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

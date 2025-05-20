@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:20+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -10917,10 +10917,6 @@ msgid "Scene size"
 msgstr "Kohtauksen koko"
 
 
-msgid "Use Backdrop"
-msgstr "Käytä taustaa"
-
-
 msgid "Tool Gizmo"
 msgstr "Työkalu Gizmo"
 
@@ -11802,11 +11798,6 @@ msgstr "Teema"
 msgctxt "View3D"
 msgid "World"
 msgstr "Maailma"
-
-
-msgctxt "View3D"
-msgid "Viewport"
-msgstr "Näkymä"
 
 
 msgctxt "View3D"
@@ -15262,10 +15253,6 @@ msgid "Can't create subtitle file"
 msgstr "Tekstitystiedostoa ei kyetty luomaan"
 
 
-msgid "No active sequence!"
-msgstr "Ei aktiivista sekvenssiä!"
-
-
 msgid "Rows:"
 msgstr "Rivit:"
 
@@ -15967,10 +15954,6 @@ msgstr "Kuva 1"
 
 msgid "Image 2"
 msgstr "Kuva 2"
-
-
-msgid "Center:"
-msgstr "Keskikohta:"
 
 
 msgid "Inner Edge:"

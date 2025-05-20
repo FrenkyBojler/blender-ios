@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:24+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -1066,6 +1066,10 @@ msgstr "Egyenes"
 
 msgid "Children"
 msgstr "Gyermek"
+
+
+msgid "Wire"
+msgstr "Drótváz"
 
 
 msgid "Length"
@@ -4039,10 +4043,6 @@ msgstr "Csoportok"
 
 msgid "Layers"
 msgstr "Rétegek"
-
-
-msgid "Wire"
-msgstr "Drótváz"
 
 
 msgid "Exclusion"
@@ -17124,10 +17124,6 @@ msgstr "Film klip nem található"
 
 msgid "Please select two strips"
 msgstr "Két sáv kijelölése szükséges"
-
-
-msgid "No active sequence!"
-msgstr "Nincs aktív szekvencia!"
 
 
 msgid "No Recent Files"

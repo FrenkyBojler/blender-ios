@@ -724,9 +724,7 @@ static void init_data(ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -794,20 +792,18 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  uiItemS(layout);
+  layout->separator();
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiLayoutSetEnabled(row, has_vertex_group);
-  uiItemO(row,
-          is_bind ? IFACE_("Unbind") : IFACE_("Bind"),
-          ICON_NONE,
-          "OBJECT_OT_laplaciandeform_bind");
+  row->op(
+      "OBJECT_OT_laplaciandeform_bind", is_bind ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

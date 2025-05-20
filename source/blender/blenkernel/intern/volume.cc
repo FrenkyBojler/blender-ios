@@ -72,7 +72,6 @@ using blender::bke::GVolumeGrid;
 
 #ifdef WITH_OPENVDB
 #  include <list>
-#  include <mutex>
 
 #  include <openvdb/openvdb.h>
 #  include <openvdb/points/PointDataGrid.h>
@@ -110,7 +109,7 @@ struct VolumeGridVector : public std::list<GVolumeGrid> {
 
   /* Mutex for file loading of grids list. `const` write access to the fields after this must be
    * protected by locking with this mutex. */
-  mutable std::mutex mutex;
+  mutable blender::Mutex mutex;
   /* Absolute file path that grids have been loaded from. */
   char filepath[FILE_MAX];
   /* File loading error message. */
@@ -134,9 +133,8 @@ void BKE_volumes_init()
 static void volume_init_data(ID *id)
 {
   Volume *volume = (Volume *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(volume, id));
 
-  MEMCPY_STRUCT_AFTER(volume, DNA_struct_default_get(Volume), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(volume, DNA_struct_default_get(Volume), id);
 
   volume->runtime = MEM_new<blender::bke::VolumeRuntime>(__func__);
 
@@ -276,7 +274,7 @@ static void volume_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
 }
 
 IDTypeInfo IDType_ID_VO = {
-    /*id_code*/ ID_VO,
+    /*id_code*/ Volume::id_type,
     /*id_filter*/ FILTER_ID_VO,
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_VO,
@@ -318,7 +316,7 @@ void BKE_volume_init_grids(Volume *volume)
 
 Volume *BKE_volume_add(Main *bmain, const char *name)
 {
-  Volume *volume = (Volume *)BKE_id_new(bmain, ID_VO, name);
+  Volume *volume = BKE_id_new<Volume>(bmain, name);
 
   return volume;
 }
@@ -480,7 +478,7 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   }
 
   /* Double-checked lock. */
-  std::lock_guard<std::mutex> lock(const_grids.mutex);
+  std::lock_guard lock(const_grids.mutex);
   if (BKE_volume_is_loaded(volume)) {
     return const_grids.error_msg.empty();
   }
@@ -942,7 +940,7 @@ blender::bke::VolumeGridData *BKE_volume_grid_find_for_write(Volume *volume, con
 
 Volume *BKE_volume_new_for_eval(const Volume *volume_src)
 {
-  Volume *volume_dst = (Volume *)BKE_id_new_nomain(ID_VO, nullptr);
+  Volume *volume_dst = BKE_id_new_nomain<Volume>(nullptr);
 
   STRNCPY(volume_dst->id.name, volume_src->id.name);
   volume_dst->mat = (Material **)MEM_dupallocN(volume_src->mat);
@@ -986,6 +984,11 @@ blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
   grids.emplace_back(GVolumeGrid(std::move(vdb_grid)));
   return &grids.back().get_for_write();
 }
+
+void BKE_volume_metadata_set(Volume &volume, openvdb::MetaMap::Ptr metadata)
+{
+  volume.runtime->grids->metadata = metadata;
+}
 #endif
 
 void BKE_volume_grid_remove(Volume *volume, const blender::bke::VolumeGridData *grid)
@@ -1022,6 +1025,16 @@ bool BKE_volume_grid_determinant_valid(const double determinant)
   UNUSED_VARS(determinant);
   return true;
 #endif
+}
+
+bool BKE_volume_voxel_size_valid(const float3 &voxel_size)
+{
+  return BKE_volume_grid_determinant_valid(voxel_size[0] * voxel_size[1] * voxel_size[2]);
+}
+
+bool BKE_volume_grid_transform_valid(const float4x4 &transform)
+{
+  return BKE_volume_grid_determinant_valid(blender::math::determinant(transform));
 }
 
 int BKE_volume_simplify_level(const Depsgraph *depsgraph)
@@ -1076,6 +1089,32 @@ openvdb::GridBase::ConstPtr BKE_volume_grid_shallow_transform(openvdb::GridBase:
 
   /* Create a transformed grid. The underlying tree is shared. */
   return grid->copyGridReplacingTransform(grid_transform);
+}
+
+blender::float4x4 BKE_volume_transform_to_blender(const openvdb::math::Transform &transform)
+{
+  /* Perspective not supported for now, getAffineMap() will leave out the
+   * perspective part of the transform. */
+  const openvdb::math::Mat4f matrix = transform.baseMap()->getAffineMap()->getMat4();
+  /* Blender column-major and OpenVDB right-multiplication conventions match. */
+  float4x4 result;
+  for (int col = 0; col < 4; col++) {
+    for (int row = 0; row < 4; row++) {
+      result[col][row] = matrix(col, row);
+    }
+  }
+  return result;
+}
+
+openvdb::math::Transform BKE_volume_transform_to_openvdb(const blender::float4x4 &transform)
+{
+  openvdb::math::Mat4f matrix_openvdb;
+  for (int col = 0; col < 4; col++) {
+    for (int row = 0; row < 4; row++) {
+      matrix_openvdb(col, row) = transform[col][row];
+    }
+  }
+  return openvdb::math::Transform(std::make_shared<openvdb::math::AffineMap>(matrix_openvdb));
 }
 
 /* Changing the resolution of a grid. */

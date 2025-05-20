@@ -10,6 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
@@ -50,9 +53,8 @@
 static void brush_init_data(ID *id)
 {
   Brush *brush = (Brush *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(brush, id));
 
-  MEMCPY_STRUCT_AFTER(brush, DNA_struct_default_get(Brush), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(brush, DNA_struct_default_get(Brush), id);
 
   /* enable fake user by default */
   id_fake_user_set(&brush->id);
@@ -172,7 +174,10 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
   else if (force_copy) {
     Brush *brush_new = (Brush *)BKE_id_copy(bmain, &brush->id); /* Ensures FAKE_USER is set */
 
-    brush_new->id.us = 0;
+    id_us_min(&brush_new->id);
+
+    BLI_assert(brush_new->id.flag & ID_FLAG_FAKEUSER);
+    BLI_assert(brush_new->id.us == 1);
 
     /* Setting `newid` is mandatory for complex #make_lib_local logic. */
     ID_NEW_SET(brush, brush_new);
@@ -421,7 +426,7 @@ static AssetTypeInfo AssetType_BR = {
 };
 
 IDTypeInfo IDType_ID_BR = {
-    /*id_code*/ ID_BR,
+    /*id_code*/ Brush::id_type,
     /*id_filter*/ FILTER_ID_BR,
     /*dependencies_id_types*/
     (FILTER_ID_BR | FILTER_ID_IM | FILTER_ID_PC | FILTER_ID_TE | FILTER_ID_MA),
@@ -526,7 +531,7 @@ static void brush_defaults(Brush *brush)
 
 Brush *BKE_brush_add(Main *bmain, const char *name, const eObjectMode ob_mode)
 {
-  Brush *brush = (Brush *)BKE_id_new(bmain, ID_BR, name);
+  Brush *brush = BKE_id_new<Brush>(bmain, name);
 
   brush->ob_mode = ob_mode;
 
@@ -1506,6 +1511,30 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
  * \{ */
 
 namespace blender::bke::brush {
+bool supports_dyntopo(const Brush &brush)
+{
+  return !ELEM(brush.sculpt_brush_type,
+               /* These brushes, as currently coded, cannot support dynamic topology */
+               SCULPT_BRUSH_TYPE_GRAB,
+               SCULPT_BRUSH_TYPE_ROTATE,
+               SCULPT_BRUSH_TYPE_CLOTH,
+               SCULPT_BRUSH_TYPE_THUMB,
+               SCULPT_BRUSH_TYPE_LAYER,
+               SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER,
+               SCULPT_BRUSH_TYPE_DRAW_SHARP,
+               SCULPT_BRUSH_TYPE_SLIDE_RELAX,
+               SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
+               SCULPT_BRUSH_TYPE_BOUNDARY,
+               SCULPT_BRUSH_TYPE_POSE,
+               SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
+               SCULPT_BRUSH_TYPE_PAINT,
+               SCULPT_BRUSH_TYPE_SMEAR,
+
+               /* These brushes could handle dynamic topology,
+                * but user feedback indicates it's better not to */
+               SCULPT_BRUSH_TYPE_SMOOTH,
+               SCULPT_BRUSH_TYPE_MASK);
+}
 bool supports_accumulate(const Brush &brush)
 {
   return ELEM(brush.sculpt_brush_type,
@@ -1519,9 +1548,7 @@ bool supports_accumulate(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
               SCULPT_BRUSH_TYPE_ROTATE,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_SCRAPE,
-              SCULPT_BRUSH_TYPE_FLATTEN);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_topology_rake(const Brush &brush)
 {
@@ -1592,10 +1619,7 @@ bool supports_plane_offset(const Brush &brush)
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
               SCULPT_BRUSH_TYPE_CLAY_THUMB,
-              SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_SCRAPE);
+              SCULPT_BRUSH_TYPE_PLANE);
 }
 bool supports_random_texture_angle(const Brush &brush)
 {
@@ -1631,9 +1655,6 @@ bool supports_secondary_cursor_color(const Brush &brush)
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_LAYER,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_MASK);
 }
 bool supports_smooth_stroke(const Brush &brush)
@@ -1672,9 +1693,6 @@ bool supports_inverted_direction(const Brush &brush)
               SCULPT_BRUSH_TYPE_BLOB,
               SCULPT_BRUSH_TYPE_CREASE,
               SCULPT_BRUSH_TYPE_PLANE,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_CLAY,
               SCULPT_BRUSH_TYPE_PINCH,
               SCULPT_BRUSH_TYPE_MASK);
@@ -1697,9 +1715,6 @@ bool supports_tilt(const Brush &brush)
   return ELEM(brush.sculpt_brush_type,
               SCULPT_BRUSH_TYPE_DRAW,
               SCULPT_BRUSH_TYPE_DRAW_SHARP,
-              SCULPT_BRUSH_TYPE_FLATTEN,
-              SCULPT_BRUSH_TYPE_FILL,
-              SCULPT_BRUSH_TYPE_SCRAPE,
               SCULPT_BRUSH_TYPE_PLANE,
               SCULPT_BRUSH_TYPE_CLAY_STRIPS);
 }

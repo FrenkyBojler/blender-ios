@@ -64,9 +64,8 @@ static void world_free_data(ID *id)
 static void world_init_data(ID *id)
 {
   World *wrld = (World *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wrld, id));
 
-  MEMCPY_STRUCT_AFTER(wrld, DNA_struct_default_get(World), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(wrld, DNA_struct_default_get(World), id);
 }
 
 /**
@@ -178,7 +177,7 @@ static void world_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_WO = {
-    /*id_code*/ ID_WO,
+    /*id_code*/ World::id_type,
     /*id_filter*/ FILTER_ID_WO,
     /*dependencies_id_types*/ FILTER_ID_TE,
     /*main_listbase_index*/ INDEX_ID_WO,
@@ -211,7 +210,7 @@ World *BKE_world_add(Main *bmain, const char *name)
 {
   World *wrld;
 
-  wrld = static_cast<World *>(BKE_id_new(bmain, ID_WO, name));
+  wrld = BKE_id_new<World>(bmain, name);
 
   return wrld;
 }

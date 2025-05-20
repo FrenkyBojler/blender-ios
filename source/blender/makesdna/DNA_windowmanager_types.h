@@ -153,6 +153,11 @@ typedef struct wmXrData {
 
 /** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_WM;
+#endif
+
   ID id;
 
   /** Separate active from drawable. */
@@ -381,18 +386,11 @@ typedef struct wmWindow {
   struct wmEvent *event_last_handled;
 
   /**
-   * Input Method Editor data - complex character input (especially for Asian character input)
-   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
-   */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
-  char _pad1[6];
-
-  /**
    * Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching.
    */
   char addmousemove;
+  char _pad1[7];
 
   /** Window+screen handlers, handled last. */
   ListBase handlers;
@@ -415,10 +413,11 @@ typedef struct wmWindow {
    * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
    * Used to detect double-click events.
    */
+  void *_pad2;
   uint64_t eventstate_prev_press_time_ms;
 
-  void *_pad2;
   WindowRuntimeHandle *runtime;
+  void *_pad3;
 } wmWindow;
 
 #ifdef ime_data

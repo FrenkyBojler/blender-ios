@@ -39,9 +39,7 @@ static void init_data(ModifierData *md)
 {
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(surmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(surmd, DNA_struct_default_get(SurfaceModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(surmd, DNA_struct_default_get(SurfaceModifierData), modifier);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
@@ -163,9 +161,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

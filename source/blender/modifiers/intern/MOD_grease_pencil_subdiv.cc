@@ -36,9 +36,8 @@ static void init_data(ModifierData *md)
 {
   GreasePencilSubdivModifierData *gpmd = reinterpret_cast<GreasePencilSubdivModifierData *>(md);
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilSubdivModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(
+      gpmd, DNA_struct_default_get(GreasePencilSubdivModifierData), modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -157,17 +156,17 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "subdivision_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "level", UI_ITEM_NONE, IFACE_("Subdivisions"), ICON_NONE);
+  layout->prop(ptr, "subdivision_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "level", UI_ITEM_NONE, IFACE_("Subdivisions"), ICON_NONE);
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

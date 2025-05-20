@@ -61,9 +61,7 @@ static void metaball_init_data(ID *id)
 {
   MetaBall *metaball = (MetaBall *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(metaball, id));
-
-  MEMCPY_STRUCT_AFTER(metaball, DNA_struct_default_get(MetaBall), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(metaball, DNA_struct_default_get(MetaBall), id);
 }
 
 static void metaball_copy_data(Main * /*bmain*/,
@@ -144,7 +142,7 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MB = {
-    /*id_code*/ ID_MB,
+    /*id_code*/ MetaBall::id_type,
     /*id_filter*/ FILTER_ID_MB,
     /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_MB,
@@ -177,7 +175,7 @@ IDTypeInfo IDType_ID_MB = {
 
 MetaBall *BKE_mball_add(Main *bmain, const char *name)
 {
-  MetaBall *mb = static_cast<MetaBall *>(BKE_id_new(bmain, ID_MB, name));
+  MetaBall *mb = BKE_id_new<MetaBall>(bmain, name);
   return mb;
 }
 

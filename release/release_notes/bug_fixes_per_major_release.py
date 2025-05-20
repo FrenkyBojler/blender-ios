@@ -40,12 +40,8 @@ Specifically the fixed issue listed in the commit message may be
 incorrect.
 
 In situations like this it can be easier to simply override the issue that
-the commit claims to fix. This can be done by launching the script with:
-`bug_fixes_per_major_release.py -o`
-
-The script will then ask for the commit hash, then the
-issue number that commit actually fixes then will use that override
-(and all other overrides you've setup) when you run the script again.
+the commit claims to fix. This can be done by adding a entry to the overrides
+issue: https://projects.blender.org/blender/blender/issues/137983
 
 ---
 
@@ -166,6 +162,7 @@ import subprocess
 import argparse
 import urllib.error
 import urllib.request
+import urllib.robotparser
 
 from time import time, sleep
 from typing import Any
@@ -194,7 +191,6 @@ NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
 
 dir_of_script = Path(__file__).parent.resolve()
-PATH_TO_OVERRIDES = dir_of_script.joinpath('overrides.json')
 PATH_TO_CACHED_COMMITS = dir_of_script.joinpath('cached_commits.json')
 del dir_of_script
 
@@ -237,17 +233,30 @@ assert len(set(LIST_OF_OFFICIAL_BLENDER_VERSIONS)) == len(LIST_OF_OFFICIAL_BLEND
 # -----------------------------------------------------------------------------
 # Private Utilities
 
-# Conform to Blenders crawl delay request:
-# https://projects.blender.org/robots.txt
-crawl_delay = 2
+CRAWL_DELAY = 2
 last_checked_time = None
+
+
+def set_crawl_delay() -> None:
+    global CRAWL_DELAY
+    # Conform to Blenders crawl delay request:
+    # https://projects.blender.org/robots.txt
+    try:
+        projects = urllib.robotparser.RobotFileParser(url="https://projects.blender.org/robots.txt")
+        projects.read()
+        projects_crawl_delay = projects.crawl_delay("*")
+        if projects_crawl_delay is not None:
+            assert isinstance(projects_crawl_delay, int)
+            CRAWL_DELAY = projects_crawl_delay
+    except:
+        pass
 
 
 def url_json_get(url: str) -> Any:
     global last_checked_time
 
     if last_checked_time is not None:
-        sleep(max(crawl_delay - (time() - last_checked_time), 0))
+        sleep(max(CRAWL_DELAY - (time() - last_checked_time), 0))
     last_checked_time = time()
 
     try:
@@ -380,6 +389,9 @@ class CommitInfo:
 
         for report_number in self.fixed_reports:
             report_information = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/{report_number}")
+            if report_information is None:
+                print(f"ERROR: Could not gather information from report number: {report_number}\n")
+                continue
 
             report_title = report_information['title']
             module = self.get_module(report_information['labels'])
@@ -414,8 +426,15 @@ class CommitInfo:
         formatted_string = (
             f" * {title} [[{self.hash[:11]}](https://projects.blender.org/blender/blender/commit/{self.hash})]"
         )
+
         if len(self.backport_list) > 0:
-            formatted_string += f" - Backported to {' & '.join(self.backport_list)}"
+            formatted_string += f" - Backported to "
+            if len(self.backport_list) > 2:
+                # In case of three or more backports, create a list that looks like:
+                # "Backported to 3.6, 4.2, and 4.3"
+                formatted_string += f"{', '.join(self.backport_list[:-1])}, and {self.backport_list[-1]}"
+            else:
+                formatted_string += " and ".join(self.backport_list)
         formatted_string += "\n"
 
         return formatted_string
@@ -442,9 +461,14 @@ class CommitInfo:
 
         self.needs_update = False
 
-    def read_from_override(self, override_data: list[str]) -> None:
+    def read_from_override(self, override_data: str) -> None:
         self.set_defaults()
-        self.fixed_reports = override_data
+        if "ignore" in override_data.lower():
+            self.classification = IGNORED
+            self.needs_update = False
+        else:
+            self.fixed_reports = [override_data]
+            self.needs_update = True
 
         self.has_been_overwritten = True
 
@@ -824,7 +848,7 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
     print_list_of_commits("Commits that need manual sorting:", dict_of_sorted_commits[NEEDS_MANUAL_SORTING])
 
     print_list_of_commits(
-        "Commits that need a override (launch this script with -o) as they claim to fix a PR:",
+        "Commits that need a override in https://projects.blender.org/blender/blender/issues/137983 as they claim to fix a PR:",
         dict_of_sorted_commits[FIXED_PR])
 
     print_list_of_commits("Ignored commits:", dict_of_sorted_commits[IGNORED])
@@ -876,7 +900,8 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
     # on commits that are already sorted (and they're not interested in).
     data_to_cache = {}
     for commit in list_of_commits:
-        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (commit.has_been_overwritten):
+        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (
+                commit.has_been_overwritten) and (commit.module != UNKNOWN):
             commit_hash, data = commit.prepare_for_cache()
             data_to_cache[commit_hash] = data
 
@@ -887,36 +912,57 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 # -----------------------------------------------------------------------------
 # Override Utilities
 
-def overrides_load() -> dict[str, list[str]]:
-    override_data = {}
-    if PATH_TO_OVERRIDES.exists():
-        with open(str(PATH_TO_OVERRIDES), 'r', encoding='utf-8') as file:
-            override_data = json.load(file)
+
+def overrides_read(silence: bool) -> dict[str, str]:
+    override_data: dict[str, str] = {}
+    override_report = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/137983")
+    description = override_report["body"].splitlines()
+
+    for line in description:
+        if "|" not in line:
+            continue
+        if line.startswith("| Commit"):
+            continue
+        if line.startswith("| -"):
+            continue
+
+        split_line = line.split("|")
+        info: list[str] = []
+        for entry in split_line:
+            # Remove empty strings and strip "#" off the issue number
+            entry = entry.strip().strip("#")
+            if len(entry) != 0:
+                info.append(entry)
+
+        try:
+            hash = info[0]
+            fixed_issue = info[1]
+            if len(hash) < 10:
+                print("\n" * 3)
+                print(f"ERROR: Hash is too short in this override data: {info}")
+                if not silence:
+                    input("Press enter to acknowledge: ")
+                continue
+            override_data[hash] = fixed_issue
+        except IndexError:
+            print("\n" * 3)
+            print(f"INDEX ERROR: Failed to process overrides with this data: {info}")
+            if not silence:
+                input("Press enter to acknowledge: ")
 
     return override_data
 
 
-def overrides_store(override_data: dict[str, list[str]]) -> None:
-    with open(str(PATH_TO_OVERRIDES), 'w', encoding='utf-8') as file:
-        json.dump(override_data, file, indent=4)
+def overrides_apply(list_of_commits: list[CommitInfo], silence: bool) -> None:
+    override_data = overrides_read(silence)
+    if len(override_data) == 0:
+        return
 
-
-def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
-    override_data = overrides_load()
-    if len(override_data) > 0:
+    for commit_hash in override_data:
         for commit in list_of_commits:
-            if commit.hash in override_data:
-                commit.read_from_override(override_data[commit.hash])
-
-
-def create_override() -> None:
-    commit_hash = input("Please input the full hash of the commit you want to override: ")
-    issue_number = input("Please input the issue number you want to override it with: ")
-
-    override_data = overrides_load()
-    override_data[commit_hash] = [issue_number]
-
-    overrides_store(override_data)
+            if commit.hash.startswith(commit_hash):
+                commit.read_from_override(override_data[commit_hash])
+                break
 
 
 # -----------------------------------------------------------------------------
@@ -927,14 +973,6 @@ def argparse_create() -> argparse.ArgumentParser:
         description=__doc__,
         # Don't re-format multi-line text.
         formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument(
-        "-o",
-        "--override",
-        action="store_true",
-        help=(
-            "Create a override for a commit."
-        ),
     )
     parser.add_argument(
         "-st",
@@ -1046,12 +1084,10 @@ def validate_arguments(args: argparse.Namespace) -> bool:
 def main() -> int:
     args = argparse_create().parse_args()
 
-    if args.override:
-        create_override()
-        return 0
-
     if not validate_arguments(args):
         return 0
+
+    set_crawl_delay()
 
     list_of_commits = get_fix_commits(
         current_release_tag=args.current_release_tag,
@@ -1062,7 +1098,7 @@ def main() -> int:
     if args.cache:
         cached_commits_load(list_of_commits)
 
-    overrides_apply(list_of_commits)
+    overrides_apply(list_of_commits, args.silence)
 
     classify_commits(
         args.backport_tasks,

@@ -48,9 +48,7 @@ static void init_data(ModifierData *md)
 {
   ClothModifierData *clmd = (ClothModifierData *)md;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(clmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(clmd, DNA_struct_default_get(ClothModifierData), modifier);
+  MEMCPY_STRUCT_AFTER_CHECKED(clmd, DNA_struct_default_get(ClothModifierData), modifier);
   clmd->sim_parms = DNA_struct_default_alloc(ClothSimSettings);
   clmd->coll_parms = DNA_struct_default_alloc(ClothCollSettings);
 
@@ -254,9 +252,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

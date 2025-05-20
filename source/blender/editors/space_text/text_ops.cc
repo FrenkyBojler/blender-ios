@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_camera_types.h"
 #include "DNA_text_types.h"
 
 #include "BLI_fileops.h"
@@ -25,12 +26,16 @@
 #include "BLI_string_cursor_utf8.h"
 #include "BLI_string_utf8.h"
 #include "BLI_time.h"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 #include "BKE_text.h"
 
@@ -43,6 +48,8 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "RE_engine.h"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
@@ -53,6 +60,8 @@
 
 #include "text_format.hh"
 #include "text_intern.hh"
+
+using blender::VectorSet;
 
 static void space_text_screen_clamp(SpaceText *st, const ARegion *region);
 
@@ -372,7 +381,7 @@ void TEXT_OT_new(wmOperatorType *ot)
   ot->idname = "TEXT_OT_new";
   ot->description = "Create a new text data-block";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_new_exec;
   ot->poll = text_new_poll;
 
@@ -469,7 +478,7 @@ void TEXT_OT_open(wmOperatorType *ot)
   ot->idname = "TEXT_OT_open";
   ot->description = "Open a new text data-block";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_open_exec;
   ot->invoke = text_open_invoke;
   ot->cancel = text_open_cancel;
@@ -559,7 +568,7 @@ void TEXT_OT_reload(wmOperatorType *ot)
   ot->idname = "TEXT_OT_reload";
   ot->description = "Reload active text data-block from its file";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_reload_exec;
   ot->invoke = text_reload_invoke;
   ot->poll = text_edit_poll;
@@ -621,7 +630,7 @@ void TEXT_OT_unlink(wmOperatorType *ot)
   ot->idname = "TEXT_OT_unlink";
   ot->description = "Unlink active text data-block";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_unlink_exec;
   ot->invoke = text_unlink_invoke;
   ot->poll = text_unlink_poll;
@@ -657,7 +666,7 @@ void TEXT_OT_make_internal(wmOperatorType *ot)
   ot->idname = "TEXT_OT_make_internal";
   ot->description = "Make active text file internal";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_make_internal_exec;
   ot->poll = text_edit_poll;
 
@@ -761,7 +770,7 @@ void TEXT_OT_save(wmOperatorType *ot)
   ot->idname = "TEXT_OT_save";
   ot->description = "Save active text data-block";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_save_exec;
   ot->invoke = text_save_invoke;
   ot->poll = text_edit_poll;
@@ -832,7 +841,7 @@ void TEXT_OT_save_as(wmOperatorType *ot)
   ot->idname = "TEXT_OT_save_as";
   ot->description = "Save active text file with options";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_save_as_exec;
   ot->invoke = text_save_as_invoke;
   ot->poll = text_edit_poll;
@@ -912,7 +921,7 @@ void TEXT_OT_run_script(wmOperatorType *ot)
   ot->idname = "TEXT_OT_run_script";
   ot->description = "Run active script";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = text_data_poll;
   ot->exec = text_run_script_exec;
 
@@ -977,7 +986,7 @@ void TEXT_OT_paste(wmOperatorType *ot)
   ot->idname = "TEXT_OT_paste";
   ot->description = "Paste text from clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_paste_exec;
   ot->poll = text_edit_poll;
 
@@ -1025,7 +1034,7 @@ void TEXT_OT_duplicate_line(wmOperatorType *ot)
   ot->idname = "TEXT_OT_duplicate_line";
   ot->description = "Duplicate the current line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_duplicate_line_exec;
   ot->poll = text_edit_poll;
 
@@ -1071,7 +1080,7 @@ void TEXT_OT_copy(wmOperatorType *ot)
   ot->idname = "TEXT_OT_copy";
   ot->description = "Copy selected text to clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_copy_exec;
   ot->poll = text_edit_poll;
 }
@@ -1112,7 +1121,7 @@ void TEXT_OT_cut(wmOperatorType *ot)
   ot->idname = "TEXT_OT_cut";
   ot->description = "Cut selected text to clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_cut_exec;
   ot->poll = text_edit_poll;
 
@@ -1147,7 +1156,7 @@ void TEXT_OT_indent_or_autocomplete(wmOperatorType *ot)
   ot->idname = "TEXT_OT_indent_or_autocomplete";
   ot->description = "Indent selected text or autocomplete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_indent_or_autocomplete_exec;
   ot->poll = text_edit_poll;
 
@@ -1193,7 +1202,7 @@ void TEXT_OT_indent(wmOperatorType *ot)
   ot->idname = "TEXT_OT_indent";
   ot->description = "Indent selected text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_indent_exec;
   ot->poll = text_edit_poll;
 
@@ -1234,7 +1243,7 @@ void TEXT_OT_unindent(wmOperatorType *ot)
   ot->idname = "TEXT_OT_unindent";
   ot->description = "Unindent selected text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_unindent_exec;
   ot->poll = text_edit_poll;
 
@@ -1291,7 +1300,7 @@ void TEXT_OT_line_break(wmOperatorType *ot)
   ot->idname = "TEXT_OT_line_break";
   ot->description = "Insert line break at cursor position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_line_break_exec;
   ot->poll = text_edit_poll;
 
@@ -1355,7 +1364,7 @@ void TEXT_OT_comment_toggle(wmOperatorType *ot)
   ot->name = "Toggle Comments";
   ot->idname = "TEXT_OT_comment_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_comment_exec;
   ot->poll = text_edit_poll;
 
@@ -1522,7 +1531,7 @@ void TEXT_OT_convert_whitespace(wmOperatorType *ot)
   ot->idname = "TEXT_OT_convert_whitespace";
   ot->description = "Convert whitespaces by type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_convert_whitespace_exec;
   ot->poll = text_edit_poll;
 
@@ -1565,7 +1574,7 @@ void TEXT_OT_select_all(wmOperatorType *ot)
   ot->idname = "TEXT_OT_select_all";
   ot->description = "Select all text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_select_all_exec;
   ot->poll = text_edit_poll;
 }
@@ -1597,7 +1606,7 @@ void TEXT_OT_select_line(wmOperatorType *ot)
   ot->idname = "TEXT_OT_select_line";
   ot->description = "Select text by line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_select_line_exec;
   ot->poll = text_edit_poll;
 }
@@ -1630,7 +1639,7 @@ void TEXT_OT_select_word(wmOperatorType *ot)
   ot->idname = "TEXT_OT_select_word";
   ot->description = "Select word under cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_select_word_exec;
   ot->poll = text_edit_poll;
 }
@@ -1674,7 +1683,7 @@ void TEXT_OT_move_lines(wmOperatorType *ot)
   ot->idname = "TEXT_OT_move_lines";
   ot->description = "Move the currently selected line(s) up/down";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_lines_exec;
   ot->poll = text_edit_poll;
 
@@ -2337,7 +2346,7 @@ void TEXT_OT_move(wmOperatorType *ot)
   ot->idname = "TEXT_OT_move";
   ot->description = "Move cursor to position type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_move_exec;
   ot->poll = text_edit_poll;
 
@@ -2365,7 +2374,7 @@ void TEXT_OT_move_select(wmOperatorType *ot)
   ot->idname = "TEXT_OT_move_select";
   ot->description = "Move the cursor while selecting";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_move_select_exec;
   ot->poll = text_space_edit_poll;
 
@@ -2420,7 +2429,7 @@ void TEXT_OT_jump(wmOperatorType *ot)
   ot->idname = "TEXT_OT_jump";
   ot->description = "Jump cursor to line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_jump_invoke;
   ot->exec = text_jump_exec;
   ot->poll = text_edit_poll;
@@ -2542,7 +2551,7 @@ void TEXT_OT_delete(wmOperatorType *ot)
   ot->idname = "TEXT_OT_delete";
   ot->description = "Delete text by cursor position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_delete_exec;
   ot->poll = text_edit_poll;
 
@@ -2584,7 +2593,7 @@ void TEXT_OT_overwrite_toggle(wmOperatorType *ot)
   ot->idname = "TEXT_OT_overwrite_toggle";
   ot->description = "Toggle overwrite while typing";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_toggle_overwrite_exec;
   ot->poll = text_space_edit_poll;
 }
@@ -2878,7 +2887,7 @@ void TEXT_OT_scroll(wmOperatorType *ot)
    * scroll_bar. Both do basically the same thing (aside from key-maps). */
   ot->idname = "TEXT_OT_scroll";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_scroll_exec;
   ot->invoke = text_scroll_invoke;
   ot->modal = text_scroll_modal;
@@ -2988,7 +2997,7 @@ void TEXT_OT_scroll_bar(wmOperatorType *ot)
    * scroll. Both do basically the same thing (aside from key-maps). */
   ot->idname = "TEXT_OT_scroll_bar";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_scroll_bar_invoke;
   ot->modal = text_scroll_modal;
   ot->cancel = text_scroll_cancel;
@@ -3388,7 +3397,7 @@ void TEXT_OT_selection_set(wmOperatorType *ot)
   ot->idname = "TEXT_OT_selection_set";
   ot->description = "Set text selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_selection_set_invoke;
   ot->modal = text_selection_set_modal;
   ot->cancel = text_selection_set_cancel;
@@ -3437,7 +3446,7 @@ void TEXT_OT_cursor_set(wmOperatorType *ot)
   ot->idname = "TEXT_OT_cursor_set";
   ot->description = "Set cursor position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_cursor_set_invoke;
   ot->exec = text_cursor_set_exec;
   ot->poll = text_region_edit_poll;
@@ -3507,7 +3516,7 @@ void TEXT_OT_line_number(wmOperatorType *ot)
   ot->idname = "TEXT_OT_line_number";
   ot->description = "The current line number";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_line_number_invoke;
   ot->poll = text_region_edit_poll;
 }
@@ -3583,10 +3592,10 @@ static wmOperatorStatus text_insert_invoke(bContext *C, wmOperator *op, const wm
   /* NOTE: the "text" property is always set from key-map,
    * so we can't use #RNA_struct_property_is_set, check the length instead. */
   if (!RNA_string_length(op->ptr, "text")) {
-    /* If Alt/Control/Super are pressed pass through except for utf8 character event
-     * (when input method are used for utf8 inputs, the user may assign key event
-     * including Alt/Control/Super like Control-M to commit utf8 string.
-     * In such case, the modifiers in the utf8 character event make no sense). */
+    /* If Alt/Control/Super are pressed pass through except for UTF8 character event
+     * (when input method are used for UTF8 inputs, the user may assign key event
+     * including Alt/Control/Super like Control-M to commit UTF8 string.
+     * In such case, the modifiers in the UTF8 character event make no sense). */
     if ((event->modifier & (KM_CTRL | KM_OSKEY)) && !event->utf8_buf[0]) {
       return OPERATOR_PASS_THROUGH;
     }
@@ -3693,7 +3702,7 @@ void TEXT_OT_insert(wmOperatorType *ot)
   ot->idname = "TEXT_OT_insert";
   ot->description = "Insert text at cursor position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_insert_exec;
   ot->invoke = text_insert_invoke;
   ot->poll = text_edit_poll;
@@ -3802,7 +3811,7 @@ void TEXT_OT_find(wmOperatorType *ot)
   ot->idname = "TEXT_OT_find";
   ot->description = "Find specified text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_find_exec;
   ot->poll = text_space_edit_poll;
 }
@@ -3871,7 +3880,7 @@ void TEXT_OT_replace(wmOperatorType *ot)
   ot->idname = "TEXT_OT_replace";
   ot->description = "Replace text with the specified text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_replace_exec;
   ot->poll = text_space_edit_poll;
 
@@ -3914,7 +3923,7 @@ void TEXT_OT_find_set_selected(wmOperatorType *ot)
   ot->idname = "TEXT_OT_find_set_selected";
   ot->description = "Find specified text and set as selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_find_set_selected_exec;
   ot->poll = text_space_edit_poll;
 }
@@ -3945,7 +3954,7 @@ void TEXT_OT_replace_set_selected(wmOperatorType *ot)
   ot->idname = "TEXT_OT_replace_set_selected";
   ot->description = "Replace text with specified text and set as selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_replace_set_selected_exec;
   ot->poll = text_space_edit_poll;
 
@@ -4095,7 +4104,7 @@ void TEXT_OT_jump_to_file_at_point(wmOperatorType *ot)
   ot->idname = "TEXT_OT_jump_to_file_at_point";
   ot->description = "Jump to a file for the text editor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_jump_to_file_at_point_exec;
 
   /* flags */
@@ -4232,7 +4241,7 @@ void TEXT_OT_resolve_conflict(wmOperatorType *ot)
   ot->idname = "TEXT_OT_resolve_conflict";
   ot->description = "When external text is out of sync, resolve the conflict";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_resolve_conflict_exec;
   ot->invoke = text_resolve_conflict_invoke;
   ot->poll = text_resolve_conflict_poll;
@@ -4269,7 +4278,7 @@ void TEXT_OT_to_3d_object(wmOperatorType *ot)
   ot->idname = "TEXT_OT_to_3d_object";
   ot->description = "Create 3D text object from active text data-block";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = text_to_3d_object_exec;
   ot->poll = text_data_poll;
 
@@ -4279,6 +4288,119 @@ void TEXT_OT_to_3d_object(wmOperatorType *ot)
   /* properties */
   RNA_def_boolean(
       ot->srna, "split_lines", false, "Split Lines", "Create one object per line in the text");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Shader Update
+ * \{ */
+
+static bool text_update_shader_poll(bContext *C)
+{
+  RenderEngineType *type = CTX_data_engine_type(C);
+  const Text *text = CTX_data_edit_text(C);
+
+  /* See if we have a text datablock in context. */
+  if (text == nullptr) {
+    return false;
+  }
+
+  /* Test if we have a render engine that supports shaders scripts. */
+  if (!(type && (type->update_script_node || type->update_custom_camera))) {
+    return false;
+  }
+
+  /* We don't check if text datablock is actually in use, too slow for poll. */
+  return true;
+}
+
+/* recursively check for script nodes in groups using this text and update */
+static bool text_update_shader_text_recursive(RenderEngine *engine,
+                                              RenderEngineType *type,
+                                              bNodeTree *ntree,
+                                              Text *text,
+                                              VectorSet<bNodeTree *> &done_trees)
+{
+  bool found = false;
+
+  done_trees.add_new(ntree);
+
+  /* Update each script that is using this text datablock. */
+  for (bNode *node : ntree->all_nodes()) {
+    if (node->type_legacy == NODE_GROUP) {
+      bNodeTree *ngroup = (bNodeTree *)node->id;
+      if (ngroup && !done_trees.contains(ngroup)) {
+        found |= text_update_shader_text_recursive(engine, type, ngroup, text, done_trees);
+      }
+    }
+    else if (node->type_legacy == SH_NODE_SCRIPT && node->id == &text->id) {
+      type->update_script_node(engine, ntree, node);
+      found = true;
+    }
+  }
+
+  return found;
+}
+
+static wmOperatorStatus text_update_shader_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  RenderEngineType *type = CTX_data_engine_type(C);
+  Text *text = CTX_data_edit_text(C);
+  bool found = false;
+
+  /* setup render engine */
+  RenderEngine *engine = RE_engine_create(type);
+  engine->reports = op->reports;
+
+  /* Update all nodes using text datablock. */
+  if (type->update_script_node != nullptr) {
+    VectorSet<bNodeTree *> done_trees;
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        if (!done_trees.contains(ntree)) {
+          found |= text_update_shader_text_recursive(engine, type, ntree, text, done_trees);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  /* Update all cameras using text datablock. */
+  if (type->update_custom_camera != nullptr) {
+    LISTBASE_FOREACH (Camera *, cam, &bmain->cameras) {
+      if (cam->custom_shader == text) {
+        type->update_custom_camera(engine, cam);
+        found = true;
+      }
+    }
+  }
+
+  if (!found) {
+    BKE_report(op->reports, RPT_INFO, "Text not used by any node, no update done");
+  }
+
+  RE_engine_free(engine);
+
+  return (found) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+void TEXT_OT_update_shader(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Shader Update";
+  ot->description =
+      "Update users of this shader, such as custom cameras and script nodes, with its new sockets "
+      "and options";
+  ot->idname = "TEXT_OT_update_shader";
+
+  /* API callbacks. */
+  ot->exec = text_update_shader_exec;
+  ot->poll = text_update_shader_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
