@@ -625,8 +625,8 @@ static void bmesh_restore_begin(bContext *C,
     step_data.applied = false;
   }
   else {
-    BMesh &bm = *bke::object::bmesh_get(object);
     bmesh_enable(object, step_data);
+    BMesh &bm = *bke::object::bmesh_get(object);
 
     /* Restore the mesh from the first log entry. */
     BM_log_redo(&bm, ss.bm_log);
@@ -641,8 +641,8 @@ static void bmesh_restore_end(bContext *C,
                               const SculptSession &ss)
 {
   if (step_data.applied) {
-    BMesh &bm = *bke::object::bmesh_get(object);
     bmesh_enable(object, step_data);
+    BMesh &bm = *bke::object::bmesh_get(object);
 
     /* Restore the mesh from the last log entry. */
     BM_log_undo(&bm, ss.bm_log);
