@@ -1354,20 +1354,39 @@ static wmOperatorStatus grease_pencil_layer_ungroup_exec(bContext *C, wmOperator
 
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
-  /* Ungroup selected layers by moving each node before its parent group. */
+  // 1) is_selected causes conflict with the operator poll, so we need to save the selection
+  Vector<Layer *> selected_layers;
   for (Layer *layer : grease_pencil.layers_for_write()) {
     if (layer->is_selected()) {
-      const LayerGroup &parent = layer->parent_group();
-      if (parent.name().size() != 0) {  // Check if parent name is non-empty.
-        grease_pencil.move_node_before(layer->as_node(), const_cast<TreeNode &>(parent.as_node()));
-      }
-      // Remove the group if it has no other children.
-      if (parent.num_direct_nodes() == 0) {
-        grease_pencil.remove_group(const_cast<LayerGroup &>(parent), true);
-      }
+      selected_layers.append(layer);
     }
   }
 
+  /* Now process the saved selection.
+  Move all selected layers out of their parent groups and collect modified groups.*/
+  Vector<LayerGroup *> modified_groups;
+  for (Layer *layer : selected_layers) {
+    const LayerGroup &parent = layer->parent_group();
+    if (parent.name().is_empty()) {
+      continue;
+    }
+    grease_pencil.move_node_before(layer->as_node(), const_cast<TreeNode &>(parent.as_node()));
+
+    LayerGroup *non_const_parent = const_cast<LayerGroup *>(&parent);
+    if (!modified_groups.contains(non_const_parent)) {
+      modified_groups.append(non_const_parent);
+    }
+  }
+
+  /* 2) Remove any of the groups that are now empty as a result of ungrouping.
+   */
+  for (LayerGroup *group : modified_groups) {
+    if (group->num_direct_nodes() == 0) {
+      grease_pencil.remove_group(*group, /* do_recursive = */ true);
+    }
+  }
+
+  /* Refresh the UI. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
 
