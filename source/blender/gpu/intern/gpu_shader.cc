@@ -59,6 +59,8 @@ Shader::Shader(const char *sh_name)
 
 Shader::~Shader()
 {
+  BLI_assert_msg(Context::get() == nullptr || Context::get()->shader != this,
+                 "Shader must be unbound from context before being freed");
   delete interface;
 }
 
@@ -442,13 +444,16 @@ void GPU_shader_bind(GPUShader *gpu_shader, const shader::SpecializationConstant
 
 void GPU_shader_unbind()
 {
-#ifndef NDEBUG
   Context *ctx = Context::get();
+  if (ctx == nullptr) {
+    return;
+  }
+#ifndef NDEBUG
   if (ctx->shader) {
     ctx->shader->unbind();
   }
-  ctx->shader = nullptr;
 #endif
+  ctx->shader = nullptr;
 }
 
 GPUShader *GPU_shader_get_bound()
@@ -801,6 +806,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+    GPU_debug_group_begin(info.name_.c_str());
   }
 
   const std::string error = info.check_error();
@@ -922,6 +928,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
+    GPU_debug_group_end();
     GPU_debug_group_end();
   }
 

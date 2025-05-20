@@ -10,6 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
@@ -50,9 +53,8 @@
 static void brush_init_data(ID *id)
 {
   Brush *brush = (Brush *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(brush, id));
 
-  MEMCPY_STRUCT_AFTER(brush, DNA_struct_default_get(Brush), id);
+  MEMCPY_STRUCT_AFTER_CHECKED(brush, DNA_struct_default_get(Brush), id);
 
   /* enable fake user by default */
   id_fake_user_set(&brush->id);
