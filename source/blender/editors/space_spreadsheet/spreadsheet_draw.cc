@@ -314,7 +314,9 @@ static void draw_column_reorder_destination(const ARegion &region,
   }
   {
     /* Draw indicator where the column is inserted. */
-    ColorTheme4f color{1.0f, 1.0f, 1.0f, 0.5f};
+    ColorTheme4f color;
+    UI_GetThemeColorShade4fv(TH_TEXT, 20, color);
+    color.a = 0.6f;
     const SpreadsheetColumn *first_column = static_cast<const SpreadsheetColumn *>(
         sspreadsheet.columns.first);
     const int insert_column_x = data.new_prev_column ? data.new_prev_column->runtime->right_x :
