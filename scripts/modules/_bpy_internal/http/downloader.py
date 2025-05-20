@@ -308,7 +308,7 @@ _mp_context = multiprocessing.get_context(method='spawn')
 @dataclasses.dataclass
 class DownloaderOptions:
     metadata_cache_location: Path
-    http_headers: dict[str, str]
+    http_headers: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
 class BackgroundDownloader:

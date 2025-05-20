@@ -21,7 +21,7 @@ from contextlib import contextmanager
 
 import bpy
 
-from _bpy_internal.http.downloader import RequestDescription, ConditionalDownloader, BackgroundDownloader, DownloadCancelled
+from _bpy_internal.http import downloader as http_dl
 
 # Just a demo URL.
 url = "https://projects.blender.org/blender/blender/raw/commit/a26ed85adffe6eb7cd609808553aa2026ce59bdf/README.md"
@@ -43,7 +43,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
         return True
 
     def execute(self, context: bpy.types.Context) -> set[str]:
-        downloader = ConditionalDownloader(
+        downloader = http_dl.ConditionalDownloader(
             metadata_cache_location=local_path / "_local-meta-cache",
         )
 
@@ -54,26 +54,26 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
 
     # Below here: CachingDownloadReporter functions:
 
-    def download_starts(self, http_req_descr: RequestDescription) -> None:
+    def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
         self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
 
     def already_downloaded(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         print("Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
 
     def download_error(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         error: Exception,
     ) -> None:
         self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
 
     def download_progress(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
@@ -82,7 +82,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
 
     def download_finished(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         print("Download finished: {}".format(http_req_descr.url))
@@ -92,7 +92,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
     bl_idname = "http.demo_download_background"
     bl_label = "Example Background Download"
 
-    _bg_downloader: BackgroundDownloader
+    _bg_downloader: http_dl.BackgroundDownloader
     _timer: bpy.types.Timer | None
 
     # BackgroundDownloader is independent of `bpy`, and I (Sybren) quite like
@@ -112,8 +112,10 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         self._operator_context = None
 
         # Create the BackgroundDownloader, adding this operator as a reporter:
-        self._bg_downloader = BackgroundDownloader(
-            metadata_cache_location=local_path / "_local-meta-cache",
+        self._bg_downloader = http_dl.BackgroundDownloader(
+            http_dl.DownloaderOptions(
+                metadata_cache_location=local_path / "_local-meta-cache",
+            ),
         )
         self._bg_downloader.add_reporter(self)
         self._bg_downloader.start()
@@ -157,7 +159,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         with self._context(context):
             self._bg_downloader.shutdown()
 
-    def on_done(self, http_req_descr: RequestDescription, local_file: Path) -> None:
+    def on_done(self, http_req_descr: http_dl.RequestDescription, local_file: Path) -> None:
         self.report({'INFO'}, "File downloaded to {}".format(local_file))
 
         # Since this is a demo of a single-file download, things can shut down
@@ -169,22 +171,22 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
 
     # Below here: CachingDownloadReporter functions:
 
-    def download_starts(self, http_req_descr: RequestDescription) -> None:
+    def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
         self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
 
     def already_downloaded(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         print("Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
 
     def download_error(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         error: Exception,
     ) -> None:
-        if isinstance(error, DownloadCancelled):
+        if isinstance(error, http_dl.DownloadCancelled):
             print("Download cancelled: {}".format(http_req_descr))
         else:
             self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
@@ -194,7 +196,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
 
     def download_progress(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
@@ -203,7 +205,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
 
     def download_finished(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
@@ -226,6 +228,8 @@ def topbar_blender_menu_draw(self: bpy.types.TOPBAR_MT_blender, context: bpy.typ
 classes = (
     HTTP_OT_demo_download_foreground,
     HTTP_OT_demo_download_background,
+
+
 )
 _register, _unregister = bpy.utils.register_classes_factory(classes)
 
