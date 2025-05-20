@@ -292,7 +292,7 @@ const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, const fl
 
   const float prev_delta = cfra - prev->cfra;
   const float next_delta = next->cfra - cfra;
-  BLI_assert(prev_delta >= 0 && next_delta >= 0);
+  /* `prev_delta` and `next_delta` can both be 0 if the given `cfra` is exactly at a key column. */
 
   if (prev_delta <= next_delta) {
     return prev;
