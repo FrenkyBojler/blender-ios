@@ -431,11 +431,13 @@ set(CYTHON_LICENSE SPDX:Apache-2.0)
 # Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression.
 set(ZSTANDARD_VERSION 0.23.0)
 set(ZSTANDARD_URI
-https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
-set(ZSTANDARD_HASH 19b1b12edcd66165d86f25e2a2277517)
-set(ZSTANDARD_HASH_TYPE MD5)
-set(ZSTANDARD_FILE cython-${ZSTANDARD_VERSION}.tar.gz)
-set(ZSTANDARD_HOMEPAGE https://cython.org/)
+# NOTE: the release is not yet on GITHUB.
+# https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
+https://files.pythonhosted.org/packages/ed/f6/2ac0287b442160a89d726b17a9184a4c615bb5237db763791a7fd16d9df1/zstandard-0.23.0.tar.gz)
+set(ZSTANDARD_HASH b2d8c62d08e7255f68f7a740bae85b3c9b8e5466baa9cbf7f57f1cde0ac6bc09)
+set(ZSTANDARD_HASH_TYPE SHA256)
+set(ZSTANDARD_FILE zstandard-${ZSTANDARD_VERSION}.tar.gz)
+set(ZSTANDARD_HOMEPAGE https://github.com/indygreg/python-zstandard/)
 set(ZSTANDARD_LICENSE SPDX:BSD-3-Clause)
 # Auto-format Python source (developer tool, not used by Blender at run-time).
 set(AUTOPEP8_VERSION 2.3.1)
