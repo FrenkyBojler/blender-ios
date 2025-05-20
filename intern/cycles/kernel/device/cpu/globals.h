@@ -95,5 +95,10 @@ using KernelGlobals = const ThreadKernelGlobalsCPU *;
 #define kernel_data_fetch(name, index) (kg->name.fetch(index))
 #define kernel_data_array(name) (kg->name.data)
 #define kernel_data (kg->data)
+#ifdef WITH_PATH_GUIDING
+#  define guiding_guiding_field kg->opgl_guiding_field
+#  define guiding_ssd kg->opgl_surface_sampling_distribution
+#  define guiding_vsd kg->opgl_volume_sampling_distribution
+#endif
 
 CCL_NAMESPACE_END
