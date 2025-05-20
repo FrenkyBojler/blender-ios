@@ -909,11 +909,15 @@ static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
-  if (snode && (snode->flag & SNODE_BACKDRAW) == 0) {
+  if (snode == nullptr) {
     return false;
   }
 
-  if (snode && snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
+  if ((snode->flag & SNODE_BACKDRAW) == 0) {
+    return false;
+  }
+
+  if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
     bNode *node = bke::node_get_active(*snode->edittree);
 
     if (node && node->is_type("CompositorNodeSplit")) {
@@ -955,7 +959,7 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
   const float fac = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
   CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
-  if (axis == CMPNodeSplitAxis::CMP_NODE_SPLIT_VERTICAL) {
+  if (axis == CMP_NODE_SPLIT_VERTICAL) {
     matrix[3][0] = offset.x;
     matrix[3][1] = (fac - 0.5f) * dims.y + offset.y;
 
