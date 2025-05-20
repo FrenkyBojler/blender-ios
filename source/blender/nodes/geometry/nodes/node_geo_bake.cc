@@ -547,7 +547,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
   if (type == SOCK_GEOMETRY) {
-    params.add_item(IFACE_("Geometry"), [](LinkSearchOpParams &params) {
+    params.add_item_full_name(IFACE_("Bake"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeBake");
       params.connect_available_socket(node, "Geometry");
     });
@@ -557,7 +557,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
-  params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
+  params.add_item_full_name(IFACE_("Bake"), [type](LinkSearchOpParams &params) {
     bNode &node = params.add_node("GeometryNodeBake");
     socket_items::add_item_with_socket_type_and_name<BakeItemsAccessor>(
         node, type, params.socket.name);
