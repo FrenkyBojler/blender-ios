@@ -261,9 +261,12 @@ static void update_view2d_tot_rect(const SpreadsheetDrawer &drawer,
   for (const int column_index : IndexRange(drawer.tot_columns)) {
     column_width_sum += drawer.column_width(column_index);
   }
+  /* Adding some padding avoids issues where the right most column overlaps with other region
+   * elements like its border or the icon to open the sidebar. */
+  const int right_padding = UI_UNIT_X * 0.5f;
 
   UI_view2d_totRect_set(&region->v2d,
-                        column_width_sum + drawer.left_column_width,
+                        column_width_sum + drawer.left_column_width + right_padding,
                         row_amount * drawer.row_height + drawer.top_row_height);
 }
 
