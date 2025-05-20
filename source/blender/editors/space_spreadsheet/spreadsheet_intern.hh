@@ -58,21 +58,22 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
 
 void spreadsheet_data_set_region_panels_register(ARegionType &region_type);
 
-/**
- * Find the column that the cursor is hovering over.
- */
+/** Find the column edge that the cursor is hovering in the header row. */
 SpreadsheetColumn *find_hovered_column_header_edge(SpaceSpreadsheet &sspreadsheet,
                                                    ARegion &region,
                                                    const int2 &cursor_re);
 
+/** Find the column that the cursor is hovering in the header row.*/
 SpreadsheetColumn *find_hovered_column_header(SpaceSpreadsheet &sspreadsheet,
                                               ARegion &region,
                                               const int2 &cursor_re);
 
+/** Find the column edge that the cursor is hovering. */
 SpreadsheetColumn *find_hovered_column_edge(SpaceSpreadsheet &sspreadsheet,
                                             ARegion &region,
                                             const int2 &cursor_re);
 
+/** Find the column that the cursor is hovering. */
 SpreadsheetColumn *find_hovered_column(SpaceSpreadsheet &sspreadsheet,
                                        ARegion &region,
                                        const int2 &cursor_re);

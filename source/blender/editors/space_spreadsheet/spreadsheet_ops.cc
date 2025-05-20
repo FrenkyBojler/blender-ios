@@ -177,7 +177,8 @@ static bool is_hovering_header_row(const SpaceSpreadsheet &sspreadsheet,
                                    const int2 &cursor_re)
 {
   const int region_height = BLI_rcti_size_y(&region.winrct);
-  return cursor_re.y >= region_height - sspreadsheet.runtime->top_row_height;
+  return cursor_re.y >= region_height - sspreadsheet.runtime->top_row_height &&
+         cursor_re.y <= region_height;
 }
 
 SpreadsheetColumn *find_hovered_column_edge(SpaceSpreadsheet &sspreadsheet,
@@ -300,8 +301,8 @@ static void SPREADSHEET_OT_fit_column(wmOperatorType *ot)
 
 struct ReorderColumnData {
   SpreadsheetColumn *column = nullptr;
-  int initial_cursor_x_view;
-  View2DEdgePanData pan_data;
+  int initial_cursor_x_view = 0;
+  View2DEdgePanData pan_data{};
 };
 
 static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -344,11 +345,12 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
   ARegion &region = *CTX_wm_region(C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
-
   ReorderColumnData &data = *static_cast<ReorderColumnData *>(op->customdata);
 
-  SpreadsheetColumn *hovered_column = find_hovered_column(sspreadsheet, region, cursor_re);
+  /* Detect the column that we want to insert to on the right. If it ends up being null, the column
+   * is inserted in the beginning. */
   SpreadsheetColumn *new_prev_column = nullptr;
+  SpreadsheetColumn *hovered_column = find_hovered_column(sspreadsheet, region, cursor_re);
   if (hovered_column) {
     const int moved_column_index = BLI_findindex(&sspreadsheet.columns, data.column);
     const int hovered_column_index = BLI_findindex(&sspreadsheet.columns, hovered_column);
