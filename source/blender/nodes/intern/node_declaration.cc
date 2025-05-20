@@ -875,35 +875,47 @@ PanelDeclarationBuilder &PanelDeclarationBuilder::default_closed(bool closed)
 
 namespace implicit_field_inputs {
 
-void position(const bNode & /*node*/, void *r_value)
+static void position(const bNode & /*node*/, void *r_value)
 {
   new (r_value) bke::SocketValueVariant(bke::AttributeFieldInput::Create<float3>("position"));
 }
 
-void normal(const bNode & /*node*/, void *r_value)
+static void normal(const bNode & /*node*/, void *r_value)
 {
   new (r_value)
       bke::SocketValueVariant(fn::Field<float3>(std::make_shared<bke::NormalFieldInput>()));
 }
 
-void index(const bNode & /*node*/, void *r_value)
+static void index(const bNode & /*node*/, void *r_value)
 {
   new (r_value) bke::SocketValueVariant(fn::Field<int>(std::make_shared<fn::IndexFieldInput>()));
 }
 
-void id_or_index(const bNode & /*node*/, void *r_value)
+static void id_or_index(const bNode & /*node*/, void *r_value)
 {
   new (r_value)
       bke::SocketValueVariant(fn::Field<int>(std::make_shared<bke::IDAttributeFieldInput>()));
 }
 
-void instance_transform(const bNode & /*node*/, void *r_value)
+static void instance_transform(const bNode & /*node*/, void *r_value)
 {
   new (r_value)
       bke::SocketValueVariant(bke::AttributeFieldInput::Create<float4x4>("instance_transform"));
 }
 
-std::optional<ImplicitInputValueFn> get(const NodeDefaultInputType type)
+static void handle_left(const bNode & /*node*/, void *r_value)
+{
+  new (r_value) bke::SocketValueVariant(bke::AttributeFieldInput::Create<float3>("handle_left"));
+}
+
+static void handle_right(const bNode & /*node*/, void *r_value)
+{
+  new (r_value) bke::SocketValueVariant(bke::AttributeFieldInput::Create<float3>("handle_right"));
+}
+
+}  // namespace implicit_field_inputs
+
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaultInputType type)
 {
   switch (type) {
     case NODE_DEFAULT_INPUT_VALUE:
@@ -918,10 +930,12 @@ std::optional<ImplicitInputValueFn> get(const NodeDefaultInputType type)
       return std::make_optional(implicit_field_inputs::position);
     case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
       return std::make_optional(implicit_field_inputs::instance_transform);
+    case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
+      return std::make_optional(implicit_field_inputs::handle_left);
+    case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+      return std::make_optional(implicit_field_inputs::handle_right);
   }
   return std::nullopt;
 }
-
-}  // namespace implicit_field_inputs
 
 }  // namespace blender::nodes

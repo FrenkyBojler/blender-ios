@@ -460,6 +460,18 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
                                       N_("Position"),
                                       N_("The position from the context")};
       RNA_enum_item_add(&items, &items_count, &position);
+      const EnumPropertyItem handle_left{NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD,
+                                         "HANDLE_LEFT",
+                                         0,
+                                         N_("Handle Left"),
+                                         N_("The handle left from the context")};
+      RNA_enum_item_add(&items, &items_count, &handle_left);
+      const EnumPropertyItem handle_right{NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD,
+                                          "HANDLE_RIGHT",
+                                          0,
+                                          N_("Handle Right"),
+                                          N_("The handle right from the context")};
+      RNA_enum_item_add(&items, &items_count, &handle_right);
     }
     else if (type->type == SOCK_MATRIX) {
       const EnumPropertyItem instance_transform{

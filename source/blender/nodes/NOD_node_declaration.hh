@@ -650,15 +650,7 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
 };
 
 using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
-namespace implicit_field_inputs {
-void position(const bNode &node, void *r_value);
-void normal(const bNode &node, void *r_value);
-void index(const bNode &node, void *r_value);
-void id_or_index(const bNode &node, void *r_value);
-void instance_transform(const bNode &node, void *r_value);
-
-std::optional<ImplicitInputValueFn> get(NodeDefaultInputType type);
-}  // namespace implicit_field_inputs
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
 
 void build_node_declaration(const bke::bNodeType &typeinfo,
                             NodeDeclaration &r_declaration,
