@@ -3398,6 +3398,83 @@ static void version_escape_curly_braces(char string[], const int string_array_le
   }
 }
 
+/* The Gamma option was removed. If enabled, a Gamma node will be added before and after
+ * the node to perform the adjustment in sRGB space. */
+static void do_version_blur_defocus_nodes_remove_gamma(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
+    if (!ELEM(link->tonode->type_legacy, CMP_NODE_BLUR, CMP_NODE_DEFOCUS)) {
+      continue;
+    }
+
+    if (link->tonode->type_legacy == CMP_NODE_BLUR &&
+        !bool(static_cast<NodeBlurData *>(link->tonode->storage)->gamma))
+    {
+      continue;
+    }
+
+    if (link->tonode->type_legacy == CMP_NODE_DEFOCUS &&
+        !bool(static_cast<NodeDefocus *>(link->tonode->storage)->gamco))
+    {
+      continue;
+    }
+
+    if (blender::StringRef(link->tosock->identifier) != "Image") {
+      continue;
+    }
+
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, CMP_NODE_GAMMA);
+    gamma_node->parent = link->tonode->parent;
+    gamma_node->location[0] = link->tonode->location[0] - link->tonode->width - 20.0f;
+    gamma_node->location[1] = link->tonode->location[1];
+
+    bNodeSocket *image_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Image");
+    bNodeSocket *image_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Image");
+
+    bNodeSocket *gamma_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Gamma");
+    gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 2.0f;
+
+    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *image_input);
+    version_node_add_link(*node_tree, *gamma_node, *image_output, *link->tonode, *link->tosock);
+
+    blender::bke::node_remove_link(node_tree, *link);
+  }
+
+  LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
+    if (!ELEM(link->fromnode->type_legacy, CMP_NODE_BLUR, CMP_NODE_DEFOCUS)) {
+      continue;
+    }
+
+    if (link->fromnode->type_legacy == CMP_NODE_BLUR &&
+        !bool(static_cast<NodeBlurData *>(link->fromnode->storage)->gamma))
+    {
+      continue;
+    }
+
+    if (link->fromnode->type_legacy == CMP_NODE_DEFOCUS &&
+        !bool(static_cast<NodeDefocus *>(link->fromnode->storage)->gamco))
+    {
+      continue;
+    }
+
+    bNode *gamma_node = blender::bke::node_add_static_node(nullptr, *node_tree, CMP_NODE_GAMMA);
+    gamma_node->parent = link->fromnode->parent;
+    gamma_node->location[0] = link->fromnode->location[0] + link->fromnode->width + 20.0f;
+    gamma_node->location[1] = link->fromnode->location[1];
+
+    bNodeSocket *image_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Image");
+    bNodeSocket *image_output = blender::bke::node_find_socket(*gamma_node, SOCK_OUT, "Image");
+
+    bNodeSocket *gamma_input = blender::bke::node_find_socket(*gamma_node, SOCK_IN, "Gamma");
+    gamma_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.5f;
+
+    version_node_add_link(*node_tree, *link->fromnode, *link->fromsock, *gamma_node, *image_input);
+    version_node_add_link(*node_tree, *gamma_node, *image_output, *link->tonode, *link->tosock);
+
+    blender::bke::node_remove_link(node_tree, *link);
+  }
+}
+
 /**
  * Escapes all instances of `{` and `}` in the paths in a compositor node tree's
  * File Output nodes.
@@ -3411,7 +3488,7 @@ static void version_escape_curly_braces_in_compositor_file_output_nodes(bNodeTre
   }
 
   LISTBASE_FOREACH (bNode *, node, &nodetree.nodes) {
-    if (strcmp(node->idname, "CompositorNodeOutputFile") != 0) {
+    if (!STREQ(node->idname, "CompositorNodeOutputFile")) {
       continue;
     }
 
@@ -4262,6 +4339,15 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
   }
 }
 
+static void version_set_default_bone_drawtype(Main *bmain)
+{
+  LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
+    blender::animrig::ANIM_armature_foreach_bone(
+        &arm->bonebase, [](Bone *bone) { bone->drawtype = ARM_DRAW_TYPE_ARMATURE_DEFINED; });
+    BLI_assert_msg(!arm->edbo, "Armatures should not be saved in edit mode");
+  }
+}
+
 void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
 
@@ -5060,6 +5146,19 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 71)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        do_version_blur_defocus_nodes_remove_gamma(node_tree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 72)) {
+    version_set_default_bone_drawtype(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
