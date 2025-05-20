@@ -3588,7 +3588,7 @@ static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
         nullptr, *node_tree, "CompositorNodeRelativeToPixel");
     y_relative_to_pixel_node->parent = node->parent;
     y_relative_to_pixel_node->location[0] = node->location[0] - node->width - 20.0f;
-    y_relative_to_pixel_node->location[1] = node->location[1];
+    y_relative_to_pixel_node->location[1] = node->location[1] - 20.0f;
 
     y_relative_to_pixel_node->custom1 = CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT;
     y_relative_to_pixel_node->custom2 = CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_Y;
