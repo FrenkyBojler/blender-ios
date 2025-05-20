@@ -739,8 +739,8 @@ static void test_preprocess_matrix_constructors()
   using namespace std;
 
   {
-    string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a);)";
-    string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a);)";
+    string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a); mat3x2(a);)";
+    string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a); mat3x2(a);)";
     string error;
     string output = process_test_string(input, error, nullptr, Preprocessor::SourceLanguage::GLSL);
     EXPECT_EQ(output, expect);

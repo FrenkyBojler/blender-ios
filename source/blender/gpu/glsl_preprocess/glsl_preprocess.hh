@@ -1181,8 +1181,9 @@ class Preprocessor {
     /* Example: `mat2(x)` > `mat2x2(x)` */
     std::regex regex_parenthesis(R"(\bmat([234])\()");
     std::string out = std::regex_replace(str, regex_parenthesis, "mat$1x$1(");
+    /* Only process square matrices since this is the only types we overload the constructors. */
     /* Example: `mat2x2(x)` > `__mat2x2(x)` */
-    std::regex regex(R"(\bmat([234]x[234])\()");
+    std::regex regex(R"(\bmat(2x2|3x3|4x4)\()");
     return std::regex_replace(out, regex, "__mat$1(");
   }
 
