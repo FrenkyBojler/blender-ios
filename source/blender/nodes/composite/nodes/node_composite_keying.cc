@@ -51,7 +51,7 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
       .compositor_expects_single_value();
 
   PanelDeclarationBuilder &key_panel = b.add_panel("Key").default_closed(true).translation_context(
-      "NodeTree");
+      BLT_I18NCONTEXT_ID_NODETREE);
   key_panel.add_input<decl::Float>("Balance", "Key Balance")
       .default_value(0.5f)
       .subtype(PROP_FACTOR)
