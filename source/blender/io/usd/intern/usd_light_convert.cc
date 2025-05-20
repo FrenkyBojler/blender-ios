@@ -44,7 +44,7 @@ static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 // Attribute values.
-static const pxr::TfToken pole_axis_y("Y", pxr::TfToken::Immortal);
+static const pxr::TfToken pole_axis_z("Z", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
 namespace {
@@ -525,18 +525,15 @@ void dome_light_to_world_material(const USDImportParams &params,
     return;
   }
 
-  if (pxr::UsdGeomGetStageUpAxis(stage) == pxr::UsdGeomTokens->y &&
-      dome_light_data.pole_axis != usdtokens::pole_axis_y)
+  if (pxr::UsdGeomGetStageUpAxis(stage) == pxr::UsdGeomTokens->y ||
+      dome_light_data.pole_axis == usdtokens::pole_axis_z)
   {
     /* Convert from Y-up to Z-up with a 90 degree rotation about the X-axis. */
     xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0));
+  }
 
-    xf = pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -90.0)) *
-         pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -90.0)) * xf;
-  }
-  else {
-    xf = pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -90.0)) * xf;
-  }
+  xf = pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -90.0)) *
+       pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -90.0)) * xf;
 
   pxr::GfVec3d angles = xf.DecomposeRotation(
       pxr::GfVec3d::XAxis(), pxr::GfVec3d::YAxis(), pxr::GfVec3d::ZAxis());
