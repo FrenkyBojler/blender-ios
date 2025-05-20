@@ -914,7 +914,7 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       BMesh &bm = *bke::object::bmesh_get(ob);
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(ob);
       const int mask_offset = CustomData_get_offset_named(
           &bm.vdata, CD_PROP_FLOAT, ".sculpt_mask");
 

@@ -782,7 +782,7 @@ static void calc_pose_origin_and_factor_bmesh(Object &object,
 {
   BLI_assert(!r_pose_factor.is_empty());
   BMesh &bm = *bke::object::bmesh_get(object);
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
 
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
   flood_fill::FillDataBMesh flood(BM_mesh_elem_count(&bm, BM_VERT),
@@ -1572,7 +1572,7 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *bke::object::bmesh_get(object);
-      SCULPT_vertex_random_access_ensure(object);
+      vert_random_access_ensure(object);
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       for (const int vert : IndexRange(BM_mesh_elem_count(&bm, BM_VERT))) {
@@ -1784,7 +1784,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
                                                                  const float radius,
                                                                  const float3 &initial_location)
 {
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
 
   BMesh &bm = *bke::object::bmesh_get(object);
   const int face_set_offset = CustomData_get_offset_named(

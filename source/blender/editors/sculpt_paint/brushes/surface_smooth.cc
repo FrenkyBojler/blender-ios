@@ -406,8 +406,7 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BMesh &bm = *bke::object::bmesh_get(object);
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(object);
       do_surface_smooth_brush_bmesh(
           depsgraph, sd, brush, node_mask, object, ss.cache->surface_smooth_laplacian_disp);
       break;
