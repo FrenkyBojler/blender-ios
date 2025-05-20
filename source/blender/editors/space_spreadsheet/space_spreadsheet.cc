@@ -699,7 +699,7 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
                        win->eventstate->xy[1] - region->winrct.ymin};
-  if (find_hovered_column_edge(sspreadsheet, *region, cursor_re)) {
+  if (find_hovered_column_header_edge(sspreadsheet, *region, cursor_re)) {
     WM_cursor_set(win, WM_CURSOR_X_MOVE);
     return;
   }

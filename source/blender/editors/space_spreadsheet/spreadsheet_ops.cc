@@ -172,14 +172,18 @@ static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const w
   }
 }
 
+static bool is_hovering_header_row(const SpaceSpreadsheet &sspreadsheet,
+                                   const ARegion &region,
+                                   const int2 &cursor_re)
+{
+  const int region_height = BLI_rcti_size_y(&region.winrct);
+  return cursor_re.y >= region_height - sspreadsheet.runtime->top_row_height;
+}
+
 SpreadsheetColumn *find_hovered_column_edge(SpaceSpreadsheet &sspreadsheet,
                                             ARegion &region,
                                             const int2 &cursor_re)
 {
-  const int region_height = BLI_rcti_size_y(&region.winrct);
-  if (cursor_re.y < region_height - sspreadsheet.runtime->top_row_height) {
-    return nullptr;
-  }
   const float cursor_x_view = UI_view2d_region_to_view_x(&region.v2d, cursor_re.x);
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
     if (std::abs(cursor_x_view - column->runtime->right_x) < SPREADSHEET_EDGE_ACTION_ZONE) {
@@ -189,13 +193,47 @@ SpreadsheetColumn *find_hovered_column_edge(SpaceSpreadsheet &sspreadsheet,
   return nullptr;
 }
 
+SpreadsheetColumn *find_hovered_column(SpaceSpreadsheet &sspreadsheet,
+                                       ARegion &region,
+                                       const int2 &cursor_re)
+{
+  const float cursor_x_view = UI_view2d_region_to_view_x(&region.v2d, cursor_re.x);
+  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
+    if (cursor_x_view > column->runtime->left_x && cursor_x_view <= column->runtime->right_x) {
+      return column;
+    }
+  }
+  return nullptr;
+}
+
+SpreadsheetColumn *find_hovered_column_header_edge(SpaceSpreadsheet &sspreadsheet,
+                                                   ARegion &region,
+                                                   const int2 &cursor_re)
+{
+  if (!is_hovering_header_row(sspreadsheet, region, cursor_re)) {
+    return nullptr;
+  }
+  return find_hovered_column_edge(sspreadsheet, region, cursor_re);
+}
+
+SpreadsheetColumn *find_hovered_column_header(SpaceSpreadsheet &sspreadsheet,
+                                              ARegion &region,
+                                              const int2 &cursor_re)
+{
+  if (!is_hovering_header_row(sspreadsheet, region, cursor_re)) {
+    return nullptr;
+  }
+  return find_hovered_column(sspreadsheet, region, cursor_re);
+}
+
 static wmOperatorStatus resize_column_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
-  SpreadsheetColumn *column_to_resize = find_hovered_column_edge(sspreadsheet, region, cursor_re);
+  SpreadsheetColumn *column_to_resize = find_hovered_column_header_edge(
+      sspreadsheet, region, cursor_re);
   if (!column_to_resize) {
     return OPERATOR_PASS_THROUGH;
   }
@@ -232,7 +270,7 @@ static wmOperatorStatus fit_column_invoke(bContext *C, wmOperator * /*op*/, cons
     return OPERATOR_CANCELLED;
   }
   const int2 cursor_re{event->mval[0], event->mval[1]};
-  SpreadsheetColumn *column = find_hovered_column_edge(sspreadsheet, region, cursor_re);
+  SpreadsheetColumn *column = find_hovered_column_header_edge(sspreadsheet, region, cursor_re);
   if (!column) {
     return OPERATOR_PASS_THROUGH;
   }
@@ -260,10 +298,88 @@ static void SPREADSHEET_OT_fit_column(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
+struct ReorderColumnData {
+  SpreadsheetColumn *column = nullptr;
+  int2 initial_cursor_re;
+};
+
 static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  fmt::println("Reorder");
-  return OPERATOR_FINISHED;
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+  ARegion &region = *CTX_wm_region(C);
+
+  const int2 cursor_re{event->mval[0], event->mval[1]};
+
+  if (find_hovered_column_edge(sspreadsheet, region, cursor_re)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  SpreadsheetColumn *column_to_move = find_hovered_column_header(sspreadsheet, region, cursor_re);
+  if (!column_to_move) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  ReorderColumnData *data = MEM_new<ReorderColumnData>(__func__);
+  data->column = column_to_move;
+  data->initial_cursor_re = cursor_re;
+  op->customdata = data;
+
+  WM_event_add_modal_handler(C, op);
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+  ARegion &region = *CTX_wm_region(C);
+
+  const int2 cursor_re{event->mval[0], event->mval[1]};
+
+  ReorderColumnData &data = *static_cast<ReorderColumnData *>(op->customdata);
+
+  SpreadsheetColumn *hovered_column = find_hovered_column(sspreadsheet, region, cursor_re);
+  SpreadsheetColumn *new_prev_column = nullptr;
+  if (hovered_column) {
+    const int moved_column_index = BLI_findindex(&sspreadsheet.columns, data.column);
+    const int hovered_column_index = BLI_findindex(&sspreadsheet.columns, hovered_column);
+    if (hovered_column_index <= moved_column_index) {
+      new_prev_column = hovered_column->prev;
+    }
+    else {
+      new_prev_column = hovered_column;
+    }
+  }
+  else {
+    new_prev_column = static_cast<SpreadsheetColumn *>(sspreadsheet.columns.last);
+    if (new_prev_column == data.column) {
+      new_prev_column = new_prev_column->prev;
+    }
+  }
+
+  switch (event->type) {
+    case RIGHTMOUSE:
+    case EVT_ESCKEY: {
+      MEM_delete(&data);
+      ED_region_tag_redraw(&region);
+      return OPERATOR_CANCELLED;
+    }
+    case LEFTMOUSE: {
+      if (new_prev_column != data.column->prev) {
+        BLI_remlink(&sspreadsheet.columns, data.column);
+        BLI_insertlinkafter(&sspreadsheet.columns, new_prev_column, data.column);
+      }
+      MEM_delete(&data);
+      ED_region_tag_redraw(&region);
+      return OPERATOR_FINISHED;
+    }
+    case MOUSEMOVE: {
+      /* TODO: Update visual feedback. */
+      return OPERATOR_RUNNING_MODAL;
+    }
+    default: {
+      return OPERATOR_RUNNING_MODAL;
+    }
+  }
 }
 
 static void SPREADSHEET_OT_reorder_columns(wmOperatorType *ot)
@@ -274,6 +390,7 @@ static void SPREADSHEET_OT_reorder_columns(wmOperatorType *ot)
 
   ot->poll = ED_operator_spreadsheet_active;
   ot->invoke = reorder_columns_invoke;
+  ot->modal = reorder_columns_modal;
   ot->flag = OPTYPE_INTERNAL;
 }
 

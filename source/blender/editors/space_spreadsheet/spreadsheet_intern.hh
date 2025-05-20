@@ -52,9 +52,21 @@ void spreadsheet_data_set_region_panels_register(ARegionType &region_type);
 /**
  * Find the column that the cursor is hovering over.
  */
+SpreadsheetColumn *find_hovered_column_header_edge(SpaceSpreadsheet &sspreadsheet,
+                                                   ARegion &region,
+                                                   const int2 &cursor_re);
+
+SpreadsheetColumn *find_hovered_column_header(SpaceSpreadsheet &sspreadsheet,
+                                              ARegion &region,
+                                              const int2 &cursor_re);
+
 SpreadsheetColumn *find_hovered_column_edge(SpaceSpreadsheet &sspreadsheet,
                                             ARegion &region,
                                             const int2 &cursor_re);
+
+SpreadsheetColumn *find_hovered_column(SpaceSpreadsheet &sspreadsheet,
+                                       ARegion &region,
+                                       const int2 &cursor_re);
 
 /**
  * Get the data that is currently displayed in the spreadsheet.
