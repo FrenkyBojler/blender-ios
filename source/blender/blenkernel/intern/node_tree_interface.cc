@@ -711,6 +711,13 @@ bool bNodeTreeInterfaceSocket::set_socket_type(const StringRef new_socket_type)
   this->socket_type = BLI_strdupn(new_socket_type.data(), new_socket_type.size());
   this->socket_data = socket_types::make_socket_data(new_socket_type);
 
+  blender::bke::bNodeSocketType *stype = this->socket_typeinfo();
+  if (!blender::nodes::default_input_type_is_allowed(*stype,
+                                                     NodeDefaultInputType(this->default_input)))
+  {
+    this->default_input = NODE_DEFAULT_INPUT_VALUE;
+  }
+
   return true;
 }
 

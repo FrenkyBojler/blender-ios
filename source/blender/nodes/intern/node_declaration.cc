@@ -938,4 +938,25 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
   return std::nullopt;
 }
 
+bool default_input_type_is_allowed(const bke::bNodeSocketType &socket_type,
+                                   NodeDefaultInputType input_type)
+{
+  const eNodeSocketDatatype stype = eNodeSocketDatatype(socket_type.type);
+  switch (input_type) {
+    case NODE_DEFAULT_INPUT_VALUE:
+      return true;
+    case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_INDEX_FIELD:
+      return stype == SOCK_INT;
+    case NODE_DEFAULT_INPUT_NORMAL_FIELD:
+    case NODE_DEFAULT_INPUT_POSITION_FIELD:
+    case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD:
+    case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+      return stype == SOCK_VECTOR;
+    case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
+      return stype == SOCK_MATRIX;
+  }
+  return false;
+}
+
 }  // namespace blender::nodes

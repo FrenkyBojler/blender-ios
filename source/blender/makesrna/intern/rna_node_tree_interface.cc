@@ -26,6 +26,32 @@ static const EnumPropertyItem node_tree_interface_socket_in_out_items[] = {
     {NODE_INTERFACE_SOCKET_OUTPUT, "OUTPUT", 0, "Output", "Generate a output node socket"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem node_default_input_items[] = {
+    {NODE_DEFAULT_INPUT_VALUE, "VALUE", 0, "Default Value", "The node socket's default value"},
+    {NODE_DEFAULT_INPUT_INDEX_FIELD, "INDEX", 0, "Index", "The index from the context"},
+    {NODE_DEFAULT_INPUT_NORMAL_FIELD, "NORMAL", 0, "Normal", "The geometry's normal direction"},
+    {NODE_DEFAULT_INPUT_POSITION_FIELD,
+     "POSITION",
+     0,
+     "Position",
+     "The position from the context"},
+    {NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD,
+     "HANDLE_LEFT",
+     0,
+     "Handle Left",
+     "The handle left from the context"},
+    {NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD,
+     "HANDLE_RIGHT",
+     0,
+     "Handle Right",
+     "The handle right from the context"},
+    {NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD,
+     "INSTANCE_TRANSFORM",
+     0,
+     "Instance Transform",
+     "Transformation of each instance from the geometry context"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -43,6 +69,8 @@ static const EnumPropertyItem node_tree_interface_socket_in_out_items[] = {
 #  include "BLI_set.hh"
 
 #  include "BLT_translation.hh"
+
+#  include "NOD_node_declaration.hh"
 
 #  include "DNA_material_types.h"
 #  include "ED_node.hh"
@@ -418,69 +446,24 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
   if (!ntree) {
     return rna_enum_dummy_NULL_items;
   }
+  const blender::bke::bNodeSocketType *stype = socket->socket_typeinfo();
+  if (!stype) {
+    return rna_enum_dummy_NULL_items;
+  }
 
   *r_free = true;
   EnumPropertyItem *items = nullptr;
   int items_count = 0;
 
-  const EnumPropertyItem none{NODE_DEFAULT_INPUT_VALUE,
-                              "VALUE",
-                              0,
-                              N_("Default Value"),
-                              N_("The node socket's default value")};
-  RNA_enum_item_add(&items, &items_count, &none);
-
-  if (ntree->type == NTREE_GEOMETRY) {
-    const blender::bke::bNodeSocketType *type = socket->socket_typeinfo();
-    if (type->type == SOCK_INT) {
-      const EnumPropertyItem index{NODE_DEFAULT_INPUT_INDEX_FIELD,
-                                   "INDEX",
-                                   0,
-                                   N_("Index"),
-                                   N_("The index from the context")};
-      RNA_enum_item_add(&items, &items_count, &index);
-      const EnumPropertyItem index_or_id{
-          NODE_DEFAULT_INPUT_ID_INDEX_FIELD,
-          "ID_OR_INDEX",
-          0,
-          N_("ID or Index"),
-          N_("The \"id\" attribute if available, otherwise the index")};
-      RNA_enum_item_add(&items, &items_count, &index_or_id);
+  for (const EnumPropertyItem *item = node_default_input_items; item->identifier; item++) {
+    if (item->value == NODE_DEFAULT_INPUT_VALUE) {
+      RNA_enum_item_add(&items, &items_count, item);
     }
-    else if (type->type == SOCK_VECTOR) {
-      const EnumPropertyItem normal{NODE_DEFAULT_INPUT_NORMAL_FIELD,
-                                    "NORMAL",
-                                    0,
-                                    N_("Normal"),
-                                    N_("The geometry's normal direction")};
-      RNA_enum_item_add(&items, &items_count, &normal);
-      const EnumPropertyItem position{NODE_DEFAULT_INPUT_POSITION_FIELD,
-                                      "POSITION",
-                                      0,
-                                      N_("Position"),
-                                      N_("The position from the context")};
-      RNA_enum_item_add(&items, &items_count, &position);
-      const EnumPropertyItem handle_left{NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD,
-                                         "HANDLE_LEFT",
-                                         0,
-                                         N_("Handle Left"),
-                                         N_("The handle left from the context")};
-      RNA_enum_item_add(&items, &items_count, &handle_left);
-      const EnumPropertyItem handle_right{NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD,
-                                          "HANDLE_RIGHT",
-                                          0,
-                                          N_("Handle Right"),
-                                          N_("The handle right from the context")};
-      RNA_enum_item_add(&items, &items_count, &handle_right);
-    }
-    else if (type->type == SOCK_MATRIX) {
-      const EnumPropertyItem instance_transform{
-          NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD,
-          "INSTANCE_TRANSFORM",
-          0,
-          N_("Instance Transform"),
-          N_("Transformation of each instance from the geometry context")};
-      RNA_enum_item_add(&items, &items_count, &instance_transform);
+    else if (ntree->type == NTREE_GEOMETRY) {
+      if (blender::nodes::default_input_type_is_allowed(*stype, NodeDefaultInputType(item->value)))
+      {
+        RNA_enum_item_add(&items, &items_count, item);
+      }
     }
   }
 
@@ -1094,7 +1077,7 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "default_input", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_dummy_NULL_items);
+  RNA_def_property_enum_items(prop, node_default_input_items);
   RNA_def_property_ui_text(
       prop,
       "Default Input",
