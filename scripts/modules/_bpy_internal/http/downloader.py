@@ -279,8 +279,8 @@ class ConditionalDownloader:
     def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive download progress information.
 
-        The reporter's functions are called from the same thread as the calls to
-        this ConditionalDownloader.
+        The reporter's functions are called from the same thread/process as the
+        calls to this ConditionalDownloader.
         """
         if self.has_reporter():
             raise ValueError(
@@ -314,8 +314,8 @@ class DownloaderOptions:
 class BackgroundDownloader:
     """Wrapper for a ConditionalDownloader + reporters.
 
-    The downloader will run in a separate thread, and the reporters will receive
-    updates on the main thread (or whatever thread runs
+    The downloader will run in a separate process, and the reporters will receive
+    updates on the main process (or whatever process runs
     BackgroundDownloader.update()).
     """
 
@@ -394,7 +394,7 @@ class BackgroundDownloader:
         self.num_downloads_error = 0
 
     def start(self) -> None:
-        """Start the downloaded thread.
+        """Start the downloaded process.
 
         This MUST be called before calling .update().
         """
@@ -454,7 +454,7 @@ class BackgroundDownloader:
     def update(self) -> None:
         """Call frequently to ensure the download progress is reported.
 
-        The reports will be sent to self.reporter, in the same thread that calls this method.
+        The reports will be sent to self.reporter, in the same process that calls this method.
         """
         if not (self._downloader_process and self._downloader_process.is_alive()):
             raise RuntimeError("start the download process first")
@@ -602,7 +602,7 @@ def _download_queued_items(
 class CancelEvent(Protocol):
     """Protocol for event objects that indicate a download should be cancelled.
 
-    multiprocessing.Event and threading.Event are compatible with this protocol.
+    multiprocessing.Event and processing.Event are compatible with this protocol.
     """
 
     def is_set(self) -> bool:
@@ -717,10 +717,10 @@ class QueueingReporter(DownloadReporter):
         self._logger = logger.getChild(self.__class__.__name__)
 
     def update(self, reporters: Iterable[DownloadReporter], *, limit_num_calls: int = 100) -> bool:
-        """Handle queued function calls on the thread that calls this function.
+        """Handle queued function calls in the process that calls this function.
 
-        Only a finite number of queued calls is processed, to avoid blocking the
-        calling thread completely.
+        Only a finite number of queued calls are processed, to avoid blocking
+        the calling process completely.
 
         Returns whether there are still function calls left to process.
         """
@@ -836,9 +836,9 @@ class ResponseTooLargeError(HTTPRequestDownloadError):
 class DownloadCancelled(HTTPRequestDownloadError):
     """Raised when ConditionalDownloader.cancel_download() was called.
 
-    This exception is raised in the thread that called
-    ConditionalDownloader.download_to_file(), and NOT from the thread doing the
-    cancellation.
+    This exception is raised in the thread/process that called
+    ConditionalDownloader.download_to_file(), and NOT from the thread/process
+    doing the cancellation.
     """
 
 
