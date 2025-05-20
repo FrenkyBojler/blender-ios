@@ -580,7 +580,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
   }
 
   if (is_prop_edit) {
-    /* Loop 2: build transdata arrays. */
+    /* Loop 3: build proportional edit distances. */
     td = tc->data;
 
     for (bAnimListElem *ale : unique_fcu_anim_list_elements) {
@@ -603,24 +603,40 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
         if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
           graph_bezt_get_transform_selection(t, bezt, use_handle, &sel_left, &sel_key, &sel_right);
 
+          /* Now determine to distance for proportional editing for all three TransData
+           * (representing the key as well as both handles). Note though that the way
+           * #bezt_to_transdata sets up the TransData, the td->center[0] will always be based on
+           * the key (bezt->vec[1]) which means that #graph_key_shortest_dist will return the
+           * same for all of them and we can reuse that (expensive) result if needed. Might be
+           * worth looking into using a 2D KDTree in the future as well. */
+          float dist_reuse = -1.0f;
+
           if (sel_left || sel_key) {
             td->dist = td->rdist = 0.0f;
           }
           else {
             graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
+            dist_reuse = td->dist;
           }
           td++;
 
           if (sel_key) {
             td->dist = td->rdist = 0.0f;
           }
+          else if (dist_reuse > -1.0f) {
+            td->dist = td->rdist = dist_reuse;
+          }
           else {
             graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
+            dist_reuse = td->dist;
           }
           td++;
 
           if (sel_right || sel_key) {
             td->dist = td->rdist = 0.0f;
+          }
+          else if (dist_reuse > -1.0f) {
+            td->dist = td->rdist = dist_reuse;
           }
           else {
             graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
