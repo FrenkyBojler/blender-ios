@@ -231,8 +231,14 @@ typedef struct Curve {
   float texspace_location[3];
   float texspace_size[3];
 
-  /** Creation-time type of curve datablock. */
-  short type;
+  /**
+   * Object type of curve data-block (#ObjectType).
+   * This must be one of:
+   * - #OB_CURVES_LEGACY.
+   * - #OB_FONT.
+   * - #OB_SURF.
+   */
+  short ob_type;
 
   char texspace_flag;
   char _pad0[7];
