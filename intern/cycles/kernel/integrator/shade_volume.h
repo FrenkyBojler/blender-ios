@@ -39,7 +39,7 @@ struct VolumeIntegrateResult {
   Spectrum direct_throughput;
   float direct_t;
   ShaderVolumePhases direct_phases;
-#  ifdef __PATH_GUIDING__
+#  if defined(__PATH_GUIDING__)
   VolumeSampleMethod direct_sample_method;
 #  endif
 
@@ -591,7 +591,7 @@ ccl_device_forceinline void volume_integrate_heterogeneous(
     result.direct_t = volume_equiangular_sample(
         ray, equiangular_coeffs, vstate.rscatter, &vstate.equiangular_pdf);
   }
-#  ifdef __PATH_GUIDING__
+#  if defined(__PATH_GUIDING__)
   result.direct_sample_method = vstate.direct_sample_method;
 #  endif
 
@@ -1046,7 +1046,7 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
   if (result.direct_scatter) {
     const float3 direct_P = ray->P + result.direct_t * ray->D;
 
-#  ifdef __PATH_GUIDING__
+#  if defined(__PATH_GUIDING__)
     if (kernel_data.integrator.use_guiding) {
 #    if PATH_GUIDING_LEVEL >= 1
       if (result.direct_sample_method == VOLUME_SAMPLE_DISTANCE) {
