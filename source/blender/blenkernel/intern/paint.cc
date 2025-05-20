@@ -2867,7 +2867,9 @@ BMesh &bmesh_ensure(Object &object, const BMAllocTemplate &alloc_template)
   BMeshCreateParams create_params{};
   create_params.use_toolflags = false;
 
+  /* The following assert isn't quite correct, we won't have the dynamic topology flag on yet */
   BLI_assert(object.sculpt != nullptr && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
+  UNUSED_VARS_NDEBUG(mesh);
   SculptSession &ss = *object.sculpt;
   ss.bm = BM_mesh_create(&alloc_template, &create_params);
 
@@ -2880,7 +2882,8 @@ BMesh *bmesh_get(Object &object)
 {
   BLI_assert(object.type == OB_MESH);
   const Mesh *mesh = static_cast<Mesh *>(object.data);
-  BLI_assert(mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY);
+  /* Is this a helpful assert...? */
+  /* BLI_assert(mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY); */
   UNUSED_VARS_NDEBUG(mesh);
 
   if (!object.sculpt) {

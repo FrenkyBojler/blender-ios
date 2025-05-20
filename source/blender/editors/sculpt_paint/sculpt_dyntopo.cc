@@ -66,6 +66,9 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
   /* Dynamic topology doesn't ensure selection state is valid, so remove #36280. */
   BKE_mesh_mselect_clear(mesh);
 
+  /* Enable dynamic topology. */
+  mesh->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
+
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(mesh);
   BMesh &bm = bke::object::bmesh_ensure(ob, allocsize);
 
@@ -83,9 +86,6 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
   if (mesh->faces_num != bm.totface) {
     BM_mesh_normals_update(&bm);
   }
-
-  /* Enable dynamic topology. */
-  mesh->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
 
   /* Enable logging for undo/redo. */
   ss.bm_log = BM_log_create(&bm);
