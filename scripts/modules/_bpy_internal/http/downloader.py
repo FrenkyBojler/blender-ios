@@ -4,9 +4,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import logging
 import multiprocessing
+import multiprocessing.process
 import queue
 from pathlib import Path
 from typing import Protocol, TypeAlias, Any, Callable, Iterable
@@ -303,6 +305,12 @@ class ConditionalDownloader:
 _mp_context = multiprocessing.get_context(method='spawn')
 
 
+@dataclasses.dataclass
+class DownloaderOptions:
+    metadata_cache_location: Path
+    http_headers: dict[str, str] = dataclasses.field(default_factory=dict)
+
+
 class BackgroundDownloader:
     """Wrapper for a ConditionalDownloader + reporters.
 
@@ -331,11 +339,11 @@ class BackgroundDownloader:
     DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
     _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
-    _metadata_cache_location: Path
-
     _reporters: list[DownloadReporter]
+    _options: DownloaderOptions
+    _downloader_process: multiprocessing.process.BaseProcess | None
 
-    def __init__(self, metadata_cache_location: Path) -> None:
+    def __init__(self, options: DownloaderOptions) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
@@ -343,6 +351,7 @@ class BackgroundDownloader:
 
         self._queueing_reporter = QueueingReporter()
         self._download_queue = _mp_context.Queue()
+        self._options = options
 
         # Set this to trigger a shutdown:
         self._shutdown_event = _mp_context.Event()
@@ -350,23 +359,7 @@ class BackgroundDownloader:
         self._shutdown_complete_event = _mp_context.Event()
 
         self._reporters = [self]
-
-        # Set up the downloader in a background thread.
-        # TODO: Maybe defer this and construct the process only at the start()
-        # call. That way it's possible to create a BackgroundDownloader instance,
-        # and set some hypothetical properties on it, which then influence the
-        # 'args' in the call below.
-        self._downloader_process = _mp_context.Process(
-            name="BackgroundDownloader",
-            target=_download_queued_items,
-            args=(
-                self._download_queue,
-                self._shutdown_event,
-                metadata_cache_location,
-                self._queueing_reporter,
-            ),
-            daemon=True,
-        )
+        self._downloader_process = None
 
     def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive updates when .update() is called."""
@@ -407,6 +400,18 @@ class BackgroundDownloader:
         """
         if self._shutdown_event.is_set():
             raise ValueError("BackgroundDownloader was shut down, cannot start again")
+
+        self._downloader_process = _mp_context.Process(
+            name="BackgroundDownloader",
+            target=_download_queued_items,
+            args=(
+                self._download_queue,
+                self._shutdown_event,
+                self._options,
+                self._queueing_reporter,
+            ),
+            daemon=True,
+        )
         self._downloader_process.start()
 
     @property
@@ -418,13 +423,17 @@ class BackgroundDownloader:
         return self._shutdown_complete_event.is_set()
 
     def shutdown(self) -> None:
-        """Cancel any pending downloads and shut down the background thread.
+        """Cancel any pending downloads and shut down the background process.
 
-        Blocks until the background thread has stopped and all queued updates
+        Blocks until the background process has stopped and all queued updates
         have been processed.
 
-        NOTE: call this from the same thread as used to call .update().
+        NOTE: call this from the same process as used to call .update().
         """
+        if self._downloader_process is None:
+            self._logger.error("shutdown called while the downloader never started")
+            return
+
         if self._shutdown_complete_event.is_set() and not self._downloader_process.is_alive():
             self._logger.debug("shutdown already completed")
             return
@@ -432,14 +441,14 @@ class BackgroundDownloader:
         self._logger.debug("shutting down")
         self._shutdown_event.set()
 
-        self._logger.debug("waiting for download thread to stop")
+        self._logger.debug("waiting for download process to stop")
         self._downloader_process.join()
 
         self._logger.debug("processing any pending updates")
         while self._queueing_reporter.update(self._reporters):
             pass
 
-        self._logger.debug("download thread stopped")
+        self._logger.debug("download process stopped")
         self._shutdown_complete_event.set()
 
     def update(self) -> None:
@@ -447,7 +456,7 @@ class BackgroundDownloader:
 
         The reports will be sent to self.reporter, in the same thread that calls this method.
         """
-        if not self._downloader_process.is_alive():
+        if not (self._downloader_process and self._downloader_process.is_alive()):
             raise RuntimeError("start the download process first")
         self._queueing_reporter.update(self._reporters)
 
@@ -535,7 +544,7 @@ class BackgroundDownloader:
 def _download_queued_items(
         download_queue: multiprocessing.Queue[BackgroundDownloader.QueuedDownload],
         shutdown_event: EventClass,
-        metadata_cache_location: Path,
+        options: DownloaderOptions,
         reporter: DownloadReporter,
 ) -> None:
     """Runs in a daemon process to download stuff.
@@ -553,7 +562,11 @@ def _download_queued_items(
     # Construct a ConditionalDownloader. Unfortunately this is necessary, as
     # not all its properties can be pickled, and as a result, it cannot be
     # used to send across process boundaries via the multiprocessing module.
-    downloader = ConditionalDownloader(metadata_cache_location=metadata_cache_location)
+    downloader = ConditionalDownloader(
+        metadata_cache_location=options.metadata_cache_location,
+    )
+    downloader.http_session.headers.update(options.http_headers)
+
     downloader.add_reporter(reporter)
     downloader.cancel_download_event = shutdown_event
 
