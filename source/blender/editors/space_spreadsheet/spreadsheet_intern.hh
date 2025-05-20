@@ -22,12 +22,20 @@ namespace blender::ed::spreadsheet {
 
 class DataSource;
 
+struct ReorderColumnVisualizationData {
+  SpreadsheetColumn *column_to_move = nullptr;
+  SpreadsheetColumn *new_prev_column = nullptr;
+  int current_offset_x_px = 0;
+};
+
 struct SpaceSpreadsheet_Runtime {
  public:
   int visible_rows = 0;
   int tot_rows = 0;
   int tot_columns = 0;
   int top_row_height = 0;
+
+  std::optional<ReorderColumnVisualizationData> reorder_column_visualization_data;
 
   SpreadsheetCache cache;
 

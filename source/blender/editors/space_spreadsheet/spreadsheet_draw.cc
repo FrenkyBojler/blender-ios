@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_context.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
@@ -10,11 +12,14 @@
 #include "GPU_state.hh"
 
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_rect.h"
 
+#include "spreadsheet_column.hh"
 #include "spreadsheet_draw.hh"
+#include "spreadsheet_intern.hh"
 
 #define CELL_RIGHT_PADDING (2.0f * UI_SCALE_FAC)
 
@@ -262,10 +267,43 @@ static void update_view2d_tot_rect(const SpreadsheetDrawer &drawer,
                         row_amount * drawer.row_height + drawer.top_row_height);
 }
 
+static void draw_column_reorder_overlay(const ARegion &region,
+                                        const SpaceSpreadsheet &sspreadsheet)
+{
+  const ReorderColumnVisualizationData &data =
+      *sspreadsheet.runtime->reorder_column_visualization_data;
+
+  {
+    ColorTheme4f color = {0.0f, 0.0f, 0.0f, 0.5f};
+    rctf offset_column_rect;
+    offset_column_rect.xmin = data.column_to_move->runtime->left_x + data.current_offset_x_px;
+    offset_column_rect.xmax = data.column_to_move->runtime->right_x + data.current_offset_x_px;
+    offset_column_rect.ymin = 0;
+    offset_column_rect.ymax = region.winy;
+    UI_draw_roundbox_4fv(&offset_column_rect, true, 0, color);
+  }
+  {
+    ColorTheme4f color{1.0f, 1.0f, 1.0f, 0.5f};
+    const SpreadsheetColumn *first_column = static_cast<const SpreadsheetColumn *>(
+        sspreadsheet.columns.first);
+    const int insert_column_x = data.new_prev_column ? data.new_prev_column->runtime->right_x :
+                                                       first_column->runtime->left_x;
+    const int width = UI_UNIT_X * 0.1f;
+    rctf insert_rect;
+    insert_rect.xmin = insert_column_x - width / 2;
+    insert_rect.xmax = insert_rect.xmin + width;
+    insert_rect.ymin = 0;
+    insert_rect.ymax = region.winy;
+    UI_draw_roundbox_4fv(&insert_rect, true, 0, color);
+  }
+}
+
 void draw_spreadsheet_in_region(const bContext *C,
                                 ARegion *region,
                                 const SpreadsheetDrawer &drawer)
 {
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+
   update_view2d_tot_rect(drawer, region, drawer.tot_rows);
 
   UI_ThemeClearColor(TH_BACK);
@@ -288,6 +326,10 @@ void draw_spreadsheet_in_region(const bContext *C,
   draw_left_column_content(scroll_offset_y, C, region, drawer);
   draw_top_row_content(C, region, drawer, scroll_offset_x);
   draw_cell_contents(C, region, drawer, scroll_offset_x, scroll_offset_y);
+
+  if (sspreadsheet.runtime->reorder_column_visualization_data.has_value()) {
+    draw_column_reorder_overlay(*region, sspreadsheet);
+  }
 
   rcti scroller_mask;
   BLI_rcti_init(&scroller_mask,

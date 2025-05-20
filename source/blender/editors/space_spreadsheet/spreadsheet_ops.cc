@@ -324,6 +324,12 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
   data->initial_cursor_re = cursor_re;
   op->customdata = data;
 
+  ReorderColumnVisualizationData &visualization_data =
+      sspreadsheet.runtime->reorder_column_visualization_data.emplace();
+  visualization_data.column_to_move = column_to_move;
+  visualization_data.new_prev_column = column_to_move->prev;
+  visualization_data.current_offset_x_px = 0;
+
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -359,6 +365,7 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
   switch (event->type) {
     case RIGHTMOUSE:
     case EVT_ESCKEY: {
+      sspreadsheet.runtime->reorder_column_visualization_data.reset();
       MEM_delete(&data);
       ED_region_tag_redraw(&region);
       return OPERATOR_CANCELLED;
@@ -368,12 +375,17 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
         BLI_remlink(&sspreadsheet.columns, data.column);
         BLI_insertlinkafter(&sspreadsheet.columns, new_prev_column, data.column);
       }
+      sspreadsheet.runtime->reorder_column_visualization_data.reset();
       MEM_delete(&data);
       ED_region_tag_redraw(&region);
       return OPERATOR_FINISHED;
     }
     case MOUSEMOVE: {
-      /* TODO: Update visual feedback. */
+      ReorderColumnVisualizationData &visualization_data =
+          *sspreadsheet.runtime->reorder_column_visualization_data;
+      visualization_data.new_prev_column = new_prev_column;
+      visualization_data.current_offset_x_px = cursor_re.x - data.initial_cursor_re.x;
+      ED_region_tag_redraw(&region);
       return OPERATOR_RUNNING_MODAL;
     }
     default: {
