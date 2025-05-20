@@ -1246,302 +1246,19 @@ static void GREASE_PENCIL_OT_layer_duplicate_object(wmOperatorType *ot)
   ot->prop = RNA_def_enum(ot->srna, "mode", copy_mode, 0, "Mode", "");
 }
 
-using bke::greasepencil::LayerGroup;
+/** \} */
 
-typedef struct MoveToLayerGroupData {
-  struct MoveToLayerGroupData *next, *prev;
-  int index;
-  LayerGroup *group;
-  ListBase submenus;
-  PointerRNA ptr;
-  wmOperatorType *ot;
-} MoveToLayerGroupData;
-
-/* one static pointer to hold the menu tree for the active GPencil object */
-static MoveToLayerGroupData *gp_layer_group_menu = NULL;
-
-enum LayerGroupAction {
-  LAYER_GROUP_ACTION_GROUP = 0,
-  LAYER_GROUP_ACTION_UNGROUP = 1,
-  LAYER_GROUP_ACTION_MOVE_INTO = 2,
-};
-
-static const EnumPropertyItem layer_group_action_items[] = {
-    {LAYER_GROUP_ACTION_GROUP, "GROUP", 0, "Group", "Group selected layers into a new group"},
-    {LAYER_GROUP_ACTION_UNGROUP, "UNGROUP", 0, "Ungroup", "Ungroup selected layers"},
-    {LAYER_GROUP_ACTION_MOVE_INTO,
-     "MOVE_INTO",
-     0,
-     "Move into Group",
-     "Move selected layers into an existing group or create a new one"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
-static int move_to_layer_group_menus_create(wmOperator *op, MoveToLayerGroupData *menu)
-{
-  int index = menu->index;
-  /* suppose menu->group->children is stored in a ListBase called 'children'. */
-  ListBase *children = &menu->group->children;  // adjust field name as appropriate
-  for (LinkData *link = (LinkData *)children->first; link; link = link->next) {
-    LayerGroup *child = (LayerGroup *)link->data;
-    MoveToLayerGroupData *submenu = MEM_new<MoveToLayerGroupData>("GPLayerGroupMenu");
-    BLI_addtail(&menu->submenus, submenu);
-    submenu->group = child;
-    submenu->index = ++index;
-    submenu->ot = op->type;
-    index = move_to_layer_group_menus_create(op, submenu);
-  }
-  return index;
-}
-
-static void move_to_layer_group_menus_free_recursive(MoveToLayerGroupData *menu)
-{
-  LISTBASE_FOREACH_MUTABLE (MoveToLayerGroupData *, sub, &menu->submenus) {
-    move_to_layer_group_menus_free_recursive(sub);
-    MEM_delete(sub);
-  }
-  BLI_listbase_clear(&menu->submenus);
-}
-
-static void move_to_layer_group_menus_free(void)
-{
-  if (gp_layer_group_menu) {
-    move_to_layer_group_menus_free_recursive(gp_layer_group_menu);
-    MEM_delete(gp_layer_group_menu);
-    gp_layer_group_menu = NULL;
-  }
-}
-
-static void move_to_layer_group_menu_draw(bContext * /*C*/, uiLayout *layout, void *menu_v)
-{
-  MoveToLayerGroupData *menu = (MoveToLayerGroupData *)menu_v;
-  /* Determine if an existing group is available */
-  bool has_group = (menu->group != nullptr);
-
-  WM_operator_properties_create_ptr(&menu->ptr, menu->ot);
-  RNA_int_set(&menu->ptr, "target_group_index", menu->index);
-  /* Mark as new if no existing group is associated */
-  RNA_boolean_set(&menu->ptr, "is_new", !has_group);
-
-  /* Always show the New Group operator */
-  uiItemFullO_ptr(layout,
-                  menu->ot,
-                  IFACE_("New Group"),
-                  ICON_ADD,
-                  (IDProperty *)menu->ptr.data,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  NULL);
-  uiItemS(layout);
-
-  /* Only display the existing group option and any children if a group exists */
-  if (has_group) {
-    const char *name = menu->group->name().c_str();
-    uiItemIntO(layout,
-               name,
-               ICON_OUTLINER_COLLECTION,
-               menu->ot->idname,
-               "target_group_index",
-               menu->index);
-
-    for (MoveToLayerGroupData *sub = (MoveToLayerGroupData *)menu->submenus.first; sub;
-         sub = sub->next)
-    {
-      uiItemMenuF(
-          layout, sub->group->name().c_str(), ICON_NONE, move_to_layer_group_menu_draw, sub);
-    }
-  }
-}
-static wmOperatorStatus grease_pencil_layer_group_manage_exec(bContext *C, wmOperator *op)
+/* -------------------------------------------------------------------- */
+/** \name Group Layer Operator
+ * \{ */
+static bool active_grease_pencil_layer_or_group_poll(bContext *C)
 {
   using namespace blender::bke::greasepencil;
+  if (!grease_pencil_context_poll(C)) {
+    return false;
+  }
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
-  int action = RNA_enum_get(op->ptr, "action");
-
-  if (action == LAYER_GROUP_ACTION_MOVE_INTO) {
-    if (!RNA_struct_property_is_set(op->ptr, "target_group_index")) {
-      return OPERATOR_CANCELLED;
-    }
-    int target_group_index = RNA_int_get(op->ptr, "target_group_index");
-    bool is_new = RNA_boolean_get(op->ptr, "is_new");
-    if (is_new) {
-      char new_group_name[MAX_NAME] = {0};
-      RNA_string_get(op->ptr, "new_group_name", new_group_name);
-      /* Provide a default name if none is given. */
-      if (new_group_name[0] == '\0') {
-        BLI_strncpy(new_group_name, "Group", sizeof(new_group_name));
-      }
-      LayerGroup *target_group = &grease_pencil.add_layer_group(new_group_name);
-      Vector<Layer *> selected_layers;
-      for (Layer *layer : grease_pencil.layers_for_write()) {
-        if (layer->is_selected()) {
-          selected_layers.append(layer);
-        }
-      }
-      for (Layer *layer : selected_layers) {
-        grease_pencil.move_node_into(layer->as_node(), *target_group);
-      }
-      grease_pencil.set_active_node(&target_group->as_node());
-    }
-    else {
-      const Span<const LayerGroup *> cgroups = grease_pencil.layer_groups();
-      if (!cgroups.index_range().contains(target_group_index)) {
-        return OPERATOR_CANCELLED;
-      }
-      LayerGroup *target_group = const_cast<LayerGroup *>(cgroups[target_group_index]);
-      Vector<Layer *> selected_layers;
-      for (Layer *layer : grease_pencil.layers_for_write()) {
-        if (layer->is_selected()) {
-          selected_layers.append(layer);
-        }
-      }
-      for (Layer *layer : selected_layers) {
-        grease_pencil.move_node_into(layer->as_node(), *target_group);
-      }
-      grease_pencil.set_active_node(&target_group->as_node());
-    }
-  }
-  else if (action == LAYER_GROUP_ACTION_GROUP) {
-    /* Group: create a new group and add selected layers into it.
-       If the first selected layer already belongs to a group (its parent name is non-empty),
-       nest the new group in that parent. */
-    Vector<Layer *> selected_layers;
-    for (Layer *layer : grease_pencil.layers_for_write()) {
-      if (layer->is_selected()) {
-        selected_layers.append(layer);
-      }
-    }
-    if (selected_layers.is_empty()) {
-      return OPERATOR_CANCELLED;
-    }
-    const LayerGroup &first_parent = selected_layers[0]->parent_group();
-    LayerGroup *new_group_ptr = nullptr;
-    if (first_parent.name().size() != 0) {
-      new_group_ptr = &grease_pencil.add_layer_group("Group");
-      /* Nest the new group into the first parent's group */
-      grease_pencil.move_node_into(new_group_ptr->as_node(),
-                                   const_cast<LayerGroup &>(first_parent));
-    }
-    else {
-      new_group_ptr = &grease_pencil.add_layer_group("Group");
-    }
-    for (Layer *layer : selected_layers) {
-      grease_pencil.move_node_into(layer->as_node(), *new_group_ptr);
-    }
-    grease_pencil.set_active_node(&new_group_ptr->as_node());
-  }
-  else if (action == LAYER_GROUP_ACTION_MOVE_INTO) {
-    /* MOVE_INTO: expect either a target group (by index) or a flag to create a new one.
-       If the target group is not set, the invoke callback will pop up a dialog. */
-    if (!RNA_struct_property_is_set(op->ptr, "target_group_index")) {
-      return WM_operator_props_dialog_popup(C, op, 200, "Move to Group", "Move");
-    }
-    int target_group_index = RNA_int_get(op->ptr, "target_group_index");
-    bool is_new = RNA_boolean_get(op->ptr, "is_new");
-    if (is_new) {
-      char new_group_name[MAX_NAME];
-      RNA_string_get(op->ptr, "new_group_name", new_group_name);
-      LayerGroup *target_group = &grease_pencil.add_layer_group(new_group_name);
-      Vector<Layer *> selected_layers;
-      for (Layer *layer : grease_pencil.layers_for_write()) {
-        if (layer->is_selected()) {
-          selected_layers.append(layer);
-        }
-      }
-      for (Layer *layer : selected_layers) {
-        grease_pencil.move_node_into(layer->as_node(), *target_group);
-      }
-      grease_pencil.set_active_node(&target_group->as_node());
-    }
-    else {
-      const Span<const LayerGroup *> cgroups = grease_pencil.layer_groups();
-      if (!cgroups.index_range().contains(target_group_index)) {
-        return OPERATOR_CANCELLED;
-      }
-      LayerGroup *target_group = const_cast<LayerGroup *>(cgroups[target_group_index]);
-      Vector<Layer *> selected_layers;
-      for (Layer *layer : grease_pencil.layers_for_write()) {
-        if (layer->is_selected()) {
-          selected_layers.append(layer);
-        }
-      }
-      for (Layer *layer : selected_layers) {
-        grease_pencil.move_node_into(layer->as_node(), *target_group);
-      }
-      grease_pencil.set_active_node(&target_group->as_node());
-    }
-  }
-
-  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
-  return OPERATOR_FINISHED;
-}
-
-static wmOperatorStatus grease_pencil_layer_group_manage_invoke(bContext *C,
-                                                                wmOperator *op,
-                                                                const wmEvent * /*event*/)
-{
-  int action = RNA_enum_get(op->ptr, "action");
-  if (action == LAYER_GROUP_ACTION_MOVE_INTO &&
-      !RNA_struct_property_is_set(op->ptr, "target_group_index"))
-  {
-    GreasePencil *gpencil = blender::ed::greasepencil::from_context(*C);
-    /* If no groups exist, force the 'new group' branch. */
-    if (gpencil->layer_groups().is_empty()) {
-      RNA_boolean_set(op->ptr, "is_new", true);
-    }
-    else {
-      RNA_boolean_set(op->ptr, "is_new", false);
-    }
-    /* Free any existing menu tree. */
-    move_to_layer_group_menus_free();
-    /* Allocate the menu data before using it. */
-    gp_layer_group_menu = MEM_new<MoveToLayerGroupData>("GP_LayerGroupMenu");
-    if (!gpencil->layer_groups().is_empty()) {
-      gp_layer_group_menu->group = const_cast<LayerGroup *>(gpencil->layer_groups()[0]);
-    }
-    else {
-      gp_layer_group_menu->group = nullptr;
-    }
-    gp_layer_group_menu->index = 0;
-    gp_layer_group_menu->ot = op->type;
-    move_to_layer_group_menus_create(op, gp_layer_group_menu);
-
-    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Move to Group"), ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
-    uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-    move_to_layer_group_menu_draw(C, layout, gp_layer_group_menu);
-    UI_popup_menu_end(C, pup);
-
-    return OPERATOR_INTERFACE;
-  }
-  return grease_pencil_layer_group_manage_exec(C, op);
-}
-
-/* The get_description callback must match the expected signature (returning const char *) */
-static std::string grease_pencil_layer_group_manage_get_description(bContext * /*C*/,
-                                                                    wmOperatorType *ot,
-                                                                    PointerRNA *ptr)
-{
-  int action = RNA_enum_get(ptr, "action");
-  if (action == LAYER_GROUP_ACTION_MOVE_INTO) {
-    return TIP_("Move selected layers into a group");
-  }
-  else if (action == LAYER_GROUP_ACTION_GROUP) {
-    return TIP_("Group selected layers");
-  }
-  else if (action == LAYER_GROUP_ACTION_UNGROUP) {
-    return TIP_("Ungroup selected layers");
-  }
-  return ot->description;
-}
-
-bool active_grease_pencil_layer_or_group_poll(bContext *C)
-{
-  const GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
-  bke::greasepencil::TreeNode *active_node = const_cast<bke::greasepencil::TreeNode *>(
-      grease_pencil->get_active_node());
-
+  TreeNode *active_node = grease_pencil.get_active_node();
   if (active_node == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "No active layer or group");
     return false;
@@ -1555,50 +1272,117 @@ bool active_grease_pencil_layer_or_group_poll(bContext *C)
   /* Otherwise, if active node belongs to a group, require at least 2 nodes. */
   const LayerGroup *parent = active_node->parent_group();
   if (parent != nullptr) {
-    if (parent->num_direct_nodes() < 2) {
-      CTX_wm_operator_poll_msg_set(C, "Group must have at least 2 layers");
+    if (parent->num_direct_nodes() < 1) {
+      CTX_wm_operator_poll_msg_set(C, "Group must have at least 1 layers");
       return false;
     }
   }
   return true;
 }
 
-static void GREASE_PENCIL_OT_layer_group_manage(wmOperatorType *ot)
+static wmOperatorStatus grease_pencil_layer_group_exec(bContext *C, wmOperator *op)
 {
-  ot->name = "Manage Layer Group";
-  ot->idname = "GREASE_PENCIL_OT_layer_group_manage";
-  ot->description = "Group, ungroup or move selected layers into a group";
-  ot->exec = grease_pencil_layer_group_manage_exec;
-  ot->invoke = grease_pencil_layer_group_manage_invoke;
-  ot->poll = active_grease_pencil_layer_or_group_poll;
-  ot->get_description = grease_pencil_layer_group_manage_get_description;
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  using namespace blender::bke::greasepencil;
 
-  RNA_def_enum(ot->srna,
-               "action",
-               layer_group_action_items,
-               LAYER_GROUP_ACTION_GROUP,
-               "Action",
-               "Action to perform on the selected layers");
-  RNA_def_boolean(
-      ot->srna, "delete_empty", true, "Delete Empty", "Delete group if empty after ungrouping");
-  /* Properties for MOVE_INTO. */
-  RNA_def_int(ot->srna,
-              "target_group_index",
-              0,
-              0,
-              INT_MAX,
-              "Target Group Index",
-              "Index of the target group in the list of groups",
-              0,
-              INT_MAX);
-  RNA_def_boolean(ot->srna,
-                  "is_new",
-                  false,
-                  "Create New",
-                  "Create a new group instead of using an existing one");
-  RNA_def_string(
-      ot->srna, "new_group_name", nullptr, MAX_NAME, "New Group Name", "Name for the new group");
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
+  const char *name = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
+
+  /* Create a new group and add selected layers to it. */
+  Vector<Layer *> selected_layers;
+  for (Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_selected()) {
+      selected_layers.append(layer);
+    }
+  }
+  if (selected_layers.is_empty()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  // Check if the first selected layer already has a parent group.
+  const LayerGroup &first_parent = selected_layers[0]->parent_group();
+  LayerGroup *new_group_ptr = nullptr;
+
+  /* If the first selected layer has a parent group,
+  then create a new group and nest it into that parent group.*/
+  if (first_parent.name().size() != 0) {
+    // Create a new group, then nest it into the parent group.
+    new_group_ptr = &grease_pencil.add_layer_group(name);
+    grease_pencil.move_node_into(new_group_ptr->as_node(), const_cast<LayerGroup &>(first_parent));
+  }
+  else {
+    new_group_ptr = &grease_pencil.add_layer_group(name);
+  }
+
+  // Move all selected layers into the new group.
+  for (Layer *layer : selected_layers) {
+    grease_pencil.move_node_into(layer->as_node(), *new_group_ptr);
+  }
+  grease_pencil.set_active_node(&new_group_ptr->as_node());
+
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_layer_group(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Group Layers";
+  ot->idname = "GREASE_PENCIL_OT_layer_group";
+  ot->description = "Create a new layer group from selected layers";
+
+  /* callbacks */
+  ot->invoke = WM_operator_props_popup;
+  ot->exec = grease_pencil_layer_group_exec;
+  ot->poll = active_grease_pencil_layer_or_group_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  /* props */
+  ot->prop = RNA_def_string(
+      ot->srna, "name", "New Group", 64, "Name", "Name of the newly created layer group");
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Ungroup Layer Operator
+ * \{ */
+
+static wmOperatorStatus grease_pencil_layer_ungroup_exec(bContext *C, wmOperator * /*op*/)
+{
+  using namespace blender::bke::greasepencil;
+
+  GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
+
+  /* Ungroup selected layers by moving each node before its parent group. */
+  for (Layer *layer : grease_pencil.layers_for_write()) {
+    if (layer->is_selected()) {
+      const LayerGroup &parent = layer->parent_group();
+      if (parent.name().size() != 0) {  // Check if parent name is non-empty.
+        grease_pencil.move_node_before(layer->as_node(), const_cast<TreeNode &>(parent.as_node()));
+      }
+    }
+  }
+
+  DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, &grease_pencil);
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_layer_ungroup(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Ungroup Layers";
+  ot->idname = "GREASE_PENCIL_OT_layer_ungroup";
+  ot->description = "Remove selected layers from their group";
+
+  /* callbacks */
+  ot->exec = grease_pencil_layer_ungroup_exec;
+  ot->poll = active_grease_pencil_layer_or_group_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 }  // namespace blender::ed::greasepencil
@@ -1619,10 +1403,12 @@ void ED_operatortypes_grease_pencil_layers()
 
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_add);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_remove);
+
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_add);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_remove);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_color_tag);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_duplicate_object);
-  WM_operatortype_append(GREASE_PENCIL_OT_layer_group_manage);
+  WM_operatortype_append(GREASE_PENCIL_OT_layer_group);
+  WM_operatortype_append(GREASE_PENCIL_OT_layer_ungroup);
 }
