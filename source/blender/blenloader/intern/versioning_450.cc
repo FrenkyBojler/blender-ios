@@ -14,6 +14,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -27,6 +28,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -5320,6 +5322,10 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
+  }
+
+  LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
+    blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
   }
 
   /**
