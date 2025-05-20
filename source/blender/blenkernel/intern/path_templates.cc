@@ -114,7 +114,7 @@ using namespace blender::bke::path_templates;
 
 std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr,
                                                                  PropertyRNA *prop,
-                                                                 const bContext &context)
+                                                                 const bContext *C)
 {
   BLI_assert(ptr != nullptr);
   BLI_assert(prop != nullptr);
@@ -158,8 +158,9 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
   if (id_type == ID_SCE &&
       streq({struct_identifier, prop_identifier}, {"RenderSettings", "filepath"}))
   {
+    const Scene *scene = reinterpret_cast<const Scene *>(ptr->owner_id);
     return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                        &CTX_data_scene(&context)->r);
+                                                        &scene->r);
   }
 
   /* Compositor's File Output node's paths. */
@@ -168,8 +169,11 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
       (streq({struct_identifier, prop_identifier}, {"CompositorNodeOutputFile", "base_path"}) ||
        streq({struct_identifier, prop_identifier}, {"NodeOutputFileSlotFile", "path"})))
   {
+    const Scene *scene = CTX_data_scene(C);
+    const RenderData *render_data = scene ? &scene->r : nullptr;
+
     return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                        &CTX_data_scene(&context)->r);
+                                                        render_data);
   }
 
   /* All paths that support path templates should be handled above, and any that

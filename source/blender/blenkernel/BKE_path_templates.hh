@@ -143,7 +143,7 @@ bool operator==(const Error &left, const Error &right);
  * passed property doesn't support path templates.
  */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
-    PointerRNA *ptr, PropertyRNA *prop, const bContext &context);
+    PointerRNA *ptr, PropertyRNA *prop, const bContext *C);
 
 /**
  * Build a template variable map for render output paths.
