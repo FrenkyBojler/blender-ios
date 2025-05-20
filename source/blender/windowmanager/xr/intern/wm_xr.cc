@@ -78,8 +78,9 @@ bool wm_xr_init(wmWindowManager *wm)
 
 #ifdef WITH_VULKAN_BACKEND
       case GPU_BACKEND_VULKAN:
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkanShared);
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkan);
+        gpu_bindings_candidates.append(bool(U.gpu_flag & USER_GPU_FLAG_XR_SHARE_RESOURCES) ?
+                                           GHOST_kXrGraphicsVulkanShared :
+                                           GHOST_kXrGraphicsVulkan);
 #  ifdef WIN32
         gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkanD3D11);
 #  endif

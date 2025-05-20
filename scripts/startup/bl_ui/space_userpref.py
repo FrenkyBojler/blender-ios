@@ -695,6 +695,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
             col = layout.column()
             col.enabled = gpu.platform.backend_type_get() == 'VULKAN'
             col.prop(system, "gpu_preferred_device")
+            col.prop(system, "gpu_xr_share_resources")
 
         if system.gpu_backend != gpu.platform.backend_type_get():
             layout.label(text="A restart of Blender is required", icon='INFO')

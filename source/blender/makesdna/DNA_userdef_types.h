@@ -806,6 +806,7 @@ typedef enum eUserpref_GPU_Flag {
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),
   USER_GPU_FLAG_FRESNEL_EDIT = (1 << 4),
+  USER_GPU_FLAG_XR_SHARE_RESOURCES = (1 << 5),
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend

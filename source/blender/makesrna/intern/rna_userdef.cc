@@ -6343,6 +6343,13 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Preferred device to select during detection (requires restarting "
                            "Blender for changes to take effect)");
 
+  prop = RNA_def_property(srna, "gpu_xr_share_resources", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gpu_flag", USER_GPU_FLAG_XR_SHARE_RESOURCES);
+  RNA_def_property_ui_text(
+      prop,
+      "Share Resources",
+      "Share GPU resources with OpenXR for better performance on SteamVR and Monado");
+
   prop = RNA_def_property(srna, "max_shader_compilation_subprocesses", PROP_INT, PROP_NONE);
   RNA_def_property_range(prop, 0, INT16_MAX);
   RNA_def_property_ui_text(prop,
