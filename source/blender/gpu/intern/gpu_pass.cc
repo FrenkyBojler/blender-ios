@@ -215,7 +215,7 @@ class GPUPassCache {
    * passes.*/
   static constexpr float optimization_delay_ = 10.0f;
 
-  double last_base_compilation_timestamp_;
+  double last_base_compilation_timestamp_ = -1.0;
 
   Map<uint32_t, std::unique_ptr<GPUPass>> passes_[GPU_MAT_ENGINE_MAX][2 /*is_optimization_pass*/];
   std::mutex mutex_;
