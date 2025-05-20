@@ -270,10 +270,30 @@ static void update_view2d_tot_rect(const SpreadsheetDrawer &drawer,
                         row_amount * drawer.row_height + drawer.top_row_height);
 }
 
-static void draw_column_reorder_overlay(const ARegion &region,
-                                        const SpaceSpreadsheet &sspreadsheet,
-                                        const SpreadsheetDrawer &drawer,
-                                        const int scroll_offset_x)
+static void draw_column_reorder_source(const uint pos,
+                                       const ARegion &region,
+                                       const SpaceSpreadsheet &sspreadsheet,
+                                       const int scroll_offset_x)
+{
+  const ReorderColumnVisualizationData &data =
+      *sspreadsheet.runtime->reorder_column_visualization_data;
+
+  rctf rect;
+  rect.xmin = data.column_to_move->runtime->left_x - scroll_offset_x;
+  rect.xmax = data.column_to_move->runtime->right_x - scroll_offset_x;
+  rect.ymin = 0;
+  rect.ymax = region.winy;
+
+  immUniformThemeColorShadeAlpha(TH_BACK, -20, -128);
+  GPU_blend(GPU_BLEND_ALPHA);
+  immRectf(pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+  GPU_blend(GPU_BLEND_NONE);
+}
+
+static void draw_column_reorder_destination(const ARegion &region,
+                                            const SpaceSpreadsheet &sspreadsheet,
+                                            const SpreadsheetDrawer &drawer,
+                                            const int scroll_offset_x)
 {
   const ReorderColumnVisualizationData &data =
       *sspreadsheet.runtime->reorder_column_visualization_data;
@@ -328,6 +348,7 @@ void draw_spreadsheet_in_region(const bContext *C,
   View2D *v2d = &region->v2d;
   const int scroll_offset_y = v2d->cur.ymax;
   const int scroll_offset_x = v2d->cur.xmin;
+  bool is_reordering_columns = sspreadsheet.runtime->reorder_column_visualization_data.has_value();
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -336,6 +357,9 @@ void draw_spreadsheet_in_region(const bContext *C,
   draw_index_column_background(pos, region, drawer);
   draw_alternating_row_overlay(pos, scroll_offset_y, region, drawer);
   draw_top_row_background(pos, region, drawer);
+  if (is_reordering_columns) {
+    draw_column_reorder_source(pos, *region, sspreadsheet, scroll_offset_x);
+  }
   draw_separator_lines(pos, scroll_offset_x, region, drawer);
 
   immUnbindProgram();
@@ -344,8 +368,8 @@ void draw_spreadsheet_in_region(const bContext *C,
   draw_top_row_content(C, region, drawer, scroll_offset_x);
   draw_cell_contents(C, region, drawer, scroll_offset_x, scroll_offset_y);
 
-  if (sspreadsheet.runtime->reorder_column_visualization_data.has_value()) {
-    draw_column_reorder_overlay(*region, sspreadsheet, drawer, scroll_offset_x);
+  if (is_reordering_columns) {
+    draw_column_reorder_destination(*region, sspreadsheet, drawer, scroll_offset_x);
   }
 
   rcti scroller_mask;
