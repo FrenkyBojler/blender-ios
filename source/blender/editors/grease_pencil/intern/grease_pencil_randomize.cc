@@ -7,8 +7,8 @@
  */
 
 #include "BKE_brush.hh"
-#include "BKE_paint.hh"
 #include "BLI_noise.hh"
+#include "BKE_paint.hh"
 #include "BLI_rand.hh"
 
 #include "BKE_colortools.hh"

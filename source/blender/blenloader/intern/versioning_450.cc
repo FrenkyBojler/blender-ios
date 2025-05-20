@@ -3977,6 +3977,45 @@ static void do_version_color_balance_node_options_to_inputs_animation(bNodeTree 
   });
 }
 
+/* Unified paint settings need a default curve for the color jitter options. */
+static void do_init_default_jitter_curves_in_unified_paint_settings(ToolSettings *ts)
+{
+  if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
+    ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
+    ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_value == nullptr) {
+    ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
+/* GP_BRUSH_* settings in gpencil_settings->flag2 were deprecated and replaced with
+ * brush->color_jitter_flag. */
+static void do_convert_gp_jitter_flags(Brush *brush)
+{
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  if (settings->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_HUE_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS;
+  }
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -4544,42 +4583,50 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 74)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_CROP) {
+            do_version_crop_node_options_to_inputs_animation(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 76)) {
+    ToolSettings toolsettings_default = *DNA_struct_default_get(ToolSettings);
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->snap_playhead_mode = toolsettings_default.snap_playhead_mode;
+      scene->toolsettings->snap_step_frames = toolsettings_default.snap_step_frames;
+      scene->toolsettings->snap_step_seconds = toolsettings_default.snap_step_seconds;
+      scene->toolsettings->playhead_snap_distance = toolsettings_default.playhead_snap_distance;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 77)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+            do_version_color_balance_node_options_to_inputs_animation(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 78)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      ToolSettings *ts = scene->toolsettings;
-
-      if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
-        ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
-      }
-      if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
-        ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
-      }
-      if (ts->unified_paint_settings.curve_rand_value == nullptr) {
-        ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
-      }
+      do_init_default_jitter_curves_in_unified_paint_settings(scene->toolsettings);
     }
 
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->gpencil_settings) {
-        BrushGpencilSettings *settings = brush->gpencil_settings;
-        if (settings->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE;
-        }
-        if (settings->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE;
-        }
-        if (settings->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE;
-        }
-        if (settings->flag2 & GP_BRUSH_USE_HUE_RAND_PRESS) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS;
-        }
-        if (settings->flag2 & GP_BRUSH_USE_SAT_RAND_PRESS) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS;
-        }
-        if (settings->flag2 & GP_BRUSH_USE_VAL_RAND_PRESS) {
-          brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS;
-        }
+        do_convert_gp_jitter_flags(brush);
       }
     }
   }
