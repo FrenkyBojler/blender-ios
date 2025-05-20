@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pydantic
 
-from _bpy_internal.http.downloader import ConditionalDownloader, BackgroundDownloader
+from _bpy_internal.http import downloader as http_dl
 from . import blender_asset_library_openapi as api_models
 from . import index_common
 
@@ -34,12 +34,12 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     base_url = arguments.url
     base_path = Path(".").resolve() / "_asset_download_location"  # TODO: be sensible.
 
-    downloader = ConditionalDownloader(
-        metadata_cache_location=base_path / "_local-meta-cache",
+    bg_downloader = http_dl.BackgroundDownloader(
+        http_dl.DownloaderOptions(
+            metadata_cache_location=base_path / "_local-meta-cache",
+            http_headers={'Accept': 'application/json'},
+        )
     )
-    downloader.http_session.headers.update({'Accept': 'application/json'})
-
-    bg_downloader = BackgroundDownloader(downloader)
     bg_downloader.start()
 
     try:
@@ -111,7 +111,7 @@ M = TypeVar('M', bound=pydantic.BaseModel)
 
 
 def _download_and_parse(
-    downloader: BackgroundDownloader,
+    downloader: http_dl.BackgroundDownloader,
     remote_url: str,
     local_path: Path,
     model_class: Type[M],

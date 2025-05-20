@@ -25,8 +25,7 @@ import bpy
 
 from _bpy_internal.assets.remote_library_index import index_common
 from _bpy_internal.assets.remote_library_index import blender_asset_library_openapi as api_models
-from _bpy_internal.http.downloader import RequestDescription, ConditionalDownloader, BackgroundDownloader, DownloadCancelled
-from _bpy_internal import http
+from _bpy_internal.http import downloader as http_dl
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
     url: bpy.props.StringProperty(default="http://localhost:8000/")  # type: ignore
 
     _local_path: Path
-    _bg_downloader: BackgroundDownloader
+    _bg_downloader: http_dl.BackgroundDownloader
     _num_asset_pages_pending: int
     _timer: bpy.types.Timer | None
 
@@ -61,12 +60,12 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self._num_asset_pages_pending = 0
         self._operator_context = None
 
-        downloader = ConditionalDownloader(
-            metadata_cache_location=self._local_path / "_local-meta-cache",
+        self._bg_downloader = http_dl.BackgroundDownloader(
+            http_dl.DownloaderOptions(
+                metadata_cache_location=self._local_path / "_local-meta-cache",
+                http_headers={'Accept': 'application/json'},
+            )
         )
-        downloader.http_session.headers.update({'Accept': 'application/json'})
-
-        self._bg_downloader = BackgroundDownloader(downloader)
         self._bg_downloader.add_reporter(self)
         self._bg_downloader.start()
 
@@ -135,7 +134,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         )
 
     def parse_asset_lib_metadata(self,
-                                 http_req_descr: RequestDescription,
+                                 http_req_descr: http_dl.RequestDescription,
                                  local_file: Path,
                                  ) -> None:
         logger.info("Parsing %s", local_file)
@@ -173,7 +172,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         )
 
     def parse_asset_lib_index(self,
-                              http_req_descr: RequestDescription,
+                              http_req_descr: http_dl.RequestDescription,
                               local_file: Path,
                               ) -> None:
         json_data = local_file.read_bytes()
@@ -206,7 +205,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             abs_path.unlink()
 
     def on_asset_page_downloaded(self,
-                                 http_req_descr: RequestDescription,
+                                 http_req_descr: http_dl.RequestDescription,
                                  local_file: Path,
                                  ) -> None:
         self._num_asset_pages_pending -= 1
@@ -226,7 +225,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
         self.cancel(self._operator_context)
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
-                        on_done: Callable[[RequestDescription, Path], None]) -> Path:
+                        on_done: Callable[[http_dl.RequestDescription, Path], None]) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
         remote_url = urllib.parse.urljoin(self.url, relative_url)
         download_to_path = self._local_path / relative_path
@@ -237,23 +236,23 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
     # Below here: CachingDownloadReporter functions:
 
-    def download_starts(self, http_req_descr: RequestDescription) -> None:
+    def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
         self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
         logger.info("Download starting: %s", http_req_descr)
 
     def already_downloaded(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         logger.info("Download unnecessary, file already downloaded: %s", http_req_descr.url)
 
     def download_error(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         error: Exception,
     ) -> None:
-        if isinstance(error, DownloadCancelled):
+        if isinstance(error, http_dl.DownloadCancelled):
             if self._num_asset_pages_pending:
                 self.report({'WARNING'}, "Cancelled {} pending download".format(self._num_asset_pages_pending))
             logger.warning("Download cancelled: %s", http_req_descr)
@@ -266,7 +265,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
     def download_progress(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
@@ -276,7 +275,7 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
 
     def download_finished(
         self,
-        http_req_descr: RequestDescription,
+        http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
