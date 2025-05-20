@@ -351,6 +351,9 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
     case GHOST_kVulkanXRModeCPU:
       submitToSwapchainImageCpu(vulkan_image, draw_info);
       break;
+
+    case GHOST_kVulkanXRModeShared:
+      break;
   }
 }
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainEnd() {}
@@ -522,6 +525,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
             VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
         break;
       case GHOST_kVulkanXRModeCPU:
+      case GHOST_kVulkanXRModeShared:
         break;
     }
 
@@ -585,6 +589,7 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageGpu(
       }
 
       case GHOST_kVulkanXRModeCPU:
+      case GHOST_kVulkanXRModeShared:
         break;
     }
 
