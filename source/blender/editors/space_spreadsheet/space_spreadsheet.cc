@@ -439,6 +439,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   draw_spreadsheet_in_region(C, region, *drawer);
 
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
+  sspreadsheet->runtime->left_column_width = drawer->left_column_width;
 
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);

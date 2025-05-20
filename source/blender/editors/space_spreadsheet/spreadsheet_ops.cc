@@ -360,9 +360,11 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
     }
   }
   else {
-    new_prev_column = static_cast<SpreadsheetColumn *>(sspreadsheet.columns.last);
-    if (new_prev_column == data.column) {
-      new_prev_column = new_prev_column->prev;
+    if (cursor_re.x > sspreadsheet.runtime->left_column_width) {
+      new_prev_column = static_cast<SpreadsheetColumn *>(sspreadsheet.columns.last);
+      if (new_prev_column == data.column) {
+        new_prev_column = new_prev_column->prev;
+      }
     }
   }
 

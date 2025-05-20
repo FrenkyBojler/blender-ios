@@ -34,6 +34,7 @@ struct SpaceSpreadsheet_Runtime {
   int tot_rows = 0;
   int tot_columns = 0;
   int top_row_height = 0;
+  int left_column_width = 0;
 
   std::optional<ReorderColumnVisualizationData> reorder_column_visualization_data;
 
