@@ -190,12 +190,12 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
  * To ensure the estimation has no impact on performance, it is calculated using a random subset of
  * the faces.
  */
-static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double voxel_size)
+static int calc_estimated_remesh_vert_count(const Mesh &mesh, const double voxel_size)
 {
   const Span<float3> positions = mesh.vert_positions();
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> face_normals = mesh.face_normals();
-  const blender::OffsetIndices faces = mesh.faces();
+  const OffsetIndices faces = mesh.faces();
 
   double total_sampled_area = 0.0f;
   double total_axis_alignment_score = 0.0f;
@@ -204,11 +204,10 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double vox
   const int seed = faces.size();
 
   for (const int i : IndexRange(samples)) {
-    const int random_face_idx = int(noise::hash_to_float(seed, i) * (faces.size() - 1));
-    total_sampled_area += blender::bke::mesh::face_area_calc(
-        positions, corner_verts.slice(faces[random_face_idx]));
+    const int face = int(noise::hash_to_float(seed, i) * (faces.size() - 1));
+    total_sampled_area += bke::mesh::face_area_calc(positions, corner_verts.slice(faces[face]));
 
-    total_axis_alignment_score += math::reduce_max(math::abs(face_normals[random_face_idx]));
+    total_axis_alignment_score += math::reduce_max(math::abs(face_normals[face]));
   }
 
   const double avg_face_area = total_sampled_area / samples;
@@ -216,9 +215,8 @@ static int calc_estimated_remesh_vertex_count(const Mesh &mesh, const double vox
 
   const float avg_axis_alignment_score = total_axis_alignment_score / samples;
 
-  /* Minimum possible score is for a diagonal vector such as (1, 1, 1). When normalized, each of
-   * its components is equal to the reciprocal of sqrt(3). */
-  const float min_score = math::rcp(math::numbers::sqrt3);
+  /* Minimum possible score is for a diagonal vector such as (1, 1, 1). */
+  const float min_score = math::reduce_max(math::normalize(float3(1, 1, 1)));
   constexpr float max_score = 1.0f;
 
   /* A low score means that the faces of the mesh, on average, are not axis-aligned. These meshes
@@ -250,25 +248,11 @@ static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const w
   const Object &active_object = *CTX_data_active_object(C);
   const Mesh &mesh = *static_cast<Mesh *>(active_object.data);
 
-  const int estimated_count = calc_estimated_remesh_vertex_count(mesh, mesh.remesh_voxel_size);
+  const int estimated_count = calc_estimated_remesh_vert_count(mesh, mesh.remesh_voxel_size);
 
   if (estimated_count > remesh_vertex_count_threshold) {
-    uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Warning!"), ICON_ERROR);
-    uiLayout *layout = UI_popup_menu_layout(pup);
-    layout->label("The remesher is estimated to generate more than 10 million vertices.",
-                  ICON_INFO);
-    uiItemFullO_ptr(layout,
-                    op->type,
-                    IFACE_("OK"),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_EXEC_DEFAULT,
-                    UI_ITEM_NONE,
-                    nullptr);
-
-    UI_popup_menu_end(C, pup);
-
-    return OPERATOR_INTERFACE;
+    return WM_operator_confirm_message(
+        C, op, TIP_("The remesher is estimated to generate more than 10 million vertices."));
   }
 
   return voxel_remesh_exec(C, op);
