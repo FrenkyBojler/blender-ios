@@ -486,7 +486,8 @@ class InfoPropertyRNA:
             type_info.append("blend relative ``//`` prefix supported")
 
         if self.is_path_supports_templates:
-            type_info.append("template expressions like \"{blend_name}\" are supported")
+            type_info.append(
+                "template expressions like \"{blend_name}\" are supported (see the Path Templates section in the user manual for more details)")
 
         if type_info:
             type_str += ", ({:s})".format(", ".join(type_info))
