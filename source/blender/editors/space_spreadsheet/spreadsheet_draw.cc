@@ -274,6 +274,7 @@ static void draw_column_reorder_overlay(const ARegion &region,
       *sspreadsheet.runtime->reorder_column_visualization_data;
 
   {
+    /* Draw column that is moved. */
     ColorTheme4f color;
     UI_GetThemeColorShade4fv(TH_BACK, -20, color);
     color.a = 0.3f;
@@ -285,6 +286,7 @@ static void draw_column_reorder_overlay(const ARegion &region,
     UI_draw_roundbox_4fv(&offset_column_rect, true, 0, color);
   }
   {
+    /* Draw indicator where the column is inserted. */
     ColorTheme4f color{1.0f, 1.0f, 1.0f, 0.5f};
     const SpreadsheetColumn *first_column = static_cast<const SpreadsheetColumn *>(
         sspreadsheet.columns.first);
