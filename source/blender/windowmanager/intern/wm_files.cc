@@ -4289,6 +4289,91 @@ void wm_test_autorun_warning(bContext *C)
   }
 }
 
+static void wm_block_foreign_file_warning_ok(bContext *C, void *arg_block, void * /*arg*/)
+{
+  wmWindow *win = CTX_wm_window(C);
+  UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
+}
+
+static uiBlock *block_create_foreign_file_warning(bContext *C, ARegion *region, void * /*arg1*/)
+{
+  const char *blendfile_path = BKE_main_blendfile_path_from_global();
+  wmWindowManager *wm = CTX_wm_manager(C);
+
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  UI_block_flag_enable(
+      block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
+  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+
+  const char *title = RPT_("Unable to Load File");
+  const char *message = RPT_("The file specified is not a valid Blend document.");
+
+  /* Measure strings to find the longest. */
+  const uiStyle *style = UI_style_get_dpi();
+  UI_fontstyle_set(&style->widget);
+  int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
+  text_width = std::max(text_width,
+                        int(BLF_width(style->widget.uifont_id, message, BLF_DRAW_STR_DUMMY_MAX)));
+
+  const int dialog_width = std::max(int(300.0f * UI_SCALE_FAC),
+                                    text_width + int(style->columnspace * 2.5));
+  const short icon_size = 40 * UI_SCALE_FAC;
+  uiLayout *layout = uiItemsAlertBox(
+      block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
+
+  /* Title and explanation text. */
+  uiLayout *col = &layout->column(true);
+  uiItemL_ex(col, title, ICON_NONE, true, false);
+  uiItemL_ex(col, G.autoexec_fail, ICON_NONE, false, true);
+  col->label(message, ICON_NONE);
+
+  layout->separator(2.0f);
+
+  /* Buttons. */
+  uiBut *but;
+  uiLayout *split = &layout->split(0.0f, true);
+  uiLayoutSetScaleY(split, 1.2f);
+
+  /* Empty space. */
+  col = &split->column(false);
+  col->separator();
+  col = &split->column(false);
+  but = uiDefIconTextBut(
+      block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Ok"), 0, 0, 50, UI_UNIT_Y, nullptr, 0, 0, "");
+  UI_but_func_set(but, wm_block_foreign_file_warning_ok, block, nullptr);
+  UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+  UI_but_flag_enable(but, UI_BUT_ACTIVE_DEFAULT);
+
+  UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
+
+  return block;
+}
+
+void wm_test_foreign_file_warning(bContext *C)
+{
+  if (!G_MAIN->is_read_invalid) {
+    return;
+  }
+
+  G_MAIN->is_read_invalid = false;
+
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = (wm->winactive) ? wm->winactive : static_cast<wmWindow *>(wm->windows.first);
+
+  if (win) {
+    /* We want this warning on the Main window, not a child window even if active. See #118765. */
+    if (win->parent) {
+      win = win->parent;
+    }
+
+    wmWindow *prevwin = CTX_wm_window(C);
+    CTX_wm_window_set(C, win);
+    UI_popup_block_invoke(C, block_create_foreign_file_warning, nullptr, nullptr);
+    CTX_wm_window_set(C, prevwin);
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
