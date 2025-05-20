@@ -498,6 +498,8 @@ void GHOST_XrSession::drawView(GHOST_XrSwapchain &swapchain,
                                const XrSpaceLocation &view_location,
                                const XrView &view,
                                uint32_t view_idx,
+                               bool is_first_view,
+                               bool is_last_view,
                                void *draw_customdata)
 {
   r_proj_layer_view.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW;
@@ -514,6 +516,8 @@ void GHOST_XrSession::drawView(GHOST_XrSwapchain &swapchain,
   draw_view_info.ofsy = r_proj_layer_view.subImage.imageRect.offset.y;
   draw_view_info.width = r_proj_layer_view.subImage.imageRect.extent.width;
   draw_view_info.height = r_proj_layer_view.subImage.imageRect.extent.height;
+  draw_view_info.is_first_view = is_first_view;
+  draw_view_info.is_last_view = is_last_view;
   copy_openxr_pose_to_ghost_pose(view_location.pose, draw_view_info.local_pose);
   ghost_xr_draw_view_info_from_view(view, draw_view_info);
 
@@ -565,7 +569,7 @@ XrCompositionLayerProjection GHOST_XrSession::drawLayer(
     swapchain_images[view_idx] = swapchain.acquireDrawableSwapchainImage();
   }
 
-  m_gpu_binding->submitToSwapchainBegin();
+  m_gpu_binding->submitToSwapchainBegin(view_count);
   for (uint32_t view_idx = 0; view_idx < view_count; view_idx++) {
     GHOST_XrSwapchain &swapchain = m_oxr->swapchains[view_idx];
     XrSwapchainImageBaseHeader &swapchain_image = *swapchain_images[view_idx];
@@ -575,6 +579,8 @@ XrCompositionLayerProjection GHOST_XrSession::drawLayer(
              view_location,
              m_oxr->views[view_idx],
              view_idx,
+             view_idx == 0,
+             view_idx == view_count - 1,
              draw_customdata);
   }
   m_gpu_binding->submitToSwapchainEnd();

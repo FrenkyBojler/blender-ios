@@ -1002,6 +1002,9 @@ typedef struct GHOST_XrDrawViewInfo {
   /** The view that this info represents. Not necessarily the "eye index" (e.g. for quad view
    * systems, etc). */
   char view_idx;
+
+  bool is_first_view;
+  bool is_last_view;
 } GHOST_XrDrawViewInfo;
 
 typedef struct GHOST_XrError {

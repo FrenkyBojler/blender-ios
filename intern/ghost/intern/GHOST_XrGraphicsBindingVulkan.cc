@@ -335,7 +335,7 @@ GHOST_TVulkanXRModes GHOST_XrGraphicsBindingVulkan::choseDataTransferMode()
   return GHOST_kVulkanXRModeCPU;
 }
 
-void GHOST_XrGraphicsBindingVulkan::submitToSwapchainBegin() {}
+void GHOST_XrGraphicsBindingVulkan::submitToSwapchainBegin(int /*view_count*/) {}
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImage(
     XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {

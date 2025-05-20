@@ -122,20 +122,25 @@ void GHOST_XrGraphicsBindingVulkanShared::initFromGhostContext(GHOST_Context & /
                     vulkan_handles.device,
                     vulkan_handles.graphic_queue_family,
                     0};
-
-  m_openxr_datas.resize(m_view_count, {});
-  m_vk_semaphores.resize(m_view_count);
-  for (int view_idx = 0; view_idx < m_view_count; view_idx++) {
-    VkSemaphoreCreateInfo vk_semaphore_create_info = {
-        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
-    vkCreateSemaphore(
-        vulkan_handles.device, &vk_semaphore_create_info, nullptr, &m_vk_semaphores[view_idx]);
-  }
-  VkFenceCreateInfo vk_fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, 0};
-  vkCreateFence(vulkan_handles.device, &vk_fence_create_info, nullptr, &m_vk_fence);
 }
 
-void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainBegin() {}
+void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainBegin(int view_count)
+{
+  if (view_count > 0 && m_openxr_datas.empty()) {
+    m_openxr_datas.resize(view_count, {});
+
+    m_vk_semaphores.resize(view_count);
+    for (int view_idx = 0; view_idx < view_count; view_idx++) {
+      VkSemaphoreCreateInfo vk_semaphore_create_info = {
+          VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
+      vkCreateSemaphore(
+          oxr_binding.vk.device, &vk_semaphore_create_info, nullptr, &m_vk_semaphores[view_idx]);
+    }
+    VkFenceCreateInfo vk_fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, 0};
+    vkCreateFence(oxr_binding.vk.device, &vk_fence_create_info, nullptr, &m_vk_fence);
+  }
+}
+
 void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainImage(
     XrSwapchainImageBaseHeader &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
@@ -146,14 +151,13 @@ void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainImage(
   openxr_data.data_transfer_mode = GHOST_kVulkanXRModeShared;
   openxr_data.shared.view_offset = {draw_info.ofsx, draw_info.ofsy};
   openxr_data.shared.xr_swapchain_image = vulkan_image.image;
-  openxr_data.shared.xr_wait_semaphore = draw_info.view_idx == 0 ?
+  openxr_data.shared.xr_wait_semaphore = draw_info.is_first_view ?
                                              VK_NULL_HANDLE :
                                              m_vk_semaphores[draw_info.view_idx - 1];
-  openxr_data.shared.xr_signal_semaphore = (draw_info.view_idx == m_view_count - 1) ?
+  openxr_data.shared.xr_signal_semaphore = draw_info.is_last_view ?
                                                VK_NULL_HANDLE :
                                                m_vk_semaphores[draw_info.view_idx];
-  openxr_data.shared.xr_fence = (draw_info.view_idx == m_view_count - 1) ? m_vk_fence :
-                                                                           VK_NULL_HANDLE;
+  openxr_data.shared.xr_fence = draw_info.is_last_view ? m_vk_fence : VK_NULL_HANDLE;
 
   m_ghost_ctx.openxr_acquire_framebuffer_image_callback_(&openxr_data);
 }

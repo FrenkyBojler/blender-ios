@@ -269,7 +269,7 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
     return base_images;
   }
 
-  void submitToSwapchainBegin() override {}
+  void submitToSwapchainBegin(int /*view_count*/) override {}
   void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                               const GHOST_XrDrawViewInfo &draw_info) override
   {

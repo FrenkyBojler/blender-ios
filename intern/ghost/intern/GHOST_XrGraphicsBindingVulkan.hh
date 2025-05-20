@@ -29,7 +29,6 @@ class GHOST_XrGraphicsBindingVulkanBase : public GHOST_IXrGraphicsBinding {
 
  protected:
   GHOST_ContextVK &m_ghost_ctx;
-  uint32_t m_view_count = 0;
 
  private:
   std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
@@ -62,7 +61,7 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_XrGraphicsBindingVulkanBase {
                             XrInstance instance,
                             XrSystemId system_id) override;
 
-  void submitToSwapchainBegin() override;
+  void submitToSwapchainBegin(int view_count) override;
   void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                               const GHOST_XrDrawViewInfo &draw_info) override;
   void submitToSwapchainEnd() override;
@@ -129,7 +128,7 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
                             XrInstance instance,
                             XrSystemId system_id) override;
 
-  void submitToSwapchainBegin() override;
+  void submitToSwapchainBegin(int view_count) override;
   void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                               const GHOST_XrDrawViewInfo &draw_info) override;
   void submitToSwapchainEnd() override;
