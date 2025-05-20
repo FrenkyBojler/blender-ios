@@ -231,7 +231,13 @@ typedef struct Curve {
   float texspace_location[3];
   float texspace_size[3];
 
-  /** Creation-time type of curve datablock. */
+  /**
+   * Object type of curve data-block (#ObjectType).
+   * This must be one of:
+   * - #OB_CURVES_LEGACY.
+   * - #OB_FONT.
+   * - #OB_SURF.
+   */
   short type;
 
   char texspace_flag;
@@ -329,8 +335,6 @@ typedef struct Curve {
   std::optional<int> material_index_max() const;
 #endif
 } Curve;
-
-#define CURVE_VFONT_ANY(cu) ((cu)->vfont), ((cu)->vfontb), ((cu)->vfonti), ((cu)->vfontbi)
 
 /* **************** CURVE ********************* */
 

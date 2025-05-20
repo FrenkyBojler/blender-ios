@@ -52,6 +52,9 @@ class VKContext : public Context, NonCopyable {
   std::optional<std::reference_wrapper<VKThreadData>> thread_data_;
   std::optional<std::reference_wrapper<render_graph::VKRenderGraph>> render_graph_;
 
+  /* Active shader specialization constants state. */
+  shader::SpecializationConstants constants_state_;
+
  public:
   VKDiscardPool discard_pool;
 
@@ -81,8 +84,6 @@ class VKContext : public Context, NonCopyable {
       VkSemaphore signal_semaphore = VK_NULL_HANDLE,
       VkFence signal_fence = VK_NULL_HANDLE);
   void finish() override;
-
-  ShaderCompiler *get_compiler() override;
 
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) override;
 
@@ -136,6 +137,8 @@ class VKContext : public Context, NonCopyable {
   static void swap_buffers_post_callback();
   static void openxr_acquire_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
   static void openxr_release_framebuffer_image_callback(GHOST_VulkanOpenXRData *data);
+
+  void specialization_constants_set(const shader::SpecializationConstants *constants_state);
 
  private:
   void swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &data);

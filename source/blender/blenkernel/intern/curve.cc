@@ -179,7 +179,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
-  if (cu->vfont) {
+  if (cu->type == OB_FONT) {
     BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
@@ -223,7 +223,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
   BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
 
-  if (cu->vfont == nullptr) {
+  if (cu->type != OB_FONT) {
     BLO_read_struct_list(reader, Nurb, &(cu->nurb));
   }
   else {
@@ -255,7 +255,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_struct_array(reader, BPoint, nu->pntsu * nu->pntsv, &nu->bp);
     BLO_read_float_array(reader, KNOTSU(nu), &nu->knotsu);
     BLO_read_float_array(reader, KNOTSV(nu), &nu->knotsv);
-    if (cu->vfont == nullptr) {
+    if (cu->type != OB_FONT) {
       nu->charidx = 0;
     }
   }
@@ -420,23 +420,7 @@ const ListBase *BKE_curve_editNurbs_get_for_read(const Curve *cu)
 
 short BKE_curve_type_get(const Curve *cu)
 {
-  int type = cu->type;
-
-  if (cu->vfont) {
-    return OB_FONT;
-  }
-
-  if (!cu->type) {
-    type = OB_CURVES_LEGACY;
-
-    LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-      if (nu->pntsv > 1) {
-        type = OB_SURF;
-      }
-    }
-  }
-
-  return type;
+  return cu->type;
 }
 
 void BKE_curve_dimension_update(Curve *cu)
@@ -456,14 +440,16 @@ void BKE_curve_dimension_update(Curve *cu)
   }
 }
 
-void BKE_curve_type_test(Object *ob)
+void BKE_curve_type_test(Object *ob, const bool dimension_update)
 {
   ob->type = BKE_curve_type_get((Curve *)ob->data);
 
-  if (ob->type == OB_CURVES_LEGACY) {
-    Curve *cu = (Curve *)ob->data;
-    if (CU_IS_2D(cu)) {
-      BKE_curve_dimension_update(cu);
+  if (dimension_update) {
+    if (ob->type == OB_CURVES_LEGACY) {
+      Curve *cu = (Curve *)ob->data;
+      if (CU_IS_2D(cu)) {
+        BKE_curve_dimension_update(cu);
+      }
     }
   }
 }
@@ -1971,7 +1957,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
                       (bezt->tilt - prevbezt->tilt) * (3.0f * fac * fac - 2.0f * fac * fac * fac);
       }
       else {
-        key_curve_position_weights(fac, t, nu->tilt_interp);
+        key_curve_position_weights(fac, t, KeyInterpolationType(nu->tilt_interp));
         *tilt_array = t[0] * pprev->tilt + t[1] * prevbezt->tilt + t[2] * bezt->tilt +
                       t[3] * next->tilt;
       }
@@ -1991,7 +1977,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
 
         /* reuse interpolation from tilt if we can */
         if (tilt_array == nullptr || nu->tilt_interp != nu->radius_interp) {
-          key_curve_position_weights(fac, t, nu->radius_interp);
+          key_curve_position_weights(fac, t, KeyInterpolationType(nu->radius_interp));
         }
         *radius_array = t[0] * pprev->radius + t[1] * prevbezt->radius + t[2] * bezt->radius +
                         t[3] * next->radius;
@@ -3520,7 +3506,7 @@ static bool tridiagonal_solve_with_limits(float *a,
   return true;
 }
 
-/* Keep ascii art. */
+/* Keep ASCII art. */
 /* clang-format off */
 /*
  * This function computes the handles of a series of auto bezier points

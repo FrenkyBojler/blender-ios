@@ -28,7 +28,6 @@
 struct AnimData;
 struct Brush;
 struct Collection;
-struct ColorSpace;
 struct CurveMapping;
 struct CurveProfile;
 struct CustomData_MeshMasks;
@@ -43,12 +42,19 @@ struct bNodeTree;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
-namespace blender::bke {
+namespace blender {
+namespace bke {
 class SceneRuntime;
 }
+namespace ocio {
+class ColorSpace;
+}
+}  // namespace blender
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
+using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
+typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
@@ -972,6 +978,8 @@ typedef struct Paint_Runtime {
   unsigned int initialized;
   unsigned short ob_mode;
   char _pad[2];
+  /** The last brush that was active. Used to support toggling. */
+  struct AssetWeakReference *previous_active_brush_reference;
 } Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
@@ -1489,7 +1497,7 @@ typedef struct UnifiedPaintSettings {
   float mask_tex_mouse[2];
 
   /** ColorSpace cache to avoid locking up during sampling. */
-  struct ColorSpace *colorspace;
+  const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
 
 /** #UnifiedPaintSettings::flag */

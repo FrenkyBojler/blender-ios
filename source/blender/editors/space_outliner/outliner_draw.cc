@@ -932,6 +932,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           undo_str = "Rename Bone Collection";
           break;
         }
+
+        case TSE_ACTION_SLOT: {
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          undo_str = "Rename Action Slot";
+          break;
+        }
       }
     }
     tselem->flag &= ~TSE_TEXTBUT;
@@ -2603,6 +2609,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 
   if (tselem->type != TSE_SOME_ID) {
     switch (tselem->type) {
+      case TSE_ACTION_SLOT:
+        data.icon = ICON_ACTION_SLOT;
+        break;
       case TSE_ANIM_DATA:
         data.icon = ICON_ANIM_DATA; /* XXX */
         break;
@@ -3172,7 +3181,9 @@ static void outliner_draw_iconrow(uiBlock *block,
                 TSE_EBONE,
                 TSE_POSE_CHANNEL,
                 TSE_BONE_COLLECTION,
-                TSE_DEFGROUP))
+                TSE_DEFGROUP,
+                TSE_ACTION_SLOT,
+                TSE_NLA_TRACK))
       {
         outliner_draw_iconrow_doit(block, te, xmax, offsx, ys, alpha_fac, active, 1);
       }
@@ -3689,10 +3700,10 @@ static void outliner_draw_struct_marks(ARegion *region,
     if (TSELEM_OPEN(tselem, space_outliner)) {
       if (tselem->type == TSE_RNA_STRUCT) {
         GPUVertFormat *format = immVertexFormat();
-        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immThemeColorShadeAlpha(TH_BACK, -15, -200);
-        immRecti(pos, 0, *starty + 1, int(region->v2d.cur.xmax), *starty + UI_UNIT_Y - 1);
+        immRectf(pos, 0, *starty + 1, int(region->v2d.cur.xmax), *starty + UI_UNIT_Y - 1);
         immUnbindProgram();
       }
     }
@@ -3738,11 +3749,11 @@ static void outliner_draw_highlights(uint pos,
     /* Selection status. */
     if ((tselem->flag & TSE_ACTIVE) && (tselem->flag & TSE_SELECTED)) {
       immUniformColor4fv(col_active);
-      immRecti(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
+      immRectf(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
     }
     else if (tselem->flag & TSE_SELECTED) {
       immUniformColor4fv(col_selection);
-      immRecti(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
+      immRectf(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
     }
 
     /* Highlights. */
@@ -3756,7 +3767,7 @@ static void outliner_draw_highlights(uint pos,
 
         if (tselem->flag & TSE_DRAG_BEFORE) {
           immUniformColor4fv(col);
-          immRecti(pos,
+          immRectf(pos,
                    start_x,
                    start_y + UI_UNIT_Y - U.pixelsize,
                    end_x,
@@ -3764,11 +3775,11 @@ static void outliner_draw_highlights(uint pos,
         }
         else if (tselem->flag & TSE_DRAG_AFTER) {
           immUniformColor4fv(col);
-          immRecti(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
+          immRectf(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
         }
         else {
           immUniformColor3fvAlpha(col, col[3] * 0.5f);
-          immRecti(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
         }
       }
       else {
@@ -3776,12 +3787,12 @@ static void outliner_draw_highlights(uint pos,
           /* Search match highlights. We don't expand items when searching in the data-blocks,
            * but we still want to highlight any filter matches. */
           immUniformColor4fv(col_searchmatch);
-          immRecti(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
         }
         else if (tselem->flag & TSE_HIGHLIGHTED) {
           /* Mouse hover highlight. */
           immUniformColor4fv(col_highlight);
-          immRecti(pos, 0, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, 0, start_y, end_x, start_y + UI_UNIT_Y);
         }
       }
     }
@@ -3807,7 +3818,7 @@ static void outliner_draw_highlights(ARegion *region,
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   outliner_draw_highlights(pos,
                            region,
