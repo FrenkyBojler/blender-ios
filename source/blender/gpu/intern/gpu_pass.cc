@@ -379,6 +379,7 @@ static bool gpu_pass_shader_validate(GPUCodegenCreateInfo *create_info, GPUShade
 
 GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
+                           const char *debug_name,
                            eGPUMaterialEngine engine,
                            bool deferred_compilation,
                            GPUCodegenCallbackFn finalize_source_cb,
@@ -397,7 +398,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
    * shader. */
   gpu_node_graph_finalize_uniform_attrs(graph);
 
-  GPUCodegen codegen(material, graph);
+  GPUCodegen codegen(material, graph, debug_name);
   codegen.generate_graphs();
   codegen.generate_cryptomatte();
 

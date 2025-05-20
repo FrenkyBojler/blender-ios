@@ -179,13 +179,14 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   else {
     /* Create source code and search pass cache for an already compiled version. */
     mat->pass = GPU_generate_pass(
-        mat, &mat->graph, engine, deferred_compilation, callback, thunk, false);
+        mat, &mat->graph, mat->name.c_str(), engine, deferred_compilation, callback, thunk, false);
   }
 
   /* Determine whether we should generate an optimized variant of the graph.
    * Heuristic is based on complexity of default material pass and shader node graph. */
   if (GPU_pass_should_optimize(mat->pass)) {
-    mat->optimized_pass = GPU_generate_pass(mat, &mat->graph, engine, true, callback, thunk, true);
+    mat->optimized_pass = GPU_generate_pass(
+        mat, &mat->graph, mat->name.c_str(), engine, true, callback, thunk, true);
   }
 
   gpu_node_graph_free_nodes(&mat->graph);
@@ -219,14 +220,26 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
   gpu_material_ramp_texture_build(material);
 
   /* Lookup an existing pass in the cache or generate a new one. */
-  material->pass = GPU_generate_pass(
-      material, &material->graph, engine, false, generate_code_function_cb, thunk, false);
+  material->pass = GPU_generate_pass(material,
+                                     &material->graph,
+                                     __func__,
+                                     engine,
+                                     false,
+                                     generate_code_function_cb,
+                                     thunk,
+                                     false);
 
   /* Determine whether we should generate an optimized variant of the graph.
    * Heuristic is based on complexity of default material pass and shader node graph. */
   if (GPU_pass_should_optimize(material->pass)) {
-    material->optimized_pass = GPU_generate_pass(
-        material, &material->graph, engine, true, generate_code_function_cb, thunk, true);
+    material->optimized_pass = GPU_generate_pass(material,
+                                                 &material->graph,
+                                                 __func__,
+                                                 engine,
+                                                 true,
+                                                 generate_code_function_cb,
+                                                 thunk,
+                                                 true);
   }
 
   gpu_node_graph_free_nodes(&material->graph);
