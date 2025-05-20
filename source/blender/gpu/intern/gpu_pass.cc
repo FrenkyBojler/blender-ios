@@ -194,11 +194,7 @@ uint64_t GPU_pass_global_compilation_count()
 
 uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
 {
-  if (pass) {
-    return pass->compilation_timestamp;
-  }
-
-  return 0;
+  return pass->compilation_timestamp;
 }
 
 /** \} */

@@ -215,8 +215,7 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   const bool is_transparent = GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT);
 
-  bool pass_updated = (GPU_pass_compilation_timestamp(GPU_material_get_pass(matpass.gpumat)) >
-                       gpu_pass_last_update_);
+  bool pass_updated = GPU_material_compilation_timestamp(matpass.gpumat) > gpu_pass_last_update_;
 
   if (inst_.is_viewport() && use_deferred_compilation && pass_updated) {
     inst_.sampling.reset();

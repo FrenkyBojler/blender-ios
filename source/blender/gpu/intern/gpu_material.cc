@@ -319,6 +319,11 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
   }
 }
 
+uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat)
+{
+  return GPU_pass_compilation_timestamp(mat->pass);
+}
+
 bool GPU_material_has_surface_output(GPUMaterial *mat)
 {
   return mat->has_surface_output;
