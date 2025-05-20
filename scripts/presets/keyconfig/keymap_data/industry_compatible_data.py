@@ -2341,8 +2341,8 @@ def km_animation_channels(params):
         # Group.
         ("anim.channels_group", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
         ("anim.channels_ungroup", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
-        ("grease_pencil.layer_group", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
-        ("grease_pencil.layer_ungroup", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
+        ("anim.grease_pencil_layer_group", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
+        ("anim.grease_pencil_layer_ungroup", {"type": 'G', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         # Menus.
         *_template_items_context_menu("DOPESHEET_MT_channel_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
     ])

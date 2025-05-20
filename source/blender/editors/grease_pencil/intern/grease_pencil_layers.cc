@@ -1280,7 +1280,7 @@ static bool active_grease_pencil_layer_or_group_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus grease_pencil_layer_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus anim_gp_layer_group_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
 
@@ -1325,16 +1325,16 @@ static wmOperatorStatus grease_pencil_layer_group_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_layer_group(wmOperatorType *ot)
+static void ANIM_OT_grease_pencil_layer_group(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Group Layers";
-  ot->idname = "GREASE_PENCIL_OT_layer_group";
+  ot->idname = "ANIM_OT_grease_pencil_layer_group";
   ot->description = "Create a new layer group from selected layers";
 
   /* callbacks */
   ot->invoke = WM_operator_props_popup;
-  ot->exec = grease_pencil_layer_group_exec;
+  ot->exec = anim_gp_layer_group_exec;
   ot->poll = active_grease_pencil_layer_or_group_poll;
 
   /* flags */
@@ -1348,7 +1348,7 @@ static void GREASE_PENCIL_OT_layer_group(wmOperatorType *ot)
 /** \name Ungroup Layer Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_layer_ungroup_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus anim_gp_layer_ungroup_exec(bContext *C, wmOperator * /*op*/)
 {
   using namespace blender::bke::greasepencil;
 
@@ -1393,15 +1393,15 @@ static wmOperatorStatus grease_pencil_layer_ungroup_exec(bContext *C, wmOperator
   return OPERATOR_FINISHED;
 }
 
-static void GREASE_PENCIL_OT_layer_ungroup(wmOperatorType *ot)
+static void ANIM_OT_grease_pencil_layer_ungroup(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Ungroup Layers";
-  ot->idname = "GREASE_PENCIL_OT_layer_ungroup";
+  ot->idname = "ANIM_OT_grease_pencil_layer_ungroup";
   ot->description = "Remove selected layers from their group";
 
   /* callbacks */
-  ot->exec = grease_pencil_layer_ungroup_exec;
+  ot->exec = anim_gp_layer_ungroup_exec;
   ot->poll = active_grease_pencil_layer_or_group_poll;
 
   /* flags */
@@ -1432,6 +1432,6 @@ void ED_operatortypes_grease_pencil_layers()
   WM_operatortype_append(GREASE_PENCIL_OT_layer_mask_reorder);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_group_color_tag);
   WM_operatortype_append(GREASE_PENCIL_OT_layer_duplicate_object);
-  WM_operatortype_append(GREASE_PENCIL_OT_layer_group);
-  WM_operatortype_append(GREASE_PENCIL_OT_layer_ungroup);
+  WM_operatortype_append(ANIM_OT_grease_pencil_layer_group);
+  WM_operatortype_append(ANIM_OT_grease_pencil_layer_ungroup);
 }
