@@ -335,7 +335,11 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
   visualization_data.current_offset_x_px = 0;
 
   UI_view2d_edge_pan_init(C, &data->pan_data, 0, 0, 1, 26, 0.5f, 0.0f);
-  data->pan_data.limit = region.v2d.tot;
+  /* Limit to horizontal panning. */
+  data->pan_data.limit.xmin = region.v2d.tot.xmin;
+  data->pan_data.limit.xmax = region.v2d.tot.xmax;
+  data->pan_data.limit.ymin = region.v2d.cur.ymin;
+  data->pan_data.limit.ymax = region.v2d.cur.ymax;
 
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
