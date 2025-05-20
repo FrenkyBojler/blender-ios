@@ -602,6 +602,14 @@ static void item_read_data(BlendDataReader *reader, bNodeTreeInterfaceItem &item
       BLO_read_struct(reader, IDProperty, &socket.properties);
       IDP_BlendDataRead(reader, &socket.properties);
 
+      /* Improve forward compatibility for unknown default input types. */
+      const bNodeSocketType *stype = socket.socket_typeinfo();
+      if (!nodes::socket_type_supports_default_input_type(
+              *stype, NodeDefaultInputType(socket.default_input)))
+      {
+        socket.default_input = NODE_DEFAULT_INPUT_VALUE;
+      }
+
       socket_types::socket_data_read_data(reader, socket);
       break;
     }
