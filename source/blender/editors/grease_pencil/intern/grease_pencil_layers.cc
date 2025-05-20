@@ -1041,7 +1041,7 @@ static wmOperatorStatus grease_pencil_layer_mask_reorder_exec(bContext *C, wmOpe
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
