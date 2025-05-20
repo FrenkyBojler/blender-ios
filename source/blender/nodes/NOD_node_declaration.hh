@@ -651,8 +651,8 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
 
 using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
 std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
-bool default_input_type_is_allowed(const bke::bNodeSocketType &socket_type,
-                                   NodeDefaultInputType input_type);
+bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
+                                             NodeDefaultInputType input_type);
 
 void build_node_declaration(const bke::bNodeType &typeinfo,
                             NodeDeclaration &r_declaration,

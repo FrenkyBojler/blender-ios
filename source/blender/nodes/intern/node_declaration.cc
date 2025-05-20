@@ -938,8 +938,8 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(const NodeDefaul
   return std::nullopt;
 }
 
-bool default_input_type_is_allowed(const bke::bNodeSocketType &socket_type,
-                                   NodeDefaultInputType input_type)
+bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
+                                             NodeDefaultInputType input_type)
 {
   const eNodeSocketDatatype stype = eNodeSocketDatatype(socket_type.type);
   switch (input_type) {

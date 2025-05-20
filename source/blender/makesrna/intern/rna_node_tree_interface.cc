@@ -460,7 +460,8 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
       RNA_enum_item_add(&items, &items_count, item);
     }
     else if (ntree->type == NTREE_GEOMETRY) {
-      if (blender::nodes::default_input_type_is_allowed(*stype, NodeDefaultInputType(item->value)))
+      if (blender::nodes::socket_type_supports_default_input_type(
+              *stype, NodeDefaultInputType(item->value)))
       {
         RNA_enum_item_add(&items, &items_count, item);
       }
