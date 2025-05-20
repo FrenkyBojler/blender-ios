@@ -274,7 +274,9 @@ static void draw_column_reorder_overlay(const ARegion &region,
       *sspreadsheet.runtime->reorder_column_visualization_data;
 
   {
-    ColorTheme4f color = {0.0f, 0.0f, 0.0f, 0.5f};
+    ColorTheme4f color;
+    UI_GetThemeColorShade4fv(TH_BACK, -20, color);
+    color.a = 0.3f;
     rctf offset_column_rect;
     offset_column_rect.xmin = data.column_to_move->runtime->left_x + data.current_offset_x_px;
     offset_column_rect.xmax = data.column_to_move->runtime->right_x + data.current_offset_x_px;
