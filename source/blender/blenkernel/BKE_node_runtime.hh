@@ -9,12 +9,13 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_multi_value_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
+#include "BLI_struct_equality_utils.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -69,8 +70,36 @@ struct NodeLinkError {
   std::string tooltip;
 };
 
+/**
+ * Utility to weakly reference a link. Weak references are safer because they avoid dangling
+ * references which can easily happen temporarily when editing the node tree.
+ */
+struct NodeLinkKey {
+ private:
+  int to_node_id_;
+  int input_socket_index_;
+  int input_link_index_;
+
+ public:
+  /** Assumes that the topology cache is up to date. */
+  explicit NodeLinkKey(const bNodeLink &link);
+
+  bNodeLink *try_find(bNodeTree &ntree) const;
+  const bNodeLink *try_find(const bNodeTree &ntree) const;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->to_node_id_, this->input_socket_index_, this->input_link_index_);
+  }
+
+  BLI_STRUCT_EQUALITY_OPERATORS_3(NodeLinkKey,
+                                  to_node_id_,
+                                  input_socket_index_,
+                                  input_link_index_);
+};
+
 struct LoggedZoneGraphs {
-  std::mutex mutex;
+  Mutex mutex;
   /**
    * Technically there can be more than one graph per zone because the zone can be invoked in
    * different contexts. However, for the purpose of logging here, we only need one at a time
@@ -158,16 +187,15 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * evaluate the node group. Caching it here allows us to reuse the preprocessed node tree in case
    * its used multiple times.
    */
-  std::mutex geometry_nodes_lazy_function_graph_info_mutex;
+  Mutex geometry_nodes_lazy_function_graph_info_mutex;
   std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
   /**
-   * Stores information about invalid links. This information is then displayed to the user. The
-   * key of the map is the node identifier. The data is stored per target-node because we want to
-   * display the error information there.
+   * Stores information about invalid links. This information is then displayed to the user. This
+   * is updated in #update_link_validation and is valid during drawing code.
    */
-  MultiValueMap<int, NodeLinkError> link_errors_by_target_node;
+  MultiValueMap<NodeLinkKey, NodeLinkError> link_errors;
 
   /**
    * Protects access to all topology cache variables below. This is necessary so that the cache can
@@ -182,7 +210,14 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   mutable std::atomic<int> allow_use_dirty_topology_cache = 0;
 
   CacheMutex tree_zones_cache_mutex;
-  std::unique_ptr<bNodeTreeZones> tree_zones;
+  std::shared_ptr<bNodeTreeZones> tree_zones;
+
+  /**
+   * Same as #tree_zones, but may not be valid anymore. This is used for drawing errors when the
+   * zone detection failed.
+   */
+  std::shared_ptr<bNodeTreeZones> last_valid_zones;
+  Set<int> invalid_zone_output_node_ids;
 
   /**
    * The stored sockets are drawn using a special link to indicate that there is a gizmo. This is
@@ -421,6 +456,7 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
 }
+
 }  // namespace blender::bke
 
 /* -------------------------------------------------------------------- */
