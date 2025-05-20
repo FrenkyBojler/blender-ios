@@ -1002,7 +1002,7 @@ static inline void sort_points(int2 &p1, int2 &p2)
 }
 
 /* Ensures that the x and y distance to from p1 to p2 is equal. The two points can be in any
- * spacial relation to each other. Only p2 is altered. */
+ * spacial relation to each other i.e. if p1 was top left, it remains top left. */
 static inline void square_points(const int2 &p1, int2 &p2)
 {
   int2 delta = p2 - p1;
@@ -1152,7 +1152,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   generate_previewimg_from_buffer(id, image_buffer);
   IMB_freeImBuf(image_buffer);
 
-  if (ID_IS_LINKED(id)) {
+  if (bke::asset_edit_id_is_writable(*id)) {
     const bool saved = bke::asset_edit_id_save(*bmain, *id, *op->reports);
     if (!saved) {
       BKE_report(op->reports, RPT_ERROR, "Saving failed");
