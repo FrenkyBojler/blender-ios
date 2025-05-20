@@ -96,7 +96,6 @@ static void pointcloud_free_data(ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
-  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
   pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_FREE(pointcloud->mat);
   delete pointcloud->runtime;
