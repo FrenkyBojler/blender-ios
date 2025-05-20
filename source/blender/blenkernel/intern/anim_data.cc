@@ -1452,6 +1452,9 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
   /* worlds */
   ANIMDATA_NODETREE_IDS_CB(bmain->worlds.first, World);
 
+  /* scenes */
+  ANIMDATA_IDS_CB(bmain->scenes.first);
+
   /* line styles */
   ANIMDATA_IDS_CB(bmain->linestyles.first);
 

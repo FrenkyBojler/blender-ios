@@ -985,7 +985,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
-  if (sce->compositing_nodetree) {
+  if (sce->compositing_nodetree && !BLO_write_is_undo(writer)) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
     /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
@@ -1096,7 +1096,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
-  if (sce->compositing_nodetree) {
+  if (sce->compositing_nodetree && !BLO_write_is_undo(writer)) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
