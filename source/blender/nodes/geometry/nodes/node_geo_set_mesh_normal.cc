@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       case Mode::CornerFanSpace:
         b.add_input<decl::Vector>("Custom Normal")
             .subtype(PROP_XYZ)
-            .implicit_field(GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD)
+            .implicit_field(NODE_DEFAULT_INPUT_NORMAL_FIELD)
             .hide_value();
         break;
     }

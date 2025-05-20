@@ -24,7 +24,7 @@ static void sh_node_tex_voronoi_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").hide_value().implicit_field(
-      GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("W").min(-1000.0f).max(1000.0f).make_available([](bNode &node) {
     /* Default to 1 instead of 4, because it is much faster. */
     node_storage(node).dimensions = 1;

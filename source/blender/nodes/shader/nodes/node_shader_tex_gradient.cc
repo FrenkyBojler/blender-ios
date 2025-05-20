@@ -20,7 +20,7 @@ static void sh_node_tex_gradient_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").hide_value().implicit_field(
-      GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Color>("Color").no_muted_links();
   b.add_output<decl::Float>("Fac").no_muted_links();
 }

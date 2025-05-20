@@ -218,7 +218,7 @@ class SocketDeclaration : public ItemDeclaration {
 
  public:
   /** Some input sockets can have non-trivial values in the case when they are unlinked. */
-  GeometryNodeDefaultInputType default_input_type;
+  NodeDefaultInputType default_input_type;
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
@@ -302,7 +302,7 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
-  BaseSocketDeclarationBuilder &default_input_type(GeometryNodeDefaultInputType value);
+  BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
 
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
@@ -320,13 +320,13 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &field_source();
 
   /** The input supports a field and is a field by default when nothing is connected. */
-  BaseSocketDeclarationBuilder &implicit_field(GeometryNodeDefaultInputType default_input);
+  BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
 
   /** The input is an implicit field that is evaluated on all geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on_all(GeometryNodeDefaultInputType default_input);
+  BaseSocketDeclarationBuilder &implicit_field_on_all(NodeDefaultInputType default_input);
 
   /** The input is evaluated on a subset of the geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on(GeometryNodeDefaultInputType default_input,
+  BaseSocketDeclarationBuilder &implicit_field_on(NodeDefaultInputType default_input,
                                                   Span<int> input_indices);
 
   /** For inputs that are evaluated or available on a subset of the geometry sockets. */
@@ -657,7 +657,7 @@ void index(const bNode &node, void *r_value);
 void id_or_index(const bNode &node, void *r_value);
 void instance_transform(const bNode &node, void *r_value);
 
-std::optional<ImplicitInputValueFn> get(GeometryNodeDefaultInputType type);
+std::optional<ImplicitInputValueFn> get(NodeDefaultInputType type);
 }  // namespace implicit_field_inputs
 
 void build_node_declaration(const bke::bNodeType &typeinfo,

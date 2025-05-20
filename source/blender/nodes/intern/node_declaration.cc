@@ -642,7 +642,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::is_default_link_sock
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::default_input_type(
-    const GeometryNodeDefaultInputType value)
+    const NodeDefaultInputType value)
 {
   decl_base_->default_input_type = value;
   return *this;
@@ -668,7 +668,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_source()
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field(
-    const GeometryNodeDefaultInputType default_input_type)
+    const NodeDefaultInputType default_input_type)
 {
   BLI_assert(this->is_input());
   this->hide_value();
@@ -678,7 +678,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field(
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on_all(
-    const GeometryNodeDefaultInputType default_input_type)
+    const NodeDefaultInputType default_input_type)
 {
   this->implicit_field(default_input_type);
   field_on_all_ = true;
@@ -686,7 +686,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on_al
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on(
-    const GeometryNodeDefaultInputType default_input_type, const Span<int> input_indices)
+    const NodeDefaultInputType default_input_type, const Span<int> input_indices)
 {
   this->field_on(input_indices);
   this->implicit_field(default_input_type);
@@ -903,20 +903,20 @@ void instance_transform(const bNode & /*node*/, void *r_value)
       bke::SocketValueVariant(bke::AttributeFieldInput::Create<float4x4>("instance_transform"));
 }
 
-std::optional<ImplicitInputValueFn> get(const GeometryNodeDefaultInputType type)
+std::optional<ImplicitInputValueFn> get(const NodeDefaultInputType type)
 {
   switch (type) {
-    case GEO_NODE_DEFAULT_INPUT_VALUE:
+    case NODE_DEFAULT_INPUT_VALUE:
       return std::nullopt;
-    case GEO_NODE_DEFAULT_FIELD_INPUT_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_INDEX_FIELD:
       return std::make_optional(implicit_field_inputs::index);
-    case GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD:
+    case NODE_DEFAULT_INPUT_ID_INDEX_FIELD:
       return std::make_optional(implicit_field_inputs::id_or_index);
-    case GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD:
+    case NODE_DEFAULT_INPUT_NORMAL_FIELD:
       return std::make_optional(implicit_field_inputs::normal);
-    case GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD:
+    case NODE_DEFAULT_INPUT_POSITION_FIELD:
       return std::make_optional(implicit_field_inputs::position);
-    case GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD:
+    case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD:
       return std::make_optional(implicit_field_inputs::instance_transform);
   }
   return std::nullopt;

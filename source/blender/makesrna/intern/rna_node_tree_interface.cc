@@ -423,7 +423,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
   EnumPropertyItem *items = nullptr;
   int items_count = 0;
 
-  const EnumPropertyItem none{GEO_NODE_DEFAULT_INPUT_VALUE,
+  const EnumPropertyItem none{NODE_DEFAULT_INPUT_VALUE,
                               "VALUE",
                               0,
                               N_("Default Value"),
@@ -433,14 +433,14 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
   if (ntree->type == NTREE_GEOMETRY) {
     const blender::bke::bNodeSocketType *type = socket->socket_typeinfo();
     if (type->type == SOCK_INT) {
-      const EnumPropertyItem index{GEO_NODE_DEFAULT_FIELD_INPUT_INDEX_FIELD,
+      const EnumPropertyItem index{NODE_DEFAULT_INPUT_INDEX_FIELD,
                                    "INDEX",
                                    0,
                                    N_("Index"),
                                    N_("The index from the context")};
       RNA_enum_item_add(&items, &items_count, &index);
       const EnumPropertyItem index_or_id{
-          GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD,
+          NODE_DEFAULT_INPUT_ID_INDEX_FIELD,
           "ID_OR_INDEX",
           0,
           N_("ID or Index"),
@@ -448,13 +448,13 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
       RNA_enum_item_add(&items, &items_count, &index_or_id);
     }
     else if (type->type == SOCK_VECTOR) {
-      const EnumPropertyItem normal{GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD,
+      const EnumPropertyItem normal{NODE_DEFAULT_INPUT_NORMAL_FIELD,
                                     "NORMAL",
                                     0,
                                     N_("Normal"),
                                     N_("The geometry's normal direction")};
       RNA_enum_item_add(&items, &items_count, &normal);
-      const EnumPropertyItem position{GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD,
+      const EnumPropertyItem position{NODE_DEFAULT_INPUT_POSITION_FIELD,
                                       "POSITION",
                                       0,
                                       N_("Position"),
@@ -463,7 +463,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_default_input_itemf(
     }
     else if (type->type == SOCK_MATRIX) {
       const EnumPropertyItem instance_transform{
-          GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD,
+          NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD,
           "INSTANCE_TRANSFORM",
           0,
           N_("Instance Transform"),

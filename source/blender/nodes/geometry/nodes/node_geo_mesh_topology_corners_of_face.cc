@@ -13,7 +13,7 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_face_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Face Index")
-      .implicit_field(GEO_NODE_DEFAULT_FIELD_INPUT_INDEX_FIELD)
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The face to retrieve data from. Defaults to the face from the context");
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the face's corners. Uses indices by default");
