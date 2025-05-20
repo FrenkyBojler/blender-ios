@@ -91,8 +91,6 @@
 #define UI_TIP_PADDING_Y 1.28f
 
 #define UI_TIP_MAXWIDTH 600
-#define UI_TIP_MAXIMAGEWIDTH 500
-#define UI_TIP_MAXIMAGEHEIGHT 300
 
 struct uiTooltipFormat {
   uiTooltipStyle style;
@@ -1072,8 +1070,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
-          const blender::StringRef path = but->drawstr;
-
+          const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
           const std::optional<blender::bke::path_templates::VariableMap> variables =
               BKE_build_template_variables_for_prop(&but->rnapoin, rnaprop, *C);
           BLI_assert(variables.has_value());
