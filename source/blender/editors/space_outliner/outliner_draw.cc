@@ -1130,7 +1130,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
 
     props.constraint_enable = RNA_struct_type_find_property(&RNA_Constraint, "mute");
 
-    props.bone_hide_viewport = RNA_struct_type_find_property(&RNA_Bone, "hide");
+    props.bone_hide_viewport = RNA_struct_type_find_property(&RNA_PoseBone, "hide");
 
     props.initialized = true;
   }
@@ -1396,7 +1396,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
         Object *ob = (Object *)tselem->id;
         bArmature *arm = static_cast<bArmature *>(ob->data);
 
-        PointerRNA ptr = RNA_pointer_create_discrete(&arm->id, &RNA_Bone, bone);
+        PointerRNA ptr = RNA_pointer_create_discrete(&arm->id, &RNA_PoseBone, pchan);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
           bt = uiDefIconButR_prop(block,
