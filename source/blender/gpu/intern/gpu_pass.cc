@@ -336,8 +336,7 @@ void GPU_pass_cache_wait_for_all()
 
 void GPU_pass_cache_free()
 {
-  MEM_delete(g_cache);
-  g_cache = nullptr;
+  MEM_SAFE_DELETE(g_cache);
 }
 
 /** \} */
