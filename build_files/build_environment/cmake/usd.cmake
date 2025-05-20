@@ -27,13 +27,6 @@ if(WIN32)
   endif()
 elseif(UNIX)
   set(USD_PLATFORM_FLAGS
-    -DVulkanHeaders_ROOT=${LIBDIR}/vulkan_headers
-    -DVulkanLoader_ROOT=${LIBDIR}/vulkan_loader
-    -DVulkanUtilityLibraries_ROOT=${LIBDIR}/vulkan_headers
-    -DVulkanMemoryAllocator_ROOT=${LIBDIR}/vulkan_memory_allocator
-    -DShaderC_ROOT=${LIBDIR}/shaderc
-    -DSpirvReflect_ROOT=${LIBDIR}/spirv_reflect
-
     # Workaround USD not linking correctly with static Python library, where it would embed
     # part of the interpret in the USD library. Allow undefined Python symbols and replace
     # Python library with TBB so it doesn't complain about missing library.
@@ -114,6 +107,12 @@ set(USD_EXTRA_ARGS
   -DTBB_LIBRARIES=${LIBDIR}/tbb/lib/${LIBPREFIX}${TBB_LIBRARY}${SHAREDLIBEXT}
   -DTBB_LIBRARIES_DEBUG=${LIBDIR}/tbb/lib/${LIBPREFIX}${TBB_LIBRARY}${SHAREDLIBEXT}
   -DTBB_LIBRARIES_RELEASE=${LIBDIR}/tbb/lib/${LIBPREFIX}${TBB_LIBRARY}${SHAREDLIBEXT}
+  -DVulkanHeaders_ROOT=${LIBDIR}/vulkan_headers
+  -DVulkanLoader_ROOT=${LIBDIR}/vulkan_loader
+  -DVulkanUtilityLibraries_ROOT=${LIBDIR}/vulkan_headers
+  -DVulkanMemoryAllocator_ROOT=${LIBDIR}/vulkan_memory_allocator
+  -DShaderC_ROOT=${LIBDIR}/shaderc
+  -DSpirvReflect_ROOT=${LIBDIR}/spirv_reflect
 )
 
 # Ray: I'm not sure if the other platforms relied on this or not but this is no longer
