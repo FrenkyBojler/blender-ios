@@ -260,6 +260,23 @@ static void SPREADSHEET_OT_fit_column(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
+static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  fmt::println("Reorder");
+  return OPERATOR_FINISHED;
+}
+
+static void SPREADSHEET_OT_reorder_columns(wmOperatorType *ot)
+{
+  ot->name = "Reorder Columns";
+  ot->description = "Change the order of columns";
+  ot->idname = "SPREADSHEET_OT_reorder_columns";
+
+  ot->poll = ED_operator_spreadsheet_active;
+  ot->invoke = reorder_columns_invoke;
+  ot->flag = OPTYPE_INTERNAL;
+}
+
 void spreadsheet_operatortypes()
 {
   WM_operatortype_append(SPREADSHEET_OT_add_row_filter_rule);
@@ -267,6 +284,7 @@ void spreadsheet_operatortypes()
   WM_operatortype_append(SPREADSHEET_OT_change_spreadsheet_data_source);
   WM_operatortype_append(SPREADSHEET_OT_resize_column);
   WM_operatortype_append(SPREADSHEET_OT_fit_column);
+  WM_operatortype_append(SPREADSHEET_OT_reorder_columns);
 }
 
 }  // namespace blender::ed::spreadsheet
