@@ -437,8 +437,8 @@ set(ZSTANDARD_URI
 https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
 set(ZSTANDARD_HASH 19b1b12edcd66165d86f25e2a2277517)
 set(ZSTANDARD_HASH_TYPE MD5)
-set(ZSTANDARD_FILE cython-${ZSTANDARD_VERSION}.tar.gz)
-set(ZSTANDARD_HOMEPAGE https://cython.org/)
+set(ZSTANDARD_FILE zstandard-${ZSTANDARD_VERSION}.tar.gz)
+set(ZSTANDARD_HOMEPAGE https://github.com/indygreg/python-zstandard/)
 set(ZSTANDARD_LICENSE SPDX:BSD-3-Clause)
 # Auto-format Python source (developer tool, not used by Blender at run-time).
 set(AUTOPEP8_VERSION 2.3.1)
