@@ -12,7 +12,7 @@ namespace blender::bke::tests {
 
 using namespace blender::bke::path_templates;
 
-[[maybe_unused]] static void debug_print_error(const Error &error)
+static std::string error_to_string(const Error &error)
 {
   const char *type;
   switch (error.type) {
@@ -29,17 +29,35 @@ using namespace blender::bke::path_templates;
       type = "UNKNOWN_VARIABLE";
       break;
   }
-  fmt::print("({}, ({}, {}))", type, error.byte_range.start(), error.byte_range.size());
+
+  std::string s;
+  fmt::format_to(std::back_inserter(s),
+                 "({}, ({}, {}))",
+                 type,
+                 error.byte_range.start(),
+                 error.byte_range.size());
+
+  return s;
 }
 
-[[maybe_unused]] static void debug_print_errors(Span<Error> errors)
+static std::string errors_to_string(Span<Error> errors)
 {
-  fmt::print("[");
+  std::string s;
+
+  fmt::format_to(std::back_inserter(s), "[");
+  bool is_first = true;
   for (const Error &error : errors) {
-    debug_print_error(error);
-    fmt::print(", ");
+    if (is_first) {
+      is_first = false;
+    }
+    else {
+      fmt::format_to(std::back_inserter(s), ", ");
+    }
+    fmt::format_to(std::back_inserter(s), "{}", error_to_string(error));
   }
-  fmt::print("]\n");
+  fmt::format_to(std::back_inserter(s), "]");
+
+  return s;
 }
 
 TEST(path_templates, VariableMap)
@@ -231,6 +249,15 @@ TEST(path_templates, validate_and_apply_template)
           },
       },
 
+      /* Error: incomplete variable expression after complete one. */
+      {
+          "foo{bye}{hi",
+          "foo{bye}{hi",
+          {
+              {ErrorType::VARIABLE_SYNTAX, IndexRange(8, 3)},
+          },
+      },
+
       /* Error: invalid format specifiers. */
       {
           "{prime:}_{prime:.}_{prime:#.#.#}_{prime:sup}_{prime::sup}_{prime}",
@@ -310,6 +337,8 @@ TEST(path_templates, validate_and_apply_template)
     /* Do validation first, which shouldn't modify the path. */
     const Vector<Error> validation_errors = BKE_validate_template(path, &variables);
     EXPECT_EQ(validation_errors, test_case.expected_errors)
+        << "  Template errors: " << errors_to_string(validation_errors) << std::endl
+        << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
     EXPECT_EQ(blender::StringRef(path), test_case.path_in)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
@@ -317,6 +346,8 @@ TEST(path_templates, validate_and_apply_template)
     /* Then do application, which should modify the path. */
     const Vector<Error> application_errors = BKE_path_apply_template(path, FILE_MAX, variables);
     EXPECT_EQ(application_errors, test_case.expected_errors)
+        << "  Template errors: " << errors_to_string(application_errors) << std::endl
+        << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
     EXPECT_EQ(blender::StringRef(path), test_case.path_result)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;

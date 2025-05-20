@@ -813,21 +813,21 @@ static blender::Vector<Error> eval_template(char *out_path,
       }
     }
 
-    /* We're off the end of the available space. */
-    if (token.byte_range.start() + length_diff >= out_path_max_length) {
-      break;
-    }
-
     if (out_path) {
+      /* We're off the end of the available space. */
+      if (token.byte_range.start() + length_diff >= out_path_max_length) {
+        break;
+      }
+
       BLI_string_replace_range(out_path,
                                out_path_max_length,
                                token.byte_range.start() + length_diff,
                                token.byte_range.one_after_last() + length_diff,
                                replacement_string);
-    }
 
-    length_diff -= token.byte_range.size();
-    length_diff += strlen(replacement_string);
+      length_diff -= token.byte_range.size();
+      length_diff += strlen(replacement_string);
+    }
   }
 
   return errors;
