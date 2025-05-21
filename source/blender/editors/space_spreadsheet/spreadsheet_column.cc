@@ -94,6 +94,7 @@ void spreadsheet_column_id_blend_write(BlendWriter *writer, const SpreadsheetCol
   BLO_write_struct(writer, SpreadsheetColumnID, column_id);
   BLO_write_string(writer, column_id->name);
 }
+
 void spreadsheet_column_id_blend_read(BlendDataReader *reader, SpreadsheetColumnID *column_id)
 {
   BLO_read_string(reader, &column_id->name);

@@ -10,9 +10,9 @@
  * However, semantically, these types may have non-trivial copy-constructors and destructors.
  */
 
-#include "BLI_function_ref.hh"
 #include "MEM_guardedalloc.h"
 
+#include "BLI_function_ref.hh"
 #include "BLI_index_range.hh"
 #include "BLI_utildefines.h"
 

@@ -220,7 +220,7 @@ template<typename T> uint64_t get_default_hash(const T &v)
   return DefaultHash<std::decay_t<T>>{}(v);
 }
 
-template<typename T1, typename T2> inline uint64_t get_default_hash(const T1 &v1, const T2 &v2)
+template<typename T1, typename T2> uint64_t get_default_hash(const T1 &v1, const T2 &v2)
 {
   const uint64_t h1 = get_default_hash(v1);
   const uint64_t h2 = get_default_hash(v2);
@@ -228,7 +228,7 @@ template<typename T1, typename T2> inline uint64_t get_default_hash(const T1 &v1
 }
 
 template<typename T1, typename T2, typename T3>
-inline uint64_t get_default_hash(const T1 &v1, const T2 &v2, const T3 &v3)
+uint64_t get_default_hash(const T1 &v1, const T2 &v2, const T3 &v3)
 {
   const uint64_t h1 = get_default_hash(v1);
   const uint64_t h2 = get_default_hash(v2);
@@ -237,39 +237,13 @@ inline uint64_t get_default_hash(const T1 &v1, const T2 &v2, const T3 &v3)
 }
 
 template<typename T1, typename T2, typename T3, typename T4>
-inline uint64_t get_default_hash(const T1 &v1, const T2 &v2, const T3 &v3, const T4 &v4)
+uint64_t get_default_hash(const T1 &v1, const T2 &v2, const T3 &v3, const T4 &v4)
 {
   const uint64_t h1 = get_default_hash(v1);
   const uint64_t h2 = get_default_hash(v2);
   const uint64_t h3 = get_default_hash(v3);
   const uint64_t h4 = get_default_hash(v4);
   return h1 ^ (h2 * 19349669) ^ (h3 * 83492791) ^ (h4 * 3632623);
-}
-
-template<typename T1, typename T2, typename T3, typename T4, typename T5>
-inline uint64_t get_default_hash(
-    const T1 &v1, const T2 &v2, const T3 &v3, const T4 &v4, const T5 &v5)
-{
-  const uint64_t h1 = get_default_hash(v1);
-  const uint64_t h2 = get_default_hash(v2);
-  const uint64_t h3 = get_default_hash(v3);
-  const uint64_t h4 = get_default_hash(v4);
-  const uint64_t h5 = get_default_hash(v5);
-  return h1 ^ (h2 * 19349669) ^ (h3 * 83492791) ^ (h4 * 3632623) ^ (h5 * 9012764147);
-}
-
-template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
-inline uint64_t get_default_hash(
-    const T1 &v1, const T2 &v2, const T3 &v3, const T4 &v4, const T5 &v5, const T6 &v6)
-{
-  const uint64_t h1 = get_default_hash(v1);
-  const uint64_t h2 = get_default_hash(v2);
-  const uint64_t h3 = get_default_hash(v3);
-  const uint64_t h4 = get_default_hash(v4);
-  const uint64_t h5 = get_default_hash(v5);
-  const uint64_t h6 = get_default_hash(v6);
-  return h1 ^ (h2 * 19349669) ^ (h3 * 83492791) ^ (h4 * 3632623) ^ (h5 * 9012764147) ^
-         (h6 * 2810462701);
 }
 
 /** Support hashing different kinds of pointer types. */
