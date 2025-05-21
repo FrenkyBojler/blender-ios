@@ -129,13 +129,19 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
    * Simply store the data as float in the vertex buffer and convert inside `attr_fill`. */
   if (fetch_mode_enum == GPU_FETCH_INT_TO_FLOAT_LEGACY) {
     if (comp_type_enum == GPU_COMP_F32) {
-      /* TODO: Error: Attribute uses INT_TO_FLOAT but component type is not integer. */
+      PyErr_Format(PyExc_RuntimeError,
+                   "GPUVertFormat.attr_add(...) fetch_mode set to INT_TO_FLOAT but component type "
+                   "is not integer.");
       return nullptr;
     }
     comp_type_enum = GPU_COMP_F32;
     fetch_mode_enum = GPU_FETCH_FLOAT;
     do_float_promotion = true;
-    /* TODO: Deprecation warning: INT_TO_FLOAT is deprecated and will be removed in 5.0. */
+    PyErr_WarnEx(
+        PyExc_DeprecationWarning,
+        "Using GPUVertFormat.attr_add(...) with fetch_mode set to INT_TO_FLOAT is deprecated. "
+        "Use 'F32' component type with fetch_mode 'FLOAT' instead.",
+        1);
   }
 
   uint attr_id = GPU_vertformat_attr_add(&self->fmt, id, comp_type_enum, len, fetch_mode_enum);
