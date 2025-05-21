@@ -27,7 +27,7 @@
 using namespace blender;
 using namespace blender::gpu::shader;
 
-static bool gpu_pass_shader_validate(GPUCodegenCreateInfo *create_info, GPUShader *shader);
+static bool gpu_pass_validate(GPUCodegenCreateInfo *create_info);
 
 /* -------------------------------------------------------------------- */
 /** \name GPUPass
@@ -100,10 +100,8 @@ struct GPUPass {
 
     compilation_timestamp = ++compilation_counts;
 
-    if (shader && !gpu_pass_shader_validate(create_info, shader)) {
+    if (!shader && !gpu_pass_validate(create_info)) {
       fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
-      GPU_shader_free(shader);
-      shader = nullptr;
     }
 
     status = shader ? GPU_PASS_SUCCESS : GPU_PASS_FAILED;
@@ -345,35 +343,21 @@ void GPU_pass_cache_free()
 /** \name Compilation
  * \{ */
 
-static bool gpu_pass_shader_validate(GPUCodegenCreateInfo *create_info, GPUShader *shader)
+static bool gpu_pass_validate(GPUCodegenCreateInfo *create_info)
 {
-  /* NOTE: The only drawback of this method is that it will count a sampler
-   * used in the fragment shader and only declared (but not used) in the vertex
-   * shader as used by both. But this corner case is not happening for now. */
-  // TODO: No longer true with vertex displacement? ^
-  int active_samplers_len = 0;
-  for (const ShaderCreateInfo::Resource &res : create_info->pass_resources_) {
+  int samplers_len = 0;
+  for (const ShaderCreateInfo::Resource &res : create_info->resources_get_all_()) {
     if (res.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      if (GPU_shader_get_uniform(shader, res.sampler.name.c_str()) != -1) {
-        active_samplers_len++;
-      }
+      samplers_len++;
     }
   }
 
   /* Validate against GPU limit. */
-  if ((active_samplers_len > GPU_max_textures_frag()) ||
-      (active_samplers_len > GPU_max_textures_vert()))
-  {
+  if ((samplers_len > GPU_max_textures_frag()) || (samplers_len > GPU_max_textures_vert())) {
     return false;
   }
 
-  if (create_info->geometry_source_.is_empty() == false) {
-    if (active_samplers_len > GPU_max_textures_geom()) {
-      return false;
-    }
-  }
-
-  return (active_samplers_len * 3 <= GPU_max_textures());
+  return (samplers_len * 2 <= GPU_max_textures());
 }
 
 GPUPass *GPU_generate_pass(GPUMaterial *material,
