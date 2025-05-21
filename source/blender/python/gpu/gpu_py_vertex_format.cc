@@ -124,10 +124,10 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
   GPUVertCompType comp_type_enum = GPUVertCompType(comp_type.value_found);
   GPUVertFetchMode fetch_mode_enum = GPUVertFetchMode(fetch_mode.value_found);
 
-  bool do_float_promotion = false;
+  bool int_to_float = (fetch_mode_enum == GPU_FETCH_INT_TO_FLOAT_LEGACY);
   /* Fetch int to float is not supported anymore.
    * Simply store the data as float in the vertex buffer and convert inside `attr_fill`. */
-  if (fetch_mode_enum == GPU_FETCH_INT_TO_FLOAT_LEGACY) {
+  if (int_to_float) {
     if (comp_type_enum == GPU_COMP_F32) {
       PyErr_Format(PyExc_RuntimeError,
                    "GPUVertFormat.attr_add(...) fetch_mode set to INT_TO_FLOAT but component type "
@@ -136,7 +136,6 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
     }
     comp_type_enum = GPU_COMP_F32;
     fetch_mode_enum = GPU_FETCH_FLOAT;
-    do_float_promotion = true;
     PyErr_WarnEx(
         PyExc_DeprecationWarning,
         "Using GPUVertFormat.attr_add(...) with fetch_mode set to INT_TO_FLOAT is deprecated. "
@@ -146,9 +145,8 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
 
   uint attr_id = GPU_vertformat_attr_add(&self->fmt, id, comp_type_enum, len, fetch_mode_enum);
 
-  if (do_float_promotion) {
-    self->fmt.attrs[attr_id].python_int_to_float = true;
-  }
+  self->fmt.attrs[attr_id].python_int_to_float = int_to_float;
+
   return PyLong_FromLong(attr_id);
 }
 
