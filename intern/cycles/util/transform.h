@@ -293,7 +293,7 @@ ccl_device_inline Transform transform_identity()
 
 ccl_device_inline bool operator==(const Transform &A, const Transform &B)
 {
-  return A.x == B.x && A.y == B.y && A.z == B.z;
+  return memcmp(&A, &B, sizeof(Transform)) == 0;
 }
 
 ccl_device_inline bool operator!=(const Transform &A, const Transform &B)
@@ -594,7 +594,7 @@ class BoundBox2D;
 
 ccl_device_inline bool operator==(const DecomposedTransform &A, const DecomposedTransform &B)
 {
-  return A.x == B.x && A.y == B.y && A.z == B.z && A.w == B.w;
+  return memcmp(&A, &B, sizeof(DecomposedTransform)) == 0;
 }
 
 float4 transform_to_quat(const Transform &tfm);
