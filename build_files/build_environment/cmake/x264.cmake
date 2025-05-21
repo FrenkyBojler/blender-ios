@@ -6,10 +6,6 @@ if(WIN32)
   set(X264_EXTRA_ARGS --enable-win32thread)
 endif()
 
-if(BLENDER_PLATFORM_ARM AND NOT WIN32)
-  set(X264_EXTRA_ARGS ${X264_EXTRA_ARGS} "--disable-asm")
-endif()
-
 if((APPLE AND NOT BLENDER_PLATFORM_ARM) OR (UNIX AND NOT APPLE))
   set(X264_CONFIGURE_ENV ${CONFIGURE_ENV} &&
     export AS=${LIBDIR}/nasm/bin/nasm
