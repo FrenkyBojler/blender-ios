@@ -105,6 +105,14 @@ class VectorList {
     size_ = 0;
   }
 
+  void clear_and_shrink()
+  {
+    vectors_.clear();
+    append_vector();
+    used_vectors_ = 1;
+    size_ = 0;
+  }
+
   /**
    * Get the value at the given index. This invokes undefined behavior when the index is out of
    * bounds.
