@@ -1,3 +1,4 @@
 Referenced by issue #101227, Crash loading certain .exr file in compositor
 Referenced by issue #72246, changing the file format of the file output node in the compositor loses all the input names :(
 Referenced by pull request #139175, Refactor: Convert Node Socket Default Value and Storage readfile code to typed DNA handling.
+Referenced by commit 4397fa5056651ce5f51d84fa3d912539ba745e1b, Refactor: Convert Node Socket Default Value and Storage readfile code to typed DNA handling.
