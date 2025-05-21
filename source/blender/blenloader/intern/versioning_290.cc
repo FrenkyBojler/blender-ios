@@ -1949,8 +1949,9 @@ void blo_do_versions_290(FileData *fd, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
           if (sl->spacetype == SPACE_SPREADSHEET) {
             SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
-            if (sspreadsheet->object_eval_state == 2) {
-              sspreadsheet->object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
+            if (sspreadsheet->active_geometry_id.object_eval_state == 2) {
+              sspreadsheet->active_geometry_id.object_eval_state =
+                  SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
             }
           }
         }

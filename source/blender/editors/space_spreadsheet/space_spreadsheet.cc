@@ -54,6 +54,7 @@ static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*s
   SpaceSpreadsheet *spreadsheet_space = MEM_callocN<SpaceSpreadsheet>("spreadsheet space");
   spreadsheet_space->spacetype = SPACE_SPREADSHEET;
 
+  spreadsheet_space->active_geometry_id.base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
   spreadsheet_space->filter_flag = SPREADSHEET_FILTER_ENABLE;
 
   {
@@ -115,8 +116,7 @@ static void spreadsheet_free(SpaceLink *sl)
     spreadsheet_table_free(sspreadsheet->tables[i]);
   }
   MEM_SAFE_FREE(sspreadsheet->tables);
-  MEM_SAFE_FREE(sspreadsheet->instance_ids);
-  BKE_viewer_path_clear(&sspreadsheet->viewer_path);
+  spreadsheet_table_id_free_content(&sspreadsheet->active_geometry_id.base);
 }
 
 static void spreadsheet_init(wmWindowManager * /*wm*/, ScrArea *area)
@@ -156,10 +156,8 @@ static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
     sspreadsheet_new->tables[i] = spreadsheet_table_copy(*sspreadsheet_old->tables[i]);
   }
 
-  sspreadsheet_new->instance_ids = static_cast<SpreadsheetInstanceID *>(
-      MEM_dupallocN(sspreadsheet_old->instance_ids));
-  BKE_viewer_path_copy(&sspreadsheet_new->viewer_path, &sspreadsheet_old->viewer_path);
-
+  spreadsheet_table_id_copy_content_geometry(sspreadsheet_new->active_geometry_id,
+                                             sspreadsheet_old->active_geometry_id);
   return (SpaceLink *)sspreadsheet_new;
 }
 
@@ -174,13 +172,19 @@ static void spreadsheet_id_remap(ScrArea * /*area*/,
                                  const blender::bke::id::IDRemapper &mappings)
 {
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)slink;
-  BKE_viewer_path_id_remap(&sspreadsheet->viewer_path, mappings);
+  spreadsheet_table_id_remap_id(sspreadsheet->active_geometry_id.base, mappings);
+  for (const int i : IndexRange(sspreadsheet->num_tables)) {
+    spreadsheet_table_remap_id(*sspreadsheet->tables[i], mappings);
+  }
 }
 
 static void spreadsheet_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 {
   SpaceSpreadsheet *sspreadsheet = reinterpret_cast<SpaceSpreadsheet *>(space_link);
-  BKE_viewer_path_foreach_id(data, &sspreadsheet->viewer_path);
+  spreadsheet_table_id_foreach_id(sspreadsheet->active_geometry_id.base, data);
+  for (const int i : IndexRange(sspreadsheet->num_tables)) {
+    spreadsheet_table_foreach_id(*sspreadsheet->tables[i], data);
+  }
 }
 
 static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
@@ -208,11 +212,11 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
 
 ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
 {
-  if (BLI_listbase_is_empty(&sspreadsheet->viewer_path.path)) {
+  if (BLI_listbase_is_empty(&sspreadsheet->active_geometry_id.viewer_path.path)) {
     return nullptr;
   }
   ViewerPathElem *root_context = static_cast<ViewerPathElem *>(
-      sspreadsheet->viewer_path.path.first);
+      sspreadsheet->active_geometry_id.viewer_path.path.first);
   if (root_context->type != VIEWER_PATH_ELEM_TYPE_ID) {
     return nullptr;
   }
@@ -222,14 +226,14 @@ ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
 
 static void view_active_object(const bContext *C, SpaceSpreadsheet *sspreadsheet)
 {
-  BKE_viewer_path_clear(&sspreadsheet->viewer_path);
+  BKE_viewer_path_clear(&sspreadsheet->active_geometry_id.viewer_path);
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return;
   }
   IDViewerPathElem *id_elem = BKE_viewer_path_elem_new_id();
   id_elem->id = &ob->id;
-  BLI_addtail(&sspreadsheet->viewer_path.path, id_elem);
+  BLI_addtail(&sspreadsheet->active_geometry_id.viewer_path.path, id_elem);
   ED_area_tag_redraw(CTX_wm_area(C));
 }
 
@@ -239,8 +243,9 @@ static void spreadsheet_update_context(const bContext *C)
 
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
   Object *active_object = CTX_data_active_object(C);
-  Object *context_object = blender::ed::viewer_path::parse_object_only(sspreadsheet->viewer_path);
-  switch (eSpaceSpreadsheet_ObjectEvalState(sspreadsheet->object_eval_state)) {
+  Object *context_object = blender::ed::viewer_path::parse_object_only(
+      sspreadsheet->active_geometry_id.viewer_path);
+  switch (eSpaceSpreadsheet_ObjectEvalState(sspreadsheet->active_geometry_id.object_eval_state)) {
     case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL:
     case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED: {
       if (sspreadsheet->flag & SPREADSHEET_FLAG_PINNED) {
@@ -269,7 +274,8 @@ static void spreadsheet_update_context(const bContext *C)
       WorkSpace *workspace = CTX_wm_workspace(C);
       if (sspreadsheet->flag & SPREADSHEET_FLAG_PINNED) {
         const std::optional<ViewerPathForGeometryNodesViewer> parsed_path =
-            blender::ed::viewer_path::parse_geometry_nodes_viewer(sspreadsheet->viewer_path);
+            blender::ed::viewer_path::parse_geometry_nodes_viewer(
+                sspreadsheet->active_geometry_id.viewer_path);
         if (parsed_path.has_value()) {
           if (blender::ed::viewer_path::exists_geometry_nodes_viewer(*parsed_path)) {
             /* The pinned path is still valid, do nothing. */
@@ -287,7 +293,7 @@ static void spreadsheet_update_context(const bContext *C)
       const std::optional<ViewerPathForGeometryNodesViewer> workspace_parsed_path =
           blender::ed::viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path);
       if (workspace_parsed_path.has_value()) {
-        if (BKE_viewer_path_equal(&sspreadsheet->viewer_path,
+        if (BKE_viewer_path_equal(&sspreadsheet->active_geometry_id.viewer_path,
                                   &workspace->viewer_path,
                                   VIEWER_PATH_EQUAL_FLAG_CONSIDER_UI_NAME))
         {
@@ -295,12 +301,14 @@ static void spreadsheet_update_context(const bContext *C)
           break;
         }
         /* Update the viewer path from the workspace. */
-        BKE_viewer_path_clear(&sspreadsheet->viewer_path);
-        BKE_viewer_path_copy(&sspreadsheet->viewer_path, &workspace->viewer_path);
+        BKE_viewer_path_clear(&sspreadsheet->active_geometry_id.viewer_path);
+        BKE_viewer_path_copy(&sspreadsheet->active_geometry_id.viewer_path,
+                             &workspace->viewer_path);
       }
       else {
         /* No active viewer node, change back to showing evaluated active object. */
-        sspreadsheet->object_eval_state = SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
+        sspreadsheet->active_geometry_id.object_eval_state =
+            SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED;
         view_active_object(C, sspreadsheet);
       }
 
@@ -500,7 +508,9 @@ static void spreadsheet_main_region_listener(const wmRegionListenerParams *param
       break;
     }
     case NC_VIEWER_PATH: {
-      if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE) {
+      if (sspreadsheet->active_geometry_id.object_eval_state ==
+          SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE)
+      {
         ED_region_tag_redraw(region);
       }
       break;
@@ -557,7 +567,9 @@ static void spreadsheet_header_region_listener(const wmRegionListenerParams *par
       break;
     }
     case NC_VIEWER_PATH: {
-      if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE) {
+      if (sspreadsheet->active_geometry_id.object_eval_state ==
+          SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE)
+      {
         ED_region_tag_redraw(region);
       }
       break;
@@ -675,10 +687,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
     spreadsheet_table_blend_read(reader, sspreadsheet->tables[i]);
   }
 
-  BLO_read_struct_array(
-      reader, SpreadsheetInstanceID, sspreadsheet->instance_ids_num, &sspreadsheet->instance_ids);
-
-  BKE_viewer_path_blend_read_data(reader, &sspreadsheet->viewer_path);
+  spreadsheet_table_id_blend_read(reader, &sspreadsheet->active_geometry_id.base);
 }
 
 static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -700,9 +709,7 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
     spreadsheet_table_blend_write(writer, sspreadsheet->tables[i]);
   }
 
-  BLO_write_struct_array(
-      writer, SpreadsheetInstanceID, sspreadsheet->instance_ids_num, sspreadsheet->instance_ids);
-  BKE_viewer_path_blend_write(writer, &sspreadsheet->viewer_path);
+  spreadsheet_table_id_blend_write_content_geometry(writer, &sspreadsheet->active_geometry_id);
 }
 
 static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)

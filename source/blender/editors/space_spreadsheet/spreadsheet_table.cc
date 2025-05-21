@@ -66,37 +66,55 @@ SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
   return table_id;
 }
 
+void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
+                                                const SpreadsheetTableIDGeometry &src)
+{
+  BKE_viewer_path_copy(&dst.viewer_path, &src.viewer_path);
+  dst.geometry_component_type = src.geometry_component_type;
+  dst.attribute_domain = src.attribute_domain;
+  dst.object_eval_state = src.object_eval_state;
+  dst.active_layer_index = src.active_layer_index;
+  dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
+  dst.instance_ids_num = src.instance_ids_num;
+}
+
 SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
 {
   switch (eSpreadsheetTableIDType(src_table_id.type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       const auto &src = *reinterpret_cast<const SpreadsheetTableIDGeometry *>(&src_table_id);
       auto *new_table_id = spreadsheet_table_id_new_geometry();
-      BKE_viewer_path_copy(&new_table_id->viewer_path, &src.viewer_path);
-      new_table_id->geometry_component_type = src.geometry_component_type;
-      new_table_id->attribute_domain = src.attribute_domain;
-      new_table_id->object_eval_state = src.object_eval_state;
-      new_table_id->active_layer_index = src.active_layer_index;
-      new_table_id->instance_ids = static_cast<SpreadsheetInstanceID *>(
-          MEM_dupallocN(src.instance_ids));
-      new_table_id->instance_ids_num = src.instance_ids_num;
+      spreadsheet_table_id_copy_content_geometry(*new_table_id, src);
       return &new_table_id->base;
     }
   }
   return nullptr;
 }
 
-void spreadsheet_table_id_free(SpreadsheetTableID *table_id)
+void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
 {
   switch (eSpreadsheetTableIDType(table_id->type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
-      MEM_freeN(table_id_);
       break;
     }
   }
+}
+
+void spreadsheet_table_id_free(SpreadsheetTableID *table_id)
+{
+  spreadsheet_table_id_free_content(table_id);
+  MEM_freeN(table_id);
+}
+
+void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
+                                                       const SpreadsheetTableIDGeometry *table_id)
+{
+  BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
+  BLO_write_struct_array(
+      writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
 }
 
 void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
@@ -105,9 +123,7 @@ void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTabl
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       const auto *table_id_ = reinterpret_cast<const SpreadsheetTableIDGeometry *>(table_id);
       BLO_write_struct(writer, SpreadsheetTableIDGeometry, table_id_);
-      BKE_viewer_path_blend_write(writer, &table_id_->viewer_path);
-      BLO_write_struct_array(
-          writer, SpreadsheetInstanceID, table_id_->instance_ids_num, table_id_->instance_ids);
+      spreadsheet_table_id_blend_write_content_geometry(writer, table_id_);
       break;
     }
   }
@@ -120,7 +136,30 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
       BLO_read_struct_array(
-          reader, SpreadsheetInstanceID, table_id_->instance_ids_num, table_id_->instance_ids);
+          reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
+      break;
+    }
+  }
+}
+
+void spreadsheet_table_id_remap_id(SpreadsheetTableID &table_id,
+                                   const bke::id::IDRemapper &mappings)
+{
+  switch (eSpreadsheetTableIDType(table_id.type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(&table_id);
+      BKE_viewer_path_id_remap(&table_id_->viewer_path, mappings);
+      break;
+    }
+  }
+}
+
+void spreadsheet_table_id_foreach_id(SpreadsheetTableID &table_id, LibraryForeachIDData *data)
+{
+  switch (eSpreadsheetTableIDType(table_id.type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(&table_id);
+      BKE_viewer_path_foreach_id(data, &table_id_->viewer_path);
       break;
     }
   }
@@ -172,6 +211,16 @@ void spreadsheet_table_blend_read(BlendDataReader *reader, SpreadsheetTable *tab
   for (const int i : IndexRange(table->num_columns)) {
     spreadsheet_column_blend_read(reader, table->columns[i]);
   }
+}
+
+void spreadsheet_table_remap_id(SpreadsheetTable &table, const bke::id::IDRemapper &mappings)
+{
+  spreadsheet_table_id_remap_id(*table.id, mappings);
+}
+
+void spreadsheet_table_foreach_id(SpreadsheetTable &table, LibraryForeachIDData *data)
+{
+  spreadsheet_table_id_foreach_id(*table.id, data);
 }
 
 }  // namespace blender::ed::spreadsheet

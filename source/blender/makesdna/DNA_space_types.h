@@ -1175,42 +1175,22 @@ typedef struct SpaceSpreadsheet {
 
   SpreadsheetTable **tables;
   int num_tables;
-  char _pad1[4];
-
-  /* List of #SpreadsheetColumn. */
-  ListBase columns;
-
-  /* SpreadsheetRowFilter. */
-  ListBase row_filters;
-
-  /**
-   * Context that is currently displayed in the editor. This is usually a either a single object
-   * (in original/evaluated mode) or path to a viewer node. This is retrieved from the workspace
-   * but can be pinned so that it stays constant even when the active node changes.
-   */
-  ViewerPath viewer_path;
-
-  /**
-   * The "path" to the currently active instance reference. This is needed when viewing nested
-   * instances.
-   */
-  SpreadsheetInstanceID *instance_ids;
-  int instance_ids_num;
+  char _pad1[3];
 
   /* eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
-  /* #GeometryComponent::Type. */
-  uint8_t geometry_component_type;
-  /* #AttrDomain. */
-  uint8_t attribute_domain;
-  /* eSpaceSpreadsheet_ObjectEvalState. */
-  uint8_t object_eval_state;
-  /* Active grease pencil layer index for grease pencil component. */
-  int active_layer_index;
+  /* SpreadsheetRowFilter. */
+  ListBase row_filters;
+
+  SpreadsheetTableIDGeometry active_geometry_id;
+
+  /* List of #SpreadsheetColumn. */
+  ListBase columns;
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
+  char _pad2[4];
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
