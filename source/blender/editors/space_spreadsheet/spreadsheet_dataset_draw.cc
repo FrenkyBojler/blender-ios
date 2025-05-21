@@ -20,6 +20,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
 
+#include "ED_spreadsheet.hh"
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -1017,28 +1018,18 @@ static void draw_viewer_path_panel(const bContext &C, uiLayout &layout)
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout, {}, true);
 }
 
-static void draw_context_panel(const bContext &C, uiLayout &layout)
+static void draw_context_panel_content(const bContext &C, uiLayout &layout)
 {
   bScreen &screen = *CTX_wm_screen(&C);
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(&C);
 
   ViewerPath &viewer_path = sspreadsheet->viewer_path;
-  if (BLI_listbase_is_empty(&viewer_path.path)) {
+  ID *root_id = get_current_id(sspreadsheet);
+  if (!root_id) {
     draw_context_panel_without_context(layout);
     return;
   }
-  ViewerPathElem &root_elem = *static_cast<ViewerPathElem *>(viewer_path.path.first);
-  if (root_elem.type != VIEWER_PATH_ELEM_TYPE_ID) {
-    draw_context_panel_without_context(layout);
-    return;
-  }
-  IDViewerPathElem &root_id_elem = *reinterpret_cast<IDViewerPathElem *>(&root_elem);
-  if (!root_id_elem.id) {
-    draw_context_panel_without_context(layout);
-    return;
-  }
-  ID &root_id = *root_id_elem.id;
-  if (GS(root_id.name) != ID_OB) {
+  if (GS(root_id->name) != ID_OB) {
     draw_context_panel_without_context(layout);
     return;
   }
@@ -1046,7 +1037,6 @@ static void draw_context_panel(const bContext &C, uiLayout &layout)
   PointerRNA sspreadsheet_ptr = RNA_pointer_create_discrete(
       &screen.id, &RNA_SpaceSpreadsheet, sspreadsheet);
 
-  layout.label(BKE_id_name(root_id), ICON_OBJECT_DATA);
   layout.prop(&sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 
   if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
@@ -1058,6 +1048,39 @@ static void draw_context_panel(const bContext &C, uiLayout &layout)
   }
 }
 
+static void draw_context_panel(const bContext &C, uiLayout &layout)
+{
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+
+  PanelLayout context_panel = layout.panel(&C, "context", false);
+  uiLayoutSetEmboss(context_panel.header, ui::EmbossType::None);
+  if (ID *root_id = get_current_id(&sspreadsheet)) {
+    std::string label = BKE_id_name(*root_id);
+    switch (sspreadsheet.object_eval_state) {
+      case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
+        label += " (Evaluated)";
+        break;
+      case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL:
+        label += " (Original)";
+        break;
+      case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE:
+        label += " (Viewer)";
+        break;
+    }
+    context_panel.header->label(label, ICON_OBJECT_DATA);
+  }
+  else {
+    context_panel.header->label(IFACE_("Context"), ICON_NONE);
+  }
+  context_panel.header->op("spreadsheet.toggle_pin",
+                           "",
+                           sspreadsheet.flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED :
+                                                                         ICON_UNPINNED);
+  if (context_panel.body) {
+    draw_context_panel_content(C, *context_panel.body);
+  }
+}
+
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
@@ -1066,16 +1089,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   uiBlock *block = uiLayoutGetBlock(layout);
   UI_block_layout_set_current(block, layout);
 
-  PanelLayout context_panel = layout->panel(C, "context", false);
-  uiLayoutSetEmboss(context_panel.header, ui::EmbossType::None);
-  context_panel.header->label(IFACE_("Context"), ICON_NONE);
-  context_panel.header->op("spreadsheet.toggle_pin",
-                           "",
-                           sspreadsheet->flag & SPREADSHEET_FLAG_PINNED ? ICON_PINNED :
-                                                                          ICON_UNPINNED);
-  if (context_panel.body) {
-    draw_context_panel(*C, *context_panel.body);
-  }
+  draw_context_panel(*C, *layout);
 
   Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(C));
   if (!object) {
