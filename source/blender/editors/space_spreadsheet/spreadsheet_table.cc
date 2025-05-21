@@ -258,6 +258,17 @@ void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *tab
 
 void spreadsheet_table_remove_unused(SpaceSpreadsheet &sspreadsheet)
 {
+  uint32_t min_last_used = 0;
+  const int max_tables = 50;
+  if (sspreadsheet.num_tables > max_tables) {
+    Vector<uint32_t> last_used_times;
+    for (const SpreadsheetTable *table : Span(sspreadsheet.tables, sspreadsheet.num_tables)) {
+      last_used_times.append(table->last_used);
+    }
+    std::sort(last_used_times.begin(), last_used_times.end());
+    min_last_used = last_used_times[sspreadsheet.num_tables - max_tables];
+  }
+
   dna::array::remove_if<SpreadsheetTable *>(
       &sspreadsheet.tables,
       &sspreadsheet.num_tables,
@@ -265,6 +276,12 @@ void spreadsheet_table_remove_unused(SpaceSpreadsheet &sspreadsheet)
         if (!(table->flag & SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED)) {
           /* Remove tables that have never been modified manually. Those can be rebuilt from
            * scratch if necessary. */
+          return true;
+        }
+        if (table->last_used < min_last_used) {
+          /* The table has not been used for a while and there are too many unused tables. So
+           * garbage collect this table. This does remove user-edited column widths and orders, but
+           * doesn't remove any actual data. */
           return true;
         }
         switch (eSpreadsheetTableIDType(table->id->type)) {

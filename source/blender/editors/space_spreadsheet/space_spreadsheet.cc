@@ -446,6 +446,18 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     spreadsheet_table_add(*sspreadsheet, table);
   }
 
+  /* Update the last used time on the table. */
+  if (table->last_used < sspreadsheet->table_use_clock || sspreadsheet->table_use_clock == 0) {
+    sspreadsheet->table_use_clock++;
+    /* Handle clock overflow by just resetting all clocks. */
+    if (sspreadsheet->table_use_clock == 0) {
+      for (SpreadsheetTable *table : Span(sspreadsheet->tables, sspreadsheet->num_tables)) {
+        table->last_used = sspreadsheet->table_use_clock;
+      }
+    }
+    table->last_used = sspreadsheet->table_use_clock;
+  }
+
   update_visible_columns(*table, *data_source);
 
   SpreadsheetLayout spreadsheet_layout;

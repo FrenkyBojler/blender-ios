@@ -52,6 +52,10 @@ inline void remove_index(
   }
 }
 
+/**
+ * Removes all elements for which the predicate is true. The remaining ones stay in the order they
+ * were in before.
+ */
 template<typename T>
 inline void remove_if(T **items,
                       int *items_num,
@@ -60,7 +64,10 @@ inline void remove_if(T **items,
 {
   static_assert(std::is_trivial_v<T>);
   /* This sorts the items-to-remove to the back. */
-  const int remaining = std::remove_if(*items, *items + *items_num, predicate) - *items;
+  const int remaining = std::partition(*items,
+                                       *items + *items_num,
+                                       [&](const T &value) { return !predicate(value); }) -
+                        *items;
   for (const int i : IndexRange::from_begin_end(remaining, *items_num)) {
     destruct_item(&(*items)[i]);
   }

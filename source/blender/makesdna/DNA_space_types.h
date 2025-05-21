@@ -1161,7 +1161,14 @@ typedef struct SpreadsheetTable {
 
   SpreadsheetColumn **columns;
   int num_columns;
+
   uint32_t flag;
+  /**
+   * A logical time set when the table is used. This is used to be able to remove long-unused
+   * tables when there are too many. This is set from #SpaceSpreadsheet.table_use_clock.
+   */
+  uint32_t last_used;
+  char _pad[4];
 } SpreadsheetTable;
 
 typedef struct SpaceSpreadsheet {
@@ -1187,7 +1194,11 @@ typedef struct SpaceSpreadsheet {
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
-  char _pad2[4];
+  /**
+   * This is increase whenver a new table is used. It allows for some garbage collection of
+   * long-unused tables when there are too many.
+   */
+  uint32_t table_use_clock;
 
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
