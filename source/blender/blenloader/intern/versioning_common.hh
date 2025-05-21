@@ -193,11 +193,7 @@ void version_update_node_input(
 
 bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type);
 
-/* Allow 5.0+ to 'convert' older blendfiles' system properties storage.
- * TODO: Will be in `version_500.cc` file. */
-void version_system_idprops_generate(Main *bmain);
-
-/* Allow 4.5 to open 5.0+ files. */
+/* Allow 4.5 to open 5.0+ files and recover their system-defined ID properties. */
 void version_forward_compat_system_idprops(Main *bmain);
 
 bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines);

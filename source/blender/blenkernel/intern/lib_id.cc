@@ -2618,11 +2618,7 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
     IDP_BlendWrite(writer, id->properties);
   }
 
-  /* ID_WM's id->system_properties are considered runtime only, and never written in .blend file.
-   */
-  if (id->system_properties && !ELEM(GS(id->name), ID_WM)) {
-    IDP_BlendWrite(writer, id->system_properties);
-  }
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code. */
 
   BKE_animdata_blend_write(writer, id);
 

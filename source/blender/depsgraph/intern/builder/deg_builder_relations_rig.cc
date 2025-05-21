@@ -370,7 +370,6 @@ void DepsgraphRelationBuilder::build_rig(Object *object)
     const BuilderStack::ScopedEntry stack_entry = stack_.trace(*pchan);
 
     build_idproperties(pchan->prop);
-    build_idproperties(pchan->system_properties);
     OperationKey bone_local_key(
         &object->id, NodeType::BONE, pchan->name, OperationCode::BONE_LOCAL);
     OperationKey bone_pose_key(

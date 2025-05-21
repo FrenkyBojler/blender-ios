@@ -55,7 +55,6 @@ void DepsgraphNodeBuilder::build_scene_parameters(Scene *scene)
   }
   build_parameters(&scene->id);
   build_idproperties(scene->id.properties);
-  build_idproperties(scene->id.system_properties);
 
   add_operation_node(&scene->id, NodeType::SCENE, OperationCode::SCENE_EVAL);
 

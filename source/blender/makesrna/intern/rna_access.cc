@@ -314,78 +314,23 @@ IDProperty *rna_idproperty_find(PointerRNA *ptr, const char *name)
 {
   IDProperty *group = RNA_struct_idprops(ptr, false);
 
-  if (!group) {
-    return nullptr;
-  }
-  if (group->type == IDP_GROUP) {
-    return IDP_GetPropertyFromGroup(group, name);
-  }
-
-  /* Not sure why that happens sometimes, with nested properties... */
-  /* Seems to be actually array prop, name is usually "0"... To be sorted out later. */
+  if (group) {
+    if (group->type == IDP_GROUP) {
+      return IDP_GetPropertyFromGroup(group, name);
+    }
+    /* Not sure why that happens sometimes, with nested properties... */
+    /* Seems to be actually array prop, name is usually "0"... To be sorted out later. */
 #if 0
-  printf("Got unexpected IDProp container when trying to retrieve %s: %d\n", name, group->type);
+    printf("Got unexpected IDProp container when trying to retrieve %s: %d\n", name, group->type);
 #endif
+  }
 
   return nullptr;
 }
 
-IDProperty **RNA_struct_system_idprops_p(PointerRNA *ptr)
+static void rna_idproperty_free(PointerRNA *ptr, const char *name)
 {
-  StructRNA *type = ptr->type;
-  if (type == nullptr) {
-    return nullptr;
-  }
-  if (type->system_idproperties == nullptr) {
-    return nullptr;
-  }
-
-  return type->system_idproperties(ptr);
-}
-
-IDProperty *RNA_struct_system_idprops(PointerRNA *ptr, bool create)
-{
-  IDProperty **property_ptr = RNA_struct_system_idprops_p(ptr);
-  if (property_ptr == nullptr) {
-    return nullptr;
-  }
-
-  if (create && *property_ptr == nullptr) {
-    *property_ptr = blender::bke::idprop::create_group(__func__, IDP_FLAG_STATIC_TYPE).release();
-  }
-
-  return *property_ptr;
-}
-
-bool RNA_struct_system_idprops_check(StructRNA *srna)
-{
-  return (srna && srna->system_idproperties);
-}
-
-IDProperty *rna_system_idproperty_find(PointerRNA *ptr, const char *name)
-{
-  IDProperty *group = RNA_struct_system_idprops(ptr, false);
-
-  if (!group) {
-    return nullptr;
-  }
-
-  if (group->type == IDP_GROUP) {
-    return IDP_GetPropertyFromGroup(group, name);
-  }
-
-  /* Not sure why that happens sometimes, with nested properties... */
-  /* Seems to be actually array prop, name is usually "0"... To be sorted out later. */
-#if 0
-  printf("Got unexpected IDProp container when trying to retrieve %s: %d\n", name, group->type);
-#endif
-
-  return nullptr;
-}
-
-static void rna_system_idproperty_free(PointerRNA *ptr, const char *name)
-{
-  IDProperty *group = RNA_struct_system_idprops(ptr, false);
+  IDProperty *group = RNA_struct_idprops(ptr, false);
 
   if (group) {
     IDProperty *idprop = IDP_GetPropertyFromGroup(group, name);
@@ -563,7 +508,7 @@ void rna_property_rna_or_id_get(PropertyRNA *prop,
     }
 
     if (prop->flag & PROP_IDPROPERTY) {
-      IDProperty *idprop = rna_system_idproperty_find(ptr, prop->identifier);
+      IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
 
       if (idprop != nullptr && !rna_idproperty_verify_valid(ptr, prop, idprop)) {
         IDProperty *group = RNA_struct_idprops(ptr, false);
@@ -775,6 +720,11 @@ bool RNA_struct_undo_check(const StructRNA *type)
   return (type->flag & STRUCT_UNDO) != 0;
 }
 
+bool RNA_struct_idprops_register_check(const StructRNA *type)
+{
+  return (type->flag & STRUCT_NO_IDPROPERTIES) == 0;
+}
+
 bool RNA_struct_idprops_datablock_allowed(const StructRNA *type)
 {
   return (type->flag & (STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_NO_IDPROPERTIES)) == 0;
@@ -785,14 +735,9 @@ bool RNA_struct_idprops_contains_datablock(const StructRNA *type)
   return (type->flag & (STRUCT_CONTAINS_DATABLOCK_IDPROPERTIES | STRUCT_ID)) != 0;
 }
 
-bool RNA_struct_system_idprops_register_check(const StructRNA *type)
+bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier)
 {
-  return (type->flag & STRUCT_NO_IDPROPERTIES) == 0 && type->system_idproperties != nullptr;
-}
-
-bool RNA_struct_system_idprops_unset(PointerRNA *ptr, const char *identifier)
-{
-  IDProperty *group = RNA_struct_system_idprops(ptr, false);
+  IDProperty *group = RNA_struct_idprops(ptr, false);
 
   if (group) {
     IDProperty *idp = IDP_GetPropertyFromGroup(group, identifier);
@@ -2538,7 +2483,7 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
     bprop->set_ex(ptr, prop, value);
   }
   else if (prop->flag & PROP_EDITABLE) {
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
 #ifdef USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
       IDP_AddToGroup(
           group,
@@ -2737,7 +2682,7 @@ void RNA_property_boolean_set_array(PointerRNA *ptr, PropertyRNA *prop, const bo
     val.array.type = IDP_BOOLEAN;
 #endif
 
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       idprop = IDP_New(IDP_ARRAY, &val, prop->identifier, IDP_FLAG_STATIC_TYPE);
       IDP_AddToGroup(group, idprop);
       int *values_dst = static_cast<int *>(IDP_Array(idprop));
@@ -2949,7 +2894,7 @@ void RNA_property_int_set(PointerRNA *ptr, PropertyRNA *prop, int value)
   }
   else if (prop->flag & PROP_EDITABLE) {
     RNA_property_int_clamp(ptr, prop, &value);
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       IDP_AddToGroup(
           group,
           blender::bke::idprop::create(prop->identifier, value, IDP_FLAG_STATIC_TYPE).release());
@@ -3130,7 +3075,7 @@ void RNA_property_int_set_array(PointerRNA *ptr, PropertyRNA *prop, const int *v
   }
   else if (prop->flag & PROP_EDITABLE) {
     // RNA_property_int_clamp_array(ptr, prop, &value); /* TODO. */
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       IDP_AddToGroup(group,
                      bke::idprop::create(prop->identifier,
                                          Span(values, prop->totarraylength),
@@ -3327,7 +3272,7 @@ void RNA_property_float_set(PointerRNA *ptr, PropertyRNA *prop, float value)
   }
   else if (prop->flag & PROP_EDITABLE) {
     RNA_property_float_clamp(ptr, prop, &value);
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       IDP_AddToGroup(
           group,
           blender::bke::idprop::create(prop->identifier, value, IDP_FLAG_STATIC_TYPE).release());
@@ -3544,7 +3489,7 @@ void RNA_property_float_set_array(PointerRNA *ptr, PropertyRNA *prop, const floa
   }
   else if (prop->flag & PROP_EDITABLE) {
     // RNA_property_float_clamp_array(ptr, prop, &value); /* TODO. */
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       IDP_AddToGroup(group,
                      blender::bke::idprop::create(prop->identifier,
                                                   blender::Span(values, prop->totarraylength),
@@ -3835,7 +3780,7 @@ void RNA_property_string_set(PointerRNA *ptr, PropertyRNA *prop, const char *val
   else if (prop->flag & PROP_EDITABLE) {
     IDProperty *group;
 
-    group = RNA_struct_system_idprops(ptr, true);
+    group = RNA_struct_idprops(ptr, true);
     if (group) {
       IDP_AddToGroup(
           group,
@@ -3870,7 +3815,7 @@ void RNA_property_string_set_bytes(PointerRNA *ptr, PropertyRNA *prop, const cha
   else if (prop->flag & PROP_EDITABLE) {
     IDProperty *group;
 
-    group = RNA_struct_system_idprops(ptr, true);
+    group = RNA_struct_idprops(ptr, true);
     if (group) {
       IDPropertyTemplate val = {0};
       val.string.str = value;
@@ -4033,7 +3978,7 @@ void RNA_property_enum_set(PointerRNA *ptr, PropertyRNA *prop, int value)
 
     val.i = value;
 
-    group = RNA_struct_system_idprops(ptr, true);
+    group = RNA_struct_idprops(ptr, true);
     if (group) {
       IDP_AddToGroup(group, IDP_New(IDP_INT, &val, prop->identifier, IDP_FLAG_STATIC_TYPE));
     }
@@ -4185,7 +4130,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
     }
     else {
       BLI_assert(idprop->type == IDP_GROUP);
-      IDProperty *group = RNA_struct_system_idprops(ptr, true);
+      IDProperty *group = RNA_struct_idprops(ptr, true);
       BLI_assert(group != nullptr);
 
       IDP_ReplaceInGroup_ex(
@@ -4196,7 +4141,7 @@ void RNA_property_pointer_set(PointerRNA *ptr,
   }
   /* IDProperty disguised as RNA property (and not yet defined in ptr). */
   else if (prop->flag & PROP_EDITABLE) {
-    if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
+    if (IDProperty *group = RNA_struct_idprops(ptr, true)) {
       IDP_ReplaceInGroup(
           group,
           blender::bke::idprop::create(prop->identifier, value, IDP_FLAG_STATIC_TYPE).release());
@@ -4225,7 +4170,7 @@ void RNA_property_pointer_add(PointerRNA *ptr, PropertyRNA *prop)
   else if (prop->flag & PROP_IDPROPERTY) {
     IDProperty *group;
 
-    group = RNA_struct_system_idprops(ptr, true);
+    group = RNA_struct_idprops(ptr, true);
     if (group) {
       IDP_AddToGroup(
           group,
@@ -4247,7 +4192,7 @@ void RNA_property_pointer_remove(PointerRNA *ptr, PropertyRNA *prop)
   BLI_assert(RNA_property_type(prop) == PROP_POINTER);
 
   if ((idprop = rna_idproperty_check(&prop, ptr))) {
-    group = RNA_struct_system_idprops(ptr, false);
+    group = RNA_struct_idprops(ptr, false);
 
     if (group) {
       IDP_FreeFromGroup(group, idprop);
@@ -4460,7 +4405,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
   else if (prop->flag & PROP_IDPROPERTY) {
     IDProperty *group, *item;
 
-    group = RNA_struct_system_idprops(ptr, true);
+    group = RNA_struct_idprops(ptr, true);
     if (group) {
       idprop = IDP_NewIDPArray(prop->identifier);
       IDP_AddToGroup(group, idprop);
@@ -5892,7 +5837,7 @@ bool RNA_property_is_set_ex(PointerRNA *ptr, PropertyRNA *prop, bool use_ghost)
 {
   prop = rna_ensure_property(prop);
   if (prop->flag & PROP_IDPROPERTY) {
-    IDProperty *idprop = rna_system_idproperty_find(ptr, prop->identifier);
+    IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
     return ((idprop != nullptr) && (use_ghost == false || !(idprop->flag & IDP_FLAG_GHOST)));
   }
   return true;
@@ -5902,7 +5847,7 @@ bool RNA_property_is_set(PointerRNA *ptr, PropertyRNA *prop)
 {
   prop = rna_ensure_property(prop);
   if (prop->flag & PROP_IDPROPERTY) {
-    IDProperty *idprop = rna_system_idproperty_find(ptr, prop->identifier);
+    IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
     return ((idprop != nullptr) && !(idprop->flag & IDP_FLAG_GHOST));
   }
   return true;
@@ -5912,7 +5857,7 @@ void RNA_property_unset(PointerRNA *ptr, PropertyRNA *prop)
 {
   prop = rna_ensure_property(prop);
   if (prop->flag & PROP_IDPROPERTY) {
-    rna_system_idproperty_free(ptr, prop->identifier);
+    rna_idproperty_free(ptr, prop->identifier);
   }
 }
 
@@ -6068,7 +6013,7 @@ std::string RNA_pointer_as_string_keywords_ex(bContext *C,
       if (all_args == true) {
         /* pass */
       }
-      else if (RNA_struct_system_idprops_check(ptr->type)) {
+      else if (RNA_struct_idprops_check(ptr->type)) {
         ok = RNA_property_is_set(ptr, prop);
       }
 

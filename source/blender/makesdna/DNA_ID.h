@@ -442,18 +442,13 @@ typedef struct ID {
    */
   unsigned int session_uid;
 
-  /**
-   * User-defined custom properties storage. Typically Accessed through the 'dict' syntax from
-   * Python.
-   */
   IDProperty *properties;
 
   /**
-   * System-defined custom properties storage. Used to store data dynamically defined either by
-   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
+   * System-defined custom properties storage.
    *
-   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
-   * wrapped/defined by RNA.
+   * In Blender 4.5, only used to ensure forward compatibility with 5.x blendfiles, and data
+   * management consistency.
    */
   IDProperty *system_properties;
 
