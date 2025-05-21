@@ -274,7 +274,21 @@ struct uiLayout : uiItem {
    * freed with the menu button.
    */
   void menu_fn_argN_free(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *argN);
-
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \param properties: Operator properties to set as button operator data, pointer ownership is
+   * transferred to the button.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag,
+                IDProperty *properties = nullptr);
   /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param opname: Operator id name.
@@ -282,6 +296,19 @@ struct uiLayout : uiItem {
    */
   void op(blender::StringRefNull opname, std::optional<blender::StringRef> name, int icon);
 
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param opname: Operator id name.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \returns Operator pointer to write properties, might be #PointerRNA_NULL if operator does not
+   * exists.
+   */
+  PointerRNA op(blender::StringRefNull opname,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag);
   /**
    * Adds a RNA property item, and exposes it into the layout.
    * \param ptr: RNA pointer to the struct owner of \a prop.
@@ -294,14 +321,14 @@ struct uiLayout : uiItem {
             int index,
             int value,
             eUI_Item_Flag flag,
-            std::optional<blender::StringRefNull> name_opt,
+            std::optional<blender::StringRef> name_opt,
             int icon,
-            std::optional<blender::StringRefNull> placeholder = std::nullopt);
+            std::optional<blender::StringRef> placeholder = std::nullopt);
   /** Adds a RNA property item, and exposes it into the layout. */
   void prop(PointerRNA *ptr,
             blender::StringRefNull propname,
             eUI_Item_Flag flag,
-            std::optional<blender::StringRefNull> name,
+            std::optional<blender::StringRef> name,
             int icon);
 
   /** Adds a separator item, that adds empty space between items. */
@@ -533,22 +560,6 @@ void uiItemStringO(uiLayout *layout,
                    blender::StringRefNull propname,
                    const char *value);
 
-void uiItemFullO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<blender::StringRef> name,
-                     int icon,
-                     IDProperty *properties,
-                     wmOperatorCallContext context,
-                     eUI_Item_Flag flag,
-                     PointerRNA *r_opptr);
-void uiItemFullO(uiLayout *layout,
-                 blender::StringRefNull opname,
-                 std::optional<blender::StringRef> name,
-                 int icon,
-                 IDProperty *properties,
-                 wmOperatorCallContext context,
-                 eUI_Item_Flag flag,
-                 PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
                              std::optional<blender::StringRef> name,
