@@ -17,6 +17,7 @@
 #include "BLI_utildefines.h"
 
 #include "GPU_batch.hh"
+#include "GPU_state.hh"
 
 #include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh"
@@ -316,6 +317,47 @@ static PyObject *pygpu_batch_draw(BPyGPUBatch *self, PyObject *args)
   }
   else if (self->batch->shader != py_shader->shader) {
     GPU_batch_set_shader(self->batch, py_shader->shader);
+  }
+
+  /* Emit a warning when trying to draw wide lines as it is too late to automatically switch to a
+   * polyline shader. */
+  if (py_shader->is_builtin &&
+      ELEM(self->batch->prim_type, GPU_PRIM_LINES, GPU_PRIM_LINE_STRIP, GPU_PRIM_LINE_LOOP))
+  {
+    GPUShader *shader = py_shader->shader;
+    const float line_width = GPU_line_width_get();
+    const bool use_linesmooth = GPU_line_smooth_get();
+    if (line_width > 1.0f || use_linesmooth) {
+      if (shader == GPU_shader_get_builtin_shader(GPU_SHADER_3D_FLAT_COLOR)) {
+        PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "Calling GPUBatch.draw to draw wide or smooth lines with "
+                     "GPU_SHADER_3D_FLAT_COLOR is deprecated. "
+                     "Use GPU_SHADER_3D_POLYLINE_FLAT_COLOR instead.",
+                     1);
+      }
+      else if (shader == GPU_shader_get_builtin_shader(GPU_SHADER_3D_SMOOTH_COLOR)) {
+        PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "Calling GPUBatch.draw to draw wide or smooth lines with "
+                     "GPU_SHADER_3D_SMOOTH_COLOR is deprecated. "
+                     "Use GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR instead.",
+                     1);
+      }
+      else if (shader == GPU_shader_get_builtin_shader(GPU_SHADER_3D_UNIFORM_COLOR)) {
+        PyErr_WarnEx(PyExc_DeprecationWarning,
+                     "Calling GPUBatch.draw to draw wide or smooth lines with "
+                     "GPU_SHADER_3D_UNIFORM_COLOR is deprecated. "
+                     "Use GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR instead.",
+                     1);
+      }
+      else if (bpygpu_shader_is_polyline(shader)) {
+        /* Helper that always setup the right viewport and linewidth to the shader to avoid too
+         * much boilerplate in the python code. */
+        float viewport[4];
+        GPU_viewport_size_get_f(viewport);
+        GPU_shader_uniform_2f(shader, "viewportSize", viewport[2], viewport[3]);
+        GPU_shader_uniform_1f(shader, "lineWidth", line_width);
+      }
+    }
   }
 
   if (const char *error = pygpu_shader_check_compatibility(self->batch)) {
