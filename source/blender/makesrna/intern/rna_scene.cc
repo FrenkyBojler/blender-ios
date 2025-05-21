@@ -1190,6 +1190,12 @@ static void rna_Scene_all_keyingsets_next(CollectionPropertyIterator *iter)
   iter->valid = (internal->link != nullptr);
 }
 
+static bool rna_Scene_compositing_node_group_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
+  return ntree->type == NTREE_COMPOSIT;
+}
+
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
 {
   return "eevee";
@@ -8919,6 +8925,8 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree");
   RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Scene_compositing_node_group_poll");
 
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
