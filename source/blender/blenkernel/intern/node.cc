@@ -1104,7 +1104,7 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
       /* Matrix sockets currently have no default value. */
       break;
     case SOCK_CUSTOM:
-      /* Custom node sockets where default_value is defined uses custom properties for storage. */
+      /* Custom node sockets where default_value is defined use custom properties for storage. */
       break;
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
@@ -1342,29 +1342,29 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
   return false;
 }
 
-namespace internal_doversion {
+namespace versioning_internal {
 
 /* Specific code required to properly handle older blendfiles (pre-2.83), where some node data
  * (like the sockets default values) were written as raw bytes buffer, without any DNA type
  * information. */
 
-/* Node socket default value was historicaly written and read as raw bytes buffer, without any DNA
- * typing information.
+/* Node socket default values were historicaly written and read as raw bytes buffers, without any
+ * DNA typing information.
  *
  * The writing code was fixed in commit 50d5050e9c (which is included in the 2.83 release), however
  * the matching reading code was only fixed in the 4.5 release.
  *
- * So currently, readcode assumes that any blendfile >= 3.0 has correct DNA info for these default
- * values, and it keeps previous 'raw buffer' reading code for older ones.
+ * So currently, reading code assumes that any blendfile >= 3.0 has correct DNA info for these
+ * default values, and it keeps previous 'raw buffer' reading code for older ones.
  *
  * This means that special care must be taken when the various DNA types used for these default
- * values are modified, as a 'manual' version of DNA internal versionning must be performed on data
+ * values are modified, as a 'manual' version of DNA internal versioning must be performed on data
  * from older blendfiles (see also #direct_link_node_socket_default_value).
  */
 constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING = 300;
 
 /* The `_404` structs below are copies of DNA structs as they were in Blender 4.4 and before. Their
- * data layout should never have to be modified in any ways, as it matches the expected data layout
+ * data layout should never have to be modified in any way, as it matches the expected data layout
  * in the raw bytes buffers read from older blendfiles.
  *
  * NOTE: There is _no_ need to protect DNA structs definition in any way to ensure forward
@@ -1373,7 +1373,7 @@ constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING
  *   - When there is DNA info for a BHead in the blendfile, even if that BHead is ultimately
  *     'read'/used as raw bytes buffer through a call to `BLO_read_data_address`, the actual
  *     reading of that BHead from the blendfile will have already gone through the lower-level 'DNA
- *     versionning' process, which means that DNA struct changes (like adding new properties,
+ *     versioning' process, which means that DNA struct changes (like adding new properties,
  *     increasing an array size, etc.) will be handled properly.
  *   - Blender versions prior to 3.6 will not be able to load any 4.0+ blendfiles without immediate
  *     crash, so trying to preserve forward compatibility for versions older than 2.83 would be
@@ -1455,7 +1455,7 @@ template<typename T, typename T_404>
 static void direct_link_node_socket_default_value_version_do(
     bNodeSocket *sock, void **raw_data, blender::FunctionRef<void(T &dest, T_404 &source)> copy_fn)
 {
-  /* Cannot check for equality because of potential alignement offset. */
+  /* Cannot check for equality because of potential alignment offset. */
   BLI_assert(MEM_allocN_len(*raw_data) >= sizeof(T_404));
   T_404 *orig_data = static_cast<T_404 *>(*raw_data);
   *raw_data = nullptr;
@@ -1467,7 +1467,7 @@ static void direct_link_node_socket_default_value_version_do(
   MEM_freeN(orig_data);
 }
 
-}  // namespace internal_doversion
+}  // namespace versioning_internal
 
 static void direct_link_node_socket_default_value(BlendDataReader *reader, bNodeSocket *sock)
 {
@@ -1476,7 +1476,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
   }
 
   if (BLO_read_fileversion_get(reader) >=
-      internal_doversion::MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING)
+      versioning_internal::MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING)
   {
     /* Modern, standard DNA-typed reading of sockets default values. */
     switch (eNodeSocketDatatype(sock->type)) {
@@ -1522,8 +1522,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_MATRIX:
         /* Matrix sockets currently have no default value. */
       case SOCK_CUSTOM:
-        /* Custom node sockets where default_value is defined uses custom properties for storage.
-         */
+        /* Custom node sockets where default_value is defined use custom properties for storage. */
       case SOCK_SHADER:
       case SOCK_GEOMETRY:
       case SOCK_BUNDLE:
@@ -1543,13 +1542,12 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
 
     switch (eNodeSocketDatatype(sock->type)) {
       case SOCK_FLOAT:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueFloat,
-            internal_doversion::bNodeSocketValueFloat_404>(
+            versioning_internal::bNodeSocketValueFloat_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueFloat &dest,
-               internal_doversion::bNodeSocketValueFloat_404 &src) -> void {
+            [](bNodeSocketValueFloat &dest, versioning_internal::bNodeSocketValueFloat_404 &src) {
               dest.subtype = src.subtype;
               dest.value = src.value;
               dest.min = src.min;
@@ -1557,13 +1555,13 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
             });
         break;
       case SOCK_VECTOR:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueVector,
-            internal_doversion::bNodeSocketValueVector_404>(
+            versioning_internal::bNodeSocketValueVector_404>(
             sock,
             &temp_data,
             [](bNodeSocketValueVector &dest,
-               internal_doversion::bNodeSocketValueVector_404 &src) -> void {
+               versioning_internal::bNodeSocketValueVector_404 &src) {
               dest.subtype = src.subtype;
               copy_v3_v3(dest.value, src.value);
               dest.min = src.min;
@@ -1571,31 +1569,31 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
             });
         break;
       case SOCK_RGBA:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueRGBA,
-            internal_doversion::bNodeSocketValueRGBA_404>(
+            versioning_internal::bNodeSocketValueRGBA_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueRGBA &dest, internal_doversion::bNodeSocketValueRGBA_404 &src)
-                -> void { copy_v4_v4(dest.value, src.value); });
+            [](bNodeSocketValueRGBA &dest, versioning_internal::bNodeSocketValueRGBA_404 &src) {
+              copy_v4_v4(dest.value, src.value);
+            });
         break;
       case SOCK_BOOLEAN:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueBoolean,
-            internal_doversion::bNodeSocketValueBoolean_404>(
+            versioning_internal::bNodeSocketValueBoolean_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueBoolean &dest, internal_doversion::bNodeSocketValueBoolean_404 &src)
-                -> void { dest.value = src.value; });
+            [](bNodeSocketValueBoolean &dest,
+               versioning_internal::bNodeSocketValueBoolean_404 &src) { dest.value = src.value; });
         break;
       case SOCK_INT:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueInt,
-            internal_doversion::bNodeSocketValueInt_404>(
+            versioning_internal::bNodeSocketValueInt_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueInt &dest,
-               internal_doversion::bNodeSocketValueInt_404 &src) -> void {
+            [](bNodeSocketValueInt &dest, versioning_internal::bNodeSocketValueInt_404 &src) {
               dest.subtype = src.subtype;
               dest.value = src.value;
               dest.min = src.min;
@@ -1603,85 +1601,85 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
             });
         break;
       case SOCK_STRING:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueString,
-            internal_doversion::bNodeSocketValueString_404>(
+            versioning_internal::bNodeSocketValueString_404>(
             sock,
             &temp_data,
             [](bNodeSocketValueString &dest,
-               internal_doversion::bNodeSocketValueString_404 &src) -> void {
+               versioning_internal::bNodeSocketValueString_404 &src) {
               dest.subtype = src.subtype;
               BLI_strncpy(dest.value, src.value, sizeof(dest.value));
             });
         break;
       case SOCK_OBJECT:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueObject,
-            internal_doversion::bNodeSocketValueObject_404>(
+            versioning_internal::bNodeSocketValueObject_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueObject &dest, internal_doversion::bNodeSocketValueObject_404 &src)
-                -> void { dest.value = src.value; });
+            [](bNodeSocketValueObject &dest,
+               versioning_internal::bNodeSocketValueObject_404 &src) { dest.value = src.value; });
         break;
       case SOCK_IMAGE:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueImage,
-            internal_doversion::bNodeSocketValueImage_404>(
+            versioning_internal::bNodeSocketValueImage_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueImage &dest, internal_doversion::bNodeSocketValueImage_404 &src)
-                -> void { dest.value = src.value; });
+            [](bNodeSocketValueImage &dest, versioning_internal::bNodeSocketValueImage_404 &src) {
+              dest.value = src.value;
+            });
         break;
       case SOCK_COLLECTION:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueCollection,
-            internal_doversion::bNodeSocketValueCollection_404>(
+            versioning_internal::bNodeSocketValueCollection_404>(
             sock,
             &temp_data,
             [](bNodeSocketValueCollection &dest,
-               internal_doversion::bNodeSocketValueCollection_404 &src) -> void {
+               versioning_internal::bNodeSocketValueCollection_404 &src) {
               dest.value = src.value;
             });
         break;
       case SOCK_TEXTURE:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueTexture,
-            internal_doversion::bNodeSocketValueTexture_404>(
+            versioning_internal::bNodeSocketValueTexture_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueTexture &dest, internal_doversion::bNodeSocketValueTexture_404 &src)
-                -> void { dest.value = src.value; });
+            [](bNodeSocketValueTexture &dest,
+               versioning_internal::bNodeSocketValueTexture_404 &src) { dest.value = src.value; });
         break;
       case SOCK_MATERIAL:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueMaterial,
-            internal_doversion::bNodeSocketValueMaterial_404>(
+            versioning_internal::bNodeSocketValueMaterial_404>(
             sock,
             &temp_data,
             [](bNodeSocketValueMaterial &dest,
-               internal_doversion::bNodeSocketValueMaterial_404 &src) -> void {
+               versioning_internal::bNodeSocketValueMaterial_404 &src) {
               dest.value = src.value;
             });
         break;
       case SOCK_ROTATION:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueRotation,
-            internal_doversion::bNodeSocketValueRotation_404>(
+            versioning_internal::bNodeSocketValueRotation_404>(
             sock,
             &temp_data,
             [](bNodeSocketValueRotation &dest,
-               internal_doversion::bNodeSocketValueRotation_404 &src) -> void {
+               versioning_internal::bNodeSocketValueRotation_404 &src) {
               copy_v3_v3(dest.value_euler, src.value_euler);
             });
         break;
       case SOCK_MENU:
-        internal_doversion::direct_link_node_socket_default_value_version_do<
+        versioning_internal::direct_link_node_socket_default_value_version_do<
             bNodeSocketValueMenu,
-            internal_doversion::bNodeSocketValueMenu_404>(
+            versioning_internal::bNodeSocketValueMenu_404>(
             sock,
             &temp_data,
-            [](bNodeSocketValueMenu &dest,
-               internal_doversion::bNodeSocketValueMenu_404 &src) -> void {
+            [](bNodeSocketValueMenu &dest, versioning_internal::bNodeSocketValueMenu_404 &src) {
               dest.value = src.value;
               /* Other members are runtime-only. */
             });
