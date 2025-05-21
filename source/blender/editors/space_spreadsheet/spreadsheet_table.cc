@@ -1,0 +1,177 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#include "BKE_viewer_path.hh"
+
+#include "BLI_hash.hh"
+
+#include "BLO_read_write.hh"
+
+#include "spreadsheet_column.hh"
+#include "spreadsheet_table.hh"
+
+uint64_t SpreadsheetTableID::hash() const
+{
+  switch (eSpreadsheetTableIDType(this->type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      const auto &self = *reinterpret_cast<const SpreadsheetTableIDGeometry *>(this);
+      const uint64_t viewer_path_hash = BKE_viewer_path_hash(self.viewer_path);
+      const uint64_t instance_ids_hash = get_default_hash(
+          blender::Span(self.instance_ids, self.instance_ids_num));
+      return blender::get_default_hash(
+          blender::get_default_hash(this->type, viewer_path_hash, self.geometry_component_type),
+          blender::get_default_hash(self.attribute_domain,
+                                    self.object_eval_state,
+                                    self.active_layer_index,
+                                    instance_ids_hash));
+    }
+  }
+  return uint64_t(this->type);
+}
+
+bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b)
+{
+  if (a.type != b.type) {
+    return false;
+  }
+  const eSpreadsheetTableIDType type = eSpreadsheetTableIDType(a.type);
+  switch (type) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      const auto &a_ = *reinterpret_cast<const SpreadsheetTableIDGeometry *>(&a);
+      const auto &b_ = *reinterpret_cast<const SpreadsheetTableIDGeometry *>(&b);
+      return BKE_viewer_path_equal(&a_.viewer_path, &b_.viewer_path) &&
+             a_.geometry_component_type == b_.geometry_component_type &&
+             a_.attribute_domain == b_.attribute_domain &&
+             a_.object_eval_state == b_.object_eval_state &&
+             a_.active_layer_index == b_.active_layer_index &&
+             blender::Span(a_.instance_ids, a_.instance_ids_num) ==
+                 blender::Span(b_.instance_ids, b_.instance_ids_num);
+    }
+  }
+  return false;
+}
+
+bool operator!=(const SpreadsheetTableID &a, const SpreadsheetTableID &b)
+{
+  return !(a == b);
+}
+
+namespace blender::ed::spreadsheet {
+
+SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
+{
+  auto *table_id = MEM_callocN<SpreadsheetTableIDGeometry>(__func__);
+  table_id->base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
+  return table_id;
+}
+
+SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
+{
+  switch (eSpreadsheetTableIDType(src_table_id.type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      const auto &src = *reinterpret_cast<const SpreadsheetTableIDGeometry *>(&src_table_id);
+      auto *new_table_id = spreadsheet_table_id_new_geometry();
+      BKE_viewer_path_copy(&new_table_id->viewer_path, &src.viewer_path);
+      new_table_id->geometry_component_type = src.geometry_component_type;
+      new_table_id->attribute_domain = src.attribute_domain;
+      new_table_id->object_eval_state = src.object_eval_state;
+      new_table_id->active_layer_index = src.active_layer_index;
+      new_table_id->instance_ids = static_cast<SpreadsheetInstanceID *>(
+          MEM_dupallocN(src.instance_ids));
+      new_table_id->instance_ids_num = src.instance_ids_num;
+      return &new_table_id->base;
+    }
+  }
+  return nullptr;
+}
+
+void spreadsheet_table_id_free(SpreadsheetTableID *table_id)
+{
+  switch (eSpreadsheetTableIDType(table_id->type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
+      BKE_viewer_path_clear(&table_id_->viewer_path);
+      MEM_SAFE_FREE(table_id_->instance_ids);
+      MEM_freeN(table_id_);
+      break;
+    }
+  }
+}
+
+void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
+{
+  switch (eSpreadsheetTableIDType(table_id->type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      const auto *table_id_ = reinterpret_cast<const SpreadsheetTableIDGeometry *>(table_id);
+      BLO_write_struct(writer, SpreadsheetTableIDGeometry, table_id_);
+      BKE_viewer_path_blend_write(writer, &table_id_->viewer_path);
+      BLO_write_struct_array(
+          writer, SpreadsheetInstanceID, table_id_->instance_ids_num, table_id_->instance_ids);
+      break;
+    }
+  }
+}
+
+void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID *table_id)
+{
+  switch (eSpreadsheetTableIDType(table_id->type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+      auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
+      BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
+      BLO_read_struct_array(
+          reader, SpreadsheetInstanceID, table_id_->instance_ids_num, table_id_->instance_ids);
+      break;
+    }
+  }
+}
+
+SpreadsheetTable *spreadsheet_table_new(SpreadsheetTableID *table_id)
+{
+  SpreadsheetTable *spreadsheet_table = MEM_callocN<SpreadsheetTable>(__func__);
+  spreadsheet_table->id = table_id;
+  return spreadsheet_table;
+}
+
+SpreadsheetTable *spreadsheet_table_copy(const SpreadsheetTable &src_table)
+{
+  SpreadsheetTable *new_table = spreadsheet_table_new(spreadsheet_table_id_copy(*src_table.id));
+  new_table->num_columns = src_table.num_columns;
+  new_table->columns = MEM_calloc_arrayN<SpreadsheetColumn *>(src_table.num_columns, __func__);
+  for (const int i : IndexRange(src_table.num_columns)) {
+    new_table->columns[i] = spreadsheet_column_copy(src_table.columns[i]);
+  }
+  return new_table;
+}
+
+void spreadsheet_table_free(SpreadsheetTable *table)
+{
+  spreadsheet_table_id_free(table->id);
+  for (const int i : IndexRange(table->num_columns)) {
+    spreadsheet_column_free(table->columns[i]);
+  }
+  MEM_SAFE_FREE(table->columns);
+  MEM_freeN(table);
+}
+
+void spreadsheet_table_blend_write(BlendWriter *writer, const SpreadsheetTable *table)
+{
+  BLO_write_struct(writer, SpreadsheetTable, table);
+  spreadsheet_table_id_blend_write(writer, table->id);
+  BLO_write_pointer_array(writer, table->num_columns, table->columns);
+  for (const int i : IndexRange(table->num_columns)) {
+    spreadsheet_column_blend_write(writer, table->columns[i]);
+  }
+}
+
+void spreadsheet_table_blend_read(BlendDataReader *reader, SpreadsheetTable *table)
+{
+  BLO_read_struct(reader, SpreadsheetTableID, &table->id);
+  spreadsheet_table_id_blend_read(reader, table->id);
+  BLO_read_pointer_array(reader, table->num_columns, reinterpret_cast<void **>(&table->columns));
+  for (const int i : IndexRange(table->num_columns)) {
+    spreadsheet_column_blend_read(reader, table->columns[i]);
+  }
+}
+
+}  // namespace blender::ed::spreadsheet

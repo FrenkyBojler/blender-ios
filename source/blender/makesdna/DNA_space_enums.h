@@ -1009,6 +1009,10 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
 } eSpreadsheetColumnValueType;
 
+typedef enum eSpreadsheetTableIDType {
+  SPREADSHEET_TABLE_ID_TYPE_GEOMETRY = 0,
+} eSpreadsheetTableType;
+
 /**
  * We can't just use UI_UNIT_X, because it does not take `widget.points` into account, which
  * modifies the width of text as well.

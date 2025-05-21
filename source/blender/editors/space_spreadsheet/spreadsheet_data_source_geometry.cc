@@ -48,6 +48,21 @@
 
 using blender::nodes::geo_eval_log::ViewerNodeLog;
 
+uint64_t SpreadsheetInstanceID::hash() const
+{
+  return blender::get_default_hash(this->reference_index);
+}
+
+bool operator==(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
+{
+  return a.reference_index == b.reference_index;
+}
+
+bool operator!=(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
+{
+  return !(a == b);
+}
+
 namespace blender::ed::spreadsheet {
 
 void ExtraColumns::foreach_default_column_ids(

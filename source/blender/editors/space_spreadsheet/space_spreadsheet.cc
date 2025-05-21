@@ -43,6 +43,7 @@
 #include "spreadsheet_layout.hh"
 #include "spreadsheet_row_filter.hh"
 #include "spreadsheet_row_filter_ui.hh"
+#include "spreadsheet_table.hh"
 
 #include <sstream>
 
@@ -110,6 +111,10 @@ static void spreadsheet_free(SpaceLink *sl)
   LISTBASE_FOREACH_MUTABLE (SpreadsheetColumn *, column, &sspreadsheet->columns) {
     spreadsheet_column_free(column);
   }
+  for (const int i : IndexRange(sspreadsheet->num_tables)) {
+    spreadsheet_table_free(sspreadsheet->tables[i]);
+  }
+  MEM_SAFE_FREE(sspreadsheet->tables);
   MEM_SAFE_FREE(sspreadsheet->instance_ids);
   BKE_viewer_path_clear(&sspreadsheet->viewer_path);
 }
@@ -143,6 +148,12 @@ static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
   LISTBASE_FOREACH (SpreadsheetColumn *, src_column, &sspreadsheet_old->columns) {
     SpreadsheetColumn *new_column = spreadsheet_column_copy(src_column);
     BLI_addtail(&sspreadsheet_new->columns, new_column);
+  }
+  sspreadsheet_new->num_tables = sspreadsheet_old->num_tables;
+  sspreadsheet_new->tables = MEM_calloc_arrayN<SpreadsheetTable *>(sspreadsheet_old->num_tables,
+                                                                   __func__);
+  for (const int i : IndexRange(sspreadsheet_old->num_tables)) {
+    sspreadsheet_new->tables[i] = spreadsheet_table_copy(*sspreadsheet_old->tables[i]);
   }
 
   sspreadsheet_new->instance_ids = static_cast<SpreadsheetInstanceID *>(
@@ -654,13 +665,14 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   }
   BLO_read_struct_list(reader, SpreadsheetColumn, &sspreadsheet->columns);
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
-    BLO_read_struct(reader, SpreadsheetColumnID, &column->id);
-    BLO_read_string(reader, &column->id->name);
-    /* While the display name is technically runtime data, it is loaded here, otherwise the row
-     * filters might not now their type if their region draws before the main region.
-     * This would ideally be cleared here. */
-    BLO_read_string(reader, &column->display_name);
+    spreadsheet_column_blend_read(reader, column);
+  }
+
+  BLO_read_pointer_array(
+      reader, sspreadsheet->num_tables, reinterpret_cast<void **>(&sspreadsheet->tables));
+  for (const int i : IndexRange(sspreadsheet->num_tables)) {
+    BLO_read_struct(reader, SpreadsheetTable, &sspreadsheet->tables[i]);
+    spreadsheet_table_blend_read(reader, sspreadsheet->tables[i]);
   }
 
   BLO_read_struct_array(
@@ -680,13 +692,12 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
   }
 
   LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    BLO_write_struct(writer, SpreadsheetColumn, column);
-    BLO_write_struct(writer, SpreadsheetColumnID, column->id);
-    BLO_write_string(writer, column->id->name);
-    /* While the display name is technically runtime data, we write it here, otherwise the row
-     * filters might not now their type if their region draws before the main region.
-     * This would ideally be cleared here. */
-    BLO_write_string(writer, column->display_name);
+    spreadsheet_column_blend_write(writer, column);
+  }
+
+  BLO_write_pointer_array(writer, sspreadsheet->num_tables, sspreadsheet->tables);
+  for (const int i : IndexRange(sspreadsheet->num_tables)) {
+    spreadsheet_table_blend_write(writer, sspreadsheet->tables[i]);
   }
 
   BLO_write_struct_array(

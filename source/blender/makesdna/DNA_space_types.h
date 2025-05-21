@@ -1111,7 +1111,58 @@ typedef struct SpreadsheetColumn {
 
 typedef struct SpreadsheetInstanceID {
   int reference_index;
+
+#ifdef __cplusplus
+  uint64_t hash() const;
+  friend bool operator==(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b);
+  friend bool operator!=(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b);
+#endif
 } SpreadsheetInstanceID;
+
+typedef struct SpreadsheetTableID {
+  /** #eSpreadsheetTableIDType. */
+  int type;
+
+#ifdef __cplusplus
+  uint64_t hash() const;
+  friend bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
+  friend bool operator!=(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
+#endif
+} SpreadsheetTableID;
+
+typedef struct SpreadsheetTableIDGeometry {
+  SpreadsheetTableID base;
+  char _pad0[4];
+  /**
+   * Context that is displayed in the editor. This is usually a either a single object (in
+   * original/evaluated mode) or path to a viewer node. This is retrieved from the workspace but
+   * can be pinned so that it stays constant even when the active node changes.
+   */
+  ViewerPath viewer_path;
+  /**
+   * The "path" to the currently active instance reference. This is needed when viewing nested
+   * instances.
+   */
+  SpreadsheetInstanceID *instance_ids;
+  int instance_ids_num;
+  /** #GeometryComponent::Type. */
+  uint8_t geometry_component_type;
+  /** #AttrDomain. */
+  uint8_t attribute_domain;
+  /** #eSpaceSpreadsheet_ObjectEvalState. */
+  uint8_t object_eval_state;
+  char _pad1[5];
+  /** Active grease pencil layer index for grease pencil component. */
+  int active_layer_index;
+} SpreadsheetTableIDGeometry;
+
+typedef struct SpreadsheetTable {
+  SpreadsheetTableID *id;
+
+  SpreadsheetColumn **columns;
+  int num_columns;
+  char _pad0[4];
+} SpreadsheetTable;
 
 typedef struct SpaceSpreadsheet {
   SpaceLink *next, *prev;
@@ -1121,6 +1172,10 @@ typedef struct SpaceSpreadsheet {
   char link_flag;
   char _pad0[6];
   /* End 'SpaceLink' header. */
+
+  SpreadsheetTable **tables;
+  int num_tables;
+  char _pad1[4];
 
   /* List of #SpreadsheetColumn. */
   ListBase columns;
