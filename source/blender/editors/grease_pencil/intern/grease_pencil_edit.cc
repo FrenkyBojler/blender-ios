@@ -4174,6 +4174,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
+  const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
   const float threshold = RNA_float_get(op->ptr, "error");
   const float angle_min = RNA_float_get(op->ptr, "angle_min");
   const float radius_min = RNA_float_get(op->ptr, "radius_min");
@@ -4194,20 +4195,22 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
     if (dst_type != CurveType::CURVE_TYPE_POLY) {
       const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
 
-      const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
-      const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min, curves.curves_num());
-      const VArray<float> radius_maxs = VArray<float>::ForSingle(radius_max, curves.curves_num());
-      const VArray<int> samples_maxs = VArray<int>::ForSingle(samples_max, curves.curves_num());
+      VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
+      if (detect_corners) {
+        const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
+        const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min,
+                                                                   curves.curves_num());
+        const VArray<float> radius_maxs = VArray<float>::ForSingle(radius_max,
+                                                                   curves.curves_num());
+        const VArray<int> samples_maxs = VArray<int>::ForSingle(samples_max, curves.curves_num());
 
-      const Array<bool> corners = geometry::curves_detect_corners(
-          curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
+        const Array<bool> corners_data = geometry::curves_detect_corners(
+            curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
+        corners = VArray<bool>::ForSpan(corners_data);
+      }
 
-      curves = geometry::fit_curves(curves,
-                                    strokes,
-                                    thresholds,
-                                    VArray<bool>::ForSpan(corners),
-                                    geometry::FitMethod::Refit,
-                                    {});
+      curves = geometry::fit_curves(
+          curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
     }
 
     const bool use_handles = false;
@@ -4251,11 +4254,15 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
-  uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(layout, &ptr, "detect_corners", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
+  if (detect_corners) {
+    uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(layout, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(layout, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiItemR(layout, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
@@ -4287,6 +4294,7 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
       100.0f);
   RNA_def_property_subtype(prop, PROP_DISTANCE);
 
+  RNA_def_boolean(ot->srna, "detect_corners", true, "Detect Corners", "");
   prop = RNA_def_float_distance(ot->srna,
                                 "angle_min",
                                 DEG2RADF(40.0f),
