@@ -409,6 +409,9 @@ std::optional<DropLocation> TreeViewItemDropTarget::choose_drop_location(
           3;
   const float segment_height = item_height / segment_count;
 
+  if (event.xy[1] < win_rect->ymin) {
+    return DropLocation::After;
+  }
   if (event.xy[1] - win_rect->ymin > (item_height - segment_height)) {
     return DropLocation::Before;
   }

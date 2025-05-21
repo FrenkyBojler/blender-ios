@@ -295,6 +295,11 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
             if (!item.is_interactive()) {
               return;
             }
+            const bool is_root = item.count_parents() == 0;
+            if (!is_root) {
+              /* We want to drop after the last root item, not in a nested item. */
+              return;
+            }
             last_item = &item;
           },
           TreeViewItemContainer::IterOptions::SkipCollapsed |
