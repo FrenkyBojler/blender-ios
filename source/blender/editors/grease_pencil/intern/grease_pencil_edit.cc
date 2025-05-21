@@ -4254,15 +4254,19 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
+  uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
   uiItemR(layout, &ptr, "detect_corners", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
-  if (detect_corners) {
-    uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemR(layout, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(layout, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
+  uiLayout *col = &layout->column(true, IFACE_("Corners"));
+  uiLayoutSetActive(col, detect_corners);
+  uiItemR(col, &ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  uiItemR(col, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+  uiItemS(layout);
 }
 
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
