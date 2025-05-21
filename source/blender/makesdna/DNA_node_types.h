@@ -12,7 +12,8 @@
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_scene_types.h" /* for #ImageFormatData */
-#include "DNA_vec_types.h"   /* for #rctf */
+#include "DNA_texture_types.h"
+#include "DNA_vec_types.h" /* for #rctf */
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -1238,8 +1239,14 @@ typedef struct NodeChroma {
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
-  short x1, x2, y1, y2;
-  float fac_x1, fac_x2, fac_y1, fac_y2;
+  short x1;
+  short x2;
+  short y1;
+  short y2;
+  float fac_x1;
+  float fac_x2;
+  float fac_y1;
+  float fac_y2;
 } NodeTwoXYs;
 
 typedef struct NodeTwoFloats {
