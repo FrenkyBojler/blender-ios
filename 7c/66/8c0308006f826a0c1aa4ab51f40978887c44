@@ -1,2 +1,3 @@
 Referenced by issue #139142, Nodes: Deleting a frame moves the content out of the parent frame
 Referenced by issue #139143, Nodes: `Delete` and `Dissolve` do the same thing when deleting frames.
+Referenced by issue #139207, Geometry Nodes: "Default Input" setting does not work
