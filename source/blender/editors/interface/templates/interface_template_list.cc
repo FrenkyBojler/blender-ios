@@ -110,7 +110,7 @@ static void uilist_draw_item_default(uiList *ui_list,
     case UILST_LAYOUT_COMPACT:
     default:
       if (nameprop) {
-        uiItemFullR(layout, itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
+        layout->prop(itemptr, nameprop, RNA_NO_INDEX, 0, UI_ITEM_R_NO_BG, "", icon);
       }
       else {
         layout->label("", icon);
@@ -313,8 +313,12 @@ bool UI_list_item_index_is_filtered_visible(const uiList *ui_list, const int ite
     return false;
   }
 
-  const int filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
-  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM) ^ filter_exclude;
+  if (ui_list->filter_byname[0] == '\0') {
+    /* Show all elements when search string is empty. */
+    return true;
+  }
+
+  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM);
 }
 
 /**
