@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* `Scene->nodetree` is deprecated but still relevant for backward compatibility. */
+#define DNA_DEPRECATED_ALLOW
+
 /** \file
  * \ingroup bke
  */
@@ -4147,6 +4150,10 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
   EVAL_ANIM_NODETREE_IDS(main->worlds.first, World, ADT_RECALC_ANIM);
 
   /* scenes */
+  EVAL_ANIM_NODETREE_IDS(main->scenes.first, Scene, ADT_RECALC_ANIM);
+
+  /* scenes */
+  EVAL_ANIM_NODETREE_IDS(main->scenes.first, Scene, ADT_RECALC_ANIM);
   EVAL_ANIM_IDS(main->scenes.first, ADT_RECALC_ANIM);
 }
 

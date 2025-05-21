@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* `Scene->nodetree` is deprecated but still relevant for backward compatibility. */
+#define DNA_DEPRECATED_ALLOW
+
 /** \file
  * \ingroup bke
  */
@@ -1453,7 +1456,7 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
   ANIMDATA_NODETREE_IDS_CB(bmain->worlds.first, World);
 
   /* scenes */
-  ANIMDATA_IDS_CB(bmain->scenes.first);
+  ANIMDATA_NODETREE_IDS_CB(bmain->scenes.first, Scene);
 
   /* line styles */
   ANIMDATA_IDS_CB(bmain->linestyles.first);
