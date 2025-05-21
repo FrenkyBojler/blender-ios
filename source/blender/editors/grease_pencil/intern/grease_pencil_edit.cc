@@ -4210,6 +4210,16 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
                                     {});
     }
 
+    const bool use_handles = false;
+
+    geometry::ConvertCurvesOptions options;
+    options.convert_bezier_handles_to_poly_points = use_handles;
+    options.convert_bezier_handles_to_catmull_rom_points = use_handles;
+    options.keep_bezier_shape_as_nurbs = use_handles;
+    options.keep_catmull_rom_shape_as_nurbs = use_handles;
+
+    curves = geometry::convert_curves(curves, strokes, dst_type, {}, options);
+
     info.drawing.tag_topology_changed();
 
     changed = true;
