@@ -4195,7 +4195,6 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
     if (dst_type != CurveType::CURVE_TYPE_POLY) {
       const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
 
-      VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
       if (detect_corners) {
         const VArray<float> angle_mins = VArray<float>::ForSingle(angle_min, curves.curves_num());
         const VArray<float> radius_mins = VArray<float>::ForSingle(radius_min,
@@ -4206,11 +4205,15 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
 
         const Array<bool> corners_data = geometry::curves_detect_corners(
             curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
-        corners = VArray<bool>::ForSpan(corners_data);
+        const VArray<bool> corners = VArray<bool>::ForSpan(corners_data);
+        curves = geometry::fit_curves(
+            curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
       }
-
-      curves = geometry::fit_curves(
-          curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
+      else {
+        const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
+        curves = geometry::fit_curves(
+            curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
+      }
     }
 
     const bool use_handles = false;
