@@ -547,6 +547,25 @@ static const EnumPropertyItem rna_enum_curve_display_handle_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem spreadsheet_object_eval_state_items[] = {
+    {SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED,
+     "EVALUATED",
+     ICON_NONE,
+     "Evaluated",
+     "Use data from fully or partially evaluated object"},
+    {SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL,
+     "ORIGINAL",
+     ICON_NONE,
+     "Original",
+     "Use data from original object without any modifiers applied"},
+    {SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE,
+     "VIEWER_NODE",
+     ICON_NONE,
+     "Viewer Node",
+     "Use intermediate data from viewer node"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -8781,25 +8800,6 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 
   rna_def_spreadsheet_table(brna);
 
-  static const EnumPropertyItem object_eval_state_items[] = {
-      {SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED,
-       "EVALUATED",
-       ICON_NONE,
-       "Evaluated",
-       "Use data from fully or partially evaluated object"},
-      {SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL,
-       "ORIGINAL",
-       ICON_NONE,
-       "Original",
-       "Use data from original object without any modifiers applied"},
-      {SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE,
-       "VIEWER_NODE",
-       ICON_NONE,
-       "Viewer Node",
-       "Use intermediate data from viewer node"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   srna = RNA_def_struct(brna, "SpaceSpreadsheet", "Space");
   RNA_def_struct_ui_text(srna, "Space Spreadsheet", "Spreadsheet space data");
 
@@ -8853,7 +8853,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "object_eval_state", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "active_geometry_id.object_eval_state");
-  RNA_def_property_enum_items(prop, object_eval_state_items);
+  RNA_def_property_enum_items(prop, spreadsheet_object_eval_state_items);
   RNA_def_property_ui_text(prop, "Object Evaluation State", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
