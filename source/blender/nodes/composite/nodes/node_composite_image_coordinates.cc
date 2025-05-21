@@ -6,23 +6,26 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_texture_coordinates_cc {
+namespace blender::nodes::node_composite_image_coordinates_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image").hide_value().compositor_realization_mode(
       CompositorInputRealizationMode::None);
 
-  b.add_output<decl::Vector>("Texture");
-  b.add_output<decl::Vector>("Normalized");
-  b.add_output<decl::Vector>("Pixel");
+  b.add_output<decl::Vector>("Texture").description(
+      "Zero centered coordinates normalizes along the larger dimension. Suitable for use with "
+      "texture nodes");
+  b.add_output<decl::Vector>("Normalized")
+      .description("Normalized coordinates with half pixel offsets. Suitable for image sampling");
+  b.add_output<decl::Vector>("Pixel").description("Integer pixel coordinates");
 }
 
 using namespace blender::compositor;
 
-class TextureCoordinatesOperation : public NodeOperation {
+class ImageCoordinatesOperation : public NodeOperation {
  public:
-  TextureCoordinatesOperation(Context &context, DNode node) : NodeOperation(context, node)
+  ImageCoordinatesOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     InputDescriptor &image_descriptor = this->get_input_descriptor("Image");
     image_descriptor.skip_type_conversion = true;
@@ -69,15 +72,15 @@ class TextureCoordinatesOperation : public NodeOperation {
 
 static NodeOperation *get_compositor_operation(Context &context, DNode node)
 {
-  return new TextureCoordinatesOperation(context, node);
+  return new ImageCoordinatesOperation(context, node);
 }
 
 static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeTextureCoordinates");
-  ntype.ui_name = "Texture Coordinates";
+  cmp_node_type_base(&ntype, "CompositorNodeImageCoordinates");
+  ntype.ui_name = "Image Coordinates";
   ntype.ui_description = "Returns the coordinates of the pixels of an image";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
@@ -87,4 +90,4 @@ static void register_node()
 }
 NOD_REGISTER_NODE(register_node)
 
-}  // namespace blender::nodes::node_composite_texture_coordinates_cc
+}  // namespace blender::nodes::node_composite_image_coordinates_cc

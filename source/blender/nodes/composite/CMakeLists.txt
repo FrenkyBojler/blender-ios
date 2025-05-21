@@ -63,6 +63,7 @@ set(SRC
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
   nodes/node_composite_image.cc
+  nodes/node_composite_image_coordinates.cc
   nodes/node_composite_image_info.cc
   nodes/node_composite_inpaint.cc
   nodes/node_composite_invert.cc
@@ -86,6 +87,7 @@ set(SRC
   nodes/node_composite_planetrackdeform.cc
   nodes/node_composite_posterize.cc
   nodes/node_composite_premulkey.cc
+  nodes/node_composite_relative_to_pixel.cc
   nodes/node_composite_rgb.cc
   nodes/node_composite_rotate.cc
   nodes/node_composite_scale.cc
@@ -103,7 +105,6 @@ set(SRC
   nodes/node_composite_switch.cc
   nodes/node_composite_switchview.cc
   nodes/node_composite_texture.cc
-  nodes/node_composite_texture_coordinates.cc
   nodes/node_composite_tonemap.cc
   nodes/node_composite_trackpos.cc
   nodes/node_composite_transform.cc
