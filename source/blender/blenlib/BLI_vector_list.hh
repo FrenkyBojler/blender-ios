@@ -219,8 +219,8 @@ class VectorList {
 
     bool operator==(const Iterator &other) const
     {
-      return &other.vector_list == &vector_list && other.index_a == index_a &&
-             other.index_b == index_b;
+      BLI_assert(&other.vector_list == &vector_list);
+      return other.index_a == index_a && other.index_b == index_b;
     }
 
     bool operator!=(const Iterator &other) const
