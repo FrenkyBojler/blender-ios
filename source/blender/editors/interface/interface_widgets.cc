@@ -5325,26 +5325,58 @@ static void ui_draw_clip_tri(uiBlock *block, const rcti *rect, uiWidgetType *wt)
   }
 }
 
+static void ui_draw_dialog_alert(uiBlock *block, const rcti *rect)
+{
+  if (block->alert_level != uiBlockAlertLevel::Error) {
+    return;
+  }
+
+  float color[4];
+  switch (block->alert_level) {
+    case uiBlockAlertLevel::Error:
+      UI_GetThemeColor4fv(TH_ERROR, color);
+      break;
+    case uiBlockAlertLevel::Warning:
+      UI_GetThemeColor4fv(TH_WARNING, color);
+      break;
+    case uiBlockAlertLevel::Success:
+      UI_GetThemeColor4fv(TH_SUCCESS, color);
+      break;
+    default:
+      UI_GetThemeColor4fv(TH_INFO, color);
+  }
+
+  const uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  immUniformColor4fv(color);
+  GPU_line_width(3.0f);
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  immBegin(GPU_PRIM_LINES, 2);
+  immVertex2f(pos, rect->xmin, rect->ymax);
+  immVertex2f(pos, rect->xmax, rect->ymax);
+  immEnd();
+
+  immUnbindProgram();
+}
+
 void ui_draw_menu_back(uiStyle * /*style*/, uiBlock *block, const rcti *rect)
 {
   uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
 
   wt->state(wt, &STATE_INFO_NULL, blender::ui::EmbossType::Undefined);
   if (block) {
-    if (block->flag & UI_BLOCK_LOOP) {
-      if (block->alert_level == uiBlockAlertLevel::Error) {
-        UI_GetThemeColor4ubv(TH_ERROR, wt->wcol.outline);
-        wt->wcol.outline[3] = 255;
-        /* Blend a little of the outline color into the body. */
-        float fac = 0.05f;
-        wt->wcol.inner[0] = floorf((1.0f - fac) * wt->wcol.inner[0] + fac * wt->wcol.outline[0]);
-        wt->wcol.inner[1] = floorf((1.0f - fac) * wt->wcol.inner[1] + fac * wt->wcol.outline[1]);
-        wt->wcol.inner[2] = floorf((1.0f - fac) * wt->wcol.inner[2] + fac * wt->wcol.outline[2]);
-      }
-    }
-
     const float zoom = 1.0f / block->aspect;
-    wt->draw_block(&wt->wcol, rect, block->flag, block->direction, zoom);
+    wt->draw_block(&wt->wcol,
+                   rect,
+                   block->flag,
+                   block->alert_level == uiBlockAlertLevel::None ? block->direction : UI_DIR_DOWN,
+                   zoom);
+    if (block->alert_level != uiBlockAlertLevel::None) {
+      ui_draw_dialog_alert(block, rect);
+    }
   }
   else {
     wt->draw_block(&wt->wcol, rect, 0, 0, 1.0f);

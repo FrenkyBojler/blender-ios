@@ -3906,11 +3906,6 @@ void UI_block_theme_style_set(uiBlock *block, char theme_style)
   block->theme_style = theme_style;
 }
 
-void UI_block_alert_level_set(uiBlock *block, uiBlockAlertLevel level)
-{
-  block->alert_level = level;
-}
-
 bool UI_block_is_search_only(const uiBlock *block)
 {
   return block->flag & UI_BLOCK_SEARCH_ONLY;
@@ -4794,7 +4789,7 @@ static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
 static uiBut *ui_def_but_rna(uiBlock *block,
                              int type,
                              int retval,
-                             std::optional<StringRefNull> str,
+                             std::optional<StringRef> str,
                              int x,
                              int y,
                              short width,
@@ -4836,7 +4831,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
       if (!str) {
         str = item[i].name;
 #ifdef WITH_INTERNATIONAL
-        str = CTX_IFACE_(RNA_property_translation_context(prop), str->c_str());
+        str = CTX_IFACE_(RNA_property_translation_context(prop), *str);
 #endif
       }
 
@@ -4985,7 +4980,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 static uiBut *ui_def_but_rna_propname(uiBlock *block,
                                       int type,
                                       int retval,
-                                      std::optional<StringRefNull> str,
+                                      std::optional<StringRef> str,
                                       int x,
                                       int y,
                                       short width,
@@ -5463,7 +5458,7 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 const std::optional<StringRefNull> str,
+                 const std::optional<StringRef> str,
                  int x,
                  int y,
                  short width,
@@ -5483,7 +5478,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      const std::optional<StringRefNull> str,
+                      const std::optional<StringRef> str,
                       int x,
                       int y,
                       short width,
@@ -5862,6 +5857,35 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                           max,
                           tip);
 }
+uiBut *uiDefIconTextButS(uiBlock *block,
+                         int type,
+                         int retval,
+                         int icon,
+                         const StringRef str,
+                         int x,
+                         int y,
+                         short width,
+                         short height,
+                         short *poin,
+                         float min,
+                         float max,
+                         const std::optional<StringRef> tip)
+{
+  return uiDefIconTextBut(block,
+                          type | UI_BUT_POIN_SHORT,
+                          retval,
+                          icon,
+                          str,
+                          x,
+                          y,
+                          width,
+                          height,
+                          (void *)poin,
+                          min,
+                          max,
+                          tip);
+}
+
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -5888,7 +5912,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              const std::optional<blender::StringRefNull> str,
+                              const std::optional<blender::StringRef> str,
                               int x,
                               int y,
                               short width,
@@ -6054,10 +6078,15 @@ void UI_but_color_set(uiBut *but, const uchar color[4])
   copy_v4_v4_uchar(but->col, color);
 }
 
-void UI_but_placeholder_set(uiBut *but, const char *placeholder_text)
+void UI_but_placeholder_set(uiBut *but, const StringRef placeholder_text)
 {
   MEM_SAFE_FREE(but->placeholder);
-  but->placeholder = BLI_strdup_null(placeholder_text);
+  if (placeholder_text.is_empty()) {
+    but->placeholder = nullptr;
+  }
+  else {
+    but->placeholder = BLI_strdupn(placeholder_text.data(), placeholder_text.size());
+  }
 }
 
 const char *ui_but_placeholder_get(uiBut *but)

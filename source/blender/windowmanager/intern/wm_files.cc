@@ -4126,7 +4126,6 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
                                     text_width + int(style->columnspace * 2.5));
   const short icon_size = 40 * UI_SCALE_FAC;
-  UI_block_alert_level_set(block, uiBlockAlertLevel::Warning);
   uiLayout *layout = uiItemsAlertBox(
       block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
 
@@ -4452,7 +4451,6 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  UI_block_alert_level_set(block, uiBlockAlertLevel::Warning);
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_WARNING);
 
   /* Title. */
@@ -4694,7 +4692,6 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  UI_block_alert_level_set(block, uiBlockAlertLevel::Warning);
   uiLayout *layout = uiItemsAlertBox(block, 34, ALERT_ICON_QUESTION);
 
   const bool needs_overwrite_confirm = BKE_main_needs_overwrite_confirm(bmain);

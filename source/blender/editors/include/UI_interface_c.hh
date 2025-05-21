@@ -263,8 +263,6 @@ enum {
   UI_BUT_OVERRIDDEN = 1u << 31u,
 };
 
-enum class uiBlockAlertLevel : int8_t { None, Info, Success, Warning, Error };
-
 enum {
   /**
    * This is used when `UI_BUT_ACTIVATE_ON_INIT` is used, which is used to activate e.g. a search
@@ -909,7 +907,6 @@ enum {
   UI_BLOCK_THEME_STYLE_POPUP = 1,
 };
 void UI_block_theme_style_set(uiBlock *block, char theme_style);
-void UI_block_alert_level_set(uiBlock *block, uiBlockAlertLevel alert_level);
 blender::ui::EmbossType UI_block_emboss_get(uiBlock *block);
 void UI_block_emboss_set(uiBlock *block, blender::ui::EmbossType emboss);
 bool UI_block_is_search_only(const uiBlock *block);
@@ -1050,7 +1047,7 @@ void UI_but_color_set(uiBut *but, const uchar color[4]);
 /**
  * Set at hint that describes the expected value when empty.
  */
-void UI_but_placeholder_set(uiBut *but, const char *placeholder_text) ATTR_NONNULL(1);
+void UI_but_placeholder_set(uiBut *but, blender::StringRef placeholder_text);
 
 /**
  * Special button case, only draw it when used actively, for outliner etc.
@@ -1190,7 +1187,7 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 std::optional<blender::StringRefNull> str,
+                 std::optional<blender::StringRef> str,
                  int x,
                  int y,
                  short width,
@@ -1204,7 +1201,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      std::optional<blender::StringRefNull> str,
+                      std::optional<blender::StringRef> str,
                       int x,
                       int y,
                       short width,
@@ -1401,6 +1398,19 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          float min,
                          float max,
                          std::optional<blender::StringRef> tip);
+uiBut *uiDefIconTextButS(uiBlock *block,
+                         int type,
+                         int retval,
+                         int icon,
+                         blender::StringRef str,
+                         int x,
+                         int y,
+                         short width,
+                         short height,
+                         short *poin,
+                         float min,
+                         float max,
+                         std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -1420,7 +1430,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              std::optional<blender::StringRefNull> str,
+                              std::optional<blender::StringRef> str,
                               int x,
                               int y,
                               short width,
@@ -1677,7 +1687,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      PointerRNA *ptr,
                      PropertyRNA *prop,
                      int index,
-                     std::optional<blender::StringRefNull> name,
+                     std::optional<blender::StringRef> name,
                      int icon,
                      int x,
                      int y,
