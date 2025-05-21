@@ -391,7 +391,6 @@ static void update_visible_columns(ListBase &columns, DataSource &data_source)
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  sspreadsheet->runtime->cache.set_all_unused();
   spreadsheet_update_context(C);
 
   std::unique_ptr<DataSource> data_source = get_data_source(*C);
@@ -439,15 +438,13 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   draw_spreadsheet_in_region(C, region, *drawer);
 
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
+  sspreadsheet->runtime->left_column_width = drawer->left_column_width;
 
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
   ED_region_tag_redraw(footer);
   ARegion *sidebar = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_UI);
   ED_region_tag_redraw(sidebar);
-
-  /* Free all cache items that have not been used. */
-  sspreadsheet->runtime->cache.remove_all_unused();
 }
 
 static void spreadsheet_main_region_listener(const wmRegionListenerParams *params)
@@ -699,8 +696,12 @@ static void spreadsheet_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   const int2 cursor_re{win->eventstate->xy[0] - region->winrct.xmin,
                        win->eventstate->xy[1] - region->winrct.ymin};
-  if (find_hovered_column_edge(sspreadsheet, *region, cursor_re)) {
+  if (find_hovered_column_header_edge(sspreadsheet, *region, cursor_re)) {
     WM_cursor_set(win, WM_CURSOR_X_MOVE);
+    return;
+  }
+  if (find_hovered_column_header(sspreadsheet, *region, cursor_re)) {
+    WM_cursor_set(win, WM_CURSOR_HAND);
     return;
   }
   WM_cursor_set(win, WM_CURSOR_DEFAULT);
