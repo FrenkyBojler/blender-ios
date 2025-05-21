@@ -1574,7 +1574,7 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
 /** \name New Compositing Node Tree Operator
  * \{ */
 
-static wmOperatorStatus new_compositing_node_tree_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   bNodeTree *ntree;
@@ -1591,15 +1591,15 @@ static wmOperatorStatus new_compositing_node_tree_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-void NODE_OT_new_compositing_node_tree(wmOperatorType *ot)
+void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "New Compositing Node Tree";
-  ot->idname = "NODE_OT_new_compositing_node_tree";
+  ot->idname = "NODE_OT_new_compositing_node_group";
   ot->description = "Create a new compositing node tree and initialize it with default nodes.";
 
   /* api callbacks */
-  ot->exec = new_compositing_node_tree_exec;
+  ot->exec = new_compositing_node_group_exec;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

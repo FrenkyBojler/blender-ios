@@ -645,19 +645,19 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   Main *bmain = CTX_data_main(C);
 
   /* but lets check it anyway */
-  if (sce->compositing_nodetree) {
+  if (sce->compositing_node_group) {
     if (G.debug & G_DEBUG) {
       printf("error in composite initialize\n");
     }
     return;
   }
 
-  sce->compositing_nodetree = blender::bke::node_tree_add_tree(
+  sce->compositing_node_group = blender::bke::node_tree_add_tree(
       bmain, DATA_("Compositing Nodetree"), ntreeType_Composite->idname);
 
-  ED_node_composit_default_init(C, sce->compositing_nodetree);
+  ED_node_composit_default_init(C, sce->compositing_node_group);
 
-  BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_nodetree);
+  BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_node_group);
 }
 
 void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree)
@@ -1681,7 +1681,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
    * All the nodes are using same render result, so there is no need to do
    * anything smart about check how exactly scene is used. */
   bNode *node = nullptr;
-  for (bNode *node_iter : sce->compositing_nodetree->all_nodes()) {
+  for (bNode *node_iter : sce->compositing_node_group->all_nodes()) {
     if (node_iter->id == (ID *)sce) {
       node = node_iter;
       break;

@@ -2091,7 +2091,7 @@ typedef struct Scene {
   char _pad3[1];
 
   struct bNodeTree *nodetree DNA_DEPRECATED;
-  struct bNodeTree *compositing_nodetree;
+  struct bNodeTree *compositing_node_group;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;

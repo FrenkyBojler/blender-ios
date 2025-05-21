@@ -292,9 +292,9 @@ static void buttons_texture_users_from_context(ListBase *users,
   /* fill users */
   BLI_listbase_clear(users);
 
-  if (scene && scene->compositing_nodetree) {
+  if (scene && scene->compositing_node_group) {
     buttons_texture_users_find_nodetree(
-        users, &scene->id, scene->compositing_nodetree, N_("Compositor"));
+        users, &scene->id, scene->compositing_node_group, N_("Compositor"));
   }
 
   if (linestyle && !limited_mode) {
