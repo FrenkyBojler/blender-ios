@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const bNode *node = b.node_or_null();
 
   b.add_input<decl::Geometry>("Source");
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Vector>("Sample Position")
       .supports_field()
-      .implicit_field(implicit_field_inputs::position);
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   b.add_input<decl::Int>("Power").default_value(2).min(0).hide_value();
   b.add_input<decl::Float>("Error").min(1.0f).default_value(2.0f);

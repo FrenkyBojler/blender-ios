@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Vector>("Position").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);

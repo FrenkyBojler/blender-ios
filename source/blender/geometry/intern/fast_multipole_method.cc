@@ -222,26 +222,26 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const std::optional<IndexRange> sampler_to_bucket_range)
 {
   {
-  BLI_assert(src_joints_value.size() == src_bucket_value.size());
-  BLI_assert(src_joints_value.size() == dst_buckets_data.size());
+    BLI_assert(src_joints_value.size() == src_bucket_value.size());
+    BLI_assert(src_joints_value.size() == dst_buckets_data.size());
 
-  BLI_assert(all_same_size(Span(src_bucket_position)));
-  BLI_assert(all_same_size(Span(sample_position)));
+    BLI_assert(all_same_size(Span(src_bucket_position)));
+    BLI_assert(all_same_size(Span(sample_position)));
 
-  BLI_assert(all_same_size(src_joints_value));
-  BLI_assert(all_same_size(src_bucket_value));
-  BLI_assert(all_same_size(dst_buckets_data));
+    BLI_assert(all_same_size(src_joints_value));
+    BLI_assert(all_same_size(src_bucket_value));
+    BLI_assert(all_same_size(dst_buckets_data));
 
-  BLI_assert(buckets_offsets.total_size() == src_bucket_position[0].size());
+    BLI_assert(buckets_offsets.total_size() == src_bucket_position[0].size());
 
-  BLI_assert(src_joints_min_distance.size() == src_joints_centre.size());
-  BLI_assert(src_joints_min_distance.size() == src_joints_value[0].size());
+    BLI_assert(src_joints_min_distance.size() == src_joints_centre.size());
+    BLI_assert(src_joints_min_distance.size() == src_joints_value[0].size());
 
-  BLI_assert(src_bucket_position[0].size() == src_bucket_value[0].size());
+    BLI_assert(src_bucket_position[0].size() == src_bucket_value[0].size());
 
-  BLI_assert(dst_buckets_data[0].size() == sample_position[0].size());
-  BLI_assert(!sampler_to_bucket_range.has_value() || sampler_to_bucket_range->size() == dst_buckets_data[0].size());
-  BLI_assert(!sampler_to_bucket_range.has_value() || src_bucket_position[0].index_range().contains(*sampler_to_bucket_range));
+    BLI_assert(dst_buckets_data[0].size() == sample_position[0].size());
+    BLI_assert(!sampler_to_bucket_range.has_value() || sampler_to_bucket_range->size() == dst_buckets_data[0].size());
+    BLI_assert(!sampler_to_bucket_range.has_value() || src_bucket_position[0].index_range().contains(*sampler_to_bucket_range));
   }
   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(power_value);
 
@@ -261,6 +261,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   }
 
   Array<int, 0, GuardedAlignedAllocator<>> batch_indices_data(batch_size);
+  array_utils::fill_index_range<int>(batch_indices_data.as_mutable_span(), 0);
 
   Array<int, 0, GuardedAlignedAllocator<>> partition_indices_buffer(batch_size);
   Vector<float, 0, GuardedAlignedAllocator<>> batch_distances_buffer(batch_size);
@@ -268,9 +269,6 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   static_assert(sizeof(int) == sizeof(float));
   static_assert(alignof(int) == alignof(float));
   Array<int, 0, GuardedAlignedAllocator<>> partition_buffer_data(batch_size);
-  const MutableSpan<int> partition_buffer = partition_buffer_data.as_mutable_span();
-
-  array_utils::fill_index_range<int>(batch_indices_data.as_mutable_span(), 0);
 
   Vector<int, 32> depth_stack({0});
   Vector<int, 32> joint_stack({0});
@@ -303,7 +301,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const int total_to_pass_to_childs = ispc::count_floats_less_than(batch_distances_buffer.data(), math::square(joint_min_distance), prefix_to_visit);
 
     const bool all_pass_to_childs = total_to_pass_to_childs == prefix_to_visit;
-    if (UNLIKELY(all_pass_to_childs) && !leaf_joint) {
+    if (all_pass_to_childs && !leaf_joint) {
       depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
       joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
       prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
@@ -316,7 +314,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const MutableSpan<int> partition = partition_indices_buffer.as_mutable_span().take_front(prefix_to_visit);
 
       int pertition_mapping_total = -1;
-      if (LIKELY(!all_end_on_joint)) {
+      if (!all_end_on_joint) {
         pertition_mapping_total = ispc::predicate_partition_indices_float_cmp(
             partition.data(),
             batch_distances_buffer.data(),
@@ -326,7 +324,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
         ispc::parition_as_gather_front(batch_distances_buffer.as_mutable_span().cast<int>().data(),
                                        partition.data(),
-                                       partition_buffer.data(),
+                                       partition_buffer_data.data(),
                                        pertition_mapping_total,
                                        prefix_to_visit,
                                        total_to_pass_to_childs);
@@ -335,13 +333,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       ispc::sqrt_n_add_single(batch_distances_buffer.data(), prefix_to_visit - total_to_pass_to_childs, offset_value);
       distance_invertion(power_value, batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs));
 
-      if (LIKELY(!all_end_on_joint)) {
+      if (!all_end_on_joint) {
         for (const int data_i : IndexRange(data_axes_num)) {
           const MutableSpan<float> batch_values = batch_values_data[data_i].as_mutable_span().take_front(prefix_to_visit);
           BLI_assert(pertition_mapping_total != -1);
           ispc::parition_as_gather(batch_values.cast<int>().data(),
                                    partition.data(),
-                                   partition_buffer.data(),
+                                   partition_buffer_data.data(),
                                    pertition_mapping_total);
         }
       }
@@ -355,7 +353,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                            prefix_to_visit - total_to_pass_to_childs);
       }
 
-      if (LIKELY(!all_end_on_joint)) {
+      if (!all_end_on_joint) {
         BLI_assert(pertition_mapping_total != -1);
         BLI_assert(std::all_of(partition.begin(), partition.begin() + pertition_mapping_total, [&](const int i) {
           BLI_assert(i >= 0);
@@ -364,25 +362,25 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         }));
         ispc::parition_as_gather(batch_indices.data(),
                                  partition.data(),
-                                 partition_buffer.data(),
+                                 partition_buffer_data.data(),
                                  pertition_mapping_total);
         ispc::parition_as_gather(batch_positions_x.cast<int>().data(),
                                  partition.data(),
-                                 partition_buffer.data(),
+                                 partition_buffer_data.data(),
                                  pertition_mapping_total);
         ispc::parition_as_gather(batch_positions_y.cast<int>().data(),
                                  partition.data(),
-                                 partition_buffer.data(),
+                                 partition_buffer_data.data(),
                                  pertition_mapping_total);
         ispc::parition_as_gather(batch_positions_z.cast<int>().data(),
                                  partition.data(),
-                                 partition_buffer.data(),
+                                 partition_buffer_data.data(),
                                  pertition_mapping_total);
       }
     }
 
-    if (LIKELY(!leaf_joint)) {
-      if (UNLIKELY(all_end_on_joint)) {
+    if (!leaf_joint) {
+      if (all_end_on_joint) {
         continue;
       }
 
@@ -414,6 +412,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     batch_distances_buffer.reinitialize(joint_backet.size() * (chunked_batch_x.size() * chunk_size + rest_batch_x.size()));
     const int total_chunked_table_size = joint_backet.size() * chunked_batch_x.size() * chunk_size;
 
+#ifndef NDEBUG
+    batch_distances_buffer.as_mutable_span().fill(-1.0f);
+#endif
+
     const MutableSpan<float[16]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[16]>();
     const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
 
@@ -438,6 +440,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                                   backet_positions_data[2].data(),
                                   backet_positions_data[0].size(),
                                   rest_distances.data());
+     BLI_assert(!batch_distances_buffer.as_span().contains(-1.0f));
     
     ispc::sqrt_n_add_single(batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
     distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
