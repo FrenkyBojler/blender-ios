@@ -9,13 +9,31 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
+#include "BLI_utildefines.h"
 #include "DNA_node_tree_interface_types.h"
+#include "DNA_node_types.h"
 #include "NOD_node_declaration.hh"
+#include <iostream>
 
 namespace blender::bke::node_structure_type_inferencing {
 
 using nodes::StructureType;
 namespace aal = nodes::anonymous_attribute_lifetime;
+
+static StringRef to_string(const StructureType type)
+{
+  switch (type) {
+    case nodes::StructureType::Single:
+      return "Single";
+    case nodes::StructureType::Dynamic:
+      return "Dynamic";
+    case nodes::StructureType::Field:
+      return "Field";
+    case nodes::StructureType::Grid:
+      return "Grid";
+  }
+  return "BUTT";
+}
 
 static nodes::StructureTypeInterface calc_node_interface(const bNode &node)
 {
@@ -382,43 +400,68 @@ static StructureType left_to_right_merge(const StructureType a, const StructureT
   return a;
 }
 
-static bool simulation_zone_status_propagate(const bNode &input_node,
-                                             const bNode &output_node,
-                                             MutableSpan<StructureType> structure_types)
+static void print_assignment(const bNodeSocket &socket, const StructureType value)
 {
-  bool changed = false;
-  for (const int i : output_node.output_sockets().index_range()) {
-    /* First input node output is Delta Time which does not appear in the output node outputs. */
-    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
-    const bNodeSocket &output_socket = output_node.output_socket(i);
-    const StructureType new_value = left_to_right_merge(
-        structure_types[input_socket.index_in_tree()],
-        structure_types[output_socket.index_in_tree()]);
-    if (structure_types[input_socket.index_in_tree()] != new_value) {
-      structure_types[input_socket.index_in_tree()] = new_value;
-      changed = true;
-    }
+  if (socket.name[0] == '\0') {
+    return;
   }
-  return changed;
+  std::cout << socket.owner_node().name << ": " << socket.name << ": " << to_string(value) << '\n';
 }
 
-static bool repeat_zone_status_propagate(const bNode &input_node,
-                                         const bNode &output_node,
-                                         MutableSpan<StructureType> structure_types)
+enum class ZoneInOutChange {
+  None = 0,
+  In = (1 << 1),
+  Out = (1 << 2),
+};
+ENUM_OPERATORS(ZoneInOutChange, ZoneInOutChange::Out);
+
+static ZoneInOutChange simulation_zone_status_propagate(const bNode &input_node,
+                                                        const bNode &output_node,
+                                                        MutableSpan<StructureType> structure_types)
 {
-  bool changed = false;
+  ZoneInOutChange change = ZoneInOutChange::None;
   for (const int i : output_node.output_sockets().index_range()) {
-    const bNodeSocket &input_socket = input_node.output_socket(i + 1);
-    const bNodeSocket &output_socket = output_node.output_socket(i);
-    const StructureType new_value = left_to_right_merge(
-        structure_types[input_socket.index_in_tree()],
-        structure_types[output_socket.index_in_tree()]);
-    if (structure_types[input_socket.index_in_tree()] != new_value) {
-      structure_types[input_socket.index_in_tree()] = new_value;
-      changed = true;
+    /* First input node output is Delta Time which does not appear in the output node outputs. */
+    const bNodeSocket &input = input_node.output_socket(i + 1);
+    const bNodeSocket &output = output_node.output_socket(i);
+    const StructureType new_value = left_to_right_merge(structure_types[input.index_in_tree()],
+                                                        structure_types[output.index_in_tree()]);
+    if (structure_types[input.index_in_tree()] != new_value) {
+      print_assignment(input, new_value);
+      structure_types[input.index_in_tree()] = new_value;
+      change |= ZoneInOutChange::In;
+    }
+    if (structure_types[output.index_in_tree()] != new_value) {
+      print_assignment(output, new_value);
+      structure_types[output.index_in_tree()] = new_value;
+      change |= ZoneInOutChange::Out;
     }
   }
-  return changed;
+  return change;
+}
+
+static ZoneInOutChange repeat_zone_status_propagate(const bNode &input_node,
+                                                    const bNode &output_node,
+                                                    MutableSpan<StructureType> structure_types)
+{
+  ZoneInOutChange change = ZoneInOutChange::None;
+  for (const int i : output_node.output_sockets().index_range()) {
+    const bNodeSocket &input = input_node.output_socket(i + 1);
+    const bNodeSocket &output = output_node.output_socket(i);
+    const StructureType new_value = left_to_right_merge(structure_types[input.index_in_tree()],
+                                                        structure_types[output.index_in_tree()]);
+    if (structure_types[input.index_in_tree()] != new_value) {
+      print_assignment(input, new_value);
+      structure_types[input.index_in_tree()] = new_value;
+      change |= ZoneInOutChange::In;
+    }
+    if (structure_types[output.index_in_tree()] != new_value) {
+      print_assignment(output, new_value);
+      structure_types[output.index_in_tree()] = new_value;
+      change |= ZoneInOutChange::Out;
+    }
+  }
+  return change;
 }
 
 static bool propagate_zone_status(const bNodeTree &tree,
@@ -430,7 +473,9 @@ static bool propagate_zone_status(const bNodeTree &tree,
     case GEO_NODE_SIMULATION_INPUT: {
       const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        if (simulation_zone_status_propagate(node, *output_node, structure_types)) {
+        const ZoneInOutChange change = simulation_zone_status_propagate(
+            node, *output_node, structure_types);
+        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
           return true;
         }
       }
@@ -440,7 +485,9 @@ static bool propagate_zone_status(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
         const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (simulation_zone_status_propagate(*input_node, node, structure_types)) {
+          const ZoneInOutChange change = simulation_zone_status_propagate(
+              *input_node, node, structure_types);
+          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
             return true;
           }
         }
@@ -450,7 +497,9 @@ static bool propagate_zone_status(const bNodeTree &tree,
     case GEO_NODE_REPEAT_INPUT: {
       const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        if (repeat_zone_status_propagate(node, *output_node, structure_types)) {
+        const ZoneInOutChange change = repeat_zone_status_propagate(
+            node, *output_node, structure_types);
+        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
           return true;
         }
       }
@@ -460,7 +509,9 @@ static bool propagate_zone_status(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
         const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (repeat_zone_status_propagate(*input_node, node, structure_types)) {
+          const ZoneInOutChange change = repeat_zone_status_propagate(
+              *input_node, node, structure_types);
+          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
             return true;
           }
         }
@@ -486,6 +537,14 @@ static void propagate_left_to_right(const bNodeTree &tree,
                                     const Span<StructureType> group_input_structure_types,
                                     MutableSpan<StructureType> structure_types)
 {
+  for (const bNodeSocket *input : tree.all_input_sockets()) {
+    if (!input->is_directly_linked()) {
+      const nodes::SocketDeclaration &declaration = *input->runtime->declaration;
+      const StructureType new_value = get_unconnected_input_structure_type(declaration);
+      print_assignment(*input, new_value);
+      structure_types[input->index_in_tree()] = get_unconnected_input_structure_type(declaration);
+    }
+  }
   while (true) {
     bool need_update = false;
     for (const bNode *node : tree.toposort_left_to_right()) {
@@ -496,6 +555,8 @@ static void propagate_left_to_right(const bNodeTree &tree,
       const Span<const bNodeSocket *> output_sockets = node->output_sockets();
       if (node->is_group_input()) {
         for (const int i : output_sockets.index_range().drop_back(1)) {
+          const StructureType new_value = group_input_structure_types[i];
+          print_assignment(*output_sockets[i], new_value);
           structure_types[output_sockets[i]->index_in_tree()] = group_input_structure_types[i];
         }
         continue;
@@ -505,7 +566,6 @@ static void propagate_left_to_right(const bNodeTree &tree,
         if (!input->is_available()) {
           continue;
         }
-        const nodes::SocketDeclaration &declaration = *input->runtime->declaration;
 
         std::optional<StructureType> input_type;
         for (const bNodeLink *link : input->directly_linked_links()) {
@@ -520,8 +580,10 @@ static void propagate_left_to_right(const bNodeTree &tree,
             input_type = new_type;
           }
         }
-        structure_types[input->index_in_tree()] = input_type.value_or(
-            get_unconnected_input_structure_type(declaration));
+        if (input_type) {
+          print_assignment(*input, *input_type);
+          structure_types[input->index_in_tree()] = *input_type;
+        }
       }
 
       const nodes::StructureTypeInterface &node_interface = node_interfaces[node->index()];
@@ -547,6 +609,7 @@ static void propagate_left_to_right(const bNodeTree &tree,
             output_type = new_type;
           }
         }
+        print_assignment(output, output_type.value_or(declaration.structure_type));
         structure_types[output.index_in_tree()] = output_type.value_or(declaration.structure_type);
       }
 
