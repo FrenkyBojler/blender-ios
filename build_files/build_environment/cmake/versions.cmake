@@ -1045,11 +1045,9 @@ set(LEVEL_ZERO_HOMEPAGE https://github.com/oneapi-src/level-zero)
 set(LEVEL_ZERO_LICENSE SPDX:MIT)
 set(LEVEL_ZERO_COPYRIGHT "Copyright (C) 2019-2024 Intel Corporation")
 
-# The release tag is a bit too late for Blender deadline, so the latest
-# commit from the release branch "sycl-rel-6_1_0" is used here
-set(DPCPP_VERSION 67030375d8e584f4a972f7796cb527b61f246a43)
+set(DPCPP_VERSION v6.1.0)
 set(DPCPP_URI https://github.com/intel/llvm/archive/${DPCPP_VERSION}.tar.gz)
-set(DPCPP_HASH 31fa9dff8d1b5f9721d330094906e3f0dadeb97b4a4241f3f00e9095170faa43)
+set(DPCPP_HASH a698b953527edeaca0495134cd2655ecaf4826128f85177c20a8749b18df49cd)
 set(DPCPP_HASH_TYPE SHA256)
 set(DPCPP_FILE DPCPP-${DPCPP_VERSION}.tar.gz)
 set(DPCPP_NAME DPC++)

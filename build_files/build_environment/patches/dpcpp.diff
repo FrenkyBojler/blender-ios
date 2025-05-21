@@ -167,10 +167,22 @@ index 5cabc6ccc..e69de29bb 100644
 -#     Add -Wundef to test/Jamfile
 -add_boost_module_headers(NAME "throw_exception" SRC_DIR ${BOOST_THROW_EXCEPTION_SOURCE_DIR} GIT_TAG ${BOOST_THROW_EXCEPTION_GIT_TAG})
 diff --git a/sycl/cmake/modules/FetchUnifiedRuntime.cmake b/sycl/cmake/modules/FetchUnifiedRuntime.cmake
-index e9d52c5b2..97c88f690 100644
+index e9d52c5b2..8b439ba00 100644
 --- a/sycl/cmake/modules/FetchUnifiedRuntime.cmake
 +++ b/sycl/cmake/modules/FetchUnifiedRuntime.cmake
-@@ -124,11 +124,11 @@ if(SYCL_UR_USE_FETCH_CONTENT)
+@@ -31,7 +31,10 @@ set(UR_BUILD_EXAMPLES OFF CACHE BOOL "Build example applications." FORCE)
+ set(UR_BUILD_TESTS OFF CACHE BOOL "Build unit tests." FORCE)
+ set(UR_BUILD_XPTI_LIBS OFF)
+ set(UR_ENABLE_SYMBOLIZER ON CACHE BOOL "Enable symbolizer for sanitizer layer.")
+-set(UR_ENABLE_TRACING ON)
++# Blender: By default this option is override to ON
++# but we don't need this option, because we build DPC++ without xpti
++# so it is now would be overriding to OFF
++set(UR_ENABLE_TRACING OFF)
+
+ if("level_zero" IN_LIST SYCL_ENABLE_BACKENDS)
+   set(UR_BUILD_ADAPTER_L0 ON)
+@@ -124,11 +127,11 @@ if(SYCL_UR_USE_FETCH_CONTENT)
    # to link statically on windows
    if(WIN32)
      set(UMF_BUILD_SHARED_LIBRARY OFF CACHE INTERNAL "Build UMF shared library")
@@ -282,45 +294,3 @@ index 883142678..dedd9f83f 100644
  
  foreach(flag_var
      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-diff --git a/xptifw/src/CMakeLists.txt b/xptifw/src/CMakeLists.txt
-index 1337f3787..2893aab50 100644
---- a/xptifw/src/CMakeLists.txt
-+++ b/xptifw/src/CMakeLists.txt
-@@ -1,4 +1,11 @@
- # Fetch third party headers
-+
-+# Blender code below is determined to use FetchContent_Declare
-+# temporarily allow it as it is a MIT library, but
-+# if needed, this could be transformed into the separate Blender
-+# dependency in order to ensure compliance
-+set(FETCHCONTENT_FULLY_DISCONNECTED OFF)
-+
- set(EMHASH_REPO https://github.com/ktprime/emhash)
- message(STATUS "Will fetch emhash from ${EMHASH_REPO}")
- FetchContent_Declare(emhash-headers
-@@ -11,8 +18,16 @@ if(NOT emhash-headers_POPULATED)
-   FetchContent_Populate(emhash-headers)
- endif()
-
-+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
-+
- set(XPTIFW_EMHASH_HEADERS "${emhash-headers_SOURCE_DIR}")
-
-+# Blender code below is determined to use FetchContent_Declare
-+# temporarily allow it although this is not exactly nice situation
-+# as this is a library with Apache License Version 2.0, January 2004
-+# license, thus it is better to make this a Blender own dependency in future
-+set(FETCHCONTENT_FULLY_DISCONNECTED OFF)
-+
- set(PARALLEL_HASHMAP_REPO https://github.com/greg7mdp/parallel-hashmap.git)
- message(STATUS "Will fetch parallel-hashmap from ${PARALLEL_HASHMAP_REPO}")
- FetchContent_Declare(parallel-hashmap
-@@ -23,6 +38,8 @@ FetchContent_Declare(parallel-hashmap
- FetchContent_GetProperties(parallel-hashmap)
- FetchContent_MakeAvailable(parallel-hashmap)
- 
-+set(FETCHCONTENT_FULLY_DISCONNECTED ON)
-+
- set(XPTIFW_PARALLEL_HASHMAP_HEADERS "${parallel-hashmap_SOURCE_DIR}")
-
- file(GLOB SOURCES *.cpp)
