@@ -57,16 +57,19 @@ class VectorList {
     used_vectors_ = 1;
   }
 
+  /* Insert a new element at the end of the VectorList. */
   void append(const T &value)
   {
     this->append_as(value);
   }
 
+  /* Insert a new element at the end of the VectorList. */
   void append(T &&value)
   {
     this->append_as(std::move(value));
   }
 
+  /* This is similar to `std::vector::emplace_back`. */
   template<typename ForwardT> void append_as(ForwardT &&value)
   {
     UsedVector &vector = this->ensure_space_for_one();
@@ -74,28 +77,43 @@ class VectorList {
     size_++;
   }
 
+  /**
+   * Return a reference to the first element in the VectorList.
+   * This invokes undefined behavior when the VectorList is empty.
+   */
   T &first()
   {
     BLI_assert(size() > 0);
     return vectors_.first().first();
   }
 
+  /**
+   * Return a reference to the last element in the VectorList.
+   * This invokes undefined behavior when the VectorList is empty.
+   */
   T &last()
   {
     BLI_assert(size() > 0);
     return vectors_[used_vectors_ - 1].last();
   }
 
+  /* Return how many values are currently stored in the VectorList. */
   int64_t size() const
   {
     return size_;
   }
 
+  /**
+   * Returns true when the VectorList contains no elements, otherwise false.
+   *
+   * This is the same as std::vector::empty.
+   */
   bool is_empty() const
   {
     return size_ == 0;
   }
 
+  /* Afterwards the VectorList has 0 elements, but will still have memory to be refilled again. */
   void clear()
   {
     for (UsedVector &vector : vectors_) {
@@ -105,6 +123,7 @@ class VectorList {
     size_ = 0;
   }
 
+  /* Afterwards the VectorList has 0 elements and the Vectors allocated memory will be freed. */
   void clear_and_shrink()
   {
     vectors_.clear();
@@ -114,8 +133,8 @@ class VectorList {
   }
 
   /**
-   * Get the value at the given index. This invokes undefined behavior when the index is out of
-   * bounds.
+   * Get the value at the given index.
+   * This invokes undefined behavior when the index is out of bounds.
    */
   const T &operator[](int64_t index) const
   {
@@ -125,6 +144,10 @@ class VectorList {
     return vectors_[index_pair.first][index_pair.second];
   }
 
+  /**
+   * Get the value at the given index.
+   * This invokes undefined behavior when the index is out of bounds.
+   */
   T &operator[](int64_t index)
   {
     BLI_assert(index >= 0);
