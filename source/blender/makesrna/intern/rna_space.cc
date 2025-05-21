@@ -3613,6 +3613,16 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
   return item_array;
 }
 
+static StructRNA *rna_SpreadsheetTableID_refine(PointerRNA *ptr)
+{
+  SpreadsheetTableID *table_id = ptr->data_as<SpreadsheetTableID>();
+  switch (eSpreadsheetTableIDType(table_id->type)) {
+    case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY:
+      return &RNA_SpreadsheetTableIDGeometry;
+  }
+  return &RNA_SpreadsheetTableID;
+}
+
 static void rna_iterator_SpreadsheetTable_columns_begin(CollectionPropertyIterator *iter,
                                                         PointerRNA *ptr)
 {
@@ -8533,11 +8543,39 @@ static void rna_def_spreadsheet_table_id(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SpreadsheetTableID", nullptr);
   RNA_def_struct_ui_text(
       srna, "Spreadsheet Table ID", "Data used to identify a spreadsheet table");
+  RNA_def_struct_refine_func(srna, "rna_SpreadsheetTableID_refine");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, spreadsheet_table_id_type_items);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Type", "The type of the table identifier");
+}
+
+static void rna_def_spreadsheet_table_id_geometry(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "SpreadsheetTableIDGeometry", "SpreadsheetTableID");
+
+  prop = RNA_def_property(srna, "object_eval_state", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, spreadsheet_object_eval_state_items);
+  RNA_def_property_ui_text(prop, "Object Evaluation State", "");
+
+  prop = RNA_def_property(srna, "geometry_component_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_geometry_component_type_items);
+  RNA_def_property_ui_text(
+      prop, "Geometry Component", "Part of the geometry to display data from");
+
+  prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
+  RNA_def_property_ui_text(prop, "Attribute Domain", "Attribute domain to display");
+
+  prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Viewer Path", "Path to the data that is displayed");
 }
 
 static void rna_def_spreadsheet_table(BlenderRNA *brna)
@@ -8546,6 +8584,7 @@ static void rna_def_spreadsheet_table(BlenderRNA *brna)
   PropertyRNA *prop;
 
   rna_def_spreadsheet_table_id(brna);
+  rna_def_spreadsheet_table_id_geometry(brna);
   rna_def_spreadsheet_column(brna);
 
   srna = RNA_def_struct(brna, "SpreadsheetTable", nullptr);
