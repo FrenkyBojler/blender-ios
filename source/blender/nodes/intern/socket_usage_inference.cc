@@ -1037,6 +1037,16 @@ struct SocketUsageInferencer {
   }
 };
 
+static bool input_may_affect_visibility(const bNodeTreeInterfaceSocket &socket)
+{
+  return socket.socket_type == StringRef("NodeSocketMenu");
+}
+
+static bool input_may_affect_visibility(const bNodeSocket &socket)
+{
+  return socket.type == SOCK_MENU;
+}
+
 Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
@@ -1054,33 +1064,34 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
   }
 
   /* Find input sockets that should be hidden. */
-  Array<bool> top_level_ignored_inputs(all_input_sockets.size(), NoInitialization{});
+  Array<bool> only_controllers_used(all_input_sockets.size(), NoInitialization{});
+  Array<bool> all_ignored_inputs(all_input_sockets.size(), true);
   threading::parallel_for(all_input_sockets.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
       const bNodeSocket &socket = *all_input_sockets[i];
-      top_level_ignored_inputs[i] = !all_usages[i].is_used || socket.type == SOCK_MENU;
+      only_controllers_used[i] = !input_may_affect_visibility(socket);
     }
   });
-  SocketUsageInferencer inferencer{tree, std::nullopt, top_level_ignored_inputs};
-  inferencer.mark_top_level_node_outputs_as_used();
+  SocketUsageInferencer inferencer_all_unknown{tree, std::nullopt, all_ignored_inputs};
+  SocketUsageInferencer inferencer_only_controllers{tree, std::nullopt, only_controllers_used};
+  inferencer_all_unknown.mark_top_level_node_outputs_as_used();
+  inferencer_only_controllers.mark_top_level_node_outputs_as_used();
   for (const int i : all_input_sockets.index_range()) {
-    const bNodeSocket &socket = *all_input_sockets[i];
     if (all_usages[i].is_used) {
       /* Used sockets are always visible. */
       continue;
     }
-    if (inferencer.is_socket_used({nullptr, &socket})) {
-      /* The socket is used now but was not used before. So its usage depends on a menu socket. */
+    const SocketInContext socket{nullptr, all_input_sockets[i]};
+    const bool is_ever_used = inferencer_all_unknown.is_socket_used(socket);
+    const bool is_used_with_current_controllers = inferencer_only_controllers.is_socket_used(
+        socket);
+
+    if (is_ever_used && !is_used_with_current_controllers) {
       all_usages[i].is_visible = false;
     }
   }
 
   return all_usages;
-}
-
-static bool input_may_affect_visibility(const bNodeTreeInterfaceSocket &socket)
-{
-  return socket.socket_type == StringRef("NodeSocketMenu");
 }
 
 void infer_group_interface_inputs_usage(const bNodeTree &group,
@@ -1139,11 +1150,12 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
     bool is_used_with_current_controllers = false;
 
     for (const bNode *node : group.group_input_nodes()) {
-      const bNodeSocket &socket = node->output_socket(i);
-      if (inferencer_all_unknown.is_socket_used({nullptr, &socket})) {
+      const SocketInContext socket{nullptr, &node->output_socket(i)};
+
+      if (inferencer_all_unknown.is_socket_used(socket)) {
         is_ever_used = true;
       }
-      if (inferencer_only_controllers.is_socket_used({nullptr, &socket})) {
+      if (inferencer_only_controllers.is_socket_used(socket)) {
         is_used_with_current_controllers = true;
       }
     }
