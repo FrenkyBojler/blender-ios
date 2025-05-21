@@ -43,10 +43,10 @@ class VectorList {
   static_assert(is_power_of_2(CapacityStart));
   static_assert(is_power_of_2(CapacitySoftLimit));
 
-  /**
-   * Contains the individual vectors. There must always be at least one vector
-   */
+  /* Contains the individual vectors. There must always be at least one vector. */
   Vector<UsedVector> vectors_;
+  /* Number of vectors in use. */
+  int64_t used_vectors_ = 0;
   /* Total element count accross all vectors_. */
   int64_t size_ = 0;
 
@@ -54,6 +54,7 @@ class VectorList {
   VectorList()
   {
     this->append_vector();
+    used_vectors_ = 1;
   }
 
   void append(const T &value)
@@ -75,12 +76,14 @@ class VectorList {
 
   T &first()
   {
+    BLI_assert(size() > 0);
     return vectors_.first().first();
   }
 
   T &last()
   {
-    return vectors_.last().last();
+    BLI_assert(size() > 0);
+    return vectors_[used_vectors_ - 1].last();
   }
 
   int64_t size() const
@@ -95,10 +98,11 @@ class VectorList {
 
   void clear()
   {
-    vectors_.clear();
-    append_vector();
+    for (UsedVector &vector : vectors_) {
+      vector.clear();
+    }
+    used_vectors_ = 1;
     size_ = 0;
-    /* TODO: Don't deallocate. */
   }
 
   /**
@@ -155,12 +159,14 @@ class VectorList {
 
   UsedVector &ensure_space_for_one()
   {
-    UsedVector &vector = vectors_.last();
-    if (LIKELY(!vector.is_at_capacity())) {
-      return vector;
+    if (vectors_[used_vectors_ - 1].is_at_capacity()) {
+      size_t capacity = vectors_.size();
+      if (used_vectors_ == capacity) {
+        append_vector();
+      }
+      used_vectors_++;
     }
-    this->append_vector();
-    return vectors_.last();
+    return vectors_[used_vectors_ - 1];
   }
 
   void append_vector()
@@ -195,7 +201,7 @@ class VectorList {
 
     Iterator &operator++()
     {
-      if (vector_list.vectors_[index_a].capacity() == index_b + 1) {
+      if (vector_list.vectors_[index_a].size() == index_b + 1) {
         index_a++;
         index_b = 0;
       }
@@ -227,7 +233,7 @@ class VectorList {
   }
   MutIterator end()
   {
-    return MutIterator(*this, vectors_.size(), vectors_.last().size());
+    return MutIterator(*this, used_vectors_, vectors_[used_vectors_ - 1].size());
   }
 
   ConstIterator begin() const
@@ -236,7 +242,7 @@ class VectorList {
   }
   ConstIterator end() const
   {
-    return ConstIterator(*this, vectors_.size(), vectors_.last().size());
+    return ConstIterator(*this, used_vectors_, vectors_[used_vectors_ - 1].size());
   }
 };
 
