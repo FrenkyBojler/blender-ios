@@ -140,8 +140,6 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
                                         void *thunk,
                                         GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
 {
-  // TODO: This should lock?
-
   /* Search if this material is not already compiled. */
   LISTBASE_FOREACH (LinkData *, link, gpumaterials) {
     GPUMaterial *mat = (GPUMaterial *)link->data;

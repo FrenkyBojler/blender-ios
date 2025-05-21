@@ -93,6 +93,7 @@ using GPUCodegenCallbackFn = void (*)(void *thunk,
  */
 using GPUMaterialPassReplacementCallbackFn = GPUPass *(*)(void *thunk, GPUMaterial *mat);
 
+/** WARNING: gpumaterials thread safety must be ensured by the caller. */
 GPUMaterial *GPU_material_from_nodetree(
     Material *ma,
     bNodeTree *ntree,
