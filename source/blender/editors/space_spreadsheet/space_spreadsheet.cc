@@ -441,6 +441,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   const SpreadsheetTableID *active_table_id = get_active_table_id(*sspreadsheet);
   SpreadsheetTable *table = spreadsheet_table_find(*sspreadsheet, *active_table_id);
   if (!table) {
+    spreadsheet_table_remove_unused(*sspreadsheet);
     table = spreadsheet_table_new(spreadsheet_table_id_copy(*active_table_id));
     spreadsheet_table_add(*sspreadsheet, table);
   }

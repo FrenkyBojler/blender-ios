@@ -5,6 +5,9 @@
 #include "BKE_viewer_path.hh"
 
 #include "BLI_hash.hh"
+#include "BLI_listbase.h"
+
+#include "DNA_array_utils.hh"
 
 #include "BLO_read_write.hh"
 
@@ -251,6 +254,39 @@ void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *tab
   MEM_SAFE_FREE(sspreadsheet.tables);
   sspreadsheet.tables = new_tables;
   sspreadsheet.num_tables++;
+}
+
+void spreadsheet_table_remove_unused(SpaceSpreadsheet &sspreadsheet)
+{
+  dna::array::remove_if<SpreadsheetTable *>(
+      &sspreadsheet.tables,
+      &sspreadsheet.num_tables,
+      [&](const SpreadsheetTable *table) {
+        if (!(table->flag & SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED)) {
+          /* Remove tables that have never been modified manually. Those can be rebuilt from
+           * scratch if necessary. */
+          return true;
+        }
+        switch (eSpreadsheetTableIDType(table->id->type)) {
+          case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
+            const SpreadsheetTableIDGeometry &table_id =
+                *reinterpret_cast<const SpreadsheetTableIDGeometry *>(table->id);
+            LISTBASE_FOREACH (ViewerPathElem *, elem, &table_id.viewer_path.path) {
+              if (elem->type == VIEWER_PATH_ELEM_TYPE_ID) {
+                const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(
+                    *elem);
+                if (!id_elem.id) {
+                  /* Remove tables which reference an ID that does not exist anymore. */
+                  return true;
+                }
+              }
+            }
+            break;
+          }
+        }
+        return false;
+      },
+      [](SpreadsheetTable **table) { spreadsheet_table_free(*table); });
 }
 
 }  // namespace blender::ed::spreadsheet

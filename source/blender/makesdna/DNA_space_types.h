@@ -1161,7 +1161,7 @@ typedef struct SpreadsheetTable {
 
   SpreadsheetColumn **columns;
   int num_columns;
-  char _pad0[4];
+  uint32_t flag;
 } SpreadsheetTable;
 
 typedef struct SpaceSpreadsheet {

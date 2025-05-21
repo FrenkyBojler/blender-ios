@@ -134,7 +134,9 @@ struct ResizeColumnData {
 static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion &region = *CTX_wm_region(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
+  SpreadsheetTable &table = *get_active_table(sspreadsheet);
   ResizeColumnData &data = *static_cast<ResizeColumnData *>(op->customdata);
 
   auto cancel = [&]() {
@@ -144,6 +146,7 @@ static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const w
     return OPERATOR_CANCELLED;
   };
   auto finish = [&]() {
+    table.flag |= SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED;
     MEM_delete(&data);
     ED_region_tag_redraw(&region);
     return OPERATOR_FINISHED;
@@ -290,6 +293,9 @@ static wmOperatorStatus fit_column_invoke(bContext *C, wmOperator * /*op*/, cons
     return OPERATOR_CANCELLED;
   }
 
+  SpreadsheetTable &table = *get_active_table(sspreadsheet);
+  table.flag |= SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED;
+
   const float width_px = values->fit_column_width_px();
   column->width = width_px / SPREADSHEET_WIDTH_UNIT;
 
@@ -365,8 +371,8 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
   const int2 cursor_re{event->mval[0], event->mval[1]};
   ReorderColumnData &data = *static_cast<ReorderColumnData *>(op->customdata);
 
-  SpreadsheetTable *table = get_active_table(sspreadsheet);
-  Span<SpreadsheetColumn *> columns(table->columns, table->num_columns);
+  SpreadsheetTable &table = *get_active_table(sspreadsheet);
+  Span<SpreadsheetColumn *> columns(table.columns, table.num_columns);
 
   const int old_index = columns.first_index(data.column);
   int new_index = 0;
@@ -400,8 +406,9 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
     }
     case LEFTMOUSE: {
       if (old_index != new_index) {
-        dna::array::move_index(table->columns, table->num_columns, old_index, new_index);
+        dna::array::move_index(table.columns, table.num_columns, old_index, new_index);
       }
+      table.flag |= SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED;
       cleanup_on_finish();
       return OPERATOR_FINISHED;
     }

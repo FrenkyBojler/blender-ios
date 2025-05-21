@@ -1013,6 +1013,10 @@ typedef enum eSpreadsheetTableIDType {
   SPREADSHEET_TABLE_ID_TYPE_GEOMETRY = 0,
 } eSpreadsheetTableType;
 
+typedef enum eSpreadsheetTableFlag {
+  SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED = (1 << 0),
+} eSpreadsheetTableFlag;
+
 /**
  * We can't just use UI_UNIT_X, because it does not take `widget.points` into account, which
  * modifies the width of text as well.
