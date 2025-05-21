@@ -566,6 +566,16 @@ static const EnumPropertyItem spreadsheet_object_eval_state_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
+    {SPREADSHEET_TABLE_ID_TYPE_GEOMETRY,
+     "GEOMETRY",
+     ICON_NONE,
+     "Geometry",
+     "Table contains geometry data"},
+    {0, nullptr, 0, nullptr, nullptr},
+
+};
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -8518,10 +8528,16 @@ static void rna_def_spreadsheet_column(BlenderRNA *brna)
 static void rna_def_spreadsheet_table_id(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, "SpreadsheetTableID", nullptr);
   RNA_def_struct_ui_text(
       srna, "Spreadsheet Table ID", "Data used to identify a spreadsheet table");
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, spreadsheet_table_id_type_items);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Type", "The type of the table identifier");
 }
 
 static void rna_def_spreadsheet_table(BlenderRNA *brna)
