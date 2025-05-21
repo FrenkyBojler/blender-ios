@@ -376,9 +376,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   const float prev_weight = uiLayoutGetSearchWeight(layout);
   uiLayoutSetSearchWeight(layout, search_weight);
 
-  PointerRNA opptr;
-  uiItemFullO_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, &opptr);
+  PointerRNA opptr = layout->op(ot, text, icon, uiLayoutGetOperatorContext(layout), flag);
 
   uiLayoutSetSearchWeight(layout, prev_weight);
   return opptr;
@@ -489,7 +487,7 @@ static void rna_uiItemM(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemM(layout, menuname, text, icon);
+  layout->menu(menuname, text, icon);
 }
 
 static void rna_uiItemM_contents(uiLayout *layout, const char *menuname)

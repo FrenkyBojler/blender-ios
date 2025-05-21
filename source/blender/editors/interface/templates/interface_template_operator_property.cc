@@ -97,14 +97,13 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     UI_block_set_active_operator(block, op, false);
 
     row = &layout->row(true);
-    uiItemM(row, "WM_MT_operator_presets", std::nullopt, ICON_NONE);
+    row->menu("WM_MT_operator_presets", std::nullopt, ICON_NONE);
 
     wmOperatorType *ot = WM_operatortype_find("WM_OT_operator_preset_add", false);
-    uiItemFullO_ptr(row, ot, "", ICON_ADD, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+    op_ptr = op_ptr = row->op(ot, "", ICON_ADD, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
 
-    uiItemFullO_ptr(
-        row, ot, "", ICON_REMOVE, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+    op_ptr = row->op(ot, "", ICON_REMOVE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
     RNA_boolean_set(&op_ptr, "remove_active", true);
   }
@@ -299,14 +298,11 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
   /* Disable for now, doesn't fit well in popover. */
 #if 0
   /* Repeat button with operator name as text. */
-  uiItemFullO(layout,
-              "SCREEN_OT_repeat_last",
-              WM_operatortype_name(op->type, op->ptr),
-              ICON_NONE,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              0,
-              nullptr);
+  layout->op("SCREEN_OT_repeat_last",
+             WM_operatortype_name(op->type, op->ptr),
+             ICON_NONE,
+             WM_OP_INVOKE_DEFAULT,
+             0);
 #endif
 
   if (WM_operator_repeat_check(C, op)) {
@@ -444,7 +440,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
                  UI_TEMPLATE_LIST_FLAG_NONE);
 
   uiLayout *col = &row->column(true);
-  uiItemM(col, "COLLECTION_MT_exporter_add", "", ICON_ADD);
+  col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
   uiItemIntO(col, "", ICON_REMOVE, "COLLECTION_OT_exporter_remove", "index", index);
 
   col = &layout->column(true);

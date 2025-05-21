@@ -403,10 +403,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   col = &row->column(true);
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  uiItemFullO_ptr(col, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 1);
-  uiItemFullO_ptr(
-      col, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
@@ -416,14 +415,11 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col->label(IFACE_("Layer:"), ICON_NONE);
       row = &col->row(false);
       row->prop(&active_input_ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
+      row->op("NODE_OT_output_file_remove_active_socket",
+              "",
+              ICON_X,
+              WM_OP_EXEC_DEFAULT,
+              UI_ITEM_R_ICON_ONLY);
     }
     else {
       col = &layout->column(true);
@@ -431,14 +427,11 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col->label(IFACE_("File Subpath:"), ICON_NONE);
       row = &col->row(false);
       row->prop(&active_input_ptr, "path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
+      row->op("NODE_OT_output_file_remove_active_socket",
+              "",
+              ICON_X,
+              WM_OP_EXEC_DEFAULT,
+              UI_ITEM_R_ICON_ONLY);
 
       /* format details for individual files */
       imfptr = RNA_pointer_get(&active_input_ptr, "format");
@@ -882,7 +875,7 @@ class FileOutputOperation : public NodeOperation {
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
-    BLI_strncpy(node_base_path, get_base_path(), FILE_MAX);
+    STRNCPY(node_base_path, get_base_path());
     {
       blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
           node_base_path, FILE_MAX, template_variables);
@@ -895,7 +888,7 @@ class FileOutputOperation : public NodeOperation {
     if (base_name[0]) {
       /* Do template expansion on the socket's sub path ("base name"). */
       char sub_path[FILE_MAX] = "";
-      BLI_strncpy(sub_path, base_name, FILE_MAX);
+      STRNCPY(sub_path, base_name);
       {
         blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
             sub_path, FILE_MAX, template_variables);

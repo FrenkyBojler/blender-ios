@@ -840,8 +840,8 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
 
   /* Tools that are not brushes do not have the brush gizmo to update the vertex as the mouse move,
    * so it needs to be updated here. */
-  SculptCursorGeometryInfo sgi;
-  SCULPT_cursor_geometry_info_update(C, &sgi, region_location, false);
+  CursorGeometryInfo cgi;
+  cursor_geometry_info_update(C, &cgi, region_location, false);
 
   if (std::holds_alternative<std::monostate>(ss.active_vert())) {
     return OPERATOR_CANCELLED;
@@ -1195,7 +1195,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const ApplyMaskMode mode = ApplyMaskMode(RNA_enum_get(op->ptr, "mix_mode"));
   const float factor = RNA_float_get(op->ptr, "mix_factor");
@@ -1389,7 +1389,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
   BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const ApplyMaskMode mode = ApplyMaskMode(RNA_enum_get(op->ptr, "mix_mode"));
   const float factor = RNA_float_get(op->ptr, "mix_factor");

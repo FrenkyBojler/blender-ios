@@ -227,14 +227,12 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           }
           if (umi_op->op_prop_enum[0] == '\0') {
             IDProperty *prop = umi_op->prop ? IDP_CopyProperty(umi_op->prop) : nullptr;
-            uiItemFullO_ptr(menu->layout,
-                            ot,
-                            ui_name,
-                            ICON_NONE,
-                            prop,
-                            wmOperatorCallContext(umi_op->opcontext),
-                            UI_ITEM_NONE,
-                            nullptr);
+            menu->layout->op(ot,
+                             ui_name,
+                             ICON_NONE,
+                             wmOperatorCallContext(umi_op->opcontext),
+                             UI_ITEM_NONE,
+                             prop);
           }
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
@@ -255,7 +253,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)umi;
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          uiItemM_ptr(menu->layout, mt, ui_name, ICON_NONE);
+          menu->layout->menu(mt, ui_name, ICON_NONE);
           is_empty = false;
         }
         else {
