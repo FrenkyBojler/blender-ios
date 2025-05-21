@@ -1,2 +1,3 @@
 Referenced by issue #139002, Particle system object appears in center of scene during render (Blender 4.4.x)
 Referenced by pull request #139238, Fix #139002: Cycles particle object instance appears in center of scene
+Referenced by commit fc686ff257637710bac7c9ebdcf3d94a5df60a98, Fix #139002: Cycles particle object instance appears in center of scene
