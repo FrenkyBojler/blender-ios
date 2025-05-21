@@ -42,6 +42,7 @@ class VectorList {
   }
   static_assert(is_power_of_2(CapacityStart));
   static_assert(is_power_of_2(CapacitySoftLimit));
+  static_assert(CapacityStart <= CapacitySoftLimit);
 
   /* Contains the individual vectors. There must always be at least one vector. */
   Vector<UsedVector> vectors_;
