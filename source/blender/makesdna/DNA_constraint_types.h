@@ -49,8 +49,8 @@ typedef struct bConstraint {
   /** Sub-target for Custom Space of owner - pose-channel or vertex-group name, MAX_ID_NAME-2. */
   char space_subtarget[64];
 
-  /** Constraint name, MAX_NAME. */
-  char name[64];
+  /** Constraint name. */
+  char name[/*MAX_NAME*/ 64];
 
   /** Amount of influence exerted by constraint (0.0-1.0). */
   float enforce;
@@ -309,7 +309,7 @@ typedef struct bActionConstraint {
   float eval_time; /* Only used when flag ACTCON_USE_EVAL_TIME is set. */
   struct bAction *act;
   int32_t action_slot_handle;
-  char last_slot_identifier[66]; /* MAX_ID_NAME */
+  char last_slot_identifier[/*MAX_ID_NAME*/ 66];
   char _pad1[2];
   /** MAX_ID_NAME-2. */
   char subtarget[64];
@@ -552,12 +552,10 @@ typedef struct bShrinkwrapConstraint {
 /* Follow Track constraints */
 typedef struct bFollowTrackConstraint {
   struct MovieClip *clip;
-  /** MAX_NAME. */
-  char track[64];
+  char track[/*MAX_NAME*/ 64];
   int flag;
   int frame_method;
-  /** MAX_NAME. */
-  char object[64];
+  char object[/*MAX_NAME*/ 64];
   struct Object *camera;
   struct Object *depth_ob;
 } bFollowTrackConstraint;
@@ -574,8 +572,7 @@ typedef struct bObjectSolverConstraint {
   struct MovieClip *clip;
   int flag;
   char _pad[4];
-  /** MAX_NAME. */
-  char object[64];
+  char object[/*MAX_NAME*/ 64];
   /** Parent-inverse matrix to use. */
   float invmat[4][4];
   struct Object *camera;
@@ -584,12 +581,11 @@ typedef struct bObjectSolverConstraint {
 /* Transform matrix cache constraint */
 typedef struct bTransformCacheConstraint {
   struct CacheFile *cache_file;
-  /** FILE_MAX. */
-  char object_path[1024];
+  char object_path[/*FILE_MAX*/ 1024];
 
   /* Runtime. */
   struct CacheReader *reader;
-  char reader_object_path[1024];
+  char reader_object_path[/*FILE_MAX*/ 1024];
 } bTransformCacheConstraint;
 
 /* ------------------------------------------ */

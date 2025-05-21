@@ -48,8 +48,7 @@ typedef struct CustomDataLayer {
 #define MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX 64
 
 typedef struct CustomDataExternal {
-  /** FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 } CustomDataExternal;
 
 /**

@@ -47,8 +47,7 @@ typedef enum eUIFont_ID {
 #
 typedef struct uiFont {
   struct uiFont *next, *prev;
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
   /** From BLF library. */
   short blf_id;
   /** Own id (eUIFont_ID). */
@@ -504,10 +503,8 @@ typedef struct bTheme {
    *
    * This is needed so it's possible to know if updating or removing a theme preset
    * should apply changes to the current theme.
-   *
-   * #FILE_MAX.
    */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   ThemeUI tui;
 

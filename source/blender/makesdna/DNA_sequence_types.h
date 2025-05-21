@@ -110,7 +110,7 @@ typedef struct StripColorBalance {
 
 typedef struct StripProxy {
   /** Custom directory for index and proxy files (defaults to "BL_proxy"). */
-  char dirpath[768];
+  char dirpath[/*FILE_MAXDIR*/ 768];
   /** Custom file. */
   char filename[256];
   struct MovieReader *anim; /* custom proxy anim file */
@@ -137,7 +137,7 @@ typedef struct StripData {
    * NULL for all other strip-types.
    */
   StripElem *stripdata;
-  char dirpath[768];
+  char dirpath[/*FILE_MAXDIR*/ 768];
   StripProxy *proxy;
   StripCrop *crop;
   StripTransform *transform;
@@ -514,8 +514,7 @@ typedef struct ColorMixVars {
 typedef struct StripModifierData {
   struct StripModifierData *next, *prev;
   int type, flag;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   /* mask input, either sequence or mask ID */
   int mask_input_type;

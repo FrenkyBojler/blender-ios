@@ -372,8 +372,7 @@ typedef struct uiViewStateLink {
 
 typedef struct TransformOrientation {
   struct TransformOrientation *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   float mat[3][3];
   char _pad[4];
 } TransformOrientation;
@@ -846,7 +845,7 @@ typedef struct AssetShelf {
 
   /** Identifier that matches the #AssetShelfType.idname this shelf was created with. Used to
    * restore the #AssetShelf.type pointer below on file read. */
-  char idname[64]; /* MAX_NAME */
+  char idname[/*MAX_NAME*/ 64];
   /** Runtime. */
   struct AssetShelfType *type;
 

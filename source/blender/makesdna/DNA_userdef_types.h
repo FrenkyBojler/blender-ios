@@ -30,7 +30,7 @@ typedef struct bAddon {
 typedef struct bPathCompare {
   struct bPathCompare *next, *prev;
   /** FILE_MAXDIR. */
-  char path[768];
+  char path[/*FILE_MAXDIR*/ 768];
   char flag;
   char _pad0[7];
 } bPathCompare;
@@ -84,8 +84,8 @@ enum {
 typedef struct bUserAssetLibrary {
   struct bUserAssetLibrary *next, *prev;
 
-  char name[64];      /* MAX_NAME */
-  char dirpath[1024]; /* FILE_MAX */
+  char name[/*MAX_NAME*/ 64];
+  char dirpath[/*FILE_MAX*/ 1024];
 
   short import_method; /* eAssetImportMethod */
   short flag;          /* eAssetLibrary_Flag */
@@ -98,7 +98,7 @@ typedef struct bUserExtensionRepo {
    * Unique identifier, only for display in the UI list.
    * The `module` is used for internal identifiers.
    */
-  char name[64]; /* MAX_NAME */
+  char name[/*MAX_NAME*/ 64];
   /**
    * The unique module name (sub-module) in fact.
    *
@@ -117,8 +117,8 @@ typedef struct bUserExtensionRepo {
    * The "local" directory where extensions are stored.
    * When unset, use `{BLENDER_USER_EXTENSIONS}/{bUserExtensionRepo::module}`.
    */
-  char custom_dirpath[1024]; /* FILE_MAX */
-  char remote_url[1024];     /* FILE_MAX */
+  char custom_dirpath[/*FILE_MAX*/ 1024];
+  char remote_url[/*FILE_MAX*/ 1024];
 
   /** Options for the repository (#eUserExtensionRepo_Flag). */
   uint8_t flag;
@@ -241,8 +241,8 @@ typedef struct bUserScriptDirectory {
   struct bUserScriptDirectory *next, *prev;
 
   /** Name must be unique. */
-  char name[64];      /* MAX_NAME */
-  char dir_path[768]; /* FILE_MAXDIR */
+  char name[/*MAX_NAME*/ 64];
+  char dir_path[/*FILE_MAXDIR*/ 768];
 } bUserScriptDirectory;
 
 /**
@@ -254,7 +254,7 @@ typedef struct bUserAssetShelfSettings {
   struct bUserAssetShelfSettings *next, *prev;
 
   /** Identifier that matches the #AssetShelfType.idname of the shelf these settings apply to. */
-  char shelf_idname[64]; /* MAX_NAME */
+  char shelf_idname[/*MAX_NAME*/ 64];
 
   ListBase enabled_catalog_paths; /* #AssetCatalogPathLink */
 } bUserAssetShelfSettings;
@@ -563,8 +563,8 @@ typedef struct UserDef {
   char drag_threshold;
   char move_threshold;
 
-  char font_path_ui[1024];
-  char font_path_ui_mono[1024];
+  char font_path_ui[/*FILE_MAX*/ 1024];
+  char font_path_ui_mono[/*FILE_MAX*/ 1024];
 
   /** Legacy, for backwards compatibility only. */
   int compute_device_type;

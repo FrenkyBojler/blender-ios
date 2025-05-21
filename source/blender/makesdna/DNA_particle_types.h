@@ -349,8 +349,8 @@ typedef struct ParticleSystem {
   /** Used for keyed and boid physics. */
   struct ListBase targets;
 
-  /** Particle system name, MAX_NAME. */
-  char name[64];
+  /** Particle system name. */
+  char name[/*MAX_NAME*/ 64];
 
   /** Used for instancing. */
   float imat[4][4];

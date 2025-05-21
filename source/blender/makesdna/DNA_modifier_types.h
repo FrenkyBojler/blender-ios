@@ -175,8 +175,7 @@ typedef struct ModifierData {
    * when it is added to an object.
    */
   int persistent_uid;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   char *error;
 
@@ -1427,11 +1426,10 @@ typedef struct OceanModifierData {
   int bakestart;
   int bakeend;
 
-  /** FILE_MAX. */
-  char cachepath[1024];
-  /** MAX_CUSTOMDATA_LAYER_NAME. */
-  char foamlayername[68];
-  char spraylayername[68];
+  char cachepath[/*FILE_MAX*/ 1024];
+
+  char foamlayername[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68];
+  char spraylayername[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68];
   char cached;
   char geometry_mode;
 
@@ -1487,10 +1485,10 @@ typedef struct WarpModifierData {
 
   struct Object *object_from;
   struct Object *object_to;
-  /** Optional name of bone target, MAX_ID_NAME-2. */
-  char bone_from[64];
-  /** Optional name of bone target, MAX_ID_NAME-2. */
-  char bone_to[64];
+  /** Optional name of bone target. */
+  char bone_from[/*MAX_ID_NAME-2*/ 64];
+  /** Optional name of bone target. */
+  char bone_to[/*MAX_ID_NAME-2*/ 64];
 
   struct CurveMapping *curfalloff;
   /** Optional vertex-group name, #MAX_VGROUP_NAME. */
@@ -2019,8 +2017,7 @@ typedef struct MeshCacheModifierData {
   float eval_time;
   float eval_factor;
 
-  /** FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 } MeshCacheModifierData;
 
 /** #MeshCacheModifierData.flag */
@@ -2220,8 +2217,7 @@ typedef struct MeshSeqCacheModifierData {
   ModifierData modifier;
 
   struct CacheFile *cache_file;
-  /** 1024 = FILE_MAX. */
-  char object_path[1024];
+  char object_path[/*FILE_MAX*/ 1024];
 
   char read_flag;
   char _pad[3];
@@ -2230,7 +2226,7 @@ typedef struct MeshSeqCacheModifierData {
 
   /* Runtime. */
   struct CacheReader *reader;
-  char reader_object_path[1024];
+  char reader_object_path[/*FILE_MAX*/ 1024];
 } MeshSeqCacheModifierData;
 
 /** #MeshSeqCacheModifierData.read_flag */
@@ -2561,8 +2557,7 @@ typedef struct VolumeToMeshModifierData {
   float voxel_size;
   int voxel_amount;
 
-  /** MAX_NAME */
-  char grid_name[64];
+  char grid_name[/*MAX_NAME*/ 64];
   void *_pad1;
 } VolumeToMeshModifierData;
 

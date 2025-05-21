@@ -74,8 +74,7 @@ typedef struct GpencilModifierData {
   short flag;
   /* An "expand" bit for each of the modifier's (sub)panels (uiPanelDataExpansion). */
   short ui_expand_flag;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   char *error;
 } GpencilModifierData;

@@ -815,9 +815,8 @@ typedef struct bNodeTreePath {
   /** V2d center point, so node trees can have different offsets in editors. */
   float view_center[2];
 
-  /** MAX_NAME. */
-  char node_name[64];
-  char display_name[64];
+  char node_name[/*MAX_NAME*/ 64];
+  char display_name[/*MAX_NAME*/ 64];
 } bNodeTreePath;
 
 typedef struct SpaceNodeOverlay {
@@ -1163,7 +1162,7 @@ typedef struct SpaceSpreadsheet {
 typedef struct SpreadsheetRowFilter {
   struct SpreadsheetRowFilter *next, *prev;
 
-  char column_name[64]; /* MAX_NAME. */
+  char column_name[/*MAX_NAME*/ 64];
 
   /* eSpreadsheetFilterOperation. */
   uint8_t operation;

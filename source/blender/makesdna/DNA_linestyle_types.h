@@ -30,8 +30,7 @@ typedef struct LineStyleModifier {
 
   struct LineStyleModifier *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   int type;
   float influence;
   int flags;
