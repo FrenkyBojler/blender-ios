@@ -108,12 +108,12 @@ if(WIN32)
       ${FFMPEG_EXTRA_FLAGS}
       --arch=aarch64
       "--as=${DOWNLOAD_DIR}/msys2/msys64/usr/bin/gas-preprocessor.pl -arch aarch64 -as-type armasm -- armasm64 -nologo"
-      --cc=${EMBREE_LLVM_INSTALL_PATH}/bin/clang-cl.exe
-      --cxx=${EMBREE_LLVM_INSTALL_PATH}/bin/clang-cl.exe
-      --windres=${EMBREE_LLVM_INSTALL_PATH}/bin/llvm-rc.exe
-      --nm=${EMBREE_LLVM_INSTALL_PATH}/bin/llvm-nm.exe
-      --ar='${EMBREE_LLVM_INSTALL_PATH}/bin/llvm-ar.exe'
-      --ranlib=${EMBREE_LLVM_INSTALL_PATH}/bin/llvm-ranlib.exe
+      --cc=${LIBDIR}/llvm/bin/clang-cl.exe
+      --cxx=${LIBDIR}/llvm/bin/clang-cl.exe
+      --windres=${LIBDIR}/llvm/bin/llvm-rc.exe
+      --nm=${LIBDIR}/llvm/bin/llvm-nm.exe
+      --ar='${LIBDIR}/llvm/bin/llvm-ar.exe'
+      --ranlib=${LIBDIR}/llvm/bin/llvm-ranlib.exe
     )
   else()
     set(FFMPEG_EXTRA_FLAGS
