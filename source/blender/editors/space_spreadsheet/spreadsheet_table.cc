@@ -209,6 +209,7 @@ void spreadsheet_table_blend_read(BlendDataReader *reader, SpreadsheetTable *tab
   spreadsheet_table_id_blend_read(reader, table->id);
   BLO_read_pointer_array(reader, table->num_columns, reinterpret_cast<void **>(&table->columns));
   for (const int i : IndexRange(table->num_columns)) {
+    BLO_read_struct(reader, SpreadsheetColumn, &table->columns[i]);
     spreadsheet_column_blend_read(reader, table->columns[i]);
   }
 }

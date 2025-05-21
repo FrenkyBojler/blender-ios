@@ -3584,6 +3584,39 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
   return item_array;
 }
 
+static void rna_iterator_SpreadsheetTable_columns_begin(CollectionPropertyIterator *iter,
+                                                        PointerRNA *ptr)
+{
+  SpreadsheetTable *table = ptr->data_as<SpreadsheetTable>();
+  rna_iterator_array_begin(
+      iter, ptr, table->columns, sizeof(SpreadsheetTable *), table->num_columns, 0, nullptr);
+}
+
+static int rna_iterator_SpreadsheetTable_columns_length(PointerRNA *ptr)
+{
+  SpreadsheetTable *table = ptr->data_as<SpreadsheetTable>();
+  return table->num_columns;
+}
+
+static void rna_iterator_SpaceSpreadsheet_tables_begin(CollectionPropertyIterator *iter,
+                                                       PointerRNA *ptr)
+{
+  SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           sspreadsheet->tables,
+                           sizeof(SpaceSpreadsheet *),
+                           sspreadsheet->num_tables,
+                           0,
+                           nullptr);
+}
+
+static int rna_iterator_SpaceSpreadsheet_tables_length(PointerRNA *ptr)
+{
+  SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
+  return sspreadsheet->num_tables;
+}
+
 static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)
 {
   ViewerPathElem *elem = static_cast<ViewerPathElem *>(ptr->data);
@@ -8463,6 +8496,44 @@ static void rna_def_spreadsheet_column(BlenderRNA *brna)
       prop, "ID", "Data used to identify the corresponding data from the data source");
 }
 
+static void rna_def_spreadsheet_table_id(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SpreadsheetTableID", nullptr);
+  RNA_def_struct_ui_text(
+      srna, "Spreadsheet Table ID", "Data used to identify a spreadsheet table");
+}
+
+static void rna_def_spreadsheet_table(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  rna_def_spreadsheet_table_id(brna);
+  rna_def_spreadsheet_column(brna);
+
+  srna = RNA_def_struct(brna, "SpreadsheetTable", nullptr);
+  RNA_def_struct_ui_text(srna, "Spreadsheet Table", "Persistent data associated with a table");
+
+  prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SpreadsheetTableID");
+  RNA_def_property_ui_text(prop, "ID", "Data used to identify the table");
+
+  prop = RNA_def_property(srna, "columns", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SpreadsheetColumn");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_iterator_SpreadsheetTable_columns_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_SpreadsheetTable_columns_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(prop, "Columns", "Columns within the table");
+}
+
 static void rna_def_spreadsheet_row_filter(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -8708,6 +8779,8 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   PropertyRNA *prop;
   StructRNA *srna;
 
+  rna_def_spreadsheet_table(brna);
+
   static const EnumPropertyItem object_eval_state_items[] = {
       {SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED,
        "EVALUATED",
@@ -8784,14 +8857,19 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Object Evaluation State", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
-  rna_def_spreadsheet_column(brna);
-
-  /* TODO: Bring back columns API. */
-  // prop = RNA_def_property(srna, "columns", PROP_COLLECTION, PROP_NONE);
-  // RNA_def_property_collection_sdna(prop, nullptr, "columns", nullptr);
-  // RNA_def_property_struct_type(prop, "SpreadsheetColumn");
-  // RNA_def_property_ui_text(prop, "Columns", "Persistent data associated with spreadsheet
-  // columns"); RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+  prop = RNA_def_property(srna, "tables", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SpreadsheetTable");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_iterator_SpaceSpreadsheet_tables_begin",
+                                    "rna_iterator_array_next",
+                                    "rna_iterator_array_end",
+                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_SpaceSpreadsheet_tables_length",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_ui_text(
+      prop, "Tables", "Persistent data for the tables shown in this spreadsheet editor");
 
   rna_def_spreadsheet_row_filter(brna);
 
