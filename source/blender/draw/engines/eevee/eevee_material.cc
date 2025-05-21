@@ -120,6 +120,12 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
     bke::node_set_active(*ntree, *output);
   }
   {
+    default_surface = reinterpret_cast<::Material *>(BKE_id_copy_ex(
+        nullptr, &BKE_material_default_surface()->id, nullptr, LIB_ID_COPY_LOCALIZE));
+    default_volume = reinterpret_cast<::Material *>(BKE_id_copy_ex(
+        nullptr, &BKE_material_default_volume()->id, nullptr, LIB_ID_COPY_LOCALIZE));
+  }
+  {
     error_mat_ = BKE_id_new_nomain<::Material>("EEVEE default error");
     bNodeTree *ntree = bke::node_tree_add_tree_embedded(
         nullptr, &error_mat_->id, "Shader Nodetree", ntreeType_Shader->idname);
@@ -146,6 +152,8 @@ MaterialModule::~MaterialModule()
 {
   BKE_id_free(nullptr, metallic_mat);
   BKE_id_free(nullptr, diffuse_mat);
+  BKE_id_free(nullptr, default_surface);
+  BKE_id_free(nullptr, default_volume);
   BKE_id_free(nullptr, error_mat_);
 }
 
@@ -178,11 +186,13 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     use_deferred_compilation = false;
   }
 
+  const bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
+  ::Material *default_mat = is_volume ? default_volume : default_surface;
+
   MaterialPass matpass = MaterialPass();
   matpass.gpumat = inst_.shaders.material_shader_get(
-      blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation);
+      blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation, default_mat);
 
-  const bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
   const bool is_forward = ELEM(pipeline_type,
                                MAT_PIPE_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD,
@@ -200,12 +210,13 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     }
     case GPU_MAT_QUEUED:
       queued_shaders_count++;
-      matpass.gpumat = inst_.shaders.material_default_shader_get(pipeline_type, geometry_type);
+      matpass.gpumat = inst_.shaders.material_shader_get(
+          default_mat, default_mat->nodetree, pipeline_type, geometry_type, false, nullptr);
       break;
     case GPU_MAT_FAILED:
     default:
       matpass.gpumat = inst_.shaders.material_shader_get(
-          error_mat_, error_mat_->nodetree, pipeline_type, geometry_type, false);
+          error_mat_, error_mat_->nodetree, pipeline_type, geometry_type, false, nullptr);
       break;
   }
   /* Returned material should be ready to be drawn. */

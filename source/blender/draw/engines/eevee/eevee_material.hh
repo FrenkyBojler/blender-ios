@@ -352,6 +352,8 @@ class MaterialModule {
  public:
   ::Material *diffuse_mat;
   ::Material *metallic_mat;
+  ::Material *default_surface;
+  ::Material *default_volume;
 
   int64_t queued_shaders_count = 0;
   int64_t queued_optimize_shaders_count = 0;

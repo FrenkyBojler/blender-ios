@@ -917,16 +917,24 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   }
 }
 
+struct CallbackThunk {
+  ShaderModule *shader_module;
+  ::Material *default_mat;
+};
+
 /* WATCH: This can be called from another thread! Needs to not touch the shader module in any
  * thread unsafe manner. */
-static void codegen_callback(void *thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
+static void codegen_callback(void *void_thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
 {
-  reinterpret_cast<ShaderModule *>(thunk)->material_create_info_amend(mat, codegen);
+  CallbackThunk *thunk = static_cast<CallbackThunk *>(void_thunk);
+  thunk->shader_module->material_create_info_amend(mat, codegen);
 }
 
-static GPUPass *pass_replacement_cb(void *thunk, GPUMaterial *mat)
+static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
 {
   using namespace blender::gpu::shader;
+
+  CallbackThunk *thunk = static_cast<CallbackThunk *>(void_thunk);
 
   const ::Material *blender_mat = GPU_material_get_material(mat);
 
@@ -964,30 +972,24 @@ static GPUPass *pass_replacement_cb(void *thunk, GPUMaterial *mat)
                          (is_prepass && (!has_vertex_displacement && !has_transparency &&
                                          !has_raytraced_transmission));
   if (can_use_default) {
-    GPUMaterial *mat = reinterpret_cast<ShaderModule *>(thunk)->material_default_shader_get(
-        pipeline_type, geometry_type);
+    GPUMaterial *mat = thunk->shader_module->material_shader_get(thunk->default_mat,
+                                                                 thunk->default_mat->nodetree,
+                                                                 pipeline_type,
+                                                                 geometry_type,
+                                                                 false,
+                                                                 nullptr);
     return GPU_material_get_pass(mat);
   }
 
   return nullptr;
 }
 
-GPUMaterial *ShaderModule::material_default_shader_get(eMaterialPipeline pipeline_type,
-                                                       eMaterialGeometry geometry_type)
-{
-  bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_MATERIAL, MAT_PIPE_VOLUME_OCCUPANCY);
-  ::Material *blender_mat = (is_volume) ? BKE_material_default_volume() :
-                                          BKE_material_default_surface();
-
-  return material_shader_get(
-      blender_mat, blender_mat->nodetree, pipeline_type, geometry_type, false);
-}
-
 GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                                bNodeTree *nodetree,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
-                                               bool deferred_compilation)
+                                               bool deferred_compilation,
+                                               ::Material *default_mat)
 {
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
@@ -995,8 +997,10 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   uint64_t shader_uuid = shader_uuid_from_material_type(
       pipeline_type, geometry_type, displacement_type, thickness_type, blender_mat->blend_flag);
 
-  bool is_default_material = ELEM(
-      blender_mat, BKE_material_default_surface(), BKE_material_default_volume());
+  bool is_default_material = default_mat == nullptr;
+  BLI_assert(blender_mat != default_mat);
+
+  CallbackThunk thunk = {this, default_mat};
 
   return GPU_material_from_nodetree(blender_mat,
                                     nodetree,
@@ -1006,7 +1010,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                     shader_uuid,
                                     deferred_compilation,
                                     codegen_callback,
-                                    this,
+                                    &thunk,
                                     is_default_material ? nullptr : pass_replacement_cb);
 }
 
@@ -1017,6 +1021,8 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
 {
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
+  CallbackThunk thunk = {this, nullptr};
+
   return GPU_material_from_nodetree(nullptr,
                                     nodetree,
                                     &blender_world->gpumaterial,
@@ -1025,7 +1031,7 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                     shader_uuid,
                                     deferred_compilation,
                                     codegen_callback,
-                                    this);
+                                    &thunk);
 }
 
 /** \} */
