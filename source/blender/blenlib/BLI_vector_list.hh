@@ -125,12 +125,14 @@ class VectorList {
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
   {
     auto log2 = [](int64_t value) -> int64_t {
-      return 63 - bitscan_forward_uint64(uint64_t(value));
+      return 31 - bitscan_reverse_uint(uint32_t(value));
     };
     auto geometric_sum = [](int64_t index) -> int64_t {
       return CapacityStart * ((2 << index) - 1);
     };
-    auto index_from_sum = [](int64_t sum) -> int64_t { return log2((sum / CapacityStart) + 1); };
+    auto index_from_sum = [log2](int64_t sum) -> int64_t {
+      return log2((sum / CapacityStart) + 1);
+    };
     static const int64_t start_log2 = log2(CapacityStart);
     static const int64_t end_log2 = log2(CapacitySoftLimit);
     /* The number of vectors until CapacitySoftLimit size is reached. */
