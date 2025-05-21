@@ -771,7 +771,7 @@ class IDViewerPathItem : public ViewerPathTreeViewItem {
   IDViewerPathItem(const int viewer_path_index, const IDViewerPathElem &id_elem)
       : ViewerPathTreeViewItem(viewer_path_index), id_elem_(id_elem)
   {
-    label_ = id_elem.id ? id_elem.id->name + 2 : "No data-block";
+    label_ = id_elem.id ? id_elem.id->name + 2 : IFACE_("No Data-Block");
   }
 
   void build_row(uiLayout &row) override
@@ -781,7 +781,7 @@ class IDViewerPathItem : public ViewerPathTreeViewItem {
       row.label(BKE_id_name(*id_elem_.id), icon);
     }
     else {
-      row.label("No data-block", ICON_BLANK1);
+      row.label(IFACE_("No Data-Block"), ICON_BLANK1);
     }
   }
 };
@@ -996,7 +996,7 @@ std::optional<bool> ViewerPathTreeViewItem::should_be_active() const
 
 static void draw_context_panel_without_context(uiLayout &layout)
 {
-  layout.label(IFACE_("No active context"), ICON_NONE);
+  layout.label(IFACE_("No Active Context"), ICON_NONE);
 }
 
 static bool viewer_path_ends_with_viewer_node(const ViewerPath &viewer_path)
