@@ -2269,6 +2269,6 @@ ImBuf *UI_icon_alert_imbuf_get(eAlertIcon icon, float size)
     return nullptr;
   }
 
-  return UI_svg_icon_bitmap(icon_id, size, false);
+  return UI_svg_icon_bitmap(icon_id, size, icon_id == ICON_CANCEL_LARGE);
 #endif
 }

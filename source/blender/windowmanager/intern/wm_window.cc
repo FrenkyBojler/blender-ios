@@ -2155,7 +2155,7 @@ void wm_test_opengl_deprecation_warning(bContext *C)
 
   /* Exit when no failure detected. */
   if (!G.opengl_deprecation_usage_detected) {
-    // return;
+    return;
   }
 
   /* Have we already shown a message during this Blender session. `bgl` calls are done in a draw
