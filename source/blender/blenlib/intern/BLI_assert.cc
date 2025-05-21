@@ -9,6 +9,7 @@
  */
 
 #include "BLI_assert.h" /* Own include. */
+#include "BLI_mutex.hh"
 
 #ifndef NDEBUG
 #  include "BLI_system.h"
@@ -33,9 +34,16 @@ void _BLI_assert_unreachable_print(const char *file, const int line, const char 
   fprintf(stderr, "Error found at %s:%d in %s.\n", file, line, function);
 }
 
+static blender::Mutex &print_lock()
+{
+  static blender::Mutex lock;
+  return lock;
+}
+
 void _BLI_assert_print_backtrace()
 {
 #ifndef NDEBUG
+  std::scoped_lock lock(print_lock());
   BLI_system_backtrace(stderr);
 #endif
 }
