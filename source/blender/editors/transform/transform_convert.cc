@@ -457,8 +457,7 @@ TransDataCurveHandleFlags *initTransDataCurveHandles(TransData *td, BezTriple *b
 {
   TransDataCurveHandleFlags *hdata;
   td->flag |= TD_BEZTRIPLE;
-  hdata = td->hdata = static_cast<TransDataCurveHandleFlags *>(
-      MEM_mallocN(sizeof(TransDataCurveHandleFlags), "CuHandle Data"));
+  hdata = td->hdata = MEM_mallocN<TransDataCurveHandleFlags>("CuHandle Data");
   hdata->ih1 = bezt->h1;
   hdata->h1 = &bezt->h1;
   hdata->ih2 = bezt->h2; /* In case the second is not selected. */
@@ -727,7 +726,8 @@ static void init_proportional_edit(TransInfo *t)
              &TransConvertType_MeshUV,
              &TransConvertType_MeshVertCData,
              &TransConvertType_Node,
-             &TransConvertType_Object) ||
+             &TransConvertType_Object,
+             &pointcloud::TransConvertType_PointCloud) ||
         ELEM(t->data_type, &TransConvertType_Particle)))
   {
     /* Disable proportional editing. */
@@ -753,18 +753,35 @@ static void init_proportional_edit(TransInfo *t)
                   &TransConvertType_MeshVertCData))
     {
       if (t->flag & T_PROP_CONNECTED) {
-        /* Already calculated by transform_convert_mesh_connectivity_distance. */
+        /* Already calculated by #transform_convert_mesh_connectivity_distance. */
       }
       else {
         set_prop_dist(t, false);
       }
     }
     else if (t->data_type == &TransConvertType_MeshUV && t->flag & T_PROP_CONNECTED) {
-      /* Already calculated by uv_set_connectivity_distance. */
+      /* Already calculated by #uv_set_connectivity_distance. */
     }
-    else if (ELEM(t->data_type, &TransConvertType_Curve, &curves::TransConvertType_Curves)) {
-      BLI_assert(t->obedit_type == OB_CURVES_LEGACY || t->obedit_type == OB_CURVES);
-      set_prop_dist(t, false);
+    else if (t->data_type == &TransConvertType_Curve) {
+      BLI_assert(t->obedit_type == OB_CURVES_LEGACY);
+      if (t->flag & T_PROP_CONNECTED) {
+        /* Already calculated by #calc_distanceCurveVerts. */
+      }
+      else {
+        set_prop_dist(t, false);
+      }
+    }
+    else if (ELEM(t->data_type,
+                  &curves::TransConvertType_Curves,
+                  &greasepencil::TransConvertType_GreasePencil))
+    {
+      BLI_assert(t->obedit_type == OB_CURVES || t->obedit_type == OB_GREASE_PENCIL);
+      if (t->flag & T_PROP_CONNECTED) {
+        /* Already calculated by #calculate_curve_point_distances_for_proportional_editing. */
+      }
+      else {
+        set_prop_dist(t, false);
+      }
     }
     else {
       set_prop_dist(t, true);
@@ -826,8 +843,7 @@ static void init_TransDataContainers(TransInfo *t, Object *obact, Span<Object *>
       objects = local_objects;
     }
 
-    t->data_container = static_cast<TransDataContainer *>(
-        MEM_callocN(sizeof(*t->data_container) * objects.size(), __func__));
+    t->data_container = MEM_calloc_arrayN<TransDataContainer>(objects.size(), __func__);
     t->data_container_len = objects.size();
 
     for (int i = 0; i < objects.size(); i++) {
@@ -1197,7 +1213,7 @@ void animrecord_check_state(TransInfo *t, ID *id)
         /* Only push down if action is more than 1-2 frames long. */
         const float2 frame_range = adt->action->wrap().get_frame_range_of_keys(true);
         if (frame_range[1] > frame_range[0] + 2.0f) {
-          /* TODO: call BKE_nla_action_pushdown() instead?  */
+          /* TODO: call #BKE_nla_action_pushdown() instead? */
 
           /* Add a new NLA strip to the track, which references the active action + slot. */
           NlaStrip *strip = BKE_nlastack_add_strip({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));

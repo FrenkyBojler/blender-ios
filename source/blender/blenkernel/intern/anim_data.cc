@@ -171,6 +171,7 @@ static bool animdata_set_action(ReportList *reports, ID *id, bAction **act_slot,
 }
 
 /* Tmpact Setter --------------------------------------- */
+
 bool BKE_animdata_set_tmpact(ReportList *reports, ID *id, bAction *act)
 {
   AnimData *adt = BKE_animdata_from_id(id);
@@ -184,6 +185,7 @@ bool BKE_animdata_set_tmpact(ReportList *reports, ID *id, bAction *act)
 }
 
 /* Action Setter --------------------------------------- */
+
 bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
 {
   using namespace blender;
@@ -1323,8 +1325,10 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
     }
   }
 
-  /* free drivers - stored as a list of F-Curves */
-  fcurves_listbase_apply_cb(id, &adt->drivers, func);
+  /* Drivers, stored as a list of F-Curves. */
+  if (!fcurves_listbase_apply_cb(id, &adt->drivers, func)) {
+    return false;
+  }
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {

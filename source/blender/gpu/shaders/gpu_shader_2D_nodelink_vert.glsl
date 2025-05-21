@@ -21,15 +21,15 @@ VERTEX_SHADER_CREATE_INFO(gpu_shader_2D_nodelink)
 
 void main()
 {
-  const float start_gradient_threshold = 0.35f;
-  const float end_gradient_threshold = 0.65f;
+  constexpr float start_gradient_threshold = 0.35f;
+  constexpr float end_gradient_threshold = 0.65f;
 
 #ifdef USE_INSTANCE
 #  define colStart (colid_doarrow[0] < 3u ? start_color : node_link_data.colors[colid_doarrow[0]])
 #  define colEnd (colid_doarrow[1] < 3u ? end_color : node_link_data.colors[colid_doarrow[1]])
 #  define colShadow node_link_data.colors[colid_doarrow[2]]
 #  define doArrow (colid_doarrow[3] != 0u)
-#  define doMuted (domuted[0] != 0u)
+#  define doMuted (domuted[0] != 0)
 #else
   float2 P0 = node_link_data.bezierPts[0].xy;
   float2 P1 = node_link_data.bezierPts[1].xy;

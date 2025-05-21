@@ -382,6 +382,21 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
   return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
 }
 
+const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object)
+{
+  /* Same as DRW_object_get_data_for_drawing, but for the cage mesh. */
+  BLI_assert(object.type == OB_MESH);
+  const Mesh *cage_mesh = BKE_object_get_editmesh_eval_cage(&object);
+  if (cage_mesh == nullptr) {
+    return nullptr;
+  }
+
+  if (BKE_subsurf_modifier_has_gpu_subdiv(cage_mesh)) {
+    return cage_mesh;
+  }
+  return BKE_mesh_wrapper_ensure_subdivision(cage_mesh);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -390,7 +405,7 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
 
 DRWData *DRW_viewport_data_create()
 {
-  DRWData *drw_data = static_cast<DRWData *>(MEM_callocN(sizeof(DRWData), "DRWData"));
+  DRWData *drw_data = MEM_callocN<DRWData>("DRWData");
 
   drw_data->default_view = new blender::draw::View("DrawDefaultView");
 
@@ -654,7 +669,7 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
   this->dupli_parent = iter_data.dupli_parent;
   this->dupli_object = iter_data.dupli_object_current;
   this->object = ob;
-  /* Set by the first drawcall. */
+  /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
 }
 
@@ -663,7 +678,7 @@ ObjectRef::ObjectRef(Object *ob)
   this->dupli_parent = nullptr;
   this->dupli_object = nullptr;
   this->object = ob;
-  /* Set by the first drawcall. */
+  /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
 }
 
@@ -755,7 +770,7 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
-  view_data_active->manager->begin_sync();
+  view_data_active->manager->begin_sync(this->obact);
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
     /* TODO(fclem): Remove. Only there for overlay engine. */
@@ -917,15 +932,26 @@ void DRWContext::engines_data_validate()
   DRW_view_data_free_unused(this->view_data_active);
 }
 
-/* Fast check to see if gpencil drawing engine is needed.
- * For slow exact check use `DRW_render_check_grease_pencil` */
-static bool drw_gpencil_engine_needed(Depsgraph *depsgraph, View3D *v3d)
+static bool gpencil_object_is_excluded(View3D *v3d)
 {
-  const bool exclude_gpencil_rendering = v3d ? ((v3d->object_type_exclude_viewport &
-                                                 (1 << OB_GREASE_PENCIL)) != 0) :
-                                               false;
-  return (!exclude_gpencil_rendering) && (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
-                                          DEG_id_type_any_exists(depsgraph, ID_GP));
+  if (v3d) {
+    return ((v3d->object_type_exclude_viewport & (1 << OB_GREASE_PENCIL)) != 0);
+  }
+  return false;
+}
+
+static bool gpencil_any_exists(Depsgraph *depsgraph)
+{
+  return (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
+          DEG_id_type_any_exists(depsgraph, ID_GP));
+}
+
+bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d)
+{
+  if (gpencil_object_is_excluded(v3d)) {
+    return false;
+  }
+  return gpencil_any_exists(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1186,7 +1212,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool internal_engine = (engine_type->flag & RE_INTERNAL) != 0;
   const bool draw_type_render = v3d->shading.type == OB_RENDER;
   const bool overlays_on = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
-  const bool gpencil_engine_needed = drw_gpencil_engine_needed(depsgraph, v3d);
+  const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
@@ -1336,6 +1362,8 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   DRWContext draw_ctx(mode, depsgraph, render_viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = draw_background;
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  draw_ctx.data->modules_init();
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
 
@@ -1374,8 +1402,8 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
 
 bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
 {
-  if (!drw_gpencil_engine_needed(depsgraph, nullptr)) {
-    return false;
+  if (gpencil_any_exists(depsgraph)) {
+    return true;
   }
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
@@ -1685,7 +1713,8 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
     }
   }
 
-  bool use_gpencil = !use_obedit && !draw_surface && drw_gpencil_engine_needed(depsgraph, v3d);
+  bool use_gpencil = !use_obedit && !draw_surface &&
+                     DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
 
   DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
                                                       DRWContext::SELECT_OBJECT;
@@ -1699,7 +1728,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, object_type, object_mode, ob_iter) {
         /* Depsgraph usually does this, but we use a different iterator.
          * So we have to do it manually. */
-        ob_iter->runtime->select_id = DEG_get_original_object(ob_iter)->runtime->select_id;
+        ob_iter->runtime->select_id = DEG_get_original(ob_iter)->runtime->select_id;
 
         blender::draw::ObjectRef ob_ref(ob_iter);
         drw_engines_cache_populate(ob_ref, extraction);

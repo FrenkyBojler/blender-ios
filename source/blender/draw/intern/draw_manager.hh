@@ -247,6 +247,13 @@ class Manager {
   void generate_commands(PassSimple &pass);
 
   /**
+   * Make sure the shader specialization constants are already compiled.
+   * This avoid stalling the real submission call because of specialization.
+   */
+  void warm_shader_specialization(PassMain &pass);
+  void warm_shader_specialization(PassSimple &pass);
+
+  /**
    * Submit a pass for drawing. All resource reference will be dereferenced and commands will be
    * sent to GPU. Visibility and command generation **must** have already been done explicitly
    * using `compute_visibility` and `generate_commands`.
@@ -294,7 +301,7 @@ class Manager {
   }
 
   /** TODO(fclem): The following should become private at some point. */
-  void begin_sync();
+  void begin_sync(Object *object_active = nullptr);
   void end_sync();
 
   void debug_bind();

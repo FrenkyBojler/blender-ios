@@ -8,18 +8,19 @@ VERTEX_SHADER_CREATE_INFO(eevee_display_lightprobe_sphere)
 
 #include "draw_view_lib.glsl"
 #include "eevee_lightprobe_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 
 void main()
 {
   /* Constant array moved inside function scope.
    * Minimizes local register allocation in MSL. */
-  const float2 pos[6] = float2_array(float2(-1.0f, -1.0f),
-                                     float2(1.0f, -1.0f),
-                                     float2(-1.0f, 1.0f),
+  constexpr float2 pos[6] = float2_array(float2(-1.0f, -1.0f),
+                                         float2(1.0f, -1.0f),
+                                         float2(-1.0f, 1.0f),
 
-                                     float2(1.0f, -1.0f),
-                                     float2(1.0f, 1.0f),
-                                     float2(-1.0f, 1.0f));
+                                         float2(1.0f, -1.0f),
+                                         float2(1.0f, 1.0f),
+                                         float2(-1.0f, 1.0f));
 
   lP = pos[gl_VertexID % 6];
   int display_index = gl_VertexID / 6;
@@ -36,4 +37,5 @@ void main()
   gl_Position = drw_point_view_to_homogenous(vP);
   /* Small bias to let the icon draw without Z-fighting. */
   gl_Position.z += 0.0001f;
+  gl_Position = reverse_z::transform(gl_Position);
 }

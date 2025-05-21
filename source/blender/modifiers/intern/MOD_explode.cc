@@ -108,9 +108,9 @@ static void createFacepa(ExplodeModifierData *emd, ParticleSystemModifierData *p
   if (emd->facepa) {
     MEM_freeN(emd->facepa);
   }
-  facepa = emd->facepa = MEM_calloc_arrayN<int>(size_t(totface), __func__);
+  facepa = emd->facepa = MEM_calloc_arrayN<int>(totface, __func__);
 
-  vertpa = MEM_calloc_arrayN<int>(size_t(totvert), __func__);
+  vertpa = MEM_calloc_arrayN<int>(totvert, __func__);
 
   /* initialize all faces & verts to no particle */
   for (i = 0; i < totface; i++) {
@@ -656,8 +656,8 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
   int totvert = mesh->verts_num;
   int totface = mesh->totface_legacy;
 
-  int *facesplit = MEM_calloc_arrayN<int>(size_t(totface), __func__);
-  int *vertpa = MEM_calloc_arrayN<int>(size_t(totvert), __func__);
+  int *facesplit = MEM_calloc_arrayN<int>(totface, __func__);
+  int *vertpa = MEM_calloc_arrayN<int>(totvert, __func__);
   int *facepa = emd->facepa;
   int *fs, totfsplit = 0, curdupface = 0;
   int i, v1, v2, v3, v4, v[4] = {0, 0, 0, 0}, /* To quite gcc barking... */
@@ -1175,26 +1175,26 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiItemPointerR(
       layout, ptr, "particle_uv", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Show"));
-  uiItemR(row, ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
+  row = &layout->row(true, IFACE_("Show"));
+  row->prop(ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_edge_cut", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "use_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "use_edge_cut", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiLayoutSetActive(row, has_vertex_group);
-  uiItemR(row, ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "protect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemO(layout, IFACE_("Refresh"), ICON_NONE, "OBJECT_OT_explode_refresh");
+  layout->op("OBJECT_OT_explode_refresh", IFACE_("Refresh"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

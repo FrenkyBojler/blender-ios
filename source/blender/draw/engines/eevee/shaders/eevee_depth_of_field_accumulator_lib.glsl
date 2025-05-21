@@ -20,6 +20,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_gather)
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_depth_of_field_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_debug_gradients_lib.glsl"
 #include "gpu_shader_math_matrix_lib.glsl"
@@ -158,9 +159,9 @@ void dof_gather_accumulate_sample_pair(DofGatherData pair_data[2],
   }
 
 #if 0
-  const float mirroring_threshold = -dof_layer_threshold - dof_layer_offset;
+  constexpr float mirroring_threshold = -dof_layer_threshold - dof_layer_offset;
   /* TODO(fclem) Promote to parameter? dither with Noise? */
-  const float mirroring_min_distance = 15.0f;
+  constexpr float mirroring_min_distance = 15.0f;
   if (pair_data[0].coc < mirroring_threshold &&
       (pair_data[1].coc - mirroring_min_distance) > pair_data[0].coc)
   {
@@ -426,7 +427,7 @@ void dof_gather_init(float base_radius,
 
   /* TODO(fclem) Seems like the default lod selection is too big. Bias to avoid blocky moving out
    * of focus shapes. */
-  const float lod_bias = -2.0f;
+  constexpr float lod_bias = -2.0f;
   lod = max(floor(log2(base_radius * unit_sample_radius) + 0.5f) + lod_bias, 0.0f);
 
   if (no_gather_mipmaps) {
@@ -547,8 +548,8 @@ void dof_gather_accumulator(sampler2D color_tx,
         ring += gather_density_change_ring;
         /* We need to account for the density change in the weights (slide 62).
          * For that multiply old kernel data by its area divided by the new kernel area. */
-        const float outer_rings_weight = 1.0f /
-                                         (radius_downscale_factor * radius_downscale_factor);
+        constexpr float outer_rings_weight = 1.0f /
+                                             (radius_downscale_factor * radius_downscale_factor);
         /* Samples are already weighted per ring in foreground pass. */
         if (!IS_FOREGROUND) {
           dof_gather_amend_weight(accum_data, outer_rings_weight);
@@ -608,7 +609,7 @@ void dof_gather_accumulator(sampler2D color_tx,
  * The full pixel neighborhood is gathered.
  * \{ */
 
-void dof_slight_focus_gather(depth2D depth_tx,
+void dof_slight_focus_gather(sampler2DDepth depth_tx,
                              sampler2D color_tx,
                              sampler2D bkh_lut_tx, /* Renamed because of ugly macro job. */
                              float radius,
@@ -628,7 +629,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
 
   int i_radius = clamp(int(radius), 0, int(dof_layer_threshold));
 
-  const float sample_count_max = float(DOF_SLIGHT_FOCUS_SAMPLE_MAX);
+  constexpr float sample_count_max = float(DOF_SLIGHT_FOCUS_SAMPLE_MAX);
   /* Scale by search area. */
   float sample_count = sample_count_max * saturate(square(radius) / square(dof_layer_threshold));
 
@@ -644,7 +645,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
       float2 sample_offset = ((i == 0) ? offset : -offset);
       /* OPTI: could precompute the factor. */
       float2 sample_uv = (frag_coord + sample_offset) / float2(textureSize(depth_tx, 0));
-      float depth = textureLod(depth_tx, sample_uv, 0.0f).r;
+      float depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
       pair_data[i].coc = dof_coc_from_depth(dof_buf, sample_uv, depth);
       pair_data[i].color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
       pair_data[i].dist = ring_dist;
@@ -657,7 +658,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
     }
 
     float bordering_radius = ring_dist + 0.5f;
-    const float isect_mul = 1.0f;
+    constexpr float isect_mul = 1.0f;
     DofGatherData bg_ring = GATHER_DATA_INIT;
     dof_gather_accumulate_sample_pair(
         pair_data, bordering_radius, isect_mul, first_ring, false, false, bg_ring, bg_accum);
@@ -684,7 +685,7 @@ void dof_slight_focus_gather(depth2D depth_tx,
   DofGatherData center_data;
   center_data.color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
   center_data.coc = dof_coc_from_depth(
-      dof_buf, sample_uv, textureLod(depth_tx, sample_uv, 0.0f).r);
+      dof_buf, sample_uv, reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r));
   center_data.coc = clamp(center_data.coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
   center_data.dist = 0.0f;
 

@@ -28,7 +28,7 @@ class ComputeContextCache {
   /** The allocated computed contexts that need to be destructed in the end. */
   Vector<destruct_ptr<ComputeContext>> cache_;
 
-  Map<std::pair<const ComputeContext *, StringRef>, const ModifierComputeContext *>
+  Map<std::pair<const ComputeContext *, int>, const ModifierComputeContext *>
       modifier_contexts_cache_;
   Map<const ComputeContext *, const OperatorComputeContext *> operator_contexts_cache_;
   Map<std::pair<const ComputeContext *, int32_t>, const GroupNodeComputeContext *>
@@ -46,8 +46,7 @@ class ComputeContextCache {
  public:
   const ModifierComputeContext &for_modifier(const ComputeContext *parent,
                                              const NodesModifierData &nmd);
-  const ModifierComputeContext &for_modifier(const ComputeContext *parent,
-                                             StringRef modifier_name);
+  const ModifierComputeContext &for_modifier(const ComputeContext *parent, int modifier_uid);
 
   const OperatorComputeContext &for_operator(const ComputeContext *parent);
   const OperatorComputeContext &for_operator(const ComputeContext *parent, const bNodeTree &tree);
@@ -78,7 +77,8 @@ class ComputeContextCache {
                                                             int32_t node_id);
   const EvaluateClosureComputeContext &for_evaluate_closure(
       const ComputeContext *parent,
-      const bNode &evaluate_node,
+      int32_t evaluate_node_id,
+      const bNode *evaluate_node,
       const std::optional<nodes::ClosureSourceLocation> &closure_source_location);
 
   /**

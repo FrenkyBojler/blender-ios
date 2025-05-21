@@ -292,7 +292,7 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MC = {
-    /*id_code*/ ID_MC,
+    /*id_code*/ MovieClip::id_type,
     /*id_filter*/ FILTER_ID_MC,
     /*dependencies_id_types*/ FILTER_ID_GD_LEGACY | FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_MC,
@@ -914,7 +914,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 {
   MovieClip *clip;
 
-  clip = static_cast<MovieClip *>(BKE_id_new(bmain, ID_MC, name));
+  clip = BKE_id_new<MovieClip>(bmain, name);
 
   return clip;
 }
@@ -1951,7 +1951,7 @@ static void movieclip_eval_update_reload(Depsgraph *depsgraph, Main *bmain, Movi
 {
   BKE_movieclip_reload(bmain, clip);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_movieclip_reload(bmain, clip_orig);
   }
 }
@@ -1960,7 +1960,7 @@ static void movieclip_eval_update_generic(Depsgraph *depsgraph, MovieClip *clip)
 {
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
   if (DEG_is_active(depsgraph)) {
-    MovieClip *clip_orig = (MovieClip *)DEG_get_original_id(&clip->id);
+    MovieClip *clip_orig = DEG_get_original(clip);
     BKE_tracking_dopesheet_tag_update(&clip_orig->tracking);
   }
 }

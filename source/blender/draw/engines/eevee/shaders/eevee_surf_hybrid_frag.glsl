@@ -17,7 +17,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_deferred_hybrid)
 FRAGMENT_SHADER_CREATE_INFO(eevee_render_pass_out)
 FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 
-#include "common_hair_lib.glsl"
+#include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_forward_lib.glsl"
@@ -79,13 +79,14 @@ void main()
   int2 out_texel = int2(gl_FragCoord.xy);
 
 #ifdef MAT_SUBSURFACE
-  const bool use_sss = true;
+  constexpr bool use_sss = true;
 #else
-  const bool use_sss = false;
+  constexpr bool use_sss = false;
 #endif
 
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
+  bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
 
   /* ----- Render Passes output ----- */
 
@@ -112,7 +113,7 @@ void main()
 #endif
   gbuf_data.surface_N = g_data.N;
   gbuf_data.thickness = g_thickness;
-  gbuf_data.use_light_linking = use_light_linking;
+  gbuf_data.use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data, g_data.Ng);
 
@@ -142,8 +143,8 @@ void main()
                    int3(out_texel, layer - GBUF_NORMAL_FB_LAYER_COUNT),
                    gbuf.N[layer].xyyy);
   }
-  if (use_sss || use_light_linking) {
-    const int layer = GBUF_HEADER_FB_LAYER_COUNT;
+  if (gbuf_data.use_object_id) {
+    constexpr int layer = GBUF_HEADER_FB_LAYER_COUNT;
     /* NOTE: The image view start at layer GBUF_HEADER_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_HEADER_FB_LAYER_COUNT`. */
     imageStoreFast(out_gbuf_header_img,

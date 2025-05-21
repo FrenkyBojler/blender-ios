@@ -58,10 +58,10 @@ void main()
 
   /* Bias the shading point position because of depth buffer precision.
    * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
-  const float bias = 2.4e-7f;
+  constexpr float bias = 2.4e-7f;
   depth -= bias;
 
-  float3 P = drw_point_screen_to_world(float3(uvcoordsvar.xy, depth));
+  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   float3 Ng = gbuffer_geometry_normal_unpack(gbuf.header, gbuf.surface_N);
   float3 V = drw_world_incident_vector(P);
   float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
@@ -73,15 +73,19 @@ void main()
   }
 
   uchar receiver_light_set = 0;
-  if (gbuffer_light_linking_unpack(gbuf.header)) {
+  float normal_offset = 0.0f;
+  float geometry_offset = 0.0f;
+  if (gbuffer_use_object_id_unpack(gbuf.header)) {
     uint object_id = texelFetch(gbuf_header_tx, int3(texel, 1), 0).x;
     ObjectInfos object_infos = drw_infos[object_id];
     receiver_light_set = receiver_light_set_get(object_infos);
+    normal_offset = object_infos.shadow_terminator_normal_offset;
+    geometry_offset = object_infos.shadow_terminator_geometry_offset;
   }
 
   /* TODO(fclem): If transmission (no SSS) is present, we could reduce LIGHT_CLOSURE_EVAL_COUNT
    * by 1 for this evaluation and skip evaluating the transmission closure twice. */
-  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set);
+  light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
 
   if (use_transmission) {
     ClosureUndetermined cl_transmit = gbuffer_closure_get(gbuf, 0);
@@ -96,7 +100,8 @@ void main()
     stack.cl[0] = closure_light_new(cl_transmit, V, gbuf.thickness);
 
     /* NOTE: Only evaluates `stack.cl[0]`. */
-    light_eval_transmission(stack, P, Ng, V, vPz, gbuf.thickness, receiver_light_set);
+    light_eval_transmission(
+        stack, P, Ng, V, vPz, gbuf.thickness, receiver_light_set, normal_offset, geometry_offset);
 
 #if 1 /* TODO Limit to SSS. */
     if (cl_transmit.type == CLOSURE_BSSRDF_BURLEY_ID) {

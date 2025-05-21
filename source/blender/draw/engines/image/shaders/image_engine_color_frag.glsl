@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "common_colormanagement_lib.glsl"
+#include "draw_colormanagement_lib.glsl"
 
 /* Keep in sync with image_engine.c */
 #define IMAGE_DRAW_FLAG_SHOW_ALPHA (1 << 0)
@@ -18,7 +18,7 @@ void main()
   int2 uvs_clamped = int2(uv_screen);
   float depth = texelFetch(depth_tx, uvs_clamped, 0).r;
   if (depth == 1.0f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 
