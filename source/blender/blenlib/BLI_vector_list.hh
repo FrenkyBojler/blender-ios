@@ -202,8 +202,14 @@ class VectorList {
     Iterator &operator++()
     {
       if (vector_list.vectors_[index_a].size() == index_b + 1) {
-        index_a++;
-        index_b = 0;
+        if (index_a + 1 == vector_list.vectors_.size()) {
+          /* Reached the end. */
+          index_b++;
+        }
+        else {
+          index_a++;
+          index_b = 0;
+        }
       }
       else {
         index_b++;
@@ -233,7 +239,7 @@ class VectorList {
   }
   MutIterator end()
   {
-    return MutIterator(*this, used_vectors_, vectors_[used_vectors_ - 1].size());
+    return MutIterator(*this, used_vectors_ - 1, vectors_[used_vectors_ - 1].size());
   }
 
   ConstIterator begin() const
@@ -242,7 +248,7 @@ class VectorList {
   }
   ConstIterator end() const
   {
-    return ConstIterator(*this, used_vectors_, vectors_[used_vectors_ - 1].size());
+    return ConstIterator(*this, used_vectors_ - 1, vectors_[used_vectors_ - 1].size());
   }
 };
 
