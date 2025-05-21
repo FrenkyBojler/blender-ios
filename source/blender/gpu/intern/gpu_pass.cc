@@ -226,8 +226,6 @@ class GPUPassCache {
   {
     std::lock_guard lock(mutex_);
 
-    // TODO: info->name was assigned in GPU_pass_compile,
-    // but there can be more than one material per pass.
     passes_[engine][is_optimization_pass].add(
         codegen.hash_get(),
         std::make_unique<GPUPass>(codegen.create_info,
