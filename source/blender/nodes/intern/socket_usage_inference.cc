@@ -1078,6 +1078,11 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
   return all_usages;
 }
 
+static bool input_may_affect_visibility(const bNodeTreeInterfaceSocket &socket)
+{
+  return socket.socket_type == StringRef("NodeSocketMenu");
+}
+
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const Span<GPointer> group_input_values,
                                         const MutableSpan<SocketUsage> r_input_usages)
@@ -1106,38 +1111,45 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
      * visible. */
     return;
   }
-  /* An input becomes invisible if its visibility is controlled by a menu input. */
-  bool has_menu_input = false;
-  Array<GPointer, 32> modified_input_values = group_input_values;
+  bool visibility_controlling_input_exists = false;
+  Array<GPointer, 32> inputs_all_unknown(group_input_values.size());
+  Array<GPointer, 32> inputs_only_controllers = group_input_values;
   for (const int i : group.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &io_socket = *group.interface_inputs()[i];
-    const bool is_menu = io_socket.socket_type == StringRef("NodeSocketMenu");
-    if (is_menu) {
-      has_menu_input = true;
+    if (input_may_affect_visibility(io_socket)) {
+      visibility_controlling_input_exists = true;
     }
-    if (is_menu || !r_input_usages[i].is_used) {
-      /* Treat this input as unknown. Making an input unknown may result in more other inputs to
-       * become used which is will tell us which inputs depend on menus. */
-      modified_input_values[i] = {};
+    else {
+      inputs_only_controllers[i] = {};
     }
   }
-  if (!has_menu_input) {
-    /* If there is no menu input, all inputs are always visible. */
+  if (!visibility_controlling_input_exists) {
+    /* If there is no visibility controller inputs, all inputs are always visible. */
     return;
   }
-  SocketUsageInferencer inferencer{group, modified_input_values};
-  for (const bNode *node : group.group_input_nodes()) {
-    for (const int i : group.interface_inputs().index_range()) {
+  SocketUsageInferencer inferencer_all_unknown{group, inputs_all_unknown};
+  SocketUsageInferencer inferencer_only_controllers{group, inputs_only_controllers};
+  for (const int i : group.interface_inputs().index_range()) {
+    if (r_input_usages[i].is_used) {
+      /* Used inputs are always visible. */
+      continue;
+    }
+
+    bool is_ever_used = false;
+    bool is_used_with_current_controllers = false;
+
+    for (const bNode *node : group.group_input_nodes()) {
       const bNodeSocket &socket = node->output_socket(i);
-      if (r_input_usages[i].is_used) {
-        /* Used inputs are always visible. */
-        continue;
+      if (inferencer_all_unknown.is_socket_used({nullptr, &socket})) {
+        is_ever_used = true;
       }
-      if (inferencer.is_socket_used({nullptr, &socket})) {
-        /* If the input is used now, it means that its usage has dependend on a menu input, so it
-         * should not be visible. */
-        r_input_usages[i].is_visible = false;
+      if (inferencer_only_controllers.is_socket_used({nullptr, &socket})) {
+        is_used_with_current_controllers = true;
       }
+    }
+
+    if (is_ever_used && !is_used_with_current_controllers) {
+      r_input_usages[i].is_visible = false;
     }
   }
 }
