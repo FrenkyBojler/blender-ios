@@ -115,10 +115,14 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
   return "";
 }
 
-static SpreadsheetColumn *lookup_visible_column_for_filter(const SpaceSpreadsheet &sspreadsheet,
-                                                           const StringRef column_name)
+static const SpreadsheetColumn *lookup_visible_column_for_filter(
+    const SpaceSpreadsheet &sspreadsheet, const StringRef column_name)
 {
-  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet.columns) {
+  const SpreadsheetTable *table = get_active_table(sspreadsheet);
+  if (!table) {
+    return nullptr;
+  }
+  for (const SpreadsheetColumn *column : Span{table->columns, table->num_columns}) {
     if (column->display_name == column_name) {
       return column;
     }

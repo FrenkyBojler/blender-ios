@@ -8786,11 +8786,12 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 
   rna_def_spreadsheet_column(brna);
 
-  prop = RNA_def_property(srna, "columns", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "columns", nullptr);
-  RNA_def_property_struct_type(prop, "SpreadsheetColumn");
-  RNA_def_property_ui_text(prop, "Columns", "Persistent data associated with spreadsheet columns");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
+  /* TODO: Bring back columns API. */
+  // prop = RNA_def_property(srna, "columns", PROP_COLLECTION, PROP_NONE);
+  // RNA_def_property_collection_sdna(prop, nullptr, "columns", nullptr);
+  // RNA_def_property_struct_type(prop, "SpreadsheetColumn");
+  // RNA_def_property_ui_text(prop, "Columns", "Persistent data associated with spreadsheet
+  // columns"); RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   rna_def_spreadsheet_row_filter(brna);
 

@@ -6,6 +6,8 @@
 
 #include "BKE_geometry_set.hh"
 
+#include "DNA_space_types.h"
+
 struct ARegionType;
 struct Depsgraph;
 struct Object;
@@ -21,8 +23,8 @@ namespace blender::ed::spreadsheet {
 class DataSource;
 
 struct ReorderColumnVisualizationData {
-  SpreadsheetColumn *column_to_move = nullptr;
-  SpreadsheetColumn *new_prev_column = nullptr;
+  int old_index = 0;
+  int new_index = 0;
   int current_offset_x_px = 0;
 };
 
@@ -77,5 +79,10 @@ SpreadsheetColumn *find_hovered_column(SpaceSpreadsheet &sspreadsheet,
  * Get the data that is currently displayed in the spreadsheet.
  */
 std::unique_ptr<DataSource> get_data_source(const bContext &C);
+
+const SpreadsheetTableID *get_active_table_id(const SpaceSpreadsheet &sspreadsheet);
+
+SpreadsheetTable *get_active_table(SpaceSpreadsheet &sspreadsheet);
+const SpreadsheetTable *get_active_table(const SpaceSpreadsheet &sspreadsheet);
 
 }  // namespace blender::ed::spreadsheet

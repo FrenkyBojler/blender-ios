@@ -32,4 +32,10 @@ void spreadsheet_table_blend_read(BlendDataReader *reader, SpreadsheetTable *tab
 void spreadsheet_table_remap_id(SpreadsheetTable &table, const bke::id::IDRemapper &mappings);
 void spreadsheet_table_foreach_id(SpreadsheetTable &table, LibraryForeachIDData *data);
 
+SpreadsheetTable *spreadsheet_table_find(SpaceSpreadsheet &sspreadsheet,
+                                         const SpreadsheetTableID &table_id);
+const SpreadsheetTable *spreadsheet_table_find(const SpaceSpreadsheet &sspreadsheet,
+                                               const SpreadsheetTableID &table_id);
+void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *table);
+
 }  // namespace blender::ed::spreadsheet

@@ -1185,9 +1185,6 @@ typedef struct SpaceSpreadsheet {
 
   SpreadsheetTableIDGeometry active_geometry_id;
 
-  /* List of #SpreadsheetColumn. */
-  ListBase columns;
-
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;
   char _pad2[4];

@@ -223,4 +223,33 @@ void spreadsheet_table_foreach_id(SpreadsheetTable &table, LibraryForeachIDData 
   spreadsheet_table_id_foreach_id(*table.id, data);
 }
 
+SpreadsheetTable *spreadsheet_table_find(SpaceSpreadsheet &sspreadsheet,
+                                         const SpreadsheetTableID &table_id)
+{
+  return const_cast<SpreadsheetTable *>(
+      spreadsheet_table_find(const_cast<const SpaceSpreadsheet &>(sspreadsheet), table_id));
+}
+
+const SpreadsheetTable *spreadsheet_table_find(const SpaceSpreadsheet &sspreadsheet,
+                                               const SpreadsheetTableID &table_id)
+{
+  for (const SpreadsheetTable *table : Span{sspreadsheet.tables, sspreadsheet.num_tables}) {
+    if (*table->id == table_id) {
+      return table;
+    }
+  }
+  return nullptr;
+}
+
+void spreadsheet_table_add(SpaceSpreadsheet &sspreadsheet, SpreadsheetTable *table)
+{
+  SpreadsheetTable **new_tables = MEM_calloc_arrayN<SpreadsheetTable *>(
+      sspreadsheet.num_tables + 1, __func__);
+  std::copy_n(sspreadsheet.tables, sspreadsheet.num_tables, new_tables);
+  new_tables[sspreadsheet.num_tables] = table;
+  MEM_SAFE_FREE(sspreadsheet.tables);
+  sspreadsheet.tables = new_tables;
+  sspreadsheet.num_tables++;
+}
+
 }  // namespace blender::ed::spreadsheet

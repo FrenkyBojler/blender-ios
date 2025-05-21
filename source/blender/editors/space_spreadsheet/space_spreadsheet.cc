@@ -109,9 +109,6 @@ static void spreadsheet_free(SpaceLink *sl)
   LISTBASE_FOREACH_MUTABLE (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
     spreadsheet_row_filter_free(row_filter);
   }
-  LISTBASE_FOREACH_MUTABLE (SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    spreadsheet_column_free(column);
-  }
   for (const int i : IndexRange(sspreadsheet->num_tables)) {
     spreadsheet_table_free(sspreadsheet->tables[i]);
   }
@@ -143,11 +140,6 @@ static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
   LISTBASE_FOREACH (const SpreadsheetRowFilter *, src_filter, &sspreadsheet_old->row_filters) {
     SpreadsheetRowFilter *new_filter = spreadsheet_row_filter_copy(src_filter);
     BLI_addtail(&sspreadsheet_new->row_filters, new_filter);
-  }
-  BLI_listbase_clear(&sspreadsheet_new->columns);
-  LISTBASE_FOREACH (SpreadsheetColumn *, src_column, &sspreadsheet_old->columns) {
-    SpreadsheetColumn *new_column = spreadsheet_column_copy(src_column);
-    BLI_addtail(&sspreadsheet_new->columns, new_column);
   }
   sspreadsheet_new->num_tables = sspreadsheet_old->num_tables;
   sspreadsheet_new->tables = MEM_calloc_arrayN<SpreadsheetTable *>(sspreadsheet_old->num_tables,
@@ -361,6 +353,26 @@ std::unique_ptr<DataSource> get_data_source(const bContext &C)
   return {};
 }
 
+const SpreadsheetTableID *get_active_table_id(const SpaceSpreadsheet &sspreadsheet)
+{
+  return &sspreadsheet.active_geometry_id.base;
+}
+
+SpreadsheetTable *get_active_table(SpaceSpreadsheet &sspreadsheet)
+{
+  return const_cast<SpreadsheetTable *>(
+      get_active_table(const_cast<const SpaceSpreadsheet &>(sspreadsheet)));
+}
+
+const SpreadsheetTable *get_active_table(const SpaceSpreadsheet &sspreadsheet)
+{
+  const SpreadsheetTableID *active_table_id = get_active_table_id(sspreadsheet);
+  if (!active_table_id) {
+    return nullptr;
+  }
+  return spreadsheet_table_find(sspreadsheet, *active_table_id);
+}
+
 static int get_index_column_width(const int tot_rows)
 {
   const int fontid = BLF_default();
@@ -369,42 +381,51 @@ static int get_index_column_width(const int tot_rows)
          UI_UNIT_X * 0.75;
 }
 
-static void update_visible_columns(ListBase &columns, DataSource &data_source)
+static void update_visible_columns(SpreadsheetTable &table, DataSource &data_source)
 {
-  Set<SpreadsheetColumnID> used_ids;
-  LISTBASE_FOREACH_MUTABLE (SpreadsheetColumn *, column, &columns) {
-    std::unique_ptr<ColumnValues> values = data_source.get_column_values(*column->id);
-    /* Remove columns that don't exist anymore. */
-    if (!values) {
-      BLI_remlink(&columns, column);
-      spreadsheet_column_free(column);
-      continue;
+  Set<std::reference_wrapper<const SpreadsheetColumnID>> handled_columns;
+  Vector<SpreadsheetColumn *, 32> new_columns;
+  for (SpreadsheetColumn *column : Span{table.columns, table.num_columns}) {
+    const bool still_exists = data_source.get_column_values(*column->id) != nullptr;
+    if (still_exists) {
+      if (handled_columns.add(*column->id)) {
+        new_columns.append(column);
+        continue;
+      }
     }
-
-    if (!used_ids.add(*column->id)) {
-      /* Remove duplicate columns for now. */
-      BLI_remlink(&columns, column);
-      spreadsheet_column_free(column);
-      continue;
-    }
+    /* Free columns that don't exist anymore or are duplicates for some reason. */
+    spreadsheet_column_free(column);
   }
 
   data_source.foreach_default_column_ids(
       [&](const SpreadsheetColumnID &column_id, const bool is_extra) {
-        std::unique_ptr<ColumnValues> values = data_source.get_column_values(column_id);
-        if (values) {
-          if (used_ids.add(column_id)) {
-            SpreadsheetColumnID *new_id = spreadsheet_column_id_copy(&column_id);
-            SpreadsheetColumn *new_column = spreadsheet_column_new(new_id);
-            if (is_extra) {
-              BLI_addhead(&columns, new_column);
-            }
-            else {
-              BLI_addtail(&columns, new_column);
-            }
-          }
+        if (handled_columns.contains(column_id)) {
+          return;
         }
+        std::unique_ptr<ColumnValues> values = data_source.get_column_values(column_id);
+        if (!values) {
+          return;
+        }
+        SpreadsheetColumn *column = spreadsheet_column_new(spreadsheet_column_id_copy(&column_id));
+        if (is_extra) {
+          new_columns.insert(0, column);
+        }
+        else {
+          new_columns.append(column);
+        }
+        handled_columns.add(*column->id);
       });
+
+  if (Span(table.columns, table.num_columns) == new_columns.as_span()) {
+    /* Nothing changed. */
+    return;
+  }
+
+  /* Update the stored column pointers. */
+  MEM_SAFE_FREE(table.columns);
+  table.columns = MEM_calloc_arrayN<SpreadsheetColumn *>(new_columns.size(), __func__);
+  table.num_columns = new_columns.size();
+  std::copy_n(new_columns.begin(), new_columns.size(), table.columns);
 }
 
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
@@ -417,7 +438,14 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     data_source = std::make_unique<DataSource>();
   }
 
-  update_visible_columns(sspreadsheet->columns, *data_source);
+  const SpreadsheetTableID *active_table_id = get_active_table_id(*sspreadsheet);
+  SpreadsheetTable *table = spreadsheet_table_find(*sspreadsheet, *active_table_id);
+  if (!table) {
+    table = spreadsheet_table_new(spreadsheet_table_id_copy(*active_table_id));
+    spreadsheet_table_add(*sspreadsheet, table);
+  }
+
+  update_visible_columns(*table, *data_source);
 
   SpreadsheetLayout spreadsheet_layout;
   ResourceScope scope;
@@ -427,7 +455,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   int x = spreadsheet_layout.index_column_width;
 
-  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
+  for (SpreadsheetColumn *column : Span{table->columns, table->num_columns}) {
     std::unique_ptr<ColumnValues> values_ptr = data_source->get_column_values(*column->id);
     /* Should have been removed before if it does not exist anymore. */
     BLI_assert(values_ptr);
@@ -671,10 +699,6 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
     BLO_read_string(reader, &row_filter->value_string);
   }
-  BLO_read_struct_list(reader, SpreadsheetColumn, &sspreadsheet->columns);
-  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    spreadsheet_column_blend_read(reader, column);
-  }
 
   BLO_read_pointer_array(
       reader, sspreadsheet->num_tables, reinterpret_cast<void **>(&sspreadsheet->tables));
@@ -694,10 +718,6 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
     BLO_write_struct(writer, SpreadsheetRowFilter, row_filter);
     BLO_write_string(writer, row_filter->value_string);
-  }
-
-  LISTBASE_FOREACH (SpreadsheetColumn *, column, &sspreadsheet->columns) {
-    spreadsheet_column_blend_write(writer, column);
   }
 
   BLO_write_pointer_array(writer, sspreadsheet->num_tables, sspreadsheet->tables);
