@@ -934,6 +934,7 @@ static void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *g
   split_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 
   RNA_enum_set(split_group->border->ptr, "transform", ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE);
+  RNA_enum_set(split_group->border->ptr, "draw_options", ED_GIZMO_CAGE_DRAW_FLAG_NOP);
 
   gzgroup->customdata = split_group;
   gzgroup->customdata_free = [](void *customdata) {
