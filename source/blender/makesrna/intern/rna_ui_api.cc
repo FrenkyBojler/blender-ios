@@ -150,7 +150,7 @@ static void rna_uiItemR(uiLayout *layout,
     flag |= UI_ITEM_R_CHECKBOX_INVERT;
   }
 
-  uiItemFullR(layout, ptr, prop, index, 0, flag, text, icon, placeholder_str);
+  layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
 }
 
 static void rna_uiItemR_with_popover(uiLayout *layout,
@@ -376,9 +376,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   const float prev_weight = uiLayoutGetSearchWeight(layout);
   uiLayoutSetSearchWeight(layout, search_weight);
 
-  PointerRNA opptr;
-  uiItemFullO_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, &opptr);
+  PointerRNA opptr = layout->op(ot, text, icon, uiLayoutGetOperatorContext(layout), flag);
 
   uiLayoutSetSearchWeight(layout, prev_weight);
   return opptr;
@@ -489,7 +487,7 @@ static void rna_uiItemM(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemM(layout, menuname, text, icon);
+  layout->menu(menuname, text, icon);
 }
 
 static void rna_uiItemM_contents(uiLayout *layout, const char *menuname)
@@ -543,7 +541,7 @@ static void rna_uiItemProgress(uiLayout *layout,
 
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 {
-  uiItemS_ex(layout, factor, LayoutSeparatorType(type));
+  layout->separator(factor, LayoutSeparatorType(type));
 }
 
 static void rna_uiTemplateID(uiLayout *layout,

@@ -19,6 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -36,6 +37,8 @@
 #include "BLT_translation.hh"
 
 #include "ED_screen.hh"
+
+#include "BLF_api.hh"
 
 #include "GPU_state.hh"
 #include "interface_intern.hh"
@@ -174,6 +177,47 @@ int UI_searchbox_size_y()
 int UI_searchbox_size_x()
 {
   return 12 * UI_UNIT_X;
+}
+
+int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn)
+{
+  using namespace blender;
+
+  uiSearchItems items{};
+  /* Upper bound on the number of item names that are checked. */
+  items.maxitem = 1000;
+  items.maxstrlen = 256;
+
+  /* Prepare name buffers. */
+  Array<char> names_buffer(items.maxitem * items.maxstrlen);
+  Array<char *> names(items.maxitem);
+  items.names = names.data();
+  for (int i : IndexRange(items.maxitem)) {
+    names[i] = names_buffer.data() + i * items.maxstrlen;
+  }
+
+  /* Gather the names shown in the search box. */
+  update_fn(C, nullptr, "", &items, true);
+
+  /* Compute the width of each item. */
+  Array<int> item_widths(items.totitem);
+  threading::parallel_for(item_widths.index_range(), 256, [&](const IndexRange range) {
+    for (const int i : range) {
+      const blender::StringRefNull name = items.names[i];
+      const float text_width = BLF_width(BLF_default(), name.c_str(), name.size(), nullptr);
+      const float padding = UI_UNIT_X;
+      item_widths[i] = int(text_width + padding);
+    }
+  });
+
+  /* Compute the final width of the search box. */
+  int box_width = UI_searchbox_size_x();
+  for (const int width : item_widths) {
+    box_width = std::max(box_width, width);
+  }
+  /* Avoid extremely wide boxes. */
+  box_width = std::min(box_width, UI_searchbox_size_x() * 5);
+  return box_width;
 }
 
 int UI_search_items_find_index(const uiSearchItems *items, const char *name)
@@ -561,7 +605,8 @@ static void ui_searchbox_draw_clip_tri_down(rcti *rect, const float zoom)
                   zoom * UI_ICON_SIZE;
   const float aspect = U.inv_scale_factor / zoom;
   GPU_blend(GPU_BLEND_ALPHA);
-  UI_icon_draw_ex(x, y, ICON_TRIA_DOWN, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(
+      x, y, ICON_TRIA_DOWN, aspect, 1.0f, 0.0f, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
 }
 
@@ -576,7 +621,7 @@ static void ui_searchbox_draw_clip_tri_up(rcti *rect, const float zoom)
   const float y = rect->ymax + (0.5f * zoom * (UI_SEARCHBOX_TRIA_H - UI_ICON_SIZE) - U.pixelsize);
   const float aspect = U.inv_scale_factor / zoom;
   GPU_blend(GPU_BLEND_ALPHA);
-  UI_icon_draw_ex(x, y, ICON_TRIA_UP, aspect, 1.0f, 0.0f, NULL, false, UI_NO_ICON_OVERLAY_TEXT);
+  UI_icon_draw_ex(x, y, ICON_TRIA_UP, aspect, 1.0f, 0.0f, nullptr, false, UI_NO_ICON_OVERLAY_TEXT);
   GPU_blend(GPU_BLEND_NONE);
 }
 
@@ -1005,8 +1050,8 @@ ARegion *ui_searchbox_create_generic(bContext *C, ARegion *butregion, uiButSearc
 /**
  * Similar to Python's `str.title` except...
  *
- * - we know words are upper case and ascii only.
- * - '_' are replaces by spaces.
+ * - we know words are upper case and ASCII only.
+ * - `_` are replaced by spaces.
  */
 static void str_tolower_titlecaps_ascii(char *str, const size_t len)
 {
