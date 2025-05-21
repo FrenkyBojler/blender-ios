@@ -58,6 +58,19 @@ class VectorList {
     used_vectors_ = 1;
   }
 
+  VectorList(VectorList &&other) noexcept
+  {
+    vectors_ = std::move(other.vectors_);
+    used_vectors_ = other.used_vectors_;
+    size_ = other.size_;
+    other.clear_and_shrink();
+  }
+
+  VectorList &operator=(VectorList &&other)
+  {
+    return move_assign_container(*this, std::move(other));
+  }
+
   /* Insert a new element at the end of the VectorList. */
   void append(const T &value)
   {
