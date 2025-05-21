@@ -290,20 +290,12 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
     if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
       /* Find the last item which we want to drop below. */
       AbstractTreeViewItem *last_item = nullptr;
-      tree_view->foreach_item(
-          [&](AbstractTreeViewItem &item) {
-            if (!item.is_interactive()) {
-              return;
-            }
-            const bool is_root = item.count_parents() == 0;
-            if (!is_root) {
-              /* We want to drop after the last root item, not in a nested item. */
-              return;
-            }
-            last_item = &item;
-          },
-          TreeViewItemContainer::IterOptions::SkipCollapsed |
-              TreeViewItemContainer::IterOptions::SkipFiltered);
+      tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
+        if (!item.is_interactive()) {
+          return;
+        }
+        last_item = &item;
+      });
       if (last_item) {
         return last_item->create_item_drop_target();
       }

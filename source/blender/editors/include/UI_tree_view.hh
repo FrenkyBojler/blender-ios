@@ -132,6 +132,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   void draw_overlays(const ARegion &region, const uiBlock &block) const override;
 
   void foreach_item(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
+  void foreach_root_item(ItemIterFn iter_fn) const;
 
   void scroll(ViewScrollDirection direction) override;
 
