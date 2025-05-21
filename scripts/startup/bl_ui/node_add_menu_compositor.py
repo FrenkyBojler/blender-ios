@@ -326,6 +326,7 @@ class NODE_MT_category_compositor_vector(Menu):
         ops.name = "data_type"
         ops.value = "'VECTOR'"
         node_add_menu.add_node_type(layout, "CompositorNodeNormal")
+        node_add_menu.add_node_type(layout, "ShaderNodeRadialTiling")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
