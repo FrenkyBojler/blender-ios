@@ -1254,29 +1254,60 @@ static void GREASE_PENCIL_OT_layer_duplicate_object(wmOperatorType *ot)
 static bool active_grease_pencil_layer_or_group_poll(bContext *C)
 {
   using namespace blender::bke::greasepencil;
+
+  /* Ensure the grease pencil context is valid. */
   if (!grease_pencil_context_poll(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Invalid grease pencil context");
     return false;
   }
+
+  // Check that the grease pencil object is visible in the viewport.
+  Object *ob = CTX_data_active_object(C);
+
+  if (ob && (ob->visibility_flag & OB_HIDE_VIEWPORT)) {
+    CTX_wm_operator_poll_msg_set(C, "Grease Pencil object is hidden in the viewport");
+    return false;
+  }
+
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
+
+  bool found = false;
+  for (const Layer *layer : grease_pencil.layers()) {
+    if (layer->is_visible() && layer->is_selected()) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    CTX_wm_operator_poll_msg_set(C, "At least one layer must be visible and selected");
+    return false;
+  }
+
+  /* Ensure there's an active node.
+   * If the active node is a group, allow the operation.
+   * Otherwise, if it's part of a group, the group must contain at least 2 layers. */
   TreeNode *active_node = grease_pencil.get_active_node();
   if (active_node == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "No active layer or group");
     return false;
   }
 
-  /* If the active node is a group, allow poll even if it has only one child. */
   if (active_node->is_group()) {
     return true;
   }
 
-  /* Otherwise, if active node belongs to a group, require at least 2 nodes. */
   const LayerGroup *parent = active_node->parent_group();
   if (parent != nullptr) {
-    if (parent->num_direct_nodes() < 1) {
-      CTX_wm_operator_poll_msg_set(C, "Group must have at least 1 layers");
+    if (parent->num_direct_nodes() < 2) {
+      CTX_wm_operator_poll_msg_set(C, "Group must have at least 2 layers");
       return false;
     }
   }
+  else {
+    CTX_wm_operator_poll_msg_set(C, "Active layer is not part of a group");
+    return false;
+  }
+
   return true;
 }
 
