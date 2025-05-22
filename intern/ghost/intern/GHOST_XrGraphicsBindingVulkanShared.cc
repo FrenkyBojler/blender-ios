@@ -196,7 +196,8 @@ void GHOST_XrGraphicsBindingVulkanShared::initFromGhostContext(GHOST_Context & /
                     vulkan_handles.graphic_queue_family,
                     0};
 
-  VkFenceCreateInfo vk_fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, 0};
+  VkFenceCreateInfo vk_fence_create_info = {
+      VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
   vkCreateFence(oxr_binding.vk.device, &vk_fence_create_info, nullptr, &m_vk_fence);
 }
 
@@ -205,6 +206,7 @@ void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainBegin(int view_count)
   if (view_count > 0 && m_openxr_datas.empty()) {
     m_openxr_datas.resize(view_count, {});
   }
+  vkResetFences(oxr_binding.vk.device, 1, &m_vk_fence);
 }
 
 void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainImage(
@@ -225,7 +227,6 @@ void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainImage(
 void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainEnd()
 {
   vkWaitForFences(oxr_binding.vk.device, 1, &m_vk_fence, false, UINT64_MAX);
-  vkResetFences(oxr_binding.vk.device, 1, &m_vk_fence);
   for (GHOST_VulkanOpenXRData &openxr_data : m_openxr_datas) {
     m_ghost_ctx.openxr_release_framebuffer_image_callback_(&openxr_data);
   }
