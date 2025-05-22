@@ -394,10 +394,10 @@ typedef struct FileSelectParams {
   /** Title, also used for the text of the execute button. */
   char title[96];
   /**
-   * Directory, FILE_MAX_LIBEXTRA, 1024 + 66, this is for extreme case when 1023 length path
+   * Directory, 1024 + 258, this is for extreme case when 1023 length path
    * needs to be linked in, where foo.blend/Armature need adding
    */
-  char dir[1090];
+  char dir[/* FILE_MAX_LIBEXTRA */ 1282];
   char file[256];
 
   char renamefile[256];
