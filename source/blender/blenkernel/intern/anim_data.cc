@@ -2,9 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* `Scene->nodetree` is deprecated but still relevant for backward compatibility. */
-#define DNA_DEPRECATED_ALLOW
-
 /** \file
  * \ingroup bke
  */
