@@ -1069,7 +1069,8 @@ ccl_device VolumeIntegrateEvent volume_integrate(KernelGlobals kg,
          */
         float3 scatterEval = one_float3();
         if (INTEGRATOR_STATE(state, guiding, path_segment)) {
-          const pgl_vec3f scatteringWeight = INTEGRATOR_STATE(state, guiding, path_segment)->scatteringWeight;
+          const pgl_vec3f scatteringWeight =
+              INTEGRATOR_STATE(state, guiding, path_segment)->scatteringWeight;
           scatterEval = make_float3(scatteringWeight.x, scatteringWeight.y, scatteringWeight.z);
         }
         unlit_throughput /= scatterEval;
