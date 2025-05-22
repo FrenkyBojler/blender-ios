@@ -62,7 +62,7 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
-        options={'HIDDEN', 'SKIP_PRESET'}
+        options={'HIDDEN', 'SKIP_PRESET'},
     )
 
     ui_tab: EnumProperty(

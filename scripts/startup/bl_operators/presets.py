@@ -921,7 +921,6 @@ class WM_OT_operator_presets_cleanup(Operator):
                 "WM_OT_stl_import",
                 "WM_OT_usd_export",
                 "WM_OT_usd_import",
-
             ]
             properties_exclude = [
                 "filepath",
