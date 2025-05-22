@@ -33,6 +33,24 @@ TEST(vectorlist, MoveConstructor)
   EXPECT_EQ(vec2[3], 4);
 }
 
+TEST(vectorlist, MoveOperator)
+{
+  VectorList<int> vec1;
+  vec1.append(1);
+  vec1.append(2);
+  vec1.append(3);
+  vec1.append(4);
+  VectorList<int> vec2;
+  vec2 = std::move(vec1);
+
+  EXPECT_EQ(vec1.size(), 0); /* NOLINT: bugprone-use-after-move */
+  EXPECT_EQ(vec2.size(), 4);
+  EXPECT_EQ(vec2[0], 1);
+  EXPECT_EQ(vec2[1], 2);
+  EXPECT_EQ(vec2[2], 3);
+  EXPECT_EQ(vec2[3], 4);
+}
+
 TEST(vectorlist, Append)
 {
   VectorList<int> vec;
@@ -54,6 +72,21 @@ TEST(vectorlist, Iterator)
   vec.append(16);
   int i = 1;
   for (int value : vec) {
+    EXPECT_EQ(value, i * i);
+    i++;
+  }
+}
+
+TEST(vectorlist, ConstIterator)
+{
+  VectorList<int> vec;
+  vec.append(1);
+  vec.append(4);
+  vec.append(9);
+  vec.append(16);
+  const VectorList<int> &const_ref = vec;
+  int i = 1;
+  for (int value : const_ref) {
     EXPECT_EQ(value, i * i);
     i++;
   }
@@ -83,6 +116,18 @@ TEST(vectorlist, LimitIndexing)
   }
 }
 
+TEST(vectorlist, ConstLimitIndexing)
+{
+  VectorList<int, 8, 128> vec;
+  for (int64_t i : IndexRange(1024)) {
+    vec.append(int(i));
+  }
+  const VectorList<int, 8, 128> &const_ref = vec;
+  for (int64_t i : IndexRange(1024)) {
+    EXPECT_EQ(const_ref[i], i);
+  }
+}
+
 static VectorList<int> return_by_value_helper()
 {
   VectorList<int> vec;
@@ -109,6 +154,15 @@ TEST(vectorlist, IsEmpty)
   EXPECT_FALSE(vec.is_empty());
   vec.clear();
   EXPECT_TRUE(vec.is_empty());
+}
+
+TEST(vectorlist, First)
+{
+  VectorList<int> vec;
+  vec.append(3);
+  vec.append(5);
+  vec.append(7);
+  EXPECT_EQ(vec.first(), 3);
 }
 
 TEST(vectorlist, Last)
