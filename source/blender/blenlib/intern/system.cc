@@ -67,9 +67,6 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
   /* If system as execinfo.h */
 #  if defined(HAVE_EXECINFO_H)
 
-  static blender::Mutex lock;
-  std::scoped_lock lock(print_lock());
-
 #    define SIZE 100
   void *buffer[SIZE];
   int nptrs;
@@ -105,6 +102,8 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
 
 void BLI_system_backtrace(FILE *fp)
 {
+  static blender::Mutex mutex;
+  std::scoped_lock lock(mutex);
   BLI_system_backtrace_with_os_info(fp, nullptr);
 }
 
