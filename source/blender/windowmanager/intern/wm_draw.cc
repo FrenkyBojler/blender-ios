@@ -150,12 +150,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
         xy = xy_buf;
       }
 
-      pc->draw(C,
-               xy[0],
-               xy[1],
-               win->eventstate->tablet.tilt.x,
-               win->eventstate->tablet.tilt.y,
-               pc->customdata);
+      pc->draw(C, xy, win->eventstate->tablet.tilt, pc->customdata);
       GPU_scissor_test(false);
     }
   }
@@ -312,20 +307,19 @@ static void wm_software_cursor_draw_crosshair(const int event_xy[2])
    * NOTE: the `win->cursor` could be used for drawing although it's complicated as some cursors
    * are set by the operating-system, where the pixel information isn't easily available. */
   const float unit = max_ff(UI_SCALE_FAC, 1.0f);
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor4f(1, 1, 1, 1);
   {
     const int ofs_line = (8 * unit);
     const int ofs_size = (2 * unit);
-    immRecti(pos,
+    immRectf(pos,
              event_xy[0] - ofs_line,
              event_xy[1] - ofs_size,
              event_xy[0] + ofs_line,
              event_xy[1] + ofs_size);
-    immRecti(pos,
+    immRectf(pos,
              event_xy[0] - ofs_size,
              event_xy[1] - ofs_line,
              event_xy[0] + ofs_size,
@@ -335,12 +329,12 @@ static void wm_software_cursor_draw_crosshair(const int event_xy[2])
   {
     const int ofs_line = (7 * unit);
     const int ofs_size = (1 * unit);
-    immRecti(pos,
+    immRectf(pos,
              event_xy[0] - ofs_line,
              event_xy[1] - ofs_size,
              event_xy[0] + ofs_line,
              event_xy[1] + ofs_size);
-    immRecti(pos,
+    immRectf(pos,
              event_xy[0] - ofs_size,
              event_xy[1] - ofs_line,
              event_xy[0] + ofs_size,
@@ -461,9 +455,6 @@ static bool wm_draw_region_stereo_set(Main *bmain,
 
       if (region->regiontype == RGN_TYPE_PREVIEW) {
         return true;
-      }
-      if (region->regiontype == RGN_TYPE_WINDOW) {
-        return (sseq->draw_flag & SEQ_DRAW_BACKDROP) != 0;
       }
     }
   }

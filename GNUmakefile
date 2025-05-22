@@ -117,10 +117,10 @@ Utilities
      Create a compressed archive of the source code and all the libraries of dependencies.
 
    * update:
-     Updates git and all submodules and svn.
+     Update blender repository and libraries.
 
    * update_code:
-     Updates git and all submodules but not svn.
+     Updates blender repository only, without updating libraries.
 
    * format:
      Format source code using clang-format & autopep8 (uses PATHS if passed in). For example::
@@ -428,6 +428,8 @@ ifneq "$(findstring clean, $(MAKECMDGOALS))" ""
 	DEPS_TARGET = clean
 endif
 
+# Set the SOURCE_DATE_EPOCH to make builds reproducible (locks timestamps to the specified date).
+deps: export SOURCE_DATE_EPOCH = 1745584760
 deps: .FORCE
 	@echo
 	@echo Configuring dependencies in \"$(DEPS_BUILD_DIR)\", install to \"$(DEPS_INSTALL_DIR)\"

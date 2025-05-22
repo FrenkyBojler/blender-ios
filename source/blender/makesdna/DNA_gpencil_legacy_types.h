@@ -455,8 +455,8 @@ typedef struct bGPDlayer {
   struct Object *parent;
   /** Inverse matrix (only used if parented). */
   float inverse[4][4];
-  /** String describing sub-object info, `MAX_ID_NAME - 2`. */
-  char parsubstr[64];
+  /** String describing sub-object info. */
+  char parsubstr[/*MAX_NAME*/ 64];
   short partype;
 
   /** Thickness adjustment. */
@@ -611,7 +611,11 @@ typedef struct bGPgrid {
 
 /** Grease-Pencil Annotations - 'DataBlock'. */
 typedef struct bGPdata {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(bGPdata)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_GD_LEGACY;
+#endif
 
   /** Grease Pencil data is a data-block. */
   ID id;

@@ -737,7 +737,7 @@ static void do_versions_material_convert_legacy_blend_mode(bNodeTree *ntree, cha
 
 static void do_versions_local_collection_bits_set(LayerCollection *layer_collection)
 {
-  layer_collection->local_collections_bits = ~(0);
+  layer_collection->local_collections_bits = ~0;
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
     do_versions_local_collection_bits_set(child);
   }
@@ -3016,7 +3016,6 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
 static void do_versions_seq_set_cache_defaults(Editing *ed)
 {
   ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
-  ed->recycle_max_cost = 10.0f;
 }
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
@@ -3024,7 +3023,7 @@ static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
   strip->flag &= ~((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
   if (strip->type == STRIP_TYPE_SPEED) {
     SpeedControlVars *s = (SpeedControlVars *)strip->effectdata;
-    s->flags &= ~(SEQ_SPEED_UNUSED_1);
+    s->flags &= ~SEQ_SPEED_UNUSED_1;
   }
   return true;
 }
@@ -3863,6 +3862,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
         if (rbw->shared == nullptr) {
           rbw->shared = MEM_callocN<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          BKE_rigidbody_world_init_runtime(rbw);
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -4592,7 +4592,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
               space_outliner->filter &= ~(SO_FILTER_CLEARED_1 | SO_FILTER_UNUSED_5 |
                                           SO_FILTER_OB_STATE_SELECTABLE);
-              space_outliner->storeflag &= ~(SO_TREESTORE_UNUSED_1);
+              space_outliner->storeflag &= ~SO_TREESTORE_UNUSED_1;
               break;
             }
             case SPACE_FILE: {
@@ -5314,7 +5314,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      arm->flag &= ~(ARM_BCOLL_SOLO_ACTIVE);
+      arm->flag &= ~ARM_BCOLL_SOLO_ACTIVE;
     }
   }
 
@@ -5433,11 +5433,14 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             ARegion *region_toolprops = do_versions_find_region_or_null(regionbase,
                                                                         RGN_TYPE_TOOL_PROPS);
 
-            /* Reinsert UI region so that it spawns entire area width */
-            BLI_remlink(regionbase, region_ui);
-            BLI_insertlinkafter(regionbase, region_header, region_ui);
+            /* Check, even though this is expected to be valid. */
+            if (region_ui) {
+              /* Reinsert UI region so that it spawns entire area width. */
+              BLI_remlink(regionbase, region_ui);
+              BLI_insertlinkafter(regionbase, region_header, region_ui);
 
-            region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+              region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+            }
 
             if (region_toolprops &&
                 (region_toolprops->alignment == (RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV)))

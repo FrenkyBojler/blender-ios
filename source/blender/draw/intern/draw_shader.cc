@@ -212,5 +212,6 @@ GPUShader *DRW_shader_subdiv_interp_corner_normals_get()
 
 void DRW_shaders_free()
 {
+  GPU_shader_unbind();
   ShaderCache::release();
 }

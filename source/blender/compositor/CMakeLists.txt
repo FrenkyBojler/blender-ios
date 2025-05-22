@@ -71,7 +71,6 @@ set(SRC
   algorithms/intern/compute_preview.cc
   algorithms/intern/deriche_gaussian_blur.cc
   algorithms/intern/extract_alpha.cc
-  algorithms/intern/gamma_correct.cc
   algorithms/intern/jump_flooding.cc
   algorithms/intern/morphological_blur.cc
   algorithms/intern/morphological_distance.cc
@@ -87,7 +86,6 @@ set(SRC
   algorithms/COM_algorithm_compute_preview.hh
   algorithms/COM_algorithm_deriche_gaussian_blur.hh
   algorithms/COM_algorithm_extract_alpha.hh
-  algorithms/COM_algorithm_gamma_correct.hh
   algorithms/COM_algorithm_jump_flooding.hh
   algorithms/COM_algorithm_morphological_blur.hh
   algorithms/COM_algorithm_morphological_distance.hh
@@ -161,6 +159,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 set(GLSL_SRC
@@ -309,6 +308,7 @@ foreach(GLSL_FILE ${GLSL_SRC})
 endforeach()
 
 blender_add_lib(bf_compositor_shaders "${GLSL_C}" "" "" "")
+blender_set_target_unity_build(bf_compositor_shaders 10)
 
 list(APPEND LIB
   bf_compositor_shaders
@@ -351,20 +351,6 @@ if(WITH_OPENIMAGEDENOISE)
   list(APPEND LIB
     ${OPENIMAGEDENOISE_LIBRARIES}
     ${TBB_LIBRARIES}
-  )
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(
-    -DWITH_OCIO
-  )
-
-  list(APPEND INC_SYS
-    ${OPENCOLORIO_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${OPENCOLORIO_LIBRARIES}
   )
 endif()
 
