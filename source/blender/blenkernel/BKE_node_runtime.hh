@@ -25,6 +25,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_tree_interface.hh"
 
+#include "NOD_socket_usage_inference_fwd.hh"
+
 struct bNode;
 struct bNodeSocket;
 struct bNodeTree;
@@ -179,7 +181,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * socket is used by the node it belongs to. Sockets for which this is false may e.g. be grayed
    * out.
    */
-  blender::Array<bool> inferenced_input_socket_usage;
+  blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_input_socket_usage;
   CacheMutex inferenced_input_socket_usage_mutex;
 
   /**
@@ -210,7 +212,14 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   mutable std::atomic<int> allow_use_dirty_topology_cache = 0;
 
   CacheMutex tree_zones_cache_mutex;
-  std::unique_ptr<bNodeTreeZones> tree_zones;
+  std::shared_ptr<bNodeTreeZones> tree_zones;
+
+  /**
+   * Same as #tree_zones, but may not be valid anymore. This is used for drawing errors when the
+   * zone detection failed.
+   */
+  std::shared_ptr<bNodeTreeZones> last_valid_zones;
+  Set<int> invalid_zone_output_node_ids;
 
   /**
    * The stored sockets are drawn using a special link to indicate that there is a gizmo. This is
@@ -976,7 +985,7 @@ inline int bNodeSocket::index_in_all_outputs() const
   return this->runtime->index_in_inout_sockets;
 }
 
-inline bool bNodeSocket::is_hidden() const
+inline bool bNodeSocket::is_user_hidden() const
 {
   return (this->flag & SOCK_HIDDEN) != 0;
 }
@@ -993,7 +1002,8 @@ inline bool bNodeSocket::is_panel_collapsed() const
 
 inline bool bNodeSocket::is_visible() const
 {
-  return !this->is_hidden() && this->is_available();
+  return !this->is_user_hidden() && this->is_available() &&
+         (this->is_output() || this->inferred_input_socket_visibility());
 }
 
 inline bNode &bNodeSocket::owner_node()

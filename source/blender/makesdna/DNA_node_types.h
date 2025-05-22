@@ -12,7 +12,8 @@
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_scene_types.h" /* for #ImageFormatData */
-#include "DNA_vec_types.h"   /* for #rctf */
+#include "DNA_texture_types.h"
+#include "DNA_vec_types.h" /* for #rctf */
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -196,7 +197,12 @@ typedef struct bNodeSocket {
   bNodeSocketRuntimeHandle *runtime;
 
 #ifdef __cplusplus
-  bool is_hidden() const;
+  /**
+   * Whether the socket is hidden in a way that the user can control.
+   *
+   * \note: This is not the exact opposite of `is_visible()` which takes other things into account.
+   */
+  bool is_user_hidden() const;
   bool is_available() const;
   bool is_panel_collapsed() const;
   bool is_visible() const;
@@ -208,6 +214,12 @@ typedef struct bNodeSocket {
    * False when this input socket definitely does not affect the output.
    */
   bool affects_node_output() const;
+  /**
+   * This becomes false when it is detected that the input socket is currently not used and its
+   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whoose
+   * visibility is controlled by a menu should be hidden.
+   */
+  bool inferred_input_socket_visibility() const;
 
   /** Utility to access the value of the socket. */
   template<typename T> T *default_value_typed();
@@ -1238,8 +1250,14 @@ typedef struct NodeChroma {
 } NodeChroma;
 
 typedef struct NodeTwoXYs {
-  short x1, x2, y1, y2;
-  float fac_x1, fac_x2, fac_y1, fac_y2;
+  short x1;
+  short x2;
+  short y1;
+  short y2;
+  float fac_x1;
+  float fac_x2;
+  float fac_y1;
+  float fac_y2;
 } NodeTwoXYs;
 
 typedef struct NodeTwoFloats {
@@ -3032,6 +3050,22 @@ typedef enum CMPNodeLensDistortionType {
   CMP_NODE_LENS_DISTORTION_RADIAL = 0,
   CMP_NODE_LENS_DISTORTION_HORIZONTAL = 1,
 } CMPNodeLensDistortionType;
+
+/* Relative To Pixel node. Stored in custom1. */
+typedef enum CMPNodeRelativeToPixelDataType {
+  CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_FLOAT = 0,
+  CMP_NODE_RELATIVE_TO_PIXEL_DATA_TYPE_VECTOR = 1,
+} CMPNodeRelativeToPixelDataType;
+
+/* Relative To Pixel node. Stored in custom2. */
+typedef enum CMPNodeRelativeToPixelReferenceDimension {
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_PER_DIMENSION = 0,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_X = 1,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_Y = 2,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_GREATER = 3,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_SMALLER = 4,
+  CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_DIAGONAL = 5,
+} CMPNodeRelativeToPixelReferenceDimension;
 
 /* Point Density shader node */
 
