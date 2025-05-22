@@ -2586,19 +2586,19 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      */
     if (tar_pchan) {
       PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Bone"), ICON_NONE);
-      RNA_boolean_set(&op_ptr, "with_targets", 1);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
       PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Object"), ICON_NONE);
-      RNA_boolean_set(&op_ptr, "with_targets", 1);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
     PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To New Empty Object"), ICON_NONE);
-    RNA_boolean_set(&op_ptr, "with_targets", 1);
+    RNA_boolean_set(&op_ptr, "with_targets", true);
     op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Targets"), ICON_NONE);
-    RNA_boolean_set(&op_ptr, "with_targets", 0);
+    RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */

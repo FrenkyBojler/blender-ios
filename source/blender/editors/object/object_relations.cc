@@ -965,12 +965,12 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   PointerRNA op_ptr = layout->op(
       "OBJECT_OT_parent_no_inverse_set", IFACE_("Object (Without Inverse)"), ICON_NONE);
-  RNA_boolean_set(&op_ptr, "keep_transform", 0);
+  RNA_boolean_set(&op_ptr, "keep_transform", false);
 
   op_ptr = layout->op("OBJECT_OT_parent_no_inverse_set",
                       IFACE_("Object (Keep Transform Without Inverse)"),
                       ICON_NONE);
-  RNA_boolean_set(&op_ptr, "keep_transform", 1);
+  RNA_boolean_set(&op_ptr, "keep_transform", true);
 
   struct {
     bool armature_deform, empty_groups, envelope_weights, automatic_weights, attach_surface;

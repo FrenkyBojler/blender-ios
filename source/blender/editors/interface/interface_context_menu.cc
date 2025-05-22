@@ -585,31 +585,31 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_keyframe_insert_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Replace Keyframes"),
             ICON_KEY_HLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op(
             "ANIM_OT_keyframe_insert_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Replace Single Keyframe"),
             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
         op_ptr = layout->op("ANIM_OT_keyframe_delete_button",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Keyframes"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op("ANIM_OT_keyframe_delete_button",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Single Keyframe"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
       }
       else {
         PointerRNA op_ptr = layout->op(
             "ANIM_OT_keyframe_insert_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Replace Keyframe"),
             ICON_KEY_HLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op("ANIM_OT_keyframe_delete_button",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Keyframe"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
       }
 
       /* keyframe settings */
@@ -624,18 +624,18 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_keyframe_insert_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Insert Keyframes"),
             ICON_KEY_HLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op("ANIM_OT_keyframe_insert_button",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Insert Single Keyframe"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
       }
       else {
         PointerRNA op_ptr = layout->op(
             "ANIM_OT_keyframe_insert_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Insert Keyframe"),
             ICON_KEY_HLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
       }
     }
 
@@ -645,18 +645,18 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_keyframe_clear_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Keyframes"),
             ICON_KEY_DEHLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op("ANIM_OT_keyframe_clear_button",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Single Keyframes"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
       }
       else {
         PointerRNA op_ptr = layout->op(
             "ANIM_OT_keyframe_clear_button",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Keyframes"),
             ICON_KEY_DEHLT);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
       }
     }
 
@@ -705,18 +705,18 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_driver_button_remove",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Drivers"),
             ICON_X);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op("ANIM_OT_driver_button_remove",
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Single Driver"),
                             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
       }
       else {
         PointerRNA op_ptr = layout->op(
             "ANIM_OT_driver_button_remove",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Driver"),
             ICON_X);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
       }
 
       if (is_whole_array) {
@@ -790,12 +790,12 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_keyingset_button_add",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add All to Keying Set"),
             ICON_KEYINGSET);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         op_ptr = layout->op(
             "ANIM_OT_keyingset_button_add",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Single to Keying Set"),
             ICON_NONE);
-        RNA_boolean_set(&op_ptr, "all", 0);
+        RNA_boolean_set(&op_ptr, "all", false);
         layout->op("ANIM_OT_keyingset_button_remove",
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Keying Set"),
                    ICON_NONE);
@@ -805,7 +805,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "ANIM_OT_keyingset_button_add",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Keying Set"),
             ICON_KEYINGSET);
-        RNA_boolean_set(&op_ptr, "all", 1);
+        RNA_boolean_set(&op_ptr, "all", true);
         layout->op("ANIM_OT_keyingset_button_remove",
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Keying Set"),
                    ICON_NONE);
@@ -894,19 +894,19 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           "UI_OT_reset_default_button",
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Reset All to Default Values"),
           ICON_LOOP_BACK);
-      RNA_boolean_set(&op_ptr, "all", 1);
+      RNA_boolean_set(&op_ptr, "all", true);
       op_ptr = layout->op(
           "UI_OT_reset_default_button",
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Reset Single to Default Value"),
           ICON_NONE);
-      RNA_boolean_set(&op_ptr, "all", 0);
+      RNA_boolean_set(&op_ptr, "all", false);
     }
     else {
       PointerRNA op_ptr = layout->op(
           "UI_OT_reset_default_button",
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Reset to Default Value"),
           ICON_LOOP_BACK);
-      RNA_boolean_set(&op_ptr, "all", 1);
+      RNA_boolean_set(&op_ptr, "all", true);
     }
 
     if (is_idprop && !is_array && ELEM(type, PROP_INT, PROP_FLOAT)) {
