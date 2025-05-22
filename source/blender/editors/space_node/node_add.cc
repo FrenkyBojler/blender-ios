@@ -1589,12 +1589,11 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
 static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  bNodeTree *ntree;
   char tree_name[MAX_NAME];
 
   RNA_string_get(op->ptr, "name", tree_name);
 
-  ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
   ED_node_composit_default_init(C, ntree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
