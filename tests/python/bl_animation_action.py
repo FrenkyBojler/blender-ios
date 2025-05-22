@@ -77,7 +77,7 @@ class ActionSlotCreationTest(unittest.TestCase):
             "This name is so long! It might look long, but it is just right! "
             "This name is so long! It might look long, but it is just right!"
         )
-        assert(len(long_but_ok_name) == 255)
+        assert (len(long_but_ok_name) == 255)
         slot_ok = self.action.slots.new('OBJECT', long_but_ok_name)
         self.assertEqual(long_but_ok_name, slot_ok.name_display, "this name should fit")
         self.assertEqual('OB' + long_but_ok_name, slot_ok.identifier, "this identifier should fit")
@@ -89,7 +89,7 @@ class ActionSlotCreationTest(unittest.TestCase):
             "This name is so long! It might look long, and that it is indeed."
             "This name is so long! It might look long, and that it is indeed."
         )
-        assert(len(too_long_name) == 256)
+        assert (len(too_long_name) == 256)
         too_long_name_truncated = too_long_name[:255]
         slot_long = self.action.slots.new('OBJECT', too_long_name)
         self.assertEqual(too_long_name_truncated, slot_long.name_display, "this name should be truncated")

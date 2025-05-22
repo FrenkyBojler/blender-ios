@@ -1477,7 +1477,7 @@ static void draw_selected_name(
   BLI_assert(i < int(ARRAY_SIZE(info_array)));
 
   /* Allocate memory for the string to draw. Resize if more needed. */
-  static char* info = nullptr;
+  static char *info = nullptr;
   static size_t info_size = 0;
 
   /* BLI_string_len_array returns space required for text, + 1 is for string terminator */
@@ -1491,7 +1491,7 @@ static void draw_selected_name(
     info = MEM_malloc_arrayN<char>(info_array_length, "");
     info_size = info_array_length;
   }
-  
+
   BLI_string_join_array(info, info_size, info_array, i);
 
   *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
