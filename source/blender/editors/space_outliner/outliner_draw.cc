@@ -174,12 +174,32 @@ static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
-static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void * /*poin2*/)
+static bool pose_bone_is_child_of(bPoseChannel *pchan, bPoseChannel *potential_parent)
 {
-  Bone *bone = (Bone *)poin;
+  while (pchan) {
+    if (pchan == potential_parent) {
+      return true;
+    }
+    pchan = pchan->parent;
+  }
+  return false;
+}
 
+static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
+{
+  Object *ob = (Object *)poin;
+  bPoseChannel *pchan = (bPoseChannel *)poin2;
   if (CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
-    restrictbutton_recursive_bone(bone, BONE_HIDDEN_P, (bone->flag & BONE_HIDDEN_P) != 0);
+    LISTBASE_FOREACH (bPoseChannel *, potential_child, &ob->pose->chanbase) {
+      if (pose_bone_is_child_of(potential_child, pchan)) {
+        if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
+          potential_child->drawflag |= PCHAN_DRAW_HIDDEN;
+        }
+        else {
+          potential_child->drawflag &= ~PCHAN_DRAW_HIDDEN;
+        }
+      }
+    }
   }
 }
 
@@ -1414,7 +1434,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   0,
                                   TIP_("Restrict visibility in the 3D View\n"
                                        " \u2022 Shift to set children"));
-          UI_but_func_set(bt, restrictbutton_bone_visibility_fn, bone, nullptr);
+          UI_but_func_set(bt, restrictbutton_bone_visibility_fn, ob, bone);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
         }
