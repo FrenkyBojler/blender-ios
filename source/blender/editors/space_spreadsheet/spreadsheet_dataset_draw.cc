@@ -924,7 +924,7 @@ class ViewerPathTreeView : public ui::AbstractTreeView {
 
   void build_tree() override
   {
-    const ViewerPath &viewer_path = sspreadsheet_.viewer_path;
+    const ViewerPath &viewer_path = sspreadsheet_.geometry_id.viewer_path;
 
     int index;
     LISTBASE_FOREACH_INDEX (const ViewerPathElem *, elem, &viewer_path.path, index) {
@@ -1024,7 +1024,7 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
   bScreen &screen = *CTX_wm_screen(&C);
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(&C);
 
-  ViewerPath &viewer_path = sspreadsheet->viewer_path;
+  ViewerPath &viewer_path = sspreadsheet->geometry_id.viewer_path;
   ID *root_id = get_current_id(sspreadsheet);
   if (!root_id) {
     draw_context_panel_without_context(layout);
@@ -1040,7 +1040,7 @@ static void draw_context_panel_content(const bContext &C, uiLayout &layout)
 
   layout.prop(&sspreadsheet_ptr, "object_eval_state", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
+  if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
     if (uiLayout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
@@ -1058,7 +1058,7 @@ static void draw_context_panel(const bContext &C, uiLayout &layout)
   if (ID *root_id = get_current_id(&sspreadsheet)) {
     std::string label = BKE_id_name(*root_id);
     if (!context_panel.body) {
-      switch (sspreadsheet.object_eval_state) {
+      switch (sspreadsheet.geometry_id.object_eval_state) {
         case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
           label += " (Evaluated)";
           break;
