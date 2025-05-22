@@ -644,8 +644,7 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
                                                       Object *object_eval)
 {
   bke::GeometrySet geometry_set;
-  if (sspreadsheet->active_geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL)
-  {
+  if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
     const Object *object_orig = DEG_get_original(object_eval);
     if (object_orig->type == OB_MESH) {
       const Mesh *mesh = static_cast<const Mesh *>(object_orig->data);
@@ -680,13 +679,13 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
     }
   }
   else {
-    if (BLI_listbase_is_single(&sspreadsheet->active_geometry_id.viewer_path.path)) {
+    if (BLI_listbase_is_single(&sspreadsheet->geometry_id.viewer_path.path)) {
       geometry_set = bke::object_get_evaluated_geometry_set(*object_eval);
     }
     else {
       if (const ViewerNodeLog *viewer_log =
               nodes::geo_eval_log::GeoModifierLog::find_viewer_node_log_for_path(
-                  sspreadsheet->active_geometry_id.viewer_path))
+                  sspreadsheet->geometry_id.viewer_path))
       {
         geometry_set = viewer_log->geometry;
       }
@@ -726,14 +725,12 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
                                                                                   object_eval);
   const bke::GeometrySet geometry_set = get_geometry_set_for_instance_ids(
       root_geometry_set,
-      Span{sspreadsheet->active_geometry_id.instance_ids,
-           sspreadsheet->active_geometry_id.instance_ids_num});
+      Span{sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
 
-  const bke::AttrDomain domain = (bke::AttrDomain)
-                                     sspreadsheet->active_geometry_id.attribute_domain;
+  const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->geometry_id.attribute_domain;
   const auto component_type = bke::GeometryComponent::Type(
-      sspreadsheet->active_geometry_id.geometry_component_type);
-  const int active_layer_index = sspreadsheet->active_geometry_id.active_layer_index;
+      sspreadsheet->geometry_id.geometry_component_type);
+  const int active_layer_index = sspreadsheet->geometry_id.active_layer_index;
   if (!geometry_set.has(component_type)) {
     return {};
   }
@@ -741,7 +738,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   if (component_type == bke::GeometryComponent::Type::Volume) {
     return std::make_unique<VolumeDataSource>(std::move(geometry_set));
   }
-  Object *object_orig = sspreadsheet->active_geometry_id.instance_ids_num == 0 ?
+  Object *object_orig = sspreadsheet->geometry_id.instance_ids_num == 0 ?
                             DEG_get_original(object_eval) :
                             nullptr;
   return std::make_unique<GeometryDataSource>(

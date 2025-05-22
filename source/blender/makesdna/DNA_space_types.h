@@ -1158,10 +1158,10 @@ typedef struct SpreadsheetTableIDGeometry {
 
 typedef struct SpreadsheetTable {
   SpreadsheetTableID *id;
-
+  /** All the columns in the table. */
   SpreadsheetColumn **columns;
   int num_columns;
-
+  /** #eSpreadsheetTableFlag. */
   uint32_t flag;
   /**
    * A logical time set when the table is used. This is used to be able to remove long-unused
@@ -1180,17 +1180,19 @@ typedef struct SpaceSpreadsheet {
   char _pad0[6];
   /* End 'SpaceLink' header. */
 
+  /** The current table and persisted state of previously displayed tables. */
   SpreadsheetTable **tables;
   int num_tables;
   char _pad1[3];
 
-  /* eSpaceSpreadsheet_FilterFlag. */
+  /** #eSpaceSpreadsheet_FilterFlag. */
   uint8_t filter_flag;
 
-  /* SpreadsheetRowFilter. */
+  /** #SpreadsheetRowFilter. */
   ListBase row_filters;
 
-  SpreadsheetTableIDGeometry active_geometry_id;
+  /** The currently active geometry data. This is used to look up the active table from #tables. */
+  SpreadsheetTableIDGeometry geometry_id;
 
   /* eSpaceSpreadsheet_Flag. */
   uint32_t flag;

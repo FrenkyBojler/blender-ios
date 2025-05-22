@@ -93,8 +93,8 @@ static wmOperatorStatus select_component_domain_invoke(bContext *C,
   bke::AttrDomain domain = bke::AttrDomain(RNA_int_get(op->ptr, "attribute_domain_type"));
 
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  sspreadsheet->active_geometry_id.geometry_component_type = uint8_t(component_type);
-  sspreadsheet->active_geometry_id.attribute_domain = uint8_t(domain);
+  sspreadsheet->geometry_id.geometry_component_type = uint8_t(component_type);
+  sspreadsheet->geometry_id.attribute_domain = uint8_t(domain);
 
   /* Refresh header and main region. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);

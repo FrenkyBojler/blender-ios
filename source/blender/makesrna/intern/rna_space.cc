@@ -3510,35 +3510,35 @@ static void rna_SpaceSpreadsheet_geometry_component_type_update(Main * /*bmain*/
 {
   using namespace blender;
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)ptr->data;
-  switch (sspreadsheet->active_geometry_id.geometry_component_type) {
+  switch (sspreadsheet->geometry_id.geometry_component_type) {
     case int(bke::GeometryComponent::Type::Mesh): {
-      if (!ELEM(bke::AttrDomain(sspreadsheet->active_geometry_id.attribute_domain),
+      if (!ELEM(bke::AttrDomain(sspreadsheet->geometry_id.attribute_domain),
                 bke::AttrDomain::Point,
                 bke::AttrDomain::Edge,
                 bke::AttrDomain::Face,
                 bke::AttrDomain::Corner))
       {
-        sspreadsheet->active_geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
+        sspreadsheet->geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
       }
       break;
     }
     case int(bke::GeometryComponent::Type::PointCloud): {
-      sspreadsheet->active_geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
+      sspreadsheet->geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
       break;
     }
     case int(bke::GeometryComponent::Type::Instance): {
-      sspreadsheet->active_geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Instance);
+      sspreadsheet->geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Instance);
       break;
     }
     case int(bke::GeometryComponent::Type::Volume): {
       break;
     }
     case int(bke::GeometryComponent::Type::Curve): {
-      if (!ELEM(bke::AttrDomain(sspreadsheet->active_geometry_id.attribute_domain),
+      if (!ELEM(bke::AttrDomain(sspreadsheet->geometry_id.attribute_domain),
                 bke::AttrDomain::Point,
                 bke::AttrDomain::Curve))
       {
-        sspreadsheet->active_geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
+        sspreadsheet->geometry_id.attribute_domain = uint8_t(bke::AttrDomain::Point);
       }
       break;
     }
@@ -3553,9 +3553,8 @@ const EnumPropertyItem *rna_SpaceSpreadsheet_attribute_domain_itemf(bContext * /
   using namespace blender;
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)ptr->data;
   auto component_type = bke::GeometryComponent::Type(
-      sspreadsheet->active_geometry_id.geometry_component_type);
-  if (sspreadsheet->active_geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL)
-  {
+      sspreadsheet->geometry_id.geometry_component_type);
+  if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
     ID *used_id = ed::spreadsheet::get_current_id(sspreadsheet);
     if (used_id != nullptr) {
       if (GS(used_id->name) == ID_OB) {
@@ -8895,7 +8894,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "active_geometry_id.viewer_path");
+  RNA_def_property_pointer_sdna(prop, nullptr, "geometry_id.viewer_path");
   RNA_def_property_ui_text(
       prop, "Viewer Path", "Path to the data that is displayed in the spreadsheet");
 
@@ -8907,7 +8906,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "geometry_component_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "active_geometry_id.geometry_component_type");
+  RNA_def_property_enum_sdna(prop, nullptr, "geometry_id.geometry_component_type");
   RNA_def_property_enum_items(prop, rna_enum_geometry_component_type_items);
   RNA_def_property_ui_text(
       prop, "Geometry Component", "Part of the geometry to display data from");
@@ -8916,7 +8915,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
                           "rna_SpaceSpreadsheet_geometry_component_type_update");
 
   prop = RNA_def_property(srna, "attribute_domain", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "active_geometry_id.attribute_domain");
+  RNA_def_property_enum_sdna(prop, nullptr, "geometry_id.attribute_domain");
   RNA_def_property_enum_items(prop, rna_enum_attribute_domain_items);
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_SpaceSpreadsheet_attribute_domain_itemf");
@@ -8924,7 +8923,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "object_eval_state", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "active_geometry_id.object_eval_state");
+  RNA_def_property_enum_sdna(prop, nullptr, "geometry_id.object_eval_state");
   RNA_def_property_enum_items(prop, spreadsheet_object_eval_state_items);
   RNA_def_property_ui_text(prop, "Object Evaluation State", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
