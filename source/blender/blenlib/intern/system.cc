@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "BLI_mutex.hh"
 #include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_system.h"
@@ -65,6 +66,9 @@ void BLI_system_backtrace_with_os_info(FILE *fp, const void * /*os_info*/)
   /* ----------------------- */
   /* If system as execinfo.h */
 #  if defined(HAVE_EXECINFO_H)
+
+  static blender::Mutex lock;
+  std::scoped_lock lock(print_lock());
 
 #    define SIZE 100
   void *buffer[SIZE];
