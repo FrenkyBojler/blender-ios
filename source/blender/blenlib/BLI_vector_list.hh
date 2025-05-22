@@ -12,6 +12,7 @@
 #include <cmath>
 
 #include "BLI_math_bits.h"
+#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 namespace blender {
@@ -31,21 +32,16 @@ namespace blender {
  * When a VectorList reserved memory is full it will allocate memory for the new items, breaking
  * the sequential access. Within each allocated memory block the elements are ordered sequentially.
  */
-template<typename T, int64_t CapacityStart = 32, int64_t CapacitySoftLimit = 4096>
-class VectorList {
-  using SelfT = VectorList<T, CapacityStart, CapacitySoftLimit>;
-  using UsedVector = Vector<T, 0>;
+template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> class VectorList {
+  using SelfT = VectorList<T, CapacityStart, CapacityMax>;
+  using VectorT = Vector<T, 0>;
 
-  static constexpr bool is_power_of_2(int64_t value)
-  {
-    return (value > 0) && ((value & (value - 1)) == 0);
-  }
   static_assert(is_power_of_2(CapacityStart));
-  static_assert(is_power_of_2(CapacitySoftLimit));
-  static_assert(CapacityStart <= CapacitySoftLimit);
+  static_assert(is_power_of_2(CapacityMax));
+  static_assert(CapacityStart <= CapacityMax);
 
   /* Contains the individual vectors. There must always be at least one vector. */
-  Vector<UsedVector> vectors_;
+  Vector<VectorT> vectors_;
   /* Number of vectors in use. */
   int64_t used_vectors_ = 0;
   /* Total element count accross all vectors_. */
@@ -86,7 +82,7 @@ class VectorList {
   /* This is similar to `std::vector::emplace_back`. */
   template<typename ForwardT> void append_as(ForwardT &&value)
   {
-    UsedVector &vector = this->ensure_space_for_one();
+    VectorT &vector = this->ensure_space_for_one();
     vector.append_unchecked_as(std::forward<ForwardT>(value));
     size_++;
   }
@@ -130,7 +126,7 @@ class VectorList {
   /* Afterwards the VectorList has 0 elements, but will still have memory to be refilled again. */
   void clear()
   {
-    for (UsedVector &vector : vectors_) {
+    for (VectorT &vector : vectors_) {
       vector.clear();
     }
     used_vectors_ = 1;
@@ -141,7 +137,7 @@ class VectorList {
   void clear_and_shrink()
   {
     vectors_.clear();
-    append_vector();
+    this->append_vector();
     used_vectors_ = 1;
     size_ = 0;
   }
@@ -152,9 +148,7 @@ class VectorList {
    */
   const T &operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
-    std::pair<int64_t, int64_t> index_pair = global_index_to_index_pair(index);
+    std::pair<int64_t, int64_t> index_pair = this->global_index_to_index_pair(index);
     return vectors_[index_pair.first][index_pair.second];
   }
 
@@ -164,15 +158,16 @@ class VectorList {
    */
   T &operator[](int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
-    std::pair<int64_t, int64_t> index_pair = global_index_to_index_pair(index);
+    std::pair<int64_t, int64_t> index_pair = this->global_index_to_index_pair(index);
     return vectors_[index_pair.first][index_pair.second];
   }
 
  private:
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
   {
+    BLI_assert(index >= 0);
+    BLI_assert(index < this->size());
+
     auto log2 = [](int64_t value) -> int64_t {
       return 31 - bitscan_reverse_uint(uint32_t(value));
     };
@@ -182,11 +177,12 @@ class VectorList {
     auto index_from_sum = [log2](int64_t sum) -> int64_t {
       return log2((sum / CapacityStart) + 1);
     };
+
     static const int64_t start_log2 = log2(CapacityStart);
-    static const int64_t end_log2 = log2(CapacitySoftLimit);
-    /* The number of vectors until CapacitySoftLimit size is reached. */
+    static const int64_t end_log2 = log2(CapacityMax);
+    /* The number of vectors until CapacityMax size is reached. */
     static const int64_t geometric_steps = end_log2 - start_log2 + 1;
-    /* The number of elements until CapacitySoftLimit size is reached. */
+    /* The number of elements until CapacityMax size is reached. */
     static const int64_t geometric_total = geometric_sum(geometric_steps - 1);
 
     int64_t index_a, index_b;
@@ -196,18 +192,17 @@ class VectorList {
     }
     else {
       int64_t linear_start = index - geometric_total;
-      index_a = geometric_steps + linear_start / CapacitySoftLimit;
-      index_b = linear_start % CapacitySoftLimit;
+      index_a = geometric_steps + linear_start / CapacityMax;
+      index_b = linear_start % CapacityMax;
     }
     return {index_a, index_b};
   }
 
-  UsedVector &ensure_space_for_one()
+  VectorT &ensure_space_for_one()
   {
     if (vectors_[used_vectors_ - 1].is_at_capacity()) {
-      size_t capacity = vectors_.size();
-      if (used_vectors_ == capacity) {
-        append_vector();
+      if (used_vectors_ == vectors_.size()) {
+        this->append_vector();
       }
       used_vectors_++;
     }
@@ -226,7 +221,7 @@ class VectorList {
     if (vectors_.is_empty()) {
       return CapacityStart;
     }
-    return std::min(vectors_.last().capacity() * 2, CapacitySoftLimit);
+    return std::min(vectors_.last().capacity() * 2, CapacityMax);
   }
 
   template<typename IterableT, typename ElemT> struct Iterator {
