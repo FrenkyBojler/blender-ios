@@ -1056,16 +1056,18 @@ static void draw_context_panel(const bContext &C, uiLayout &layout)
   uiLayoutSetEmboss(context_panel.header, ui::EmbossType::None);
   if (ID *root_id = get_current_id(&sspreadsheet)) {
     std::string label = BKE_id_name(*root_id);
-    switch (sspreadsheet.object_eval_state) {
-      case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
-        label += " (Evaluated)";
-        break;
-      case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL:
-        label += " (Original)";
-        break;
-      case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE:
-        label += " (Viewer)";
-        break;
+    if (!context_panel.body) {
+      switch (sspreadsheet.object_eval_state) {
+        case SPREADSHEET_OBJECT_EVAL_STATE_EVALUATED:
+          label += " (Evaluated)";
+          break;
+        case SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL:
+          label += " (Original)";
+          break;
+        case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE:
+          label += " (Viewer)";
+          break;
+      }
     }
     context_panel.header->label(label, ICON_OBJECT_DATA);
   }
