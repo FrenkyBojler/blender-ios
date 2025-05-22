@@ -10,9 +10,8 @@
  * - Caching is only done for strips that are independent of
  *   any other strips (images, movies, no-input effect strips like
  *   Text and Color).
- * - When full, cache eviction policy is to remove frames furthest
- *   from the current-frame, biasing towards removal of
- *   frames behind the current-frame.
+ * - When full, cache eviction policy is to remove oldest image
+ *   that was used.
  * - Invalidated fairly rarely, since the cached items only change
  *   when the source content changes.
  */
@@ -39,6 +38,7 @@ void source_image_cache_clear(Scene *scene);
 void source_image_cache_destroy(Scene *scene);
 
 bool source_image_cache_evict(Scene *scene);
+void source_image_cache_tick(Scene *scene);
 
 size_t source_image_cache_get_image_count(const Scene *scene);
 

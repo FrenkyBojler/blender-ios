@@ -27,12 +27,18 @@ namespace blender::seq {
 static Mutex source_image_cache_mutex;
 
 struct SourceImageCache {
+  struct FrameEntry {
+    ImBuf *image = nullptr;
+    int64_t used_at = 0;
+  };
+
   struct StripEntry {
     /* Map key is {source media frame index (i.e. movie frame), view ID}. */
-    Map<std::pair<int, int>, ImBuf *> frames;
+    Map<std::pair<int, int>, FrameEntry> frames;
   };
 
   Map<const Strip *, StripEntry> map_;
+  int64_t logical_time_ = 0;
 
   ~SourceImageCache()
   {
@@ -42,11 +48,12 @@ struct SourceImageCache {
   void clear()
   {
     for (const auto &item : map_.items()) {
-      for (ImBuf *image : item.value.frames.values()) {
-        IMB_freeImBuf(image);
+      for (const auto &frame : item.value.frames.values()) {
+        IMB_freeImBuf(frame.image);
       }
     }
     map_.clear();
+    logical_time_ = 0;
   }
 
   void remove_entry(const Strip *strip)
@@ -55,8 +62,8 @@ struct SourceImageCache {
     if (entry == nullptr) {
       return;
     }
-    for (ImBuf *image : entry->frames.values()) {
-      IMB_freeImBuf(image);
+    for (const auto &frame : entry->frames.values()) {
+      IMB_freeImBuf(frame.image);
     }
     map_.remove_contained(strip);
   }
@@ -101,13 +108,18 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
       return nullptr;
     }
 
+    int64_t cur_time = cache->logical_time_;
     SourceImageCache::StripEntry *val = cache->map_.lookup_ptr(strip);
     if (val == nullptr) {
       /* Nothing in cache for this strip yet. */
       return nullptr;
     }
     /* Search entries for the frame we want. */
-    res = val->frames.lookup_default({frame_index, view_id}, nullptr);
+    SourceImageCache::FrameEntry *frame = val->frames.lookup_ptr({frame_index, view_id});
+    if (frame != nullptr) {
+      frame->used_at = math::max(frame->used_at, cur_time);
+      res = frame->image;
+    }
   }
 
   if (res) {
@@ -139,6 +151,7 @@ void source_image_cache_put(const RenderData *context,
   std::lock_guard lock(source_image_cache_mutex);
   SourceImageCache *cache = ensure_source_image_cache(scene);
 
+  const int64_t cur_time = cache->logical_time_;
   SourceImageCache::StripEntry *val = cache->map_.lookup_ptr(strip);
 
   if (val == nullptr) {
@@ -148,11 +161,12 @@ void source_image_cache_put(const RenderData *context,
   }
   BLI_assert_msg(val != nullptr, "Source image cache value should never be null here");
 
-  ImBuf *&item = val->frames.lookup_or_add_default({frame_index, view_id});
-  if (item != nullptr) {
-    IMB_freeImBuf(item);
+  SourceImageCache::FrameEntry &frame = val->frames.lookup_or_add_default({frame_index, view_id});
+  if (frame.image != nullptr) {
+    IMB_freeImBuf(frame.image);
   }
-  item = image;
+  frame.used_at = math::max(frame.used_at, cur_time);
+  frame.image = image;
 }
 
 void source_image_cache_invalidate_strip(Scene *scene, const Strip *strip)
@@ -220,8 +234,8 @@ size_t source_image_cache_calc_memory_size(const Scene *scene)
   }
   size_t size = 0;
   for (const SourceImageCache::StripEntry &entry : cache->map_.values()) {
-    for (const ImBuf *image : entry.frames.values()) {
-      size += IMB_get_size_in_memory(image);
+    for (const SourceImageCache::FrameEntry &frame : entry.frames.values()) {
+      size += IMB_get_size_in_memory(frame.image);
     }
   }
   return size;
@@ -249,39 +263,37 @@ bool source_image_cache_evict(Scene *scene)
     return false;
   }
 
-  /* Find which entry to remove -- we pick the one that is furthest from the current frame,
-   * biasing the ones that are behind the current frame. */
-  const int cur_frame = scene->r.cfra;
-  SourceImageCache::StripEntry *best_strip = nullptr;
-  std::pair<int, int> best_key = {};
-  int best_score = 0;
-  for (const auto &strip : cache->map_.items()) {
-    for (const auto &entry : strip.value.frames.items()) {
-      const int item_frame = entry.key.first;
-      /* Score for removal is distance to current frame; 2x that if behind current frame. */
-      int score = 0;
-      if (item_frame < cur_frame) {
-        score = (cur_frame - item_frame) * 2;
-      }
-      else if (item_frame > cur_frame) {
-        score = item_frame - cur_frame;
-      }
-      if (score > best_score) {
-        best_strip = &strip.value;
-        best_key = entry.key;
-        best_score = score;
+  /* Find which entry was the least recently used. */
+  SourceImageCache::StripEntry *oldest_strip = nullptr;
+  std::pair<int, int> oldest_key = {};
+  int64_t oldest_time = cache->logical_time_;
+  for (const auto &item : cache->map_.items()) {
+    for (const auto &frame : item.value.frames.items()) {
+      if (frame.value.used_at < oldest_time) {
+        oldest_strip = &item.value;
+        oldest_key = frame.key;
+        oldest_time = frame.value.used_at;
       }
     }
   }
 
   /* Remove if we found one. */
-  if (best_strip != nullptr) {
-    IMB_freeImBuf(best_strip->frames.lookup(best_key));
-    best_strip->frames.remove(best_key);
+  if (oldest_strip != nullptr) {
+    IMB_freeImBuf(oldest_strip->frames.lookup(oldest_key).image);
+    oldest_strip->frames.remove(oldest_key);
     return true;
   }
 
   return false;
+}
+
+void source_image_cache_tick(Scene *scene)
+{
+  std::lock_guard lock(source_image_cache_mutex);
+  SourceImageCache *cache = query_source_image_cache(scene);
+  if (cache != nullptr) {
+    cache->logical_time_++;
+  }
 }
 
 }  // namespace blender::seq

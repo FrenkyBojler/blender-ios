@@ -2016,6 +2016,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   intra_frame_cache_set_cur_frame(scene, timeline_frame, context->view_id);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
+  source_image_cache_tick(orig_scene);
   ImBuf *out = nullptr;
   if (!context->skip_cache && !context->is_proxy_render) {
     out = final_image_cache_get(orig_scene, timeline_frame, context->view_id);
