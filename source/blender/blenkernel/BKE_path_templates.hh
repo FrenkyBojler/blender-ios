@@ -136,11 +136,11 @@ bool operator==(const Error &left, const Error &right);
  * Given an RNA pointer to a property, build the path template variables
  * relevant to it.
  *
- * The passed property *must* support path templates (i.e.
- * PROP_PATH_SUPPORTS_TEMPLATES is set). Both `ptr` and `prop` must be non-null.
+ * `C` *can* be null, but some variables may fail to be built if it is.
  *
- * \return The template variables for the property, or std::nullopt if the
- * passed property doesn't support path templates.
+ * \return The template variables for the property. If no property is provided
+ * (`ptr` and/or `prop` are null), or if the property doesn't support path
+ * templates (`PROP_PATH_SUPPORTS_TEMPLATES` is not set), returns nullopt.
  */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
     PointerRNA *ptr, PropertyRNA *prop, const bContext *C);

@@ -116,19 +116,22 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
                                                                  PropertyRNA *prop,
                                                                  const bContext *C)
 {
-  BLI_assert(ptr != nullptr);
-  BLI_assert(prop != nullptr);
+  /*
+   * This function should be maintained such that it always produces variables
+   * consistent with the variables produced elsewhere in the code base for the
+   * same property. For example, render paths are processed in the rendering
+   * code and produce variables for that purpose there, and this function should
+   * produce variables consistent with that.
+   *
+   * The recommended strategy when adding support for additional properties is
+   * to create a separate function (see e.g.
+   * `BKE_build_template_variables_for_render_path()`) which builds variables
+   * for that property's use case, and then call that from both here and the
+   * other parts of the code base that need it.
+   */
 
-  /* Properties that don't support path templates should never get passed to
-   * this function. */
-  BLI_assert((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0);
-
-  const ID_Type id_type = GS(ptr->owner_id->name);
-  const char *struct_identifier = RNA_struct_identifier(ptr->type);
-  const char *prop_identifier = RNA_property_identifier(prop);
-
-  /* Check if an ordered set of strings is equal to another ordered set of
-   * strings. */
+  /* Utility function to check if collection of strings is equal to another
+   * collection of strings. */
   const auto streq = [](blender::Span<const char *> strings_1,
                         blender::Span<const char *> strings_2) -> bool {
     if (strings_1.size() != strings_2.size()) {
@@ -144,15 +147,21 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
     return true;
   };
 
-  /* Uncomment when adding new properties, to see what the values should be to
-   * identify the property. */
+  /* No property passed, or it doesn't support path templates. */
+  if (ptr == nullptr || prop != nullptr ||
+      (RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0)
+  {
+    return std::nullopt;
+  }
 
-  /*
-   * printf("---------------------------------\n");
-   * printf("ID type: '%c%c'\n", char(id_type), char(id_type >> 8));
-   * printf("PointerRNA identifier: '%s'\n", struct_identifier);
-   * printf("Prop identifier: '%s'\n", prop_identifier);
-   */
+  /* Data needed to identify properties. */
+  const ID_Type id_type = GS(ptr->owner_id->name);
+  const char *struct_identifier = RNA_struct_identifier(ptr->type);
+  const char *prop_identifier = RNA_property_identifier(prop);
+
+  /* From here on we just repeat the following pattern: check if the property
+   * matches one of the properties we handle, and if so call the appropriate
+   * function to build its variables. */
 
   /* Render output path. */
   if (id_type == ID_SCE &&
