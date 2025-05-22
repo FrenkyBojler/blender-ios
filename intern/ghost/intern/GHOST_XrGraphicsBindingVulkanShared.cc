@@ -25,9 +25,9 @@ PFN_xrGetVulkanGraphicsRequirementsKHR
 PFN_xrGetVulkanGraphicsDeviceKHR
     GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanGraphicsDeviceKHR_fn = nullptr;
 PFN_xrGetVulkanInstanceExtensionsKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanInstanceExtensionsKHR = nullptr;
+    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanInstanceExtensionsKHR_fn = nullptr;
 PFN_xrGetVulkanDeviceExtensionsKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanDeviceExtensionsKHR = nullptr;
+    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanDeviceExtensionsKHR_fn = nullptr;
 
 GHOST_XrGraphicsBindingVulkanShared::~GHOST_XrGraphicsBindingVulkanShared()
 {
@@ -54,8 +54,8 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
    * given context. */
   LOAD_PFN(s_xrGetVulkanGraphicsRequirementsKHR_fn, xrGetVulkanGraphicsRequirementsKHR);
   LOAD_PFN(s_xrGetVulkanGraphicsDeviceKHR_fn, xrGetVulkanGraphicsDeviceKHR);
-  LOAD_PFN(s_xrGetVulkanInstanceExtensionsKHR, xrGetVulkanInstanceExtensionsKHR);
-  LOAD_PFN(s_xrGetVulkanDeviceExtensionsKHR, xrGetVulkanDeviceExtensionsKHR);
+  LOAD_PFN(s_xrGetVulkanInstanceExtensionsKHR_fn, xrGetVulkanInstanceExtensionsKHR);
+  LOAD_PFN(s_xrGetVulkanDeviceExtensionsKHR_fn, xrGetVulkanDeviceExtensionsKHR);
 #undef LOAD_PFN
 
   XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{

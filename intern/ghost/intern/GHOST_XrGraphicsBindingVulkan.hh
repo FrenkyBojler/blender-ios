@@ -143,6 +143,6 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
 
   static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn;
   static PFN_xrGetVulkanGraphicsDeviceKHR s_xrGetVulkanGraphicsDeviceKHR_fn;
-  static PFN_xrGetVulkanInstanceExtensionsKHR s_xrGetVulkanInstanceExtensionsKHR;
-  static PFN_xrGetVulkanDeviceExtensionsKHR s_xrGetVulkanDeviceExtensionsKHR;
+  static PFN_xrGetVulkanInstanceExtensionsKHR s_xrGetVulkanInstanceExtensionsKHR_fn;
+  static PFN_xrGetVulkanDeviceExtensionsKHR s_xrGetVulkanDeviceExtensionsKHR_fn;
 };
