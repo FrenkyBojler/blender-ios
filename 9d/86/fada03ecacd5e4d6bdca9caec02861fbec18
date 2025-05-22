@@ -3,3 +3,4 @@ Referenced by issue #132913, Fix #132861: Proportional edit broken due to uninit
 Referenced by issue #132861, Regression: Grease Pencil Proportional Editing not working
 Referenced by issue #139101, Curves: Edit Mode Proportional Editing not working properly with pivot around Individual Origins
 Referenced by pull request #139209, Fix: Scale/Rotate proportional editing for Grease Pencil / Curves
+Referenced by commit 1d0c11987f1be3c303321990c7b8fcad247dc87d, Fix: Scale/Rotate proportional editing for Grease Pencil / Curves
