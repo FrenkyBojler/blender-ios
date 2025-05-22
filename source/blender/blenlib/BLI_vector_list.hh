@@ -163,7 +163,7 @@ template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> cla
   }
 
  private:
-  std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index)
+  std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index) const
   {
     BLI_assert(index >= 0);
     BLI_assert(index < this->size());
