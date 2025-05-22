@@ -195,9 +195,6 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
 VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_path,
                                                          const RenderData *render_data)
 {
-  BLI_assert(blend_file_path != nullptr);
-  BLI_assert(render_data != nullptr);
-
   VariableMap variables;
 
   /* Blend file name. */

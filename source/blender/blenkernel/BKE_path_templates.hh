@@ -151,7 +151,8 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
 /**
  * Build a template variable map for render output paths.
  *
- * All parameters should be non-null.
+ * All parameters are allowed to be null, in which case the variables derived
+ * those parameters will simply not be included.
  *
  * This is typically used to create the variables passed to
  * `BKE_path_apply_template()`.
