@@ -101,6 +101,17 @@ struct SocketUsageInferencer {
     }
   }
 
+  bool is_group_input_used(const int input_i)
+  {
+    for (const bNode *node : root_tree_.group_input_nodes()) {
+      const SocketInContext socket{nullptr, &node->output_socket(input_i)};
+      if (this->is_socket_used(socket)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool is_socket_used(const SocketInContext &socket)
   {
     const std::optional<bool> is_used = all_socket_usages_.lookup_try(socket);
@@ -1078,17 +1089,21 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
   inferencer_only_controllers.mark_top_level_node_outputs_as_used();
   for (const int i : all_input_sockets.index_range()) {
     if (all_usages[i].is_used) {
-      /* Used sockets are always visible. */
+      /* Used inputs are always visible. */
       continue;
     }
     const SocketInContext socket{nullptr, all_input_sockets[i]};
-    const bool is_ever_used = inferencer_all_unknown.is_socket_used(socket);
-    const bool is_used_with_current_controllers = inferencer_only_controllers.is_socket_used(
-        socket);
-
-    if (is_ever_used && !is_used_with_current_controllers) {
-      all_usages[i].is_visible = false;
+    if (inferencer_only_controllers.is_socket_used((socket))) {
+      /* The input should be visible if it's used if only visibility-controlling inputs are
+       * considered. */
+      continue;
     }
+    if (!inferencer_all_unknown.is_socket_used(socket)) {
+      /* The input should be visible if it's never used, regardless of any inputs. Its usage does
+       * not depend on any visibility-controlling input. */
+      continue;
+    }
+    all_usages[i].is_visible = false;
   }
 
   return all_usages;
@@ -1145,24 +1160,17 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
       /* Used inputs are always visible. */
       continue;
     }
-
-    bool is_ever_used = false;
-    bool is_used_with_current_controllers = false;
-
-    for (const bNode *node : group.group_input_nodes()) {
-      const SocketInContext socket{nullptr, &node->output_socket(i)};
-
-      if (inferencer_all_unknown.is_socket_used(socket)) {
-        is_ever_used = true;
-      }
-      if (inferencer_only_controllers.is_socket_used(socket)) {
-        is_used_with_current_controllers = true;
-      }
+    if (inferencer_only_controllers.is_group_input_used(i)) {
+      /* The input should be visible if it's used if only visibility-controlling inputs are
+       * considered. */
+      continue;
     }
-
-    if (is_ever_used && !is_used_with_current_controllers) {
-      r_input_usages[i].is_visible = false;
+    if (!inferencer_all_unknown.is_group_input_used(i)) {
+      /* The input should be visible if it's never used, regardless of any inputs. Its usage does
+       * not depend on any visibility-controlling input. */
+      continue;
     }
+    r_input_usages[i].is_visible = false;
   }
 }
 
