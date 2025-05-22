@@ -1762,24 +1762,6 @@ void uiItemEnumO_string(uiLayout *layout,
       ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE, static_cast<IDProperty *>(ptr.data));
 }
 
-void uiItemBooleanO(uiLayout *layout,
-                    const std::optional<StringRef> name,
-                    int icon,
-                    const StringRefNull opname,
-                    const StringRefNull propname,
-                    int value)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-  RNA_boolean_set(&ptr, propname.c_str(), value);
-
-  layout->op(
-      ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE, static_cast<IDProperty *>(ptr.data));
-}
-
 void uiItemIntO(uiLayout *layout,
                 const std::optional<StringRef> name,
                 int icon,
@@ -1836,9 +1818,9 @@ void uiItemStringO(uiLayout *layout,
       ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE, static_cast<IDProperty *>(ptr.data));
 }
 
-void uiLayout::op(const StringRefNull opname, const std::optional<StringRef> name, int icon)
+PointerRNA uiLayout::op(const StringRefNull opname, const std::optional<StringRef> name, int icon)
 {
-  this->op(opname, name, icon, root_->opcontext, UI_ITEM_NONE);
+  return this->op(opname, name, icon, root_->opcontext, UI_ITEM_NONE);
 }
 
 /* RNA property items */
