@@ -36,13 +36,13 @@ static PyC_StringEnumItems pygpu_vertcomptype_items[] = {
 };
 
 /* Only for pyGPU module. To be removed with 5.0. */
-enum { GPU_FETCH_INT_TO_FLOAT_LEGACY = 999 };
+enum { GPU_FETCH_INT_TO_FLOAT_DEPRECATED = 999 };
 
 static PyC_StringEnumItems pygpu_vertfetchmode_items[] = {
     {GPU_FETCH_FLOAT, "FLOAT"},
     {GPU_FETCH_INT, "INT"},
     {GPU_FETCH_INT_TO_FLOAT_UNIT, "INT_TO_FLOAT_UNIT"},
-    {GPU_FETCH_INT_TO_FLOAT_LEGACY, "INT_TO_FLOAT"},
+    {GPU_FETCH_INT_TO_FLOAT_DEPRECATED, "INT_TO_FLOAT"},
     {0, nullptr},
 };
 
@@ -149,7 +149,7 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
                  1);
   }
 
-  bool int_to_float = (fetch_mode_enum == GPU_FETCH_INT_TO_FLOAT_LEGACY);
+  bool int_to_float = (int(fetch_mode_enum) == int(GPU_FETCH_INT_TO_FLOAT_DEPRECATED));
   /* Fetch int to float is not supported anymore.
    * Simply store the data as float in the vertex buffer and convert inside `attr_fill`. */
   if (int_to_float) {
