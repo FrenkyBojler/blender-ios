@@ -633,6 +633,10 @@ static void bmesh_restore_begin(bContext *C,
 
     dyntopo::enable_ex(*bmain, *depsgraph, object);
     SculptSession &ss_mut = *object.sculpt;
+    if (ss_mut.bm_log) {
+      BM_log_free(ss_mut.bm_log);
+      ss_mut.bm_log = nullptr;
+    }
     ss_mut.bm_log = BM_log_from_existing_entries_create(ss_mut.bm, step_data.bmesh.bm_entry);
 
     /* Restore the mesh from the first log entry. */

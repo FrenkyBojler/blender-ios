@@ -91,6 +91,10 @@ void enable_ex(Main &bmain, Depsgraph &depsgraph, Object &ob)
   mesh->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
 
   /* Enable logging for undo/redo. */
+  if (ss.bm_log) {
+    BM_log_free(ss.bm_log);
+    ss.bm_log = nullptr;
+  }
   ss.bm_log = BM_log_create(ss.bm);
 
   /* Update dependency graph, so modifiers that depend on dyntopo being enabled
