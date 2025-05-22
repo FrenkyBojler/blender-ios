@@ -1,3 +1,4 @@
 Referenced by issue #139142, Nodes: Deleting a frame moves the content out of the parent frame
 Referenced by issue #139143, Nodes: `Delete` and `Dissolve` do the same thing when deleting frames.
 Referenced by issue #139207, Geometry Nodes: "Default Input" setting does not work
+Referenced by issue #139256, Geometry Nodes: For-Each-Element zone sets wrong default curve type
