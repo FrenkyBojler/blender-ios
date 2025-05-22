@@ -1083,7 +1083,6 @@ typedef struct SpreadsheetColumnID {
 } SpreadsheetColumnID;
 
 typedef struct SpreadsheetColumn {
-  struct SpreadsheetColumn *next, *prev;
   /**
    * Identifies the data in the column.
    * This is a pointer instead of a struct to make it easier if we want to "subclass"
