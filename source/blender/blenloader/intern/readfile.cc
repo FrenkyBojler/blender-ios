@@ -3056,7 +3056,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
   /* Code ensuring conversion from new 'system IDProperties' in 5.0. This needs to run before any
    * other data versioning. Otherwise, things like Cycles versioning code cannot work as expected.
-   * 
+   *
    * Merge (with overwrite) future system properties storage into current IDProperties. */
   version_forward_compat_system_idprops(main);
 
