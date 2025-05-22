@@ -557,46 +557,50 @@ def _download_queued_items(
     #     level=logging.DEBUG,
     # )
     log = logger.getChild('background_process')
-    log.info('Downloader background process starting')
 
-    # Construct a ConditionalDownloader. Unfortunately this is necessary, as
-    # not all its properties can be pickled, and as a result, it cannot be
-    # used to send across process boundaries via the multiprocessing module.
-    downloader = ConditionalDownloader(
-        metadata_cache_location=options.metadata_cache_location,
-    )
-    downloader.http_session.headers.update(options.http_headers)
+    try:
+        log.info('Downloader background process starting')
 
-    downloader.add_reporter(reporter)
-    downloader.cancel_download_event = shutdown_event
+        # Construct a ConditionalDownloader. Unfortunately this is necessary, as
+        # not all its properties can be pickled, and as a result, it cannot be
+        # used to send across process boundaries via the multiprocessing module.
+        downloader = ConditionalDownloader(
+            metadata_cache_location=options.metadata_cache_location,
+        )
+        downloader.http_session.headers.update(options.http_headers)
 
-    while not shutdown_event.is_set():
-        # Pop an item off the queue.
-        try:
-            queued_download = download_queue.get(timeout=0.1)
-        except queue.Empty:
-            continue
+        downloader.add_reporter(reporter)
+        downloader.cancel_download_event = shutdown_event
 
-        if shutdown_event.is_set():
-            break
+        while not shutdown_event.is_set():
+            # Pop an item off the queue.
+            try:
+                queued_download = download_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
 
-        http_req_descr, local_path = queued_download
+            if shutdown_event.is_set():
+                break
 
-        # Try and download it.
-        try:
-            downloader.download_to_file(
-                http_req_descr.url,
-                local_path,
-                http_method=http_req_descr.http_method,)
-        except DownloadCancelled:
-            # Can be logged at a lower level, because the caller did the
-            # cancelling, and can log/report things more loudly if
-            # necessary.
-            log.debug("download got cancelled: {}".format(http_req_descr))
-        except Exception as ex:
-            log.exception("could not download {}: {}".format(http_req_descr, ex))
+            http_req_descr, local_path = queued_download
 
-    log.debug("download process shutting down")
+            # Try and download it.
+            try:
+                downloader.download_to_file(
+                    http_req_descr.url,
+                    local_path,
+                    http_method=http_req_descr.http_method,)
+            except DownloadCancelled:
+                # Can be logged at a lower level, because the caller did the
+                # cancelling, and can log/report things more loudly if
+                # necessary.
+                log.debug("download got cancelled: {}".format(http_req_descr))
+            except Exception as ex:
+                log.exception("could not download {}: {}".format(http_req_descr, ex))
+
+        log.debug("download process shutting down")
+    except BaseException:
+        log.exception("uncaught exception in background process")
 
 
 class CancelEvent(Protocol):
