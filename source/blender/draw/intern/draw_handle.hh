@@ -78,14 +78,17 @@ struct ResourceHandleRange {
 };
 
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
-struct ObjectRef {
-  Object *object;
-  /** Duplicated object that corresponds to the current object. */
-  DupliObject *dupli_object;
-  /** Object that created the dupli-list the current object is part of. */
-  Object *dupli_parent;
+class ObjectRef {
+  friend class Manager;
   /** Unique handle per object ref. */
-  ResourceHandleRange handle;
+  ResourceHandleRange handle_ = {0, 0};
+
+ public:
+  Object *const object = nullptr;
+  /** Duplicated object that corresponds to the current object. */
+  DupliObject *const dupli_object = nullptr;
+  /** Object that created the dupli-list the current object is part of. */
+  Object *const dupli_parent = nullptr;
 
   ObjectRef() = default;
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);

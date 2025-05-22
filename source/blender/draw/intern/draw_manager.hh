@@ -317,11 +317,11 @@ class Manager {
 
 inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
 {
-  if (ref.handle.handle_first.raw == 0) {
+  if (ref.handle_.handle_first.raw == 0) {
     /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
-    const_cast<ObjectRef &>(ref).handle = resource_handle(ref);
+    const_cast<ObjectRef &>(ref).handle_ = resource_handle(ref);
   }
-  return ref.handle;
+  return ref.handle_;
 }
 
 inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)
