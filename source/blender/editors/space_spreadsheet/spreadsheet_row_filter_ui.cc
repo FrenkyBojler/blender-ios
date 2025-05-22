@@ -24,6 +24,8 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_spreadsheet.hh"
+
 #include "spreadsheet_intern.hh"
 #include "spreadsheet_row_filter_ui.hh"
 

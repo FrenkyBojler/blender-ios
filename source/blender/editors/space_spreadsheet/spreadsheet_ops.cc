@@ -8,6 +8,7 @@
 #include "DNA_space_types.h"
 
 #include "ED_screen.hh"
+#include "ED_spreadsheet.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"

@@ -82,7 +82,4 @@ std::unique_ptr<DataSource> get_data_source(const bContext &C);
 
 const SpreadsheetTableID *get_active_table_id(const SpaceSpreadsheet &sspreadsheet);
 
-SpreadsheetTable *get_active_table(SpaceSpreadsheet &sspreadsheet);
-const SpreadsheetTable *get_active_table(const SpaceSpreadsheet &sspreadsheet);
-
 }  // namespace blender::ed::spreadsheet

@@ -18,6 +18,7 @@
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
+#include "ED_spreadsheet.hh"
 
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
@@ -3653,6 +3654,13 @@ static int rna_iterator_SpaceSpreadsheet_tables_length(PointerRNA *ptr)
 {
   SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
   return sspreadsheet->num_tables;
+}
+
+static PointerRNA rna_SpreadsheetTables_active_get(PointerRNA *ptr)
+{
+  SpaceSpreadsheet *sspreadsheet = ptr->data_as<SpaceSpreadsheet>();
+  SpreadsheetTable *table = blender::ed::spreadsheet::get_active_table(*sspreadsheet);
+  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_SpreadsheetTable, table);
 }
 
 static StructRNA *rna_viewer_path_elem_refine(PointerRNA *ptr)
@@ -8629,6 +8637,24 @@ static void rna_def_spreadsheet_table(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Columns", "Columns within the table");
 }
 
+static void rna_def_spreadsheet_tables(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "SpreadsheetTables", nullptr);
+  RNA_def_struct_sdna(srna, "SpaceSpreadsheet");
+  RNA_def_struct_ui_text(srna,
+                         "Spreadsheet Tables",
+                         "Active table and persisted state of previously displayed tables");
+
+  prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "SpreadsheetTable");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_SpreadsheetTables_active_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Active Table", "");
+}
+
 static void rna_def_spreadsheet_row_filter(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -8875,6 +8901,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   StructRNA *srna;
 
   rna_def_spreadsheet_table(brna);
+  rna_def_spreadsheet_tables(brna);
 
   srna = RNA_def_struct(brna, "SpaceSpreadsheet", "Space");
   RNA_def_struct_ui_text(srna, "Space Spreadsheet", "Spreadsheet space data");
@@ -8935,6 +8962,7 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "tables", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "SpreadsheetTable");
+  RNA_def_property_srna(prop, "SpreadsheetTables");
   RNA_def_property_collection_funcs(prop,
                                     "rna_iterator_SpaceSpreadsheet_tables_begin",
                                     "rna_iterator_array_next",

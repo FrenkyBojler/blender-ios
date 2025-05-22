@@ -17,6 +17,8 @@
 
 #include "BLI_rect.h"
 
+#include "ED_spreadsheet.hh"
+
 #include "spreadsheet_column.hh"
 #include "spreadsheet_draw.hh"
 #include "spreadsheet_intern.hh"
