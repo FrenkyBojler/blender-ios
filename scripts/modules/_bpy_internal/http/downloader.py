@@ -10,8 +10,9 @@ import logging
 import multiprocessing
 import multiprocessing.process
 import queue
+from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Protocol, TypeAlias, Any, Callable, Iterable
+from typing import Protocol, TypeAlias, Any
 
 # To work around this error:
 # mypy   : Variable "multiprocessing.Event" is not valid as a type
