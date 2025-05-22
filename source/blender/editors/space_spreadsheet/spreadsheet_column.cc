@@ -2,9 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLO_read_write.hh"
 #include "DNA_meshdata_types.h"
 #include "DNA_space_types.h"
+
+#include "BLO_read_write.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -140,9 +141,6 @@ void spreadsheet_column_blend_write(BlendWriter *writer, const SpreadsheetColumn
 {
   BLO_write_struct(writer, SpreadsheetColumn, column);
   spreadsheet_column_id_blend_write(writer, column->id);
-  /* While the display name is technically runtime data, we write it here, otherwise the row
-   * filters might not now their type if their region draws before the main region.
-   * This would ideally be cleared here. */
   BLO_write_string(writer, column->display_name);
 }
 
@@ -151,9 +149,6 @@ void spreadsheet_column_blend_read(BlendDataReader *reader, SpreadsheetColumn *c
   column->runtime = MEM_new<SpreadsheetColumnRuntime>(__func__);
   BLO_read_struct(reader, SpreadsheetColumnID, &column->id);
   spreadsheet_column_id_blend_read(reader, column->id);
-  /* While the display name is technically runtime data, it is loaded here, otherwise the row
-   * filters might not now their type if their region draws before the main region.
-   * This would ideally be cleared here. */
   BLO_read_string(reader, &column->display_name);
 }
 

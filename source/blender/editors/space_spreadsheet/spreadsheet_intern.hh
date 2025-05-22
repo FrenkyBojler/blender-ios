@@ -80,6 +80,10 @@ SpreadsheetColumn *find_hovered_column(SpaceSpreadsheet &sspreadsheet,
  */
 std::unique_ptr<DataSource> get_data_source(const bContext &C);
 
+/**
+ * Get the ID of the table that should be displayed. This is used to look up the table from
+ * #SpaceSpreadsheet::tables.
+ */
 const SpreadsheetTableID *get_active_table_id(const SpaceSpreadsheet &sspreadsheet);
 
 }  // namespace blender::ed::spreadsheet
