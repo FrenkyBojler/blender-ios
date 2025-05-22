@@ -898,6 +898,9 @@ void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &pri
 
   for (const auto &child_prim : children) {
     const pxr::UsdGeomImageable imageable = pxr::UsdGeomImageable(child_prim);
+    if (!imageable) {
+      continue;
+    }
 
     /* We should only traverse through a hierarchy, and any potential instancers, if they would be
      * included by our purpose and visibility checks, matching what is inside #collect_readers. */
