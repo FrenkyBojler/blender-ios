@@ -39,7 +39,10 @@ class ConditionalDownloader:
     'If-Modified-Since'. When the HTTP server indicates the local file is up to
     date, via a `304 Not Modified` response, the file is not downloaded again.
 
-    See `BackgroundDownloader` to download things in a background process.
+    This class is fully synchronous, and will thus block the caller until the
+    download is complete. It should not typically be used from Blender, as it
+    can block the user interface. See `BackgroundDownloader` to download things
+    in a background process.
     """
 
     # TODO: make a metadata cache class, instead of always using a path on disk.
@@ -84,10 +87,13 @@ class ConditionalDownloader:
     ) -> None:
         """Download the URL to a file on disk.
 
-        The download is streamed to 'local_path + "~"' first. When succesful, it
+        The download is streamed to 'local_path + "~"' first. When successful, it
         is renamed to the given path, overwriting any pre-existing file.
 
-        Raises a HTTPRequestDownloadError for specific HTTP errors.
+        Raises a HTTPRequestDownloadError for specific HTTP errors. Can also
+        raise other exceptions, for example when filesystem access fails. On any
+        exception, the `download_error()` function will be called on the
+        reporter.
         """
 
         http_req_descr = RequestDescription(http_method=http_method, url=url)
