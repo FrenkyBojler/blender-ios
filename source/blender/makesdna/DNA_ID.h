@@ -148,8 +148,7 @@ typedef struct IDProperty {
   char subtype;
   /** #IDP_FLAG_GHOST and others. */
   short flag;
-  /** Size matches #MAX_IDPROP_NAME. */
-  char name[64];
+  char name[/*MAX_IDPROP_NAME*/ 64];
 
   char _pad0[4];
 
@@ -417,7 +416,8 @@ typedef struct ID {
    * The first two bytes are always the #ID_Type code of the data-block's type.
    *
    * One critical usage is to reference external linked data. */
-  char name[/* MAX_ID_NAME */ 258];
+  char name[/*MAX_ID_NAME*/ 258];
+
   /**
    * ID_FLAG_... flags report on status of the data-block this ID belongs to
    * (persistent, saved to and read from .blend).
@@ -498,7 +498,7 @@ typedef struct Library {
 
   ID id;
   /** Path name used for reading, can be relative and edited in the outliner. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   struct PackedFile *packedfile;
 
@@ -522,10 +522,10 @@ typedef struct Library {
  */
 typedef struct LibraryWeakReference {
   /**  Expected to match a `Library.filepath`. */
-  char library_filepath[1024];
+  char library_filepath[/*FILE_MAX*/ 1024];
 
   /** May be different from the current local ID name. */
-  char library_id_name[/* MAX_ID_NAME */ 258];
+  char library_id_name[/*MAX_ID_NAME*/ 258];
 
   char _pad[2];
 } LibraryWeakReference;
