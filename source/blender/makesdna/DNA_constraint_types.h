@@ -46,7 +46,6 @@ typedef struct bConstraint {
 
   /** Object to use as target for Custom Space of owner. */
   struct Object *space_object;
-
   /** Sub-target for Custom Space of owner - pose-channel or vertex-group name. */
   char space_subtarget[/* MAX_NAME */ 64];
 
@@ -81,7 +80,6 @@ typedef struct bConstraintTarget {
 
   /** Object to use as target. */
   struct Object *tar;
-
   /** Sub-target - pose-channel or vertex-group name. */
   char subtarget[/* MAX_NAME */ 64];
 
