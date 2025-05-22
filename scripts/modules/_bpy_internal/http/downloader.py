@@ -623,7 +623,15 @@ class _DummyCancelEvent(CancelEvent):
 class DownloadReporter(Protocol):
     """This protocol can be used to receive reporting from ConditionalDownloader."""
 
-    def download_starts(self, http_req_descr: RequestDescription) -> None: ...
+    def download_starts(self, http_req_descr: RequestDescription) -> None:
+        """The download has started.
+
+        After `download_starts()` is called, it is guaranteed that exactly one
+        of these functions will be called with the same `RequestDescription`:
+            - `already_downloaded()`
+            - `download_error()`
+            - `download_finished()`
+        """
 
     def already_downloaded(
         self,
@@ -636,7 +644,13 @@ class DownloadReporter(Protocol):
         self,
         http_req_descr: RequestDescription,
         error: Exception,
-    ) -> None: ...
+    ) -> None:
+        """There was an error downloading the URL.
+
+        This can be due to the actual download (network issues), but also local
+        processing of the downloaded data (such as renaming the file from its
+        temporary name to its final name).
+        """
 
     def download_progress(
         self,
