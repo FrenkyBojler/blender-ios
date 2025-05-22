@@ -407,8 +407,7 @@ class NormalFieldInput : public GeometryFieldInput {
 class RadiusFieldInput : public GeometryFieldInput {
 
  public:
-  RadiusFieldInput()
-      : GeometryFieldInput(CPPType::get<float>())
+  RadiusFieldInput() : GeometryFieldInput(CPPType::get<float>())
   {
     category_ = Category::NamedAttribute;
   }
