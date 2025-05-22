@@ -14,7 +14,6 @@
 #include "BLI_utildefines.h"
 
 #include "GPU_shader.hh"
-#include "GPU_state.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
@@ -176,15 +175,6 @@ PyDoc_STRVAR(
 static PyObject *pygpu_shader_bind(BPyGPUShader *self)
 {
   GPU_shader_bind(self->shader);
-
-  if (bpygpu_shader_is_polyline(self->shader)) {
-    /* Helper that always setup the right viewport and linewidth to the shader to avoid too
-     * much boilerplate in the python code. */
-    float viewport[4];
-    GPU_viewport_size_get_f(viewport);
-    GPU_shader_uniform_2f(self->shader, "viewportSize", viewport[2], viewport[3]);
-    GPU_shader_uniform_1f(self->shader, "lineWidth", GPU_line_width_get());
-  }
   Py_RETURN_NONE;
 }
 
