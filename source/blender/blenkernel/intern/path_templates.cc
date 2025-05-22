@@ -130,7 +130,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
    * other parts of the code base that need it.
    */
 
-  /* Utility function to check if collection of strings is equal to another
+  /* Utility function to check if a collection of strings is equal to another
    * collection of strings. */
   const auto streq = [](blender::Span<const char *> strings_1,
                         blender::Span<const char *> strings_2) -> bool {
