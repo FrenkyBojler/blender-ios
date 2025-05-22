@@ -770,6 +770,8 @@ typedef enum eSpaceImage_Flag {
 typedef enum eSpaceImageOverlay_Flag {
   SI_OVERLAY_SHOW_OVERLAYS = (1 << 0),
   SI_OVERLAY_SHOW_GRID_BACKGROUND = (1 << 1),
+  SI_OVERLAY_DRAW_RENDER_REGION = (1 << 2),
+  SI_OVERLAY_DRAW_TEXT_INFO = (1 << 3),
 } eSpaceImageOverlay_Flag;
 
 /** #SpaceImage.gizmo_flag */
@@ -959,8 +961,16 @@ enum {
  * \{ */
 
 typedef enum eSpaceSpreadsheet_Flag {
+  /**
+   * Spreadsheet context is pinned and does not does not change when the context changes (unless
+   * the pinned context does not exist anymore).
+   */
   SPREADSHEET_FLAG_PINNED = (1 << 0),
-  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED = (1 << 1),
+  /**
+   * Not used anymore, just kept so the flag is not accidentally reused without clearing it in
+   * versioning first.
+   */
+  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED_LEGACY = (1 << 1),
 } eSpaceSpreadsheet_Flag;
 
 typedef enum eSpaceSpreadsheet_FilterFlag {
