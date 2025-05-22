@@ -98,6 +98,15 @@ class ConditionalDownloader:
 
         http_req_descr = RequestDescription(http_method=http_method, url=url)
 
+        try:
+            self._download_to_file(http_req_descr, local_path)
+        except Exception as ex:
+            self._reporter.download_error(http_req_descr, ex)
+            raise
+
+    def _download_to_file(self, http_req_descr: RequestDescription, local_path: Path) -> None:
+        """Same as download_to_file(), but without the exception handling."""
+
         self._reporter.download_starts(http_req_descr)
 
         http_meta = self._metadata_if_file_matches(http_req_descr, local_path)
@@ -111,7 +120,6 @@ class ConditionalDownloader:
         except Exception as ex:
             # Clean up the partially downloaded file.
             temp_path.unlink(missing_ok=True)
-            self._reporter.download_error(http_req_descr, ex)
             raise
         finally:
             # One way or the other, the download is no longer running, so any
