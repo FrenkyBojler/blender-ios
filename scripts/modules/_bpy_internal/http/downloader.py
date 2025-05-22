@@ -128,7 +128,7 @@ class ConditionalDownloader:
 
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
-            assert temp_path.exists() == False
+            assert not temp_path.exists()
             self._reporter.already_downloaded(http_req_descr, local_path)
             return
 
@@ -229,7 +229,7 @@ class ConditionalDownloader:
     def _cache_key(self, http_req_descr: RequestDescription) -> str:
         method = http_req_descr.http_method
         url = http_req_descr.url
-        return hashlib.sha256(f"{method}:{url}".encode()).hexdigest()
+        return hashlib.sha256("{}:{}".format(method, url).encode()).hexdigest()
 
     def _metadata_path(self, http_req_descr: RequestDescription) -> Path:
         # TODO: maybe use part of the cache key to bucket into subdirectories?
@@ -259,7 +259,6 @@ class ConditionalDownloader:
         if not meta:
             return None
 
-        assert meta.request == http_req_descr, f"req: {http_req_descr}, meta.req: {meta.request}"
         if meta.request != http_req_descr:
             # Somehow the metadata was loaded, but didn't match this request. Weird.
             return None
@@ -299,7 +298,7 @@ class ConditionalDownloader:
         """
         if self.has_reporter():
             raise ValueError(
-                f"Only one reporter is supported, I already have {self._reporter}"
+                "Only one reporter is supported, I already have {}".format(self._reporter)
             )
         self._reporter = reporter
 
@@ -477,6 +476,7 @@ class BackgroundDownloader:
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         """CachingDownloadReporter interface function."""
+        self._logger.debug("Download started %s", http_req_descr.url)
 
     def already_downloaded(
         self,
@@ -487,7 +487,7 @@ class BackgroundDownloader:
 
         Keeps track of internal bookkeeping.
         """
-        self._logger.debug(f"Local file is fresh, no need to re-download: {local_file}")
+        self._logger.debug("Local file is fresh, no need to re-download %s: %s", http_req_descr.url, local_file)
         self._mark_download_done()
         self.num_downloads_ok += 1
         self._call_on_downloaded_callback(http_req_descr, local_file)
@@ -501,7 +501,7 @@ class BackgroundDownloader:
 
         Keeps track of internal bookkeeping.
         """
-        self._logger.error(f"Error downloading (ex={error!r})")
+        self._logger.error("Error downloading %s: (%r)", http_req_descr.url, error)
         self._mark_download_done()
         self.num_downloads_error += 1
 
@@ -516,8 +516,11 @@ class BackgroundDownloader:
         Keeps track of internal bookkeeping.
         """
         self._logger.debug(
-            f"Download progress: {downloaded_bytes} of {content_length_bytes}: "
-            f"{downloaded_bytes/content_length_bytes*100:.0f}%"
+            "Download progress %s: %d of %d: %.0f%%",
+            http_req_descr.url,
+            downloaded_bytes,
+            content_length_bytes,
+            downloaded_bytes / content_length_bytes * 100,
         )
 
     def download_finished(
@@ -529,7 +532,7 @@ class BackgroundDownloader:
 
         Keeps track of internal bookkeeping.
         """
-        self._logger.debug(f"Download finished, stored at %s", local_file)
+        self._logger.debug("Download finished, stored at %s", local_file)
         self._mark_download_done()
         self.num_downloads_ok += 1
         self._call_on_downloaded_callback(http_req_descr, local_file)
@@ -609,9 +612,9 @@ def _download_queued_items(
                 # Can be logged at a lower level, because the caller did the
                 # cancelling, and can log/report things more loudly if
                 # necessary.
-                log.debug("download got cancelled: {}".format(http_req_descr))
+                log.debug("download got cancelled: %s", http_req_descr)
             except Exception as ex:
-                log.exception("could not download {}: {}".format(http_req_descr, ex))
+                log.exception("could not download %s: %s", http_req_descr, ex)
 
         log.debug("download process shutting down")
     except BaseException:
@@ -808,7 +811,7 @@ class QueueingReporter(DownloadReporter):
 
     def _queue_call(self, function_name: str, *function_args: Any) -> None:
         """Put a function call in the queue."""
-        self._logger.debug(f"{function_name}{function_args}")
+        self._logger.debug("%s%s", function_name, function_args)
         self._queue.put((function_name, function_args))
 
 
@@ -849,7 +852,7 @@ class HTTPRequestDownloadError(RuntimeError):
         self.http_req_desc = http_req_desc
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.http_req_desc})"
+        return "{}({})".format(self.__class__.__name__, self.http_req_desc)
 
     def __str__(self) -> str:
         return repr(self)
