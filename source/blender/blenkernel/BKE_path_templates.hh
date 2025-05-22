@@ -133,8 +133,7 @@ bool operator==(const Error &left, const Error &right);
 }  // namespace blender::bke::path_templates
 
 /**
- * Build the path template variables that are relevant to the given RNA
- * property.
+ * Build a template variable map for the passed RNA property.
  *
  * \param C: the context to use for building some variables. This is needed in
  * some cases when the property itself does not provide direct access to the
