@@ -167,10 +167,13 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
   m_ghost_ctx.getVulkanHandles(vulkan_handles);
 
   VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE;
-  if (XR_FAILED(s_xrGetVulkanGraphicsDeviceKHR_fn(
-          instance, system_id, vulkan_handles.instance, &vk_physical_device)))
-  {
-    *r_requirement_info = std::string("Unable to retrieve Xr required physical device");
+  XrResult xr_result = s_xrGetVulkanGraphicsDeviceKHR_fn(
+      instance, system_id, vulkan_handles.instance, &vk_physical_device);
+  if (XR_FAILED(xr_result)) {
+    std::stringstream ss;
+    ss << "Unable to retrieve Xr required physical device. xr_result=" << xr_result
+       << ", system_id=" << system_id << ", vk_instance=" << vulkan_handles.instance << "\n";
+    *r_requirement_info = ss.str();
     return false;
   }
 
