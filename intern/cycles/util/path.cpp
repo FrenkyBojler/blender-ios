@@ -8,6 +8,7 @@
 #include "util/md5.h"
 #include "util/set.h"
 #include "util/string.h"
+#include "util/thread.h"
 #include "util/vector.h"
 
 #include <OpenImageIO/filesystem.h>
@@ -646,6 +647,10 @@ static bool create_directories_recursivey(const string &path)
 
 void path_create_directories(const string &filepath)
 {
+  /* Global mutex protects against thread-unsafe subdirectory creation. */
+  static thread_mutex s_mutex;
+  thread_scoped_lock lock(s_mutex);
+
   const string path = path_dirname(filepath);
   create_directories_recursivey(path);
 }
