@@ -183,7 +183,7 @@ blender::bke::path_templates::VariableMap BKE_build_template_variables_for_rende
  * \return An empty vector if the templating in the path is valid, or a vector
  * of the errors if invalid.
  */
-blender::Vector<blender::bke::path_templates::Error> BKE_validate_template(
+blender::Vector<blender::bke::path_templates::Error> BKE_path_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables);
 
 /**

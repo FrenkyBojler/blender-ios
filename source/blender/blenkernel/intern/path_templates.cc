@@ -846,7 +846,7 @@ static blender::Vector<Error> eval_template(char *out_path,
   return errors;
 }
 
-blender::Vector<Error> BKE_validate_template(
+blender::Vector<Error> BKE_path_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables)
 {
   return eval_template(nullptr, 0, path, template_variables);
