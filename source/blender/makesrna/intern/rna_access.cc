@@ -4191,7 +4191,8 @@ void RNA_property_pointer_set(PointerRNA *ptr,
       IDP_ReplaceInGroup_ex(
           group,
           blender::bke::idprop::create(idprop->name, value, IDP_FLAG_STATIC_TYPE).release(),
-          idprop);
+          idprop,
+          0);
     }
   }
   /* IDProperty disguised as RNA property (and not yet defined in ptr). */
