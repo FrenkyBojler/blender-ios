@@ -3359,8 +3359,16 @@ static bool grease_pencil_snap_poll(bContext *C)
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(C);
-  return (area != nullptr) && (area->spacetype == SPACE_VIEW3D);
+  const ScrArea *area = CTX_wm_area(C);
+  if (!(area && area->spacetype == SPACE_VIEW3D)) {
+    return false;
+  }
+  const ARegion *region = CTX_wm_region(C);
+  if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
+    return false;
+  }
+
+  return true;
 }
 
 static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator * /*op*/)
@@ -3787,7 +3795,7 @@ static void GREASE_PENCIL_OT_texture_gradient(wmOperatorType *ot)
   ot->idname = "GREASE_PENCIL_OT_texture_gradient";
   ot->description = "Draw a line to set the fill material gradient for the selected strokes";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = grease_pencil_texture_gradient_invoke;
   ot->modal = grease_pencil_texture_gradient_modal;
   ot->exec = grease_pencil_texture_gradient_exec;

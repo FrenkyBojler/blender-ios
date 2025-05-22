@@ -416,7 +416,6 @@ static const EnumPropertyItem rna_enum_viewport_lighting_items[] = {
 
 static const EnumPropertyItem rna_enum_shading_color_type_items[] = {
     {V3D_SHADING_MATERIAL_COLOR, "MATERIAL", 0, "Material", "Show material color"},
-    {V3D_SHADING_SINGLE_COLOR, "SINGLE", 0, "Single", "Show scene in a single color"},
     {V3D_SHADING_OBJECT_COLOR, "OBJECT", 0, "Object", "Show object color"},
     {V3D_SHADING_RANDOM_COLOR, "RANDOM", 0, "Random", "Show random object color"},
     {V3D_SHADING_VERTEX_COLOR, "VERTEX", 0, "Attribute", "Show active color attribute"},
@@ -425,6 +424,7 @@ static const EnumPropertyItem rna_enum_shading_color_type_items[] = {
      0,
      "Texture",
      "Show the texture from the active image texture node using the active UV map coordinates"},
+    {V3D_SHADING_SINGLE_COLOR, "SINGLE", 0, "Custom", "Show scene in a single custom color"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4253,7 +4253,7 @@ static void rna_def_space_view3d_shading(BlenderRNA *brna)
       {V3D_SHADING_BACKGROUND_VIEWPORT,
        "VIEWPORT",
        0,
-       "Viewport",
+       "Custom",
        "Use a custom color limited to this viewport only"},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -5853,6 +5853,23 @@ static void rna_def_space_image_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_grid_background", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SI_OVERLAY_SHOW_GRID_BACKGROUND);
   RNA_def_property_ui_text(prop, "Display Background", "Show the grid background and borders");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_render_size", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SI_OVERLAY_DRAW_RENDER_REGION);
+  RNA_def_property_ui_text(prop, "Render Region", "Display the region of the final render");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "show_text_info", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SI_OVERLAY_DRAW_TEXT_INFO);
+  RNA_def_property_ui_text(prop, "Text Info", "Display overlay text");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
+  prop = RNA_def_property(srna, "passepartout_alpha", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "overlay.passepartout_alpha");
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(
+      prop, "Passepartout Alpha", "Opacity of the darkened overlay outside the render region");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 }
 
@@ -7534,8 +7551,8 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
   RNA_def_property_pointer_sdna(prop, nullptr, "op");
   RNA_def_property_ui_text(prop, "Active Operator", "");
 
-  /* keep this for compatibility with existing presets,
-   * not exposed in c++ api because of keyword conflict */
+  /* Keep this for compatibility with existing presets,
+   * not exposed in c++ API because of keyword conflict. */
   prop = RNA_def_property(srna, "operator", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "op");
   RNA_def_property_ui_text(prop, "Active Operator", "");
@@ -8740,11 +8757,6 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_filter", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "filter_flag", SPREADSHEET_FILTER_ENABLE);
   RNA_def_property_ui_text(prop, "Use Filter", "");
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
-
-  prop = RNA_def_property(srna, "display_viewer_path_collapsed", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED);
-  RNA_def_property_ui_text(prop, "Display Context Path Collapsed", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 
   prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);

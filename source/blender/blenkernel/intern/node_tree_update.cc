@@ -48,8 +48,8 @@ using namespace blender::nodes;
 
 /**
  * These flags are used by the `changed_flag` field in #bNodeTree, #bNode and #bNodeSocket.
- * This enum is not part of the public api. It should be used through the `BKE_ntree_update_tag_*`
- * api.
+ * This enum is not part of the public API. It should be used through the `BKE_ntree_update_tag_*`
+ * API.
  */
 enum eNodeTreeChangedFlag {
   NTREE_CHANGED_NOTHING = 0,
@@ -489,6 +489,7 @@ class NodeTreeMainUpdater {
     TreeUpdateResult result;
 
     ntree.runtime->link_errors.clear();
+    ntree.runtime->invalid_zone_output_node_ids.clear();
 
     if (this->update_panel_toggle_names(ntree)) {
       result.interface_changed = true;
@@ -668,9 +669,6 @@ class NodeTreeMainUpdater {
       Vector<InternalLink> expected_internal_links;
       for (const bNodeSocket *output_socket : node->output_sockets()) {
         if (!output_socket->is_available()) {
-          continue;
-        }
-        if (!output_socket->is_directly_linked()) {
           continue;
         }
         if (output_socket->flag & SOCK_NO_INTERNAL_LINK) {
@@ -1192,6 +1190,11 @@ class NodeTreeMainUpdater {
       return false;
     };
 
+    const bNodeTreeZones *fallback_zones = nullptr;
+    if (ntree.type == NTREE_GEOMETRY && !ntree.zones() && ntree.runtime->last_valid_zones) {
+      fallback_zones = ntree.runtime->last_valid_zones.get();
+    }
+
     LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
       link->flag |= NODE_LINK_VALID;
       if (!link->fromsock->is_available() || !link->tosock->is_available()) {
@@ -1239,6 +1242,20 @@ class NodeTreeMainUpdater {
                                         TIP_("Conversion is not supported"),
                                         TIP_(link->fromsock->typeinfo->label),
                                         TIP_(link->tosock->typeinfo->label))});
+          continue;
+        }
+      }
+      if (fallback_zones) {
+        if (!fallback_zones->link_between_sockets_is_allowed(*link->fromsock, *link->tosock)) {
+          if (const bNodeTreeZone *from_zone = fallback_zones->get_zone_by_socket(*link->fromsock))
+          {
+            ntree.runtime->invalid_zone_output_node_ids.add(*from_zone->output_node_id);
+          }
+
+          link->flag &= ~NODE_LINK_VALID;
+          ntree.runtime->link_errors.add(
+              NodeLinkKey{*link},
+              NodeLinkError{TIP_("Links can only go into a zone but not out")});
           continue;
         }
       }
@@ -1517,7 +1534,10 @@ class NodeTreeMainUpdater {
         const bool only_unused_internal_link_changed = !node.is_muted() &&
                                                        node.runtime->changed_flag ==
                                                            NTREE_CHANGED_INTERNAL_LINK;
-        if (!only_unused_internal_link_changed) {
+        const bool only_parent_changed = node.runtime->changed_flag == NTREE_CHANGED_PARENT;
+        const bool change_affects_output = !(only_unused_internal_link_changed ||
+                                             only_parent_changed);
+        if (change_affects_output) {
           return true;
         }
       }
@@ -1551,10 +1571,10 @@ class NodeTreeMainUpdater {
               break;
             }
             const bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
-            if (!zone->input_node) {
+            if (!zone->input_node()) {
               break;
             }
-            for (const bNodeSocket *input_socket : zone->input_node->input_sockets()) {
+            for (const bNodeSocket *input_socket : zone->input_node()->input_sockets()) {
               if (input_socket->is_available()) {
                 bool &pushed = pushed_by_socket_id[input_socket->index_in_tree()];
                 if (!pushed) {

@@ -406,6 +406,7 @@ void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 
 /* `node_geometry_attribute_search.cc` */
 
@@ -413,7 +414,7 @@ void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
                                                uiLayout &layout,
-                                               StringRefNull placeholder = "");
+                                               StringRef placeholder = "");
 
 /* `node_geometry_layer_search.cc` */
 
@@ -421,7 +422,7 @@ void node_geometry_add_layer_search_button(const bContext &C,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
                                            uiLayout &layout,
-                                           StringRefNull placeholder = "");
+                                           StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 

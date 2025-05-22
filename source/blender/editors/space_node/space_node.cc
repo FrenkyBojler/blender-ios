@@ -378,24 +378,25 @@ const ComputeContext *compute_context_for_zone(const bke::bNodeTreeZone &zone,
                                                bke::ComputeContextCache &compute_context_cache,
                                                const ComputeContext *parent_compute_context)
 {
-  if (!zone.output_node) {
+  const bNode *output_node_ptr = zone.output_node();
+  if (!output_node_ptr) {
     return nullptr;
   }
-  const bNode &output_node = *zone.output_node;
+  const bNode &output_node = *output_node_ptr;
   switch (output_node.type_legacy) {
     case GEO_NODE_SIMULATION_OUTPUT: {
-      return &compute_context_cache.for_simulation_zone(parent_compute_context, *zone.output_node);
+      return &compute_context_cache.for_simulation_zone(parent_compute_context, output_node);
     }
     case GEO_NODE_REPEAT_OUTPUT: {
       const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(output_node.storage);
       return &compute_context_cache.for_repeat_zone(
-          parent_compute_context, *zone.output_node, storage.inspection_index);
+          parent_compute_context, output_node, storage.inspection_index);
     }
     case GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT: {
       const auto &storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
           output_node.storage);
       return &compute_context_cache.for_foreach_geometry_element_zone(
-          parent_compute_context, *zone.output_node, storage.inspection_index);
+          parent_compute_context, output_node, storage.inspection_index);
     }
     case GEO_NODE_CLOSURE_OUTPUT: {
       nodes::ClosureSourceLocation source_location{};
@@ -1558,6 +1559,7 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_split);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
