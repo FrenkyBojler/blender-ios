@@ -628,10 +628,15 @@ static void bmesh_restore_begin(bContext *C,
     step_data.applied = false;
   }
   else {
-    bmesh_enable(object, step_data);
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+
+    dyntopo::enable_ex(*bmain, *depsgraph, object);
+    SculptSession &ss_mut = *object.sculpt;
+    ss_mut.bm_log = BM_log_from_existing_entries_create(ss_mut.bm, step_data.bmesh.bm_entry);
 
     /* Restore the mesh from the first log entry. */
-    BM_log_redo(ss.bm, ss.bm_log);
+    BM_log_redo(ss_mut.bm, ss_mut.bm_log);
 
     step_data.applied = true;
   }
@@ -1472,7 +1477,6 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
       store_geometry_data(geometry, object);
 
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);
-      BM_log_all_added(ss.bm, ss.bm_log);
     }
     else {
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);

@@ -686,24 +686,29 @@ void BM_log_undo(BMesh *bm, BMLog *log)
 
 void BM_log_redo(BMesh *bm, BMLog *log)
 {
+  printf("BM_log_redo\n");
   BMLogEntry *entry = log->current_entry;
 
   if (!entry) {
     /* Currently at the beginning of the undo stack, move to first entry */
     entry = static_cast<BMLogEntry *>(log->entries.first);
+    printf("Read first entry! %p\n", entry);
   }
   else if (entry->next) {
     /* Move to next undo entry */
     entry = entry->next;
+    printf("Move to next entry!\n");
   }
   else {
     /* Currently at the end of the undo stack, nothing left to redo */
+    printf("End of stack!\n");
     return;
   }
 
   log->current_entry = entry;
 
   if (entry) {
+    printf("RESTORING ENTRY\n");
     /* Re-delete previously deleted faces and verts */
     bm_log_faces_unmake(bm, log, entry->deleted_faces);
     bm_log_verts_unmake(bm, log, entry->deleted_verts);
