@@ -746,6 +746,52 @@ bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
   return false;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Radius Field Input
+ * \{ */
+
+GVArray RadiusFieldInput::get_varray_for_context(const GeometryFieldContext &context,
+                                                 const IndexMask & /* mask*/) const
+{
+  const AttrDomain domain = context.domain();
+  if (auto attributes = context.attributes()) {
+    if (GVArray attribute = *attributes->lookup("radius", domain, eCustomDataType::CD_PROP_FLOAT))
+    {
+      return attribute;
+    }
+  }
+
+  /* Return default values for the current geometry context. */
+  const int dst_domain_size = context.attributes()->domain_size(domain);
+  if (context.type() == GeometryComponent::Type::Curve) {
+    return VArray<float>::ForSingle(1.0f, dst_domain_size);
+  }
+  if (context.type() == GeometryComponent::Type::PointCloud) {
+    return VArray<float>::ForSingle(0.01f, dst_domain_size);
+  }
+  return {};
+}
+
+std::string RadiusFieldInput::socket_inspection_name() const
+{
+  return TIP_("Radius");
+}
+
+uint64_t RadiusFieldInput::hash() const
+{
+  return get_default_hash(8380544);
+}
+
+bool RadiusFieldInput::is_equal_to(const fn::FieldNode &other) const
+{
+  const RadiusFieldInput *other_typed = dynamic_cast<const RadiusFieldInput *>(&other);
+  return other_typed != NULL;
+}
+
+/** \} */
+
 static std::optional<StringRefNull> try_get_field_direct_attribute_id(const fn::GField &any_field)
 {
   if (const auto *field = dynamic_cast<const AttributeFieldInput *>(&any_field.node())) {

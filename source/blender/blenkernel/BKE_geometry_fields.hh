@@ -404,6 +404,24 @@ class NormalFieldInput : public GeometryFieldInput {
   bool is_equal_to(const fn::FieldNode &other) const override;
 };
 
+class RadiusFieldInput : public GeometryFieldInput {
+
+ public:
+  RadiusFieldInput()
+      : GeometryFieldInput(CPPType::get<float>())
+  {
+    category_ = Category::NamedAttribute;
+  }
+
+  GVArray get_varray_for_context(const GeometryFieldContext &context,
+                                 const IndexMask &mask) const override;
+
+  std::string socket_inspection_name() const override;
+
+  uint64_t hash() const override;
+  bool is_equal_to(const fn::FieldNode &other) const override;
+};
+
 class CurveLengthFieldInput final : public CurvesFieldInput {
  public:
   CurveLengthFieldInput();
