@@ -410,8 +410,14 @@ typedef struct ID {
   /** If the ID is an asset, this pointer is set. Owning pointer. */
   struct AssetMetaData *asset_data;
 
-  /** MAX_ID_NAME. */
-  char name[258];
+  /**
+   * Main identifier for this data-block. Must be unique whitin the ID name-space (defined by its
+   * type, and owning #Library).
+   *
+   * The first two bytes are always the #ID_Type code of the data-block's type.
+   *
+   * One critical usage is to reference external linked data. */
+  char name[/* MAX_ID_NAME */ 258];
   /**
    * ID_FLAG_... flags report on status of the data-block this ID belongs to
    * (persistent, saved to and read from .blend).
@@ -518,8 +524,8 @@ typedef struct LibraryWeakReference {
   /**  Expected to match a `Library.filepath`. */
   char library_filepath[1024];
 
-  /** MAX_ID_NAME. May be different from the current local ID name. */
-  char library_id_name[258];
+  /** May be different from the current local ID name. */
+  char library_id_name[/* MAX_ID_NAME */ 258];
 
   char _pad[2];
 } LibraryWeakReference;

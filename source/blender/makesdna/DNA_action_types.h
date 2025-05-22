@@ -1175,7 +1175,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[258]; /* MAX_ID_NAME */
+  char identifier[/* MAX_ID_NAME */ 258];
 
   /**
    * Type of ID-block that this slot is intended for.

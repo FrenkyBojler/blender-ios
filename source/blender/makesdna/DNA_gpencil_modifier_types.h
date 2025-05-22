@@ -632,8 +632,8 @@ typedef struct HookGpencilModifierData {
   struct Object *object;
   /** Material for filtering. */
   struct Material *material;
-  /** Optional name of bone target, MAX_ID_NAME-2. */
-  char subtarget[256];
+  /** Optional name of bone target. */
+  char subtarget[/* MAX_NAME */ 64];
   /** Layer name. */
   char layername[64];
   /** Material name. */
