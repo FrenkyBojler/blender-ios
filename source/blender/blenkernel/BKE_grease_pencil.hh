@@ -430,6 +430,9 @@ class LayerRuntime {
    */
   bool is_visibility_animated_;
 
+  /** For evaluated layers. Stores the original layer index at the beginning of evaluation. */
+  int orig_layer_index_ = -1;
+
  public:
   /** Reset all runtime data. */
   void clear();
