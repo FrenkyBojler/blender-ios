@@ -148,7 +148,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
   };
 
   /* No property passed, or it doesn't support path templates. */
-  if (ptr == nullptr || prop != nullptr ||
+  if (ptr == nullptr || prop == nullptr ||
       (RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) == 0)
   {
     return std::nullopt;
