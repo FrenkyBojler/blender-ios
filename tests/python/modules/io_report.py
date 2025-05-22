@@ -568,7 +568,9 @@ class Report:
                     desc.write(f" exposure:{fmtf(light.exposure)}")
                 if light.use_temperature:
                     desc.write(
-                        f" temp:{fmtf(light.temperature)} tint:({fmtf(light.temperature[0])},{fmtf(light.temperature[1])},{fmtf(light.temperature[2])})")
+                        f" temp:{fmtf(light.temperature)}")
+                if not light.normalize:
+                    desc.write(f" normalize_off")
                 desc.write(f"\n")
                 if isinstance(light, bpy.types.SpotLight):
                     desc.write(f"  - spot {light.spot_size:.3f} blend {light.spot_blend:.3f}\n")
