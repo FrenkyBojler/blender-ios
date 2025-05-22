@@ -133,6 +133,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
     def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
         if event.type == 'ESC':
             self.cancel(context)
+            self.report({'WARNING'}, "Download Cancelled")
             return {'CANCELLED'}
 
         if self._bg_downloader.is_shutdown_complete:
@@ -161,6 +162,9 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
 
     def on_done(self, http_req_descr: http_dl.RequestDescription, local_file: Path) -> None:
         self.report({'INFO'}, "File downloaded to {}".format(local_file))
+
+        if self._bg_downloader.num_pending_downloads > 0:
+            return
 
         # Since this is a demo of a single-file download, things can shut down
         # from here as the demo is done. In more complex use cases, this function

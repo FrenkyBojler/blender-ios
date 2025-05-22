@@ -117,14 +117,10 @@ class ConditionalDownloader:
 
         try:
             http_meta = self._stream_to_file(http_req_descr, temp_path, http_meta)
-        except Exception as ex:
+        except Exception:
             # Clean up the partially downloaded file.
             temp_path.unlink(missing_ok=True)
             raise
-        finally:
-            # One way or the other, the download is no longer running, so any
-            # pending cancellation can be cleared.
-            self.cancel_download_event.clear()
 
         if http_meta is None:
             # Local file is already fresh, no need to re-download.
@@ -357,6 +353,9 @@ class BackgroundDownloader:
     _options: DownloaderOptions
     _downloader_process: multiprocessing.process.BaseProcess | None
 
+    _shutdown_event: EventClass
+    _shutdown_complete_event: EventClass
+
     def __init__(self, options: DownloaderOptions) -> None:
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
@@ -367,9 +366,7 @@ class BackgroundDownloader:
         self._download_queue = _mp_context.Queue()
         self._options = options
 
-        # Set this to trigger a shutdown:
         self._shutdown_event = _mp_context.Event()
-        # Gets set when shutdown is complete:
         self._shutdown_complete_event = _mp_context.Event()
 
         self._reporters = [self]
@@ -456,7 +453,13 @@ class BackgroundDownloader:
         self._shutdown_event.set()
 
         self._logger.debug("waiting for download process to stop")
-        self._downloader_process.join()
+        try:
+            self._downloader_process.join(timeout=5.0)
+        except multiprocessing.TimeoutError:
+            self._logger.error("timeout waiting for background process top stop")
+            # Still keep going, as there may be updates that need to be handled,
+            # and it's better to continue and set self._shutdown_complete_event
+            # as well.
 
         self._logger.debug("processing any pending updates")
         while self._queueing_reporter.update(self._reporters):
@@ -848,7 +851,9 @@ class HTTPRequestDownloadError(RuntimeError):
     http_req_desc: RequestDescription
 
     def __init__(self, http_req_desc: RequestDescription) -> None:
-        super().__init__()
+        # NOTE: passing http_req_desc here is necessary for these exceptions to be pickleable.
+        # See https://stackoverflow.com/a/28335286/875379 for an explanation.
+        super().__init__(http_req_desc)
         self.http_req_desc = http_req_desc
 
     def __repr__(self) -> str:
@@ -864,9 +869,17 @@ class ContentLengthUnknownError(HTTPRequestDownloadError):
     Also raised when the header exists, but cannot be parsed as integer.
     """
 
+    def __init__(self, http_req_desc: RequestDescription) -> None:
+        # This __init__ method is necessary to be able to (un)pickle instances.
+        super().__init__(http_req_desc)
+
 
 class ResponseTooLargeError(HTTPRequestDownloadError):
     """Raised when a HTTP response body is larger than its Content-Length header indicates."""
+
+    def __init__(self, http_req_desc: RequestDescription) -> None:
+        # This __init__ method is necessary to be able to (un)pickle instances.
+        super().__init__(http_req_desc)
 
 
 class DownloadCancelled(HTTPRequestDownloadError):
@@ -876,6 +889,10 @@ class DownloadCancelled(HTTPRequestDownloadError):
     ConditionalDownloader.download_to_file(), and NOT from the thread/process
     doing the cancellation.
     """
+
+    def __init__(self, http_req_desc: RequestDescription) -> None:
+        # This __init__ method is necessary to be able to (un)pickle instances.
+        super().__init__(http_req_desc)
 
 
 def http_session() -> requests.Session:
