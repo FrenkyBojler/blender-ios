@@ -14,8 +14,8 @@ bl_info = {
     "category": "System",
 }
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 from contextlib import contextmanager
 
 
@@ -211,7 +211,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
 
     @contextmanager
-    def _context(self, context: bpy.types.Context) -> Generator:
+    def _context(self, context: bpy.types.Context) -> Generator[None]:
         """For the duration of the context manager, set self._operator_context."""
         try:
             self._operator_context = context
