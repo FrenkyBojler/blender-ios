@@ -850,8 +850,9 @@ class WM_OT_operator_presets_cleanup(Operator):
 
     operator: StringProperty(name="operator")
     properties: CollectionProperty(name="properties", type=OperatorFileListElement)
+    collections: CollectionProperty(name="collections", type=OperatorFileListElement)
 
-    def _cleanup_preset(self, filepath, properties_exclude):
+    def _cleanup_preset(self, filepath, properties_exclude, collections_exclude):
         import os
         import re
         if not (os.path.isfile(filepath) and os.path.splitext(filepath)[1].lower() == ".py"):
@@ -860,12 +861,28 @@ class WM_OT_operator_presets_cleanup(Operator):
             lines = fh.read().splitlines(True)
         if not lines:
             return
-        regex_exclude = re.compile("(" + "|".join([re.escape("op." + prop) for prop in properties_exclude]) + ")\\b")
-        lines = [line for line in lines if not regex_exclude.match(line)]
-        with open(filepath, "w", encoding="utf-8") as fh:
-            fh.write("".join(lines))
+        regex_properties_exclude = re.compile(
+            "(" + "|".join([re.escape("op." + prop) for prop in properties_exclude]) + ")\\b")
+        lines = [line for line in lines if not regex_properties_exclude.match(line)]
 
-    def _cleanup_operators_presets(self, operators, properties_exclude):
+        regex_collections_exclude = re.compile(
+            "op\\.(" + "|".join([re.escape(col) for col in collections_exclude]) + ")\\.clear\\(\\)")
+        result = []
+        line = 0
+        while line < len(lines):
+            if regex_collections_exclude.match(lines[line]):
+                line += 1
+                # Skips lines when it detects the property collection is being cleared and stops
+                # until another operator property is being overridden
+                while line < len(lines) and (not lines[line].startswith("op.")):
+                    line += 1
+            else:
+                result.append(lines[line])
+                line += 1
+        with open(filepath, "w", encoding="utf-8") as fh:
+            fh.write("".join(result))
+
+    def _cleanup_operators_presets(self, operators, properties_exclude, collections_exclude):
         import os
         base_preset_directory = bpy.utils.user_resource('SCRIPTS', path="presets", create=False)
         if not base_preset_directory:
@@ -877,15 +894,18 @@ class WM_OT_operator_presets_cleanup(Operator):
             if not os.path.isdir(directory):
                 continue
             for filename in os.listdir(directory):
-                self._cleanup_preset(os.path.join(directory, filename), properties_exclude)
+                self._cleanup_preset(os.path.join(directory, filename), properties_exclude, collections_exclude)
 
     def execute(self, context):
         properties_exclude = []
+        collections_exclude = []
         operators = []
         if self.operator:
             operators.append(self.operator)
             for prop in self.properties:
                 properties_exclude.append(prop.name)
+            for col in self.collections:
+                collections_exclude.append(col.name)
         else:
             # Cleanup by default I/O Operators Presets
             operators = [
@@ -901,15 +921,17 @@ class WM_OT_operator_presets_cleanup(Operator):
                 "WM_OT_stl_import",
                 "WM_OT_usd_export",
                 "WM_OT_usd_import",
+
             ]
             properties_exclude = [
                 "filepath",
                 "directory",
-                "files",
                 "filename",
             ]
-
-        self._cleanup_operators_presets(operators, properties_exclude)
+            collections_exclude = [
+                "files",
+            ]
+        self._cleanup_operators_presets(operators, properties_exclude, collections_exclude)
         return {'FINISHED'}
 
 
