@@ -500,6 +500,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
     CLOG_ERROR(&LOG, "Error: No suitable Vulkan Device found!");
     return GHOST_kFailure;
   }
+
   vulkan_device.emplace(vk_instance, best_physical_device);
 
   return GHOST_kSuccess;
