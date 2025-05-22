@@ -102,6 +102,8 @@ static const char *vulkan_error_as_string(VkResult result)
     } \
   } while (0)
 
+std::vector<const char *> GHOST_ContextVK::s_enabled_instance_extensions;
+
 /* Check if the given extension name is in the extension_list.
  */
 static bool contains_extension(const vector<VkExtensionProperties> &extension_list,
@@ -142,6 +144,9 @@ class GHOST_DeviceVK {
 
   bool use_vk_ext_swapchain_maintenance_1 = false;
 
+  /* Contains pointers to VK_*_EXTENSION_NAME */
+  std::vector<const char *> enabled_extensions;
+
  public:
   GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
       : instance(vk_instance), physical_device(vk_physical_device)
@@ -156,6 +161,13 @@ class GHOST_DeviceVK {
     features_12.pNext = &features_robustness2;
 
     vkGetPhysicalDeviceFeatures2(physical_device, &features);
+
+    /* Mark Vulkan 1.2 core extensions as enabled. OpenXR can still check them. */
+    enabled_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+    enabled_extensions.emplace_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+    enabled_extensions.emplace_back(VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME);
+    enabled_extensions.emplace_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+    enabled_extensions.emplace_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
   }
   ~GHOST_DeviceVK()
   {
@@ -214,6 +226,9 @@ class GHOST_DeviceVK {
       else {
         CLOG_INFO(&LOG, 2, "optional extension not found: `%s`", optional_extension);
       }
+    }
+    for (const char *extension_name : device_extensions) {
+      enabled_extensions.emplace_back(extension_name);
     }
 
     /* Check if the given extension name will be enabled. */
@@ -370,6 +385,16 @@ class GHOST_DeviceVK {
       generic_queue_family++;
     }
   }
+
+  bool is_extension_enabled(const std::string &extension_name) const
+  {
+    for (const char *enabled_extension : enabled_extensions) {
+      if (extension_name == std::string(enabled_extension)) {
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 /**
@@ -475,7 +500,6 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
     CLOG_ERROR(&LOG, "Error: No suitable Vulkan Device found!");
     return GHOST_kFailure;
   }
-
   vulkan_device.emplace(vk_instance, best_physical_device);
 
   return GHOST_kSuccess;
@@ -744,14 +768,15 @@ static bool checkExtensionSupport(const vector<VkExtensionProperties> &extension
   return false;
 }
 
-static void requireExtension(const vector<VkExtensionProperties> &extensions_available,
-                             vector<const char *> &extensions_enabled,
-                             const char *extension_name)
+static void enableInstanceExtension(const vector<VkExtensionProperties> &extensions_available,
+                                    vector<const char *> &extensions_enabled,
+                                    const char *extension_name,
+                                    bool required)
 {
   if (checkExtensionSupport(extensions_available, extension_name)) {
     extensions_enabled.push_back(extension_name);
   }
-  else {
+  else if (required) {
     CLOG_ERROR(&LOG, "required extension not found: %s", extension_name);
   }
 }
@@ -1139,7 +1164,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> extensions_enabled;
 
   if (m_debug) {
-    requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    enableInstanceExtension(
+        extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
   }
 
   if (use_window_surface) {
@@ -1165,11 +1191,15 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     }
   }
 
-  /* External memory extensions. */
+  /* External extensions. */
 #ifdef _WIN32
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME);
 #elif not defined(__APPLE__)
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME);
 #endif
 
 #ifdef __APPLE__
@@ -1208,6 +1238,17 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #endif
 
     VK_CHECK(vkCreateInstance(&create_info, nullptr, &instance));
+
+    s_enabled_instance_extensions = extensions_enabled;
+    /* Add implicit extensions that are core in Vulkan 1.2. OpenXR may check on them without
+     * looking if they are implicitly enabled. */
+    s_enabled_instance_extensions.emplace_back(
+        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    s_enabled_instance_extensions.emplace_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+    s_enabled_instance_extensions.emplace_back(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME);
+    s_enabled_instance_extensions.emplace_back(
+        VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+    s_enabled_instance_extensions.emplace_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
   }
   else {
     instance = vulkan_device->instance;
@@ -1281,4 +1322,22 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 GHOST_TSuccess GHOST_ContextVK::releaseNativeHandles()
 {
   return GHOST_kSuccess;
+}
+
+bool GHOST_ContextVK::is_instance_extension_enabled(const std::string &extension_name) const
+{
+  for (const char *enabled_extension : s_enabled_instance_extensions) {
+    if (extension_name == std::string(enabled_extension)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool GHOST_ContextVK::is_device_extension_enabled(const std::string &extension_name) const
+{
+  if (!vulkan_device.has_value()) {
+    return false;
+  }
+  return vulkan_device->is_extension_enabled(extension_name);
 }

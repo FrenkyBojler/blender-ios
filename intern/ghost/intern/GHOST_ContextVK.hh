@@ -280,4 +280,19 @@ class GHOST_ContextVK : public GHOST_Context {
   GHOST_TSuccess recreateSwapchain();
   GHOST_TSuccess initializeFrameData();
   GHOST_TSuccess destroySwapchain();
+
+  /**
+   * Static list of all enabled instance extensions. It needs to be static as it is shared between
+   * multiple contexts.
+   */
+  static std::vector<const char *> s_enabled_instance_extensions;
+
+  /**
+   * Check if the given extension name is enabled on instance level.
+   */
+  bool is_instance_extension_enabled(const std::string &extension_name) const;
+  /**
+   * Check if the given extension name is enabled on device level.
+   */
+  bool is_device_extension_enabled(const std::string &extension_name) const;
 };

@@ -36,6 +36,17 @@ GHOST_XrGraphicsBindingVulkanShared::~GHOST_XrGraphicsBindingVulkanShared()
   }
 }
 
+static std::vector<std::string> split_by_space(std::string text)
+{
+  std::string line;
+  std::vector<std::string> vec;
+  std::stringstream ss(text);
+  while (std::getline(ss, line, ' ')) {
+    vec.push_back(line);
+  }
+  return vec;
+}
+
 bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
     GHOST_Context &ghost_ctx,
     XrInstance instance,
@@ -84,6 +95,71 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
               << XR_VERSION_MINOR(xr_graphics_requirements.maxApiVersionSupported) << std::endl;
 
     *r_requirement_info = strstream.str();
+    return false;
+  }
+
+  /* Read the required instance extensions. */
+  uint32_t buffer_count = 0;
+  if (XR_FAILED(
+          s_xrGetVulkanInstanceExtensionsKHR_fn(instance, system_id, 0, &buffer_count, nullptr)))
+  {
+    *r_requirement_info = std::string("Unable to determine required instance vulkan extensions");
+    return false;
+  }
+  char *buffer = static_cast<char *>(malloc(buffer_count));
+  if (XR_FAILED(s_xrGetVulkanInstanceExtensionsKHR_fn(
+          instance, system_id, buffer_count, &buffer_count, buffer)))
+  {
+    *r_requirement_info = std::string("Unable to determine required instance vulkan extensions");
+    free(buffer);
+    return false;
+  }
+  std::vector<std::string> instance_extensions = split_by_space(buffer);
+  free(buffer);
+  buffer = nullptr;
+  buffer_count = 0;
+
+  /* Read the required device extensions. */
+  if (XR_FAILED(
+          s_xrGetVulkanDeviceExtensionsKHR_fn(instance, system_id, 0, &buffer_count, nullptr)))
+  {
+    *r_requirement_info = std::string("Unable to determine required device vulkan extensions");
+    return false;
+  }
+  buffer = static_cast<char *>(malloc(buffer_count));
+  if (XR_FAILED(s_xrGetVulkanDeviceExtensionsKHR_fn(
+          instance, system_id, buffer_count, &buffer_count, buffer)))
+  {
+    *r_requirement_info = std::string("Unable to determine required device vulkan extensions");
+    free(buffer);
+    return false;
+  }
+  std::vector<std::string> device_extensions = split_by_space(buffer);
+  free(buffer);
+  buffer = nullptr;
+
+  std::vector<std::string> missing_extensions;
+  /* Check for enabled instance extensions. */
+  for (const std::string &extension : instance_extensions) {
+    if (!context_vk.is_instance_extension_enabled(extension)) {
+      missing_extensions.push_back(extension);
+    }
+  }
+
+  /* Check for enabled instance extensions. */
+  for (const std::string &extension : device_extensions) {
+    if (!context_vk.is_device_extension_enabled(extension)) {
+      missing_extensions.push_back(extension);
+    }
+  }
+  if (!missing_extensions.empty()) {
+    std::stringstream ss;
+    ss << "Unable to use shared resources as extensions aren't enabled: [";
+    for (std::string &extension : missing_extensions) {
+      ss << extension << " ";
+    }
+    ss << "]";
+    *r_requirement_info = ss.str();
     return false;
   }
 
