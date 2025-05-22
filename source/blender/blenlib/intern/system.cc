@@ -10,8 +10,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "BLI_mutex.hh"
 #include "BLI_math_base.h"
+#include "BLI_mutex.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 
