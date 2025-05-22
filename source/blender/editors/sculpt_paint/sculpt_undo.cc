@@ -182,6 +182,10 @@ struct NodeGeometry {
 struct Node;
 
 struct StepData {
+ private:
+  bool applied_ = true;
+
+ public:
   /**
    * The type of data stored in this undo step. For historical reasons this is often set when the
    * first undo node is pushed.
@@ -236,7 +240,6 @@ struct StepData {
   /* Modified geometry is stored after the modification and is restored from when redoing. */
   NodeGeometry geometry_modified;
 
-
   Mutex nodes_mutex;
 
   /**
@@ -255,7 +258,7 @@ struct StepData {
 
   size_t undo_size;
 
-  /** Whether processing code needs to handle the current data as an undo step */
+  /** Whether processing code needs to handle the current data as an undo step. */
   bool needs_undo() const
   {
     return applied_;
@@ -270,9 +273,6 @@ struct StepData {
   {
     applied_ = false;
   }
-
-private:
-  bool applied_ = true;
 };
 
 struct SculptUndoStep {
