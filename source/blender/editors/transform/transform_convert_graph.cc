@@ -135,9 +135,8 @@ static void bezt_to_transdata(TransData *td,
   if (ishandle) {
     td->flag |= TD_NOTIMESNAP;
   }
-  if (intvals) {
-    td->flag |= TD_INTVALUES;
-  }
+
+  td2d->is_int_value = intvals;
 
   /* Copy space-conversion matrices for dealing with non-uniform scales. */
   copy_m3_m3(td->mtx, mtx);
@@ -708,7 +707,7 @@ static void flushTransGraphData(TransInfo *t)
     }
 
     /* If int-values only, truncate to integers. */
-    if (td->flag & TD_INTVALUES) {
+    if (td2d->is_int_value) {
       td2d->loc2d[1] = floorf(td2d->loc[1] * inv_unit_scale - tdg->offset + 0.5f);
     }
     else {

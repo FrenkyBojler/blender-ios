@@ -364,9 +364,9 @@ enum {
   TD_NOTIMESNAP = 1 << 10,
   /**
    * For Graph Editor - curves that can only have int-values
-   * need their keyframes tagged with this.
+   * need their keyframes tagged with this (now TransData2D has a property for this).
    */
-  TD_INTVALUES = 1 << 11,
+  /* TD_INTVALUES = 1 << 11, */
   /** For edit-mode mirror. */
   TD_MIRROR_X = 1 << 12,
   TD_MIRROR_Y = 1 << 13,
@@ -481,6 +481,7 @@ struct TransData2D {
   /** Pointer to handle locations, if handles aren't being moved independently. */
   float *h1, *h2;
   float ih1[2], ih2[2];
+  bool is_int_value;
 };
 
 /**
