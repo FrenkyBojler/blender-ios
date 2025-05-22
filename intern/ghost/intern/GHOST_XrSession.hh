@@ -113,7 +113,6 @@ class GHOST_XrSession {
                 const XrSpaceLocation &view_location,
                 const XrView &view,
                 uint32_t view_idx,
-                bool is_first_view,
                 bool is_last_view,
                 void *draw_customdata);
   void beginFrameDrawing();

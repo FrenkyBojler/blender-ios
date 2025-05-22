@@ -851,8 +851,6 @@ typedef struct {
     struct {
       VkImage xr_swapchain_image;
       VkOffset2D view_offset;
-      VkSemaphore xr_wait_semaphore;
-      VkSemaphore xr_signal_semaphore;
       VkFence xr_fence;
     } shared;
   };
@@ -1003,7 +1001,6 @@ typedef struct GHOST_XrDrawViewInfo {
    * systems, etc). */
   char view_idx;
 
-  bool is_first_view;
   bool is_last_view;
 } GHOST_XrDrawViewInfo;
 

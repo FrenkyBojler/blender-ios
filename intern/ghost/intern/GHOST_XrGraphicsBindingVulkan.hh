@@ -135,11 +135,6 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
 
  private:
   /**
-   * Semaphore to synchronize multi view rendering. Each Semaphore is signalled by a view and
-   * waited for by the next view. Semaphores are reused by the next frame.
-   */
-  std::vector<VkSemaphore> m_vk_semaphores;
-  /**
    * Fence to signal by the last swap chain image. This will inform OpenXR to proceed and temp
    * resources can be freed.
    */

@@ -524,8 +524,8 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
       render_graph.add_node(synchronization);
       flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
                          VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                         openxr_data.shared.xr_wait_semaphore,
-                         openxr_data.shared.xr_signal_semaphore,
+                         VK_NULL_HANDLE,
+                         VK_NULL_HANDLE,
                          openxr_data.shared.xr_fence);
 
       break;
