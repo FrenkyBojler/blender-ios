@@ -768,10 +768,9 @@ static bool checkExtensionSupport(const vector<VkExtensionProperties> &extension
   return false;
 }
 
-static void enableInstanceExtension(const vector<VkExtensionProperties> &extensions_available,
-                                    vector<const char *> &extensions_enabled,
-                                    const char *extension_name,
-                                    bool required)
+static void requireExtension(const vector<VkExtensionProperties> &extensions_available,
+                             vector<const char *> &extensions_enabled,
+                             const char *extension_name)
 {
   if (checkExtensionSupport(extensions_available, extension_name)) {
     extensions_enabled.push_back(extension_name);
@@ -1164,8 +1163,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   vector<const char *> extensions_enabled;
 
   if (m_debug) {
-    enableInstanceExtension(
-        extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
+    requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
   if (use_window_surface) {
