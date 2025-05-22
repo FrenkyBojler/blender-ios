@@ -349,14 +349,6 @@ static PyObject *pygpu_batch_draw(BPyGPUBatch *self, PyObject *args)
                      "Use GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR instead.",
                      1);
       }
-      else if (bpygpu_shader_is_polyline(shader)) {
-        /* Helper that always setup the right viewport and linewidth to the shader to avoid too
-         * much boilerplate in the python code. */
-        float viewport[4];
-        GPU_viewport_size_get_f(viewport);
-        GPU_shader_uniform_2f(shader, "viewportSize", viewport[2], viewport[3]);
-        GPU_shader_uniform_1f(shader, "lineWidth", line_width);
-      }
     }
   }
 
