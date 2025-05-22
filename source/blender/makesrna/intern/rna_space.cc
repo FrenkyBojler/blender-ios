@@ -8572,6 +8572,7 @@ static void rna_def_spreadsheet_table_id_geometry(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  /* The properties below are read-only, because they are used as key for a table. */
   srna = RNA_def_struct(brna, "SpreadsheetTableIDGeometry", "SpreadsheetTableID");
 
   prop = RNA_def_property(srna, "object_eval_state", PROP_ENUM, PROP_NONE);
@@ -8592,6 +8593,10 @@ static void rna_def_spreadsheet_table_id_geometry(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "viewer_path", PROP_POINTER, PROP_NONE);
   RNA_def_property_ui_text(prop, "Viewer Path", "Path to the data that is displayed");
+
+  prop = RNA_def_property(srna, "layer_index", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Layer Index", "Index of the Grease Pencil layer");
 }
 
 static void rna_def_spreadsheet_table(BlenderRNA *brna)

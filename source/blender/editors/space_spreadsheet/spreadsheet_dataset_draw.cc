@@ -716,7 +716,7 @@ void DataSetViewItem::on_activate(bContext &C)
     sspreadsheet.geometry_id.attribute_domain = uint8_t(*data_id->domain);
   }
   if (data_id->layer_index) {
-    sspreadsheet.geometry_id.active_layer_index = *data_id->layer_index;
+    sspreadsheet.geometry_id.layer_index = *data_id->layer_index;
   }
   PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
   /* These updates also make sure that the attribute domain is set properly based on the
@@ -745,7 +745,7 @@ std::optional<bool> DataSetViewItem::should_be_active() const
     }
   }
   if (data_id->layer_index) {
-    if (sspreadsheet.geometry_id.active_layer_index != *data_id->layer_index) {
+    if (sspreadsheet.geometry_id.layer_index != *data_id->layer_index) {
       return false;
     }
   }

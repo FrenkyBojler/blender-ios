@@ -24,10 +24,8 @@ uint64_t SpreadsheetTableID::hash() const
           blender::Span(self.instance_ids, self.instance_ids_num));
       return blender::get_default_hash(
           blender::get_default_hash(this->type, viewer_path_hash, self.geometry_component_type),
-          blender::get_default_hash(self.attribute_domain,
-                                    self.object_eval_state,
-                                    self.active_layer_index,
-                                    instance_ids_hash));
+          blender::get_default_hash(
+              self.attribute_domain, self.object_eval_state, self.layer_index, instance_ids_hash));
     }
   }
   return uint64_t(this->type);
@@ -46,8 +44,7 @@ bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b)
       return BKE_viewer_path_equal(&a_.viewer_path, &b_.viewer_path) &&
              a_.geometry_component_type == b_.geometry_component_type &&
              a_.attribute_domain == b_.attribute_domain &&
-             a_.object_eval_state == b_.object_eval_state &&
-             a_.active_layer_index == b_.active_layer_index &&
+             a_.object_eval_state == b_.object_eval_state && a_.layer_index == b_.layer_index &&
              blender::Span(a_.instance_ids, a_.instance_ids_num) ==
                  blender::Span(b_.instance_ids, b_.instance_ids_num);
     }
@@ -76,7 +73,7 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.geometry_component_type = src.geometry_component_type;
   dst.attribute_domain = src.attribute_domain;
   dst.object_eval_state = src.object_eval_state;
-  dst.active_layer_index = src.active_layer_index;
+  dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
 }

@@ -730,7 +730,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->geometry_id.attribute_domain;
   const auto component_type = bke::GeometryComponent::Type(
       sspreadsheet->geometry_id.geometry_component_type);
-  const int active_layer_index = sspreadsheet->geometry_id.active_layer_index;
+  const int layer_index = sspreadsheet->geometry_id.layer_index;
   if (!geometry_set.has(component_type)) {
     return {};
   }
@@ -742,7 +742,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
                             DEG_get_original(object_eval) :
                             nullptr;
   return std::make_unique<GeometryDataSource>(
-      object_orig, std::move(geometry_set), component_type, domain, active_layer_index);
+      object_orig, std::move(geometry_set), component_type, domain, layer_index);
 }
 
 }  // namespace blender::ed::spreadsheet

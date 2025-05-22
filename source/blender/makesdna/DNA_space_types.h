@@ -1152,8 +1152,8 @@ typedef struct SpreadsheetTableIDGeometry {
   /** #eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state;
   char _pad1[5];
-  /** Active grease pencil layer index for grease pencil component. */
-  int active_layer_index;
+  /** Grease Pencil layer index for grease pencil component. */
+  int layer_index;
 } SpreadsheetTableIDGeometry;
 
 typedef struct SpreadsheetTable {
