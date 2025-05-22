@@ -229,6 +229,9 @@ struct StepData {
 
     /* Geometry at the bmesh enter moment. */
     NodeGeometry geometry_enter;
+
+    /* Stolen from the SculptSession */
+    BMesh *bmesh_end;
   } bmesh;
 
   float3 pivot_pos;
@@ -670,10 +673,19 @@ static void bmesh_handle_dyntopo_end(bContext *C,
                                      const SculptSession &ss)
 {
   if (step_data.needs_undo()) {
-    bmesh_enable(object, step_data);
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-    /* Restore the mesh from the last log entry. */
-    BM_log_undo(ss.bm, ss.bm_log);
+    dyntopo::enable_ex(*bmain, *depsgraph, object);
+    SculptSession &ss_mut = *object.sculpt;
+    if (ss_mut.bm_log) {
+      BM_log_free(ss_mut.bm_log);
+      ss_mut.bm_log = nullptr;
+    }
+    ss_mut.bm_log = BM_log_from_existing_entries_create(ss_mut.bm, step_data.bmesh.bm_entry);
+
+    /* Restore the mesh from the first log entry. */
+    BM_log_undo(ss_mut.bm, ss_mut.bm_log);
 
     step_data.tag_needs_redo();
   }
@@ -1484,7 +1496,8 @@ BLI_NOINLINE static void bmesh_push(const Object &object,
 
     if (type == Type::DyntopoEnd) {
       step_data->bmesh.bm_entry = BM_log_entry_add(ss.bm_log);
-      BM_log_before_all_removed(ss.bm, ss.bm_log);
+      step_data->bmesh.bmesh_end = ss.bm;
+      /* TODO: Store BMesh here...?*/
     }
     else if (type == Type::DyntopoBegin) {
       /* Store a copy of the mesh's current vertices, loops, and
