@@ -1201,6 +1201,10 @@ typedef struct SpaceSpreadsheet {
    */
   uint32_t table_use_clock;
 
+  /** Index of the active viewer path element in the Data Source panel. */
+  int active_viewer_path_index;
+  char _pad2[4];
+
   SpaceSpreadsheet_Runtime *runtime;
 } SpaceSpreadsheet;
 
