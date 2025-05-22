@@ -4410,7 +4410,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 74)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 76)) {
     ToolSettings toolsettings_default = *DNA_struct_default_get(ToolSettings);
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       scene->toolsettings->snap_playhead_mode = toolsettings_default.snap_playhead_mode;
