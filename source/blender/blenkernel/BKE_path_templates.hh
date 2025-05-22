@@ -133,14 +133,17 @@ bool operator==(const Error &left, const Error &right);
 }  // namespace blender::bke::path_templates
 
 /**
- * Given an RNA pointer to a property, build the path template variables
- * relevant to it.
+ * Build the path template variables that are relevant to the given RNA
+ * property.
  *
- * `C` *can* be null, but some variables may fail to be built if it is.
+ * \param C: the context to use for building some variables. This is needed in
+ * some cases when the property itself does not provide direct access to the
+ * data needed for a variable. This can be null, but the variables it's needed
+ * for will then be absent in the returned variable map.
  *
- * \return The template variables for the property. If no property is provided
- * (`ptr` and/or `prop` are null), or if the property doesn't support path
- * templates (`PROP_PATH_SUPPORTS_TEMPLATES` is not set), returns nullopt.
+ * \return On success, returns the template variables for the property. If no
+ * property is provided or if the property doesn't support path templates,
+ * returns nullopt.
  */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
     PointerRNA *ptr, PropertyRNA *prop, const bContext *C);
