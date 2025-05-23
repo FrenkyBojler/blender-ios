@@ -957,8 +957,8 @@ def http_session() -> requests.Session:
     )
     # TODO: add default timeouts as well?
     http_adapter = requests.adapters.HTTPAdapter(max_retries=http_retries)
-    http_session = requests.session()
-    http_session.mount("https://", http_adapter)
-    http_session.mount("http://", http_adapter)
+    session = requests.session()
+    session.mount("https://", http_adapter)
+    session.mount("http://", http_adapter)
 
-    return http_session
+    return session
