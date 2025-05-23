@@ -356,8 +356,8 @@ enum {
  * provides a common handle to place all data in double-linked lists.
  */
 
-/* 2 characters for ID code and 256 for actual name */
-#define MAX_ID_NAME 258
+/* 2 characters for ID code and 64 for actual name */
+#define MAX_ID_NAME 66
 
 /** #ID_Runtime_Remap.status */
 enum {
@@ -409,15 +409,7 @@ typedef struct ID {
   /** If the ID is an asset, this pointer is set. Owning pointer. */
   struct AssetMetaData *asset_data;
 
-  /**
-   * Main identifier for this data-block. Must be unique whitin the ID name-space (defined by its
-   * type, and owning #Library).
-   *
-   * The first two bytes are always the #ID_Type code of the data-block's type.
-   *
-   * One critical usage is to reference external linked data. */
-  char name[/*MAX_ID_NAME*/ 258];
-
+  char name[/*MAX_ID_NAME*/ 66];
   /**
    * ID_FLAG_... flags report on status of the data-block this ID belongs to
    * (persistent, saved to and read from .blend).
@@ -525,7 +517,7 @@ typedef struct LibraryWeakReference {
   char library_filepath[/*FILE_MAX*/ 1024];
 
   /** May be different from the current local ID name. */
-  char library_id_name[/*MAX_ID_NAME*/ 258];
+  char library_id_name[/*MAX_ID_NAME*/ 66];
 
   char _pad[2];
 } LibraryWeakReference;

@@ -3858,6 +3858,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
   /* Sanity checks. */
   blo_read_file_checks(bfd->main);
+
   return bfd;
 }
 
@@ -4809,6 +4810,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
       }
     }
   }
+
   for (Main *mainptr = mainl->next; mainptr; mainptr = mainptr->next) {
     /* Drop weak links for which no data-block was found.
      * Since this can remap pointers in `libmap` of all libraries, it needs to be performed in its
