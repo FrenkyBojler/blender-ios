@@ -120,32 +120,20 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
    * This function should be maintained such that it always produces variables
    * consistent with the variables produced elsewhere in the code base for the
    * same property. For example, render paths are processed in the rendering
-   * code and produce variables for that purpose there, and this function should
-   * produce variables consistent with that for those render path properties.
+   * code and variables are built for that purpose there, and this function
+   * should produce variables consistent with that for those render path
+   * properties here.
    *
-   * The recommended strategy when adding support for additional properties is
-   * to create a separate function (see e.g.
-   * `BKE_build_template_variables_for_render_path()`) which builds variables
-   * for that property's use case, and then call that from both here and the
-   * other parts of the code base that need it.
+   * The recommended strategy when adding support for additional path templating
+   * use cases (that don't already have an appropriate
+   * `PropertyVariableBuildType` item) is to:
+   *
+   * 1. Create a separate function to build variables for that use case (see
+   *    e.g. `BKE_build_template_variables_for_render_path()`).
+   * 2. Call that function from here in the switch statement below.
+   * 3. Also call that function from the other parts of the code base that need
+   *    it.
    */
-
-  /* Utility function to check if a collection of strings is equal to another
-   * collection of strings. */
-  const auto streq = [](blender::Span<const char *> strings_1,
-                        blender::Span<const char *> strings_2) -> bool {
-    if (strings_1.size() != strings_2.size()) {
-      return false;
-    }
-
-    for (int i = 0; i < strings_1.size(); i++) {
-      if (strcmp(strings_1[i], strings_2[i]) != 0) {
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   /* No property passed, or it doesn't support path templates. */
   if (ptr == nullptr || prop == nullptr ||
@@ -154,35 +142,28 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
     return std::nullopt;
   }
 
-  /* Data needed to identify properties. */
-  const ID_Type id_type = GS(ptr->owner_id->name);
-  const char *struct_identifier = RNA_struct_identifier(ptr->type);
-  const char *prop_identifier = RNA_property_identifier(prop);
+  switch (RNA_property_variable_build_type(prop)) {
+    case PROP_VARIABLES_NONE: {
+      BLI_assert_msg(
+          false,
+          "Should never have `PROP_VARIABLES_NONE` for a path that supports path templates.");
+      return {};
+    }
 
-  /* From here on we just repeat the following pattern: check if the property
-   * matches one of the properties we handle, and if so call the appropriate
-   * function to build its variables. */
+    /* Scene render output path, the compositor's File Output node's paths, etc. */
+    case PROP_VARIABLES_RENDER_OUTPUT: {
+      const RenderData *render_data;
+      if (GS(ptr->owner_id->name) == ID_SCE) {
+        render_data = &reinterpret_cast<const Scene *>(ptr->owner_id)->r;
+      }
+      else {
+        const Scene *scene = CTX_data_scene(C);
+        render_data = scene ? &scene->r : nullptr;
+      }
 
-  /* Render output path. */
-  if (id_type == ID_SCE &&
-      streq({struct_identifier, prop_identifier}, {"RenderSettings", "filepath"}))
-  {
-    const Scene *scene = reinterpret_cast<const Scene *>(ptr->owner_id);
-    return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                        &scene->r);
-  }
-
-  /* Compositor's File Output node's paths. */
-  if (id_type == ID_NT &&
-      reinterpret_cast<const bNodeTree *>(ptr->owner_id)->type == NTREE_COMPOSIT &&
-      (streq({struct_identifier, prop_identifier}, {"CompositorNodeOutputFile", "base_path"}) ||
-       streq({struct_identifier, prop_identifier}, {"NodeOutputFileSlotFile", "path"})))
-  {
-    const Scene *scene = CTX_data_scene(C);
-    const RenderData *render_data = scene ? &scene->r : nullptr;
-
-    return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                        render_data);
+      return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
+                                                          render_data);
+    }
   }
 
   /* All paths that support path templates should be handled above, and any that

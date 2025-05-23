@@ -340,6 +340,8 @@ struct PropertyRNA {
   /* The subset of StructRNA.prop_tag_defines values that applies to this property. */
   short tags;
 
+  PropertyVariableBuildType variable_build_type;
+
   /* user readable name */
   const char *name;
   /* single line description, displayed in the tooltip for example */

@@ -440,6 +440,14 @@ enum PropertyFlag {
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 
 /**
+ * Indicates how template variables should be build for the property.
+ */
+enum PropertyVariableBuildType {
+  PROP_VARIABLES_NONE = 0,
+  PROP_VARIABLES_RENDER_OUTPUT,
+};
+
+/**
  * Flags related to comparing and overriding RNA properties.
  * Make sure enums are updated with these.
  *

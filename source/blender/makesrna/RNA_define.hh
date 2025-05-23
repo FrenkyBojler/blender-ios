@@ -582,6 +582,8 @@ void RNA_def_parameter_flags(PropertyRNA *prop,
 void RNA_def_parameter_clear_flags(PropertyRNA *prop,
                                    PropertyFlag flag_property,
                                    ParameterFlag flag_parameter);
+void RNA_def_property_variable_build_type(PropertyRNA *prop,
+                                          PropertyVariableBuildType variable_build_type);
 
 /* Dynamic Enums
  * strings are not freed, assumed pointing to static location. */

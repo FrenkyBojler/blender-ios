@@ -223,6 +223,7 @@ int RNA_property_override_flag(PropertyRNA *prop);
  *       the only way to set tags. Hence, at this point we assume the tag bit-field to be valid.
  */
 int RNA_property_tags(PropertyRNA *prop);
+PropertyVariableBuildType RNA_property_variable_build_type(PropertyRNA *prop);
 bool RNA_property_builtin(PropertyRNA *prop);
 void *RNA_property_py_data_get(PropertyRNA *prop);
 
