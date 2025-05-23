@@ -2940,7 +2940,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_eraser(View3DPanel, Panel):
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
     bl_context = ".grease_pencil_paint"
-    bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_advanced"
+    bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced"
     bl_label = "Gap Closure"
     bl_category = "Tool"
 
