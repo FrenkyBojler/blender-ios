@@ -387,6 +387,48 @@ void AbstractTreeView::set_drop_linehint(ARegion &region,
     end_y = but_rect.ymax;
   }
 
+  /* Edge case: when the drop location is at the very bottom of the tree, #item isn't necessarily
+   * the last visible item in the tree. E.g.:
+   *    Group         <-- #item
+   *       Item 1
+   *       Item 2
+   *    ---------     <-- line hint must be placed here
+   */
+  if (location == DropLocation::After) {
+    /* Get the last root item. */
+    const AbstractTreeView &tree_view = item.get_tree_view();
+    AbstractViewItem *last_root_item = nullptr;
+    tree_view.foreach_root_item([&](AbstractTreeViewItem &item) {
+      if (!item.is_interactive()) {
+        return;
+      }
+      last_root_item = &item;
+    });
+
+    /* If the drop location is after the last root item, find the last visible item in the tree. */
+    if (&item == last_root_item) {
+      AbstractViewItem *last_visible_item = nullptr;
+      tree_view.foreach_item(
+          [&](AbstractTreeViewItem &item) {
+            if (!item.is_interactive()) {
+              return;
+            }
+            last_visible_item = &item;
+          },
+          AbstractTreeView::IterOptions::SkipCollapsed |
+              AbstractTreeView::IterOptions::SkipFiltered);
+      uiButViewItem *last_but = last_visible_item->view_item_button();
+      if (last_but) {
+        rcti last_but_rect;
+        ui_but_to_pixelrect(&last_but_rect, &region, block, last_but);
+
+        /* Use the y coordinate under the last visible item. */
+        start_y = last_but_rect.ymin;
+        end_y = last_but_rect.ymin;
+      }
+    }
+  }
+
   /* Store the line hint position and trigger a #draw_overlays() when the line changed. */
   const bool changed = (drop_linehint_start_.y != start_y || drop_linehint_end_.y != end_y ||
                         drop_linehint_start_.x != start_x ||
