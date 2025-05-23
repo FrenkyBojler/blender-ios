@@ -1388,6 +1388,18 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 
     BKE_main_ensure_invariants(*bmain);
 
+    ntree.ensure_topology_cache();
+    for (bNodeSocket *src_socket : src_node->input_sockets()) {
+      if (bNodeSocket *new_socket = mapping.get_new_input(src_socket, *gnode)) {
+        new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
+      }
+    }
+    for (bNodeSocket *src_socket : src_node->output_sockets()) {
+      if (bNodeSocket *new_socket = mapping.get_new_output(src_socket, *gnode)) {
+        new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
+      }
+    }
+
     LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
       if (link->tonode == src_node) {
         if (bNodeSocket *new_to_socket = mapping.get_new_input(link->tosock, *gnode)) {
