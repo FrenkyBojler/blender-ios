@@ -3504,12 +3504,6 @@ static void version_escape_curly_braces_in_compositor_file_output_nodes(bNodeTre
   }
 }
 
-<<<<<<< HEAD
-/* The options were converted into inputs. */
-static void do_version_color_balance_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
-{
-  NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
-=======
 /* The Relative option was removed. Insert Relative To Pixel nodes for the X and Y inputs to
  * convert relative values to pixel values. */
 static void do_version_translate_node_remove_relative(bNodeTree *node_tree)
