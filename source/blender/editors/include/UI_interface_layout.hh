@@ -534,18 +534,6 @@ void uiItemEnumO_string(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout,
                   blender::StringRefNull opname,
                   blender::StringRefNull propname);
-void uiItemIntO(uiLayout *layout,
-                std::optional<blender::StringRef> name,
-                int icon,
-                blender::StringRefNull opname,
-                blender::StringRefNull propname,
-                int value);
-void uiItemFloatO(uiLayout *layout,
-                  std::optional<blender::StringRef> name,
-                  int icon,
-                  blender::StringRefNull opname,
-                  blender::StringRefNull propname,
-                  float value);
 void uiItemStringO(uiLayout *layout,
                    std::optional<blender::StringRef> name,
                    int icon,
