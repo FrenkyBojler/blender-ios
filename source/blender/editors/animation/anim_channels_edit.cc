@@ -2795,7 +2795,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Group Channels";
   ot->idname = "ANIM_OT_channels_group";
-  ot->description = "Add selected F-Curves to a new group";
+  ot->description = "Add selected channels to a new group";
 
   /* callbacks */
   ot->invoke = WM_operator_props_popup;
@@ -2909,7 +2909,7 @@ static void ANIM_OT_channels_ungroup(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Ungroup Channels";
   ot->idname = "ANIM_OT_channels_ungroup";
-  ot->description = "Remove selected F-Curves from their current groups";
+  ot->description = "Remove selected channels from their current groups";
 
   /* callbacks */
   ot->exec = animchannels_ungroup_exec;
