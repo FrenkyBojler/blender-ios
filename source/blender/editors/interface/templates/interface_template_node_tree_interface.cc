@@ -394,7 +394,7 @@ void NodeSocketDropTarget::drop_linehint(ARegion &region, const DragInfo &drag_i
   view.set_drop_linehint(region, this->view_item_, drag_info.drop_location);
 }
 
-std::string NodeSocketDropTarget::drop_tooltip(const DragInfo &drag_info) const
+std::string NodeSocketDropTarget::drop_tooltip(const DragInfo & /*drag_info*/) const
 {
   /* No tooltip, since we use line hints.*/
   return {};
@@ -405,9 +405,6 @@ bool on_drop_flat_item(bContext *C,
                        bNodeTree &ntree,
                        bNodeTreeInterfaceItem &drop_target_item)
 {
-  AbstractTreeView &view = this->view_item_.get_tree_view();
-  view.clear_drop_linehint();
-
   bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
@@ -446,6 +443,9 @@ bool on_drop_flat_item(bContext *C,
 
 bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
+  AbstractTreeView &view = this->view_item_.get_tree_view();
+  view.clear_drop_linehint();
+
   bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
   return on_drop_flat_item(C, drag_info, nodetree, socket_.item);
 }
@@ -491,7 +491,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 {
   AbstractTreeView &view = this->view_item_.get_tree_view();
   view.clear_drop_linehint();
-  
+
   bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
   bNodeTreeInterfaceItem *drag_item = drag_data->item;
