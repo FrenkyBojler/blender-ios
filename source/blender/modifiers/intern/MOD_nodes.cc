@@ -2387,6 +2387,14 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_MENU: {
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
+        if (socket.flag & NODE_INTERFACE_SOCKET_HIDE_LABEL) {
+          uiLayout &subrow = row->row(true);
+          uiLayoutSetPropSep(&subrow, false);
+          uiLayoutSetPropDecorate(&subrow, true);
+          subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+          uiItemDecoratorR(row, ctx.md_ptr, rna_path.c_str(), 0);
+          return;
+        }
         /* Use a single space when the name is empty to work around a bug with expanded enums. Also
          * see #ui_item_enum_expand_exec. */
         row->prop(ctx.md_ptr,
