@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 
+#include "BLI_math_vector.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
@@ -113,7 +114,7 @@ static StringRef group_ntree_idname(bContext *C)
   return snode->tree_idname;
 }
 
-StringRef node_group_idname(bContext *C)
+StringRef node_group_idname(const bContext *C)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
 
@@ -1280,6 +1281,40 @@ static bNodeTree *node_group_make_wrapper(const bContext &C, const bNode &src_no
     add_node_group_interface_from_declaration_recursive(*dst_group, src_node, *item_decl);
   }
 
+  bNode &input_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_INPUT);
+  bNode &output_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_OUTPUT);
+  bNode &inner_node = *bke::node_copy(dst_group, src_node, 0, true);
+
+  input_node.location[0] = -300 - input_node.width;
+  output_node.location[0] = 300;
+  inner_node.location[0] = -src_node.width / 2;
+  inner_node.location[1] = 0;
+  inner_node.width = src_node.width;
+
+  BKE_main_ensure_invariants(bmain, dst_group->id);
+
+  for (bNodePanelState &panel_state : inner_node.panel_states()) {
+    panel_state.flag &= ~NODE_PANEL_COLLAPSED;
+  }
+
+  const Array<bNodeSocket *> group_inputs = input_node.output_sockets().drop_back(1);
+  const Array<bNodeSocket *> group_outputs = output_node.input_sockets().drop_back(1);
+  Vector<bNodeSocket *> inner_inputs = inner_node.input_sockets();
+  Vector<bNodeSocket *> inner_outputs = inner_node.output_sockets();
+  inner_inputs.remove_if([&](const bNodeSocket *socket) { return !socket->is_available(); });
+  inner_outputs.remove_if([&](const bNodeSocket *socket) { return !socket->is_available(); });
+
+  BLI_assert(group_inputs.size() == inner_inputs.size());
+  BLI_assert(inner_outputs.size() == group_outputs.size());
+
+  for (const int i : group_inputs.index_range()) {
+    bke::node_add_link(*dst_group, input_node, *group_inputs[i], inner_node, *inner_inputs[i]);
+  }
+  for (const int i : group_outputs.index_range()) {
+    bke::node_add_link(*dst_group, inner_node, *inner_outputs[i], output_node, *group_outputs[i]);
+  }
+
+  BKE_main_ensure_invariants(bmain, dst_group->id);
   return dst_group;
 }
 
@@ -1301,11 +1336,24 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 
   bNode *gnode = nullptr;
   if (nodes_to_group.size() == 1 && nodes_to_group[0]->declaration()) {
-    gnode = nodes_to_group[0];
-    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *gnode);
-    id_us_min(gnode->id);
-    gnode->id = &wrapper_group->id;
-    id_us_plus(gnode->id);
+    bNode *src_node = nodes_to_group[0];
+    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *src_node);
+
+    if (src_node->is_group()) {
+      gnode = src_node;
+      id_us_min(gnode->id);
+      gnode->id = &wrapper_group->id;
+      id_us_plus(gnode->id);
+    }
+    else {
+      gnode = bke::node_add_node(C, ntree, node_idname);
+      gnode->id = &wrapper_group->id;
+      id_us_plus(gnode->id);
+      gnode->parent = src_node->parent;
+      gnode->width = src_node->width;
+      copy_v2_v2(gnode->location, src_node->location);
+      /* TODO: relink */
+    }
     BKE_ntree_update_tag_node_property(&ntree, gnode);
     BKE_main_ensure_invariants(*bmain);
   }
