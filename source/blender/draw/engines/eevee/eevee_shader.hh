@@ -171,7 +171,38 @@ enum eShaderType {
 class ShaderModule {
  private:
   std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
-  BatchHandle compilation_handle_ = 0;
+
+  struct HandleRequest {
+    BatchHandle handle = 0;
+    bool requested = false;
+  };
+
+  struct {
+    HandleRequest ambient_occlusion;
+    HandleRequest film;
+    HandleRequest deferred;
+    HandleRequest deferred_triple;
+    HandleRequest deferred_thickness;
+    HandleRequest deferred_capture;
+    HandleRequest deferred_planar;
+    HandleRequest debug;
+    HandleRequest display;
+    HandleRequest dof;
+    HandleRequest hiz;
+    HandleRequest horizon;
+    HandleRequest light;
+    HandleRequest lightprobe_irradiance;
+    HandleRequest lookdev;
+    HandleRequest motion_blur;
+    HandleRequest ray;
+    HandleRequest renderpass;
+    HandleRequest sphere_probe;
+    HandleRequest shadow;
+    HandleRequest subsurface;
+    HandleRequest surfel;
+    HandleRequest vertex_copy;
+    HandleRequest volume;
+  } compilation_handles_;
   Mutex mutex_;
 
   class SpecializationsKey {
@@ -226,13 +257,20 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  bool static_shaders_are_ready(bool block_until_ready);
+  bool static_shaders_are_ready(bool block_until_ready,
+                                bool use_ao_pass,
+                                bool use_dof,
+                                bool use_fast_gi,
+                                bool use_bake,
+                                bool use_raytracing,
+                                bool use_deferred_light_triple);
   bool request_specializations(bool block_until_ready,
                                int render_buffers_shadow_id,
                                int shadow_ray_count,
                                int shadow_ray_step_count,
                                bool use_split_indirect,
-                               bool use_lightprobe_eval);
+                               bool use_lightprobe_eval,
+                               bool use_deferred_light_triple);
 
   GPUShader *static_shader_get(eShaderType shader_type);
   GPUMaterial *material_shader_get(::Material *blender_mat,

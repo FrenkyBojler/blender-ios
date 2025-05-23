@@ -25,6 +25,114 @@
 
 namespace blender::eevee {
 
+static const std::array<eShaderType, 1> ambient_occlusion_shader_list = {AMBIENT_OCCLUSION_PASS};
+static const std::array<eShaderType, 9> film_shader_list = {FILM_COPY,
+                                                            FILM_COMP,
+                                                            FILM_CRYPTOMATTE_POST,
+                                                            FILM_FRAG,
+                                                            FILM_PASS_CONVERT_COMBINED,
+                                                            FILM_PASS_CONVERT_DEPTH,
+                                                            FILM_PASS_CONVERT_VALUE,
+                                                            FILM_PASS_CONVERT_COLOR,
+                                                            FILM_PASS_CONVERT_CRYPTOMATTE};
+static const std::array<eShaderType, 4> deferred_shader_list = {
+    DEFERRED_COMBINE, DEFERRED_LIGHT_SINGLE, DEFERRED_LIGHT_DOUBLE, DEFERRED_TILE_CLASSIFY};
+static const std::array<eShaderType, 1> deferred_triple_shader_list = {DEFERRED_LIGHT_TRIPLE};
+static const std::array<eShaderType, 1> deferred_thickness_shader_list = {
+    DEFERRED_THICKNESS_AMEND};
+static const std::array<eShaderType, 1> deferred_capture_shader_list = {DEFERRED_CAPTURE_EVAL};
+static const std::array<eShaderType, 1> deferred_planar_shader_list = {DEFERRED_PLANAR_EVAL};
+static const std::array<eShaderType, 4> debug_shader_list = {
+    SHADOW_DEBUG, DEBUG_GBUFFER, DEBUG_SURFELS, DEBUG_IRRADIANCE_GRID};
+static const std::array<eShaderType, 3> display_shader_list = {
+    DISPLAY_PROBE_VOLUME, DISPLAY_PROBE_SPHERE, DISPLAY_PROBE_PLANAR};
+static const std::array<eShaderType, 17> dof_shader_list = {DOF_BOKEH_LUT,
+                                                            DOF_DOWNSAMPLE,
+                                                            DOF_FILTER,
+                                                            DOF_GATHER_BACKGROUND_LUT,
+                                                            DOF_GATHER_BACKGROUND,
+                                                            DOF_GATHER_FOREGROUND_LUT,
+                                                            DOF_GATHER_FOREGROUND,
+                                                            DOF_GATHER_HOLE_FILL,
+                                                            DOF_REDUCE,
+                                                            DOF_RESOLVE_LUT,
+                                                            DOF_RESOLVE,
+                                                            DOF_SCATTER,
+                                                            DOF_SETUP,
+                                                            DOF_STABILIZE,
+                                                            DOF_TILES_DILATE_MINABS,
+                                                            DOF_TILES_DILATE_MINMAX,
+                                                            DOF_TILES_FLATTEN};
+static const std::array<eShaderType, 3> hiz_shader_list = {
+    HIZ_UPDATE, HIZ_UPDATE_LAYER, HIZ_DEBUG};
+static const std::array<eShaderType, 4> horizon_shader_list = {
+    HORIZON_DENOISE, HORIZON_RESOLVE, HORIZON_SCAN, HORIZON_SETUP};
+static const std::array<eShaderType, 6> light_shader_list = {LIGHT_CULLING_DEBUG,
+                                                             LIGHT_CULLING_SELECT,
+                                                             LIGHT_CULLING_SORT,
+                                                             LIGHT_CULLING_TILE,
+                                                             LIGHT_CULLING_ZBIN,
+                                                             LIGHT_SHADOW_SETUP};
+static const std::array<eShaderType, 5> lightprobe_irradiance_shader_list = {
+    LIGHTPROBE_IRRADIANCE_BOUNDS,
+    LIGHTPROBE_IRRADIANCE_OFFSET,
+    LIGHTPROBE_IRRADIANCE_RAY,
+    LIGHTPROBE_IRRADIANCE_LOAD,
+    LIGHTPROBE_IRRADIANCE_WORLD};
+static const std::array<eShaderType, 1> lookdev_shader_list = {LOOKDEV_DISPLAY};
+static const std::array<eShaderType, 4> motion_blur_shader_list = {MOTION_BLUR_GATHER,
+                                                                   MOTION_BLUR_TILE_DILATE,
+                                                                   MOTION_BLUR_TILE_FLATTEN_RGBA,
+                                                                   MOTION_BLUR_TILE_FLATTEN_RG};
+static const std::array<eShaderType, 9> ray_shader_list = {RAY_DENOISE_BILATERAL,
+                                                           RAY_DENOISE_SPATIAL,
+                                                           RAY_DENOISE_TEMPORAL,
+                                                           RAY_GENERATE,
+                                                           RAY_TILE_CLASSIFY,
+                                                           RAY_TILE_COMPACT,
+                                                           RAY_TRACE_FALLBACK,
+                                                           RAY_TRACE_PLANAR,
+                                                           RAY_TRACE_SCREEN};
+static const std::array<eShaderType, 1> renderpass_shader_list = {RENDERPASS_CLEAR};
+static const std::array<eShaderType, 5> sphere_probe_shader_list = {SPHERE_PROBE_CONVOLVE,
+                                                                    SPHERE_PROBE_IRRADIANCE,
+                                                                    SPHERE_PROBE_REMAP,
+                                                                    SPHERE_PROBE_SELECT,
+                                                                    SPHERE_PROBE_SUNLIGHT};
+static const std::array<eShaderType, 17> shadow_shader_list = {
+    SHADOW_CLIPMAP_CLEAR,
+    SHADOW_PAGE_ALLOCATE,
+    SHADOW_PAGE_CLEAR,
+    SHADOW_PAGE_DEFRAG,
+    SHADOW_PAGE_FREE,
+    SHADOW_PAGE_MASK,
+    SHADOW_PAGE_TILE_CLEAR,
+    SHADOW_PAGE_TILE_STORE,
+    SHADOW_TILEMAP_AMEND,
+    SHADOW_TILEMAP_BOUNDS,
+    SHADOW_TILEMAP_FINALIZE,
+    SHADOW_TILEMAP_RENDERMAP,
+    SHADOW_TILEMAP_INIT,
+    SHADOW_TILEMAP_TAG_UPDATE,
+    SHADOW_TILEMAP_TAG_USAGE_OPAQUE,
+    SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
+    SHADOW_VIEW_VISIBILITY};
+static const std::array<eShaderType, 2> subsurface_shader_list = {SUBSURFACE_CONVOLVE,
+                                                                  SUBSURFACE_SETUP};
+static const std::array<eShaderType, 6> surfel_shader_list = {SURFEL_CLUSTER_BUILD,
+                                                              SURFEL_LIGHT,
+                                                              SURFEL_LIST_BUILD,
+                                                              SURFEL_LIST_SORT,
+                                                              SHADOW_TILEMAP_TAG_USAGE_SURFELS,
+                                                              SURFEL_RAY};
+static const std::array<eShaderType, 1> vertex_copy_shader_list = {VERTEX_COPY};
+static const std::array<eShaderType, 6> volume_shader_list = {SHADOW_TILEMAP_TAG_USAGE_VOLUME,
+                                                              VOLUME_INTEGRATION,
+                                                              VOLUME_OCCUPANCY_CONVERT,
+                                                              VOLUME_RESOLVE,
+                                                              VOLUME_SCATTER,
+                                                              VOLUME_SCATTER_WITH_LIGHTS};
+
 /* -------------------------------------------------------------------- */
 /** \name Module
  *
@@ -42,32 +150,18 @@ void ShaderModule::module_free()
 
 ShaderModule::ShaderModule()
 {
-  Vector<const GPUShaderCreateInfo *> infos;
-  infos.reserve(MAX_SHADER_TYPE);
-
   for (auto i : IndexRange(MAX_SHADER_TYPE)) {
     const char *name = static_shader_create_info_name_get(eShaderType(i));
-    const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
-
-    if (GPU_use_parallel_compilation()) {
-      infos.append(create_info);
-    }
-    else {
-      shaders_[i] = {name};
-    }
-
 #ifndef NDEBUG
     if (name == nullptr) {
       std::cerr << "EEVEE: Missing case for eShaderType(" << i
                 << ") in static_shader_create_info_name_get().";
       BLI_assert(0);
     }
+    const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
     BLI_assert_msg(create_info != nullptr, "EEVEE: Missing create info for static shader.");
 #endif
-  }
-
-  if (GPU_use_parallel_compilation()) {
-    compilation_handle_ = GPU_shader_batch_create_from_infos(infos);
+    shaders_[i] = StaticShader(name);
   }
 }
 
@@ -83,8 +177,77 @@ ShaderModule::~ShaderModule()
     }
   }
 
-  if (compilation_handle_) {
-    GPU_shader_batch_cancel(compilation_handle_);
+  if (compilation_handles_.ambient_occlusion.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.ambient_occlusion.handle);
+  }
+  if (compilation_handles_.film.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.film.handle);
+  }
+  if (compilation_handles_.deferred.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.deferred.handle);
+  }
+  if (compilation_handles_.deferred_triple.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.deferred_triple.handle);
+  }
+  if (compilation_handles_.deferred_thickness.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.deferred_thickness.handle);
+  }
+  if (compilation_handles_.deferred_capture.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.deferred_capture.handle);
+  }
+  if (compilation_handles_.deferred_planar.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.deferred_planar.handle);
+  }
+  if (compilation_handles_.debug.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.debug.handle);
+  }
+  if (compilation_handles_.display.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.display.handle);
+  }
+  if (compilation_handles_.dof.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.dof.handle);
+  }
+  if (compilation_handles_.hiz.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.hiz.handle);
+  }
+  if (compilation_handles_.horizon.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.horizon.handle);
+  }
+  if (compilation_handles_.light.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.light.handle);
+  }
+  if (compilation_handles_.lightprobe_irradiance.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.lightprobe_irradiance.handle);
+  }
+  if (compilation_handles_.lookdev.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.lookdev.handle);
+  }
+  if (compilation_handles_.motion_blur.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.motion_blur.handle);
+  }
+  if (compilation_handles_.ray.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.ray.handle);
+  }
+  if (compilation_handles_.renderpass.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.renderpass.handle);
+  }
+  if (compilation_handles_.sphere_probe.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.sphere_probe.handle);
+  }
+  if (compilation_handles_.shadow.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.shadow.handle);
+  }
+  if (compilation_handles_.subsurface.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.subsurface.handle);
+  }
+  if (compilation_handles_.surfel.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.surfel.handle);
+  }
+  if (compilation_handles_.vertex_copy.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.vertex_copy.handle);
+  }
+  if (compilation_handles_.volume.handle) {
+    GPU_shader_batch_cancel(compilation_handles_.volume.handle);
   }
 }
 
@@ -95,24 +258,117 @@ ShaderModule::~ShaderModule()
  *
  * \{ */
 
-bool ShaderModule::static_shaders_are_ready(bool block_until_ready)
+bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
+                                            bool use_ao_pass,
+                                            bool use_dof,
+                                            bool use_fast_gi,
+                                            bool use_bake,
+                                            bool use_raytracing,
+                                            bool use_deferred_light_triple)
 {
-  if (!GPU_use_parallel_compilation()) {
-    return true;
-  }
-
   std::lock_guard lock(mutex_);
 
-  if (compilation_handle_) {
-    if (GPU_shader_batch_is_ready(compilation_handle_) || block_until_ready) {
-      Vector<GPUShader *> shaders = GPU_shader_batch_finalize(compilation_handle_);
-      for (int i : IndexRange(MAX_SHADER_TYPE)) {
-        shaders_[i].set(shaders[i]);
+  auto batch_ensure = [&](HandleRequest &batch_request, Span<eShaderType> shaders_type) {
+    if (batch_request.requested) {
+      return;
+    }
+    Vector<const GPUShaderCreateInfo *> infos;
+    infos.reserve(shaders_type.size());
+
+    for (eShaderType type : shaders_type) {
+      const char *name = static_shader_create_info_name_get(type);
+      const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
+      infos.append(create_info);
+    }
+    batch_request.handle = GPU_shader_batch_create_from_infos(infos);
+    batch_request.requested = true;
+  };
+
+  if (use_ao_pass) {
+    batch_ensure(compilation_handles_.ambient_occlusion, ambient_occlusion_shader_list);
+  }
+  batch_ensure(compilation_handles_.film, film_shader_list);
+  batch_ensure(compilation_handles_.deferred, deferred_shader_list);
+  if (use_deferred_light_triple) {
+    batch_ensure(compilation_handles_.deferred_triple, deferred_triple_shader_list);
+  }
+  // if (use_thickness_amend) {
+  // batch_ensure(compilation_handles_.deferred_thickness, deferred_thickness_shader_list);
+  // }
+  // if (use_capture) {
+  // batch_ensure(compilation_handles_.deferred_capture, deferred_capture_shader_list);
+  // }
+  // if (use_planar) {
+  // batch_ensure(compilation_handles_.deferred_planar, deferred_planar_shader_list);
+  // }
+  // batch_ensure(compilation_handles_.debug, debug_shader_list);
+  // batch_ensure(compilation_handles_.display, display_shader_list);
+  if (use_dof) {
+    batch_ensure(compilation_handles_.dof, dof_shader_list);
+  }
+  batch_ensure(compilation_handles_.hiz, hiz_shader_list);
+  if (use_fast_gi) {
+    batch_ensure(compilation_handles_.horizon, horizon_shader_list);
+  }
+  batch_ensure(compilation_handles_.light, light_shader_list);
+  if (use_bake) {
+    batch_ensure(compilation_handles_.lightprobe_irradiance, lightprobe_irradiance_shader_list);
+  }
+  // batch_ensure(compilation_handles_.lookdev, lookdev_shader_list);
+  // batch_ensure(compilation_handles_.motion_blur, motion_blur_shader_list);
+  if (use_raytracing) {
+    batch_ensure(compilation_handles_.ray, ray_shader_list);
+  }
+  batch_ensure(compilation_handles_.renderpass, renderpass_shader_list);
+  batch_ensure(compilation_handles_.sphere_probe, sphere_probe_shader_list);
+  batch_ensure(compilation_handles_.shadow, shadow_shader_list);
+  // batch_ensure(compilation_handles_.subsurface, subsurface_shader_list);
+  if (use_bake) {
+    batch_ensure(compilation_handles_.surfel, surfel_shader_list);
+  }
+  batch_ensure(compilation_handles_.vertex_copy, vertex_copy_shader_list);
+  // batch_ensure(compilation_handles_.volume, volume_shader_list);
+
+  bool ready = true;
+
+  auto is_ready = [&](HandleRequest &batch_request, Span<eShaderType> shader_types) {
+    if (!ready || batch_request.handle == 0) {
+      return true;
+    }
+    if (GPU_shader_batch_is_ready(batch_request.handle) || block_until_ready) {
+      Vector<GPUShader *> shaders = GPU_shader_batch_finalize(batch_request.handle);
+      for (int i : shaders.index_range()) {
+        shaders_[shader_types[i]].set(shaders[i]);
       }
     }
-  }
+    return batch_request.handle == 0;
+  };
 
-  return compilation_handle_ == 0;
+  ready &= is_ready(compilation_handles_.ambient_occlusion, ambient_occlusion_shader_list);
+  ready &= is_ready(compilation_handles_.film, film_shader_list);
+  ready &= is_ready(compilation_handles_.deferred, deferred_shader_list);
+  ready &= is_ready(compilation_handles_.deferred_triple, deferred_triple_shader_list);
+  ready &= is_ready(compilation_handles_.deferred_thickness, deferred_thickness_shader_list);
+  ready &= is_ready(compilation_handles_.deferred_capture, deferred_capture_shader_list);
+  ready &= is_ready(compilation_handles_.deferred_planar, deferred_planar_shader_list);
+  ready &= is_ready(compilation_handles_.debug, debug_shader_list);
+  ready &= is_ready(compilation_handles_.display, display_shader_list);
+  ready &= is_ready(compilation_handles_.dof, dof_shader_list);
+  ready &= is_ready(compilation_handles_.hiz, hiz_shader_list);
+  ready &= is_ready(compilation_handles_.horizon, horizon_shader_list);
+  ready &= is_ready(compilation_handles_.light, light_shader_list);
+  ready &= is_ready(compilation_handles_.lightprobe_irradiance, lightprobe_irradiance_shader_list);
+  ready &= is_ready(compilation_handles_.lookdev, lookdev_shader_list);
+  ready &= is_ready(compilation_handles_.motion_blur, motion_blur_shader_list);
+  ready &= is_ready(compilation_handles_.ray, ray_shader_list);
+  ready &= is_ready(compilation_handles_.renderpass, renderpass_shader_list);
+  ready &= is_ready(compilation_handles_.sphere_probe, sphere_probe_shader_list);
+  ready &= is_ready(compilation_handles_.shadow, shadow_shader_list);
+  ready &= is_ready(compilation_handles_.subsurface, subsurface_shader_list);
+  ready &= is_ready(compilation_handles_.surfel, surfel_shader_list);
+  ready &= is_ready(compilation_handles_.vertex_copy, vertex_copy_shader_list);
+  ready &= is_ready(compilation_handles_.volume, volume_shader_list);
+  return ready;
 }
 
 bool ShaderModule::request_specializations(bool block_until_ready,
@@ -120,13 +376,11 @@ bool ShaderModule::request_specializations(bool block_until_ready,
                                            int shadow_ray_count,
                                            int shadow_ray_step_count,
                                            bool use_split_indirect,
-                                           bool use_lightprobe_eval)
+                                           bool use_lightprobe_eval,
+                                           bool use_deferred_light_triple)
 {
-  if (!GPU_use_parallel_compilation()) {
-    return true;
-  }
-
-  BLI_assert(static_shaders_are_ready(false));
+  BLI_assert(static_shaders_are_ready(
+      false, false, false, false, false, false, use_deferred_light_triple));
 
   std::lock_guard lock(mutex_);
 
@@ -138,7 +392,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
        use_lightprobe_eval},
       [&]() {
         Vector<ShaderSpecialization> specializations;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < (use_deferred_light_triple ? 3 : 2); i++) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
           int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
           int use_split_indirect_index = GPU_shader_get_constant(sh, "use_split_indirect");
@@ -410,13 +664,9 @@ const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_
 
 GPUShader *ShaderModule::static_shader_get(eShaderType shader_type)
 {
-  BLI_assert(compilation_handle_ == 0);
-  if (GPU_use_parallel_compilation() && shaders_[shader_type].get() == nullptr) {
-    const char *shader_name = static_shader_create_info_name_get(shader_type);
-    fprintf(stderr, "EEVEE: error: Could not compile static shader \"%s\"\n", shader_name);
-    BLI_assert(0);
+  if (shader_type == DEFERRED_LIGHT_TRIPLE) {
+    std::cout << "here" << std::endl;
   }
-
   return shaders_[shader_type].get();
 }
 

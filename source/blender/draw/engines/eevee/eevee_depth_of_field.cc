@@ -48,9 +48,12 @@ void DepthOfField::init()
   const ::Camera *camera = (camera_object_eval && camera_object_eval->type == OB_CAMERA) ?
                                reinterpret_cast<const ::Camera *>(camera_object_eval->data) :
                                nullptr;
-  if (camera == nullptr) {
+
+  if (camera == nullptr || (camera->dof.flag & CAM_DOF_ENABLED) == 0) {
     /* Set to invalid value for update detection */
     data_.scatter_color_threshold = -1.0f;
+    jitter_radius_ = 0.0f;
+    fx_radius_ = 0.0f;
     return;
   }
   /* Reminder: These are parameters not interpolated by motion blur. */
@@ -82,9 +85,7 @@ void DepthOfField::sync()
         " - Green: Foreground\n");
   }
 
-  if (camera_data == nullptr || (camera_data->dof.flag & CAM_DOF_ENABLED) == 0) {
-    jitter_radius_ = 0.0f;
-    fx_radius_ = 0.0f;
+  if (jitter_radius_ == 0.0f && fx_radius_ == 0.0f) {
     return;
   }
 
