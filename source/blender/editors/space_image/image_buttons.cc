@@ -69,10 +69,16 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *image_p)
+static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
 {
   uiBlock *block = uiLayoutGetBlock(layout);
   Image *image = static_cast<Image *>(image_p);
+
+  /* The scene isn't expected to be null, check since it's not a requirement
+   * for the value to be non-null for this function to work.
+   * It's OK if `has_active_render` is false. */
+  Scene *scene = CTX_data_scene(C);
+  bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
   int slot_id;
   LISTBASE_FOREACH_INDEX (RenderSlot *, slot, &image->renderslots, slot_id) {
@@ -83,21 +89,32 @@ static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *ima
     else {
       SNPRINTF(str, IFACE_("Slot %d"), slot_id + 1);
     }
-    uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
-              B_NOP,
-              str,
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &image->render_slot,
-              float(slot_id),
-              0.0,
-              "");
+    /* Default to "blank" for nicer alignment. */
+    int icon = ICON_BLANK1;
+    if (slot_id == image->last_render_slot) {
+      if (has_active_render) {
+        icon = ICON_RENDER_RESULT;
+      }
+    }
+    else if (slot->render != nullptr) {
+      icon = ICON_DOT;
+    }
+    uiDefIconTextButS(block,
+                      UI_BTYPE_BUT_MENU,
+                      B_NOP,
+                      icon,
+                      str,
+                      0,
+                      0,
+                      UI_UNIT_X * 5,
+                      UI_UNIT_X,
+                      &image->render_slot,
+                      float(slot_id),
+                      0.0,
+                      "");
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
@@ -204,7 +221,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
               "");
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
@@ -277,7 +294,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
               "");
   }
 
-  uiItemS(layout);
+  layout->separator();
   uiDefBut(block,
            UI_BTYPE_LABEL,
            0,
@@ -331,7 +348,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
            0.0,
            "");
 
-  uiItemS(layout);
+  layout->separator();
 
   nr = (rr ? BLI_listbase_count(&rr->views) : 0) - 1;
   for (rview = static_cast<RenderView *>(rr ? rr->views.last : nullptr); rview;
@@ -379,7 +396,7 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout,
            0.0,
            "");
 
-  uiItemS(layout);
+  layout->separator();
 
   nr = BLI_listbase_count(&image->views) - 1;
   for (iv = static_cast<ImageView *>(image->views.last); iv; iv = iv->prev, nr--) {
@@ -765,7 +782,7 @@ void uiTemplateImage(uiLayout *layout,
         layout, C, ptr, propname, ima ? nullptr : "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
 
     if (ima != nullptr) {
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
@@ -810,9 +827,9 @@ void uiTemplateImage(uiLayout *layout,
   const bool is_dirty = BKE_image_is_dirty(ima);
   if (is_dirty) {
     uiLayout *row = &layout->row(true);
-    uiItemO(row, IFACE_("Save"), ICON_NONE, "image.save");
-    uiItemO(row, IFACE_("Discard"), ICON_NONE, "image.reload");
-    uiItemS(layout);
+    row->op("image.save", IFACE_("Save"), ICON_NONE);
+    row->op("image.reload", IFACE_("Discard"), ICON_NONE);
+    layout->separator();
   }
 
   layout = &layout->column(false);
@@ -831,14 +848,14 @@ void uiTemplateImage(uiLayout *layout,
   const bool no_filepath = is_packed && !BKE_image_has_filepath(ima);
 
   if ((ima->source != IMA_SRC_GENERATED) && !no_filepath) {
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *row = &layout->row(true);
     if (is_packed) {
-      uiItemO(row, "", ICON_PACKAGE, "image.unpack");
+      row->op("image.unpack", "", ICON_PACKAGE);
     }
     else {
-      uiItemO(row, "", ICON_UGLYPACKAGE, "image.pack");
+      row->op("image.pack", "", ICON_UGLYPACKAGE);
     }
 
     row = &row->row(true);
@@ -846,13 +863,13 @@ void uiTemplateImage(uiLayout *layout,
 
     prop = RNA_struct_find_property(&imaptr, "filepath");
     uiDefAutoButR(block, &imaptr, prop, -1, "", ICON_NONE, 0, 0, 200, UI_UNIT_Y);
-    uiItemO(row, "", ICON_FILEBROWSER, "image.file_browse");
-    uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
+    row->op("image.file_browse", "", ICON_FILEBROWSER);
+    row->op("image.reload", "", ICON_FILE_REFRESH);
   }
 
   /* Image layers and Info */
   if (ima->source == IMA_SRC_GENERATED) {
-    uiItemS(layout);
+    layout->separator();
 
     /* Generated */
     uiLayout *col = &layout->column(false);
@@ -864,7 +881,7 @@ void uiTemplateImage(uiLayout *layout,
 
     col->prop(&imaptr, "use_generated_float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemS(col);
+    col->separator();
 
     col->prop(&imaptr, "generated_type", UI_ITEM_R_EXPAND, IFACE_("Type"), ICON_NONE);
     ImageTile *base_tile = BKE_image_get_tile(ima, 0);
@@ -876,7 +893,7 @@ void uiTemplateImage(uiLayout *layout,
     uiTemplateImageInfo(layout, C, ima, iuser);
   }
   if (ima->type == IMA_TYPE_MULTILAYER && ima->rr) {
-    uiItemS(layout);
+    layout->separator();
 
     const float dpi_fac = UI_SCALE_FAC;
     uiblock_layer_pass_buttons(layout, ima, ima->rr, iuser, 230 * dpi_fac, nullptr);
@@ -884,7 +901,7 @@ void uiTemplateImage(uiLayout *layout,
 
   if (BKE_image_is_animated(ima)) {
     /* Animation */
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *col = &layout->column(true);
     uiLayoutSetPropSep(col, true);
@@ -892,7 +909,7 @@ void uiTemplateImage(uiLayout *layout,
     uiLayout *sub = &col->column(true);
     uiLayout *row = &sub->row(true);
     row->prop(userptr, "frame_duration", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
-    uiItemO(row, "", ICON_FILE_REFRESH, "IMAGE_OT_match_movie_length");
+    row->op("IMAGE_OT_match_movie_length", "", ICON_FILE_REFRESH);
 
     sub->prop(userptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
     sub->prop(userptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -908,7 +925,7 @@ void uiTemplateImage(uiLayout *layout,
   /* Multiview */
   if (multiview && compact == 0) {
     if ((scene->r.scemode & R_MULTIVIEW) != 0) {
-      uiItemS(layout);
+      layout->separator();
 
       uiLayout *col = &layout->column(false);
       uiLayoutSetPropSep(col, true);
@@ -922,7 +939,7 @@ void uiTemplateImage(uiLayout *layout,
 
   /* Color-space and alpha. */
   {
-    uiItemS(layout);
+    layout->separator();
 
     uiLayout *col = &layout->column(false);
     uiLayoutSetPropSep(col, true);
@@ -1044,7 +1061,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, bool color_ma
 
   /* Override color management */
   if (color_management) {
-    uiItemS(col);
+    col->separator();
     col->prop(imfptr, "color_management", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (imf->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
