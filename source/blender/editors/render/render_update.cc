@@ -181,8 +181,8 @@ void ED_render_engine_changed(Main *bmain, const bool update_scene_data)
       update_ctx.view_layer = view_layer;
       ED_render_id_flush_update(&update_ctx, &scene->id);
     }
-    if (scene->compositing_nodetree && update_scene_data) {
-      ntreeCompositUpdateRLayers(scene->compositing_nodetree);
+    if (scene->compositing_node_group && update_scene_data) {
+      ntreeCompositUpdateRLayers(scene->compositing_node_group);
     }
   }
   BKE_main_ensure_invariants(*bmain);
@@ -249,8 +249,8 @@ static void texture_changed(Main *bmain, Tex *tex)
       BKE_paint_invalidate_overlay_tex(scene, view_layer, tex);
     }
     /* find compositing nodes */
-    if ((scene->r.scemode & R_DOCOMP) && scene->compositing_nodetree) {
-      for (bNode *node : scene->compositing_nodetree->all_nodes()) {
+    if ((scene->r.scemode & R_DOCOMP) && scene->compositing_node_group) {
+      for (bNode *node : scene->compositing_node_group->all_nodes()) {
         if (node->id == &tex->id) {
           blender::ed::space_node::tag_update_id(&scene->id);
         }

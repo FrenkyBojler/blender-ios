@@ -4960,7 +4960,7 @@ static bool compositor_is_in_use(const bContext &context)
     return false;
   }
 
-  if (!scene->compositing_nodetree) {
+  if (!scene->compositing_node_group) {
     return false;
   }
 

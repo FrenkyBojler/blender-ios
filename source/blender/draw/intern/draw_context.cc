@@ -1967,11 +1967,11 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->r.scemode & R_DOCOMP) {
+  if (!(this->scene->r.scemode & R_DOCOMP)) {
     return false;
   }
 
-  if (!this->scene->compositing_nodetree) {
+  if (!this->scene->compositing_node_group) {
     return false;
   }
 

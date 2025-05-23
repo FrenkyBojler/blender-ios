@@ -708,7 +708,7 @@ void RE_FreeUnusedGPUResources()
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
-      if (!(scene->r.scemode & R_DOCOMP && scene->compositing_nodetree &&
+      if (!(scene->r.scemode & R_DOCOMP && scene->compositing_node_group &&
             scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
@@ -720,7 +720,7 @@ void RE_FreeUnusedGPUResources()
 
         if (space.spacetype == SPACE_NODE) {
           const SpaceNode &snode = reinterpret_cast<const SpaceNode &>(space);
-          if (snode.nodetree == scene->compositing_nodetree) {
+          if (snode.nodetree == scene->compositing_node_group) {
             do_free = false;
           }
         }
@@ -1212,7 +1212,7 @@ static Scene *get_scene_referenced_by_node(const bNode *node)
  * be rendered. */
 static bool compositor_needs_render(Scene *scene)
 {
-  bNodeTree *ntree = scene->compositing_nodetree;
+  bNodeTree *ntree = scene->compositing_node_group;
 
   if (ntree == nullptr) {
     return true;
@@ -1257,14 +1257,14 @@ static bool node_tree_has_composite_output(const bNodeTree *node_tree)
 /* Render all scenes references by the compositor of the given render's scene. */
 static void do_render_compositor_scenes(Render *re)
 {
-  if (re->scene->compositing_nodetree == nullptr) {
+  if (re->scene->compositing_node_group == nullptr) {
     return;
   }
 
   /* For each node that requires a scene we do a full render. Results are stored in a way
    * compositor will find it. */
   blender::Set<Scene *> scenes_rendered;
-  for (bNode *node : re->scene->compositing_nodetree->all_nodes()) {
+  for (bNode *node : re->scene->compositing_node_group->all_nodes()) {
     Scene *node_scene = get_scene_referenced_by_node(node);
     if (!node_scene) {
       continue;
@@ -1286,7 +1286,7 @@ static void do_render_compositor_scenes(Render *re)
 
     scenes_rendered.add_new(node_scene);
     do_render_compositor_scene(re, node_scene, re->scene->r.cfra);
-    node->typeinfo->updatefunc(re->scene->compositing_nodetree, node);
+    node->typeinfo->updatefunc(re->scene->compositing_node_group, node);
   }
 
   /* If another scene was rendered, switch back to the current scene. */
@@ -1310,7 +1310,7 @@ static void render_compositor_stats(void *arg, const char *str)
  * The result will be output into a compositing render layer in the render result. */
 static void do_render_compositor(Render *re)
 {
-  bNodeTree *ntree = re->pipeline_scene_eval->compositing_nodetree;
+  bNodeTree *ntree = re->pipeline_scene_eval->compositing_node_group;
   bool update_newframe = false;
 
   if (compositor_needs_render(re->pipeline_scene_eval)) {
@@ -1339,7 +1339,7 @@ static void do_render_compositor(Render *re)
 
     /* The compositor does not have an output, skip writing the render result. See R_SKIP_WRITE for
      * more information. */
-    if (!node_tree_has_composite_output(re->pipeline_scene_eval->compositing_nodetree)) {
+    if (!node_tree_has_composite_output(re->pipeline_scene_eval->compositing_node_group)) {
       re->flag |= R_SKIP_WRITE;
     }
   }
@@ -1671,7 +1671,7 @@ static bool check_valid_compositing_camera(Scene *scene,
                                            ReportList *reports)
 {
   if (scene->r.scemode & R_DOCOMP) {
-    for (bNode *node : scene->compositing_nodetree->all_nodes()) {
+    for (bNode *node : scene->compositing_node_group->all_nodes()) {
       if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
         if (sce->camera == nullptr) {
@@ -1801,7 +1801,7 @@ static bool node_tree_has_any_compositor_output(const bNodeTree *ntree)
 
 static int check_compositor_output(Scene *scene)
 {
-  return node_tree_has_any_compositor_output(scene->compositing_nodetree);
+  return node_tree_has_any_compositor_output(scene->compositing_node_group);
 }
 
 /* Identify if the compositor can run on the GPU. Currently, this only checks if the compositor is
@@ -1853,7 +1853,7 @@ bool RE_is_rendering_allowed(Scene *scene,
   }
   else if (scemode & R_DOCOMP) {
     /* Compositor */
-    if (!scene->compositing_nodetree) {
+    if (!scene->compositing_node_group) {
       BKE_report(reports, RPT_ERROR, "No node tree in scene");
       return false;
     }

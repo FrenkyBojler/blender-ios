@@ -830,7 +830,7 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->clip, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->gpd, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->r.bake.cage_object, IDWALK_CB_NOP);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_nodetree, IDWALK_CB_USER);
+  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, scene->compositing_node_group, IDWALK_CB_USER);
 
   if (scene->nodetree) {
     /* nodetree **are owned by IDs**, treat them as mere sub-data and not real ID! */
@@ -995,7 +995,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
-  if (sce->compositing_nodetree) {
+  if (sce->compositing_node_group) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
     /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
@@ -1006,7 +1006,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Remove mapping between
    * `scene->use_nodes` and `scene->r.scemode`. */
-  if (sce->compositing_nodetree && sce->r.scemode & R_DOCOMP) {
+  if (sce->compositing_node_group && sce->r.scemode & R_DOCOMP) {
     sce->use_nodes = true;
   }
 
@@ -1118,8 +1118,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
-  if (sce->compositing_nodetree) {
-    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_nodetree->id, writer};
+  if (sce->compositing_node_group) {
+    BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_node_group->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
     temp_nodetree->owner_id = &sce->id;
@@ -1869,7 +1869,7 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     /* Full copy of the compositing node tree. */
     BKE_id_copy_for_duplicate(
-        bmain, reinterpret_cast<ID *>(sce->compositing_nodetree), duplicate_flags, copy_flags);
+        bmain, reinterpret_cast<ID *>(sce->compositing_node_group), duplicate_flags, copy_flags);
 
     /* Deep-duplicate collections and objects (using preferences' settings for which sub-data to
      * duplicate along the object itself). */

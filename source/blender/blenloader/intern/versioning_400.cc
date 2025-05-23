@@ -4551,7 +4551,7 @@ static void do_version_alpha_over_node_options_to_inputs_animation(bNodeTree *no
 /* "Use Nodes" was removed. */
 static void do_version_scene_remove_use_nodes(Scene *scene)
 {
-  if (scene->nodetree == nullptr && scene->compositing_nodetree == nullptr) {
+  if (scene->nodetree == nullptr && scene->compositing_node_group == nullptr) {
     /* scene->use_nodes is set to false by default. Files saved without compositing node trees
      * should not disable compositing. */
     return;
