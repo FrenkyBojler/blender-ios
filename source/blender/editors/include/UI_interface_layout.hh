@@ -286,6 +286,15 @@ struct uiLayout : uiItem {
                 int icon,
                 wmOperatorCallContext context,
                 eUI_Item_Flag flag);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot, std::optional<blender::StringRef> name, int icon);
+
   /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param opname: Operator id name.

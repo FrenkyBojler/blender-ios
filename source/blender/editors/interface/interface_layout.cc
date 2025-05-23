@@ -1747,6 +1747,11 @@ void uiItemStringO(uiLayout *layout,
   RNA_string_set(&ptr, propname.c_str(), value);
 }
 
+PointerRNA uiLayout::op(wmOperatorType *ot const std::optional<StringRef> name, int icon)
+{
+  return this->op(ot, name, icon, root_->opcontext, UI_ITEM_NONE);
+}
+
 PointerRNA uiLayout::op(const StringRefNull opname, const std::optional<StringRef> name, int icon)
 {
   return this->op(opname, name, icon, root_->opcontext, UI_ITEM_NONE);

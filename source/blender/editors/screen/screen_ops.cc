@@ -4748,7 +4748,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
       PointerRNA op_ptr = layout->op(
-          op->type->idname, WM_operatortype_name(lastop->type, lastop->ptr), ICON_NONE);
+          op->type, WM_operatortype_name(lastop->type, lastop->ptr), ICON_NONE);
       RNA_int_set(&op_ptr, "index", i);
     }
   }
