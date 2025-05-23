@@ -23,6 +23,8 @@
 
 #include "vulkan/vk_ghost_api.hh"
 
+#include "CLG_log.h"
+
 #include <vector>
 
 #include <cassert>
@@ -36,6 +38,8 @@
 #include <sys/stat.h>
 
 using namespace std;
+
+static CLG_LogRef LOG = {"ghost.vulkan"};
 
 static const char *vulkan_error_as_string(VkResult result)
 {
@@ -573,11 +577,13 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    */
   GHOST_Frame &submission_frame_data = m_frame_data[m_render_frame];
   m_render_frame = (m_render_frame + 1) % m_frame_data.size();
+  CLOG_INFO(&LOG, 2, "render_frame=%lu", m_render_frame);
 
   /* Wait for next frame to finish rendering. Presenting can still
    * happen in parallel, but acquiring needs can only happen when the frame acquire semaphore has
    * been signaled and waited for. */
   VkFence *next_frame_fence = &m_frame_data[m_render_frame].submission_fence;
+  CLOG_INFO(&LOG, 2, "waiting for finish rendering vk_fence=%lu", uint64_t(*next_frame_fence));
   vkWaitForFences(device, 1, next_frame_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
 
@@ -614,6 +620,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
       recreateSwapchain();
     }
   }
+  CLOG_INFO(&LOG, 2, "acquire swap chain image image_index=%u", image_index);
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
@@ -623,7 +630,17 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
   swap_chain_data.present_semaphore = submission_frame_data.present_semaphore;
 
+  CLOG_INFO(&LOG,
+            2,
+            "reset submission fence vk_fence=%lu",
+            uint64_t(submission_frame_data.submission_fence));
   vkResetFences(device, 1, &submission_frame_data.submission_fence);
+  CLOG_INFO(&LOG,
+            2,
+            "render wait_semaphore=%lu, signal_semaphore=%lu, submission_fence=%lu",
+            uint64_t(submission_frame_data.acquire_semaphore),
+            uint64_t(submission_frame_data.present_semaphore),
+            uint64_t(submission_frame_data.submission_fence));
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -639,6 +656,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   VkResult present_result = VK_SUCCESS;
   {
+    CLOG_INFO(&LOG,
+              2,
+              "presenting wait_semaphore=%lu, image_index=%u",
+              uint64_t(submission_frame_data.present_semaphore),
+              image_index);
     std::scoped_lock lock(vulkan_device->queue_mutex);
     present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
@@ -858,11 +880,17 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
     return GHOST_kFailure;
   }
+  CLOG_INFO(&LOG,
+            2,
+            "selected surface format: format=%d, colorSpace=%d",
+            m_surface_format.format,
+            m_surface_format.colorSpace);
 
   VkPresentModeKHR present_mode;
   if (!selectPresentMode(physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
+  CLOG_INFO(&LOG, 2, "selected present mode: present_mode=%d", present_mode);
 
   /* Query the surface capabilities for the given present mode on the surface. */
   VkSurfacePresentScalingCapabilitiesEXT vk_surface_present_scaling_capabilities = {
@@ -1139,6 +1167,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
+
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "Blender";
