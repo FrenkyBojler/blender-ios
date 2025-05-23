@@ -259,11 +259,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                          blender_mat->nodetree :
                          default_surface_ntree_.nodetree_get(blender_mat);
 
-  bool use_deferred_compilation = inst_.is_viewport() || GPU_use_parallel_compilation();
-  if (inst_.is_viewport_image_render) {
-    /* We can't defer compilation in viewport image render, since we can't re-sync.(See #130235) */
-    use_deferred_compilation = false;
-  }
+  /* We can't defer compilation in viewport image render, since we can't re-sync.(See #130235) */
+  bool use_deferred_compilation = !inst_.is_viewport_image_render;
 
   const bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
   ::Material *default_mat = is_volume ? default_volume : default_surface;
