@@ -56,6 +56,13 @@ enum eBlenFileType {
   // BLENFILETYPE_RUNTIME = 3, /* UNUSED */
 };
 
+/**
+ * Store some critical informations about the read blendfile.
+ */
+enum eBlenFileTypeFlag {
+  BLENFILETYPEFLAG_LONG_ID_NAME = 1 << 0,
+};
+
 struct BlendFileData : blender::NonCopyable, blender::NonMovable {
   Main *main = nullptr;
   UserDef *user = nullptr;
@@ -76,6 +83,7 @@ struct BlendFileData : blender::NonCopyable, blender::NonMovable {
   ViewLayer *cur_view_layer = nullptr;
 
   eBlenFileType type = eBlenFileType(0);
+  eBlenFileTypeFlag type_flag = eBlenFileTypeFlag(0);
 };
 
 /**
