@@ -1381,8 +1381,9 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   copy_v2_v2(gnode->location, src_node.location);
 
   BKE_main_ensure_invariants(bmain);
-
   ntree.ensure_topology_cache();
+
+  /* Keep old socket visibility. */
   for (const bNodeSocket *src_socket : src_node.input_sockets()) {
     if (bNodeSocket *new_socket = mapping.get_new_input(src_socket, *gnode)) {
       new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
@@ -1393,6 +1394,8 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
       new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
     }
   }
+
+  /* Keep old panel collapse status. */
   const Span<bNodePanelState> src_panel_states = src_node.panel_states();
   MutableSpan<bNodePanelState> new_panel_states = gnode->panel_states();
   for (const bNodePanelState &src_panel_state : src_panel_states) {
@@ -1407,6 +1410,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
     }
   }
 
+  /* Relink links from old to new node. */
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
     if (link->tonode == &src_node) {
       if (bNodeSocket *new_to_socket = mapping.get_new_input(link->tosock, *gnode)) {
@@ -1428,6 +1432,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
     }
   }
 
+  /* Remove the old node because it has been replaced. */
   bke::node_remove_node(&bmain, ntree, src_node, true);
 
   BKE_ntree_update_tag_node_property(&ntree, gnode);
