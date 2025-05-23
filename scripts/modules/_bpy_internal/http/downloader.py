@@ -637,8 +637,6 @@ def _download_queued_items(
 
     def periodic_check() -> bool:
         """Called periodically by this function, as well as by the downloader."""
-        if shutdown_event.is_set():
-            return False
 
         # Send queued reports back to the main process.
         while True:
@@ -664,6 +662,9 @@ def _download_queued_items(
                     can_keep_running = False
                 case PipeMsgType.QUEUE_DOWNLOAD:
                     download_queue.append(msg.payload)
+
+        if shutdown_event.is_set():
+            return False
 
         return can_keep_running
 
