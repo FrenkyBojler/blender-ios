@@ -493,13 +493,6 @@ static bool blo_bhead_is_id_valid_type(const BHead *bhead)
   return BKE_idtype_idcode_is_valid(id_type_code);
 }
 
-static bool blo_bhead_is_id_long_name(const FileData *fd, const BHead *bhead)
-{
-  BLI_assert(blo_bhead_is_id_valid_type(bhead));
-  const char *id_name = blo_bhead_id_name(fd, bhead);
-  return !std::memchr(id_name, '\0', MAX_ID_NAME);
-}
-
 static void read_file_bhead_idname_map_create(FileData *fd)
 {
   /* dummy values */
@@ -516,8 +509,11 @@ static void read_file_bhead_idname_map_create(FileData *fd)
     }
 
     if (is_link) {
-      const blender::StringRefNull name = blo_bhead_id_name(fd, bhead);
-      fd->bhead_idname_map->add(name, bhead);
+      const char *idname = blo_bhead_id_name(fd, bhead);
+      if (idname) {
+        const blender::StringRefNull name = idname;
+        fd->bhead_idname_map->add(name, bhead);
+      }
     }
   }
 }
@@ -804,9 +800,17 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 }
 #endif /* USE_BHEAD_READ_ON_DEMAND */
 
-const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead)
+const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
 {
-  return (const char *)POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offset);
+  const char *id_name = reinterpret_cast<const char *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offset));
+  if (std::memchr(id_name, '\0', MAX_ID_NAME)) {
+    return id_name;
+  }
+
+  /* ID name longer than MAX_ID_NAME - 1. */
+  fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
+  return nullptr;
 }
 
 AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead)
@@ -1795,6 +1799,22 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
   }
 
   return temp;
+}
+
+static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const int id_type_index)
+{
+  ID *id = static_cast<ID *>(read_struct(fd, bh, blockname, id_type_index));
+  if (!id) {
+    return id;
+  }
+  if (std::memchr(id->name, '\0', MAX_ID_NAME)) {
+    return id;
+  }
+
+  /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
+  id->name[MAX_ID_NAME - 1] = '\0';
+  fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
+  return id;
 }
 
 /* Like read_struct, but gets a pointer without allocating. Only works for
@@ -2897,7 +2917,7 @@ static BHead *read_libblock(FileData *fd,
    * in release builds. */
   const char *blockname = get_alloc_name(fd, bhead, nullptr, id_type_index);
 #endif
-  ID *id = static_cast<ID *>(read_struct(fd, bhead, blockname, id_type_index));
+  ID *id = read_id_struct(fd, bhead, blockname, id_type_index);
   if (id == nullptr) {
     if (r_id) {
       *r_id = nullptr;
@@ -4005,6 +4025,9 @@ static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
   BLI_assert(BKE_main_idmap_main_get(mainvar->id_map) == mainvar);
 
   const char *idname = blo_bhead_id_name(fd, bhead);
+  if (!idname) {
+    return nullptr;
+  }
 
   ID *id = BKE_main_idmap_lookup_name(mainvar->id_map, GS(idname), idname + 2, mainvar->curlib);
   BLI_assert(id == BLI_findstring(which_libbase(mainvar, GS(idname)), idname, offsetof(ID, name)));
@@ -4042,6 +4065,11 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
   if (!blo_bhead_is_id_valid_type(bhead)) {
     return;
   }
+  if (!blo_bhead_id_name(fd, bhead)) {
+    /* Do not allow linking ID which names are invalid (likely coming from a future version of
+     * Blender allowing longer names). */
+    return;
+  }
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */
@@ -4050,8 +4078,8 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
       return;
     }
 
-    Library *lib = static_cast<Library *>(
-        read_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
+    Library *lib = reinterpret_cast<Library *>(
+        read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main(fd, lib->filepath, fd->relabase);
 
     if (libmain->curlib == nullptr) {
@@ -4060,7 +4088,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
       BLO_reportf_wrap(fd->reports,
                        RPT_WARNING,
                        RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
-                       idname,
+                       idname ? idname : "<InvalidIDName>",
                        mainvar->curlib->runtime->filepath_abs);
       return;
     }
