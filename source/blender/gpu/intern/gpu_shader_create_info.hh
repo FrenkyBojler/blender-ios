@@ -1307,6 +1307,8 @@ struct ShaderCreateInfo {
    * (All statically declared CreateInfos are automatically finalized at startup) */
   void finalize(const bool recursive = false);
 
+  void resource_guard_defines(std::string &defines) const;
+
   std::string check_error() const;
   bool is_vulkan_compatible() const;
 

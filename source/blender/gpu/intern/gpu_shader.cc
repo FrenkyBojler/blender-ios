@@ -829,6 +829,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
 
+  info.resource_guard_defines(defines);
+
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 
   Vector<StringRefNull> typedefs;

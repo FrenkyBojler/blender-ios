@@ -213,6 +213,7 @@ class Preprocessor {
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
         str = stage_function_mutation(str);
+        str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
         static_strings_parsing(str);
@@ -1068,6 +1069,61 @@ class Preprocessor {
       string mutated = guarded_scope_mutation(
           string(attribute.size(), ' ') + function, line, check);
       mutations.emplace_back(attribute + function, mutated);
+    });
+
+    string out = str;
+    for (auto mutation : mutations) {
+      replace_all(out, mutation.first, mutation.second);
+    }
+    return out;
+  }
+
+  std::string resource_guard_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    if (str.find("_get(") == string::npos) {
+      return str;
+    }
+
+    vector<pair<string, string>> mutations;
+
+    string prefix_total;
+    regex regex_resource_access(R"(\b(\w+)_get\((\w+)\, \w+\))");
+    regex_global_search(str, regex_resource_access, [&](const smatch &match) {
+      string prefix = prefix_total + match.prefix().str();
+      string suffix = match.suffix().str();
+      string resource_access = match[0].str();
+      string resource_type = match[1].str();
+      string create_info_name = match[2].str();
+
+      prefix_total += match.prefix().str() + resource_access;
+
+      if (resource_type != "specialization_constant" && resource_type != "push_constant" &&
+          resource_type != "interface" && resource_type != "buffer" &&
+          resource_type != "attribute" && resource_type != "sampler" && resource_type != "image")
+      {
+        return;
+      }
+
+      string scope_start = get_content_between_balanced_pair(prefix + '}', '{', '}', true);
+      string scope_end = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      string scope = scope_start.substr(1) + resource_access +
+                     scope_end.substr(0, scope_end.rfind('\n') + 1);
+
+      if (scope.find(" return ") != string::npos) {
+        report_error(match,
+                     "Return statement with values are not supported inside the same scope as "
+                     "resource access function.");
+        return;
+      }
+
+      size_t line_start = 1 + line_count(prefix) - line_count(scope_start) + 1;
+
+      string check = "defined(CREATE_INFO_" + create_info_name + ")";
+      string mutated = guarded_scope_mutation(scope, line_start, check);
+
+      mutations.emplace_back(scope, mutated);
     });
 
     string out = str;

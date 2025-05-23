@@ -1078,6 +1078,15 @@ void groupMemoryBarrier() {}
 #  define GPU_COMPUTE_SHADER
 #endif
 
+/* Resource accessor. */
+#define specialization_constant_get(create_info, _res) _res
+#define push_constant_get(create_info, _res) _res
+#define interface_get(create_info, _res) _res
+#define attribute_get(create_info, _res) _res
+#define buffer_get(create_info, _res) _res
+#define sampler_get(create_info, _res) _res
+#define image_get(create_info, _res) _res
+
 #include "GPU_shader_shared_utils.hh"
 
 #ifdef __GNUC__
