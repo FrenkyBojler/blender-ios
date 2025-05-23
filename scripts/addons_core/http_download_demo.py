@@ -47,7 +47,11 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
             metadata_cache_location=local_path / "_local-meta-cache",
         )
 
-        downloader.download_to_file(url, download_to_path)
+        try:
+            downloader.download_to_file(url, download_to_path)
+        except http_dl.HTTPRequestDownloadError as ex:
+            self.report({'ERROR'}, "Could not download {!s}: {!s}".format(url, ex))
+            return {'CANCELLED'}
 
         self.report({'INFO'}, "File downloaded to {!s}".format(download_to_path))
         return {'FINISHED'}
