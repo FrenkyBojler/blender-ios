@@ -104,8 +104,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
 
-#include "BLI_string_ref.hh"
-#include "BLI_string_utils.hh"
 #include "readfile.hh"
 #include "versioning_common.hh"
 
@@ -930,58 +928,6 @@ static int *read_file_thumbnail(FileData *fd)
   }
 
   return blend_thumb;
-}
-
-/**
- * Iterate all IDs from Main and look for non-null terminated ID->name. This is for forward
- * compatibility if blend file was saved using app version with higher MAX_ID_NAME value than
- * current one (introduced when switching from MAX_ID_NAME = 66 to MAX_ID_NAME = 258)
- */
-static void truncate_long_id_names(Main *bmain)
-{
-  ListBase *lb_iter;
-  FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb_iter) {
-    LISTBASE_FOREACH (ID *, id_iter, lb_iter) {
-      if (!memchr(id_iter->name, '\0', MAX_ID_NAME)) {
-        id_iter->name[MAX_ID_NAME - 1] = '\0';
-        printf("Truncated too long object name %s\n", id_iter->name);
-        BLI_uniquename(lb_iter, id_iter, id_iter->name, '.', offsetof(ID, name), MAX_ID_NAME);
-      }
-    }
-  }
-  FOREACH_MAIN_LISTBASE_END;
-}
-
-/**
- * Iterate all IDs from Main->actions and look for non-null terminated slot_array->identifier. This
- * is for forward compatibility if blend file was saved using app version with higher MAX_ID_NAME
- * value than current one (introduced when switching from MAX_ID_NAME = 66 to MAX_ID_NAME = 258)
- */
-static void truncate_long_action_names(Main *bmain)
-{
-  LISTBASE_FOREACH (ID *, id_iter, &bmain->actions) {
-    bAction *act = (bAction *)id_iter;
-    for (int i = 0; i < act->slot_array_num; i++) {
-      if (!memchr(act->slot_array[i]->identifier, '\0', MAX_ID_NAME)) {
-        act->slot_array[i]->identifier[MAX_ID_NAME - 1] = '\0';
-        printf("Truncated too long action slot name to %s\n", act->slot_array[i]->identifier);
-        BLI_uniquename_cb(
-            [&](const blender::StringRef name) -> bool {
-              for (int j = 0; j < act->slot_array_num; j++) {
-                if (i == j) {
-                  continue;
-                }
-                if (memcmp(act->slot_array[j]->identifier, name.data(), MAX_ID_NAME) == 0) {
-                  return true;
-                }
-              }
-              return false;
-            },
-            '.',
-            act->slot_array[i]->identifier);
-      }
-    }
-  }
 }
 
 /** \} */
@@ -3713,8 +3659,6 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     blo_join_main(&mainlist);
 
     lib_link_all(fd, bfd->main);
-    truncate_long_id_names(bfd->main);
-    truncate_long_action_names(bfd->main);
     after_liblink_merged_bmain_process(bfd->main, fd->reports);
 
     if (is_undo) {
