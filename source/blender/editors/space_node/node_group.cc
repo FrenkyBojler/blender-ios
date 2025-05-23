@@ -1359,6 +1359,78 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
   return dst_group;
 }
 
+static bNode *node_group_make_from_node_declaration(bContext &C,
+                                                    bNodeTree &ntree,
+                                                    bNode &src_node,
+                                                    const StringRef node_idname)
+{
+  Main &bmain = *CTX_data_main(&C);
+
+  WrapperNodeGroupMapping mapping;
+  bNodeTree *wrapper_group = node_group_make_wrapper(C, src_node, mapping);
+
+  bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
+  gnode->id = &wrapper_group->id;
+  id_us_plus(gnode->id);
+  gnode->parent = src_node.parent;
+  gnode->width = src_node.width;
+  copy_v2_v2(gnode->location, src_node.location);
+
+  BKE_main_ensure_invariants(bmain);
+
+  ntree.ensure_topology_cache();
+  for (const bNodeSocket *src_socket : src_node.input_sockets()) {
+    if (bNodeSocket *new_socket = mapping.get_new_input(src_socket, *gnode)) {
+      new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
+    }
+  }
+  for (const bNodeSocket *src_socket : src_node.output_sockets()) {
+    if (bNodeSocket *new_socket = mapping.get_new_output(src_socket, *gnode)) {
+      new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
+    }
+  }
+  const Span<bNodePanelState> src_panel_states = src_node.panel_states();
+  MutableSpan<bNodePanelState> new_panel_states = gnode->panel_states();
+  for (const bNodePanelState &src_panel_state : src_panel_states) {
+    if (const std::optional<int> new_identifier = mapping.new_by_old_panel_identifier.lookup_try(
+            src_panel_state.identifier))
+    {
+      for (bNodePanelState &new_panel_state : new_panel_states) {
+        if (new_panel_state.identifier == *new_identifier) {
+          new_panel_state.flag = src_panel_state.flag & NODE_PANEL_COLLAPSED;
+        }
+      }
+    }
+  }
+
+  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
+    if (link->tonode == &src_node) {
+      if (bNodeSocket *new_to_socket = mapping.get_new_input(link->tosock, *gnode)) {
+        link->tonode = gnode;
+        link->tosock = new_to_socket;
+        continue;
+      }
+      bke::node_remove_link(&ntree, *link);
+      continue;
+    }
+    if (link->fromnode == &src_node) {
+      if (bNodeSocket *new_from_socket = mapping.get_new_output(link->fromsock, *gnode)) {
+        link->fromnode = gnode;
+        link->fromsock = new_from_socket;
+        continue;
+      }
+      bke::node_remove_link(&ntree, *link);
+      continue;
+    }
+  }
+
+  bke::node_remove_node(&bmain, ntree, src_node, true);
+
+  BKE_ntree_update_tag_node_property(&ntree, gnode);
+  BKE_main_ensure_invariants(bmain);
+  return gnode;
+}
+
 static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 {
   ARegion &region = *CTX_wm_region(C);
@@ -1377,69 +1449,7 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 
   bNode *gnode = nullptr;
   if (nodes_to_group.size() == 1 && nodes_to_group[0]->declaration()) {
-    bNode *src_node = nodes_to_group[0];
-    WrapperNodeGroupMapping mapping;
-    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *src_node, mapping);
-
-    gnode = bke::node_add_node(C, ntree, node_idname);
-    gnode->id = &wrapper_group->id;
-    id_us_plus(gnode->id);
-    gnode->parent = src_node->parent;
-    gnode->width = src_node->width;
-    copy_v2_v2(gnode->location, src_node->location);
-
-    BKE_main_ensure_invariants(*bmain);
-
-    ntree.ensure_topology_cache();
-    for (bNodeSocket *src_socket : src_node->input_sockets()) {
-      if (bNodeSocket *new_socket = mapping.get_new_input(src_socket, *gnode)) {
-        new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
-      }
-    }
-    for (bNodeSocket *src_socket : src_node->output_sockets()) {
-      if (bNodeSocket *new_socket = mapping.get_new_output(src_socket, *gnode)) {
-        new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
-      }
-    }
-    const Span<bNodePanelState> src_panel_states = src_node->panel_states();
-    MutableSpan<bNodePanelState> new_panel_states = gnode->panel_states();
-    for (const bNodePanelState &src_panel_state : src_panel_states) {
-      if (const std::optional<int> new_identifier = mapping.new_by_old_panel_identifier.lookup_try(
-              src_panel_state.identifier))
-      {
-        for (bNodePanelState &new_panel_state : new_panel_states) {
-          if (new_panel_state.identifier == *new_identifier) {
-            new_panel_state.flag = src_panel_state.flag & NODE_PANEL_COLLAPSED;
-          }
-        }
-      }
-    }
-
-    LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
-      if (link->tonode == src_node) {
-        if (bNodeSocket *new_to_socket = mapping.get_new_input(link->tosock, *gnode)) {
-          link->tonode = gnode;
-          link->tosock = new_to_socket;
-          continue;
-        }
-        bke::node_remove_link(&ntree, *link);
-        continue;
-      }
-      if (link->fromnode == src_node) {
-        if (bNodeSocket *new_from_socket = mapping.get_new_output(link->fromsock, *gnode)) {
-          link->fromnode = gnode;
-          link->fromsock = new_from_socket;
-          continue;
-        }
-        bke::node_remove_link(&ntree, *link);
-        continue;
-      }
-    }
-
-    bke::node_remove_node(bmain, ntree, *src_node, true);
-
-    BKE_ntree_update_tag_node_property(&ntree, gnode);
-    BKE_main_ensure_invariants(*bmain);
+    gnode = node_group_make_from_node_declaration(*C, ntree, *nodes_to_group[0], node_idname);
   }
   else {
     gnode = node_group_make_from_nodes(*C, ntree, nodes_to_group, node_idname, ntree_idname);
