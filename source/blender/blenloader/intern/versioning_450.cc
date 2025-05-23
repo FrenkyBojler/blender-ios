@@ -3830,6 +3830,7 @@ static void do_version_crop_node_options_to_inputs_animation(bNodeTree *node_tre
     }
   });
 }
+
 /* The options were converted into inputs. */
 static void do_version_color_balance_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
 {
