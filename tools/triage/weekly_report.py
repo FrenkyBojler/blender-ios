@@ -27,6 +27,8 @@ import re
 import shutil
 import sys
 
+from dataclasses import dataclass, field
+
 from gitea_utils import (
     gitea_json_activities_get,
     gitea_json_pull_request_by_base_and_head_get,
@@ -41,7 +43,6 @@ from typing import (
 from collections.abc import (
     Iterable,
 )
-from dataclasses import dataclass, field
 
 # Support piping the output to a file or process.
 IS_ATTY = sys.stdout.isatty()
@@ -146,7 +147,7 @@ def report_personal_weekly_get(
 
     @dataclass
     class PullRequest:
-        descriptor: str
+        title_str: str
 
     @dataclass
     class Repository:
@@ -154,7 +155,7 @@ def report_personal_weekly_get(
         # Branches targeting this repository. Branch name is key.
         branches: dict[str, Branch] = field(default_factory=dict)
         # Pull requests targeting this repository. Key is repository of the branch and the branch name.
-        prs: dict[str, PullRequest] = field(default_factory=dict)
+        prs: dict[tuple[str, str], PullRequest] = field(default_factory=dict)
 
     # Repositories containing any commit activity, identified by full name (e.g. "blender/blender").
     repositories: dict[str, Repository] = {}
@@ -243,14 +244,17 @@ def report_personal_weekly_get(
                             # against the default branch of the target repository.
                             if not is_release_branch and target_repo_json:
                                 pr = gitea_json_pull_request_by_base_and_head_get(
-                                    target_repo_fullname, target_repo_json["default_branch"], f"{repo_fullname}:{branch_name}")
+                                    target_repo_fullname,
+                                    target_repo_json["default_branch"],
+                                    f"{repo_fullname}:{branch_name}",
+                                )
                         branch = target_repo.branches[branch_name]
 
                         if pr:
                             pr_title = pr["title"]
                             pr_id = pr["number"]
                             target_repo.prs[(repo_fullname, branch_name)
-                                            ] = f"{pr_title} ({target_repo_fullname}!{pr_id})"
+                                            ] = PullRequest(f"{pr_title} ({target_repo_fullname}!{pr_id})")
 
                         branch.commits.append(f"{title} ({repo_fullname}@{hash_value})")
 
@@ -360,7 +364,7 @@ def report_personal_weekly_get(
         "blender/blender-manual": "Blender Manual",
     }
 
-    def print_repo(repo: Repository, indent_level=0):
+    def print_repo(repo: Repository, indent_level: int = 0) -> None:
         # Print main branch commits immediately, no need to add extra section.
         main_branch = repo.branches.get("main")
         if main_branch:
@@ -374,7 +378,7 @@ def report_personal_weekly_get(
 
             pr = repo.prs.get((branch.repository_full_name, branch_name))
             if pr:
-                print("{:s}* {:s}".format("  " * indent_level, pr))
+                print("{:s}* {:s}".format("  " * indent_level, pr.title_str))
             else:
                 print("{:s}* {:s}:{:s}".format("  " * indent_level, branch.repository_full_name, branch_name))
 
