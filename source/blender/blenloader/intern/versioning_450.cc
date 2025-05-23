@@ -4010,28 +4010,28 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
       continue;
     }
 
-    bNode *texture_coordinates_node = blender::bke::node_add_node(
+    bNode *image_coordinates_node = blender::bke::node_add_node(
         nullptr, *node_tree, "CompositorNodeImageCoordinates");
-    texture_coordinates_node->parent = node->parent;
-    texture_coordinates_node->location[0] = node->location[0];
-    texture_coordinates_node->location[1] = node->location[1] - node->height - 10.0f;
+    image_coordinates_node->parent = node->parent;
+    image_coordinates_node->location[0] = node->location[0];
+    image_coordinates_node->location[1] = node->location[1] - node->height - 10.0f;
 
     if (input_link) {
       bNodeSocket *image_input = blender::bke::node_find_socket(
-          *texture_coordinates_node, SOCK_IN, "Image");
+          *image_coordinates_node, SOCK_IN, "Image");
       version_node_add_link(*node_tree,
                             *input_link->fromnode,
                             *input_link->fromsock,
-                            *texture_coordinates_node,
+                            *image_coordinates_node,
                             *image_input);
     }
 
     if (output_texture_link) {
-      bNodeSocket *texture_output = blender::bke::node_find_socket(
-          *texture_coordinates_node, SOCK_OUT, "Texture");
+      bNodeSocket *uniform_output = blender::bke::node_find_socket(
+          *image_coordinates_node, SOCK_OUT, "Uniform");
       version_node_add_link(*node_tree,
-                            *texture_coordinates_node,
-                            *texture_output,
+                            *image_coordinates_node,
+                            *uniform_output,
                             *output_texture_link->tonode,
                             *output_texture_link->tosock);
       blender::bke::node_remove_link(node_tree, *output_texture_link);
@@ -4039,9 +4039,9 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
 
     if (output_pixel_link) {
       bNodeSocket *pixel_output = blender::bke::node_find_socket(
-          *texture_coordinates_node, SOCK_OUT, "Pixel");
+          *image_coordinates_node, SOCK_OUT, "Pixel");
       version_node_add_link(*node_tree,
-                            *texture_coordinates_node,
+                            *image_coordinates_node,
                             *pixel_output,
                             *output_pixel_link->tonode,
                             *output_pixel_link->tosock);
