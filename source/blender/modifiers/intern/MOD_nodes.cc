@@ -2658,6 +2658,8 @@ static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
     uiLayoutSetActive(&subrow, ctx.input_is_active(*socket));
     subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_R_TOGGLE, socket->name, ICON_NONE);
   }
+
+  props_row.label("", ICON_BLANK1);
 }
 
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
