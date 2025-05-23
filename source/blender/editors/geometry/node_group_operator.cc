@@ -816,7 +816,7 @@ struct DrawOperatorInputsContext {
   PointerRNA *bmain_ptr;
   PointerRNA *op_ptr;
   nodes::PropertiesVectorSet properties;
-  Array<bool> input_usages;
+  Array<nodes::socket_usage_inference::SocketUsage> input_usages;
 };
 
 static void add_attribute_search_or_value_buttons(DrawOperatorInputsContext &ctx,
@@ -883,7 +883,7 @@ static void draw_property_for_socket(DrawOperatorInputsContext &ctx,
   }
 
   const int socket_index = ctx.ntree.interface_input_index(socket);
-  const bool affects_output = ctx.input_usages[socket_index];
+  const bool affects_output = ctx.input_usages[socket_index].is_used;
 
   const std::string socket_id_esc = BLI_str_escape(socket.identifier);
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
@@ -1435,15 +1435,8 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1515,15 +1508,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1552,15 +1538,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       first = false;
     }
 
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    group->id.name + 2,
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);
