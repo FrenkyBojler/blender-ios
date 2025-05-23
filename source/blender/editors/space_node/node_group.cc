@@ -1240,6 +1240,7 @@ struct WrapperNodeGroupMapping {
   int num_inputs = 0;
   int num_outputs = 0;
   Map<const bNodeSocket *, int> new_index_by_src_socket;
+  Map<int, int> new_by_old_panel_identifier;
 
   bNodeSocket *get_new_input(const bNodeSocket *old_socket, bNode &new_node) const
   {
@@ -1291,6 +1292,7 @@ static void add_node_group_interface_from_declaration_recursive(
     }
     bNodeTreeInterfacePanel *io_panel = group.tree_interface.add_panel(
         panel_decl->name, panel_decl->description, flag, parent);
+    r_mapping.new_by_old_panel_identifier.add_new(panel_decl->identifier, io_panel->identifier);
     for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
       add_node_group_interface_from_declaration_recursive(
           group, src_node, *child_item_decl, io_panel, r_mapping);
@@ -1397,6 +1399,19 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
     for (bNodeSocket *src_socket : src_node->output_sockets()) {
       if (bNodeSocket *new_socket = mapping.get_new_output(src_socket, *gnode)) {
         new_socket->flag |= src_socket->flag & (SOCK_HIDDEN | SOCK_COLLAPSED);
+      }
+    }
+    const Span<bNodePanelState> src_panel_states = src_node->panel_states();
+    MutableSpan<bNodePanelState> new_panel_states = gnode->panel_states();
+    for (const bNodePanelState &src_panel_state : src_panel_states) {
+      if (const std::optional<int> new_identifier = mapping.new_by_old_panel_identifier.lookup_try(
+              src_panel_state.identifier))
+      {
+        for (bNodePanelState &new_panel_state : new_panel_states) {
+          if (new_panel_state.identifier == *new_identifier) {
+            new_panel_state.flag = src_panel_state.flag & NODE_PANEL_COLLAPSED;
+          }
+        }
       }
     }
 
