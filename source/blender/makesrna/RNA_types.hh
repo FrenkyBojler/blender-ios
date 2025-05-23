@@ -440,9 +440,12 @@ enum PropertyFlag {
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 
 /**
- * Indicates how template variables should be build for the property.
+ * For properties that support path templates, this indicates which variables
+ * should be available to them and how those variables should be built.
+ *
+ * \see BKE_build_template_variables_for_prop()
  */
-enum PropertyVariableBuildType {
+enum PropertyPathTemplateType {
   PROP_VARIABLES_NONE = 0,
   PROP_VARIABLES_RENDER_OUTPUT,
 };

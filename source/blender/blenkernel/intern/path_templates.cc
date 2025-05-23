@@ -126,7 +126,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
    *
    * The recommended strategy when adding support for additional path templating
    * use cases (that don't already have an appropriate
-   * `PropertyVariableBuildType` item) is to:
+   * `PropertyPathTemplateType` item) is to:
    *
    * 1. Create a separate function to build variables for that use case (see
    *    e.g. `BKE_build_template_variables_for_render_path()`).
@@ -142,7 +142,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
     return std::nullopt;
   }
 
-  switch (RNA_property_variable_build_type(prop)) {
+  switch (RNA_property_path_template_type(prop)) {
     case PROP_VARIABLES_NONE: {
       BLI_assert_msg(
           false,

@@ -7290,7 +7290,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_string_sdna(prop, nullptr, "pic");
   RNA_def_property_flag(
       prop, PROP_PATH_OUTPUT | PROP_PATH_SUPPORTS_BLEND_RELATIVE | PROP_PATH_SUPPORTS_TEMPLATES);
-  RNA_def_property_variable_build_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
+  RNA_def_property_path_template_type(prop, PROP_VARIABLES_RENDER_OUTPUT);
   RNA_def_property_ui_text(prop,
                            "Output Path",
                            "Directory/name to save animations, # characters define the position "

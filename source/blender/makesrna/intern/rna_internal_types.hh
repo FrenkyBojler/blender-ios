@@ -340,7 +340,11 @@ struct PropertyRNA {
   /* The subset of StructRNA.prop_tag_defines values that applies to this property. */
   short tags;
 
-  PropertyVariableBuildType variable_build_type;
+  /* The Path Templating use case this property is for. Must be set for path
+   * properties that are marked as supporting path templates
+   * (`PROP_PATH_SUPPORTS_TEMPLATES` in `flag`). Is ignored for other
+   * properties. */
+  PropertyPathTemplateType path_template_type;
 
   /* user readable name */
   const char *name;
