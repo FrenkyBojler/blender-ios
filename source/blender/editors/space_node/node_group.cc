@@ -1301,13 +1301,14 @@ static void add_node_group_interface_from_declaration_recursive(
 }
 
 static bNodeTree *node_group_make_wrapper(const bContext &C,
+                                          const bNodeTree &src_tree,
                                           const bNode &src_node,
                                           WrapperNodeGroupMapping &r_mapping)
 {
   Main &bmain = *CTX_data_main(&C);
 
   bNodeTree *dst_group = bke::node_tree_add_tree(
-      &bmain, src_node.name, src_node.owner_tree().idname);
+      &bmain, bke::node_label(src_tree, src_node), src_tree.idname);
 
   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
@@ -1367,9 +1368,12 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   Main &bmain = *CTX_data_main(&C);
 
   WrapperNodeGroupMapping mapping;
-  bNodeTree *wrapper_group = node_group_make_wrapper(C, src_node, mapping);
+  bNodeTree *wrapper_group = node_group_make_wrapper(C, ntree, src_node, mapping);
 
   bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
+  STRNCPY(gnode->name, BKE_id_name(wrapper_group->id));
+  bke::node_unique_name(ntree, *gnode);
+
   gnode->id = &wrapper_group->id;
   id_us_plus(gnode->id);
   gnode->parent = src_node.parent;
