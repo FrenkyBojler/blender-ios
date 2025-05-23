@@ -1959,6 +1959,16 @@ struct DrawGroupInputsContext {
   PointerRNA *md_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
+
+  bool input_is_visible(const bNodeTreeInterfaceSocket &socket) const
+  {
+    return input_usages[nmd.node_group->interface_input_index(socket)].is_visible;
+  }
+
+  bool input_is_active(const bNodeTreeInterfaceSocket &socket) const
+  {
+    return input_usages[nmd.node_group->interface_input_index(socket)].is_used;
+  }
 };
 
 static NodesModifierData *get_modifier_data(Main &bmain,
@@ -2336,9 +2346,9 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   const std::string socket_id_esc = BLI_str_escape(identifier.c_str());
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
-
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
-  if (!ctx.input_usages[input_index].is_visible) {
+
+  if (!ctx.input_is_visible(socket)) {
     /* The input is not used currently, but it would be used if any menu input is changed.
      * By convention, the input is hidden in this case instead of just grayed out. */
     return;
@@ -2346,7 +2356,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
-  uiLayoutSetActive(row, ctx.input_usages[input_index].is_used);
+  uiLayoutSetActive(row, ctx.input_is_active(socket));
 
   /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -2463,8 +2473,7 @@ static bool interface_panel_has_socket(DrawGroupInputsContext &ctx,
         continue;
       }
       if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-        const int input_index = ctx.nmd.node_group->interface_input_index(socket);
-        if (ctx.input_usages[input_index].is_visible) {
+        if (ctx.input_is_visible(socket)) {
           return true;
         }
       }
@@ -2492,8 +2501,7 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
       if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
         continue;
       }
-      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
-      if (ctx.input_usages[input_index].is_used) {
+      if (ctx.input_is_active(socket)) {
         return true;
       }
     }
@@ -2584,8 +2592,7 @@ static std::optional<PanelRowInputs> get_panel_row_inputs(
     if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
       return std::nullopt;
     }
-    const int input_index = ctx.nmd.node_group->interface_input_index(socket);
-    if (!ctx.input_usages[input_index].is_visible) {
+    if (!ctx.input_is_visible(socket)) {
       return std::nullopt;
     }
     const eNodeSocketDatatype type = eNodeSocketDatatype(socket.socket_typeinfo()->type);
@@ -2612,15 +2619,13 @@ static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
   }
   bool any_active = false;
   if (row_inputs->toggle) {
-    any_active =
-        ctx.input_usages[ctx.nmd.node_group->interface_input_index(*row_inputs->toggle)].is_used;
+    any_active = ctx.input_is_active(*row_inputs->toggle);
   }
-  any_active |= std::any_of(
-      row_inputs->inputs.begin(),
-      row_inputs->inputs.end(),
-      [&](const bNodeTreeInterfaceSocket *socket) {
-        return ctx.input_usages[ctx.nmd.node_group->interface_input_index(*socket)].is_used;
-      });
+  any_active = any_active || std::any_of(row_inputs->inputs.begin(),
+                                         row_inputs->inputs.end(),
+                                         [&](const bNodeTreeInterfaceSocket *socket) {
+                                           return ctx.input_is_active(*socket);
+                                         });
 
   uiLayout &panel_row = layout.row(false);
   uiLayoutSetPropDecorate(&panel_row, false);
@@ -2643,17 +2648,14 @@ static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
     const std::string rna_path = fmt::format("[\"{}\"]",
                                              BLI_str_escape(row_inputs->toggle->identifier));
     uiLayout &subrow = props_row.row(true);
-    uiLayoutSetActive(
-        &subrow,
-        ctx.input_usages[ctx.nmd.node_group->interface_input_index(*row_inputs->toggle)].is_used);
+    uiLayoutSetActive(&subrow, ctx.input_is_active(*row_inputs->toggle));
     subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
   }
 
   for (const bNodeTreeInterfaceSocket *socket : row_inputs->inputs) {
     const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket->identifier));
     uiLayout &subrow = props_row.row(true);
-    uiLayoutSetActive(
-        &subrow, ctx.input_usages[ctx.nmd.node_group->interface_input_index(*socket)].is_used);
+    uiLayoutSetActive(&subrow, ctx.input_is_active(*socket));
     subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_R_TOGGLE, socket->name, ICON_NONE);
   }
 }
