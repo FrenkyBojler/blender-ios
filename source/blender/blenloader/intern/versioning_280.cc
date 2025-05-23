@@ -3016,7 +3016,6 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
 static void do_versions_seq_set_cache_defaults(Editing *ed)
 {
   ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
-  ed->recycle_max_cost = 10.0f;
 }
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
@@ -3863,6 +3862,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
 
         if (rbw->shared == nullptr) {
           rbw->shared = MEM_callocN<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          BKE_rigidbody_world_init_runtime(rbw);
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -5433,11 +5433,14 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             ARegion *region_toolprops = do_versions_find_region_or_null(regionbase,
                                                                         RGN_TYPE_TOOL_PROPS);
 
-            /* Reinsert UI region so that it spawns entire area width */
-            BLI_remlink(regionbase, region_ui);
-            BLI_insertlinkafter(regionbase, region_header, region_ui);
+            /* Check, even though this is expected to be valid. */
+            if (region_ui) {
+              /* Reinsert UI region so that it spawns entire area width. */
+              BLI_remlink(regionbase, region_ui);
+              BLI_insertlinkafter(regionbase, region_header, region_ui);
 
-            region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+              region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+            }
 
             if (region_toolprops &&
                 (region_toolprops->alignment == (RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV)))

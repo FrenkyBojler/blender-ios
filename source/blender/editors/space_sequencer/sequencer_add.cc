@@ -591,7 +591,7 @@ void SEQUENCER_OT_scene_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_scene_strip_add";
   ot->description = "Add a strip to the sequencer using a Blender scene as a source";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_scene_strip_invoke;
   ot->exec = sequencer_add_scene_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
@@ -716,7 +716,7 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_scene_strip_add_new";
   ot->description = "Create a new Strip and assign a new Scene as source";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_scene_strip_new_invoke;
   ot->exec = sequencer_add_scene_strip_new_exec;
   ot->poll = ED_operator_sequencer_active_editable;
@@ -790,7 +790,7 @@ void SEQUENCER_OT_movieclip_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_movieclip_strip_add";
   ot->description = "Add a movieclip strip to the sequencer";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_movieclip_strip_invoke;
   ot->exec = sequencer_add_movieclip_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
@@ -862,7 +862,7 @@ void SEQUENCER_OT_mask_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_mask_strip_add";
   ot->description = "Add a mask strip to the sequencer";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_mask_strip_invoke;
   ot->exec = sequencer_add_mask_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
@@ -1248,7 +1248,7 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_movie_strip_add";
   ot->description = "Add a movie strip to the sequencer";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_movie_strip_invoke;
   ot->exec = sequencer_add_movie_strip_exec;
   ot->cancel = sequencer_add_cancel;
@@ -1393,7 +1393,7 @@ void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_sound_strip_add";
   ot->description = "Add a sound strip to the sequencer";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_sound_strip_invoke;
   ot->exec = sequencer_add_sound_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
@@ -1620,7 +1620,7 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_image_strip_add";
   ot->description = "Add an image or image sequence to the sequencer";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_image_strip_invoke;
   ot->exec = sequencer_add_image_strip_exec;
   ot->cancel = sequencer_add_cancel;
@@ -1676,16 +1676,16 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
     deselect_all_strips(scene);
   }
 
-  Strip *seq1 = inputs.size() > 0 ? inputs[0] : nullptr;
-  Strip *seq2 = inputs.size() == 2 ? inputs[1] : nullptr;
+  Strip *input1 = inputs.size() > 0 ? inputs[0] : nullptr;
+  Strip *input2 = inputs.size() == 2 ? inputs[1] : nullptr;
 
-  load_data.effect.seq1 = seq1;
-  load_data.effect.seq2 = seq2;
+  load_data.effect.input1 = input1;
+  load_data.effect.input2 = input2;
 
   /* Set channel. If unset, use lowest free one above strips. */
   if (!RNA_struct_property_is_set(op->ptr, "channel")) {
-    if (seq1 != nullptr) {
-      int chan = max_ii(seq1 ? seq1->machine : 0, seq2 ? seq2->machine : 0);
+    if (input1 != nullptr) {
+      int chan = max_ii(input1 ? input1->machine : 0, input2 ? input2->machine : 0);
       if (chan < seq::MAX_CHANNELS) {
         load_data.channel = chan;
       }
@@ -1792,7 +1792,7 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
   ot->idname = "SEQUENCER_OT_effect_strip_add";
   ot->description = "Add an effect to the sequencer, most are applied on top of existing strips";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_add_effect_strip_invoke;
   ot->exec = sequencer_add_effect_strip_exec;
   ot->poll = ED_operator_sequencer_active_editable;
