@@ -57,6 +57,7 @@
 #include "NOD_common.hh"
 #include "NOD_composite.hh"
 #include "NOD_geometry.hh"
+#include "NOD_node_declaration.hh"
 #include "NOD_shader.h"
 #include "NOD_socket.hh"
 #include "NOD_texture.h"
@@ -1234,6 +1235,54 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   return gnode;
 }
 
+static void add_node_group_interface_from_declaration_recursive(
+    bNodeTree &group,
+    const bNode &src_node,
+    const nodes::ItemDeclaration &item_decl,
+    bNodeTreeInterfacePanel *parent = nullptr)
+{
+  if (const nodes::SocketDeclaration *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(
+          &item_decl))
+  {
+    const bNodeSocket &socket = src_node.socket_by_decl(*socket_decl);
+    if (!socket.is_available()) {
+      return;
+    }
+    bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
+        group, src_node, socket);
+    group.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+  }
+  else if (const nodes::PanelDeclaration *panel_decl =
+               dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
+  {
+    NodeTreeInterfacePanelFlag flag{};
+    if (panel_decl->default_collapsed) {
+      flag |= NODE_INTERFACE_PANEL_DEFAULT_CLOSED;
+    }
+    bNodeTreeInterfacePanel *io_panel = group.tree_interface.add_panel(
+        panel_decl->name, panel_decl->description, flag, parent);
+    for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
+      add_node_group_interface_from_declaration_recursive(
+          group, src_node, *child_item_decl, io_panel);
+    }
+  }
+}
+
+static bNodeTree *node_group_make_wrapper(const bContext &C, const bNode &src_node)
+{
+  Main &bmain = *CTX_data_main(&C);
+
+  bNodeTree *dst_group = bke::node_tree_add_tree(
+      &bmain, src_node.name, src_node.owner_tree().idname);
+
+  const nodes::NodeDeclaration &node_decl = *src_node.declaration();
+  for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
+    add_node_group_interface_from_declaration_recursive(*dst_group, src_node, *item_decl);
+  }
+
+  return dst_group;
+}
+
 static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 {
   ARegion &region = *CTX_wm_region(C);
@@ -1250,7 +1299,19 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNode *gnode = node_group_make_from_nodes(*C, ntree, nodes_to_group, node_idname, ntree_idname);
+  bNode *gnode = nullptr;
+  if (nodes_to_group.size() == 1 && nodes_to_group[0]->declaration()) {
+    gnode = nodes_to_group[0];
+    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *gnode);
+    id_us_min(gnode->id);
+    gnode->id = &wrapper_group->id;
+    id_us_plus(gnode->id);
+    BKE_ntree_update_tag_node_property(&ntree, gnode);
+    BKE_main_ensure_invariants(*bmain);
+  }
+  else {
+    gnode = node_group_make_from_nodes(*C, ntree, nodes_to_group, node_idname, ntree_idname);
+  }
 
   if (gnode) {
     bNodeTree *ngroup = (bNodeTree *)gnode->id;
