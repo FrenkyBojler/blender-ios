@@ -141,6 +141,11 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
   std::vector<std::string> missing_extensions;
   /* Check for enabled instance extensions. */
   for (const std::string &extension : instance_extensions) {
+    /* SteamVR + PSVR2 requests a vendor specific extension that is renamed and promoted to core
+     * Vulkan 1.2. */
+    if (extension == VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) {
+      continue;
+    }
     if (!context_vk.is_instance_extension_enabled(extension)) {
       missing_extensions.push_back(extension);
     }
@@ -148,6 +153,13 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
 
   /* Check for enabled instance extensions. */
   for (const std::string &extension : device_extensions) {
+    /* SteamVR + PSVR2 requests a deprecated extension, which isn't part of modern drivers anymore.
+     * NVIDIA 530 seems to be the first version that removed this extension, but OpenXR still
+     * reports it as being a required extension.
+     */
+    if (extension == VK_EXT_DEBUG_MARKER_EXTENSION_NAME) {
+      continue;
+    }
     if (!context_vk.is_device_extension_enabled(extension)) {
       missing_extensions.push_back(extension);
     }
