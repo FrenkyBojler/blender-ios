@@ -121,7 +121,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
    * consistent with the variables produced elsewhere in the code base for the
    * same property. For example, render paths are processed in the rendering
    * code and produce variables for that purpose there, and this function should
-   * produce variables consistent with that.
+   * produce variables consistent with that for those render path properties.
    *
    * The recommended strategy when adding support for additional properties is
    * to create a separate function (see e.g.
@@ -721,14 +721,14 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
  * \param out_path_max_length: The maximum length that template expansion is
  * allowed to make the template-expanded path (in bytes), including the null
  * terminator. In general, this should be the size of the underlying allocation
- * of `path`.
+ * of `out_path`.
  *
  * \param template_variables: map of variables and their values to use during
- * template substitution. May be null, in which case substitution is skipped,
- * and only templating syntax is checked.
+ * template substitution. May be null, in which case missing variable checks
+ * etc. are skipped, and only templating syntax is checked.
  *
  * \return An empty vector on success, or a vector of templating errors on
- * failure. Note that even if there are errors, `out_path` may get modified, but
+ * failure. Note that even if there are errors, `out_path` may get modified, and
  * it should be treated as bogus data in that case.
  */
 static blender::Vector<Error> eval_template(char *out_path,
@@ -823,6 +823,7 @@ static blender::Vector<Error> eval_template(char *out_path,
       }
     }
 
+    /* Perform the actual substitution with the expanded value. */
     if (out_path) {
       /* We're off the end of the available space. */
       if (token.byte_range.start() + length_diff >= out_path_max_length) {
