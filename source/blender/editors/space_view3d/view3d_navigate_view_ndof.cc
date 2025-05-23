@@ -202,7 +202,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
 
   invert_qt_qt_normalized(view_inv, rv3d->viewquat);
 
-  if (U.ndof_flag & NDOF_TURNTABLE) {
+  if (U.ndof_flag & NDOF_LOCK_HORIZON) {
     float rot[3];
 
     /* Turntable view code adapted for 3D mouse use. */

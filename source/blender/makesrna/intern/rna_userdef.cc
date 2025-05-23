@@ -6748,10 +6748,9 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, ndof_view_navigation_items);
   RNA_def_property_ui_text(prop, "NDOF View Navigate", "Navigation style in the viewport");
 
-  prop = RNA_def_property(srna, "ndof_view_rotate_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
-  RNA_def_property_enum_items(prop, ndof_view_rotation_items);
-  RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
+  prop = RNA_def_property(srna, "ndof_lock_horizon", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_LOCK_HORIZON);
+  RNA_def_property_ui_text(prop, "NDOF Lock Horizon", "Lock Horizon forces the horizon to be kept leveled as it currently is");
 
   prop = RNA_def_property(srna, "ndof_orbit_center_auto", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_AUTO);
@@ -6801,10 +6800,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Invert Z Axis", "");
 
   /* 3D view: fly */
-  prop = RNA_def_property(srna, "ndof_lock_horizon", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_LOCK_HORIZON);
-  RNA_def_property_ui_text(prop, "Lock Horizon", "Keep horizon level while flying with 3D Mouse");
-
   prop = RNA_def_property(srna, "ndof_fly_helicopter", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_FLY_HELICOPTER);
   RNA_def_property_ui_text(prop,
