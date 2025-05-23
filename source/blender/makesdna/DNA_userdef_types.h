@@ -515,6 +515,9 @@ typedef struct UserDef {
   float ndof_deadzone;
   /** #eNdof_Flag, flags for 3D mouse. */
   int ndof_flag;
+  /** #eNdof_Navigation_Mode, current navigation mode. */
+  uint8_t ndof_navigation_mode;
+  char _pad17[7];
 
   /** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
   short ogl_multisamples;
@@ -1009,8 +1012,8 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
 
-  /* Orbit navigation modes. */
 
+  /* Orbit navigation modes. (deprecated) */
   NDOF_MODE_ORBIT = (1 << 6),
 
   /* actually... users probably don't care about what the mode
@@ -1030,6 +1033,24 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
 } eNdof_Flag;
+
+/**
+ * NDOF Navigation Modes
+ * Each mode describes some style of navigation rather than control a single aspect of navigation.
+ * Navigation modes overview:
+ *  - Object mode: 3D mouse cap represents objects movement in 3d space. Pulling the cap will pull the objects closer to the camera.
+ *  - Fly mode: 3D mouse cap controls the movement of the view window and allows for flying through the scene.
+ */
+typedef enum eNdof_Navigation_Mode {
+  NDOF_OBJECT_MODE = 0,
+  NDOF_FLY_MODE = 1,
+  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+} eNdof_Navigation_Mode;
+
+/* Some navigation modes make use of Auto CoR and some doesnt.
+ * Instead of testing against all possibilities let's use a macro. */
+/* TODO: Add Target Camera Mode when implemented */
+#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(mode) (mode == NDOF_OBJECT_MODE)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 

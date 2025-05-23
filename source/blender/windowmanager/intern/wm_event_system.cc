@@ -5602,6 +5602,14 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
     data->tvec[2] = t;
   }
 
+  /* In object mode the 3D mouse cap movement should be a 1:1 representation of
+   * objects movement in the viewport. Therefore, it's necessary to reverse all
+   * translation and rotation values. */
+  if (U.ndof_navigation_mode == NDOF_OBJECT_MODE) {
+    negate_v3(data->rvec);
+    negate_v3(data->tvec);
+  }
+
   data->dt = ghost->dt;
 
   data->progress = (wmProgress)ghost->progress;

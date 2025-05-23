@@ -6464,8 +6464,19 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
 #  ifdef WITH_INPUT_NDOF
   static const EnumPropertyItem ndof_view_navigation_items[] = {
-      {0, "FREE", 0, "Free", "Use full 6 degrees of freedom by default"},
-      {NDOF_MODE_ORBIT, "ORBIT", 0, "Orbit", "Orbit about the view center by default"},
+      {NDOF_OBJECT_MODE,
+       "OBJECT",
+       0,
+       "Object",
+       "This mode is like reaching into the screen and holding the model in your hand. "
+       "Push the 3D Mouse cap left, and the model moves left. Push right and the model "
+       "moves right"},
+      {NDOF_FLY_MODE,
+       "FLY",
+       0,
+       "Fly",
+       "Enables using the 3D Mouse as if it is a camera. Push into the scene and the camera "
+       "moves forward into the scene. You are entering the scene as if flying around in it"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

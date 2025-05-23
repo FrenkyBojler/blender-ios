@@ -101,7 +101,7 @@ static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const floa
 static float view3d_ndof_pan_speed_calc(RegionView3D *rv3d)
 {
   float tvec[3];
-  if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
+  if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(U.ndof_navigation_mode) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
       (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID))
   {
     negate_v3_v3(tvec, rv3d->ndof_ofs);
@@ -785,7 +785,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     /* NOTE: based on feedback from #67579, users want to have pan and orbit enabled at once.
      * It's arguable that orbit shouldn't pan (since we have a pan only operator),
      * so if there are users who like to separate orbit/pan operations - it can be a preference. */
-    const bool is_orbit_around_pivot = (U.ndof_flag & NDOF_MODE_ORBIT) ||
+    const bool is_orbit_around_pivot = NDOF_IS_ORBIT_AROUND_CENTER_MODE(U.ndof_navigation_mode) ||
                                        ED_view3d_offset_lock_check(v3d, rv3d);
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
     bool has_translate, has_zoom;
@@ -955,14 +955,14 @@ static wmOperatorStatus ndof_all_invoke_impl(bContext *C,
                                              PointerRNA * /*ptr*/)
 {
   /* weak!, but it works */
-  const int ndof_flag = U.ndof_flag;
+  const int ndof_nav_saved = U.ndof_navigation_mode;;
   wmOperatorStatus ret;
 
-  U.ndof_flag &= ~NDOF_MODE_ORBIT;
+  U.ndof_navigation_mode = NDOF_FLY_MODE;
 
   ret = ndof_orbit_zoom_invoke_impl(C, vod, event, nullptr);
 
-  U.ndof_flag = ndof_flag;
+  U.ndof_navigation_mode = ndof_nav_saved;
 
   return ret;
 }
