@@ -254,7 +254,7 @@ static bool have_free_channels(bContext *C,
   /* First check simple case - strip is added to very top of timeline. */
   const int max_channel = seq::MAX_CHANNELS - need_channels + 1;
   if (channel > max_channel) {
-    *r_error_msg = "No available channel for the current frame.";
+    *r_error_msg = RPT_("No available channel for the current frame.");
     return false;
   }
 
@@ -277,7 +277,7 @@ static bool have_free_channels(bContext *C,
     }
   }
 
-  *r_error_msg = "No available channel for the current frame.";
+  *r_error_msg = RPT_("No available channel for the current frame.");
   return false;
 }
 
