@@ -472,7 +472,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
     if (!snap_object_is_snappable(sctx, snap_target_select, base_act, base)) {
       continue;

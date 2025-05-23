@@ -77,7 +77,7 @@ static Vector<Object *> get_bake_targets(bContext &C, Depsgraph &depsgraph, Scen
   Vector<Object *> bake_targets;
   Object *active_object = CTX_data_active_object(&C);
 
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
 
   if (active_object->type == OB_GREASE_PENCIL) {
     bake_targets.append(active_object);

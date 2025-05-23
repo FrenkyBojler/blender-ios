@@ -3803,7 +3803,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
     return ok;
   }
 
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
   object_duplilist(depsgraph, scene, ob, nullptr, duplilist);
   for (DupliObject &dob : duplilist) {
     if (((use_hidden == false) && (dob.no_draw != 0)) || dob.ob_data == nullptr) {

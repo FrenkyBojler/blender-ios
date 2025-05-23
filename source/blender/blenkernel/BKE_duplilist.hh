@@ -8,7 +8,7 @@
  * \ingroup bke
  */
 
-#include "BLI_vector.hh"
+#include "BLI_vector_list.hh"
 
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
@@ -66,6 +66,8 @@ struct DupliObject {
   unsigned int random_id;
 };
 
+using DupliList = blender::VectorList<DupliObject>;
+
 /**
  * Fill a Vector of #DupliObject.
  */
@@ -73,7 +75,7 @@ void object_duplilist(Depsgraph *depsgraph,
                       Scene *sce,
                       Object *ob,
                       blender::Set<const Object *> *include_objects,
-                      blender::Vector<DupliObject> &out_duplilist);
+                      DupliList &out_duplilist);
 /**
  * Fill a Vector of #DupliObject for the preview geometry referenced by the #ViewerPath.
  */
@@ -81,7 +83,7 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                               Scene *scene,
                               Object *ob,
                               const ViewerPath *viewer_path,
-                              blender::Vector<DupliObject> &out_duplilist);
+                              DupliList &out_duplilist);
 
 /**
  * Get the legacy instances of this object. That includes instances coming from these sources:

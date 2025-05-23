@@ -9,7 +9,7 @@
 
 #include "BKE_duplilist.hh"
 #include "BLI_sys_types.h"
-#include "BLI_vector.hh"
+#include "BLI_vector_list.hh"
 
 struct Base;
 struct Collection;
@@ -73,7 +73,7 @@ Object *BKE_scene_object_find_by_name(const Scene *scene, const char *name);
  * Define struct here, so no need to bother with alloc/free it.
  */
 struct SceneBaseIter {
-  blender::Vector<DupliObject> duplilist;
+  DupliList duplilist;
   DupliObject *dupob;
   int dupob_index;
   float omat[4][4];

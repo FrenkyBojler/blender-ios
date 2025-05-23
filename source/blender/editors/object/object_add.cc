@@ -2498,7 +2498,7 @@ static void make_object_duplilist_real(bContext *C,
     return;
   }
 
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
   object_duplilist(depsgraph, scene, object_eval, nullptr, duplilist);
 
   if (duplilist.is_empty()) {

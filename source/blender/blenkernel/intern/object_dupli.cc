@@ -28,7 +28,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_vector.hh"
+#include "BLI_vector_list.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
@@ -75,6 +75,7 @@ using blender::float4x4;
 using blender::Set;
 using blender::Span;
 using blender::Vector;
+using blender::VectorList;
 using blender::bke::GeometrySet;
 using blender::bke::InstanceReference;
 using blender::bke::Instances;
@@ -137,7 +138,7 @@ struct DupliContext {
   const struct DupliGenerator *gen;
 
   /** Result containers. */
-  Vector<DupliObject> *duplilist;
+  DupliList *duplilist;
 };
 
 struct DupliGenerator {
@@ -159,7 +160,7 @@ static void init_context(DupliContext *r_ctx,
                          blender::Set<const Object *> *include_objects,
                          Vector<Object *> &instance_stack,
                          Vector<short> &dupli_gen_type_stack,
-                         Vector<DupliObject> &duplilist)
+                         DupliList &duplilist)
 {
   r_ctx->depsgraph = depsgraph;
   r_ctx->scene = scene;
@@ -1807,7 +1808,7 @@ void object_duplilist(Depsgraph *depsgraph,
                       Scene *sce,
                       Object *ob,
                       Set<const Object *> *include_objects,
-                      blender::Vector<DupliObject> &out_duplilist)
+                      DupliList &out_duplilist)
 {
   DupliContext ctx;
   Vector<Object *> instance_stack;
@@ -1831,7 +1832,7 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                               Scene *sce,
                               Object *ob_eval,
                               const ViewerPath *viewer_path,
-                              blender::Vector<DupliObject> &out_duplilist)
+                              DupliList &out_duplilist)
 {
   DupliContext ctx;
   Vector<Object *> instance_stack;
@@ -1877,7 +1878,7 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   using namespace blender;
 
   DupliContext ctx;
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
   Vector<Object *> instance_stack({&ob});
   Vector<short> dupli_gen_type_stack({0});
 

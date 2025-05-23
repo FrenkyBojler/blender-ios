@@ -287,7 +287,7 @@ void AbstractHierarchyIterator::export_graph_construct()
   deg_iter_settings.depsgraph = depsgraph_;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET;
-  Vector<DupliObject> duplilist;
+  DupliList duplilist;
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, object) {
     /* Non-instanced objects always have their object-parent as export-parent. */
     const bool weak_export = mark_as_weak_export(object);
