@@ -7,9 +7,9 @@
  * \ingroup bke
  */
 
-#include "BKE_duplilist.hh"
 #include "BLI_sys_types.h"
-#include "BLI_vector_list.hh"
+
+#include "BKE_duplilist.hh"
 
 struct Base;
 struct Collection;
