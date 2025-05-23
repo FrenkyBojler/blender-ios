@@ -8,7 +8,6 @@
 
 #include <cstdlib>
 
-#include "BLI_math_vector.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
@@ -16,6 +15,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
@@ -1316,10 +1316,12 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
         *dst_group, src_node, *item_decl, nullptr, r_mapping);
   }
 
+  /* Add the node that make up the wrapper node group. */
   bNode &input_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_INPUT);
   bNode &output_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_OUTPUT);
   bNode &inner_node = *bke::node_copy(dst_group, src_node, 0, true);
 
+  /* Position nodes. */
   input_node.location[0] = -300 - input_node.width;
   output_node.location[0] = 300;
   inner_node.location[0] = -src_node.width / 2;
@@ -1327,11 +1329,14 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
   inner_node.width = src_node.width;
   inner_node.parent = nullptr;
 
+  /* This makes sure that all nodes have the correct sockets so that we can link. */
   BKE_main_ensure_invariants(bmain, dst_group->id);
 
+  /* Expand all panels in wrapper node group. */
   for (bNodePanelState &panel_state : inner_node.panel_states()) {
     panel_state.flag &= ~NODE_PANEL_COLLAPSED;
   }
+  /* Make all sockets visible in wrapper node group. */
   for (bNodeSocket *socket : inner_node.input_sockets()) {
     socket->flag &= ~SOCK_HIDDEN;
   }
@@ -1343,12 +1348,14 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
   const Array<bNodeSocket *> group_outputs = output_node.input_sockets().drop_back(1);
   Vector<bNodeSocket *> inner_inputs = inner_node.input_sockets();
   Vector<bNodeSocket *> inner_outputs = inner_node.output_sockets();
+
+  /* Some built-in nodes have unavailable sockets, those are not part of the wrapper node group. */
   inner_inputs.remove_if([&](const bNodeSocket *socket) { return !socket->is_available(); });
   inner_outputs.remove_if([&](const bNodeSocket *socket) { return !socket->is_available(); });
-
   BLI_assert(group_inputs.size() == inner_inputs.size());
   BLI_assert(inner_outputs.size() == group_outputs.size());
 
+  /* Add links. */
   for (const int i : group_inputs.index_range()) {
     bke::node_add_link(*dst_group, input_node, *group_inputs[i], inner_node, *inner_inputs[i]);
   }
@@ -1370,12 +1377,16 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   WrapperNodeGroupMapping mapping;
   bNodeTree *wrapper_group = node_group_make_wrapper(C, ntree, src_node, mapping);
 
+  /* Create a group node. */
   bNode *gnode = bke::node_add_node(&C, ntree, node_idname);
   STRNCPY(gnode->name, BKE_id_name(wrapper_group->id));
   bke::node_unique_name(ntree, *gnode);
 
+  /* Assign the newly created wrapper group to the new group node. */
   gnode->id = &wrapper_group->id;
   id_us_plus(gnode->id);
+
+  /* Position node node exactly where the old node was. */
   gnode->parent = src_node.parent;
   gnode->width = src_node.width;
   copy_v2_v2(gnode->location, src_node.location);
