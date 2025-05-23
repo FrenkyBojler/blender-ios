@@ -1128,26 +1128,21 @@ IndexMask retrieve_visible_strokes(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const bke::AttributeAccessor attributes = curves.attributes();
-
-  if (hidden_material_indices.is_empty() && !attributes.contains(".is_boundary")) {
-    return curves.curves_range();
+  if (hidden_material_indices.is_empty()) {
+    return drawing.strokes().curves_range();
   }
 
+  const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange curves_range = drawing.strokes().curves_range();
+  const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
       "material_index", bke::AttrDomain::Curve, 0);
-  /* Temporary attribute created by the fill tool. These strokes are not meant to be visible in the
-   * render. */
-  const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
-      ".is_boundary", bke::AttrDomain::Curve, false);
   return IndexMask::from_predicate(
       curves_range, GrainSize(4096), memory, [&](const int64_t curve_i) {
         const int material_index = materials[curve_i];
-        return !hidden_material_indices.contains(material_index) && !is_boundary_stroke[curve_i];
+        return !hidden_material_indices.contains(material_index);
       });
 }
 
@@ -1158,14 +1153,13 @@ IndexMask retrieve_visible_points(Object &object,
   /* Get all the hidden material indices. */
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
-  const bke::CurvesGeometry &curves = drawing.strokes();
-  const bke::AttributeAccessor attributes = curves.attributes();
-
-  if (hidden_material_indices.is_empty() && !attributes.contains(".is_boundary")) {
-    return curves.points_range();
+  if (hidden_material_indices.is_empty()) {
+    return drawing.strokes().points_range();
   }
 
+  const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexRange points_range = curves.points_range();
+  const bke::AttributeAccessor attributes = curves.attributes();
 
   /* Propagate the material index to the points. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
@@ -1177,16 +1171,11 @@ IndexMask retrieve_visible_points(Object &object,
     return {};
   }
 
-  /* Temporary attribute created by the fill tool. These strokes are not meant to be visible in the
-   * render. */
-  const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
-      ".is_boundary", bke::AttrDomain::Point, false);
-
   /* Get all the points that are part of a stroke with a visible material. */
   return IndexMask::from_predicate(
       points_range, GrainSize(4096), memory, [&](const int64_t point_i) {
         const int material_index = materials[point_i];
-        return !hidden_material_indices.contains(material_index) && !is_boundary_stroke[point_i];
+        return !hidden_material_indices.contains(material_index);
       });
 }
 
