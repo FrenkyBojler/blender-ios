@@ -2,7 +2,7 @@
 FileHandler for Importing multiple files and exposing Operator options
 ----------------------------------------------------------------------
 
-Operators which support being executed with multiple files from 'drag-and-drop', require the
+Operators which support being executed with multiple files from 'drag-and-drop' require the
 following properties be defined:
 
 .. code-block:: python
