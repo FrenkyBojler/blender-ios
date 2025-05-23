@@ -723,7 +723,7 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
  * terminator. In general, this should be the size of the underlying allocation
  * of `out_path`.
  *
- * \param template_variable_map: map of variables and their values to use during
+ * \param template_variables: map of variables and their values to use during
  * template substitution.
  *
  * \return An empty vector on success, or a vector of templating errors on
@@ -733,7 +733,7 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
 static blender::Vector<Error> eval_template(char *out_path,
                                             const int out_path_max_length,
                                             blender::StringRef in_path,
-                                            const VariableMap &template_variable_map)
+                                            const VariableMap &template_variables)
 {
   if (out_path) {
     in_path.copy_utf8_truncated(out_path, out_path_max_length);
@@ -783,7 +783,7 @@ static blender::Vector<Error> eval_template(char *out_path,
 
       /* Expand variable expression into the variable's value. */
       case TokenType::VARIABLE_EXPRESSION: {
-        if (std::optional<blender::StringRefNull> string_value = template_variable_map.get_string(
+        if (std::optional<blender::StringRefNull> string_value = template_variables.get_string(
                 token.variable_name))
         {
           /* String variable found, but we only process it if there's no format
@@ -797,7 +797,7 @@ static blender::Vector<Error> eval_template(char *out_path,
           break;
         }
 
-        if (std::optional<int64_t> integer_value = template_variable_map.get_integer(
+        if (std::optional<int64_t> integer_value = template_variables.get_integer(
                 token.variable_name))
         {
           /* Integer variable found. */
@@ -805,8 +805,7 @@ static blender::Vector<Error> eval_template(char *out_path,
           break;
         }
 
-        if (std::optional<double> float_value = template_variable_map.get_float(
-                token.variable_name))
+        if (std::optional<double> float_value = template_variables.get_float(token.variable_name))
         {
           /* Float variable found. */
           format_float_to_string(token.format, *float_value, replacement_string);
