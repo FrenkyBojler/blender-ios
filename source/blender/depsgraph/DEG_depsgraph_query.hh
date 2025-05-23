@@ -266,7 +266,7 @@ struct DEGObjectIterData {
   /* Object which created the dupli-list. */
   Object *dupli_parent;
   /* List of duplicated objects. */
-  static inline thread_local DupliList dupli_list;
+  DupliList dupli_list;
   /* Next duplicated object to step into. */
   DupliObject *dupli_object_next;
   /* The dupli_list index of dupli_object_next. */
