@@ -1195,11 +1195,17 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_FENCE_WIN32_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_WIN32_KEYED_MUTEX_EXTENSION_NAME);
 #elif not defined(__APPLE__)
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME);
 #endif
+  /* Although this extension has been promoted to VK_EXT_debug_utils, Some OpenXR platforms rely on
+   * this specific extension to be enabled.
+   * - SteamVR + PSVR2
+   */
+  optional_device_extensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
 
 #ifdef __APPLE__
   optional_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
@@ -1243,6 +1249,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
      * looking if they are implicitly enabled. */
     s_enabled_instance_extensions.emplace_back(
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    /* Although this extension has been promoted to VK_KHR_external_memory_capabilities, Some
+     * OpenXR platforms rely on this specific extension to be enabled.
+     * - SteamVR + PSVR2
+     */
+    s_enabled_instance_extensions.emplace_back(VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     s_enabled_instance_extensions.emplace_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
     s_enabled_instance_extensions.emplace_back(VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME);
     s_enabled_instance_extensions.emplace_back(
