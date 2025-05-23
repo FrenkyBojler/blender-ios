@@ -31,6 +31,9 @@ namespace blender {
  *
  * When a VectorList reserved memory is full it will allocate memory for the new items, breaking
  * the sequential access. Within each allocated memory block the elements are ordered sequentially.
+ *
+ * Indexing has some overhead compared to a Vector or an Array, but it still has constant time
+ * access.
  */
 template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> class VectorList {
   using SelfT = VectorList<T, CapacityStart, CapacityMax>;
@@ -163,6 +166,11 @@ template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> cla
   }
 
  private:
+  /**
+   * Convert a global index into a Vector index and Element index pair.
+   * We use the fact that vector sizes increase geometrically to compute this in constant time.
+   * https://en.wikipedia.org/wiki/Geometric_progression
+   */
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index) const
   {
     BLI_assert(index >= 0);
