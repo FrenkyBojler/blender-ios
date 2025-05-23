@@ -986,7 +986,9 @@ class NODE_PT_node_tree_interface(Panel):
 
             if active_item.item_type == 'PANEL':
                 layout.prop(active_item, "description")
-                layout.prop(active_item, "default_closed", text="Closed by Default")
+                layout.prop(active_item, "layout_mode", text="Layout")
+                if active_item.layout_mode == 'NORMAL':
+                    layout.prop(active_item, "default_closed", text="Closed by Default")
 
             layout.use_property_split = False
 

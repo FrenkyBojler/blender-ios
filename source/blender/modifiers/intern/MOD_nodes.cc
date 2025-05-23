@@ -2510,6 +2510,148 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
                                          const bNodeTreeInterfacePanel &interface_panel,
+                                         const bool skip_first);
+
+static void draw_interface_panel_normal(DrawGroupInputsContext &ctx,
+                                        uiLayout &layout,
+                                        const bNodeTreeInterfacePanel &interface_panel)
+{
+  NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, interface_panel.identifier);
+  PointerRNA panel_ptr = RNA_pointer_create_discrete(
+      ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
+  PanelLayout panel_layout;
+  bool skip_first = false;
+  /* Check if the panel should have a toggle in the header. */
+  const bNodeTreeInterfaceSocket *toggle_socket = interface_panel.header_toggle_socket();
+  if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
+    const StringRefNull identifier = toggle_socket->identifier;
+    IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
+    /* IDProperties can be removed with python, so there could be a situation where
+     * there isn't a property for a socket or it doesn't have the correct type. */
+    if (property == nullptr || !nodes::id_property_type_matches_socket(*toggle_socket, *property))
+    {
+      return;
+    }
+    char socket_id_esc[MAX_NAME * 2];
+    BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
+
+    char rna_path[sizeof(socket_id_esc) + 4];
+    SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
+
+    panel_layout = layout.panel_prop_with_bool_header(
+        &ctx.C, &panel_ptr, "is_open", ctx.md_ptr, rna_path, IFACE_(interface_panel.name));
+    skip_first = true;
+  }
+  else {
+    panel_layout = layout.panel_prop(&ctx.C, &panel_ptr, "is_open");
+    panel_layout.header->label(IFACE_(interface_panel.name), ICON_NONE);
+  }
+  if (!interface_panel_affects_output(ctx, interface_panel)) {
+    uiLayoutSetActive(panel_layout.header, false);
+  }
+  uiLayoutSetTooltipFunc(
+      panel_layout.header,
+      [](bContext * /*C*/, void *panel_arg, const StringRef /*tip*/) -> std::string {
+        const auto *panel = static_cast<bNodeTreeInterfacePanel *>(panel_arg);
+        return StringRef(panel->description);
+      },
+      const_cast<bNodeTreeInterfacePanel *>(&interface_panel),
+      nullptr,
+      nullptr);
+  if (panel_layout.body) {
+    draw_interface_panel_content(ctx, panel_layout.body, interface_panel, skip_first);
+  }
+}
+
+struct PanelRow_Booleans {
+  Vector<const bNodeTreeInterfaceSocket *> inputs;
+};
+
+struct PanelRow_BooleanAndValue {
+  const bNodeTreeInterfaceSocket *boolean_input;
+  const bNodeTreeInterfaceSocket *value_input;
+};
+
+using PanelRowType = std::variant<PanelRow_Booleans, PanelRow_BooleanAndValue>;
+
+static std::optional<PanelRow_Booleans> get_panel_row_booleans(
+    DrawGroupInputsContext &ctx, const bNodeTreeInterfacePanel &interface_panel)
+{
+  PanelRow_Booleans result;
+  for (const bNodeTreeInterfaceItem *item : interface_panel.items()) {
+    if (item->item_type != NODE_INTERFACE_SOCKET) {
+      return std::nullopt;
+    }
+    const auto &socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
+    if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+      return std::nullopt;
+    }
+    const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+    if (!ctx.input_usages[input_index].is_visible) {
+      return std::nullopt;
+    }
+    if (socket.socket_typeinfo()->type != SOCK_BOOLEAN) {
+      return std::nullopt;
+    }
+    result.inputs.append(&socket);
+  }
+  if (result.inputs.is_empty()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+static std::optional<PanelRowType> get_panel_row_type(
+    DrawGroupInputsContext &ctx, const bNodeTreeInterfacePanel &interface_panel)
+{
+  if (std::optional<PanelRow_Booleans> booleans = get_panel_row_booleans(ctx, interface_panel)) {
+    return booleans;
+  }
+  return std::nullopt;
+}
+
+static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
+                                     uiLayout &layout,
+                                     const bNodeTreeInterfacePanel &interface_panel)
+{
+  const std::optional<PanelRowType> row_type = get_panel_row_type(ctx, interface_panel);
+  if (!row_type.has_value()) {
+    /* Fallback to the default panel drawing mode. */
+    draw_interface_panel_normal(ctx, layout, interface_panel);
+    return;
+  }
+  if (const auto *booleans = std::get_if<PanelRow_Booleans>(&*row_type)) {
+    bool any_active = std::any_of(
+        booleans->inputs.begin(),
+        booleans->inputs.end(),
+        [&](const bNodeTreeInterfaceSocket *socket) {
+          return ctx.input_usages[ctx.nmd.node_group->interface_input_index(*socket)].is_used;
+        });
+
+    /* Row with heading does not seem to work here yet with the sub-layouts required for separate
+     * active-status for each property. */
+    uiLayout &row = layout.row(false);
+    uiLayoutSetPropDecorate(&row, false);
+    uiLayoutSetPropSep(&row, false);
+    uiLayout &split = row.split(0.4f, false);
+    uiLayout &heading = split.row(false);
+    uiLayoutSetActive(&heading, any_active);
+    uiLayoutSetAlignment(&heading, UI_LAYOUT_ALIGN_RIGHT);
+    heading.label(interface_panel.name, ICON_NONE);
+    uiLayout &props_row = split.row(true);
+    for (const bNodeTreeInterfaceSocket *socket : booleans->inputs) {
+      const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket->identifier));
+      uiLayout &subrow = props_row.row(true);
+      uiLayoutSetActive(
+          &subrow, ctx.input_usages[ctx.nmd.node_group->interface_input_index(*socket)].is_used);
+      subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_R_TOGGLE, socket->name, ICON_NONE);
+    }
+  }
+}
+
+static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
+                                         uiLayout *layout,
+                                         const bNodeTreeInterfacePanel &interface_panel,
                                          const bool skip_first = false)
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
@@ -2520,55 +2662,15 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         if (!interface_panel_has_socket(ctx, sub_interface_panel)) {
           continue;
         }
-        NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
-        PointerRNA panel_ptr = RNA_pointer_create_discrete(
-            ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
-        PanelLayout panel_layout;
-        bool skip_first = false;
-        /* Check if the panel should have a toggle in the header. */
-        const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
-        if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-          const StringRefNull identifier = toggle_socket->identifier;
-          IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
-          /* IDProperties can be removed with python, so there could be a situation where
-           * there isn't a property for a socket or it doesn't have the correct type. */
-          if (property == nullptr ||
-              !nodes::id_property_type_matches_socket(*toggle_socket, *property))
-          {
-            continue;
+        switch (NodeTreeInterfacePanelLayoutMode(sub_interface_panel.layout_mode)) {
+          case NODE_INTERFACE_PANEL_LAYOUT_MODE_NORMAL: {
+            draw_interface_panel_normal(ctx, *layout, sub_interface_panel);
+            break;
           }
-          char socket_id_esc[MAX_NAME * 2];
-          BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
-
-          char rna_path[sizeof(socket_id_esc) + 4];
-          SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
-
-          panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
-                                                             &panel_ptr,
-                                                             "is_open",
-                                                             ctx.md_ptr,
-                                                             rna_path,
-                                                             IFACE_(sub_interface_panel.name));
-          skip_first = true;
-        }
-        else {
-          panel_layout = layout->panel_prop(&ctx.C, &panel_ptr, "is_open");
-          panel_layout.header->label(IFACE_(sub_interface_panel.name), ICON_NONE);
-        }
-        if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
-          uiLayoutSetActive(panel_layout.header, false);
-        }
-        uiLayoutSetTooltipFunc(
-            panel_layout.header,
-            [](bContext * /*C*/, void *panel_arg, const StringRef /*tip*/) -> std::string {
-              const auto *panel = static_cast<bNodeTreeInterfacePanel *>(panel_arg);
-              return StringRef(panel->description);
-            },
-            const_cast<bNodeTreeInterfacePanel *>(&sub_interface_panel),
-            nullptr,
-            nullptr);
-        if (panel_layout.body) {
-          draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel, skip_first);
+          case NODE_INTERFACE_PANEL_LAYOUT_MODE_ROW: {
+            draw_interface_panel_row(ctx, *layout, sub_interface_panel);
+            break;
+          }
         }
         break;
       }
