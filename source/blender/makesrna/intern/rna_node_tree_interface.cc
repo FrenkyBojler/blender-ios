@@ -1023,7 +1023,10 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_HIDE_LABEL);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
-      prop, "Hide Label", "Hide the socket input label even when the socket is not connected");
+      prop,
+      "Hide Label",
+      "Hide the socket label where appropriate. Even if this is set, the label may be shown in "
+      "some places like when the value is hidden as well");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "hide_in_modifier", PROP_BOOLEAN, PROP_NONE);
