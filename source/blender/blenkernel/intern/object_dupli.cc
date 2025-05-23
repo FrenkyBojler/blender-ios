@@ -1808,7 +1808,7 @@ void object_duplilist(Depsgraph *depsgraph,
                       Scene *sce,
                       Object *ob,
                       Set<const Object *> *include_objects,
-                      DupliList &out_duplilist)
+                      DupliList &r_duplilist)
 {
   DupliContext ctx;
   Vector<Object *> instance_stack;
@@ -1822,7 +1822,7 @@ void object_duplilist(Depsgraph *depsgraph,
                include_objects,
                instance_stack,
                dupli_gen_type_stack,
-               out_duplilist);
+               r_duplilist);
   if (ctx.gen) {
     ctx.gen->make_duplis(&ctx);
   }
@@ -1832,7 +1832,7 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                               Scene *sce,
                               Object *ob_eval,
                               const ViewerPath *viewer_path,
-                              DupliList &out_duplilist)
+                              DupliList &r_duplilist)
 {
   DupliContext ctx;
   Vector<Object *> instance_stack;
@@ -1846,7 +1846,7 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                nullptr,
                instance_stack,
                dupli_gen_type_stack,
-               out_duplilist);
+               r_duplilist);
 
   Object *ob_orig = DEG_get_original(ob_eval);
 

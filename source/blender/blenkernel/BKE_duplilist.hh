@@ -75,7 +75,7 @@ void object_duplilist(Depsgraph *depsgraph,
                       Scene *sce,
                       Object *ob,
                       blender::Set<const Object *> *include_objects,
-                      DupliList &out_duplilist);
+                      DupliList &r_duplilist);
 /**
  * Fill a Vector of #DupliObject for the preview geometry referenced by the #ViewerPath.
  */
@@ -83,7 +83,7 @@ void object_duplilist_preview(Depsgraph *depsgraph,
                               Scene *scene,
                               Object *ob,
                               const ViewerPath *viewer_path,
-                              DupliList &out_duplilist);
+                              DupliList &r_duplilist);
 
 /**
  * Get the legacy instances of this object. That includes instances coming from these sources:
