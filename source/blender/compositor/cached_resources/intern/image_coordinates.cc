@@ -62,8 +62,8 @@ ImageCoordinates::~ImageCoordinates()
 static const char *get_shader_name(const CoordinatesType type)
 {
   switch (type) {
-    case CoordinatesType::Texture:
-      return "compositor_image_coordinates_texture";
+    case CoordinatesType::Uniform:
+      return "compositor_image_coordinates_uniform";
     case CoordinatesType::Normalized:
       return "compositor_image_coordinates_normalized";
     case CoordinatesType::Pixel:
@@ -90,7 +90,7 @@ void ImageCoordinates::compute_gpu(Context &context, const CoordinatesType type)
 void ImageCoordinates::compute_cpu(const CoordinatesType type)
 {
   switch (type) {
-    case CoordinatesType::Texture: {
+    case CoordinatesType::Uniform: {
       const int2 size = this->result.domain().size;
       const int max_size = math::max(size.x, size.y);
       parallel_for(size, [&](const int2 texel) {

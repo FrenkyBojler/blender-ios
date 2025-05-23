@@ -13,11 +13,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image").hide_value().compositor_realization_mode(
       CompositorInputRealizationMode::None);
 
-  b.add_output<decl::Vector>("Texture").description(
-      "Zero centered coordinates normalizes along the larger dimension. Suitable for use with "
-      "texture nodes");
+  b.add_output<decl::Vector>("Uniform").description(
+      "Zero centered coordinates normalizes along the larger dimension for uniform scaling");
   b.add_output<decl::Vector>("Normalized")
-      .description("Normalized coordinates with half pixel offsets. Suitable for image sampling");
+      .description("Normalized coordinates with half pixel offsets");
   b.add_output<decl::Vector>("Pixel").description("Integer pixel coordinates");
 }
 
@@ -33,17 +32,26 @@ class ImageCoordinatesOperation : public NodeOperation {
 
   void execute() override
   {
-    const Domain domain = this->compute_domain();
-
-    Result &texture_coordinates_result = this->get_result("Texture");
-    if (texture_coordinates_result.should_compute()) {
-      const Result &texture_coordinates = this->context().cache_manager().image_coordinates.get(
-          this->context(), domain.size, CoordinatesType::Texture);
-      texture_coordinates_result.wrap_external(texture_coordinates);
-      texture_coordinates_result.transform(domain.transformation);
+    const Result &input = this->get_input("Image");
+    Result &uniform_coordinates_result = this->get_result("Uniform");
+    Result &normalized_coordinates_result = this->get_result("Normalized");
+    Result &pixel_coordinates_result = this->get_result("Pixel");
+    if (input.is_single_value()) {
+      uniform_coordinates_result.allocate_invalid();
+      normalized_coordinates_result.allocate_invalid();
+      pixel_coordinates_result.allocate_invalid();
+      return;
     }
 
-    Result &normalized_coordinates_result = this->get_result("Normalized");
+    const Domain domain = input.domain();
+
+    if (uniform_coordinates_result.should_compute()) {
+      const Result &uniform_coordinates = this->context().cache_manager().image_coordinates.get(
+          this->context(), domain.size, CoordinatesType::Uniform);
+      uniform_coordinates_result.wrap_external(uniform_coordinates);
+      uniform_coordinates_result.transform(domain.transformation);
+    }
+
     if (normalized_coordinates_result.should_compute()) {
       const Result &normalized_coordinates = this->context().cache_manager().image_coordinates.get(
           this->context(), domain.size, CoordinatesType::Normalized);
@@ -51,22 +59,12 @@ class ImageCoordinatesOperation : public NodeOperation {
       normalized_coordinates_result.transform(domain.transformation);
     }
 
-    Result &pixel_coordinates_result = this->get_result("Pixel");
     if (pixel_coordinates_result.should_compute()) {
       const Result &pixel_coordinates = this->context().cache_manager().image_coordinates.get(
           this->context(), domain.size, CoordinatesType::Pixel);
       pixel_coordinates_result.wrap_external(pixel_coordinates);
       pixel_coordinates_result.transform(domain.transformation);
     }
-  }
-
-  Domain compute_domain() override
-  {
-    const Result &input = this->get_input("Image");
-    if (!input.is_single_value()) {
-      return input.domain();
-    }
-    return Domain(this->context().get_compositing_region_size());
   }
 };
 

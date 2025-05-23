@@ -18,7 +18,7 @@ namespace blender::compositor {
 class Context;
 
 enum class CoordinatesType : uint8_t {
-  Texture,
+  Uniform,
   Normalized,
   Pixel,
 };
