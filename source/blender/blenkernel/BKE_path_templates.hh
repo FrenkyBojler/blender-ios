@@ -136,9 +136,9 @@ bool operator==(const Error &left, const Error &right);
  * Build a template variable map for the passed RNA property.
  *
  * \param C: the context to use for building some variables. This is needed in
- * some cases when the property itself does not provide direct access to the
- * data needed for a variable. This can be null, but the variables it's needed
- * for will then be absent in the returned variable map.
+ * some cases when the property and its owner do not provide the data needed for
+ * a variable. This parameter can be null, but the variables it's needed for
+ * will then be absent in the returned variable map.
  *
  * \return On success, returns the template variables for the property. If no
  * property is provided or if the property doesn't support path templates,
