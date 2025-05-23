@@ -598,7 +598,13 @@ void OneapiDevice::const_copy_to(const char *name, void *host, const size_t size
 
     /* Update scene handle(since it is different for each device on multi devices) */
     KernelData *const data = (KernelData *)host;
-    data->device_bvh = embree_scene;
+    data->device_bvh =
+#    if RTC_VERSION >= 40400
+        rtcGetSceneTraversable(embree_scene)
+#    else
+        embree_scene
+#    endif
+        ;
 
     /* We need this number later for proper local memory allocation. */
     scene_max_shaders_ = data->max_shaders;
@@ -928,7 +934,8 @@ unique_ptr<DeviceQueue> OneapiDevice::gpu_queue_create()
   return make_unique<OneapiDeviceQueue>(this);
 }
 
-bool OneapiDevice::should_use_graphics_interop()
+bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice & /*interop_device*/,
+                                               const bool /*log*/)
 {
   /* NOTE(@nsirgien): oneAPI doesn't yet support direct writing into graphics API objects, so
    * return false. */

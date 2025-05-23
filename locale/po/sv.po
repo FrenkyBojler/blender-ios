@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:41+0000\n"
 "Last-Translator: Marcus Edmark Lindh <marcus.lindh@outlook.com>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -1887,6 +1887,10 @@ msgid "Children"
 msgstr "Barn"
 
 
+msgid "Wire"
+msgstr "Trådmodell"
+
+
 msgid "Head"
 msgstr "Huvud"
 
@@ -3488,10 +3492,6 @@ msgid "Layers"
 msgstr "Lager"
 
 
-msgid "Wire"
-msgstr "Trådmodell"
-
-
 msgid "Theme"
 msgstr "Tema"
 
@@ -3724,6 +3724,10 @@ msgstr "Lista på bakgrundsbilder"
 
 msgid "Clip Start"
 msgstr "Beskärningsstart"
+
+
+msgid "Use internal text data-block"
+msgstr "Använd internt text-datablock"
 
 
 msgid "Depth Of Field"
@@ -6405,10 +6409,6 @@ msgstr "Konvertera en färgs luminans till ett gråskalevärde"
 
 msgid "Script Source"
 msgstr "Skriptkälla"
-
-
-msgid "Use internal text data-block"
-msgstr "Använd internt text-datablock"
 
 
 msgid "Use external .osl or .oso file"
@@ -9913,11 +9913,6 @@ msgstr "+Z till -Z"
 
 
 msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Trianglar till fyrhörningar"
-
-
-msgctxt "Operator"
 msgid "Add UV Map"
 msgstr "Lägg till UV-karta"
 
@@ -12408,14 +12403,6 @@ msgid "UI Scale"
 msgstr "Gränssnittsskala"
 
 
-msgid "Use Disk Cache"
-msgstr "Använd disk-cache"
-
-
-msgid "Store cached images to disk"
-msgstr "Lagra cachade bilder på disk"
-
-
 msgid "Edit Studio Light"
 msgstr "Redigera studioljus"
 
@@ -14081,10 +14068,6 @@ msgstr "Ytspänning"
 
 msgid "Velocity Source"
 msgstr "Hastighetskälla"
-
-
-msgid "Is Resumable"
-msgstr "Kan återupptas"
 
 
 msgctxt "Operator"
@@ -16476,10 +16459,6 @@ msgstr "Spara som..."
 
 msgid "Don't Save"
 msgstr "Spara inte"
-
-
-msgid "This file was saved by a newer version of Blender (%s)"
-msgstr "Denna fil har sparats av en nyare version av Blender (%s)"
 
 
 msgid "Save changes before closing?"

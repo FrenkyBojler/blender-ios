@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'b6372b3af3f7')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-21 07:54+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:40+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1189,6 +1189,34 @@ msgstr "Наследници"
 
 msgid "Bones which are children of this bone"
 msgstr "Кости које су наследници ове кости"
+
+
+msgid "Stick"
+msgstr "Лепљив"
+
+
+msgid "Display bones as simple 2D lines with dots"
+msgstr "Прикажи кости као једноставне 2D линије и тачке"
+
+
+msgid "B-Bone"
+msgstr "Б-кост"
+
+
+msgid "Display bones as boxes, showing subdivision and B-Splines"
+msgstr "Приказује кости као коцке, приказујући поделе и Б-криве"
+
+
+msgid "Envelope"
+msgstr "Коверат"
+
+
+msgid "Display bones as extruded spheres, showing deformation influence volume"
+msgstr "Приказује кости као извучене облике, приказујући утицај деформације"
+
+
+msgid "Wire"
+msgstr "Жица"
 
 
 msgid "Head"
@@ -4866,34 +4894,6 @@ msgstr "Групе"
 
 msgid "Layers"
 msgstr "Слојеви"
-
-
-msgid "Stick"
-msgstr "Лепљив"
-
-
-msgid "Display bones as simple 2D lines with dots"
-msgstr "Прикажи кости као једноставне 2D линије и тачке"
-
-
-msgid "B-Bone"
-msgstr "Б-кост"
-
-
-msgid "Display bones as boxes, showing subdivision and B-Splines"
-msgstr "Приказује кости као коцке, приказујући поделе и Б-криве"
-
-
-msgid "Envelope"
-msgstr "Коверат"
-
-
-msgid "Display bones as extruded spheres, showing deformation influence volume"
-msgstr "Приказује кости као извучене облике, приказујући утицај деформације"
-
-
-msgid "Wire"
-msgstr "Жица"
 
 
 msgid "Edit Bones"
@@ -10667,20 +10667,8 @@ msgid "Box Mask"
 msgstr "Маска кутије"
 
 
-msgid "Height of the box"
-msgstr "Висина кутије"
-
-
 msgid "Not"
 msgstr "Не"
-
-
-msgid "Width of the box"
-msgstr "Ширина кутије"
-
-
-msgid "Rotation angle of the box"
-msgstr "Угао ротације кутије"
 
 
 msgid "Channel Key"
@@ -10731,23 +10719,11 @@ msgid "Shadows Contrast"
 msgstr "Контраст сенки"
 
 
-msgid "Shadows contrast"
-msgstr "Контраст сенки"
-
-
 msgid "Shadows Gamma"
 msgstr "Гама сенки"
 
 
-msgid "Shadows gamma"
-msgstr "Гама сенки"
-
-
 msgid "Shadows Saturation"
-msgstr "Засићеност сенки"
-
-
-msgid "Shadows saturation"
 msgstr "Засићеност сенки"
 
 
@@ -10757,10 +10733,6 @@ msgstr "Кључ боје"
 
 msgid "H"
 msgstr "Т"
-
-
-msgid "Hue tolerance for colors to be considered a keying color"
-msgstr "Толеранција тона за боје које се сматрају кључне"
 
 
 msgid "S"
@@ -10901,18 +10873,6 @@ msgstr "Задржи у"
 
 msgid "Ellipse Mask"
 msgstr "Елиптична маска"
-
-
-msgid "Height of the ellipse"
-msgstr "Висина елипсе"
-
-
-msgid "Width of the ellipse"
-msgstr "Ширина елипсе"
-
-
-msgid "Rotation angle of the ellipse"
-msgstr "Угао ротације елипсе"
 
 
 msgid "Filter Type"
@@ -11075,10 +11035,6 @@ msgid "Pixel Size"
 msgstr "Величина пиксела"
 
 
-msgid "Number of motion blur samples"
-msgstr "Поставља број додатних бљесова"
-
-
 msgid "Alpha Convert"
 msgstr "Претвори алфу"
 
@@ -11093,14 +11049,6 @@ msgstr "Рендеруј слојеве"
 
 msgid "Rotate"
 msgstr "Ротирање"
-
-
-msgid "Offset image horizontally (factor of image size)"
-msgstr "Водоравно померање слике од центра сцене"
-
-
-msgid "Offset image vertically (factor of image size)"
-msgstr "Водоравно померање слике од центра сцене"
 
 
 msgid "Set Alpha"
@@ -15397,10 +15345,6 @@ msgid "At Last"
 msgstr "За последње"
 
 
-msgid "Fill Holes"
-msgstr "Попуни рупе"
-
-
 msgid "Median"
 msgstr "Средиште"
 
@@ -15793,15 +15737,6 @@ msgstr "-Z до +Z"
 msgctxt "Operator"
 msgid "Snap to Symmetry"
 msgstr "Лепи за симетрију"
-
-
-msgctxt "Operator"
-msgid "Tris to Quads"
-msgstr "Троуглови у четвороуглове"
-
-
-msgid "Join triangles into quads"
-msgstr "Спаја троуглове у четвороуглове"
 
 
 msgctxt "Operator"
@@ -17924,6 +17859,10 @@ msgid "Custom Curve"
 msgstr "Прилагођена крива"
 
 
+msgid "Fill Holes"
+msgstr "Попуни рупе"
+
+
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Једноставна детаљност"
@@ -19771,12 +19710,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Transform Orientations"
-msgstr "Трансформација оријентација"
-
-
 msgid "Motion Tracking"
 msgstr "Праћење покрета"
+
+
+msgid "Transform Orientations"
+msgstr "Трансформација оријентација"
 
 
 msgid "Bone Constraints"
@@ -21272,10 +21211,6 @@ msgstr "Број хоризонталних пиксела у рендерова
 
 msgid "Number of vertical pixels in the rendered image"
 msgstr "Број Вертикалних пиксела у рендерованој слици"
-
-
-msgid "Display the object as wire edges"
-msgstr "Прикажи објекат са жичаним ивицама"
 
 
 msgid "Simplify Subdivision"
@@ -23631,6 +23566,10 @@ msgid "Lock Invert All"
 msgstr "Закључај све обрнуто"
 
 
+msgid "Auto Normalize"
+msgstr "Ауто-нормализација"
+
+
 msgid "Detail"
 msgstr "Детаљност"
 
@@ -24697,10 +24636,6 @@ msgid "Parents"
 msgstr "Родитељи"
 
 
-msgid "Auto Normalize"
-msgstr "Ауто-нормализација"
-
-
 msgid "Multi-Paint"
 msgstr "Вишеструко бојење"
 
@@ -25754,10 +25689,6 @@ msgid "Mask not found"
 msgstr "Маскирај позадину"
 
 
-msgid "No active sequence!"
-msgstr "Без активне секвенце!"
-
-
 msgid "unknown error writing file"
 msgstr "Непозната грешака приликом уписа датотеке"
 
@@ -26070,6 +26001,10 @@ msgstr "Бљесак"
 
 msgid "Use feather information from the mask"
 msgstr "Користи информације умекшавања са маске"
+
+
+msgid "Number of motion blur samples"
+msgstr "Поставља број додатних бљесова"
 
 
 msgid "Val"

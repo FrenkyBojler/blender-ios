@@ -95,6 +95,7 @@ set(SRC
   intern/socket_search_link.cc
   intern/socket_usage_inference.cc
   intern/value_elem.cc
+  intern/volume_grid_function_eval.cc
 
   NOD_common.hh
   NOD_composite.hh
@@ -133,12 +134,14 @@ set(SRC
   NOD_socket_items_ui.hh
   NOD_socket_search_link.hh
   NOD_socket_usage_inference.hh
+  NOD_socket_usage_inference_fwd.hh
   NOD_texture.h
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh
+  intern/volume_grid_function_eval.hh
 )
 
 set(LIB
@@ -163,6 +166,7 @@ set(LIB
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::intern::clog
 )
 
 if(WITH_BULLET)
@@ -223,3 +227,15 @@ add_library(bf::nodes ALIAS bf_nodes)
 
 # RNA_prototypes.hh
 add_dependencies(bf_nodes bf_rna)
+
+if(WITH_GTESTS)
+  set(TEST_INC
+  )
+  set(TEST_SRC
+    intern/node_iterator_tests.cc
+  )
+  set(TEST_LIB
+    bf_nodes
+  )
+  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+endif()
