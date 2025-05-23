@@ -824,44 +824,8 @@ class DOPESHEET_MT_channel_context_menu(Menu):
         layout.operator("anim.channels_setting_disable", text="Unprotect Channels").type = 'PROTECT'
 
         layout.separator()
-        space_data = context.space_data
-
-        # Check if the current mode is 'GPENCIL' (Grease Pencil mode)
-        if space_data.mode == 'GPENCIL':
-            # Add operators for grouping and ungrouping Grease Pencil layers
-            layout.operator("anim.grease_pencil_layer_group")
-            layout.operator("anim.grease_pencil_layer_ungroup")
-
-        # Check if the current mode is 'DOPESHEET' and Grease Pencil objects are shown
-        elif space_data.mode == 'DOPESHEET' and space_data.dopesheet.show_gpencil:
-            if space_data.dopesheet.show_only_selected and all(
-                o.type in {"GPENCIL", "GREASEPENCIL"} for o in bpy.context.selected_objects
-            ):
-                # Do not show the channels_group operators if all selected objects are Grease Pencil objects
-                pass
-            else:
-                # Add operators for grouping and ungrouping animation channels
-                layout.operator("anim.channels_group")
-                layout.operator("anim.channels_ungroup")
-
-            # 'Only Show Selected' is true and any selected object is a Grease Pencil object
-            if space_data.dopesheet.show_only_selected and any(
-                o.type in {"GPENCIL", "GREASEPENCIL"} for o in bpy.context.selected_objects
-            ):
-                layout.separator()
-                layout.operator("anim.grease_pencil_layer_group")
-                layout.operator("anim.grease_pencil_layer_ungroup")
-            elif any(
-                o.type in {"GPENCIL", "GREASEPENCIL"} for o in bpy.context.scene.objects
-            ):
-                # 'Only Show Selected' is false and there are Grease Pencil objects in the scene
-                layout.separator()
-                layout.operator("anim.grease_pencil_layer_group")
-                layout.operator("anim.grease_pencil_layer_ungroup")
-        # Default case for other Dopesheet modes
-        else:
-            layout.operator("anim.channels_group")
-            layout.operator("anim.channels_ungroup")
+        layout.operator("anim.channels_group")
+        layout.operator("anim.channels_ungroup")
 
         layout.separator()
         layout.operator("anim.channels_editable_toggle")
