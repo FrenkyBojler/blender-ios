@@ -406,6 +406,23 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 
 void Instance::end_sync()
 {
+  shaders_are_ready_ =
+      shaders.static_shaders_are_ready(is_image_render,
+                                       false,
+                                       depth_of_field.postfx_enabled(),
+                                       raytracing.use_fast_gi(),
+                                       false,
+                                       raytracing.use_raytracing(),
+                                       pipelines.deferred.closure_layer_count() == 3) &&
+      shaders.request_specializations(is_image_render,
+                                      render_buffers.data.shadow_id,
+                                      shadows.get_data().ray_count,
+                                      shadows.get_data().step_count,
+                                      DeferredLayer::do_split_direct_indirect_radiance(*this),
+                                      DeferredLayer::do_merge_direct_indirect_eval(*this),
+                                      pipelines.deferred.closure_layer_count() == 3);
+  skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
+
   if (skip_render_) {
     return;
   }

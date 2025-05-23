@@ -389,10 +389,13 @@ bool ShaderModule::request_specializations(bool block_until_ready,
        shadow_ray_count,
        shadow_ray_step_count,
        use_split_indirect,
-       use_lightprobe_eval},
+       use_lightprobe_eval,
+       use_deferred_light_triple},
       [&]() {
         Vector<ShaderSpecialization> specializations;
-        for (int i = 0; i < (use_deferred_light_triple ? 3 : 2); i++) {
+        /* The light triple batch contains only the specializations the triple eval shader. */
+        IndexRange range = use_deferred_light_triple ? IndexRange(2, 1) : IndexRange(0, 2);
+        for (int i : range) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
           int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
           int use_split_indirect_index = GPU_shader_get_constant(sh, "use_split_indirect");

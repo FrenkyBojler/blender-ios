@@ -214,18 +214,20 @@ class ShaderModule {
                        int shadow_ray_count,
                        int shadow_ray_step_count,
                        bool use_split_indirect,
-                       bool use_lightprobe_eval)
+                       bool use_lightprobe_eval,
+                       bool use_light_triple)
     {
       BLI_assert(render_buffers_shadow_id >= -1);
       BLI_assert(shadow_ray_count >= 1 && shadow_ray_count <= 4);
       BLI_assert(shadow_ray_step_count >= 1 && shadow_ray_step_count <= 16);
       BLI_assert(uint64_t(use_split_indirect) >= 0 && uint64_t(use_split_indirect) <= 1);
-      BLI_assert(uint64_t(use_lightprobe_eval) >= 0 && uint64_t(use_lightprobe_eval) <= 1);
+      BLI_assert(uint64_t(use_light_triple) >= 0 && uint64_t(use_light_triple) <= 1);
       hash_value_ = render_buffers_shadow_id + 1;
       hash_value_ = (hash_value_ << 2) | (shadow_ray_count - 1);
       hash_value_ = (hash_value_ << 4) | (shadow_ray_step_count - 1);
       hash_value_ = (hash_value_ << 1) | uint64_t(use_split_indirect);
       hash_value_ = (hash_value_ << 1) | uint64_t(use_lightprobe_eval);
+      hash_value_ = (hash_value_ << 1) | uint64_t(use_light_triple);
     }
 
     uint64_t hash() const
