@@ -592,7 +592,14 @@ class BackgroundDownloader:
             return
 
         self._logger.debug("download done, calling %s", callback.__name__)
-        callback(http_req_descr, local_file)
+        try:
+            callback(http_req_descr, local_file)
+        except Exception as ex:
+            # Catch & log exceptions here, so that a callback causing trouble
+            # doesn't break the downloader itself.
+            self._logger.exception(
+                "exception while calling {!r}({!r}, {!r})".format(
+                    callback, http_req_descr, local_file))
 
 
 class PipeMsgType(enum.Enum):
