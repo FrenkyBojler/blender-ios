@@ -463,7 +463,7 @@ static void create_title_button(uiLayout *layout, const char *title, int icon)
     but->drawflag = UI_BUT_TEXT_LEFT;
   }
 
-  uiItemS(layout);
+  layout->separator();
 }
 
 uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
@@ -574,7 +574,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
       layout = UI_popup_menu_layout(pup);
     }
     else {
-      uiItemS(layout);
+      layout->separator();
     }
 
     /* split each newline into a label */
@@ -588,7 +588,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
         BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
         msg = buf;
       }
-      uiItemL(layout, msg, icon);
+      layout->label(msg, icon);
       icon = ICON_NONE;
     } while ((msg = msg_next) && *msg);
   }
@@ -813,14 +813,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     }
     uiBlock *block = uiLayoutGetBlock(row);
     const uiBut *but_ref = block->last_but();
-    uiItemFullO_ptr(row,
-                    ot,
-                    confirm_text,
-                    icon,
-                    nullptr,
-                    uiLayoutGetOperatorContext(row),
-                    UI_ITEM_NONE,
-                    r_ptr);
+    *r_ptr = row->op(ot, confirm_text, icon, uiLayoutGetOperatorContext(row), UI_ITEM_NONE);
 
     if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
       return nullptr;

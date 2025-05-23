@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/* `Scene->nodetree` is deprecated but still relevant for backward compatibility. */
+#define DNA_DEPRECATED_ALLOW
+
 /** \file
  * \ingroup bke
  */
@@ -1325,8 +1328,10 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
     }
   }
 
-  /* free drivers - stored as a list of F-Curves */
-  fcurves_listbase_apply_cb(id, &adt->drivers, func);
+  /* Drivers, stored as a list of F-Curves. */
+  if (!fcurves_listbase_apply_cb(id, &adt->drivers, func)) {
+    return false;
+  }
 
   /* NLA Data - Animation Data for Strips */
   LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
@@ -1449,6 +1454,9 @@ void BKE_animdata_main_cb(Main *bmain, const FunctionRef<void(ID *, AnimData *)>
 
   /* worlds */
   ANIMDATA_NODETREE_IDS_CB(bmain->worlds.first, World);
+
+  /* scenes */
+  ANIMDATA_NODETREE_IDS_CB(bmain->scenes.first, Scene);
 
   /* line styles */
   ANIMDATA_IDS_CB(bmain->linestyles.first);
