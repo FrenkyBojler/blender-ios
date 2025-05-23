@@ -126,7 +126,14 @@ typedef enum NodeTreeInterfacePanelFlag {
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
 
 typedef enum NodeTreeInterfacePanelLayoutMode {
+  /**
+   * Draw the panel as a normal panel that can be expanded and collapsed.
+   */
   NODE_INTERFACE_PANEL_LAYOUT_MODE_NORMAL = 0,
+  /**
+   * Draw children of the panel in a single row. Drawing code may impose some restrictions on what
+   * kinds of items can be drawn in a row. It may fall back to normal panel drawing.
+   */
   NODE_INTERFACE_PANEL_LAYOUT_MODE_ROW = 1,
 } NodeTreeInterfacePanelLayoutMode;
 

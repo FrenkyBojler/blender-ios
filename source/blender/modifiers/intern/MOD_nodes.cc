@@ -2346,8 +2346,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   const std::string socket_id_esc = BLI_str_escape(identifier.c_str());
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
-  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
 
+  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
   if (!ctx.input_is_visible(socket)) {
     /* The input is not used currently, but it would be used if any menu input is changed.
      * By convention, the input is hidden in this case instead of just grayed out. */
@@ -2641,9 +2641,9 @@ static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
   uiLayoutSetAlignment(&heading, UI_LAYOUT_ALIGN_RIGHT);
   heading.label(interface_panel.name, ICON_NONE);
 
-  /* Draw the actual properties. */
   uiLayout &props_row = split.row(true);
 
+  /* Draw the panel toggle if it exists. */
   if (row_inputs->toggle) {
     const std::string rna_path = fmt::format("[\"{}\"]",
                                              BLI_str_escape(row_inputs->toggle->identifier));
@@ -2652,6 +2652,7 @@ static void draw_interface_panel_row(DrawGroupInputsContext &ctx,
     subrow.prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
   }
 
+  /* Draw the remaining inputs in the same row. */
   for (const bNodeTreeInterfaceSocket *socket : row_inputs->inputs) {
     const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket->identifier));
     uiLayout &subrow = props_row.row(true);
