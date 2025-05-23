@@ -980,7 +980,7 @@ inline bool bNodeSocket::is_user_hidden() const
   return (this->flag & SOCK_HIDDEN) != 0;
 }
 
-inline bool bNodeSocket::is_grayed_out() const
+inline bool bNodeSocket::is_inactive() const
 {
   /* Gray out inputs that do not affect the output of the node currently.
    * Don't gray out any inputs if the node has no outputs (in which case no input can affect the

@@ -83,7 +83,7 @@ static bool panel_has_used_inputs(const bNode &node,
         continue;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (!socket.is_grayed_out()) {
+      if (!socket.is_inactive()) {
         return true;
       }
     }

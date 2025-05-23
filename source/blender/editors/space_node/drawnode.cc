@@ -1182,7 +1182,7 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
-  if (sock->is_grayed_out()) {
+  if (sock->is_inactive()) {
     uiLayoutSetActive(layout, false);
   }
 

@@ -228,10 +228,9 @@ typedef struct bNodeSocket {
   bool is_panel_collapsed() const;
   /**
    * Inputs may be grayed out if they are detected to be not affecting the output and the node is
-   * not itself some kind of output node. It's possible for sockets to be invisible and grayed out
-   * at the same time.
+   * not itself some kind of output node.
    */
-  bool is_grayed_out() const;
+  bool is_inactive() const;
   /**
    * False when this input socket definitely does not affect the output.
    */
