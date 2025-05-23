@@ -237,11 +237,7 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COLLADA
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
+  SetObjIncref(Py_False); /* Collada */
 
 #ifdef WITH_IO_WAVEFRONT_OBJ
   SetObjIncref(Py_True);

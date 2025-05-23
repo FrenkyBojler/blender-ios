@@ -62,13 +62,6 @@ set(LIB
   PRIVATE bf::windowmanager
 )
 
-if(WITH_OPENCOLLADA)
-  list(APPEND LIB
-    bf_io_collada
-  )
-  add_definitions(-DWITH_COLLADA)
-endif()
-
 if(WITH_IO_WAVEFRONT_OBJ)
   list(APPEND LIB
     bf_io_wavefront_obj
