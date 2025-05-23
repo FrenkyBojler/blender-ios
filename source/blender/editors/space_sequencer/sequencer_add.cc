@@ -235,7 +235,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
 
   int best_channel = 1;
   if (tgt) {
-    best_channel = (type == STRIP_TYPE_MOVIE) ? tgt->machine - 1 : tgt->machine;
+    best_channel = (type == STRIP_TYPE_MOVIE) ? tgt->channel - 1 : tgt->channel;
   }
 
   best_channel = find_unlocked_unmuted_channel(ed, best_channel);
@@ -263,7 +263,7 @@ static bool have_free_channels(bContext *C,
   Set<int> used_channels;
   for (Strip *strip : all_strips_from_context(C)) {
     if (seq::time_strip_intersects_frame(CTX_data_scene(C), strip, frame_start)) {
-      used_channels.add(strip->machine);
+      used_channels.add(strip->channel);
     }
   }
 
@@ -1006,7 +1006,7 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
            * strip. */
           added_strips.append(strip_sound);
           seq::strip_channel_set(strip_movie,
-                                 find_unlocked_unmuted_channel(ed, strip_movie->machine + 1));
+                                 find_unlocked_unmuted_channel(ed, strip_movie->channel + 1));
         }
       }
 
@@ -1069,10 +1069,10 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
       /* The video has sound, shift the video strip up a channel to make room for the sound
        * strip. */
-      int movie_channel = strip_movie->machine + 1;
+      int movie_channel = strip_movie->channel + 1;
 
       if (RNA_boolean_get(op->ptr, "skip_locked_or_muted_channels")) {
-        movie_channel = find_unlocked_unmuted_channel(ed, strip_movie->machine + 1);
+        movie_channel = find_unlocked_unmuted_channel(ed, strip_movie->channel + 1);
       }
 
       seq::strip_channel_set(strip_movie, movie_channel);
@@ -1685,7 +1685,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   /* Set channel. If unset, use lowest free one above strips. */
   if (!RNA_struct_property_is_set(op->ptr, "channel")) {
     if (input1 != nullptr) {
-      int chan = max_ii(input1 ? input1->machine : 0, input2 ? input2->machine : 0);
+      int chan = max_ii(input1 ? input1->channel : 0, input2 ? input2->channel : 0);
       if (chan < seq::MAX_CHANNELS) {
         load_data.channel = chan;
       }
