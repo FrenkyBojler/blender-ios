@@ -1094,10 +1094,10 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
   /* The "Create a new collection" mode of this operator has its own menu, and should thus be
    * invoked. */
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-  PointerRNA op_ptr = layout->op(is_move_operation ? "ARMATURE_OT_move_to_collection" :
-                                                     "ARMATURE_OT_assign_to_collection",
-                                 "New Bone Collection",
-                                 ICON_ADD);
+  PointerRNA op_ptr = layout->op(
+      is_move_operation ? "ARMATURE_OT_move_to_collection" : "ARMATURE_OT_assign_to_collection",
+      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "New Bone Collection"),
+      ICON_ADD);
   RNA_int_set(&op_ptr, "collection_index", parent_bcoll_index);
 
   layout->separator();
