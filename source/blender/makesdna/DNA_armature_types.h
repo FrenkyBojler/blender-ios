@@ -65,8 +65,8 @@ typedef struct Bone {
   struct Bone *parent;
   /** Children. */
   ListBase childbase;
-  /** Name of the bone - must be unique within the armature, MAXBONENAME. */
-  char name[64];
+  /** Name of the bone - must be unique within the armature. */
+  char name[/*MAXBONENAME*/ 64];
 
   /** Roll is input for edit-mode, length calculated. */
   float roll;
@@ -214,7 +214,7 @@ typedef struct bArmature {
    * This is stored as a string to make it possible for the library overrides system to understand
    * when it actually changed (compared to a BoneCollection*, which would change on every load).
    */
-  char active_collection_name[64]; /* MAX_NAME. */
+  char active_collection_name[/*MAX_NAME*/ 64];
 
   /** For UI, to show which layers are there. */
   unsigned int layer_used DNA_DEPRECATED;
@@ -256,8 +256,7 @@ typedef struct bArmature {
 typedef struct BoneCollection {
   struct BoneCollection *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   /** BoneCollectionMember. */
   ListBase bones;
@@ -374,12 +373,12 @@ typedef enum eArmature_Flag {
 
 /* armature->drawtype */
 typedef enum eArmature_Drawtype {
-  ARM_BONE_DEFAULT = -1, /* Use draw type from Armature (only used on Bones). */
-  ARM_OCTA = 0,
-  ARM_LINE = 1,
-  ARM_B_BONE = 2,
-  ARM_ENVELOPE = 3,
-  ARM_WIRE = 4,
+  ARM_DRAW_TYPE_ARMATURE_DEFINED = -1, /* Use draw type from Armature (only used on Bones). */
+  ARM_DRAW_TYPE_OCTA = 0,
+  ARM_DRAW_TYPE_STICK = 1,
+  ARM_DRAW_TYPE_B_BONE = 2,
+  ARM_DRAW_TYPE_ENVELOPE = 3,
+  ARM_DRAW_TYPE_WIRE = 4,
 } eArmature_Drawtype;
 
 /* armature->deformflag */

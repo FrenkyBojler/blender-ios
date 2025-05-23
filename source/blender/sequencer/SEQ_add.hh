@@ -31,13 +31,13 @@ enum eLoadFlags {
 };
 ENUM_OPERATORS(eLoadFlags, SEQ_LOAD_SET_VIEW_TRANSFORM)
 
-/* Api for adding new sequence strips. */
+/** API for adding new sequence strips. */
 struct LoadData {
   int start_frame;
   int channel;
   char name[64]; /* Strip name. */
   /** Typically a `filepath` but may reference any kind of path. */
-  char path[1024]; /* 1024 = FILE_MAX */
+  char path[/*FILE_MAX*/ 1024];
   struct {
     int len;
     int end_frame;
