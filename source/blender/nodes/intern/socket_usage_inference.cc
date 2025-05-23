@@ -598,6 +598,10 @@ struct SocketUsageInferencer {
         this->value_task__output__generic_switch(socket, menu_switch__is_socket_selected);
         return;
       }
+      case SH_NODE_MATH: {
+        this->value_task__output__float_math(socket);
+        return;
+      }
       case FN_NODE_BOOLEAN_MATH: {
         this->value_task__output__boolean_math(socket);
         return;
@@ -673,6 +677,37 @@ struct SocketUsageInferencer {
       return;
     }
     all_socket_values_.add_new(socket, *value);
+  }
+
+  void value_task__output__float_math(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const NodeMathOperation operation = NodeMathOperation(node->custom1);
+    switch (operation) {
+      case NODE_MATH_MULTIPLY: {
+        this->value_task__output__generic_eval(
+            socket, [&](const Span<const void *> inputs) -> std::optional<const void *> {
+              const std::optional<float> a = inputs[0] ? std::optional(*static_cast<const float *>(
+                                                             inputs[0])) :
+                                                         std::nullopt;
+              const std::optional<float> b = inputs[1] ? std::optional(*static_cast<const float *>(
+                                                             inputs[1])) :
+                                                         std::nullopt;
+              if (a == 0.0f || b == 0.0f) {
+                return &scope_.construct<float>(0.0f);
+              }
+              if (a.has_value() && b.has_value()) {
+                return &scope_.construct<float>(*a * *b);
+              }
+              return std::nullopt;
+            });
+        break;
+      }
+      default: {
+        this->value_task__output__multi_function_node(socket);
+        break;
+      }
+    }
   }
 
   void value_task__output__boolean_math(const SocketInContext &socket)
