@@ -460,7 +460,10 @@ static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
 }
 
 static IndexMask grease_pencil_get_visible_non_nurbs_curves(
-    Object &object, const bke::greasepencil::Drawing &drawing, const int layer_index, IndexMaskMemory &memory)
+    Object &object,
+    const bke::greasepencil::Drawing &drawing,
+    const int layer_index,
+    IndexMaskMemory &memory)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
   const IndexMask visible_strokes = ed::greasepencil::retrieve_editable_strokes(
