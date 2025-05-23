@@ -133,7 +133,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
     return;
   }
 
-  WM_event_ndof_pan_get(ndof, pan_vec, false);
+  WM_event_ndof_pan_get(ndof, pan_vec);
 
   if (has_zoom) {
     /* zoom with Z */
@@ -149,7 +149,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
     if (ndof->tvec[2]) {
       float zoom_distance = rv3d->dist * ndof->dt * ndof->tvec[2];
 
-      if (U.ndof_flag & NDOF_ZOOM_INVERT) {
+      if (U.ndof_flag & NDOF_PANZ_INVERT_AXIS) {
         zoom_distance = -zoom_distance;
       }
 
@@ -301,7 +301,7 @@ void view3d_ndof_fly(const wmNDOFMotionData *ndof,
       speed *= 0.2f;
     }
 
-    WM_event_ndof_pan_get(ndof, trans, false);
+    WM_event_ndof_pan_get(ndof, trans);
     mul_v3_fl(trans, speed * ndof->dt);
     trans_orig_y = trans[1];
 
@@ -600,7 +600,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_zoom = ndof->tvec[2] != 0.0f;
 
   float pan_vec[3];
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
+  WM_event_ndof_pan_get(ndof, pan_vec);
 
   mul_v3_fl(pan_vec, ndof->dt);
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.

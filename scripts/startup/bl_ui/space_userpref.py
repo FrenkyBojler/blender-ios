@@ -2129,7 +2129,6 @@ class USERPREF_PT_ndof_settings(Panel):
                     row.prop(props, attr, text=text, toggle=True)
 
             if show_3dview_settings:
-                col.prop(props, "ndof_zoom_invert")
                 col.prop(props, "ndof_lock_camera_pan_zoom")
 
 
