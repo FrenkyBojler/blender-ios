@@ -189,12 +189,6 @@ void Instance::init(const int2 &output_res,
     is_image_render = true;
   }
 
-  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render);
-  if (!shaders_are_ready_) {
-    skip_render_ = true;
-    return;
-  }
-
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);
@@ -214,14 +208,21 @@ void Instance::init(const int2 &output_res,
   volume.init();
   lookdev.init(visible_rect);
 
-  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render) &&
+  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render,
+                                                        false,
+                                                        depth_of_field.postfx_enabled(),
+                                                        raytracing.use_fast_gi(),
+                                                        false,
+                                                        raytracing.use_raytracing(),
+                                                        false /* Recheck after sync. */) &&
                        shaders.request_specializations(
                            is_image_render,
                            render_buffers.data.shadow_id,
                            shadows.get_data().ray_count,
                            shadows.get_data().step_count,
                            DeferredLayer::do_split_direct_indirect_radiance(*this),
-                           DeferredLayer::do_merge_direct_indirect_eval(*this));
+                           DeferredLayer::do_merge_direct_indirect_eval(*this),
+                           false);
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
 
@@ -241,8 +242,6 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   debug_mode = (eDebugMode)G.debug_value;
   info_ = "";
 
-  shaders.static_shaders_are_ready(true);
-
   sampling.init(scene);
   camera.init();
   /* Film isn't used but init to avoid side effects in other module. */
@@ -261,12 +260,14 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   volume.init();
   lookdev.init(&empty_rect);
 
+  shaders.static_shaders_are_ready(true, false, false, false, true, false, false);
   shaders.request_specializations(true,
                                   render_buffers.data.shadow_id,
                                   shadows.get_data().ray_count,
                                   shadows.get_data().step_count,
                                   DeferredLayer::do_split_direct_indirect_radiance(*this),
-                                  DeferredLayer::do_merge_direct_indirect_eval(*this));
+                                  DeferredLayer::do_merge_direct_indirect_eval(*this),
+                                  false);
 }
 
 void Instance::set_time(float time)
