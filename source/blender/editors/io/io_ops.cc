@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup collada
- */
-
 #include "io_ops.hh" /* own include */
 
 #include "WM_api.hh"
