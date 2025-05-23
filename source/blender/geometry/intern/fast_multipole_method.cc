@@ -390,99 +390,97 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       continue;
     }
 
-    const IndexRange joint_backet = buckets_offsets[joint_i];
-    
-    std::array<Array<float, 0, GuardedAlignedAllocator<>>, 3> backet_positions_data;
-    for (const int axis_i : IndexRange(3)) {
-      backet_positions_data[axis_i].reinitialize(joint_backet.size());
-      backet_positions_data[axis_i].as_mutable_span().copy_from(src_bucket_position[axis_i].slice(joint_backet));
-    }
-    
-    constexpr int chunk_size = 16;
-    const int chunked_batch_size = round_for(total_to_pass_to_childs, chunk_size);
-    
-    const Span<float[16]> chunked_batch_x = batch_positions_x.take_front(chunked_batch_size).cast<float[16]>();
-    const Span<float[16]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[16]>();
-    const Span<float[16]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[16]>();
-    
-    const Span<float> rest_batch_x = batch_positions_x.drop_front(chunked_batch_size);
-    const Span<float> rest_batch_y = batch_positions_y.drop_front(chunked_batch_size);
-    const Span<float> rest_batch_z = batch_positions_z.drop_front(chunked_batch_size);
-    
-    batch_distances_buffer.reinitialize(joint_backet.size() * (chunked_batch_x.size() * chunk_size + rest_batch_x.size()));
-    const int total_chunked_table_size = joint_backet.size() * chunked_batch_x.size() * chunk_size;
-
-#ifndef NDEBUG
-    batch_distances_buffer.as_mutable_span().fill(-1.0f);
-#endif
-
-    const MutableSpan<float[16]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[16]>();
-    const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
-
-    BLI_assert(chunked_distances.size() == chunked_batch_x.size() * backet_positions_data[0].size());
-    ispc::chunked_squared_distances_table(chunked_batch_x.data(),
-                                          chunked_batch_y.data(),
-                                          chunked_batch_z.data(),
-                                          chunked_batch_x.size(),
-                                          backet_positions_data[0].data(),
-                                          backet_positions_data[1].data(),
-                                          backet_positions_data[2].data(),
-                                          backet_positions_data[0].size(),
-                                          chunked_distances.data());
-
-    BLI_assert(rest_distances.size() == rest_batch_x.size() * backet_positions_data[0].size());
-    ispc::squared_distances_table(rest_batch_x.data(),
-                                  rest_batch_y.data(),
-                                  rest_batch_z.data(),
-                                  rest_batch_x.size(),
-                                  backet_positions_data[0].data(),
-                                  backet_positions_data[1].data(),
-                                  backet_positions_data[2].data(),
-                                  backet_positions_data[0].size(),
-                                  rest_distances.data());
-     BLI_assert(!batch_distances_buffer.as_span().contains(-1.0f));
-    
-    ispc::sqrt_n_add_single(batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
-    distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
-
-    if (!sampler_to_bucket_range->intersect(joint_backet).is_empty()) {
-      const IndexRange local_range = joint_backet.shift(-sampler_to_bucket_range->start());
-    
-      const Span<int> batch_indices = batch_indices_data.as_mutable_span().take_front(total_to_pass_to_childs);
-      const Span<int[16]> chunked_batch_indices = batch_indices.take_front(chunked_batch_size).cast<int[16]>();
-      const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
-    
-      ispc::chunked_zero_if_index_in_range(chunked_batch_indices.data(),
-                                           local_range.size(),
-                                           local_range.start(),
-                                           chunked_batch_indices.size(),
-                                           chunked_distances.data());
-      ispc::zero_if_index_in_range(rest_batch_indices.data(),
-                                   local_range.size(),
-                                   local_range.start(),
-                                   rest_batch_indices.size(),
-                                   rest_distances.data());
-    }
-    
-    Array<float, 16, GuardedAlignedAllocator<>> backet_values(joint_backet.size());
-    for (const int data_i : IndexRange(data_axes_num)) {
-      backet_values.as_mutable_span().copy_from(src_bucket_value[data_i].slice(joint_backet));
-    
-      const MutableSpan<float> batch_values = batch_values_data[data_i].as_mutable_span().take_front(total_to_pass_to_childs);
-      const MutableSpan<float[16]> chunked_batch_values = batch_values.take_front(chunked_batch_size).cast<float[16]>();
-      const MutableSpan<float> rest_batch_values = batch_values.drop_front(chunked_batch_size);
-      ispc::chunked_table_product_reduce(chunked_distances.data(),
-                                         backet_values.size(),
-                                         backet_values.data(),
-                                         chunked_batch_values.size(),
-                                         chunked_batch_values.data());
-    
-      ispc::table_product_reduce(rest_distances.data(),
-                                 backet_values.size(),
-                                 backet_values.data(),
-                                 rest_batch_values.size(),
-                                 rest_batch_values.data());
-    }
+//    const IndexRange joint_backet = buckets_offsets[joint_i];
+//    
+//    std::array<Array<float, 0, GuardedAlignedAllocator<>>, 3> backet_positions_data;
+//    for (const int axis_i : IndexRange(3)) {
+//      backet_positions_data[axis_i].reinitialize(joint_backet.size());
+//      backet_positions_data[axis_i].as_mutable_span().copy_from(src_bucket_position[axis_i].slice(joint_backet));
+//    }
+//    
+//    constexpr int chunk_size = 16;
+//    const int chunked_batch_size = round_for(total_to_pass_to_childs, chunk_size);
+//    
+//    const Span<float[16]> chunked_batch_x = batch_positions_x.take_front(chunked_batch_size).cast<float[16]>();
+//    const Span<float[16]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[16]>();
+//    const Span<float[16]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[16]>();
+//    
+//    const Span<float> rest_batch_x = batch_positions_x.drop_front(chunked_batch_size);
+//    const Span<float> rest_batch_y = batch_positions_y.drop_front(chunked_batch_size);
+//    const Span<float> rest_batch_z = batch_positions_z.drop_front(chunked_batch_size);
+//    
+//    batch_distances_buffer.reinitialize(joint_backet.size() * (chunked_batch_x.size() * chunk_size + rest_batch_x.size()));
+//    const int total_chunked_table_size = joint_backet.size() * chunked_batch_x.size() * chunk_size;
+//
+//#ifndef NDEBUG
+//    batch_distances_buffer.as_mutable_span().fill(-1.0f);
+//#endif
+//
+//    const MutableSpan<float[16]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[16]>();
+//    const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
+//
+//    BLI_assert(chunked_distances.size() == chunked_batch_x.size() * backet_positions_data[0].size());
+//    ispc::chunked_squared_distances_table(chunked_batch_x.data(),
+//                                          chunked_batch_y.data(),
+//                                          chunked_batch_z.data(),
+//                                          chunked_batch_x.size(),
+//                                          backet_positions_data[0].data(),
+//                                          backet_positions_data[1].data(),
+//                                          backet_positions_data[2].data(),
+//                                          backet_positions_data[0].size(),
+//                                          chunked_distances.data());
+//
+//    BLI_assert(rest_distances.size() == rest_batch_x.size() * backet_positions_data[0].size());
+//    ispc::squared_distances_table(rest_batch_x.data(),
+//                                  rest_batch_y.data(),
+//                                  rest_batch_z.data(),
+//                                  rest_batch_x.size(),
+//                                  backet_positions_data[0].data(),
+//                                  backet_positions_data[1].data(),
+//                                  backet_positions_data[2].data(),
+//                                  backet_positions_data[0].size(),
+//                                  rest_distances.data());
+//     BLI_assert(!batch_distances_buffer.as_span().contains(-1.0f));
+//    
+//    ispc::sqrt_n_add_single(batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
+//    distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
+//
+//    if (!sampler_to_bucket_range->intersect(joint_backet).is_empty()) {
+//      const Span<int> batch_indices = batch_indices_data.as_mutable_span().take_front(total_to_pass_to_childs);
+//      const Span<int[16]> chunked_batch_indices = batch_indices.take_front(chunked_batch_size).cast<int[16]>();
+//      const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
+//    
+//      ispc::chunked_zero_if_index_in_range(chunked_batch_indices.data(),
+//                                           joint_backet.size(),
+//                                           joint_backet.start() - sampler_to_bucket_range->start(),
+//                                           chunked_batch_indices.size(),
+//                                           chunked_distances.data());
+//      ispc::zero_if_index_in_range(rest_batch_indices.data(),
+//                                   joint_backet.size(),
+//                                   joint_backet.start() - sampler_to_bucket_range->start(),
+//                                   rest_batch_indices.size(),
+//                                   rest_distances.data());
+//    }
+//    
+//    Array<float, 16, GuardedAlignedAllocator<>> backet_values(joint_backet.size());
+//    for (const int data_i : IndexRange(data_axes_num)) {
+//      backet_values.as_mutable_span().copy_from(src_bucket_value[data_i].slice(joint_backet));
+//    
+//      const MutableSpan<float> batch_values = batch_values_data[data_i].as_mutable_span().take_front(total_to_pass_to_childs);
+//      const MutableSpan<float[16]> chunked_batch_values = batch_values.take_front(chunked_batch_size).cast<float[16]>();
+//      const MutableSpan<float> rest_batch_values = batch_values.drop_front(chunked_batch_size);
+//      ispc::chunked_table_product_reduce(chunked_distances.data(),
+//                                         backet_values.size(),
+//                                         backet_values.data(),
+//                                         chunked_batch_values.size(),
+//                                         chunked_batch_values.data());
+//    
+//      ispc::table_product_reduce(rest_distances.data(),
+//                                 backet_values.size(),
+//                                 backet_values.data(),
+//                                 rest_batch_values.size(),
+//                                 rest_batch_values.data());
+//    }
   }
 
   for (const int data_i : IndexRange(data_axes_num)) {

@@ -220,9 +220,8 @@ export void chunked_zero_if_index_in_range(const uniform int row_indices[][16],
   assert(programCount == 16);
 
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    const uniform int range_index = col_range_start + row_index;
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      rows_and_cols[row_index * col_count + col_index][programIndex] *= (int)(row_indices[row_index][programIndex] != range_index);
+      rows_and_cols[row_index * col_count + col_index][programIndex] *= (int)(row_indices[row_index][programIndex] != col_index + col_range_start);
     }
   }
 }
@@ -238,7 +237,7 @@ export void zero_if_index_in_range(const uniform int row_indices[],
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform int range_index = col_range_start + row_index;
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      rows_and_cols[row_index * col_count + col_index] *= (int)(row_indices[row_index] != range_index);
+      rows_and_cols[row_index * col_count + col_index] *= (int)(row_indices[row_index] != col_index + col_range_start);
     }
   }
 }
