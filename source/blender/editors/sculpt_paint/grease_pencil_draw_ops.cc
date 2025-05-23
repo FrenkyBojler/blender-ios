@@ -643,6 +643,8 @@ static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
 /** \name Bucket Fill Operator
  * \{ */
 
+constexpr const char *attr_is_boundary = ".is_boundary";
+
 struct GreasePencilFillOpData {
   blender::bke::greasepencil::Layer &layer;
 
@@ -1356,6 +1358,21 @@ static bke::CurvesGeometry simplify_fixed(bke::CurvesGeometry &curves, const int
   return bke::curves_copy_point_selection(curves, points_to_keep, {});
 }
 
+static void remove_boundary_strokes(bke::CurvesGeometry &curves)
+{
+  if (!curves.attributes().contains(attr_is_boundary)) {
+    return;
+  }
+
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<bool> is_boundary = *attributes.lookup<bool>(attr_is_boundary,
+                                                            bke::AttrDomain::Curve);
+
+  IndexMaskMemory memory;
+  const IndexMask boundary_strokes = IndexMask::from_bools(is_boundary, memory);
+  curves.remove_curves(boundary_strokes, {});
+}
+
 static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent &event)
 {
   using bke::greasepencil::Layer;
@@ -1389,6 +1406,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
           std::nullopt :
           std::make_optional(brush.gpencil_settings->fill_threshold);
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
+  const bool auto_remove_boundary_strokes = (brush.gpencil_settings->flag &
+                                             GP_BRUSH_FILL_AUTO_REMOVE_BOUNDATY_STROKES) != 0;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1427,6 +1446,11 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     }
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
+    /* Remove strokes that were created using the fill tool as boundary strokes. */
+    if (auto_remove_boundary_strokes) {
+      remove_boundary_strokes(dst_curves);
+    }
+
     /* If the `fill_strokes` function creates the "fill_opacity" attribute, make sure that we
      * initialize this to full opacity on the target geometry. */
     if (fill_curves.attributes().contains("fill_opacity") &&
