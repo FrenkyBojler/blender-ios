@@ -42,7 +42,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
             return False
         return True
 
-    def execute(self, context: bpy.types.Context) -> set[str]:
+    def execute(self, _context: bpy.types.Context) -> set[str]:
         downloader = http_dl.ConditionalDownloader(
             metadata_cache_location=local_path / "_local-meta-cache",
         )
@@ -60,7 +60,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
     def already_downloaded(
         self,
         http_req_descr: http_dl.RequestDescription,
-        local_file: Path,
+        _local_file: Path,
     ) -> None:
         print("Download unnecessary, file already downloaded: {!s}".format(http_req_descr.url))
 
@@ -73,7 +73,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
 
     def download_progress(
         self,
-        http_req_descr: http_dl.RequestDescription,
+        _http_req_descr: http_dl.RequestDescription,
         content_length_bytes: int,
         downloaded_bytes: int,
     ) -> None:
@@ -83,7 +83,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
     def download_finished(
         self,
         http_req_descr: http_dl.RequestDescription,
-        local_file: Path,
+        _local_file: Path,
     ) -> None:
         print("Download finished: {!s}".format(http_req_descr.url))
 
