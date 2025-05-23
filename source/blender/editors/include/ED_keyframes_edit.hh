@@ -35,7 +35,7 @@ enum eEditKeyframes_Validate {
   /* Frame range */
   BEZT_OK_FRAME = 1,
   BEZT_OK_FRAMERANGE,
-  /* Selection status */
+  /* Selection status (any of f2, f1, f3)  */
   BEZT_OK_SELECTED,
   /* Values (y-val) only */
   BEZT_OK_VALUE,
@@ -47,6 +47,8 @@ enum eEditKeyframes_Validate {
   /* Only for keyframes a certain Dope-sheet channel. */
   BEZT_OK_CHANNEL_LASSO,
   BEZT_OK_CHANNEL_CIRCLE,
+  /* Selection status (f2 is enough) */
+  BEZT_OK_SELECTED_KEY,
 };
 
 /** \} */
