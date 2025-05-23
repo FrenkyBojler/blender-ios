@@ -179,8 +179,8 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
   if (type.is<float>() || type.is<int>()) {
     /* Sign. */
     pattern += "[+\\- ]?";
-    /* Alternate form. */
-    pattern += "#?";
+    /* '#' for alternate form is omitted for better potential future compatibility with
+     * path templates (#BKE_path_apply_template). */
     /* Sign-aware zero padding. */
     pattern += "0?";
   }
