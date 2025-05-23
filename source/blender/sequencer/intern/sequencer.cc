@@ -798,7 +798,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
   if (strip->prop) {
     IDP_BlendWrite(writer, strip->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code. */
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+   * the matching call to #BLO_read_struct). */
 
   modifier_blend_write(writer, &strip->modifiers);
 

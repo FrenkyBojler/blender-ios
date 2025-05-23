@@ -302,7 +302,8 @@ static void write_bone(BlendWriter *writer, Bone *bone)
   if (bone->prop) {
     IDP_BlendWrite(writer, bone->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code. */
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+   * the matching call to #BLO_read_struct). */
 
   /* Write Children */
   LISTBASE_FOREACH (Bone *, cbone, &bone->childbase) {
@@ -320,7 +321,8 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
   if (bcoll->prop) {
     IDP_BlendWrite(writer, bcoll->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code. */
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+   * the matching call to #BLO_read_struct). */
 
   BLO_write_struct_list(writer, BoneCollectionMember, &bcoll->bones);
 }
