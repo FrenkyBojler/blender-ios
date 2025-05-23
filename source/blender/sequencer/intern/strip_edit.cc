@@ -87,7 +87,7 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
   std::swap(strip_a->start, strip_b->start);
   std::swap(strip_a->startofs, strip_b->startofs);
   std::swap(strip_a->endofs, strip_b->endofs);
-  std::swap(strip_a->machine, strip_b->machine);
+  std::swap(strip_a->channel, strip_b->channel);
   strip_time_effect_range_set(scene, strip_a);
   strip_time_effect_range_set(scene, strip_b);
 
@@ -105,7 +105,7 @@ static void strip_update_muting_recursive(ListBase *channels,
     bool strip_mute = (mute || render_is_muted(channels, strip));
 
     if (strip->type == STRIP_TYPE_META) {
-      /* if this is the current metastrip, unmute because
+      /* if this is the current meta-strip, unmute because
        * all strips above this were set to mute */
       if (strip == strip_meta) {
         strip_mute = false;
@@ -200,7 +200,7 @@ bool edit_move_strip_to_seqbase(Scene *scene,
   /* Move to meta. */
   BLI_remlink(seqbase, strip);
   BLI_addtail(dst_seqbase, strip);
-  relations_invalidate_cache_preprocessed(scene, strip);
+  relations_invalidate_cache(scene, strip);
 
   /* Update meta. */
   if (transform_test_overlap(scene, dst_seqbase, strip)) {
@@ -354,18 +354,18 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
                                                    const int timeline_frame)
 {
   bool input_does_intersect = false;
-  if (strip->seq1) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->seq1, timeline_frame);
-    if ((strip->seq1->type & STRIP_TYPE_EFFECT) != 0) {
+  if (strip->input1) {
+    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input1, timeline_frame);
+    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
-          scene, strip->seq1, timeline_frame);
+          scene, strip->input1, timeline_frame);
     }
   }
-  if (strip->seq2) {
-    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->seq2, timeline_frame);
-    if ((strip->seq1->type & STRIP_TYPE_EFFECT) != 0) {
+  if (strip->input2) {
+    input_does_intersect |= seq_edit_split_intersect_check(scene, strip->input2, timeline_frame);
+    if ((strip->input1->type & STRIP_TYPE_EFFECT) != 0) {
       input_does_intersect |= seq_edit_split_effect_inputs_intersect(
-          scene, strip->seq2, timeline_frame);
+          scene, strip->input2, timeline_frame);
     }
   }
   return input_does_intersect;
