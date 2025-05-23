@@ -165,13 +165,15 @@ void VKDevice::init_functions()
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
 
-  /* VK_KHR_external_memory_fd */
-  functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
-
+  if (extensions_.external_memory) {
 #ifdef _WIN32
-  /* VK_KHR_external_memory_win32 */
-  functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+    /* VK_KHR_external_memory_win32 */
+    functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+#elif not defined(__APPLE__)
+    /* VK_KHR_external_memory_fd */
+    functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
 #endif
+  }
 
 #undef LOAD_FUNCTION
 }
