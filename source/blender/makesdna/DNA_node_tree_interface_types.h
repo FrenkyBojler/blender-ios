@@ -71,7 +71,8 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_MENU_EXPANDED = 1 << 9,
   /**
    * Hide socket label if possible. The label will still be shown in some cases like when the value
-   * is not shown either.
+   * is not shown either. So this is more like a hint that the label can be hidden and it's still
+   * obvious from the surrounding UI elements what the input means.
    */
   NODE_INTERFACE_SOCKET_HIDE_LABEL = 1 << 10,
 } NodeTreeInterfaceSocketFlag;
