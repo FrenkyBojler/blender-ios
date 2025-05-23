@@ -3804,7 +3804,7 @@ static Object *convert_curves_legacy_to_curves(Base &base,
 static void convert_add_materials_to_grease_pencil(Main &bmain,
                                                    ID &from_id,
                                                    Object &gp_object,
-                                                   bool fill)
+                                                   bool use_fill)
 {
   short *len_p = BKE_id_material_len_p(&from_id);
   if (!len_p || *len_p == 0) {
@@ -3828,14 +3828,8 @@ static void convert_add_materials_to_grease_pencil(Main &bmain,
 
     copy_v4_v4(gp_material->gp_style->fill_rgba, &orig_material->r);
 
-    if (fill) {
-      SET_FLAG_FROM_TEST(gp_material->gp_style->flag, false, GP_MATERIAL_STROKE_SHOW);
-      SET_FLAG_FROM_TEST(gp_material->gp_style->flag, true, GP_MATERIAL_FILL_SHOW);
-    }
-    else {
-      SET_FLAG_FROM_TEST(gp_material->gp_style->flag, true, GP_MATERIAL_STROKE_SHOW);
-      SET_FLAG_FROM_TEST(gp_material->gp_style->flag, false, GP_MATERIAL_FILL_SHOW);
-    }
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, !use_fill, GP_MATERIAL_STROKE_SHOW);
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, use_fill, GP_MATERIAL_FILL_SHOW);
   }
 }
 
