@@ -10,7 +10,6 @@
 #include "BKE_key.hh"
 
 #include "BLI_listbase.h"
-#include "BLT_translation.hh"
 
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
@@ -21,10 +20,6 @@
 #include "DNA_key_types.h"
 
 #include "ED_undo.hh"
-
-#include "WM_api.hh"
-
-#include <fmt/format.h>
 
 namespace blender::ui::shapekey {
 
@@ -62,22 +57,35 @@ class ShapeKeyItem : public AbstractTreeViewItem {
     sub->prop(&shapekey_ptr, "lock_shape", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
 
+  std::optional<bool> should_be_active() const override
+  {
+    return object_.shapenr == index_ + 1;
+  }
+
   void on_activate(bContext &C) override
   {
-    PointerRNA object_ptr = RNA_pointer_create_discrete(
-        &object_.id, &RNA_Object, &object_);
-    PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
-    RNA_property_int_set(&object_ptr, prop, index_);
-    RNA_property_update(&C, &object_ptr, prop);
-
+    PointerRNA object_ptr = RNA_pointer_create_discrete(&object_.id, &RNA_Object, &object_);
+    RNA_int_set(&object_ptr, "active_shape_key_index", index_);
     ED_undo_push(&C, "Active Shape Key");
   }
+
   bool supports_renaming() const override
   {
-    return false;
+    return true;
   }
-  // bool rename(const bContext &C, StringRefNull new_name) override {}
-  // StringRef get_rename_string() const override {}
+
+  bool rename(const bContext &C, StringRefNull new_name) override
+  {
+    PointerRNA shapekey_ptr = RNA_pointer_create_discrete(&key_.id, &RNA_ShapeKey, &kb_);
+    RNA_string_set(&shapekey_ptr, "name", new_name.c_str());
+    ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
+    return true;
+  }
+
+  StringRef get_rename_string() const override
+  {
+    return this->label_;
+  }
 };
 
 void ShapeKeyTreeView::build_tree()
