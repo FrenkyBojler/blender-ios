@@ -275,21 +275,25 @@ static bool old_id_property_type_matches_socket_convert_to_new_float_vec(
     const IDProperty &old_property, IDProperty *new_property, const int len)
 {
   if (!(old_property.type == IDP_ARRAY &&
-        ELEM(old_property.subtype, IDP_INT, IDP_FLOAT, IDP_DOUBLE) && old_property.len == len))
+        ELEM(old_property.subtype, IDP_INT, IDP_FLOAT, IDP_DOUBLE)))
   {
     return false;
   }
 
   if (new_property) {
-    BLI_assert(new_property->type == IDP_ARRAY && new_property->subtype == IDP_FLOAT &&
-               new_property->len == len);
+    BLI_assert(new_property->type == IDP_ARRAY && new_property->subtype == IDP_FLOAT);
 
     switch (old_property.subtype) {
       case IDP_DOUBLE: {
         double *const old_value = static_cast<double *const>(IDP_Array(&old_property));
         float *new_value = static_cast<float *>(new_property->data.pointer);
         for (int i = 0; i < len; i++) {
-          new_value[i] = float(old_value[i]);
+          if (i < old_property.len) {
+            new_value[i] = float(old_value[i]);
+          }
+          else {
+            new_value[i] = 0.0f;
+          }
         }
         break;
       }
@@ -297,13 +301,26 @@ static bool old_id_property_type_matches_socket_convert_to_new_float_vec(
         int *const old_value = static_cast<int *const>(IDP_Array(&old_property));
         float *new_value = static_cast<float *>(new_property->data.pointer);
         for (int i = 0; i < len; i++) {
-          new_value[i] = float(old_value[i]);
+          if (i < old_property.len) {
+            new_value[i] = float(old_value[i]);
+          }
+          else {
+            new_value[i] = 0.0f;
+          }
         }
         break;
       }
       case IDP_FLOAT: {
         float *const old_value = static_cast<float *const>(IDP_Array(&old_property));
-        memcpy(new_property->data.pointer, old_value, sizeof(float) * size_t(len));
+        float *new_value = static_cast<float *>(new_property->data.pointer);
+        for (int i = 0; i < len; i++) {
+          if (i < old_property.len) {
+            new_value[i] = old_value[i];
+          }
+          else {
+            new_value[i] = 0.0f;
+          }
+        }
         break;
       }
     }

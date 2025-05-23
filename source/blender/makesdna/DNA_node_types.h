@@ -988,8 +988,10 @@ typedef struct bNodeSocketValueBoolean {
 typedef struct bNodeSocketValueVector {
   /** RNA subtype. */
   int subtype;
+  /* Only some of the values might be used depending on the dimensions. */
   float value[4];
   float min, max;
+  /* The number of dimensions of the vector. Can be 2, 3, or 4. */
   int dimensions;
 } bNodeSocketValueVector;
 
