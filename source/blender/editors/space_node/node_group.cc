@@ -1236,11 +1236,34 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   return gnode;
 }
 
+struct WrapperNodeGroupMapping {
+  int num_inputs = 0;
+  int num_outputs = 0;
+  Map<const bNodeSocket *, int> new_index_by_src_socket;
+
+  bNodeSocket *get_new_input(const bNodeSocket *old_socket, bNode &new_node) const
+  {
+    if (const std::optional<int> index = new_index_by_src_socket.lookup_try(old_socket)) {
+      return &new_node.input_socket(*index);
+    }
+    return nullptr;
+  }
+
+  bNodeSocket *get_new_output(const bNodeSocket *old_socket, bNode &new_node) const
+  {
+    if (const std::optional<int> index = new_index_by_src_socket.lookup_try(old_socket)) {
+      return &new_node.output_socket(*index);
+    }
+    return nullptr;
+  }
+};
+
 static void add_node_group_interface_from_declaration_recursive(
     bNodeTree &group,
     const bNode &src_node,
     const nodes::ItemDeclaration &item_decl,
-    bNodeTreeInterfacePanel *parent = nullptr)
+    bNodeTreeInterfacePanel *parent,
+    WrapperNodeGroupMapping &r_mapping)
 {
   if (const nodes::SocketDeclaration *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(
           &item_decl))
@@ -1252,6 +1275,12 @@ static void add_node_group_interface_from_declaration_recursive(
     bNodeTreeInterfaceSocket *io_socket = bke::node_interface::add_interface_socket_from_node(
         group, src_node, socket);
     group.tree_interface.move_item_to_parent(io_socket->item, parent, INT32_MAX);
+    if (socket.is_input()) {
+      r_mapping.new_index_by_src_socket.add_new(&socket, r_mapping.num_inputs++);
+    }
+    else {
+      r_mapping.new_index_by_src_socket.add_new(&socket, r_mapping.num_outputs++);
+    }
   }
   else if (const nodes::PanelDeclaration *panel_decl =
                dynamic_cast<const nodes::PanelDeclaration *>(&item_decl))
@@ -1264,12 +1293,14 @@ static void add_node_group_interface_from_declaration_recursive(
         panel_decl->name, panel_decl->description, flag, parent);
     for (const nodes::ItemDeclaration *child_item_decl : panel_decl->items) {
       add_node_group_interface_from_declaration_recursive(
-          group, src_node, *child_item_decl, io_panel);
+          group, src_node, *child_item_decl, io_panel, r_mapping);
     }
   }
 }
 
-static bNodeTree *node_group_make_wrapper(const bContext &C, const bNode &src_node)
+static bNodeTree *node_group_make_wrapper(const bContext &C,
+                                          const bNode &src_node,
+                                          WrapperNodeGroupMapping &r_mapping)
 {
   Main &bmain = *CTX_data_main(&C);
 
@@ -1278,7 +1309,8 @@ static bNodeTree *node_group_make_wrapper(const bContext &C, const bNode &src_no
 
   const nodes::NodeDeclaration &node_decl = *src_node.declaration();
   for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
-    add_node_group_interface_from_declaration_recursive(*dst_group, src_node, *item_decl);
+    add_node_group_interface_from_declaration_recursive(
+        *dst_group, src_node, *item_decl, nullptr, r_mapping);
   }
 
   bNode &input_node = *bke::node_add_static_node(&C, *dst_group, NODE_GROUP_INPUT);
@@ -1290,11 +1322,18 @@ static bNodeTree *node_group_make_wrapper(const bContext &C, const bNode &src_no
   inner_node.location[0] = -src_node.width / 2;
   inner_node.location[1] = 0;
   inner_node.width = src_node.width;
+  inner_node.parent = nullptr;
 
   BKE_main_ensure_invariants(bmain, dst_group->id);
 
   for (bNodePanelState &panel_state : inner_node.panel_states()) {
     panel_state.flag &= ~NODE_PANEL_COLLAPSED;
+  }
+  for (bNodeSocket *socket : inner_node.input_sockets()) {
+    socket->flag &= ~SOCK_HIDDEN;
+  }
+  for (bNodeSocket *socket : inner_node.output_sockets()) {
+    socket->flag &= ~SOCK_HIDDEN;
   }
 
   const Array<bNodeSocket *> group_inputs = input_node.output_sockets().drop_back(1);
@@ -1337,23 +1376,41 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
   bNode *gnode = nullptr;
   if (nodes_to_group.size() == 1 && nodes_to_group[0]->declaration()) {
     bNode *src_node = nodes_to_group[0];
-    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *src_node);
+    WrapperNodeGroupMapping mapping;
+    bNodeTree *wrapper_group = node_group_make_wrapper(*C, *src_node, mapping);
 
-    if (src_node->is_group()) {
-      gnode = src_node;
-      id_us_min(gnode->id);
-      gnode->id = &wrapper_group->id;
-      id_us_plus(gnode->id);
+    gnode = bke::node_add_node(C, ntree, node_idname);
+    gnode->id = &wrapper_group->id;
+    id_us_plus(gnode->id);
+    gnode->parent = src_node->parent;
+    gnode->width = src_node->width;
+    copy_v2_v2(gnode->location, src_node->location);
+
+    BKE_main_ensure_invariants(*bmain);
+
+    LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree.links) {
+      if (link->tonode == src_node) {
+        if (bNodeSocket *new_to_socket = mapping.get_new_input(link->tosock, *gnode)) {
+          link->tonode = gnode;
+          link->tosock = new_to_socket;
+          continue;
+        }
+        bke::node_remove_link(&ntree, *link);
+        continue;
+      }
+      if (link->fromnode == src_node) {
+        if (bNodeSocket *new_from_socket = mapping.get_new_output(link->fromsock, *gnode)) {
+          link->fromnode = gnode;
+          link->fromsock = new_from_socket;
+          continue;
+        }
+        bke::node_remove_link(&ntree, *link);
+        continue;
+      }
     }
-    else {
-      gnode = bke::node_add_node(C, ntree, node_idname);
-      gnode->id = &wrapper_group->id;
-      id_us_plus(gnode->id);
-      gnode->parent = src_node->parent;
-      gnode->width = src_node->width;
-      copy_v2_v2(gnode->location, src_node->location);
-      /* TODO: relink */
-    }
+
+    bke::node_remove_node(bmain, ntree, *src_node, true);
+
     BKE_ntree_update_tag_node_property(&ntree, gnode);
     BKE_main_ensure_invariants(*bmain);
   }
