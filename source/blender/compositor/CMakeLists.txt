@@ -221,6 +221,7 @@ set(GLSL_SRC
   shaders/compositor_kuwahara_classic.glsl
   shaders/compositor_map_uv_anisotropic.glsl
   shaders/compositor_map_uv_nearest_neighbour.glsl
+  shaders/compositor_masked_maximum.glsl
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl

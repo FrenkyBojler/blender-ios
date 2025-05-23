@@ -81,6 +81,7 @@
 #include "compositor_kuwahara_info.hh"
 #include "compositor_lens_distortion_info.hh"
 #include "compositor_map_uv_info.hh"
+#include "compositor_masked_maximum_info.hh"
 #include "compositor_morphological_blur_info.hh"
 #include "compositor_morphological_distance_feather_info.hh"
 #include "compositor_morphological_distance_info.hh"

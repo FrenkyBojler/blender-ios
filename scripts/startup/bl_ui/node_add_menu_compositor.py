@@ -158,7 +158,6 @@ class NODE_MT_category_compositor_filter(Menu):
         node_add_menu.add_node_type(layout, "CompositorNodeFilter")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "CompositorNodeGlare", "glare_type")
         node_add_menu.add_node_type(layout, "CompositorNodeKuwahara")
-        node_add_menu.add_node_type(layout, "CompositorNodeMaskedMaximum")
         node_add_menu.add_node_type(layout, "CompositorNodePixelate")
         node_add_menu.add_node_type(layout, "CompositorNodePosterize")
         node_add_menu.add_node_type(layout, "CompositorNodeSunBeams")
@@ -225,6 +224,8 @@ class NODE_MT_category_compositor_mask(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeDoubleEdgeMask")
         node_add_menu.add_node_type(layout, "CompositorNodeIDMask")
+        layout.separator()
+        node_add_menu.add_node_type(layout, "CompositorNodeMaskedMaximum")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
