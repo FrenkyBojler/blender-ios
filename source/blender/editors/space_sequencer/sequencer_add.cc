@@ -296,6 +296,7 @@ static void move_strips(bContext *C)
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
+  RNA_boolean_set(&ptr, "view2d_edge_pan", true);
   WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
@@ -1177,8 +1178,14 @@ static bool sequencer_add_draw_check_fn(PointerRNA * /*ptr*/,
 {
   const char *prop_id = RNA_property_identifier(prop);
 
-  return !STR_ELEM(
-      prop_id, "filepath", "directory", "filename", "frame_start", "channel", "frame_end");
+  return !STR_ELEM(prop_id,
+                   "filepath",
+                   "directory",
+                   "filename",
+                   "frame_start",
+                   "channel",
+                   "frame_end",
+                   "move_strips");
 }
 
 static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
