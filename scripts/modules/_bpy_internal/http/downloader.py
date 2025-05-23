@@ -4,13 +4,16 @@
 
 from __future__ import annotations
 
+import collections
 import dataclasses
+import enum
 import hashlib
 import logging
 import multiprocessing
+import multiprocessing.connection
 import multiprocessing.process
-import queue
-from collections.abc import Callable, Iterable
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol, TypeAlias, Any
 
@@ -55,14 +58,12 @@ class ConditionalDownloader:
     chunk_size: int = 8192
     """Download this many bytes before saving to disk and reporting progress."""
 
-    cancel_download_event: CancelEvent
-    """Checked repeatedly to see if a running download should be canceled.
+    periodic_check: Callable[[], bool]
+    """Called repeatedly to see if a running download should continue or be canceled.
 
-    The user of this ConditionalDownloader can set this to a
-    multiprocessing.Event or threading.Event, depending on the method of
-    concucrrency used. During downloading, the ConditionalDownloader will
-    repeatedly check this object to see if it should continue downloading
-    (cleared) or should cancel (set).
+    During downloading, the ConditionalDownloader will repeatedly call this
+    function to see if it should continue downloading (True) or should cancel
+    (False).
     """
 
     _reporter: DownloadReporter
@@ -79,7 +80,7 @@ class ConditionalDownloader:
         self.metadata_cache_location = metadata_cache_location
         self.http_session = http_session()
         self.chunk_size = 8192  # Sensible default, can be adjusted after creation if necessary.
-        self.cancel_download_event = _DummyCancelEvent()
+        self.periodic_check = lambda: True
         self._reporter = _DummyReporter()
 
     def download_to_file(
@@ -151,7 +152,7 @@ class ConditionalDownloader:
         """
 
         # Don't bother doing anything when the download was cancelled already.
-        if self.cancel_download_event.is_set():
+        if not self.periodic_check():
             raise DownloadCancelled(http_req_descr)
 
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
@@ -174,7 +175,7 @@ class ConditionalDownloader:
                 return None
 
             # Avoid reporting any progress when the download was cancelled.
-            if self.cancel_download_event.is_set():
+            if not self.periodic_check():
                 raise DownloadCancelled(http_req_descr)
 
             # Determine how many bytes are expected.
@@ -190,7 +191,7 @@ class ConditionalDownloader:
             with local_path.open("wb") as file:
                 for chunk in stream.iter_content(chunk_size=self.chunk_size):
 
-                    if self.cancel_download_event.is_set():
+                    if not self.periodic_check():
                         raise DownloadCancelled(http_req_descr)
 
                     file.write(chunk)
@@ -335,13 +336,15 @@ class BackgroundDownloader:
 
     _logger: logging.Logger = logger.getChild("BackgroundDownloader")
 
+    # Pipe connection between this class and the Downloader running in a subprocess.
+    _connection: multiprocessing.connection.Connection
+
     # Here and below, 'RequestDescription' is quoted because Pylance (used by
     # VSCode) doesn't fully grasp the `from __future__ import annotations` yet.
     # Or at least so it seems - it shows these lines in error, while both mypy
     # is fine with it and at runtime it works.
     QueuedDownload: TypeAlias = tuple['RequestDescription', Path]
     """Tuple of URL to download, and path to download it to."""
-    _download_queue: multiprocessing.Queue[QueuedDownload]
 
     # Keep track of which callback to call on the completion of which HTTP request.
     # This assumes that RequestDescriptions are unique, and not queued up
@@ -363,7 +366,6 @@ class BackgroundDownloader:
         self._on_downloaded_callbacks = {}
 
         self._queueing_reporter = QueueingReporter()
-        self._download_queue = _mp_context.Queue()
         self._options = options
 
         self._shutdown_event = _mp_context.Event()
@@ -389,7 +391,11 @@ class BackgroundDownloader:
         http_req_descr = RequestDescription(http_method='GET', url=remote_url)
         if on_download_done:
             self._on_downloaded_callbacks[http_req_descr] = on_download_done
-        self._download_queue.put((http_req_descr, local_path))
+
+        self._connection.send(PipeMessage(
+            msgtype=PipeMsgType.QUEUE_DOWNLOAD,
+            payload=(http_req_descr, local_path),
+        ))
 
     def all_downloads_done(self) -> bool:
         return self._num_pending_downloads == 0
@@ -412,17 +418,20 @@ class BackgroundDownloader:
         if self._shutdown_event.is_set():
             raise ValueError("BackgroundDownloader was shut down, cannot start again")
 
+        my_side, subprocess_side = _mp_context.Pipe(duplex=True)
+        self._connection = my_side
+
         self._downloader_process = _mp_context.Process(
             name="BackgroundDownloader",
             target=_download_queued_items,
             args=(
-                self._download_queue,
+                subprocess_side,
                 self._shutdown_event,
                 self._options,
-                self._queueing_reporter,
             ),
             daemon=True,
         )
+        self._logger.info("starting downloader process")
         self._downloader_process.start()
 
     @property
@@ -452,18 +461,19 @@ class BackgroundDownloader:
         self._logger.debug("shutting down")
         self._shutdown_event.set()
 
-        self._logger.debug("waiting for download process to stop")
-        try:
-            self._downloader_process.join(timeout=5.0)
-        except multiprocessing.TimeoutError:
-            self._logger.error("timeout waiting for background process top stop")
-            # Still keep going, as there may be updates that need to be handled,
-            # and it's better to continue and set self._shutdown_complete_event
-            # as well.
-
+        # Keep receiving incoming messages, to avoid the background process
+        # getting stuck on a send() call.
         self._logger.debug("processing any pending updates")
-        while self._queueing_reporter.update(self._reporters):
-            pass
+        start_wait_time = time.monotonic()
+        max_wait_duration = 5.0  # Seconds
+        while self._downloader_process.is_alive():
+            if time.monotonic() - start_wait_time > max_wait_duration:
+                self._logger.error("timeout waiting for background process top stop")
+                # Still keep going, as there may be updates that need to be handled,
+                # and it's better to continue and set self._shutdown_complete_event
+                # as well.
+                break
+            self._handle_incoming_messages()
 
         self._logger.debug("download process stopped")
         self._shutdown_complete_event.set()
@@ -471,11 +481,34 @@ class BackgroundDownloader:
     def update(self) -> None:
         """Call frequently to ensure the download progress is reported.
 
-        The reports will be sent to self.reporter, in the same process that calls this method.
+        The reports will be sent to all registered reporters, in the same
+        process that calls this method.
         """
         if not (self._downloader_process and self._downloader_process.is_alive()):
             raise RuntimeError("start the download process first")
-        self._queueing_reporter.update(self._reporters)
+        self._handle_incoming_messages()
+
+    def _handle_incoming_messages(self) -> None:
+
+        while self._connection.poll():
+            try:
+                msg: PipeMessage = self._connection.recv()
+            except EOFError:
+                # The remote end closed the pipe.
+                break
+
+            assert msg.msgtype == PipeMsgType.REPORT, \
+                "The only messages that should be sent to the main process are reports"
+
+            self._handle_report(msg.payload)
+
+    def _handle_report(self, queued_call: QueueingReporter.FunctionCall) -> None:
+        """Send a queued report to all registered reporters."""
+
+        function_name, function_arguments = queued_call
+        for reporter in self._reporters:
+            function = getattr(reporter, function_name)
+            function(*function_arguments)
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         """CachingDownloadReporter interface function."""
@@ -562,66 +595,117 @@ class BackgroundDownloader:
         callback(http_req_descr, local_file)
 
 
+class PipeMsgType(enum.Enum):
+    QUEUE_DOWNLOAD = 'queue'
+    """Payload: BackgroundDownloader.QueuedDownload"""
+
+    CANCEL = 'cancel'
+    """Payload: None"""
+
+    REPORT = 'report'
+    """Payload: QueueingReporter.FunctionCall"""
+
+
+@dataclasses.dataclass
+class PipeMessage:
+    msgtype: PipeMsgType
+    payload: Any
+
+
 def _download_queued_items(
-        download_queue: multiprocessing.Queue[BackgroundDownloader.QueuedDownload],
+        connection: multiprocessing.connection.Connection,
         shutdown_event: EventClass,
         options: DownloaderOptions,
-        reporter: DownloadReporter,
 ) -> None:
     """Runs in a daemon process to download stuff.
 
     Managed by the BackgroundDownloader class above.
     """
     # Uncomment this to get debug/info level logging:
-    # logging.basicConfig(
-    #     format="%(asctime)-15s %(processName)22s %(levelname)8s %(name)s %(message)s",
-    #     level=logging.DEBUG,
-    # )
+    logging.basicConfig(
+        format="%(asctime)-15s %(processName)22s %(levelname)8s %(name)s %(message)s",
+        level=logging.DEBUG,
+    )
     log = logger.getChild('background_process')
+    log.info('Downloader background process starting')
 
-    try:
-        log.info('Downloader background process starting')
+    # Local queue of stuff to download.
+    download_queue: collections.deque[BackgroundDownloader.QueuedDownload] = collections.deque()
 
-        # Construct a ConditionalDownloader. Unfortunately this is necessary, as
-        # not all its properties can be pickled, and as a result, it cannot be
-        # used to send across process boundaries via the multiprocessing module.
-        downloader = ConditionalDownloader(
-            metadata_cache_location=options.metadata_cache_location,
-        )
-        downloader.http_session.headers.update(options.http_headers)
+    # Local queue of reports to send back to the main process.
+    reporter = QueueingReporter()
 
-        downloader.add_reporter(reporter)
-        downloader.cancel_download_event = shutdown_event
+    def periodic_check() -> bool:
+        """Called periodically by this function, as well as by the downloader."""
+        if shutdown_event.is_set():
+            return False
 
-        while not shutdown_event.is_set():
-            # Pop an item off the queue.
+        # Send queued reports back to the main process.
+        while True:
             try:
-                queued_download = download_queue.get(timeout=0.1)
-            except queue.Empty:
-                continue
-
-            if shutdown_event.is_set():
+                queued_call = reporter.pop()
+            except IndexError:
+                # Not having anything to do is fine.
                 break
+            msg = PipeMessage(
+                msgtype=PipeMsgType.REPORT,
+                payload=queued_call,
+            )
+            log.info("sending message %s", msg)
+            connection.send(msg)
 
-            http_req_descr, local_path = queued_download
+        # Process incoming messages.
+        can_keep_running = True
+        while connection.poll():
+            msg: PipeMessage = connection.recv()
+            log.info("received message: %s", msg)
+            match msg.msgtype:
+                case PipeMsgType.CANCEL:
+                    can_keep_running = False
+                case PipeMsgType.QUEUE_DOWNLOAD:
+                    download_queue.append(msg.payload)
 
-            # Try and download it.
-            try:
-                downloader.download_to_file(
-                    http_req_descr.url,
-                    local_path,
-                    http_method=http_req_descr.http_method,)
-            except DownloadCancelled:
-                # Can be logged at a lower level, because the caller did the
-                # cancelling, and can log/report things more loudly if
-                # necessary.
-                log.debug("download got cancelled: %s", http_req_descr)
-            except Exception as ex:
-                log.exception("could not download %s: %s", http_req_descr, ex)
+        return can_keep_running
 
-        log.debug("download process shutting down")
-    except BaseException:
-        log.exception("uncaught exception in background process")
+    # Construct a ConditionalDownloader. Unfortunately this is necessary, as
+    # not all its properties can be pickled, and as a result, it cannot be
+    # used to send across process boundaries via the multiprocessing module.
+    downloader = ConditionalDownloader(
+        metadata_cache_location=options.metadata_cache_location,
+    )
+    downloader.http_session.headers.update(options.http_headers)
+    downloader.add_reporter(reporter)
+    downloader.periodic_check = periodic_check
+
+    while periodic_check():
+        # Pop an item off the front of the queue.
+        try:
+            queued_download = download_queue.popleft()
+        except IndexError:
+            time.sleep(0.1)
+            continue
+
+        if shutdown_event.is_set():
+            break
+
+        http_req_descr, local_path = queued_download
+
+        # Try and download it.
+        try:
+            downloader.download_to_file(
+                http_req_descr.url,
+                local_path,
+                http_method=http_req_descr.http_method,
+            )
+        except DownloadCancelled:
+            # Can be logged at a lower level, because the caller did the
+            # cancelling, and can log/report things more loudly if
+            # necessary.
+            log.debug("download got cancelled: %s", http_req_descr)
+        except Exception as ex:
+            log.exception("could not download %s: %s", http_req_descr, ex)
+
+    log.debug("download process shutting down")
 
 
 class CancelEvent(Protocol):
@@ -635,14 +719,6 @@ class CancelEvent(Protocol):
 
     def clear(self) -> None:
         return
-
-
-class _DummyCancelEvent(CancelEvent):
-    """Dummy CancelEvent.
-
-    Does not do anything. This is just here to avoid None checks in the
-    ConditionalDownloader.
-    """
 
 
 class DownloadReporter(Protocol):
@@ -733,52 +809,27 @@ class _DummyReporter(DownloadReporter):
 
 
 class QueueingReporter(DownloadReporter):
-    """Queue up reports and defer calling reporters until .update(reporters) is called.
-
-    This allows a background process to send reports, which are queued until the
-    main process calls the `.update()` function.
+    """Keeps track of which reporter functions are called.
     """
 
     FunctionCall: TypeAlias = tuple[str, tuple[Any, ...]]
-    """Tuple of the function name and the positional arguments.
+    """Tuple of the function name and the positional arguments."""
 
-    All arguments must be pickle'able in order to be stored in the
-    multiprocessing queue.
-    """
-
-    _queue: multiprocessing.Queue[FunctionCall]
+    _queue: collections.deque[FunctionCall]
     """Queue of function calls."""
 
     _logger: logging.Logger
 
     def __init__(self) -> None:
-        self._queue = _mp_context.Queue()
+        self._queue = collections.deque()
         self._logger = logger.getChild(self.__class__.__name__)
 
-    def update(self, reporters: Iterable[DownloadReporter], *, limit_num_calls: int = 100) -> bool:
-        """Handle queued function calls in the process that calls this function.
+    def pop(self) -> FunctionCall:
+        """Pops an item off the queue and returns it.
 
-        Only a finite number of queued calls are processed, to avoid blocking
-        the calling process completely.
-
-        Returns whether there are still function calls left to process.
+        Raises IndexError if the queue is empty.
         """
-
-        for _ in range(limit_num_calls):
-            try:
-                # Wait 1ms for any calls to arrive. This slows down this thread
-                # a little bit, to give other threads a chance to run.
-                queued_call = self._queue.get(timeout=0.001)
-            except queue.Empty:
-                # Not having anything to do is fine.
-                return False
-
-            function_name, function_arguments = queued_call
-            for reporter in reporters:
-                function = getattr(reporter, function_name)
-                function(*function_arguments)
-
-        return not self._queue.empty()
+        return self._queue.popleft()
 
     def download_starts(self, http_req_descr: RequestDescription) -> None:
         self._queue_call('download_starts', http_req_descr)
@@ -815,7 +866,7 @@ class QueueingReporter(DownloadReporter):
     def _queue_call(self, function_name: str, *function_args: Any) -> None:
         """Put a function call in the queue."""
         self._logger.debug("%s%s", function_name, function_args)
-        self._queue.put((function_name, function_args))
+        self._queue.append((function_name, function_args))
 
 
 class HTTPMetadata(pydantic.BaseModel):
