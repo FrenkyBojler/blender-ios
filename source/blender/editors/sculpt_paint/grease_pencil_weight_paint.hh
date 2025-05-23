@@ -257,7 +257,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
         drawing_weight_data.point_is_read_only.reinitialize(deformation.positions.size());
         drawing_weight_data.point_is_read_only.fill(true);
         IndexMaskMemory memory;
-        IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+        const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
             *this->object, drawing_info.drawing, drawing_info.layer_index, memory);
         editable_points.foreach_index(GrainSize(1024), [&](const int64_t index) {
           drawing_weight_data.point_is_read_only[index] = false;

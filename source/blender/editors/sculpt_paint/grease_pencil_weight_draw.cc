@@ -86,7 +86,7 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
             }
 
             if (!drawing_weight.points_in_brush.is_empty()) {
-              changed = true;
+              changed.store(true, std::memory_order_relaxed);
               drawing_weight.points_in_brush.clear();
             }
           });

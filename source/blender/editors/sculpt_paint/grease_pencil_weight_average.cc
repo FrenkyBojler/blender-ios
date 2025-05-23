@@ -99,7 +99,7 @@ class AverageWeightPaintOperation : public WeightPaintOperation {
             }
 
             if (point_changed) {
-              drawing_changed = true;
+              drawing_changed.store(true, std::memory_order_relaxed);
             }
             drawing_weight.points_in_brush.clear();
           });
