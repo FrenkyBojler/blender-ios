@@ -49,27 +49,27 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
 
         downloader.download_to_file(url, download_to_path)
 
-        self.report({'INFO'}, "File downloaded to {}".format(download_to_path))
+        self.report({'INFO'}, "File downloaded to {!s}".format(download_to_path))
         return {'FINISHED'}
 
     # Below here: CachingDownloadReporter functions:
 
     def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
-        self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
+        self.report({'INFO'}, "Download starting: {!s}".format(http_req_descr.url))
 
     def already_downloaded(
         self,
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        print("Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
+        print("Download unnecessary, file already downloaded: {!s}".format(http_req_descr.url))
 
     def download_error(
         self,
         http_req_descr: http_dl.RequestDescription,
         error: Exception,
     ) -> None:
-        self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+        self.report({'ERROR'}, "Error downloading {!s}: {!s}".format(http_req_descr.url, error))
 
     def download_progress(
         self,
@@ -85,7 +85,7 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        print("Download finished: {}".format(http_req_descr.url))
+        print("Download finished: {!s}".format(http_req_descr.url))
 
 
 class HTTP_OT_demo_download_background(bpy.types.Operator):
@@ -161,7 +161,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
             self._bg_downloader.shutdown()
 
     def on_done(self, http_req_descr: http_dl.RequestDescription, local_file: Path) -> None:
-        self.report({'INFO'}, "File downloaded to {}".format(local_file))
+        self.report({'INFO'}, "File downloaded to {!s}".format(local_file))
 
         if self._bg_downloader.num_pending_downloads > 0:
             return
@@ -176,14 +176,14 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
     # Below here: CachingDownloadReporter functions:
 
     def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
-        self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
+        self.report({'INFO'}, "Download starting: {!s}".format(http_req_descr.url))
 
     def already_downloaded(
         self,
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        print("Download unnecessary, file already downloaded: {}".format(http_req_descr.url))
+        print("Download unnecessary, file already downloaded: {!s}".format(http_req_descr.url))
 
     def download_error(
         self,
@@ -191,9 +191,9 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         error: Exception,
     ) -> None:
         if isinstance(error, http_dl.DownloadCancelled):
-            print("Download cancelled: {}".format(http_req_descr))
+            print("Download cancelled: {!s}".format(http_req_descr))
         else:
-            self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+            self.report({'ERROR'}, "Error downloading {!s}: {!s}".format(http_req_descr.url, error))
 
         assert self._operator_context is not None
         self.cancel(self._operator_context)
@@ -212,7 +212,7 @@ class HTTP_OT_demo_download_background(bpy.types.Operator):
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
+        self.report({'INFO'}, "Download finished: {!s}".format(http_req_descr.url))
 
     @contextmanager
     def _context(self, context: bpy.types.Context) -> Generator[None]:

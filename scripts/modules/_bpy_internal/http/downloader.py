@@ -226,7 +226,7 @@ class ConditionalDownloader:
     def _cache_key(self, http_req_descr: RequestDescription) -> str:
         method = http_req_descr.http_method
         url = http_req_descr.url
-        return hashlib.sha256("{:s}:{:s}".format(method, url).encode()).hexdigest()
+        return hashlib.sha256("{!s}:{!s}".format(method, url).encode()).hexdigest()
 
     def _metadata_path(self, http_req_descr: RequestDescription) -> Path:
         # TODO: maybe use part of the cache key to bucket into subdirectories?
@@ -295,7 +295,7 @@ class ConditionalDownloader:
         """
         if self.has_reporter():
             raise ValueError(
-                "Only one reporter is supported, I already have {:s}".format(self._reporter)
+                "Only one reporter is supported, I already have {!s}".format(self._reporter)
             )
         self._reporter = reporter
 
@@ -909,7 +909,7 @@ class HTTPRequestDownloadError(RuntimeError):
         self.http_req_desc = http_req_desc
 
     def __repr__(self) -> str:
-        return "{:s}({:s})".format(self.__class__.__name__, self.http_req_desc)
+        return "{!s}({!s})".format(self.__class__.__name__, self.http_req_desc)
 
     def __str__(self) -> str:
         return repr(self)
