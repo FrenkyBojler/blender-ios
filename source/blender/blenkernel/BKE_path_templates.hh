@@ -182,17 +182,13 @@ blender::bke::path_templates::VariableMap BKE_build_template_variables_for_rende
  * This produces identical errors as `BKE_path_apply_template()`, but
  * without modifying the path on success.
  *
- * If `template_variables` is null, then only syntax is checked for errors. If
- * `template_variables` is provided, then missing variables and
- * type<->format-specifier mismatches are also checked.
- *
  * \return An empty vector if the templating in the path is valid, or a vector
  * of the errors if invalid.
  *
  * \see BKE_path_apply_template()
  */
 blender::Vector<blender::bke::path_templates::Error> BKE_path_validate_template(
-    blender::StringRef path, const blender::bke::path_templates::VariableMap *template_variables);
+    blender::StringRef path, const blender::bke::path_templates::VariableMap &template_variables);
 
 /**
  * Perform variable substitution and escaping on the given path.

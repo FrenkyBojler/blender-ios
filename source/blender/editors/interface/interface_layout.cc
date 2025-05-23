@@ -1128,7 +1128,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
                 ptr, prop, static_cast<const bContext *>(block->evil_C));
         BLI_assert(variables.has_value());
 
-        if (!BKE_path_validate_template(path, &*variables).is_empty()) {
+        if (!BKE_path_validate_template(path, *variables).is_empty()) {
           UI_but_flag_enable(but, UI_BUT_REDALERT);
         }
       }

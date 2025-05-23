@@ -1076,7 +1076,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
           BLI_assert(variables.has_value());
 
           const blender::Vector<blender::bke::path_templates::Error> errors =
-              BKE_path_validate_template(path, &*variables);
+              BKE_path_validate_template(path, *variables);
 
           if (!errors.is_empty()) {
             std::string error_message("Path template error(s):");

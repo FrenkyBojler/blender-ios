@@ -335,7 +335,7 @@ TEST(path_templates, validate_and_apply_template)
     strcpy(path, test_case.path_in);
 
     /* Do validation first, which shouldn't modify the path. */
-    const Vector<Error> validation_errors = BKE_path_validate_template(path, &variables);
+    const Vector<Error> validation_errors = BKE_path_validate_template(path, variables);
     EXPECT_EQ(validation_errors, test_case.expected_errors)
         << "  Template errors: " << errors_to_string(validation_errors) << std::endl
         << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
