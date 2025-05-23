@@ -45,9 +45,9 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const StringRef nod
     return PointerRNA_NULL;
   }
   if (const bke::bNodeTreeZone *zone = zones->get_zone_by_node(active_node->identifier)) {
-    if (zone->input_node == active_node) {
+    if (zone->input_node() == active_node) {
       /* Assume the data is generally stored on the output and not the input node. */
-      active_node = const_cast<bNode *>(zone->output_node);
+      active_node = const_cast<bNode *>(zone->output_node());
     }
   }
   if (active_node->idname != node_idname) {
@@ -228,16 +228,18 @@ inline void move_active_item(wmOperatorType *ot,
 template<typename Accessor> inline void make_common_operators()
 {
   WM_operatortype_append([](wmOperatorType *ot) {
-    socket_items::ops::add_item<Accessor>(
-        ot, "Add Item", Accessor::operator_idnames::add_item, "Add item below active item");
+    socket_items::ops::add_item<Accessor>(ot,
+                                          "Add Item",
+                                          Accessor::operator_idnames::add_item.c_str(),
+                                          "Add item below active item");
   });
   WM_operatortype_append([](wmOperatorType *ot) {
     socket_items::ops::remove_active_item<Accessor>(
-        ot, "Remove Item", Accessor::operator_idnames::remove_item, "Remove active item");
+        ot, "Remove Item", Accessor::operator_idnames::remove_item.c_str(), "Remove active item");
   });
   WM_operatortype_append([](wmOperatorType *ot) {
     socket_items::ops::move_active_item<Accessor>(
-        ot, "Move Item", Accessor::operator_idnames::move_item, "Move active item");
+        ot, "Move Item", Accessor::operator_idnames::move_item.c_str(), "Move active item");
   });
 }
 
