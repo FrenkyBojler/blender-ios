@@ -58,6 +58,9 @@ struct VKExtensions {
    * Does the device support logic ops.
    */
   bool logic_ops = false;
+
+  /** Log enabled features and extensions. */
+  void log() const;
 };
 
 /* TODO: Split into VKWorkarounds and VKExtensions to remove the negating when an extension isn't
@@ -303,15 +306,6 @@ class VKDevice : public NonCopyable {
   VkDevice vk_handle() const
   {
     return vk_device_;
-  }
-
-  VkQueue queue_get() const
-  {
-    return vk_queue_;
-  }
-  std::mutex &queue_mutex_get()
-  {
-    return *queue_mutex_;
   }
 
   uint32_t queue_family_get() const

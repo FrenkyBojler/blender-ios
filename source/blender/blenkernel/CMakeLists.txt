@@ -41,6 +41,7 @@ set(SRC
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -312,6 +313,7 @@ set(SRC
   intern/viewer_path.cc
   intern/volume.cc
   intern/volume_grid.cc
+  intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
@@ -530,6 +532,7 @@ set(SRC
   BKE_volume.hh
   BKE_volume_enums.hh
   BKE_volume_grid.hh
+  BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
   BKE_volume_grid_type_traits.hh
@@ -808,6 +811,10 @@ if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
 
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
+endif()
+
 # # Warnings as errors, this is too strict!
 # if(MSVC)
 #    string(APPEND CMAKE_C_FLAGS " /WX")
@@ -827,6 +834,7 @@ if(WITH_GTESTS)
     intern/armature_test.cc
     intern/asset_metadata_test.cc
     intern/bpath_test.cc
+    intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
     intern/fcurve_test.cc
