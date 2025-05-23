@@ -491,13 +491,6 @@ static bool blo_bhead_is_id_valid_type(const BHead *bhead)
   return BKE_idtype_idcode_is_valid(id_type_code);
 }
 
-static bool blo_bhead_is_id_long_name(const FileData *fd, const BHead *bhead)
-{
-  BLI_assert(blo_bhead_is_id_valid_type(bhead));
-  const char *id_name = blo_bhead_id_name(fd, bhead);
-  return !std::memchr(id_name, '\0', MAX_ID_NAME);
-}
-
 static void read_file_bhead_idname_map_create(FileData *fd)
 {
   /* dummy values */
