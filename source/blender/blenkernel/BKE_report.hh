@@ -58,7 +58,6 @@ enum ReportListFlags {
   RPT_PRINT_HANDLED_BY_OWNER = (1 << 4),
 };
 
-/* These two lines with # tell `makesdna` this struct can be excluded. */
 struct Report {
   Report *next, *prev;
   /** eReportType. */
