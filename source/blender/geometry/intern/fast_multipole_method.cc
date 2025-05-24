@@ -344,7 +344,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         batch_distances_buffer[i] += offset_value;
       }
 
-      distance_invertion(power_value, batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs));
+      ispc::fixed_2_rpow_n(batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs).data(),
+      batch_distances_buffer.as_mutable_span().take_front(prefix_to_visit - total_to_pass_to_childs).size());
 
       if (!all_end_on_joint) {
         for (const int data_i : IndexRange(data_axes_num)) {
@@ -420,9 +421,11 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const Span<float[chunk_size]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[chunk_size]>();
     const Span<float[chunk_size]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[chunk_size]>();
 
-    const Span<float> rest_batch_x = batch_positions_x.drop_front(chunked_batch_size);
-    const Span<float> rest_batch_y = batch_positions_y.drop_front(chunked_batch_size);
-    const Span<float> rest_batch_z = batch_positions_z.drop_front(chunked_batch_size);
+    const Span<float> rest_batch_x = batch_positions_x.take_front(total_to_pass_to_childs).drop_front(chunked_batch_size);
+    const Span<float> rest_batch_y = batch_positions_y.take_front(total_to_pass_to_childs).drop_front(chunked_batch_size);
+    const Span<float> rest_batch_z = batch_positions_z.take_front(total_to_pass_to_childs).drop_front(chunked_batch_size);
+    
+    BLI_assert(rest_batch_x.size() < chunk_size);
     
     batch_distances_buffer.reinitialize(joint_backet.size() * (chunked_batch_x.size() * chunk_size + rest_batch_x.size()));
     const int total_chunked_table_size = joint_backet.size() * chunked_batch_x.size() * chunk_size;

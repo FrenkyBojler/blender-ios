@@ -75,6 +75,7 @@ extern "C" {
     extern void chunked_zero_if_index_in_range(const int32_t row_indices[][8], const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float rows_and_cols[][8]);
     extern int32_t count_floats_less_than(float * values, float min_predicate_value, int32_t count);
     extern void distance_to_n(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
+    extern float fixed_2_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
     extern float fixed_safe_11_rpow_n(float * values, const int32_t count);

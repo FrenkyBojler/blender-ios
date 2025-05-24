@@ -166,7 +166,9 @@ export void chunked_squared_distances_table(const uniform float row_x[][programC
                                       streaming_load(&row_y[row_index][0]),
                                       streaming_load(&row_z[row_index][0])};
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
+      uniform float<3> col_xyz = {streaming_load_uniform(&col_x[col_index]),
+                                  streaming_load_uniform(&col_y[col_index]),
+                                  streaming_load_uniform(&col_z[col_index])};
       const varying float<3> batch = square<3>(row_xyz - col_xyz);
       distances[row_index * col_count + col_index][programIndex] = batch.x + batch.y + batch.z;
     }
@@ -183,24 +185,20 @@ export void squared_distances_table(const uniform float row_x[],
                                     const uniform int col_count,
                                     float uniform distances[])
 {
-  if (col_count % programCount == 0) {
-    for (uniform int row_index = 0; row_index < row_count; row_index++) {
-      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
-      for (uniform int col_index = 0; col_index < col_count; col_index += programCount) {
-        varying float<3> col_xyz = {col_x[col_index + programIndex],
-                                    col_y[col_index + programIndex],
-                                    col_z[col_index + programIndex]};
-        const varying float<3> batch = square<3>(row_xyz - col_xyz);
-        distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
-      }
-    }
-    return;
-  }
-
+  assert(row_count < programCount);
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
+
+    const uniform int batch_col_count = (col_count / programCount) * programCount;
+    for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
+      const varying float<3> col_xyz = {col_x[col_index + programIndex],
+                                        col_y[col_index + programIndex],
+                                        col_z[col_index + programIndex]};
+      const varying float<3> batch = square<3>(row_xyz - col_xyz);
+      distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
+    }
+    for (uniform int col_index = batch_col_count; col_index < col_count; col_index++) {
+      const uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
       const uniform float<3> batch = square<3>(row_xyz - col_xyz);
       distances[row_index * col_count + col_index] = batch.x + batch.y + batch.z;
     }
@@ -1014,6 +1012,18 @@ export uniform float fixed_safe_2_rpow_n(uniform float values[],
   }
   for (; index < count; index++) {
     values[index] = square(safe_rcp(values[index]));
+  }
+}
+
+export uniform float fixed_2_rpow_n(uniform float values[],
+                                         const uniform int count)
+{
+  uniform int index = 0;
+  for (; index < count - programCount; index += programCount) {
+    values[index + programIndex] = square(rcp_fast(streaming_load(&values[index])));
+  }
+  for (; index < count; index++) {
+    values[index] = square(rcp_fast(values[index]));
   }
 }
 
