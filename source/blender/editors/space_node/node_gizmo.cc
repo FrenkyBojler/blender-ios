@@ -214,38 +214,68 @@ static void gizmo_node_bbox_update(NodeBBoxWidgetGroup *bbox_group)
       bbox_group->update_data.context, &bbox_group->update_data.ptr, bbox_group->update_data.prop);
 }
 
-static void two_xy_to_rect(
-    const NodeTwoXYs *nxy, const float2 &dims, const float2 offset, bool is_relative, rctf *r_rect)
+static void node_input_to_rect(const bNode *node,
+                               const float2 &dims,
+                               const float2 offset,
+                               rctf *r_rect)
 {
-  if (is_relative) {
-    r_rect->xmin = nxy->fac_x1 + (offset.x / dims.x);
-    r_rect->xmax = nxy->fac_x2 + (offset.x / dims.x);
-    r_rect->ymin = nxy->fac_y2 + (offset.y / dims.y);
-    r_rect->ymax = nxy->fac_y1 + (offset.y / dims.y);
-  }
-  else {
-    r_rect->xmin = (nxy->x1 + offset.x) / dims.x;
-    r_rect->xmax = (nxy->x2 + offset.x) / dims.x;
-    r_rect->ymin = (nxy->y2 + offset.y) / dims.y;
-    r_rect->ymax = (nxy->y1 + offset.y) / dims.y;
-  }
+
+  const bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
+  const float xmin = float(RNA_int_get(&x_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
+  const float ymin = float(RNA_int_get(&y_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
+  const float width = float(RNA_int_get(&width_input_rna_pointer, "default_value"));
+
+  const bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
+  const float height = float(RNA_int_get(&height_input_rna_pointer, "default_value"));
+
+  r_rect->xmin = (xmin + offset.x) / dims.x;
+  r_rect->xmax = (xmin + width + offset.x) / dims.x;
+  r_rect->ymin = (ymin + offset.y) / dims.y;
+  r_rect->ymax = (ymin + height + offset.y) / dims.y;
 }
 
-static void two_xy_from_rect(
-    NodeTwoXYs *nxy, const rctf *rect, const float2 &dims, const float2 &offset, bool is_relative)
+static void node_input_from_rect(bNode *node,
+                                 const rctf *rect,
+                                 const float2 &dims,
+                                 const float2 &offset)
 {
-  if (is_relative) {
-    nxy->fac_x1 = rect->xmin - (offset.x / dims.x);
-    nxy->fac_x2 = rect->xmax - (offset.x / dims.x);
-    nxy->fac_y2 = rect->ymin - (offset.y / dims.y);
-    nxy->fac_y1 = rect->ymax - (offset.y / dims.y);
-  }
-  else {
-    nxy->x1 = rect->xmin * dims.x - offset.x;
-    nxy->x2 = rect->xmax * dims.x - offset.x;
-    nxy->y2 = rect->ymin * dims.y - offset.y;
-    nxy->y1 = rect->ymax * dims.y - offset.y;
-  }
+  bNodeSocket *x_input = bke::node_find_socket(*node, SOCK_IN, "X");
+  PointerRNA x_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(x_input));
+
+  bNodeSocket *y_input = bke::node_find_socket(*node, SOCK_IN, "Y");
+  PointerRNA y_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(y_input));
+
+  bNodeSocket *width_input = bke::node_find_socket(*node, SOCK_IN, "Width");
+  PointerRNA width_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(width_input));
+
+  bNodeSocket *height_input = bke::node_find_socket(*node, SOCK_IN, "Height");
+  PointerRNA height_input_rna_pointer = RNA_pointer_create_discrete(
+      nullptr, &RNA_NodeSocket, const_cast<bNodeSocket *>(height_input));
+
+  const float xmin = rect->xmin * dims.x - offset.x;
+  const float width = rect->xmax * dims.x - offset.x - xmin;
+  const float ymin = rect->ymin * dims.y - offset.y;
+  const float height = rect->ymax * dims.y - offset.y - ymin;
+
+  RNA_int_set(&x_input_rna_pointer, "default_value", int(xmin));
+  RNA_int_set(&y_input_rna_pointer, "default_value", int(ymin));
+  RNA_int_set(&width_input_rna_pointer, "default_value", int(width));
+  RNA_int_set(&height_input_rna_pointer, "default_value", int(height));
 }
 
 /* scale callbacks */
@@ -259,10 +289,10 @@ static void gizmo_node_crop_prop_matrix_get(const wmGizmo *gz,
   const float2 dims = crop_group->state.dims;
   const float2 offset = crop_group->state.offset;
   const bNode *node = (const bNode *)gz_prop->custom_func.user_data;
-  const NodeTwoXYs *nxy = (const NodeTwoXYs *)node->storage;
-  bool is_relative = bool(node->custom2);
+
   rctf rct;
-  two_xy_to_rect(nxy, dims, offset, is_relative, &rct);
+  node_input_to_rect(node, dims, offset, &rct);
+
   matrix[0][0] = fabsf(BLI_rctf_size_x(&rct));
   matrix[1][1] = fabsf(BLI_rctf_size_y(&rct));
   matrix[3][0] = (BLI_rctf_cent_x(&rct) - 0.5f) * dims[0];
@@ -279,10 +309,9 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
   const float2 dims = crop_group->state.dims;
   const float2 offset = crop_group->state.offset;
   bNode *node = (bNode *)gz_prop->custom_func.user_data;
-  NodeTwoXYs *nxy = (NodeTwoXYs *)node->storage;
-  bool is_relative = bool(node->custom2);
+
   rctf rct;
-  two_xy_to_rect(nxy, dims, offset, is_relative, &rct);
+  node_input_to_rect(node, dims, offset, &rct);
   BLI_rctf_resize(&rct, fabsf(matrix[0][0]), fabsf(matrix[1][1]));
   BLI_rctf_recenter(&rct, ((matrix[3][0]) / dims[0]) + 0.5f, ((matrix[3][1]) / dims[1]) + 0.5f);
   rctf rct_isect{};
@@ -291,7 +320,7 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
   rct_isect.ymin = offset.y;
   rct_isect.ymax = offset.y / dims.y + 1;
   BLI_rctf_isect(&rct_isect, &rct, &rct);
-  two_xy_from_rect(nxy, &rct, dims, offset, is_relative);
+  node_input_from_rect(node, &rct, dims, offset);
   gizmo_node_bbox_update(crop_group);
 }
 
@@ -310,8 +339,13 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
     bNode *node = bke::node_get_active(*snode->edittree);
 
     if (node && node->is_type("CompositorNodeCrop")) {
-      /* ignore 'use_crop_size', we can't usefully edit the crop in this case. */
-      if ((node->custom1 & (1 << 0)) == 0) {
+      bNodeSocket *input = bke::node_find_socket(*node, SOCK_IN, "Alpha Crop");
+      PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, &RNA_NodeSocket, input);
+      const bool alpha_crop = RNA_boolean_get(&input_rna_pointer, "default_value");
+
+      /* If Alpha Crop is not set, the image size changes depending on the input parameters, so we
+       * can't usefully edit the crop in this case. */
+      if (alpha_crop) {
         return true;
       }
     }
@@ -371,7 +405,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
     crop_group->update_data.ptr = RNA_pointer_create_discrete(
         (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
     crop_group->update_data.prop = RNA_struct_find_property(&crop_group->update_data.ptr,
-                                                            "relative");
+                                                            "use_crop_size");
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_crop_prop_matrix_get;
