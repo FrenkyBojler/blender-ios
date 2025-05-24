@@ -43,14 +43,19 @@ namespace blender::nodes {
 
 namespace geo_log = geo_eval_log;
 
+struct PanelOpenProperty {
+  PointerRNA ptr;
+  StringRefNull name;
+};
+
 struct DrawGroupInputsContext {
   const bContext &C;
   NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
-  PointerRNA *md_ptr;
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
+  std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
 };
 
 struct SocketSearchData {
@@ -607,9 +612,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         if (!interface_panel_has_socket(ctx, sub_interface_panel)) {
           continue;
         }
-        NodesModifierPanel *panel = find_panel_by_id(ctx.nmd, sub_interface_panel.identifier);
-        PointerRNA panel_ptr = RNA_pointer_create_discrete(
-            ctx.md_ptr->owner_id, &RNA_NodesModifierPanel, panel);
+        PanelOpenProperty open_property = ctx.panel_open_property_fn(sub_interface_panel);
         PanelLayout panel_layout;
         bool skip_first = false;
         /* Check if the panel should have a toggle in the header. */
@@ -631,15 +634,15 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
 
           panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
-                                                             &panel_ptr,
-                                                             "is_open",
+                                                             &open_property.ptr,
+                                                             open_property.name,
                                                              ctx.properties_ptr,
                                                              rna_path,
                                                              IFACE_(sub_interface_panel.name));
           skip_first = true;
         }
         else {
-          panel_layout = layout->panel_prop(&ctx.C, &panel_ptr, "is_open");
+          panel_layout = layout->panel_prop(&ctx.C, &open_property.ptr, open_property.name);
           panel_layout.header->label(IFACE_(sub_interface_panel.name), ICON_NONE);
         }
         if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
@@ -871,8 +874,14 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
                              nmd,
                              nodes::build_properties_vector_set(nmd.settings.properties),
                              modifier_ptr,
-                             modifier_ptr,
                              &bmain_ptr};
+
+  ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
+    NodesModifierPanel *panel = find_panel_by_id(nmd, io_panel.identifier);
+    PointerRNA panel_ptr = RNA_pointer_create_discrete(
+        modifier_ptr->owner_id, &RNA_NodesModifierPanel, panel);
+    return {panel_ptr, "is_open"};
+  };
 
   uiLayoutSetPropSep(&layout, true);
   /* Decorators are added manually for supported properties because the
