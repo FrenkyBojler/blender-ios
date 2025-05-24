@@ -61,7 +61,10 @@ struct ModifierSearchData {
   char modifier_name[MAX_NAME];
 };
 
-struct OperatorSearchData {};
+struct OperatorSearchData {
+  /** Can store this data directly, because it's more persistent than for the modifier. */
+  SearchInfo info;
+};
 
 struct SocketSearchData {
   std::variant<ModifierSearchData, OperatorSearchData> search_data;
@@ -134,6 +137,9 @@ SearchInfo SocketSearchData::info(const bContext &C) const
     }
     geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
     return {tree_log, nmd->node_group, nmd->settings.properties};
+  }
+  if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
+    return operator_search_data->info;
   }
   return {};
 }
@@ -974,7 +980,12 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
-    /* TODO */
+    OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
+    operator_search_data.info.tree = &tree;
+    operator_search_data.info.tree_log = tree_log;
+    operator_search_data.info.properties = op.properties;
+    STRNCPY(data.socket_identifier, io_socket.identifier);
+    data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
   };
   ctx.draw_attribute_toggle_fn =
