@@ -113,12 +113,12 @@ export void gather_distances(const uniform int indices[],
   }
 }
 
-export void squared_distance_to_n(const uniform float src_a_x[],
-                                  const uniform float src_a_y[],
-                                  const uniform float src_a_z[],
-                                  const uniform float src_b_xyz[3],
-                                  const uniform int count,
-                                  float uniform dst[])
+export void distance_to_n(const uniform float src_a_x[],
+                          const uniform float src_a_y[],
+                          const uniform float src_a_z[],
+                          const uniform float src_b_xyz[3],
+                          const uniform int count,
+                          float uniform dst[])
 {
   const uniform float<3> b = {src_b_xyz[0], src_b_xyz[1], src_b_xyz[2]};
   const uniform int batch_count = (count / programCount) * programCount;
@@ -127,18 +127,18 @@ export void squared_distance_to_n(const uniform float src_a_x[],
                                 streaming_load(&src_a_y[index]),
                                 streaming_load(&src_a_z[index])};
     const varying float<3> batch = square<3>(a - b);
-    dst[index + programIndex] = batch.x + batch.y + batch.z;
+    dst[index + programIndex] = sqrt(batch.x + batch.y + batch.z);
   }
 
   varying float<3> a;
   
-  memcpy(&a.x, (uniform float * uniform)&src_a_z[batch_count], sizeof(uniform float) * (count - batch_count));
+  memcpy(&a.x, (uniform float * uniform)&src_a_x[batch_count], sizeof(uniform float) * (count - batch_count));
   memcpy(&a.y, (uniform float * uniform)&src_a_y[batch_count], sizeof(uniform float) * (count - batch_count));
-  memcpy(&a.z, (uniform float * uniform)&src_a_x[batch_count], sizeof(uniform float) * (count - batch_count));
+  memcpy(&a.z, (uniform float * uniform)&src_a_z[batch_count], sizeof(uniform float) * (count - batch_count));
   
   const varying float<3> batch = square<3>(a - b);
   uniform float sufix_result[programCount];
-  sufix_result[programIndex] = batch.x + batch.y + batch.z;
+  sufix_result[programIndex] = sqrt(batch.x + batch.y + batch.z);
   memcpy((uniform float * uniform)&dst[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
 }
 
@@ -185,6 +185,48 @@ export void squared_distances_table(const uniform float row_x[],
   }
 }
 
+export void chunked_zero_if_index_in_range(const uniform int row_indices[][16],
+                                           const uniform int col_count,
+                                           const uniform int from_bucket_to_sampler_offset,
+                                           const uniform int row_count,
+                                           uniform float rows_and_cols[][16])
+{
+  assert(programCount == 16);
+
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    const varying int bucket_indices = row_indices[row_index][programIndex];
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
+      const varying bool mask = bucket_indices != col_index + from_bucket_to_sampler_offset;
+      if (mask) {
+        rows_and_cols[row_index * col_count + col_index][programIndex] = rows_and_cols[row_index * col_count + col_index][programIndex];
+      } else {
+        rows_and_cols[row_index * col_count + col_index][programIndex] = 0.0f;
+      }
+    }
+  }
+}
+
+export void zero_if_index_in_range(const uniform int row_indices[],
+                                   const uniform int col_count,
+                                   const uniform int from_bucket_to_sampler_offset,
+                                   const uniform int row_count,
+                                   uniform float rows_and_cols[])
+{
+  assert(programCount == 16);
+
+  for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    const uniform int bucket_indices = row_indices[row_index];
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
+      const uniform bool mask = bucket_indices != col_index + from_bucket_to_sampler_offset;
+      if (mask) {
+        rows_and_cols[row_index * col_count + col_index] = rows_and_cols[row_index * col_count + col_index];
+      } else {
+        rows_and_cols[row_index * col_count + col_index] = 0.0f;
+      }
+    }
+  }
+}
+
 export uniform int chunked_table_product_reduce(const uniform float rows_and_cols[][16],
                                                 const uniform int col_count,
                                                 const uniform float col_values[],
@@ -207,37 +249,6 @@ export uniform int table_product_reduce(const uniform float rows_and_cols[],
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
       row_values[row_index] += rows_and_cols[row_index * col_count + col_index] * col_values[col_index];
-    }
-  }
-}
-
-export void chunked_zero_if_index_in_range(const uniform int row_indices[][16],
-                                           const uniform int col_count,
-                                           const uniform int col_range_start,
-                                           const uniform int row_count,
-                                           uniform float rows_and_cols[][16])
-{
-  assert(programCount == 16);
-
-  for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      rows_and_cols[row_index * col_count + col_index][programIndex] *= (int)(row_indices[row_index][programIndex] != col_index + col_range_start);
-    }
-  }
-}
-
-export void zero_if_index_in_range(const uniform int row_indices[],
-                                   const uniform int col_count,
-                                   const uniform int col_range_start,
-                                   const uniform int row_count,
-                                   uniform float rows_and_cols[])
-{
-  assert(programCount == 16);
-
-  for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    const uniform int range_index = col_range_start + row_index;
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      rows_and_cols[row_index * col_count + col_index] *= (int)(row_indices[row_index] != col_index + col_range_start);
     }
   }
 }

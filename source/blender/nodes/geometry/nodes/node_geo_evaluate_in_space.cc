@@ -283,7 +283,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
     GArray<> sampled_bucket_values(data_type, domain_size);
     data_type.value_initialize_n(sampled_bucket_values.data(), sampled_bucket_values.size());
 
-    threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
+    threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
       if (sampled_bucket_values.type().is<float3>()) {
         for (const int i : range) {
           sampled_bucket_values.as_mutable_span().typed<float3>()[i].x =
