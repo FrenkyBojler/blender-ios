@@ -48,6 +48,7 @@ struct DrawGroupInputsContext {
   NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
   PointerRNA *md_ptr;
+  PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
 };
@@ -170,7 +171,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 {
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
   if (!ctx.nmd.runtime->eval_log) {
-    layout->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -193,7 +194,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                  0,
                                  10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
                                  UI_UNIT_Y,
-                                 ctx.md_ptr,
+                                 ctx.properties_ptr,
                                  rna_path,
                                  0,
                                  0.0f,
@@ -308,7 +309,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         const bool is_output)
 {
   if (!ctx.nmd.runtime->eval_log) {
-    layout->prop(ctx.md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ctx.properties_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
 
@@ -322,7 +323,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                  0,
                                  10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
                                  UI_UNIT_Y,
-                                 ctx.md_ptr,
+                                 ctx.properties_ptr,
                                  rna_path_attribute_name,
                                  0,
                                  0.0f,
@@ -353,7 +354,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                          nullptr);
 
   char *attribute_name = RNA_string_get_alloc(
-      ctx.md_ptr, rna_path_attribute_name.c_str(), nullptr, 0, nullptr);
+      ctx.properties_ptr, rna_path_attribute_name.c_str(), nullptr, 0, nullptr);
   const bool access_allowed = bke::allow_procedural_attribute_access(attribute_name);
   MEM_freeN(attribute_name);
   if (!access_allowed) {
@@ -404,8 +405,8 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   }
   else {
     const char *name = socket.name ? IFACE_(socket.name) : "";
-    prop_row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-    uiItemDecoratorR(layout, ctx.md_ptr, rna_path.c_str(), -1);
+    prop_row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+    uiItemDecoratorR(layout, ctx.properties_ptr, rna_path.c_str(), -1);
   }
 
   PointerRNA props = prop_row->op("object.geometry_nodes_input_attribute_toggle",
@@ -466,26 +467,34 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   const char *name = socket.name ? IFACE_(socket.name) : "";
   switch (type) {
     case SOCK_OBJECT: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
+      uiItemPointerR(
+          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
     }
     case SOCK_COLLECTION: {
-      uiItemPointerR(
-          row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
+      uiItemPointerR(row,
+                     ctx.properties_ptr,
+                     rna_path,
+                     ctx.bmain_ptr,
+                     "collections",
+                     name,
+                     ICON_OUTLINER_COLLECTION);
       break;
     }
     case SOCK_MATERIAL: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
+      uiItemPointerR(
+          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
       break;
     }
     case SOCK_TEXTURE: {
-      uiItemPointerR(row, ctx.md_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
+      uiItemPointerR(
+          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     }
     case SOCK_IMAGE: {
       uiTemplateID(row,
                    &ctx.C,
-                   ctx.md_ptr,
+                   ctx.properties_ptr,
                    rna_path,
                    "image.new",
                    "image.open",
@@ -499,14 +508,14 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
         /* Use a single space when the name is empty to work around a bug with expanded enums. Also
          * see #ui_item_enum_expand_exec. */
-        row->prop(ctx.md_ptr,
+        row->prop(ctx.properties_ptr,
                   rna_path,
                   UI_ITEM_R_EXPAND,
                   StringRef(name).is_empty() ? " " : name,
                   ICON_NONE);
       }
       else {
-        row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
       break;
     }
@@ -524,7 +533,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
         add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
       }
       else {
-        row->prop(ctx.md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
+        row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
       }
     }
   }
@@ -867,6 +876,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   DrawGroupInputsContext ctx{C,
                              nmd,
                              nodes::build_properties_vector_set(nmd.settings.properties),
+                             modifier_ptr,
                              modifier_ptr,
                              &bmain_ptr};
 
