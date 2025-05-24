@@ -30,8 +30,10 @@ namespace blender::nodes::node_composite_masked_maximum_cc {
 static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Image").default_value(0.5f).compositor_domain_priority(0);
-  b.add_input<decl::Float>("X Scale").default_value(1.0f).compositor_domain_priority(1);
-  b.add_input<decl::Float>("Y Scale").default_value(1.0f).compositor_domain_priority(2);
+  b.add_input<decl::Vector>("Size")
+      .default_value({1.0f, 1.0f, 0.0f})
+      .compositor_domain_priority(1);
+  b.add_input<decl::Float>("Roundness").default_value(1.0f).compositor_domain_priority(2);
   b.add_input<decl::Float>("Falloff").default_value(0.0f).compositor_domain_priority(3);
   b.add_output<decl::Float>("Image");
 }
@@ -66,10 +68,10 @@ class MaskedMaximumOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     input_image.bind_as_texture(shader, "input_image_tx");
-    const Result &input_x_scale = get_input("X Scale");
-    input_x_scale.bind_as_texture(shader, "input_x_scale_tx");
-    const Result &input_y_scale = get_input("Y Scale");
-    input_y_scale.bind_as_texture(shader, "input_y_scale_ty");
+    const Result &input_size = get_input("Size");
+    input_size.bind_as_texture(shader, "input_size_tx");
+    const Result &input_roundness = get_input("Roundness");
+    input_roundness.bind_as_texture(shader, "input_roundness_tx");
     const Result &input_falloff = get_input("Falloff");
     input_falloff.bind_as_texture(shader, "input_falloff_tx");
 
@@ -81,8 +83,8 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_unbind();
     input_image.unbind_as_texture();
-    input_x_scale.unbind_as_texture();
-    input_y_scale.unbind_as_texture();
+    input_size.unbind_as_texture();
+    input_roundness.unbind_as_texture();
     input_falloff.unbind_as_texture();
     output_image.unbind_as_image();
   }
@@ -93,10 +95,11 @@ class MaskedMaximumOperation : public NodeOperation {
     output_image.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
+      float3 size = get_input("Size").load_pixel_zero<float3, true>(texel);
       output_image.store_pixel(texel,
-                               input_image.load_pixel_zero<float, true>(texel) +
-                                   get_input("X Scale").load_pixel_zero<float, true>(texel) +
-                                   get_input("Y Scale").load_pixel_zero<float, true>(texel) +
+                               input_image.load_pixel_zero<float, true>(texel) + size.x + size.y +
+                                   size.z +
+                                   get_input("Roundness").load_pixel_zero<float, true>(texel) +
                                    get_input("Falloff").load_pixel_zero<float, true>(texel));
     });
   }
