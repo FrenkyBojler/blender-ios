@@ -7,7 +7,7 @@ A file handler allows custom 'drag-and-drop' behavior to be associated with a gi
 (:class:`FileHandler.bl_file_extensions`). Control over which area of the UI accepts the
 `drag-in-drop` action is specified using the :class:`FileHandler.poll_drop` method.
 
-Similar to operators which use a file select window, operators participating in 'drag-and-drop', and
+Similar to operators that use a file select window, operators participating in 'drag-and-drop', and
 only accepting a single file, must define the following property:
 
 .. code-block:: python
@@ -27,7 +27,7 @@ class CurveTextImport(bpy.types.Operator):
     bl_idname = "curve.text_import"
     bl_label = "Import a text file as text object"
 
-    # This Operator supports processing one `.txt` file at the time. The following file-path
+    # This Operator supports processing one `.txt` file at a time. The following file-path
     # property must be defined.
     filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'SKIP_SAVE'})
 

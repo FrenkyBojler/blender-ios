@@ -31,12 +31,12 @@ class ShaderScriptImport(bpy.types.Operator, ImportHelper):
     bl_idname = "shader.script_import"
     bl_label = "Import a text file as a script node"
 
-    # This Operator supports processing multiple `.txt` files at the time. The following properties
+    # This Operator supports processing multiple `.txt` files at a time. The following properties
     # must be defined.
     directory: bpy.props.StringProperty(subtype='DIR_PATH', options={'SKIP_SAVE', 'HIDDEN'})
     files: bpy.props.CollectionProperty(type=bpy.types.OperatorFileListElement, options={'SKIP_SAVE', 'HIDDEN'})
 
-    # Allow the user to choose if the node's label is set or not
+    # Allow the user to choose whether the node's label is set or not
     set_label: bpy.props.BoolProperty(name="Set Label", default=False)
 
     @classmethod
