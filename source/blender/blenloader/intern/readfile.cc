@@ -33,6 +33,7 @@
 
 #include "DNA_asset_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
@@ -80,6 +81,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_nla.hh"
 #include "BKE_node.hh" /* for tree type defines */
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
@@ -942,6 +944,138 @@ static int *read_file_thumbnail(FileData *fd)
   return blend_thumb;
 }
 
+/**
+ * ID names are truncated the thier maximum allowed length at a very low level of the readfile code
+ * (see #read_id_struct).
+ *
+ * However, ensuring they remain unique can only be done once all IDs have been read and put in
+ * Main.
+ */
+static void long_id_names_ensure_unique_id_names(Main *bmain)
+{
+  ListBase *lb_iter;
+  FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb_iter) {
+    LISTBASE_FOREACH (ID *, id_iter, lb_iter) {
+      /* Linked IDs can be fully ignored here, 'long names' IDs cannot be linked in any way. */
+      if (ID_IS_LINKED(id_iter)) {
+        continue;
+      }
+      BKE_id_new_name_validate(
+          *bmain, *lb_iter, *id_iter, nullptr, IDNewNameMode::RenameExistingNever, false);
+    }
+  }
+  FOREACH_MAIN_LISTBASE_END;
+}
+
+/**
+ * Iterate all IDs from Main->actions and look for non-null terminated slot_array->identifier. This
+ * is for forward compatibility if blend file was saved using app version with higher MAX_ID_NAME
+ * value than current one (introduced when switching from MAX_ID_NAME = 66 to MAX_ID_NAME = 258)
+ */
+static void long_id_names_process_action_slots_identifiers(Main *bmain)
+{
+  /* NOTE: A large part of this code follows a similar logic to
+   * #foreach_action_slot_use_with_references.
+   *
+   * However, no slot identifier should ever be skipped here, even if it is not in use in any way,
+   * since it is critical to remove all non-null terminated strings.
+   */
+
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    switch (GS(id_iter->name)) {
+      case ID_AC: {
+        bool has_truncated_slot_identifer = false;
+        bAction *act = reinterpret_cast<bAction *>(id_iter);
+        for (int i = 0; i < act->slot_array_num; i++) {
+          if (!std::memchr(act->slot_array[i]->identifier, '\0', MAX_ID_NAME)) {
+            act->slot_array[i]->identifier[MAX_ID_NAME - 1] = '\0';
+            printf("Truncated too long action slot name to %s\n", act->slot_array[i]->identifier);
+            has_truncated_slot_identifer = true;
+          }
+        }
+        if (!has_truncated_slot_identifer) {
+          continue;
+        }
+
+        /* If there are truncated slots idenfiers, ensuring their uniqueness must happen in a
+         * second loop, to avoid e.g. an attempt to read a slot identifier that has not yet been
+         * truncated. */
+        for (int i = 0; i < act->slot_array_num; i++) {
+          BLI_uniquename_cb(
+              [&](const blender::StringRef name) -> bool {
+                for (int j = 0; j < act->slot_array_num; j++) {
+                  if (i == j) {
+                    continue;
+                  }
+                  if (STREQ(act->slot_array[j]->identifier, name.data())) {
+                    return true;
+                  }
+                }
+                return false;
+              },
+              '.',
+              act->slot_array[i]->identifier);
+        }
+        break;
+      }
+      case ID_OB: {
+        auto visit_constraint = [](const bConstraint &constraint) -> bool {
+          if (constraint.type != CONSTRAINT_TYPE_ACTION) {
+            return true;
+          }
+          bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
+          if (!std::memchr(constraint_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
+            constraint_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+            printf("Truncated too long bActionConstraint.last_slot_identifier to %s\n",
+                   constraint_data->last_slot_identifier);
+          }
+          return true;
+        };
+
+        Object *object = reinterpret_cast<Object *>(id_iter);
+        LISTBASE_FOREACH (bConstraint *, con, &object->constraints) {
+          visit_constraint(*con);
+        }
+        if (object->pose) {
+          LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+            LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
+              visit_constraint(*con);
+            }
+          }
+        }
+      }
+        ATTR_FALLTHROUGH;
+      default: {
+        AnimData *anim_data = BKE_animdata_from_id(id_iter);
+        if (anim_data) {
+          if (!std::memchr(anim_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
+            anim_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+            printf("Truncated too long AnimData.last_slot_identifier to %s\n",
+                   anim_data->last_slot_identifier);
+          }
+          if (!std::memchr(anim_data->tmp_last_slot_identifier, '\0', MAX_ID_NAME)) {
+            anim_data->tmp_last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+            printf("Truncated too long AnimData.tmp_last_slot_identifier to %s\n",
+                   anim_data->tmp_last_slot_identifier);
+          }
+
+          blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
+            if (!std::memchr(strip->last_slot_identifier, '\0', MAX_ID_NAME)) {
+              strip->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+              printf("Truncated too long NlaStrip.last_slot_identifier to %s\n",
+                     strip->last_slot_identifier);
+            }
+
+            return true;
+          });
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1760,6 +1894,7 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
   /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
   id->name[MAX_ID_NAME - 1] = '\0';
   fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
+  printf("Truncated too long ID name to %s\n", id->name);
   return id;
 }
 
@@ -3665,6 +3800,12 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     }
   }
 
+  /* Ensure fully valid and unique ID names before calling first stage of versioning. */
+  if (!is_undo && (fd->flags & FD_FLAGS_HAS_LONG_ID_NAME) != 0) {
+    long_id_names_ensure_unique_id_names(bfd->main);
+    long_id_names_process_action_slots_identifiers(bfd->main);
+  }
+
   /* Do versioning before read_libraries, but skip in undo case. */
   if (!is_undo) {
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
@@ -3830,6 +3971,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
   /* Sanity checks. */
   blo_read_file_checks(bfd->main);
+
   return bfd;
 }
 
@@ -4789,6 +4931,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
       }
     }
   }
+
   for (Main *mainptr = mainl->next; mainptr; mainptr = mainptr->next) {
     /* Drop weak links for which no data-block was found.
      * Since this can remap pointers in `libmap` of all libraries, it needs to be performed in its
