@@ -824,7 +824,12 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
-  nodes::draw_geometry_nodes_operator_redo_ui(*C, *op, const_cast<bNodeTree &>(*node_tree));
+
+  bke::OperatorComputeContext compute_context;
+  GeoOperatorLog &eval_log = get_static_eval_log();
+  geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
+  nodes::draw_geometry_nodes_operator_redo_ui(
+      *C, *op, const_cast<bNodeTree &>(*node_tree), &tree_log);
 }
 
 static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)

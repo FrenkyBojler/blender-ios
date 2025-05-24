@@ -937,14 +937,17 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   }
 }
 
-void draw_geometry_nodes_operator_redo_ui(const bContext &C, wmOperator &op, bNodeTree &tree)
+void draw_geometry_nodes_operator_redo_ui(const bContext &C,
+                                          wmOperator &op,
+                                          bNodeTree &tree,
+                                          geo_eval_log::GeoTreeLog *tree_log)
 {
   uiLayout &layout = *op.layout;
   Main &bmain = *CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
   DrawGroupInputsContext ctx{
-      C, &tree, nullptr, nodes::build_properties_vector_set(op.properties), op.ptr, &bmain_ptr};
+      C, &tree, tree_log, nodes::build_properties_vector_set(op.properties), op.ptr, &bmain_ptr};
   ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
     Panel *root_panel = uiLayoutGetRootPanel(&layout);
     LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
