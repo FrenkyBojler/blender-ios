@@ -357,6 +357,8 @@ typedef enum eSpaceSeq_SequencerPreviewOverlay_Flag {
   SEQ_PREVIEW_SHOW_OUTLINE_SELECTED = (1 << 2),
   SEQ_PREVIEW_SHOW_SAFE_MARGINS = (1 << 3),
   SEQ_PREVIEW_SHOW_GPENCIL = (1 << 4),
+  SEQ_PREVIEW_SHOW_ORIGINS = (1 << 5),
+  SEQ_PREVIEW_SHOW_ORIGINS_ALL = (1 << 6),
   SEQ_PREVIEW_SHOW_SAFE_CENTER = (1 << 9),
   SEQ_PREVIEW_SHOW_METADATA = (1 << 10),
 } eSpaceSeq_SequencerPreviewOverlay_Flag;

@@ -885,6 +885,27 @@ int sequencer_draw_get_transform_preview_frame(const Scene *scene)
   return preview_frame;
 }
 
+static bool is_origins_visible(const bContext *C, Strip *strip)
+{
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  if (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS) {
+    if ((strip->flag & SELECT) || (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS_ALL)) {
+      return true;
+    }
+  }
+
+  /* If the origins overlay is turned off, show the origins only when needed, like when moving
+   * objects. */
+  bScreen *screen = CTX_wm_screen(C);
+  if (screen->active_region && (screen->active_region->regiontype == RGN_TYPE_PREVIEW)) {
+    if ((G.moving & G_TRANSFORM_SEQ) && (strip->flag & SELECT)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static void strip_draw_image_origin_and_outline(const bContext *C,
                                                 Strip *strip,
                                                 bool is_active_seq)
@@ -915,18 +936,16 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   /* Origin. */
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  if (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS) {
-    if ((strip->flag & SELECT) || (sseq->preview_overlay.flag & SEQ_PREVIEW_SHOW_ORIGINS_ALL)) {
-      immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
-      immUniform1f("outlineWidth", 1.5f);
-      immUniformColor3f(1.0f, 1.0f, 1.0f);
-      immUniform4f("outlineColor", 0.0f, 0.0f, 0.0f, 1.0f);
-      immUniform1f("size", 15.0f * U.pixelsize);
-      immBegin(GPU_PRIM_POINTS, 1);
-      immVertex2f(pos, origin[0], origin[1]);
-      immEnd();
-      immUnbindProgram();
-    }
+  if (is_origins_visible(C, strip)) {
+    immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
+    immUniform1f("outlineWidth", 1.5f);
+    immUniformColor3f(1.0f, 1.0f, 1.0f);
+    immUniform4f("outlineColor", 0.0f, 0.0f, 0.0f, 1.0f);
+    immUniform1f("size", 15.0f * U.pixelsize);
+    immBegin(GPU_PRIM_POINTS, 1);
+    immVertex2f(pos, origin[0], origin[1]);
+    immEnd();
+    immUnbindProgram();
   }
 
   /* Outline. */
