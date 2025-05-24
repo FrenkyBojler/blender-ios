@@ -2,3 +2,4 @@ Referenced by commit f1664e17778, Fix #131097: Color space settings of >8bpp mov
 Referenced by issue #131141, Fix #131097: Color space settings of >8bpp movie images do not work
 Referenced by issue #131097, Color space settings of >8bpp movie images do not work [4.4 regression]
 Referenced by issue #136433, H265 Colors wrong when rendering with VSE to 12 bit
+Referenced by issue #139365, Video Sequence Editor render performance has decreased by ~2-3x
