@@ -9,32 +9,24 @@
 #include "oiio/openimageio_support.hh"
 
 #include "IMB_filetype.hh"
+
 #include "IMB_imbuf_types.hh"
 
 OIIO_NAMESPACE_USING
 using namespace blender::imbuf;
 
-extern "C" {
-
-bool imb_is_a_jxl(const uchar *mem, size_t size)
+bool imb_is_a_jxl(const unsigned char *mem, size_t size)
 {
   return imb_oiio_check(mem, size, "jxl");
 }
 
-ImBuf *imb_load_jxl(const uchar *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
+ImBuf *imb_load_jxl(const unsigned char *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImageSpec config, spec;
 
   ReadContext ctx{mem, size, "jxl", IMB_FTYPE_JXL, flags};
 
-  ImBuf *ibuf = imb_oiio_read(ctx, config, colorspace, spec);
-  if (ibuf) {
-    if (flags & IB_rect) {
-      IMB_rect_from_float(ibuf);
-    }
-  }
-
-  return ibuf;
+  return imb_oiio_read(ctx, config, r_colorspace, spec);
 }
 
 bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
@@ -46,5 +38,4 @@ bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
   return imb_oiio_write(ctx, filepath, file_spec);
-}
 }
