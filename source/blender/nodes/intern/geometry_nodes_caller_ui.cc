@@ -48,17 +48,6 @@ struct PanelOpenProperty {
   StringRefNull name;
 };
 
-struct DrawGroupInputsContext {
-  const bContext &C;
-  bNodeTree *tree;
-  NodesModifierData &nmd;
-  nodes::PropertiesVectorSet properties;
-  PointerRNA *properties_ptr;
-  PointerRNA *bmain_ptr;
-  Array<nodes::socket_usage_inference::SocketUsage> input_usages;
-  std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
-};
-
 struct SearchInfo {
   geo_log::GeoTreeLog *tree_log = nullptr;
   bNodeTree *tree = nullptr;
@@ -75,6 +64,18 @@ struct SocketSearchData {
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
+
+struct DrawGroupInputsContext {
+  const bContext &C;
+  bNodeTree *tree;
+  NodesModifierData &nmd;
+  nodes::PropertiesVectorSet properties;
+  PointerRNA *properties_ptr;
+  PointerRNA *bmain_ptr;
+  Array<nodes::socket_usage_inference::SocketUsage> input_usages;
+  std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
+  std::function<SocketSearchData(const bNodeTreeInterfaceSocket &)> socket_search_data_fn;
+};
 
 static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
 {
@@ -227,17 +228,13 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  SocketSearchData *data = MEM_callocN<SocketSearchData>(__func__);
-  data->object_session_uid = object->id.session_uid;
-  STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
-  STRNCPY(data->socket_identifier, socket.identifier);
-
+  SocketSearchData *data = MEM_dupallocN(__func__, ctx.socket_search_data_fn(socket));
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   UI_but_func_search_set(but,
                          nullptr,
                          layer_name_search_update_fn,
-                         static_cast<void *>(data),
+                         data,
                          true,
                          nullptr,
                          layer_name_search_exec_fn,
@@ -315,8 +312,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         uiLayout *layout,
                                         const StringRefNull rna_path_attribute_name,
-                                        const bNodeTreeInterfaceSocket &socket,
-                                        const bool is_output)
+                                        const bNodeTreeInterfaceSocket &socket)
 {
   if (!ctx.nmd.runtime->eval_log) {
     layout->prop(ctx.properties_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
@@ -346,18 +342,13 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  SocketSearchData *data = MEM_callocN<SocketSearchData>(__func__);
-  data->object_session_uid = object->id.session_uid;
-  STRNCPY(data->modifier_name, ctx.nmd.modifier.name);
-  STRNCPY(data->socket_identifier, socket.identifier);
-  data->is_output = is_output;
-
+  SocketSearchData *data = MEM_dupallocN(__func__, ctx.socket_search_data_fn(socket));
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   UI_but_func_search_set(but,
                          nullptr,
                          attribute_search_update_fn,
-                         static_cast<void *>(data),
+                         data,
                          true,
                          nullptr,
                          attribute_search_exec_fn,
@@ -409,7 +400,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   if (attribute_name) {
     name_row->label(socket.name ? IFACE_(socket.name) : "", ICON_NONE);
     prop_row = &split->row(true);
-    add_attribute_search_button(ctx, prop_row, rna_path_attribute_name, socket, false);
+    add_attribute_search_button(ctx, prop_row, rna_path_attribute_name, socket);
     layout->label("", ICON_BLANK1);
   }
   else {
@@ -757,7 +748,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
   name_row->label(socket.name ? socket.name : "", ICON_NONE);
 
   uiLayout *row = &split->row(true);
-  add_attribute_search_button(ctx, row, rna_path_attribute_name, socket, true);
+  add_attribute_search_button(ctx, row, rna_path_attribute_name, socket);
 }
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *layout)
@@ -875,6 +866,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   Main *bmain = CTX_data_main(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
+  Object &object = *reinterpret_cast<Object *>(modifier_ptr->owner_id);
 
   DrawGroupInputsContext ctx{C,
                              nmd.node_group,
@@ -888,6 +880,14 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
     PointerRNA panel_ptr = RNA_pointer_create_discrete(
         modifier_ptr->owner_id, &RNA_NodesModifierPanel, panel);
     return {panel_ptr, "is_open"};
+  };
+  ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
+    SocketSearchData data{};
+    data.object_session_uid = object.id.session_uid;
+    STRNCPY(data.modifier_name, nmd.modifier.name);
+    STRNCPY(data.socket_identifier, io_socket.identifier);
+    data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
+    return data;
   };
 
   uiLayoutSetPropSep(&layout, true);
