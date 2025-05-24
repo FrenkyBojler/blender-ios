@@ -166,10 +166,9 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
 
 static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
-                                         const StringRefNull socket_id_esc,
                                          const bNodeTreeInterfaceSocket &socket)
 {
-  const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
+  const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket.identifier));
   if (!ctx.nmd.runtime->eval_log) {
     layout->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
     return;
@@ -364,14 +363,13 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
 
 static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
                                                   uiLayout *layout,
-                                                  const StringRef socket_id_esc,
                                                   const StringRefNull rna_path,
                                                   const bNodeTreeInterfaceSocket &socket)
 {
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
   const std::string rna_path_attribute_name = fmt::format(
-      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
+      "[\"{}{}\"]", BLI_str_escape(socket.identifier), nodes::input_attribute_name_suffix);
 
   /* We're handling this manually in this case. */
   uiLayoutSetPropDecorate(layout, false);
@@ -445,9 +443,6 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     return;
   }
 
-  const std::string socket_id_esc = BLI_str_escape(identifier.c_str());
-  const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);
-
   const int input_index = ctx.nmd.node_group->interface_input_index(socket);
   if (!ctx.input_usages[input_index].is_visible) {
     /* The input is not used currently, but it would be used if any menu input is changed.
@@ -458,6 +453,8 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
   uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
   uiLayoutSetActive(row, ctx.input_usages[input_index].is_used);
+
+  const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
 
   /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
    * information about what type of ID to select for editing the values. This is because
@@ -521,7 +518,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     case SOCK_BOOLEAN: {
       if (is_layer_selection_field(socket)) {
-        add_layer_name_search_button(ctx, row, socket_id_esc, socket);
+        add_layer_name_search_button(ctx, row, socket);
         /* Adds a spacing at the end of the row. */
         row->label("", ICON_BLANK1);
         break;
@@ -530,7 +527,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     default: {
       if (nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
-        add_attribute_search_or_value_buttons(ctx, row, socket_id_esc, rna_path, socket);
+        add_attribute_search_or_value_buttons(ctx, row, rna_path, socket);
       }
       else {
         row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
@@ -742,11 +739,8 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
                                             uiLayout *layout,
                                             const bNodeTreeInterfaceSocket &socket)
 {
-  const StringRefNull identifier = socket.identifier;
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, identifier.c_str(), sizeof(socket_id_esc));
   const std::string rna_path_attribute_name = fmt::format(
-      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
+      "[\"{}{}\"]", BLI_str_escape(socket.identifier), nodes::input_attribute_name_suffix);
 
   uiLayout *split = &layout->split(0.4f, false);
   uiLayout *name_row = &split->row(false);
