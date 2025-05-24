@@ -12,6 +12,7 @@
 #include "BKE_main.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "BLI_string.h"
 
