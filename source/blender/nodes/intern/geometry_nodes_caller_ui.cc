@@ -68,6 +68,7 @@ BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
 struct DrawGroupInputsContext {
   const bContext &C;
   bNodeTree *tree;
+  geo_log::GeoTreeLog *tree_log;
   NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
   PointerRNA *properties_ptr;
@@ -189,7 +190,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
                                          const bNodeTreeInterfaceSocket &socket)
 {
   const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(socket.identifier));
-  if (!ctx.nmd.runtime->eval_log) {
+  if (!ctx.tree_log) {
     layout->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
@@ -314,7 +315,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                         const StringRefNull rna_path_attribute_name,
                                         const bNodeTreeInterfaceSocket &socket)
 {
-  if (!ctx.nmd.runtime->eval_log) {
+  if (!ctx.tree_log) {
     layout->prop(ctx.properties_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
     return;
   }
@@ -870,6 +871,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
 
   DrawGroupInputsContext ctx{C,
                              nmd.node_group,
+                             get_root_tree_log(nmd),
                              nmd,
                              nodes::build_properties_vector_set(nmd.settings.properties),
                              modifier_ptr,
