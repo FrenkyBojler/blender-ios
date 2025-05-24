@@ -1475,13 +1475,27 @@ static void draw_selected_name(
   }
 
   BLI_assert(i < int(ARRAY_SIZE(info_array)));
-  char info[300];
-  /* It's expected there will be enough room for the buffer (if not, increase it). */
-  BLI_assert(BLI_string_len_array(info_array, i) < sizeof(info));
-  BLI_string_join_array(info, sizeof(info), info_array, i);
+
+  /* Allocate memory for the string to draw. Resize if more needed. */
+  static char *info = nullptr;
+  static size_t info_size = 0;
+
+  /* BLI_string_len_array returns space required for text, + 1 is for string terminator */
+  size_t info_array_length = BLI_string_len_array(info_array, i) + 1;
+
+  if (info == nullptr || info_array_length > info_size) {
+    if (info != nullptr) {
+      MEM_freeN(info);
+    }
+
+    info = MEM_malloc_arrayN<char>(info_array_length, "");
+    info_size = info_array_length;
+  }
+
+  BLI_string_join_array(info, info_size, info_array, i);
 
   *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
-  BLF_draw_default(xoffset, *yoffset, 0.0f, info, sizeof(info));
+  BLF_draw_default(xoffset, *yoffset, 0.0f, info, info_size);
 }
 
 static void draw_grid_unit_name(
