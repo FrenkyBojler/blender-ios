@@ -200,11 +200,19 @@ static void store_group_input_structure_types(const bNodeTree &tree,
   }
 }
 
-static bool simulation_zone_requirements_propagate(const bNode &input_node,
-                                                   const bNode &output_node,
-                                                   MutableSpan<DataRequirement> input_requirements)
+enum class ZoneInOutChange {
+  None = 0,
+  In = (1 << 1),
+  Out = (1 << 2),
+};
+ENUM_OPERATORS(ZoneInOutChange, ZoneInOutChange::Out);
+
+static ZoneInOutChange simulation_zone_requirements_propagate(
+    const bNode &input_node,
+    const bNode &output_node,
+    MutableSpan<DataRequirement> input_requirements)
 {
-  bool changed = false;
+  ZoneInOutChange change = ZoneInOutChange::None;
   for (const int i : output_node.output_sockets().index_range()) {
     /* First input node output is Delta Time which does not appear in the output node outputs. */
     const bNodeSocket &socket_input = input_node.input_socket(i);
@@ -214,17 +222,22 @@ static bool simulation_zone_requirements_propagate(const bNode &input_node,
         calc_output_socket_requirement(socket_output, input_requirements));
     if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
       input_requirements[socket_input.index_in_all_inputs()] = new_value;
-      changed = true;
+      change |= ZoneInOutChange::In;
+    }
+    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
+      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+      change |= ZoneInOutChange::In;
     }
   }
-  return changed;
+  return change;
 }
 
-static bool repeat_zone_requirements_propagate(const bNode &input_node,
-                                               const bNode &output_node,
-                                               MutableSpan<DataRequirement> input_requirements)
+static ZoneInOutChange repeat_zone_requirements_propagate(
+    const bNode &input_node,
+    const bNode &output_node,
+    MutableSpan<DataRequirement> input_requirements)
 {
-  bool changed = false;
+  ZoneInOutChange change = ZoneInOutChange::None;
   for (const int i : output_node.output_sockets().index_range()) {
     const bNodeSocket &socket_input = input_node.input_socket(i + 1);
     const bNodeSocket &socket_output = output_node.output_socket(i);
@@ -233,10 +246,14 @@ static bool repeat_zone_requirements_propagate(const bNode &input_node,
         calc_output_socket_requirement(socket_output, input_requirements));
     if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
       input_requirements[socket_input.index_in_all_inputs()] = new_value;
-      changed = true;
+      change |= ZoneInOutChange::In;
+    }
+    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
+      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+      change |= ZoneInOutChange::In;
     }
   }
-  return changed;
+  return change;
 }
 
 static bool propagate_zone_data_requirements(const bNodeTree &tree,
@@ -248,7 +265,9 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
     case GEO_NODE_SIMULATION_INPUT: {
       const auto &data = *static_cast<const NodeGeometrySimulationInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        if (simulation_zone_requirements_propagate(node, *output_node, input_requirements)) {
+        const ZoneInOutChange change = simulation_zone_requirements_propagate(
+            node, *output_node, input_requirements);
+        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
           return true;
         }
       }
@@ -258,7 +277,9 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeSimulationInput")) {
         const auto &data = *static_cast<const NodeGeometrySimulationInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (simulation_zone_requirements_propagate(*input_node, node, input_requirements)) {
+          const ZoneInOutChange change = simulation_zone_requirements_propagate(
+              *input_node, node, input_requirements);
+          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
             return true;
           }
         }
@@ -268,7 +289,9 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
     case GEO_NODE_REPEAT_INPUT: {
       const auto &data = *static_cast<const NodeGeometryRepeatInput *>(node.storage);
       if (const bNode *output_node = tree.node_by_id(data.output_node_id)) {
-        if (repeat_zone_requirements_propagate(node, *output_node, input_requirements)) {
+        const ZoneInOutChange change = repeat_zone_requirements_propagate(
+            node, *output_node, input_requirements);
+        if ((change & ZoneInOutChange::Out) != ZoneInOutChange::None) {
           return true;
         }
       }
@@ -278,7 +301,9 @@ static bool propagate_zone_data_requirements(const bNodeTree &tree,
       for (const bNode *input_node : tree.nodes_by_type("GeometryNodeRepeatInput")) {
         const auto &data = *static_cast<const NodeGeometryRepeatInput *>(input_node->storage);
         if (node.identifier == data.output_node_id) {
-          if (repeat_zone_requirements_propagate(*input_node, node, input_requirements)) {
+          const ZoneInOutChange change = repeat_zone_requirements_propagate(
+              *input_node, node, input_requirements);
+          if ((change & ZoneInOutChange::In) != ZoneInOutChange::None) {
             return true;
           }
         }
@@ -384,13 +409,6 @@ static StructureType left_to_right_merge(const StructureType a, const StructureT
   /* Invalid combination. */
   return a;
 }
-
-enum class ZoneInOutChange {
-  None = 0,
-  In = (1 << 1),
-  Out = (1 << 2),
-};
-ENUM_OPERATORS(ZoneInOutChange, ZoneInOutChange::Out);
 
 static ZoneInOutChange simulation_zone_status_propagate(const bNode &input_node,
                                                         const bNode &output_node,
