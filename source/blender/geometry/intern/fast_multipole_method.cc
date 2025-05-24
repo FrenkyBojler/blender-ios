@@ -270,6 +270,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   static_assert(alignof(int) == alignof(float));
   Array<int, 0, GuardedAlignedAllocator<>> partition_buffer_data(batch_size);
 
+  std::array<Vector<float, 0, GuardedAlignedAllocator<>>, 3> backet_positions_data;
+
   Vector<int, 32> depth_stack({0});
   Vector<int, 32> joint_stack({0});
   Vector<int, 32> prefix_to_visit_stack({batch_size});
@@ -405,20 +407,19 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     }
 
     const IndexRange joint_backet = buckets_offsets[joint_i];
-    
-    std::array<Array<float, 0, GuardedAlignedAllocator<>>, 3> backet_positions_data;
+
     for (const int axis_i : IndexRange(3)) {
       backet_positions_data[axis_i].reinitialize(joint_backet.size());
       backet_positions_data[axis_i].as_mutable_span().copy_from(src_bucket_position[axis_i].slice(joint_backet));
     }
     
-    constexpr int chunk_size = 16;
+    constexpr int chunk_size = ispc::FMMConstants::ChunkSize;
     const int chunked_batch_size = round_for(total_to_pass_to_childs, chunk_size);
     
-    const Span<float[16]> chunked_batch_x = batch_positions_x.take_front(chunked_batch_size).cast<float[16]>();
-    const Span<float[16]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[16]>();
-    const Span<float[16]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[16]>();
-    
+    const Span<float[chunk_size]> chunked_batch_x = batch_positions_x.take_front(chunked_batch_size).cast<float[chunk_size]>();
+    const Span<float[chunk_size]> chunked_batch_y = batch_positions_y.take_front(chunked_batch_size).cast<float[chunk_size]>();
+    const Span<float[chunk_size]> chunked_batch_z = batch_positions_z.take_front(chunked_batch_size).cast<float[chunk_size]>();
+
     const Span<float> rest_batch_x = batch_positions_x.drop_front(chunked_batch_size);
     const Span<float> rest_batch_y = batch_positions_y.drop_front(chunked_batch_size);
     const Span<float> rest_batch_z = batch_positions_z.drop_front(chunked_batch_size);
@@ -430,7 +431,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     batch_distances_buffer.as_mutable_span().fill(-1.0f);
 #endif
 
-    const MutableSpan<float[16]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[16]>();
+    const MutableSpan<float[chunk_size]> chunked_distances = batch_distances_buffer.as_mutable_span().take_front(total_chunked_table_size).cast<float[chunk_size]>();
     const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
 
     BLI_assert(chunked_distances.size() == chunked_batch_x.size() * backet_positions_data[0].size());
@@ -463,7 +464,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const IndexRange range_of_samplers = *sampler_to_bucket_range;
       if (!range_of_samplers.intersect(joint_backet).is_empty()) {
         const Span<int> batch_indices = batch_indices_data.as_mutable_span().take_front(total_to_pass_to_childs);
-        const Span<int[16]> chunked_batch_indices = batch_indices.take_front(chunked_batch_size).cast<int[16]>();
+        const Span<int[chunk_size]> chunked_batch_indices = batch_indices.take_front(chunked_batch_size).cast<int[chunk_size]>();
         const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
 
         const int from_bucket_to_sampler_offset = joint_backet.start() - range_of_samplers.start();
@@ -484,7 +485,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       const Span<float> backet_values = src_bucket_value[data_i].slice(joint_backet);
     
       const MutableSpan<float> batch_values = batch_values_data[data_i].as_mutable_span().take_front(total_to_pass_to_childs);
-      const MutableSpan<float[16]> chunked_batch_values = batch_values.take_front(chunked_batch_size).cast<float[16]>();
+      const MutableSpan<float[chunk_size]> chunked_batch_values = batch_values.take_front(chunked_batch_size).cast<float[chunk_size]>();
       const MutableSpan<float> rest_batch_values = batch_values.drop_front(chunked_batch_size);
       ispc::chunked_table_product_reduce(chunked_distances.data(),
                                          backet_values.size(),

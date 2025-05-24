@@ -33,6 +33,13 @@ enum ePredicateStatisics {
 };
 #endif
 
+#ifndef __ISPC_ENUM_FMMConstants__
+#define __ISPC_ENUM_FMMConstants__
+enum FMMConstants {
+    ChunkSize = 8 
+};
+#endif
+
 
 #ifndef __ISPC_ALIGN__
 #if defined(__clang__) || !defined(_MSC_VER)
@@ -63,9 +70,9 @@ struct IndicesStruct {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void chunked_squared_distances_table(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][16]);
-    extern int32_t chunked_table_product_reduce(const float rows_and_cols[][16], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][16]);
-    extern void chunked_zero_if_index_in_range(const int32_t row_indices[][16], const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float rows_and_cols[][16]);
+    extern void chunked_squared_distances_table(const float row_x[][8], const float row_y[][8], const float row_z[][8], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][8]);
+    extern int32_t chunked_table_product_reduce(const float rows_and_cols[][8], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][8]);
+    extern void chunked_zero_if_index_in_range(const int32_t row_indices[][8], const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float rows_and_cols[][8]);
     extern int32_t count_floats_less_than(float * values, float min_predicate_value, int32_t count);
     extern void distance_to_n(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
     extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
@@ -88,6 +95,7 @@ extern "C" {
     extern float float_dot_product(const float * values, const float * factors, const int32_t count);
     extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
     extern enum ePredicateStatisics float_more_then_single(float * values, float min_predicate_value, int32_t count);
+    extern enum FMMConstants fmm_constants();
     extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
     extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
     extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);

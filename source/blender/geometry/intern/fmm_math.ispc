@@ -142,17 +142,25 @@ export void distance_to_n(const uniform float src_a_x[],
   memcpy((uniform float * uniform)&dst[batch_count], &sufix_result[0], sizeof(uniform float) * (count - batch_count));
 }
 
-export void chunked_squared_distances_table(const uniform float row_x[][16],
-                                            const uniform float row_y[][16],
-                                            const uniform float row_z[][16],
+enum FMMConstants {
+    ChunkSize = programCount,
+};
+
+export uniform FMMConstants fmm_constants()
+{
+  return ChunkSize;
+}
+
+export void chunked_squared_distances_table(const uniform float row_x[][programCount],
+                                            const uniform float row_y[][programCount],
+                                            const uniform float row_z[][programCount],
                                             const uniform int row_count,
                                             const uniform float col_x[],
                                             const uniform float col_y[],
                                             const uniform float col_z[],
                                             const uniform int col_count,
-                                            float uniform distances[][16])
+                                            float uniform distances[][programCount])
 {
-  assert(programCount == 16);
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying float<3> row_xyz = {streaming_load(&row_x[row_index][0]),
                                       streaming_load(&row_y[row_index][0]),
@@ -175,6 +183,20 @@ export void squared_distances_table(const uniform float row_x[],
                                     const uniform int col_count,
                                     float uniform distances[])
 {
+  if (col_count % programCount == 0) {
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+      for (uniform int col_index = 0; col_index < col_count; col_index += programCount) {
+        varying float<3> col_xyz = {col_x[col_index + programIndex],
+                                    col_y[col_index + programIndex],
+                                    col_z[col_index + programIndex]};
+        const varying float<3> batch = square<3>(row_xyz - col_xyz);
+        distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
+      }
+    }
+    return;
+  }
+
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -185,14 +207,12 @@ export void squared_distances_table(const uniform float row_x[],
   }
 }
 
-export void chunked_zero_if_index_in_range(const uniform int row_indices[][16],
+export void chunked_zero_if_index_in_range(const uniform int row_indices[][programCount],
                                            const uniform int col_count,
                                            const uniform int from_bucket_to_sampler_offset,
                                            const uniform int row_count,
-                                           uniform float rows_and_cols[][16])
+                                           uniform float rows_and_cols[][programCount])
 {
-  assert(programCount == 16);
-
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying int bucket_indices = row_indices[row_index][programIndex];
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -212,8 +232,6 @@ export void zero_if_index_in_range(const uniform int row_indices[],
                                    const uniform int row_count,
                                    uniform float rows_and_cols[])
 {
-  assert(programCount == 16);
-
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform int bucket_indices = row_indices[row_index];
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -227,11 +245,11 @@ export void zero_if_index_in_range(const uniform int row_indices[],
   }
 }
 
-export uniform int chunked_table_product_reduce(const uniform float rows_and_cols[][16],
+export uniform int chunked_table_product_reduce(const uniform float rows_and_cols[][programCount],
                                                 const uniform int col_count,
                                                 const uniform float col_values[],
                                                 const uniform int row_count,
-                                                uniform float row_values[][16])
+                                                uniform float row_values[][programCount])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -990,14 +1008,13 @@ export uniform float fixed_safe_1_rpow_n(uniform float values[],
 export uniform float fixed_safe_2_rpow_n(uniform float values[],
                                          const uniform int count)
 {
-    uniform int index = 0;
-    for (; index < count - programCount; index += programCount) {
-        // prefetch_nt(&values[index + 100]);
-        values[index + programIndex] = safe_rcp(square(streaming_load(&values[index])));
-    }
-    for (; index < count; index++) {
-        values[index] = safe_rcp(square(values[index]));
-    }
+  uniform int index = 0;
+  for (; index < count - programCount; index += programCount) {
+    values[index + programIndex] = square(safe_rcp(streaming_load(&values[index])));
+  }
+  for (; index < count; index++) {
+    values[index] = square(safe_rcp(values[index]));
+  }
 }
 
 export uniform float fixed_safe_3_rpow_n(uniform float values[],
