@@ -56,10 +56,10 @@ enum eFileDataFlag {
    */
   FD_FLAGS_FILE_FUTURE = 1 << 5,
   /**
-   * The blendfile has IDs using the 5.0+ new 'long names' (i.e. which names have no null char in
-   * its first 66 bytes).
+   * The blendfile has IDs with invalid names (either using the 5.0+ new 'long names', or
+   * corrupted). I.e. their names have no null char in their first 66 bytes.
    */
-  FD_FLAGS_HAS_LONG_ID_NAME = 1 << 6,
+  FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
 };
 ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
 
