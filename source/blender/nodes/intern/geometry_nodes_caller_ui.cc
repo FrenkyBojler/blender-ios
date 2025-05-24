@@ -69,13 +69,14 @@ struct DrawGroupInputsContext {
   const bContext &C;
   bNodeTree *tree;
   geo_log::GeoTreeLog *tree_log;
-  NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
   std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
   std::function<SocketSearchData(const bNodeTreeInterfaceSocket &)> socket_search_data_fn;
+  std::function<void(uiLayout &, int icon, const bNodeTreeInterfaceSocket &)>
+      draw_attribute_toggle_fn;
 };
 
 static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
@@ -410,13 +411,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
     uiItemDecoratorR(layout, ctx.properties_ptr, rna_path.c_str(), -1);
   }
 
-  PointerRNA props = prop_row->op("object.geometry_nodes_input_attribute_toggle",
-                                  "",
-                                  ICON_SPREADSHEET,
-                                  WM_OP_INVOKE_DEFAULT,
-                                  UI_ITEM_NONE);
-  RNA_string_set(&props, "modifier_name", ctx.nmd.modifier.name);
-  RNA_string_set(&props, "input_name", socket.identifier);
+  ctx.draw_attribute_toggle_fn(*prop_row, ICON_SPREADSHEET, socket);
 }
 
 static NodesModifierPanel *find_panel_by_id(NodesModifierData &nmd, const int id)
@@ -754,7 +749,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *layout)
 {
-  if (ctx.tree != nullptr && ctx.nmd.settings.properties != nullptr) {
+  if (ctx.tree != nullptr && !ctx.properties.is_empty()) {
     for (const bNodeTreeInterfaceSocket *socket : ctx.tree->interface_outputs()) {
       const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
       const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
@@ -872,7 +867,6 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   DrawGroupInputsContext ctx{C,
                              nmd.node_group,
                              get_root_tree_log(nmd),
-                             nmd,
                              nodes::build_properties_vector_set(nmd.settings.properties),
                              modifier_ptr,
                              &bmain_ptr};
@@ -891,6 +885,16 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
   };
+  ctx.draw_attribute_toggle_fn =
+      [&](uiLayout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
+        PointerRNA props = layout.op("object.geometry_nodes_input_attribute_toggle",
+                                     "",
+                                     icon,
+                                     WM_OP_INVOKE_DEFAULT,
+                                     UI_ITEM_NONE);
+        RNA_string_set(&props, "modifier_name", nmd.modifier.name);
+        RNA_string_set(&props, "input_name", io_socket.identifier);
+      };
 
   uiLayoutSetPropSep(&layout, true);
   /* Decorators are added manually for supported properties because the
