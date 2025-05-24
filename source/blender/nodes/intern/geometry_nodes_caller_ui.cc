@@ -13,6 +13,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_string.h"
 
@@ -934,6 +935,47 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   {
     draw_manage_panel(&C, panel_layout, modifier_ptr, nmd);
   }
+}
+
+void draw_geometry_nodes_operator_redo_ui(const bContext &C, wmOperator &op, bNodeTree &tree)
+{
+  uiLayout &layout = *op.layout;
+  Main &bmain = *CTX_data_main(&C);
+  PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
+
+  DrawGroupInputsContext ctx{
+      C, &tree, nullptr, nodes::build_properties_vector_set(op.properties), op.ptr, &bmain_ptr};
+  ctx.panel_open_property_fn = [&](const bNodeTreeInterfacePanel &io_panel) -> PanelOpenProperty {
+    Panel *root_panel = uiLayoutGetRootPanel(&layout);
+    LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
+        root_panel,
+        "node_operator_panel_" + std::to_string(io_panel.identifier),
+        io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
+    PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
+    return {state_ptr, "is_open"};
+  };
+  ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
+    SocketSearchData data{};
+    /* TODO */
+    return data;
+  };
+  ctx.draw_attribute_toggle_fn =
+      [&](uiLayout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
+        const std::string prop_name = fmt::format(
+            "[\"{}{}\"]", BLI_str_escape(io_socket.identifier), nodes::input_use_attribute_suffix);
+        layout.prop(op.ptr, prop_name, UI_ITEM_R_ICON_ONLY, "", icon);
+      };
+
+  uiLayoutSetPropSep(&layout, true);
+  /* Decorators are added manually for supported properties because the
+   * attribute/value toggle requires a manually built layout anyway. */
+  uiLayoutSetPropDecorate(&layout, false);
+
+  tree.ensure_interface_cache();
+  ctx.input_usages.reinitialize(tree.interface_inputs().size());
+  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
+      tree, ctx.properties, ctx.input_usages);
+  draw_interface_panel_content(ctx, &layout, tree.tree_interface.root_panel);
 }
 
 }  // namespace blender::nodes

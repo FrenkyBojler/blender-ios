@@ -68,6 +68,7 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_geometry_nodes_caller_ui.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -947,18 +948,7 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
-
-  node_tree->ensure_interface_cache();
-
-  DrawOperatorInputsContext ctx{*node_tree, &bmain_ptr, op->ptr};
-  ctx.properties = nodes::build_properties_vector_set(op->properties);
-  ctx.input_usages.reinitialize(node_tree->interface_inputs().size());
-  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, ctx.properties, ctx.input_usages);
-
-  for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(ctx, layout, *io_socket);
-  }
+  nodes::draw_geometry_nodes_operator_redo_ui(*C, *op, const_cast<bNodeTree &>(*node_tree));
 }
 
 static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
