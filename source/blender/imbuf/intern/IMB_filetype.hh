@@ -158,11 +158,11 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
 /** \name Format: JPEG XL (#IMB_FTYPE_JXL)
  * \{ */
 
-bool imb_is_a_jxl(const unsigned char *buf, size_t size);
+bool imb_is_a_jxl(const unsigned char *mem, size_t size);
 ImBuf *imb_load_jxl(const unsigned char *mem,
                     size_t size,
                     int flags,
-                    char colorspace[IM_MAX_SPACE]);
+                    ImFileColorSpace &r_colorspace);
 bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
