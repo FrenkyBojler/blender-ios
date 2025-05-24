@@ -165,8 +165,8 @@ static void find_socket_log_contexts(const Main &bmain,
         }
         bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-            geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_cache);
+            geo_log::GeoNodesLog::get_context_hash_by_zone_for_node_editor(snode,
+                                                                           compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
@@ -675,7 +675,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> socket_log_contexts;
   GeoOperatorLog &eval_log = get_static_eval_log();
-  eval_log.log = std::make_unique<geo_log::GeoModifierLog>();
+  eval_log.log = std::make_unique<geo_log::GeoNodesLog>();
   eval_log.node_group_name = node_tree->id.name + 2;
   find_socket_log_contexts(*bmain, socket_log_contexts);
 
@@ -816,7 +816,7 @@ struct DrawOperatorInputsContext {
   PointerRNA *bmain_ptr;
   PointerRNA *op_ptr;
   nodes::PropertiesVectorSet properties;
-  Array<bool> input_usages;
+  Array<nodes::socket_usage_inference::SocketUsage> input_usages;
 };
 
 static void add_attribute_search_or_value_buttons(DrawOperatorInputsContext &ctx,
@@ -883,7 +883,7 @@ static void draw_property_for_socket(DrawOperatorInputsContext &ctx,
   }
 
   const int socket_index = ctx.ntree.interface_input_index(socket);
-  const bool affects_output = ctx.input_usages[socket_index];
+  const bool affects_output = ctx.input_usages[socket_index].is_used;
 
   const std::string socket_id_esc = BLI_str_escape(socket.identifier);
   const std::string rna_path = fmt::format("[\"{}\"]", socket_id_esc);

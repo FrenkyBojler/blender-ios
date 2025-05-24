@@ -392,6 +392,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   if (structure_type) {
     decl->structure_type(*structure_type);
   }
+  if (io_socket.default_input != NODE_DEFAULT_INPUT_VALUE) {
+    decl->hide_value();
+  }
   return *decl;
 }
 

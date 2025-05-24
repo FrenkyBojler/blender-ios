@@ -2137,7 +2137,7 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
   TreeDrawContext tree_draw_ctx;
   if (snode != nullptr) {
     if (ntree.type == NTREE_GEOMETRY) {
-      tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
+      tree_draw_ctx.tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
     }
   }
 
@@ -2462,7 +2462,7 @@ static void node_draw_sockets(const bContext &C,
   nodesocket_batch_start();
   /* Input sockets. */
   for (const bNodeSocket *sock : node.input_sockets()) {
-    if (!node.is_socket_icon_drawn(*sock)) {
+    if (!sock->is_icon_visible()) {
       continue;
     }
     const bool selected = (sock->flag & SELECT);
@@ -2472,7 +2472,7 @@ static void node_draw_sockets(const bContext &C,
 
   /* Output sockets. */
   for (const bNodeSocket *sock : node.output_sockets()) {
-    if (!node.is_socket_icon_drawn(*sock)) {
+    if (!sock->is_icon_visible()) {
       continue;
     }
     const bool selected = (sock->flag & SELECT);
@@ -2552,7 +2552,7 @@ static bool panel_has_only_inactive_inputs(const bNode &node,
         return false;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (socket.affects_node_output()) {
+      if (!socket.is_inactive()) {
         return false;
       }
     }
@@ -5264,7 +5264,7 @@ static void draw_nodetree(const bContext &C,
 
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
-    tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
+    tree_draw_ctx.tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
     tree_draw_ctx.tree_logs.foreach_tree_log([&](geo_log::GeoTreeLog &log) {
       log.ensure_node_warnings(*tree_draw_ctx.bmain);
       log.ensure_execution_times();
