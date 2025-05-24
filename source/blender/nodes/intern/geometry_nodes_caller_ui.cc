@@ -724,12 +724,12 @@ static void draw_warnings(const bContext *C,
   }
 }
 
-static bool has_output_attribute(const NodesModifierData &nmd)
+static bool has_output_attribute(const bNodeTree *tree)
 {
-  if (!nmd.node_group) {
+  if (!tree) {
     return false;
   }
-  for (const bNodeTreeInterfaceSocket *interface_socket : nmd.node_group->interface_outputs()) {
+  for (const bNodeTreeInterfaceSocket *interface_socket : tree->interface_outputs()) {
     const bke::bNodeSocketType *typeinfo = interface_socket->socket_typeinfo();
     const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
     if (nodes::socket_type_has_attribute_toggle(type)) {
@@ -908,7 +908,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
 
   draw_warnings(&C, nmd, &layout, modifier_ptr);
 
-  if (has_output_attribute(nmd)) {
+  if (has_output_attribute(nmd.node_group)) {
     if (uiLayout *panel_layout = layout.panel_prop(
             &C, modifier_ptr, "open_output_attributes_panel", IFACE_("Output Attributes")))
     {
