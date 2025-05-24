@@ -249,6 +249,8 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
+  /* Using a custom free function make the search not work currently. So make sure this data can be
+   * freed with MEM_freeN. */
   SocketSearchData *data = static_cast<SocketSearchData *>(
       MEM_mallocN(sizeof(SocketSearchData), __func__));
   *data = ctx.socket_search_data_fn(socket);
@@ -365,6 +367,8 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
+  /* Using a custom free function make the search not work currently. So make sure this data can be
+   * freed with MEM_freeN. */
   SocketSearchData *data = static_cast<SocketSearchData *>(
       MEM_mallocN(sizeof(SocketSearchData), __func__));
   *data = ctx.socket_search_data_fn(socket);
