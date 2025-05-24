@@ -457,6 +457,12 @@ static void read_file_version(FileData *fd, Main *main)
       FileGlobal *fg = static_cast<FileGlobal *>(
           read_struct(fd, bhead, "Data from Global block", INDEX_ID_NULL));
       if (fg) {
+        if (main->versionfile != fd->fileversion) {
+          /* `versionfile` remains unset when linking from a new library (`main` has then just be
+           * created by `blo_find_main`). */
+          BLI_assert(main->versionfile == 0);
+          main->versionfile = short(fd->fileversion);
+        }
         main->subversionfile = fg->subversion;
         main->minversionfile = fg->minversion;
         main->minsubversionfile = fg->minsubversion;
@@ -509,6 +515,9 @@ static void read_file_bhead_idname_map_create(FileData *fd)
     }
 
     if (is_link) {
+      /* #idname may be null in case the ID name of the given BHead is detected as invalid (e.g.
+       * because it comes from a future version of Blender allowing for longer ID names). These
+       * 'invalid-named IDs' are skipped here, which will e.g. prevent them from being linked. */
       const char *idname = blo_bhead_id_name(fd, bhead);
       if (idname) {
         const blender::StringRefNull name = idname;
@@ -537,6 +546,9 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
     const char *libname = (m->curlib) ? m->curlib->runtime->filepath_abs : m->filepath;
 
     if (BLI_path_cmp(filepath_abs, libname) == 0) {
+      m->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
+          m, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
+
       if (G.debug & G_DEBUG) {
         CLOG_INFO(&LOG, 3, "Found library %s", libname);
       }
@@ -563,6 +575,9 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
   m->curlib = lib;
 
   read_file_version(fd, m);
+
+  m->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
+      m, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
 
   if (G.debug & G_DEBUG) {
     CLOG_INFO(&LOG, 3, "Added new lib %s", filepath);
@@ -808,8 +823,8 @@ const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
     return id_name;
   }
 
-  /* ID name longer than MAX_ID_NAME - 1. */
-  fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
+  /* ID name longer than MAX_ID_NAME - 1, or otherwise corrupted. */
+  fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
   return nullptr;
 }
 
@@ -945,11 +960,15 @@ static int *read_file_thumbnail(FileData *fd)
 }
 
 /**
- * ID names are truncated the thier maximum allowed length at a very low level of the readfile code
+ * ID names are truncated the their maximum allowed length at a very low level of the readfile code
  * (see #read_id_struct).
  *
  * However, ensuring they remain unique can only be done once all IDs have been read and put in
  * Main.
+ *
+ * \note #BKE_main_namemap_validate_and_fix could also be used here - but it is designed for a more
+ * general usage, where names are typically expected to be valid, and would generate noisy logs in
+ * this case, where names are expected to _not_ be valid.
  */
 static void long_id_names_ensure_unique_id_names(Main *bmain)
 {
@@ -968,9 +987,12 @@ static void long_id_names_ensure_unique_id_names(Main *bmain)
 }
 
 /**
- * Iterate all IDs from Main->actions and look for non-null terminated slot_array->identifier. This
- * is for forward compatibility if blend file was saved using app version with higher MAX_ID_NAME
- * value than current one (introduced when switching from MAX_ID_NAME = 66 to MAX_ID_NAME = 258)
+ * Iterate all IDs from Actions and look for non-null terminated #ActionSlot.identifier. Also
+ * handle slot users (in Action constraint, AnimData, and NLA strips).
+ *
+ * This is for forward compatibility, if the blendfile was saved from a version allowing larger
+ * MAX_ID_NAME value than the current one (introduced when switching from MAX_ID_NAME = 66 to
+ * MAX_ID_NAME = 258).
  */
 static void long_id_names_process_action_slots_identifiers(Main *bmain)
 {
@@ -1893,7 +1915,7 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
 
   /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
   id->name[MAX_ID_NAME - 1] = '\0';
-  fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
+  fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
   printf("Truncated too long ID name to %s\n", id->name);
   return id;
 }
@@ -3801,9 +3823,38 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
   }
 
   /* Ensure fully valid and unique ID names before calling first stage of versioning. */
-  if (!is_undo && (fd->flags & FD_FLAGS_HAS_LONG_ID_NAME) != 0) {
+  if (!is_undo && (fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) != 0) {
     long_id_names_ensure_unique_id_names(bfd->main);
+
+    if (bfd->main->has_forward_compatibility_issues) {
+      BKE_reportf(fd->reports->reports,
+                  RPT_WARNING,
+                  "Blendfile '%s' was created by a future version of Blender and likely contains "
+                  "ID names longer than currently supported. These have been truncated.",
+                  bfd->filepath);
+    }
+    else {
+      BKE_reportf(fd->reports->reports,
+                  RPT_ERROR,
+                  "Blendfile '%s' appears corrupted, it contains invalid ID names. These have "
+                  "been truncated.",
+                  bfd->filepath);
+    }
+
+    /* This part is only to ensure forward compatibility with 5.0+ blendfiles in 4.5. It will be
+     * removed in 5.0. */
     long_id_names_process_action_slots_identifiers(bfd->main);
+  }
+  else {
+    /* Getting invalid ID names from memfile undo data would be a critical error. */
+    BLI_assert((fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) == 0);
+    if ((fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) != 0) {
+      bfd->main->is_read_invalid = true;
+    }
+  }
+
+  if (bfd->main->is_read_invalid) {
+    return bfd;
   }
 
   /* Do versioning before read_libraries, but skip in undo case. */
@@ -4116,6 +4167,31 @@ static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
   ID *id = BKE_main_idmap_lookup_name(mainvar->id_map, GS(idname), idname + 2, mainvar->curlib);
   BLI_assert(id == BLI_findstring(which_libbase(mainvar, GS(idname)), idname, offsetof(ID, name)));
   return id;
+}
+
+static void read_libraries_report_invalid_id_names(FileData *fd,
+                                                   ReportList *reports,
+                                                   const bool has_forward_compatibility_issues,
+                                                   const char *filepath)
+{
+  if (!fd || (fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) == 0) {
+    return;
+  }
+  if (has_forward_compatibility_issues) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Library '%s' was created by a future version of Blender and likely contains ID "
+                "names longer than currently supported. This may cause missing linked data, "
+                "consider opening and re-saving that library with the current Blender version.",
+                filepath);
+  }
+  else {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Library '%s' appears corrupted, it contains invalid ID names. This may cause "
+                "missing linked data.",
+                filepath);
+  }
 }
 
 /** \} */
@@ -4485,7 +4561,7 @@ static void split_main_newid(Main *mainptr, Main *main_newid)
   }
 }
 
-static void library_link_end(Main *mainl, FileData **fd, const int flag)
+static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportList *reports)
 {
   Main *mainvar;
   Library *curlib;
@@ -4496,6 +4572,9 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
 
   /* make main consistent */
   BLO_expand_main(*fd, mainl, expand_doit_library);
+
+  read_libraries_report_invalid_id_names(
+      *fd, reports, mainl->has_forward_compatibility_issues, mainl->curlib->runtime->filepath_abs);
 
   /* Do this when expand found other libraries. */
   read_libraries(*fd, (*fd)->mainlist);
@@ -4607,12 +4686,15 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   blo_read_file_checks(mainvar);
 }
 
-void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Params *params)
+void BLO_library_link_end(Main *mainl,
+                          BlendHandle **bh,
+                          const LibraryLink_Params *params,
+                          ReportList *reports)
 {
   FileData *fd = reinterpret_cast<FileData *>(*bh);
 
   if (!mainl->is_read_invalid) {
-    library_link_end(mainl, &fd, params->flag);
+    library_link_end(mainl, &fd, params->flag, reports);
   }
 
   LISTBASE_FOREACH (Library *, lib, &params->bmain->libraries) {
@@ -4672,6 +4754,10 @@ static void read_library_linked_id(
                         ((id->tag & ID_TAG_EXTERN) == 0);
 
   if (fd) {
+    /* About future longer ID names: This is one of the main places that prevent linking IDs with
+     * names longer than MAX_ID_NAME - 1.
+     *
+     * See also #read_file_bhead_idname_map_create. */
     bhead = find_bhead_from_idname(fd, id->name);
   }
 
@@ -4777,6 +4863,11 @@ static void read_library_linked_ids(FileData *basefd,
 
     loaded_ids.clear();
   }
+
+  read_libraries_report_invalid_id_names(fd,
+                                         basefd->reports->reports,
+                                         mainvar->has_forward_compatibility_issues,
+                                         mainvar->curlib->runtime->filepath_abs);
 }
 
 static void read_library_clear_weak_links(FileData *basefd, ListBase *mainlist, Main *mainvar)
