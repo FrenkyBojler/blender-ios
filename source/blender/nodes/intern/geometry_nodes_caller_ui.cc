@@ -50,6 +50,7 @@ struct PanelOpenProperty {
 
 struct DrawGroupInputsContext {
   const bContext &C;
+  bNodeTree *tree;
   NodesModifierData &nmd;
   nodes::PropertiesVectorSet properties;
   PointerRNA *properties_ptr;
@@ -448,7 +449,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     return;
   }
 
-  const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+  const int input_index = ctx.tree->interface_input_index(socket);
   if (!ctx.input_usages[input_index].is_visible) {
     /* The input is not used currently, but it would be used if any menu input is changed.
      * By convention, the input is hidden in this case instead of just grayed out. */
@@ -531,7 +532,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       ATTR_FALLTHROUGH;
     }
     default: {
-      if (nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
+      if (nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
         add_attribute_search_or_value_buttons(ctx, row, rna_path, socket);
       }
       else {
@@ -539,7 +540,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       }
     }
   }
-  if (!nodes::input_has_attribute_toggle(*ctx.nmd.node_group, input_index)) {
+  if (!nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
     row->label("", ICON_BLANK1);
   }
 }
@@ -555,7 +556,7 @@ static bool interface_panel_has_socket(DrawGroupInputsContext &ctx,
         continue;
       }
       if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
-        const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+        const int input_index = ctx.tree->interface_input_index(socket);
         if (ctx.input_usages[input_index].is_visible) {
           return true;
         }
@@ -584,7 +585,7 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
       if (!(socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
         continue;
       }
-      const int input_index = ctx.nmd.node_group->interface_input_index(socket);
+      const int input_index = ctx.tree->interface_input_index(socket);
       if (ctx.input_usages[input_index].is_used) {
         return true;
       }
@@ -756,8 +757,8 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
 
 static void draw_output_attributes_panel(DrawGroupInputsContext &ctx, uiLayout *layout)
 {
-  if (ctx.nmd.node_group != nullptr && ctx.nmd.settings.properties != nullptr) {
-    for (const bNodeTreeInterfaceSocket *socket : ctx.nmd.node_group->interface_outputs()) {
+  if (ctx.tree != nullptr && ctx.nmd.settings.properties != nullptr) {
+    for (const bNodeTreeInterfaceSocket *socket : ctx.tree->interface_outputs()) {
       const bke::bNodeSocketType *typeinfo = socket->socket_typeinfo();
       const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
                                                   SOCK_CUSTOM;
@@ -871,6 +872,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
 
   DrawGroupInputsContext ctx{C,
+                             nmd.node_group,
                              nmd,
                              nodes::build_properties_vector_set(nmd.settings.properties),
                              modifier_ptr,
