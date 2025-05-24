@@ -54,6 +54,7 @@
 #include "BLI_memarena.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
