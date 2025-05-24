@@ -1,1 +1,1 @@
-Referenced by issue #138834, IO: New FBX Importer sets the pivots incorrectly
+Referenced by issue #138834, IO: FBX importer sets the pivots incorrectly (for mirrored objects)
