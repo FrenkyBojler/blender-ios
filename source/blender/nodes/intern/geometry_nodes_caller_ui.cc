@@ -59,11 +59,19 @@ struct DrawGroupInputsContext {
   std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
 };
 
+struct SearchInfo {
+  geo_log::GeoTreeLog *tree_log = nullptr;
+  bNodeTree *tree = nullptr;
+  IDProperty *properties = nullptr;
+};
+
 struct SocketSearchData {
   uint32_t object_session_uid;
   char modifier_name[MAX_NAME];
   char socket_identifier[MAX_NAME];
   bool is_output;
+
+  SearchInfo info(const bContext &C) const;
 };
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
@@ -101,26 +109,32 @@ static NodesModifierData *get_modifier_data(Main &bmain,
   return reinterpret_cast<NodesModifierData *>(md);
 }
 
+SearchInfo SocketSearchData::info(const bContext &C) const
+{
+  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(&C), *CTX_wm_manager(&C), *this);
+  if (nmd == nullptr) {
+    return {};
+  }
+  if (nmd->node_group == nullptr) {
+    return {};
+  }
+  geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
+  return {tree_log, nmd->node_group, nmd->settings.properties};
+}
+
 static void layer_name_search_update_fn(
     const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
 {
   const SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
-  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
-  if (nmd == nullptr) {
+  const SearchInfo info = data.info(*C);
+  if (!info.tree || !info.tree_log) {
     return;
   }
-  if (nmd->node_group == nullptr) {
-    return;
-  }
-  geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
-  if (tree_log == nullptr) {
-    return;
-  }
-  tree_log->ensure_layer_names();
-  nmd->node_group->ensure_topology_cache();
+  info.tree_log->ensure_layer_names();
+  info.tree->ensure_topology_cache();
 
   Vector<const bNodeSocket *> sockets_to_check;
-  for (const bNode *node : nmd->node_group->group_input_nodes()) {
+  for (const bNode *node : info.tree->group_input_nodes()) {
     for (const bNodeSocket *socket : node->output_sockets()) {
       if (socket->type == SOCK_GEOMETRY) {
         sockets_to_check.append(socket);
@@ -131,7 +145,7 @@ static void layer_name_search_update_fn(
   Set<StringRef> names;
   Vector<const std::string *> layer_names;
   for (const bNodeSocket *socket : sockets_to_check) {
-    const geo_log::ValueLog *value_log = tree_log->find_socket_value_log(*socket);
+    const geo_log::ValueLog *value_log = info.tree_log->find_socket_value_log(*socket);
     if (value_log == nullptr) {
       continue;
     }
@@ -155,16 +169,15 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
 {
   const SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
   const std::string *item = static_cast<std::string *>(item_v);
-  if (item == nullptr) {
+  if (!item) {
     return;
   }
-  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
-  if (nmd == nullptr) {
+  const SearchInfo info = data.info(*C);
+  if (!info.properties) {
     return;
   }
 
-  IDProperty &name_property = *IDP_GetPropertyFromGroup(nmd->settings.properties,
-                                                        data.socket_identifier);
+  IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, data.socket_identifier);
   IDP_AssignString(&name_property, item->c_str());
 
   ED_undo_push(C, "Assign Layer Name");
@@ -235,23 +248,16 @@ static void attribute_search_update_fn(
     const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
 {
   SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
-  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
-  if (nmd == nullptr) {
+  const SearchInfo info = data.info(*C);
+  if (!info.tree || !info.tree_log) {
     return;
   }
-  if (nmd->node_group == nullptr) {
-    return;
-  }
-  geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
-  if (tree_log == nullptr) {
-    return;
-  }
-  tree_log->ensure_existing_attributes();
-  nmd->node_group->ensure_topology_cache();
+  info.tree_log->ensure_existing_attributes();
+  info.tree->ensure_topology_cache();
 
   Vector<const bNodeSocket *> sockets_to_check;
   if (data.is_output) {
-    for (const bNode *node : nmd->node_group->nodes_by_type("NodeGroupOutput")) {
+    for (const bNode *node : info.tree->nodes_by_type("NodeGroupOutput")) {
       for (const bNodeSocket *socket : node->input_sockets()) {
         if (socket->type == SOCK_GEOMETRY) {
           sockets_to_check.append(socket);
@@ -260,7 +266,7 @@ static void attribute_search_update_fn(
     }
   }
   else {
-    for (const bNode *node : nmd->node_group->group_input_nodes()) {
+    for (const bNode *node : info.tree->group_input_nodes()) {
       for (const bNodeSocket *socket : node->output_sockets()) {
         if (socket->type == SOCK_GEOMETRY) {
           sockets_to_check.append(socket);
@@ -271,7 +277,7 @@ static void attribute_search_update_fn(
   Set<StringRef> names;
   Vector<const geo_log::GeometryAttributeInfo *> attributes;
   for (const bNodeSocket *socket : sockets_to_check) {
-    const geo_log::ValueLog *value_log = tree_log->find_socket_value_log(*socket);
+    const geo_log::ValueLog *value_log = info.tree_log->find_socket_value_log(*socket);
     if (value_log == nullptr) {
       continue;
     }
@@ -293,15 +299,14 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   }
   SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
   const auto &item = *static_cast<const geo_log::GeometryAttributeInfo *>(item_v);
-  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(C), *CTX_wm_manager(C), data);
-  if (nmd == nullptr) {
+  const SearchInfo info = data.info(*C);
+  if (!info.properties) {
     return;
   }
 
   const std::string attribute_prop_name = data.socket_identifier +
                                           nodes::input_attribute_name_suffix;
-  IDProperty &name_property = *IDP_GetPropertyFromGroup(nmd->settings.properties,
-                                                        attribute_prop_name);
+  IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, attribute_prop_name);
   IDP_AssignString(&name_property, item.name.c_str());
 
   ED_undo_push(C, "Assign Attribute Name");
