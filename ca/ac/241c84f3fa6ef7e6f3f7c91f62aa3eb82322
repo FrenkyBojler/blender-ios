@@ -1,1 +1,1 @@
-Referenced by issue #139191, Blender crashes on startup with older Screencast key addons
+Referenced by issue #139191, Blender crashes on startup with addons that use gpu.types.GPUShader
