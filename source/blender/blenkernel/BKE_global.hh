@@ -354,6 +354,7 @@ enum {
   G_TRANSFORM_OBJ = (1 << 0),
   G_TRANSFORM_EDIT = (1 << 1),
   G_TRANSFORM_SEQ = (1 << 2),
+  G_TRANSFORM_SEQ_PREVIEW = (1 << 6),
   G_TRANSFORM_FCURVES = (1 << 3),
   /**
    * Set while interactively transforming screen data (e.g. resizing areas & regions).

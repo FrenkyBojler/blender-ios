@@ -896,11 +896,8 @@ static bool is_origins_visible(const bContext *C, Strip *strip)
 
   /* If the origins overlay is turned off, show the origins only when needed, like when moving
    * objects. */
-  bScreen *screen = CTX_wm_screen(C);
-  if (screen->active_region && (screen->active_region->regiontype == RGN_TYPE_PREVIEW)) {
-    if ((G.moving & G_TRANSFORM_SEQ) && (strip->flag & SELECT)) {
-      return true;
-    }
+  if ((G.moving & G_TRANSFORM_SEQ_PREVIEW) && (strip->flag & SELECT)) {
+    return true;
   }
 
   return false;
