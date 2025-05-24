@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
+
+struct Depsgraph;
 struct Object;
 struct PTCacheEdit;
 struct ParticleEditSettings;
@@ -31,8 +34,11 @@ PTCacheEdit *PE_get_current_from_psys(ParticleSystem *psys);
 PTCacheEdit *PE_get_current(Depsgraph *depsgraph, Scene *scene, Object *ob);
 PTCacheEdit *PE_create_current(Depsgraph *depsgraph, Scene *scene, Object *ob);
 void PE_current_changed(Depsgraph *depsgraph, Scene *scene, Object *ob);
-int PE_minmax(
-    Depsgraph *depsgraph, Scene *scene, ViewLayer *view_layer, float min[3], float max[3]);
+int PE_minmax(Depsgraph *depsgraph,
+              Scene *scene,
+              ViewLayer *view_layer,
+              blender::float3 &min,
+              blender::float3 &max);
 ParticleEditSettings *PE_settings(Scene *scene);
 
 /* update calls */
@@ -42,7 +48,7 @@ void PE_update_object(Depsgraph *depsgraph, Scene *scene, Object *ob, int usefla
 
 /* selection tools */
 
-bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params *params);
+bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params &params);
 bool PE_box_select(bContext *C, const rcti *rect, int sel_op);
 bool PE_circle_select(
     bContext *C, wmGenericUserData *wm_userdata, int sel_op, const int mval[2], float rad);

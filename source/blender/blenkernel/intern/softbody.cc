@@ -23,9 +23,10 @@
  * </pre>
  */
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 
 #include "CLG_log.h"
 
@@ -47,71 +48,70 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_collection.h"
 #include "BKE_collision.h"
-#include "BKE_curve.h"
-#include "BKE_deform.h"
+#include "BKE_curve.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
-#include "BKE_mesh.h"
-#include "BKE_modifier.h"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
+#include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 #include "BKE_pointcache.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_softbody.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "PIL_time.h"
-
 static CLG_LogRef LOG = {"bke.softbody"};
 
 /* callbacks for errors and interrupts and some goo */
-static int (*SB_localInterruptCallBack)(void) = nullptr;
+static int (*SB_localInterruptCallBack)() = nullptr;
 
 /* ********** soft body engine ******* */
 
-typedef enum { SB_EDGE = 1, SB_BEND = 2, SB_STIFFQUAD = 3, SB_HANDLE = 4 } type_spring;
+enum type_spring { SB_EDGE = 1, SB_BEND = 2, SB_STIFFQUAD = 3, SB_HANDLE = 4 };
 
-typedef struct BodySpring {
+struct BodySpring {
   int v1, v2;
   float len, cf, load;
   float ext_force[3]; /* edges colliding and sailing */
   type_spring springtype;
   short flag;
-} BodySpring;
+};
 
-typedef struct BodyFace {
+struct BodyFace {
   int v1, v2, v3;
   float ext_force[3]; /* faces colliding */
   short flag;
-} BodyFace;
+};
 
-typedef struct ReferenceVert {
+struct ReferenceVert {
   float pos[3]; /* position relative to com */
   float mass;   /* node mass */
-} ReferenceVert;
+};
 
-typedef struct ReferenceState {
+struct ReferenceState {
   float com[3];         /* Center of mass. */
   ReferenceVert *ivert; /* List of initial values. */
-} ReferenceState;
+};
 
 /* Private scratch pad for caching and other data only needed when alive. */
-typedef struct SBScratch {
+struct SBScratch {
   GHash *colliderhash;
   short needstobuildcollider;
   short flag;
   BodyFace *bodyface;
-  int totface;
+  int bodyface_num;
   float aabbmin[3], aabbmax[3];
   ReferenceState Ref;
-} SBScratch;
+};
 
-typedef struct SB_thread_context {
+struct SB_thread_context {
   Scene *scene;
   Object *ob;
   float forcetime;
@@ -124,7 +124,7 @@ typedef struct SB_thread_context {
   float windfactor;
   int nr;
   int tot;
-} SB_thread_context;
+};
 
 #define MID_PRESERVE 1
 
@@ -252,28 +252,27 @@ static float _final_mass(Object *ob, BodyPoint *bp)
  */
 static const int CCD_SAFETY = 190561;
 
-typedef struct ccdf_minmax {
+struct ccdf_minmax {
   float minx, miny, minz, maxx, maxy, maxz;
-} ccdf_minmax;
+};
 
-typedef struct ccd_Mesh {
+struct ccd_Mesh {
   int mvert_num, tri_num;
   const float (*vert_positions)[3];
   const float (*vert_positions_prev)[3];
-  const MVertTri *tri;
+  const blender::int3 *vert_tris;
   int safety;
   ccdf_minmax *mima;
   /* Axis Aligned Bounding Box AABB */
   float bbmin[3];
   float bbmax[3];
-} ccd_Mesh;
+};
 
 static ccd_Mesh *ccd_mesh_make(Object *ob)
 {
   CollisionModifierData *cmd;
   ccd_Mesh *pccd_M = nullptr;
   ccdf_minmax *mima;
-  const MVertTri *vt;
   float hull;
   int i;
 
@@ -287,7 +286,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
     return nullptr;
   }
 
-  pccd_M = static_cast<ccd_Mesh *>(MEM_mallocN(sizeof(ccd_Mesh), "ccd_Mesh"));
+  pccd_M = MEM_mallocN<ccd_Mesh>("ccd_Mesh");
   pccd_M->mvert_num = cmd->mvert_num;
   pccd_M->tri_num = cmd->tri_num;
   pccd_M->safety = CCD_SAFETY;
@@ -316,20 +315,19 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
     pccd_M->bbmax[2] = max_ff(pccd_M->bbmax[2], v[2] + hull);
   }
   /* Allocate and copy faces. */
-  pccd_M->tri = static_cast<const MVertTri *>(MEM_dupallocN(cmd->tri));
+  pccd_M->vert_tris = static_cast<const blender::int3 *>(MEM_dupallocN(cmd->vert_tris));
 
   /* OBBs for idea1 */
-  pccd_M->mima = static_cast<ccdf_minmax *>(
-      MEM_mallocN(sizeof(ccdf_minmax) * pccd_M->tri_num, "ccd_Mesh_Faces_mima"));
+  pccd_M->mima = MEM_malloc_arrayN<ccdf_minmax>(size_t(pccd_M->tri_num), "ccd_Mesh_Faces_mima");
 
   /* Anyhow we need to walk the list of faces and find OBB they live in. */
-  for (i = 0, mima = pccd_M->mima, vt = pccd_M->tri; i < pccd_M->tri_num; i++, mima++, vt++) {
+  for (i = 0, mima = pccd_M->mima; i < pccd_M->tri_num; i++, mima++) {
     const float *v;
 
     mima->minx = mima->miny = mima->minz = 1e30f;
     mima->maxx = mima->maxy = mima->maxz = -1e30f;
 
-    v = pccd_M->vert_positions[vt->tri[0]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][0]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -337,7 +335,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions[vt->tri[1]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][1]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -345,7 +343,7 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions[vt->tri[2]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][2]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -360,7 +358,6 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 {
   CollisionModifierData *cmd;
   ccdf_minmax *mima;
-  const MVertTri *vt;
   float hull;
   int i;
 
@@ -386,7 +383,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 
   /* rotate current to previous */
   if (pccd_M->vert_positions_prev) {
-    MEM_freeN((void *)pccd_M->vert_positions_prev);
+    MEM_freeN(pccd_M->vert_positions_prev);
   }
   pccd_M->vert_positions_prev = pccd_M->vert_positions;
   /* Allocate and copy verts. */
@@ -418,14 +415,14 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
   }
 
   /* Anyhow we need to walk the list of faces and find OBB they live in. */
-  for (i = 0, mima = pccd_M->mima, vt = pccd_M->tri; i < pccd_M->tri_num; i++, mima++, vt++) {
+  for (i = 0, mima = pccd_M->mima; i < pccd_M->tri_num; i++, mima++) {
     const float *v;
 
     mima->minx = mima->miny = mima->minz = 1e30f;
     mima->maxx = mima->maxy = mima->maxz = -1e30f;
 
     /* vert_positions */
-    v = pccd_M->vert_positions[vt->tri[0]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][0]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -433,7 +430,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions[vt->tri[1]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][1]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -441,7 +438,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions[vt->tri[2]];
+    v = pccd_M->vert_positions[pccd_M->vert_tris[i][2]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -450,7 +447,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
     /* vert_positions_prev */
-    v = pccd_M->vert_positions_prev[vt->tri[0]];
+    v = pccd_M->vert_positions_prev[pccd_M->vert_tris[i][0]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -458,7 +455,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions_prev[vt->tri[1]];
+    v = pccd_M->vert_positions_prev[pccd_M->vert_tris[i][1]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -466,7 +463,7 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
     mima->maxy = max_ff(mima->maxy, v[1] + hull);
     mima->maxz = max_ff(mima->maxz, v[2] + hull);
 
-    v = pccd_M->vert_positions_prev[vt->tri[2]];
+    v = pccd_M->vert_positions_prev[pccd_M->vert_tris[i][2]];
     mima->minx = min_ff(mima->minx, v[0] - hull);
     mima->miny = min_ff(mima->miny, v[1] - hull);
     mima->minz = min_ff(mima->minz, v[2] - hull);
@@ -480,10 +477,10 @@ static void ccd_mesh_free(ccd_Mesh *ccdm)
 {
   /* Make sure we're not nuking objects we don't know. */
   if (ccdm && (ccdm->safety == CCD_SAFETY)) {
-    MEM_freeN((void *)ccdm->vert_positions);
-    MEM_freeN((void *)ccdm->tri);
+    MEM_freeN(ccdm->vert_positions);
+    MEM_freeN(ccdm->vert_tris);
     if (ccdm->vert_positions_prev) {
-      MEM_freeN((void *)ccdm->vert_positions_prev);
+      MEM_freeN(ccdm->vert_positions_prev);
     }
     MEM_freeN(ccdm->mima);
     MEM_freeN(ccdm);
@@ -568,16 +565,13 @@ static void ccd_update_deflector_hash(Depsgraph *depsgraph,
 
 /*--- collider caching and dicing ---*/
 
-static int count_mesh_quads(Mesh *me)
+static int count_mesh_quads(Mesh *mesh)
 {
   int result = 0;
-  const int *face_offsets = BKE_mesh_face_offsets(me);
-  if (face_offsets) {
-    for (int i = 0; i < me->faces_num; i++) {
-      const int poly_size = face_offsets[i + 1] - face_offsets[i];
-      if (poly_size == 4) {
-        result++;
-      }
+  const blender::OffsetIndices faces = mesh->faces();
+  for (const int i : faces.index_range()) {
+    if (faces[i].size() == 4) {
+      result++;
     }
   }
   return result;
@@ -585,16 +579,16 @@ static int count_mesh_quads(Mesh *me)
 
 static void add_mesh_quad_diag_springs(Object *ob)
 {
-  Mesh *me = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
   // BodyPoint *bp; /* UNUSED */
   if (ob->soft) {
     int nofquads;
     // float s_shear = ob->soft->shearstiff*ob->soft->shearstiff;
 
-    nofquads = count_mesh_quads(me);
+    nofquads = count_mesh_quads(mesh);
     if (nofquads) {
-      const int *corner_verts = BKE_mesh_corner_verts(me);
-      const int *face_offsets = BKE_mesh_face_offsets(me);
+      const blender::OffsetIndices faces = mesh->faces();
+      const blender::Span<int> corner_verts = mesh->corner_verts();
       BodySpring *bs;
 
       /* resize spring-array to hold additional quad springs */
@@ -604,15 +598,15 @@ static void add_mesh_quad_diag_springs(Object *ob)
       /* fill the tail */
       bs = &ob->soft->bspring[ob->soft->totspring];
       // bp = ob->soft->bpoint; /* UNUSED */
-      for (int a = 0; a < me->faces_num; a++) {
-        const int poly_size = face_offsets[a + 1] - face_offsets[a];
+      for (int a = 0; a < mesh->faces_num; a++) {
+        const int poly_size = faces[a].size();
         if (poly_size == 4) {
-          bs->v1 = corner_verts[face_offsets[a] + 0];
-          bs->v2 = corner_verts[face_offsets[a] + 2];
+          bs->v1 = corner_verts[faces[a].start() + 0];
+          bs->v2 = corner_verts[faces[a].start() + 2];
           bs->springtype = SB_STIFFQUAD;
           bs++;
-          bs->v1 = corner_verts[face_offsets[a] + 1];
-          bs->v2 = corner_verts[face_offsets[a] + 3];
+          bs->v1 = corner_verts[faces[a].start() + 1];
+          bs->v2 = corner_verts[faces[a].start() + 3];
           bs->springtype = SB_STIFFQUAD;
           bs++;
         }
@@ -697,8 +691,8 @@ static void add_2nd_order_springs(Object *ob, float stiffness)
   add_2nd_order_roller(ob, stiffness, &counter, 0); /* counting */
   if (counter) {
     /* resize spring-array to hold additional springs */
-    bs_new = static_cast<BodySpring *>(
-        MEM_callocN((ob->soft->totspring + counter) * sizeof(BodySpring), "bodyspring"));
+    bs_new = MEM_calloc_arrayN<BodySpring>(size_t(ob->soft->totspring) + size_t(counter),
+                                           "bodyspring");
     memcpy(bs_new, ob->soft->bspring, (ob->soft->totspring) * sizeof(BodySpring));
 
     if (ob->soft->bspring) {
@@ -716,13 +710,13 @@ static void add_bp_springlist(BodyPoint *bp, int springID)
   int *newlist;
 
   if (bp->springs == nullptr) {
-    bp->springs = static_cast<int *>(MEM_callocN(sizeof(int), "bpsprings"));
+    bp->springs = MEM_calloc_arrayN<int>(1, "bpsprings");
     bp->springs[0] = springID;
     bp->nofsprings = 1;
   }
   else {
     bp->nofsprings++;
-    newlist = static_cast<int *>(MEM_callocN(bp->nofsprings * sizeof(int), "bpsprings"));
+    newlist = MEM_calloc_arrayN<int>(bp->nofsprings, "bpsprings");
     memcpy(newlist, bp->springs, (bp->nofsprings - 1) * sizeof(int));
     MEM_freeN(bp->springs);
     bp->springs = newlist;
@@ -834,10 +828,9 @@ static void renew_softbody(Object *ob, int totpoint, int totspring)
     sb->totpoint = totpoint;
     sb->totspring = totspring;
 
-    sb->bpoint = static_cast<BodyPoint *>(MEM_mallocN(totpoint * sizeof(BodyPoint), "bodypoint"));
+    sb->bpoint = MEM_malloc_arrayN<BodyPoint>(size_t(totpoint), "bodypoint");
     if (totspring) {
-      sb->bspring = static_cast<BodySpring *>(
-          MEM_mallocN(totspring * sizeof(BodySpring), "bodyspring"));
+      sb->bspring = MEM_malloc_arrayN<BodySpring>(size_t(totspring), "bodyspring");
     }
 
     /* initialize BodyPoint array */
@@ -1166,12 +1159,12 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
       if (ob->pd && ob->pd->deflect) {
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
-        const MVertTri *vt = nullptr;
+        const blender::int3 *vt = nullptr;
         const ccdf_minmax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
-          vt = ccdm->tri;
+          vt = ccdm->vert_tris;
           vert_positions_prev = ccdm->vert_positions_prev;
           mima = ccdm->mima;
           a = ccdm->tri_num;
@@ -1205,19 +1198,19 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
 
           if (vert_positions) {
 
-            copy_v3_v3(nv1, vert_positions[vt->tri[0]]);
-            copy_v3_v3(nv2, vert_positions[vt->tri[1]]);
-            copy_v3_v3(nv3, vert_positions[vt->tri[2]]);
+            copy_v3_v3(nv1, vert_positions[(*vt)[0]]);
+            copy_v3_v3(nv2, vert_positions[(*vt)[1]]);
+            copy_v3_v3(nv3, vert_positions[(*vt)[2]]);
 
             if (vert_positions_prev) {
               mul_v3_fl(nv1, time);
-              madd_v3_v3fl(nv1, vert_positions_prev[vt->tri[0]], 1.0f - time);
+              madd_v3_v3fl(nv1, vert_positions_prev[(*vt)[0]], 1.0f - time);
 
               mul_v3_fl(nv2, time);
-              madd_v3_v3fl(nv2, vert_positions_prev[vt->tri[1]], 1.0f - time);
+              madd_v3_v3fl(nv2, vert_positions_prev[(*vt)[1]], 1.0f - time);
 
               mul_v3_fl(nv3, time);
-              madd_v3_v3fl(nv3, vert_positions_prev[vt->tri[2]], 1.0f - time);
+              madd_v3_v3fl(nv3, vert_positions_prev[(*vt)[2]], 1.0f - time);
             }
           }
 
@@ -1254,10 +1247,10 @@ static void scan_for_ext_face_forces(Object *ob, float timenow)
   float tune = -10.0f;
   float feedback[3];
 
-  if (sb && sb->scratch->totface) {
+  if (sb && sb->scratch->bodyface_num) {
 
     bf = sb->scratch->bodyface;
-    for (a = 0; a < sb->scratch->totface; a++, bf++) {
+    for (a = 0; a < sb->scratch->bodyface_num; a++, bf++) {
       bf->ext_force[0] = bf->ext_force[1] = bf->ext_force[2] = 0.0f;
       /*+++edges intruding. */
       bf->flag &= ~BFF_INTERSECT;
@@ -1303,7 +1296,7 @@ static void scan_for_ext_face_forces(Object *ob, float timenow)
       /*--- close vertices. */
     }
     bf = sb->scratch->bodyface;
-    for (a = 0; a < sb->scratch->totface; a++, bf++) {
+    for (a = 0; a < sb->scratch->bodyface_num; a++, bf++) {
       if ((bf->flag & BFF_INTERSECT) || (bf->flag & BFF_CLOSEVERT)) {
         sb->bpoint[bf->v1].choke2 = max_ff(sb->bpoint[bf->v1].choke2, choke);
         sb->bpoint[bf->v2].choke2 = max_ff(sb->bpoint[bf->v2].choke2, choke);
@@ -1347,13 +1340,13 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
       if (ob->pd && ob->pd->deflect) {
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
-        const MVertTri *vt = nullptr;
+        const blender::int3 *vt = nullptr;
         const ccdf_minmax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
           vert_positions_prev = ccdm->vert_positions_prev;
-          vt = ccdm->tri;
+          vt = ccdm->vert_tris;
           mima = ccdm->mima;
           a = ccdm->tri_num;
 
@@ -1386,19 +1379,19 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
 
           if (vert_positions) {
 
-            copy_v3_v3(nv1, vert_positions[vt->tri[0]]);
-            copy_v3_v3(nv2, vert_positions[vt->tri[1]]);
-            copy_v3_v3(nv3, vert_positions[vt->tri[2]]);
+            copy_v3_v3(nv1, vert_positions[(*vt)[0]]);
+            copy_v3_v3(nv2, vert_positions[(*vt)[1]]);
+            copy_v3_v3(nv3, vert_positions[(*vt)[2]]);
 
             if (vert_positions_prev) {
               mul_v3_fl(nv1, time);
-              madd_v3_v3fl(nv1, vert_positions_prev[vt->tri[0]], 1.0f - time);
+              madd_v3_v3fl(nv1, vert_positions_prev[(*vt)[0]], 1.0f - time);
 
               mul_v3_fl(nv2, time);
-              madd_v3_v3fl(nv2, vert_positions_prev[vt->tri[1]], 1.0f - time);
+              madd_v3_v3fl(nv2, vert_positions_prev[(*vt)[1]], 1.0f - time);
 
               mul_v3_fl(nv3, time);
-              madd_v3_v3fl(nv3, vert_positions_prev[vt->tri[2]], 1.0f - time);
+              madd_v3_v3fl(nv3, vert_positions_prev[(*vt)[2]], 1.0f - time);
             }
           }
 
@@ -1541,8 +1534,7 @@ static void sb_sfesf_threads_run(Depsgraph *depsgraph,
     totthread--;
   }
 
-  sb_threads = static_cast<SB_thread_context *>(
-      MEM_callocN(sizeof(SB_thread_context) * totthread, "SBSpringsThread"));
+  sb_threads = MEM_calloc_arrayN<SB_thread_context>(totthread, "SBSpringsThread");
   left = totsprings;
   dec = totsprings / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -1650,13 +1642,13 @@ static int sb_detect_vertex_collisionCached(float opco[3],
       if (ob->pd && ob->pd->deflect) {
         const float(*vert_positions)[3] = nullptr;
         const float(*vert_positions_prev)[3] = nullptr;
-        const MVertTri *vt = nullptr;
+        const blender::int3 *vt = nullptr;
         const ccdf_minmax *mima = nullptr;
 
         if (ccdm) {
           vert_positions = ccdm->vert_positions;
           vert_positions_prev = ccdm->vert_positions_prev;
-          vt = ccdm->tri;
+          vt = ccdm->vert_tris;
           mima = ccdm->mima;
           a = ccdm->tri_num;
 
@@ -1703,9 +1695,9 @@ static int sb_detect_vertex_collisionCached(float opco[3],
 
           if (vert_positions) {
 
-            copy_v3_v3(nv1, vert_positions[vt->tri[0]]);
-            copy_v3_v3(nv2, vert_positions[vt->tri[1]]);
-            copy_v3_v3(nv3, vert_positions[vt->tri[2]]);
+            copy_v3_v3(nv1, vert_positions[(*vt)[0]]);
+            copy_v3_v3(nv2, vert_positions[(*vt)[1]]);
+            copy_v3_v3(nv3, vert_positions[(*vt)[2]]);
 
             if (vert_positions_prev) {
               /* Grab the average speed of the collider vertices before we spoil nvX
@@ -1713,18 +1705,18 @@ static int sb_detect_vertex_collisionCached(float opco[3],
                * since the AABB reduced probability to get here drastically
                * it might be a nice tradeoff CPU <--> memory.
                */
-              sub_v3_v3v3(vv1, nv1, vert_positions_prev[vt->tri[0]]);
-              sub_v3_v3v3(vv2, nv2, vert_positions_prev[vt->tri[1]]);
-              sub_v3_v3v3(vv3, nv3, vert_positions_prev[vt->tri[2]]);
+              sub_v3_v3v3(vv1, nv1, vert_positions_prev[(*vt)[0]]);
+              sub_v3_v3v3(vv2, nv2, vert_positions_prev[(*vt)[1]]);
+              sub_v3_v3v3(vv3, nv3, vert_positions_prev[(*vt)[2]]);
 
               mul_v3_fl(nv1, time);
-              madd_v3_v3fl(nv1, vert_positions_prev[vt->tri[0]], 1.0f - time);
+              madd_v3_v3fl(nv1, vert_positions_prev[(*vt)[0]], 1.0f - time);
 
               mul_v3_fl(nv2, time);
-              madd_v3_v3fl(nv2, vert_positions_prev[vt->tri[1]], 1.0f - time);
+              madd_v3_v3fl(nv2, vert_positions_prev[(*vt)[1]], 1.0f - time);
 
               mul_v3_fl(nv3, time);
-              madd_v3_v3fl(nv3, vert_positions_prev[vt->tri[2]], 1.0f - time);
+              madd_v3_v3fl(nv3, vert_positions_prev[(*vt)[2]], 1.0f - time);
             }
           }
 
@@ -1743,7 +1735,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
             if (isect_point_tri_prism_v3(opco, nv1, nv2, nv3)) {
               force_mag_norm = float(exp(double(-ee * facedist)));
               if (facedist > outerfacethickness * ff) {
-                force_mag_norm = float(force_mag_norm) * fa * (facedist - outerfacethickness) *
+                force_mag_norm = force_mag_norm * fa * (facedist - outerfacethickness) *
                                  (facedist - outerfacethickness);
               }
               *damp = ob->pd->pdef_sbdamp;
@@ -1754,9 +1746,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
               }
               else {
                 madd_v3_v3fl(innerforceaccu, d_nvect, force_mag_norm);
-                if (deflected < 2) {
-                  deflected = 2;
-                }
+                deflected = std::max(deflected, 2);
               }
               if ((vert_positions_prev) && (*damp > 0.0f)) {
                 choose_winner(ve, opco, nv1, nv2, nv3, vv1, vv2, vv3);
@@ -1779,7 +1769,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
   if (deflected == 1) { /* no face but 'outer' edge cylinder sees vert */
     force_mag_norm = float(exp(double() - ee * mindistedge));
     if (mindistedge > outerfacethickness * ff) {
-      force_mag_norm = float(force_mag_norm) * fa * (mindistedge - outerfacethickness) *
+      force_mag_norm = force_mag_norm * fa * (mindistedge - outerfacethickness) *
                        (mindistedge - outerfacethickness);
     }
     madd_v3_v3fl(force, coledge, force_mag_norm);
@@ -2224,8 +2214,7 @@ static void sb_cf_threads_run(Scene *scene,
 
   // printf("sb_cf_threads_run spawning %d threads\n", totthread);
 
-  sb_threads = static_cast<SB_thread_context *>(
-      MEM_callocN(sizeof(SB_thread_context) * totthread, "SBThread"));
+  sb_threads = MEM_calloc_arrayN<SB_thread_context>(totthread, "SBThread");
   left = totpoint;
   dec = totpoint / totthread + 1;
   for (i = 0; i < totthread; i++) {
@@ -2647,23 +2636,23 @@ static void interpolate_exciter(Object *ob, int timescale, int time)
 static void springs_from_mesh(Object *ob)
 {
   SoftBody *sb;
-  Mesh *me = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
   BodyPoint *bp;
   int a;
   float scale = 1.0f;
-  const float(*vert_positions)[3] = BKE_mesh_vert_positions(me);
+  const blender::Span<blender::float3> positions = mesh->vert_positions();
 
   sb = ob->soft;
-  if (me && sb) {
+  if (mesh && sb) {
     /* using bp->origS as a container for spring calculations here
      * will be overwritten sbObjectStep() to receive
      * actual modifier stack vert_positions
      */
-    if (me->totvert) {
+    if (mesh->verts_num) {
       bp = ob->soft->bpoint;
-      for (a = 0; a < me->totvert; a++, bp++) {
-        copy_v3_v3(bp->origS, vert_positions[a]);
-        mul_m4_v3(ob->object_to_world, bp->origS);
+      for (a = 0; a < mesh->verts_num; a++, bp++) {
+        copy_v3_v3(bp->origS, positions[a]);
+        mul_m4_v3(ob->object_to_world().ptr(), bp->origS);
       }
     }
     /* recalculate spring length for meshes here */
@@ -2682,35 +2671,35 @@ static void springs_from_mesh(Object *ob)
 static void mesh_to_softbody(Object *ob)
 {
   SoftBody *sb;
-  Mesh *me = static_cast<Mesh *>(ob->data);
-  const vec2i *edge = static_cast<const vec2i *>(
-      CustomData_get_layer_named(&me->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  const blender::int2 *edge = static_cast<const blender::int2 *>(
+      CustomData_get_layer_named(&mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts"));
   BodyPoint *bp;
   BodySpring *bs;
   int a, totedge;
   int defgroup_index, defgroup_index_mass, defgroup_index_spring;
 
   if (ob->softflag & OB_SB_EDGES) {
-    totedge = me->totedge;
+    totedge = mesh->edges_num;
   }
   else {
     totedge = 0;
   }
 
   /* renew ends with ob->soft with points and edges, also checks & makes ob->soft */
-  renew_softbody(ob, me->totvert, totedge);
+  renew_softbody(ob, mesh->verts_num, totedge);
 
   /* we always make body points */
   sb = ob->soft;
   bp = sb->bpoint;
 
-  const MDeformVert *dvert = BKE_mesh_deform_verts(me);
+  const MDeformVert *dvert = mesh->deform_verts().data();
 
   defgroup_index = dvert ? (sb->vertgroup - 1) : -1;
-  defgroup_index_mass = dvert ? BKE_id_defgroup_name_index(&me->id, sb->namedVG_Mass) : -1;
-  defgroup_index_spring = dvert ? BKE_id_defgroup_name_index(&me->id, sb->namedVG_Spring_K) : -1;
+  defgroup_index_mass = dvert ? BKE_id_defgroup_name_index(&mesh->id, sb->namedVG_Mass) : -1;
+  defgroup_index_spring = dvert ? BKE_id_defgroup_name_index(&mesh->id, sb->namedVG_Spring_K) : -1;
 
-  for (a = 0; a < me->totvert; a++, bp++) {
+  for (a = 0; a < mesh->verts_num; a++, bp++) {
     /* get scalar values needed  *per vertex* from vertex group functions,
      * so we can *paint* them nicely ..
      * they are normalized [0.0..1.0] so may be we need amplitude for scale
@@ -2741,7 +2730,7 @@ static void mesh_to_softbody(Object *ob)
   if (ob->softflag & OB_SB_EDGES) {
     if (edge) {
       bs = sb->bspring;
-      for (a = me->totedge; a > 0; a--, edge++, bs++) {
+      for (a = mesh->edges_num; a > 0; a--, edge++, bs++) {
         bs->v1 = edge->x;
         bs->v2 = edge->y;
         bs->springtype = SB_EDGE;
@@ -2760,7 +2749,7 @@ static void mesh_to_softbody(Object *ob)
         /* yes we need to do it again. */
         build_bps_springlist(ob);
       }
-      springs_from_mesh(ob); /* write the 'rest'-length of the springs */
+      springs_from_mesh(ob); /* write the *rest*-length of the springs */
       if (ob->softflag & OB_SB_SELF) {
         calculate_collision_balls(ob);
       }
@@ -2771,40 +2760,29 @@ static void mesh_to_softbody(Object *ob)
 static void mesh_faces_to_scratch(Object *ob)
 {
   SoftBody *sb = ob->soft;
-  const Mesh *me = static_cast<const Mesh *>(ob->data);
-  MLoopTri *looptri, *lt;
+  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
   BodyFace *bodyface;
   int a;
-  const float(*vert_positions)[3] = BKE_mesh_vert_positions(me);
-  const int *face_offsets = BKE_mesh_face_offsets(me);
-  const int *corner_verts = BKE_mesh_corner_verts(me);
+  const blender::Span<int> corner_verts = mesh->corner_verts();
 
   /* Allocate and copy faces. */
 
-  sb->scratch->totface = poly_to_tri_count(me->faces_num, me->totloop);
-  looptri = lt = static_cast<MLoopTri *>(
-      MEM_mallocN(sizeof(*looptri) * sb->scratch->totface, __func__));
-  BKE_mesh_recalc_looptri(corner_verts,
-                          face_offsets,
-                          vert_positions,
-                          me->totvert,
-                          me->totloop,
-                          me->faces_num,
-                          looptri);
+  sb->scratch->bodyface_num = poly_to_tri_count(mesh->faces_num, mesh->corners_num);
+  blender::Array<blender::int3> corner_tris(sb->scratch->bodyface_num);
+  blender::bke::mesh::corner_tris_calc(
+      mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), corner_tris);
 
-  bodyface = sb->scratch->bodyface = static_cast<BodyFace *>(
-      MEM_mallocN(sizeof(BodyFace) * sb->scratch->totface, "SB_body_Faces"));
+  bodyface = sb->scratch->bodyface = MEM_malloc_arrayN<BodyFace>(size_t(sb->scratch->bodyface_num),
+                                                                 "SB_body_Faces");
 
-  for (a = 0; a < sb->scratch->totface; a++, lt++, bodyface++) {
-    bodyface->v1 = corner_verts[lt->tri[0]];
-    bodyface->v2 = corner_verts[lt->tri[1]];
-    bodyface->v3 = corner_verts[lt->tri[2]];
+  for (a = 0; a < sb->scratch->bodyface_num; a++, bodyface++) {
+    bodyface->v1 = corner_verts[corner_tris[a][0]];
+    bodyface->v2 = corner_verts[corner_tris[a][1]];
+    bodyface->v3 = corner_verts[corner_tris[a][2]];
     zero_v3(bodyface->ext_force);
     bodyface->ext_force[0] = bodyface->ext_force[1] = bodyface->ext_force[2] = 0.0f;
     bodyface->flag = 0;
   }
-
-  MEM_freeN(looptri);
 }
 static void reference_to_scratch(Object *ob)
 {
@@ -2815,8 +2793,7 @@ static void reference_to_scratch(Object *ob)
   float accu_mass = 0.0f;
   int a;
 
-  sb->scratch->Ref.ivert = static_cast<ReferenceVert *>(
-      MEM_mallocN(sizeof(ReferenceVert) * sb->totpoint, "SB_Reference"));
+  sb->scratch->Ref.ivert = MEM_malloc_arrayN<ReferenceVert>(size_t(sb->totpoint), "SB_Reference");
   bp = ob->soft->bpoint;
   rp = sb->scratch->Ref.ivert;
   for (a = 0; a < sb->totpoint; a++, rp++, bp++) {
@@ -2837,9 +2814,9 @@ static float globallen(float *v1, float *v2, Object *ob)
 {
   float p1[3], p2[3];
   copy_v3_v3(p1, v1);
-  mul_m4_v3(ob->object_to_world, p1);
+  mul_m4_v3(ob->object_to_world().ptr(), p1);
   copy_v3_v3(p2, v2);
-  mul_m4_v3(ob->object_to_world, p2);
+  mul_m4_v3(ob->object_to_world().ptr(), p2);
   return len_v3v3(p1, p2);
 }
 
@@ -2992,7 +2969,6 @@ static void curve_surf_to_softbody(Object *ob)
   SoftBody *sb;
   BodyPoint *bp;
   BodySpring *bs;
-  Nurb *nu;
   BezTriple *bezt;
   BPoint *bpnt;
   int a, curindex = 0;
@@ -3021,7 +2997,7 @@ static void curve_surf_to_softbody(Object *ob)
     setgoal = 1;
   }
 
-  for (nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next) {
+  LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
     if (nu->bezt) {
       /* Bezier case; this is nicely said naive; who ever wrote this part,
        * it was not me (JOW) :).
@@ -3101,13 +3077,13 @@ static void softbody_to_object(Object *ob, float (*vertexCos)[3], int numVerts, 
       SB_estimate_transform(ob, sb->lcom, sb->lrot, sb->lscale);
     }
     /* Inverse matrix is not up to date. */
-    invert_m4_m4(ob->world_to_object, ob->object_to_world);
+    invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
     for (a = 0; a < numVerts; a++, bp++) {
       copy_v3_v3(vertexCos[a], bp->pos);
       if (local == 0) {
-        mul_m4_v3(ob->world_to_object,
-                  vertexCos[a]); /* softbody is in global coords, baked optionally not */
+        /* softbody is in global coords, baked optionally not */
+        mul_m4_v3(ob->world_to_object().ptr(), vertexCos[a]);
       }
     }
   }
@@ -3119,10 +3095,10 @@ static void sb_new_scratch(SoftBody *sb)
   if (!sb) {
     return;
   }
-  sb->scratch = static_cast<SBScratch *>(MEM_callocN(sizeof(SBScratch), "SBScratch"));
+  sb->scratch = MEM_callocN<SBScratch>("SBScratch");
   sb->scratch->colliderhash = BLI_ghash_ptr_new("sb_new_scratch gh");
   sb->scratch->bodyface = nullptr;
-  sb->scratch->totface = 0;
+  sb->scratch->bodyface_num = 0;
   sb->scratch->aabbmax[0] = sb->scratch->aabbmax[1] = sb->scratch->aabbmax[2] = 1.0e30f;
   sb->scratch->aabbmin[0] = sb->scratch->aabbmin[1] = sb->scratch->aabbmin[2] = -1.0e30f;
   sb->scratch->Ref.ivert = nullptr;
@@ -3135,7 +3111,7 @@ SoftBody *sbNew()
 {
   SoftBody *sb;
 
-  sb = static_cast<SoftBody *>(MEM_callocN(sizeof(SoftBody), "softbody"));
+  sb = MEM_callocN<SoftBody>("softbody");
 
   sb->mediafrict = 0.5f;
   sb->nodemass = 1.0f;
@@ -3170,7 +3146,7 @@ SoftBody *sbNew()
   sb->shearstiff = 1.0f;
   sb->solverflags |= SBSO_OLDERR;
 
-  sb->shared = static_cast<SoftBody_Shared *>(MEM_callocN(sizeof(*sb->shared), "SoftBody_Shared"));
+  sb->shared = MEM_callocN<SoftBody_Shared>("SoftBody_Shared");
   sb->shared->pointcache = BKE_ptcache_add(&sb->shared->ptcaches);
 
   if (!sb->effector_weights) {
@@ -3189,12 +3165,12 @@ void sbFree(Object *ob)
     return;
   }
 
-  const bool is_orig = (ob->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0;
+  const bool is_orig = (ob->id.tag & ID_TAG_COPIED_ON_EVAL) == 0;
 
   free_softbody_intern(sb);
 
   if (is_orig) {
-    /* Only free shared data on non-CoW copies */
+    /* Only free shared data on non-evaluated copies */
     BKE_ptcache_free_list(&sb->shared->ptcaches);
     sb->shared->pointcache = nullptr;
     MEM_freeN(sb->shared);
@@ -3222,7 +3198,7 @@ void sbObjectToSoftbody(Object *ob)
 static bool object_has_edges(const Object *ob)
 {
   if (ob->type == OB_MESH) {
-    return ((Mesh *)ob->data)->totedge;
+    return ((Mesh *)ob->data)->edges_num;
   }
   if (ob->type == OB_LATTICE) {
     return true;
@@ -3231,7 +3207,7 @@ static bool object_has_edges(const Object *ob)
   return false;
 }
 
-void sbSetInterruptCallBack(int (*f)(void))
+void sbSetInterruptCallBack(int (*f)())
 {
   SB_localInterruptCallBack = f;
 }
@@ -3254,7 +3230,7 @@ static void softbody_update_positions(Object *ob,
     /* copy the position of the goals at desired end time */
     copy_v3_v3(bp->origE, vertexCos[a]);
     /* vertexCos came from local world, go global */
-    mul_m4_v3(ob->object_to_world, bp->origE);
+    mul_m4_v3(ob->object_to_world().ptr(), bp->origE);
     /* just to be save give bp->origT a defined value
      * will be calculated in interpolate_exciter() */
     copy_v3_v3(bp->origT, bp->origE);
@@ -3278,8 +3254,8 @@ void SB_estimate_transform(Object *ob, float lloc[3], float lrot[3][3], float ls
   if (!sb || !sb->bpoint) {
     return;
   }
-  opos = static_cast<float(*)[3]>(MEM_callocN(sizeof(float[3]) * sb->totpoint, "SB_OPOS"));
-  rpos = static_cast<float(*)[3]>(MEM_callocN(sizeof(float[3]) * sb->totpoint, "SB_RPOS"));
+  opos = MEM_calloc_arrayN<float[3]>(sb->totpoint, "SB_OPOS");
+  rpos = MEM_calloc_arrayN<float[3]>(sb->totpoint, "SB_RPOS");
   /* might filter vertex selection with a vertex group */
   for (a = 0, bp = sb->bpoint, rp = sb->scratch->Ref.ivert; a < sb->totpoint; a++, bp++, rp++) {
     copy_v3_v3(rpos[a], rp->pos);
@@ -3311,7 +3287,7 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
 
   for (a = 0, bp = sb->bpoint; a < numVerts; a++, bp++) {
     copy_v3_v3(bp->pos, vertexCos[a]);
-    mul_m4_v3(ob->object_to_world, bp->pos); /* Yep, soft-body is global coords. */
+    mul_m4_v3(ob->object_to_world().ptr(), bp->pos); /* Yep, soft-body is global coords. */
     copy_v3_v3(bp->origS, bp->pos);
     copy_v3_v3(bp->origE, bp->pos);
     copy_v3_v3(bp->origT, bp->pos);
@@ -3345,7 +3321,7 @@ static void softbody_reset(Object *ob, SoftBody *sb, float (*vertexCos)[3], int 
 
   /* copy some info to scratch */
   /* we only need that if we want to reconstruct IPO */
-  if (1) {
+  if (true) {
     reference_to_scratch(ob);
     SB_estimate_transform(ob, nullptr, nullptr, nullptr);
     SB_estimate_transform(ob, nullptr, nullptr, nullptr);
@@ -3373,7 +3349,7 @@ static void softbody_step(
   float forcetime;
   double sct, sst;
 
-  sst = PIL_check_seconds_timer();
+  sst = BLI_time_now_seconds();
   /* Integration back in time is possible in theory, but pretty useless here.
    * So we refuse to do so. Since we do not know anything about 'outside' changes
    * especially colliders we refuse to go more than 10 frames.
@@ -3469,7 +3445,7 @@ static void softbody_step(
       }
       loops++;
       if (sb->solverflags & SBSO_MONITOR) {
-        sct = PIL_check_seconds_timer();
+        sct = BLI_time_now_seconds();
         if (sct - sst > 0.5) {
           printf("%3.0f%% \r", 100.0f * timedone / dtime);
         }
@@ -3510,7 +3486,7 @@ static void softbody_step(
   }
 
   if (sb->solverflags & SBSO_MONITOR) {
-    sct = PIL_check_seconds_timer();
+    sct = BLI_time_now_seconds();
     if ((sct - sst > 0.5) || (G.debug & G_DEBUG)) {
       printf(" solver time %f sec %s\n", sct - sst, ob->id.name);
     }
@@ -3522,7 +3498,7 @@ static void sbStoreLastFrame(Depsgraph *depsgraph, Object *object, float framenr
   if (!DEG_is_active(depsgraph)) {
     return;
   }
-  Object *object_orig = DEG_get_original_object(object);
+  Object *object_orig = DEG_get_original(object);
   object->soft->last_frame = framenr;
   object_orig->soft->last_frame = framenr;
 }
@@ -3560,9 +3536,7 @@ void sbObjectStep(Depsgraph *depsgraph,
     BKE_ptcache_invalidate(cache);
     return;
   }
-  if (framenr > endframe) {
-    framenr = endframe;
-  }
+  framenr = std::min(framenr, endframe);
 
   /* verify if we need to create the softbody data */
   if (sb->bpoint == nullptr ||
@@ -3617,6 +3591,8 @@ void sbObjectStep(Depsgraph *depsgraph,
   if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED ||
       (!can_simulate && cache_result == PTCACHE_READ_OLD))
   {
+    /* Keep goal positions in track. */
+    softbody_update_positions(ob, sb, vertexCos, numVerts);
     softbody_to_object(ob, vertexCos, numVerts, sb->local);
 
     BKE_ptcache_validate(cache, framenr);

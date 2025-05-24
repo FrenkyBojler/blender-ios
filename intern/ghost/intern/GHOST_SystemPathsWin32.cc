@@ -12,7 +12,7 @@
 #ifndef _WIN32_IE
 #  define _WIN32_IE 0x0501
 #endif
-#include "utfconv.h"
+#include "utfconv.hh"
 #include <shlobj.h>
 
 GHOST_SystemPathsWin32::GHOST_SystemPathsWin32() {}
@@ -23,7 +23,7 @@ const char *GHOST_SystemPathsWin32::getSystemDir(int, const char *versionstr) co
 {
   const char *system_dir = nullptr;
 
-  /* 1 utf-16 might translate into 3 utf-8. 2 utf-16 translates into 4 utf-8. */
+  /* 1 UTF16 might translate into 3 UTF8. 2 UTF16 translates into 4 UTF8. */
   static char knownpath[MAX_PATH * 3 + 128] = {0};
   PWSTR knownpath_16 = nullptr;
 

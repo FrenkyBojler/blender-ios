@@ -7,7 +7,7 @@ A batch contains the necessary data to perform the drawing.
 That includes an obligatory *Vertex Buffer* and an optional *Index Buffer*,
 each of which is described in more detail in the following sections.
 A batch also defines a draw type.
-Typical draw types are `POINTS`, `LINES` and `TRIS`.
+Typical draw types are ``POINTS``, ``LINES`` and ``TRIS``.
 The draw type determines how the data will be interpreted and drawn.
 
 Vertex Buffers
@@ -63,7 +63,7 @@ For instance, to draw a rectangle composed of two triangles, one could use an in
 
    ibo = gpu.types.GPUIndexBuf(type='TRIS', seq=indices)
 
-Here the first tuple in `indices` describes which vertices should be used for the first triangle
+Here the first tuple in ``indices`` describes which vertices should be used for the first triangle
 (same for the second tuple).
 Note how the diagonal vertices 1 and 2 are shared between both triangles.
 
@@ -77,12 +77,32 @@ Typically multiple shaders are linked together into a *Program*.
 However, in the Blender Python API the term *Shader* refers to an OpenGL Program.
 Every :class:`gpu.types.GPUShader` consists of a vertex shader, a fragment shader and an optional geometry shader.
 For common drawing tasks there are some built-in shaders accessible from :class:`gpu.shader.from_builtin`
-with an identifier such as `UNIFORM_COLOR` or `FLAT_COLOR`.
+with an identifier such as ``UNIFORM_COLOR`` or ``FLAT_COLOR``.
 
 Every shader defines a set of attributes and uniforms that have to be set in order to use the shader.
 Attributes are properties that are set using a vertex buffer and can be different for individual vertices.
 Uniforms are properties that are constant per draw call.
-They can be set using the `shader.uniform_*` functions after the shader has been bound.
+They can be set using the ``shader.uniform_*`` functions after the shader has been bound.
+
+.. note::
+
+   It is important to note that GLSL sources are reinterpreted to MSL (Metal Shading Language)
+   on Apple operating systems.
+   This uses a small compatibility layer that does not cover the whole GLSL language specification.
+   Here is a list of differences to keep in mind when targeting compatibility with Apple platforms:
+
+   - The only matrix constructors available are:
+
+      - diagonal scalar (example: ``mat2(1)``)
+      - all scalars (example: ``mat2(1, 0, 0, 1)``)
+      - column vector (example: ``mat2(vec2(1,0), vec2(0,1))``)
+      - reshape constructors work only for square matrices (example: ``mat3(mat4(1))``)
+
+   - ``vertex``, ``fragment`` and ``kernel`` are reserved keywords.
+   - all types and keywords defined by the
+     `MSL specification <https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf>`__
+     are reserved keywords and should not be used.
+
 
 Batch Creation
 ++++++++++++++
@@ -109,7 +129,7 @@ In Blender Offscreen Rendering is done using the :class:`gpu.types.GPUOffScreen`
 
 .. warning::
 
-   `GPUOffScreen` objects are bound to the OpenGL context they have been created in.
+   :class:`gpu.types.GPUOffScreen` objects are bound to the OpenGL context they have been created in.
    This means that once Blender discards this context (i.e. the window is closed),
    the offscreen instance will be freed.
 

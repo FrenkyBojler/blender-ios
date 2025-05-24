@@ -58,7 +58,6 @@
 
 #include <algorithm>
 #include <array>
-#include <string>
 #include <vector>
 
 #include "BLI_index_range.hh"
@@ -158,7 +157,7 @@ template<typename T> class Span {
     BLI_assert(start >= 0);
     BLI_assert(size >= 0);
     const int64_t new_size = std::max<int64_t>(0, std::min(size, size_ - start));
-    return Span(data_ + start, new_size);
+    return Span(data_ ? data_ + start : nullptr, new_size);
   }
 
   constexpr Span slice_safe(IndexRange range) const
@@ -178,8 +177,8 @@ template<typename T> class Span {
   }
 
   /**
-   * Returns a new Span with n elements removed from the beginning. This invokes undefined
-   * behavior when n is negative.
+   * Returns a new Span with n elements removed from the end. This invokes undefined behavior when
+   * n is negative.
    */
   constexpr Span drop_back(int64_t n) const
   {
@@ -329,18 +328,6 @@ template<typename T> class Span {
     BLI_assert(n >= 0);
     BLI_assert(n < size_);
     return data_[size_ - 1 - n];
-  }
-
-  /**
-   * Returns the element at the given index. If the index is out of range, return the fallback
-   * value.
-   */
-  constexpr T get(int64_t index, const T &fallback) const
-  {
-    if (index < size_ && index >= 0) {
-      return data_[index];
-    }
-    return fallback;
   }
 
   /**
@@ -528,7 +515,7 @@ template<typename T> class MutableSpan {
   /**
    * Replace all elements in the referenced array with the given value.
    */
-  constexpr void fill(const T &value)
+  constexpr void fill(const T &value) const
   {
     initialized_fill_n(data_, size_, value);
   }
@@ -537,7 +524,7 @@ template<typename T> class MutableSpan {
    * Replace a subset of all elements with the given value. This invokes undefined behavior when
    * one of the indices is out of bounds.
    */
-  template<typename IndexT> constexpr void fill_indices(Span<IndexT> indices, const T &value)
+  template<typename IndexT> constexpr void fill_indices(Span<IndexT> indices, const T &value) const
   {
     static_assert(std::is_integral_v<IndexT>);
     for (IndexT i : indices) {
@@ -661,7 +648,7 @@ template<typename T> class MutableSpan {
   /**
    * Reverse the data in the MutableSpan.
    */
-  constexpr void reverse()
+  constexpr void reverse() const
   {
     for (const int i : IndexRange(size_ / 2)) {
       std::swap(data_[size_ - 1 - i], data_[i]);
@@ -723,6 +710,20 @@ template<typename T> class MutableSpan {
   }
 
   /**
+   * Does a linear search to see of the value is in the array.
+   * Returns true if it is, otherwise false.
+   */
+  constexpr bool contains(const T &value) const
+  {
+    for (const T &element : *this) {
+      if (element == value) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Does a constant time check to see if the pointer points to a value in the referenced array.
    * Return true if it is, otherwise false.
    */
@@ -736,7 +737,7 @@ template<typename T> class MutableSpan {
    * destination contains uninitialized data and T is not trivially copy constructible.
    * The size of both spans is expected to be the same.
    */
-  constexpr void copy_from(Span<T> values)
+  constexpr void copy_from(Span<T> values) const
   {
     BLI_assert(size_ == values.size());
     initialized_copy_n(values.data(), size_, data_);

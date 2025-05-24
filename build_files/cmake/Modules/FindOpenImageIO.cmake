@@ -12,7 +12,7 @@
 #                        This can also be an environment variable.
 #  OPENIMAGEIO_FOUND, If false, do not try to use OpenImageIO.
 #  OPENIMAGEIO_PUGIXML_FOUND, Indicates whether OIIO has biltin PuguXML parser.
-#  OPENIMAGEIO_IDIFF, full path to idiff application if found.
+#  OPENIMAGEIO_TOOL, full path to oiiotool application if found.
 #
 # also defined, but not for general use are
 #  OPENIMAGEIO_LIBRARY, where to find the OpenImageIO library.
@@ -47,13 +47,13 @@ find_library(OPENIMAGEIO_LIBRARY
     ${_openimageio_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 set(_openimageio_LIBRARIES ${OPENIMAGEIO_LIBRARY})
 
-find_file(OPENIMAGEIO_IDIFF
+find_file(OPENIMAGEIO_TOOL
   NAMES
-    idiff
+    oiiotool
   HINTS
     ${_openimageio_SEARCH_DIRS}
   PATH_SUFFIXES
@@ -83,7 +83,7 @@ if(_openimageio_util_define)
       ${_openimageio_SEARCH_DIRS}
     PATH_SUFFIXES
       lib64 lib
-    )
+  )
 
   list(APPEND _openimageio_LIBRARIES ${OPENIMAGEIO_UTIL_LIBRARY})
 endif()
@@ -97,7 +97,7 @@ unset(_openimageio_util_define)
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(OpenImageIO DEFAULT_MSG
-    _openimageio_LIBRARIES OPENIMAGEIO_INCLUDE_DIR)
+  _openimageio_LIBRARIES OPENIMAGEIO_INCLUDE_DIR)
 
 if(OPENIMAGEIO_FOUND)
   set(OPENIMAGEIO_LIBRARIES ${_openimageio_LIBRARIES})
@@ -115,7 +115,7 @@ mark_as_advanced(
   OPENIMAGEIO_INCLUDE_DIR
   OPENIMAGEIO_LIBRARY
   OPENIMAGEIO_UTIL_LIBRARY
-  OPENIMAGEIO_IDIFF
+  OPENIMAGEIO_TOOL
 )
 
 unset(_openimageio_SEARCH_DIRS)

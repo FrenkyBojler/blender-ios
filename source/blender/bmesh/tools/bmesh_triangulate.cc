@@ -16,15 +16,14 @@
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
-#include "BLI_utildefines.h"
 
 /* only for defines */
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "bmesh_triangulate.h" /* own include */
+#include "bmesh_triangulate.hh" /* own include */
 
 /**
  * a version of #BM_face_triangulate that maps to #BMOpSlot

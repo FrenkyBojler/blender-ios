@@ -16,6 +16,11 @@ struct SpaceLink;
 struct bGPdata;
 struct wmTimer;
 
+#ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#  include "BLI_math_quaternion_types.hh"
+#endif
+
 #include "DNA_defs.h"
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
@@ -62,7 +67,7 @@ typedef struct RegionView3D {
 
   /** Transform gizmo matrix. */
   float twmat[4][4];
-  /** min/max dot product on twmat xyz axis. */
+  /** min/max dot product on `twmat` XYZ axis. */
   float tw_axis_min[3], tw_axis_max[3];
   float tw_axis_matrix[3][3];
 
@@ -70,7 +75,13 @@ typedef struct RegionView3D {
 
   /** View rotation, must be kept normalized. */
   float viewquat[4];
-  /** Distance from 'ofs' along -viewinv[2] vector, where result is negative as is 'ofs'. */
+  /**
+   * Distance from `ofs` along `-viewinv[2]` vector, where result is negative as is `ofs`.
+   *
+   * \note Besides being above zero, the range of this value is not strictly defined,
+   * see #ED_view3d_dist_soft_range_get to calculate a working range
+   * viewport "zoom" functions to use.
+   */
   float dist;
   /** Camera view offsets, 1.0 = viewplane moves entire width/height. */
   float camdx, camdy;
@@ -106,15 +117,23 @@ typedef struct RegionView3D {
 
   /** Last view (use when switching out of camera view). */
   float lviewquat[4];
-  /** Lpersp can never be set to 'RV3D_CAMOB'. */
+  /** The last perspective can never be set to #RV3D_CAMOB. */
   char lpersp;
   char lview;
   char lview_axis_roll;
-  char _pad8[1];
+  char _pad8[4];
 
-  /** Active rotation from NDOF or elsewhere. */
-  float rot_angle;
-  float rot_axis[3];
+  char ndof_flag;
+  /**
+   * Rotation center used for for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Any modification should be followed by adjusting #RegionView3D::dist
+   * to prevent problems zooming in after navigation. See: #134732.
+   */
+  float ndof_ofs[3];
+
+  /** Active rotation from NDOF (run-time only). */
+  float ndof_rot_angle;
+  float ndof_rot_axis[3];
 } RegionView3D;
 
 typedef struct View3DCursor {
@@ -126,6 +145,15 @@ typedef struct View3DCursor {
   short rotation_mode;
 
   char _pad[6];
+
+#ifdef __cplusplus
+  template<typename T> T matrix() const;
+  blender::math::Quaternion rotation() const;
+
+  void set_rotation(const blender::math::Quaternion &quat, bool use_compat);
+  void set_matrix(const blender::float3x3 &mat, bool use_compat);
+  void set_matrix(const blender::float4x4 &mat, bool use_compat);
+#endif
 } View3DCursor;
 
 /** 3D Viewport Shading settings. */
@@ -149,12 +177,9 @@ typedef struct View3DShading {
 
   char _pad;
 
-  /** FILE_MAXFILE. */
-  char studio_light[256];
-  /** FILE_MAXFILE. */
-  char lookdev_light[256];
-  /** FILE_MAXFILE. */
-  char matcap[256];
+  char studio_light[/*FILE_MAXFILE*/ 256];
+  char lookdev_light[/*FILE_MAXFILE*/ 256];
+  char matcap[/*FILE_MAXFILE*/ 256];
 
   float shadow_intensity;
   float single_color[3];
@@ -192,7 +217,6 @@ typedef struct View3DOverlay {
   int edit_flag;
   float normals_length;
   float normals_constant_screen_size;
-  float backwire_opacity;
 
   /** Paint mode settings. */
   int paint_flag;
@@ -225,6 +249,12 @@ typedef struct View3DOverlay {
   float gpencil_grid_opacity;
   float gpencil_fade_layer;
 
+  /* Grease Pencil canvas settings. */
+  float gpencil_grid_color[3];
+  float gpencil_grid_scale[2];
+  float gpencil_grid_offset[2];
+  int gpencil_grid_subdivisions;
+
   /** Factor for mixing vertex paint with original color */
   float gpencil_vertex_paint_opacity;
   /** Handles display type for curves. */
@@ -232,7 +262,6 @@ typedef struct View3DOverlay {
 
   /** Curves sculpt mode settings. */
   float sculpt_curves_cage_opacity;
-  char _pad[4];
 } View3DOverlay;
 
 /** #View3DOverlay.handle_display */
@@ -296,13 +325,13 @@ typedef struct View3D {
   /** Allocated backup of itself while in local-view. */
   struct View3D *localvd;
 
-  /** Optional string for armature bone to define center, MAXBONENAME. */
-  char ob_center_bone[64];
+  /** Optional string for armature bone to define center. */
+  char ob_center_bone[/*MAXBONENAME*/ 64];
 
-  unsigned short local_view_uuid;
+  unsigned short local_view_uid;
   char _pad6[2];
   int layact DNA_DEPRECATED;
-  unsigned short local_collections_uuid;
+  unsigned short local_collections_uid;
   short _pad7[2];
 
   short debug_flag;
@@ -391,6 +420,8 @@ enum {
   V3D_RUNTIME_XR_SESSION_ROOT = (1 << 0),
   /** Some operators override the depth buffer for dedicated occlusion operations. */
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
+  /** Local view may have become empty, and may need to be exited. */
+  V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
 };
 
 /** #RegionView3D::persp */
@@ -416,6 +447,12 @@ enum {
 
 /** #RegionView3D.viewlock */
 enum {
+  /**
+   * Used to lock axis views when quad-view is enabled.
+   *
+   * \note this implies locking the perspective as these views
+   * should use an orthographic projection.
+   */
   RV3D_LOCK_ROTATION = (1 << 0),
   RV3D_BOXVIEW = (1 << 1),
   RV3D_BOXCLIP = (1 << 2),
@@ -459,6 +496,25 @@ enum {
   RV3D_VIEW_AXIS_ROLL_270 = 3,
 };
 
+/** #RegionView3D::ndof_flag */
+enum {
+  /**
+   * When set, #RegionView3D::ndof_ofs may be used instead of #RegionView3D::ofs,
+   *
+   * This value will be recalculated when starting NDOF motion,
+   * however if the center can *not* be calculated, the previous value may be used.
+   *
+   * To prevent strange behavior some checks should be used
+   * to ensure the previously calculated value makes sense.
+   *
+   * The most common case is for perspective views, where orbiting around a point behind
+   * the view (while possible) often seems like a bug from a user perspective.
+   * We could consider other cases invalid too (values beyond the clipping plane for e.g.),
+   * although in practice these cases should be fairly rare.
+   */
+  RV3D_NDOF_OFS_IS_VALID = (1 << 0),
+};
+
 #define RV3D_CLIPPING_ENABLED(v3d, rv3d) \
   ((rv3d) && (v3d) && ((rv3d)->rflag & RV3D_CLIPPING) && \
    ELEM((v3d)->shading.type, OB_WIRE, OB_SOLID) && (rv3d)->clipbb)
@@ -481,6 +537,9 @@ enum {
   V3D_FLAG2_UNUSED_15 = 1 << 15, /* cleared */
   V3D_XR_SHOW_CONTROLLERS = 1 << 16,
   V3D_XR_SHOW_CUSTOM_OVERLAYS = 1 << 17,
+  V3D_SHOW_CAMERA_GUIDES = (1 << 18),
+  V3D_SHOW_CAMERA_PASSEPARTOUT = (1 << 19),
+  V3D_XR_SHOW_PASSTHROUGH = 1 << 20,
 };
 
 /** #View3D::gp_flag (short) */
@@ -503,6 +562,10 @@ enum {
   V3D_GP_SHOW_MATERIAL_NAME = 1 << 8,
   /** Show Canvas Grid on Top. */
   V3D_GP_SHOW_GRID_XRAY = 1 << 9,
+  /** Force 3D depth rendering and ignore per-object stroke depth mode. */
+  V3D_GP_FORCE_STROKE_ORDER_3D = 1 << 10,
+  /** Onion skin for active object only. */
+  V3D_GP_ONION_SKIN_ACTIVE_OBJECT = 1 << 11,
 };
 
 /** #View3DShading.flag */
@@ -575,6 +638,7 @@ enum {
   V3D_OVERLAY_SCULPT_SHOW_FACE_SETS = (1 << 15),
   V3D_OVERLAY_SCULPT_CURVES_CAGE = (1 << 16),
   V3D_OVERLAY_SHOW_LIGHT_COLORS = (1 << 17),
+  V3D_OVERLAY_VIEWER_ATTRIBUTE_TEXT = (1 << 18),
 };
 
 /** #View3DOverlay.edit_flag */
@@ -587,7 +651,7 @@ enum {
 
   V3D_OVERLAY_EDIT_WEIGHT = (1 << 4),
 
-  V3D_OVERLAY_EDIT_EDGES = (1 << 5),
+  V3D_OVERLAY_EDIT_EDGES_DEPRECATED = (1 << 5),
   V3D_OVERLAY_EDIT_FACES = (1 << 6),
   V3D_OVERLAY_EDIT_FACE_DOT = (1 << 7),
 
@@ -667,6 +731,7 @@ enum {
   V3D_GIZMO_HIDE_NAVIGATE = (1 << 1),
   V3D_GIZMO_HIDE_CONTEXT = (1 << 2),
   V3D_GIZMO_HIDE_TOOL = (1 << 3),
+  V3D_GIZMO_HIDE_MODIFIER = (1 << 4),
 };
 
 /** #View3d.gizmo_show_object */

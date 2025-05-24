@@ -8,9 +8,11 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
+#include "GEO_mesh_selection.hh"
 #include "GEO_mesh_split_edges.hh"
 #include "GEO_randomize.hh"
 
@@ -19,57 +21,64 @@ namespace blender::geometry {
 static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_verts_map)
 {
   /* These types aren't supported for interpolation below. */
-  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY, mesh.totvert);
-  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO, mesh.totvert);
-  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN, mesh.totvert);
-  CustomData_realloc(&mesh.vert_data, mesh.totvert, mesh.totvert + new_to_old_verts_map.size());
-  mesh.totvert += new_to_old_verts_map.size();
+  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY);
+  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO);
+  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN);
+  CustomData_realloc(
+      &mesh.vert_data, mesh.verts_num, mesh.verts_num + new_to_old_verts_map.size());
+  mesh.verts_num += new_to_old_verts_map.size();
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  for (const bke::AttributeIDRef &id : attributes.all_ids()) {
-    if (attributes.lookup_meta_data(id)->domain != ATTR_DOMAIN_POINT) {
+  for (const StringRef id : attributes.all_ids()) {
+    const bke::AttributeMetaData meta_data = *attributes.lookup_meta_data(id);
+    if (meta_data.domain != bke::AttrDomain::Point) {
+      continue;
+    }
+    if (meta_data.data_type == CD_PROP_STRING) {
       continue;
     }
     bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
     if (!attribute) {
       continue;
     }
-
     bke::attribute_math::gather(attribute.span,
                                 new_to_old_verts_map,
                                 attribute.span.take_back(new_to_old_verts_map.size()));
-
     attribute.finish();
   }
   if (float3 *orco = static_cast<float3 *>(
-          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORCO, mesh.totvert)))
+          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORCO, mesh.verts_num)))
   {
-    array_utils::gather(Span(orco, mesh.totvert),
+    array_utils::gather(Span(orco, mesh.verts_num),
                         new_to_old_verts_map,
-                        MutableSpan(orco, mesh.totvert).take_back(new_to_old_verts_map.size()));
+                        MutableSpan(orco, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
   if (int *orig_indices = static_cast<int *>(
-          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORIGINDEX, mesh.totvert)))
+          CustomData_get_layer_for_write(&mesh.vert_data, CD_ORIGINDEX, mesh.verts_num)))
   {
     array_utils::gather(
-        Span(orig_indices, mesh.totvert),
+        Span(orig_indices, mesh.verts_num),
         new_to_old_verts_map,
-        MutableSpan(orig_indices, mesh.totvert).take_back(new_to_old_verts_map.size()));
+        MutableSpan(orig_indices, mesh.verts_num).take_back(new_to_old_verts_map.size()));
   }
 }
 
 static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edge_map)
 {
-  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE, mesh.totedge);
-  CustomData_realloc(&mesh.edge_data, mesh.totedge, mesh.totedge + new_to_old_edge_map.size());
-  mesh.totedge += new_to_old_edge_map.size();
+  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE);
+  CustomData_realloc(&mesh.edge_data, mesh.edges_num, mesh.edges_num + new_to_old_edge_map.size());
+  mesh.edges_num += new_to_old_edge_map.size();
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  for (const bke::AttributeIDRef &id : attributes.all_ids()) {
-    if (attributes.lookup_meta_data(id)->domain != ATTR_DOMAIN_EDGE) {
+  for (const StringRef id : attributes.all_ids()) {
+    const bke::AttributeMetaData meta_data = *attributes.lookup_meta_data(id);
+    if (meta_data.domain != bke::AttrDomain::Edge) {
       continue;
     }
-    if (id.name() == ".edge_verts") {
+    if (meta_data.data_type == CD_PROP_STRING) {
+      continue;
+    }
+    if (id == ".edge_verts") {
       /* Edge vertices are updated and combined with new edges separately. */
       continue;
     }
@@ -83,34 +92,13 @@ static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edg
   }
 
   if (int *orig_indices = static_cast<int *>(
-          CustomData_get_layer_for_write(&mesh.edge_data, CD_ORIGINDEX, mesh.totedge)))
+          CustomData_get_layer_for_write(&mesh.edge_data, CD_ORIGINDEX, mesh.edges_num)))
   {
     array_utils::gather(
-        Span(orig_indices, mesh.totedge),
+        Span(orig_indices, mesh.edges_num),
         new_to_old_edge_map,
-        MutableSpan(orig_indices, mesh.totedge).take_back(new_to_old_edge_map.size()));
+        MutableSpan(orig_indices, mesh.edges_num).take_back(new_to_old_edge_map.size()));
   }
-}
-
-/** A vertex is selected if it's used by a selected edge. */
-static IndexMask vert_selection_from_edge(const Span<int2> edges,
-                                          const IndexMask &selected_edges,
-                                          const int verts_num,
-                                          IndexMaskMemory &memory)
-{
-  Array<bool> array(verts_num, false);
-  selected_edges.foreach_index_optimized<int>(GrainSize(4096), [&](const int i) {
-    array[edges[i][0]] = true;
-    array[edges[i][1]] = true;
-  });
-  return IndexMask::from_bools(array, memory);
-}
-
-static BitVector<> selection_to_bit_vector(const IndexMask &selection, const int total_size)
-{
-  BitVector<> bits(total_size);
-  selection.to_bits(bits);
-  return bits;
 }
 
 /**
@@ -510,23 +498,24 @@ static Array<int> offsets_to_map(const IndexMask &mask, const OffsetIndices<int>
 
 void split_edges(Mesh &mesh,
                  const IndexMask &selected_edges,
-                 const bke::AnonymousAttributePropagationInfo & /*propagation_info*/)
+                 const bke::AttributeFilter & /*attribute_filter*/)
 {
-  const int orig_verts_num = mesh.totvert;
+  const int orig_verts_num = mesh.verts_num;
   const Span<int2> orig_edges = mesh.edges();
   const OffsetIndices faces = mesh.faces();
 
   IndexMaskMemory memory;
   const IndexMask affected_verts = vert_selection_from_edge(
       orig_edges, selected_edges, orig_verts_num, memory);
-  const BitVector<> selection_bits = selection_to_bit_vector(selected_edges, orig_edges.size());
+  BitVector<> selection_bits(orig_edges.size());
+  selected_edges.to_bits(selection_bits);
   const bke::LooseEdgeCache &loose_edges = mesh.loose_edges();
 
   const GroupedSpan<int> vert_to_corner_map = mesh.vert_to_corner_map();
 
   Array<int> edge_to_corner_offsets;
   Array<int> edge_to_corner_indices;
-  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_loop_map(
+  const GroupedSpan<int> edge_to_corner_map = bke::mesh::build_edge_to_corner_map(
       mesh.corner_edges(), orig_edges.size(), edge_to_corner_offsets, edge_to_corner_indices);
 
   Array<int> vert_to_edge_offsets;
@@ -595,9 +584,10 @@ void split_edges(Mesh &mesh,
   const Array<int> vert_map = offsets_to_map(affected_verts, new_verts_by_affected_vert);
   propagate_vert_attributes(mesh, vert_map);
 
-  BKE_mesh_tag_edges_split(&mesh);
+  mesh.tag_edges_split();
 
-  debug_randomize_mesh_order(&mesh);
+  debug_randomize_vert_order(&mesh);
+  debug_randomize_edge_order(&mesh);
 }
 
 }  // namespace blender::geometry

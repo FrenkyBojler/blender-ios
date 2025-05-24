@@ -5,9 +5,10 @@
 #include "testing/testing.h"
 #include "tests/blendfile_loading_base_test.h"
 
+#include "BLI_fileops.h"
 #include "BLI_string.h"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 
 #include "DEG_depsgraph.hh"
@@ -25,7 +26,7 @@
 
 namespace blender::io::ply {
 
-class ply_export_test : public BlendfileLoadingBaseTest {
+class PLYExportTest : public BlendfileLoadingBaseTest {
  public:
   bool load_file_and_depsgraph(const std::string &filepath,
                                const eEvaluationMode eval_mode = DAG_EVAL_VIEWPORT)
@@ -42,7 +43,7 @@ class ply_export_test : public BlendfileLoadingBaseTest {
   {
     BlendfileLoadingBaseTest::SetUp();
 
-    BKE_tempdir_init("");
+    BKE_tempdir_init(nullptr);
   }
 
   void TearDown() override
@@ -112,7 +113,7 @@ static std::string read_temp_file_in_string(const std::string &file_path)
 static char read(std::ifstream &file)
 {
   char return_val;
-  file.read((char *)&return_val, sizeof(return_val));
+  file.read(&return_val, sizeof(return_val));
   return return_val;
 }
 
@@ -132,20 +133,20 @@ static std::vector<char> read_temp_file_in_vectorchar(const std::string &file_pa
   return res;
 }
 
-TEST_F(ply_export_test, WriteHeaderAscii)
+TEST_F(PLYExportTest, WriteHeaderAscii)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = true;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferAscii>(_params.filepath);
 
-  write_header(*buffer.get(), *plyData.get(), _params);
+  write_header(*buffer, *plyData, _params);
 
   buffer->close_file();
 
@@ -170,20 +171,20 @@ TEST_F(ply_export_test, WriteHeaderAscii)
   ASSERT_STREQ(result.c_str(), expected.c_str());
 }
 
-TEST_F(ply_export_test, WriteHeaderBinary)
+TEST_F(PLYExportTest, WriteHeaderBinary)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = false;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferBinary>(_params.filepath);
 
-  write_header(*buffer.get(), *plyData.get(), _params);
+  write_header(*buffer, *plyData, _params);
 
   buffer->close_file();
 
@@ -208,20 +209,20 @@ TEST_F(ply_export_test, WriteHeaderBinary)
   ASSERT_STREQ(result.c_str(), expected.c_str());
 }
 
-TEST_F(ply_export_test, WriteVerticesAscii)
+TEST_F(PLYExportTest, WriteVerticesAscii)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = true;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferAscii>(_params.filepath);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -240,20 +241,20 @@ TEST_F(ply_export_test, WriteVerticesAscii)
   ASSERT_STREQ(result.c_str(), expected.c_str());
 }
 
-TEST_F(ply_export_test, WriteVerticesBinary)
+TEST_F(PLYExportTest, WriteVerticesBinary)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = false;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferBinary>(_params.filepath);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -276,20 +277,20 @@ TEST_F(ply_export_test, WriteVerticesBinary)
   }
 }
 
-TEST_F(ply_export_test, WriteFacesAscii)
+TEST_F(PLYExportTest, WriteFacesAscii)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = true;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferAscii>(_params.filepath);
 
-  write_faces(*buffer.get(), *plyData.get());
+  write_faces(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -306,20 +307,20 @@ TEST_F(ply_export_test, WriteFacesAscii)
   ASSERT_STREQ(result.c_str(), expected.c_str());
 }
 
-TEST_F(ply_export_test, WriteFacesBinary)
+TEST_F(PLYExportTest, WriteFacesBinary)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = false;
   _params.export_normals = false;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferBinary>(_params.filepath);
 
-  write_faces(*buffer.get(), *plyData.get());
+  write_faces(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -342,20 +343,20 @@ TEST_F(ply_export_test, WriteFacesBinary)
   }
 }
 
-TEST_F(ply_export_test, WriteVertexNormalsAscii)
+TEST_F(PLYExportTest, WriteVertexNormalsAscii)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = true;
   _params.export_normals = true;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferAscii>(_params.filepath);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -374,20 +375,20 @@ TEST_F(ply_export_test, WriteVertexNormalsAscii)
   ASSERT_STREQ(result.c_str(), expected.c_str());
 }
 
-TEST_F(ply_export_test, WriteVertexNormalsBinary)
+TEST_F(PLYExportTest, WriteVertexNormalsBinary)
 {
   std::string filePath = get_temp_ply_filename(temp_file_path);
-  PLYExportParams _params = {};
+  PLYExportParams _params;
   _params.ascii_format = false;
   _params.export_normals = true;
-  _params.vertex_colors = PLY_VERTEX_COLOR_NONE;
+  _params.vertex_colors = ePLYVertexColorMode::None;
   STRNCPY(_params.filepath, filePath.c_str());
 
   std::unique_ptr<PlyData> plyData = load_cube(_params);
 
   std::unique_ptr<FileBuffer> buffer = std::make_unique<FileBufferBinary>(_params.filepath);
 
-  write_vertices(*buffer.get(), *plyData.get());
+  write_vertices(*buffer, *plyData);
 
   buffer->close_file();
 
@@ -416,7 +417,7 @@ TEST_F(ply_export_test, WriteVertexNormalsBinary)
   }
 }
 
-class ply_exporter_ply_data_test : public ply_export_test {
+class PLYExportPLYDataTest : public PLYExportTest {
  public:
   PlyData load_ply_data_from_blendfile(const std::string &blendfile, PLYExportParams &params)
   {
@@ -431,26 +432,28 @@ class ply_exporter_ply_data_test : public ply_export_test {
   }
 };
 
-TEST_F(ply_exporter_ply_data_test, CubeLoadPLYData)
+TEST_F(PLYExportPLYDataTest, CubeLoadPLYData)
 {
-  PLYExportParams params = {};
+  PLYExportParams params;
+  params.export_uv = false;
   PlyData plyData = load_ply_data_from_blendfile("io_tests/blend_geometry/cube_all_data.blend",
                                                  params);
   EXPECT_EQ(plyData.vertices.size(), 8);
   EXPECT_EQ(plyData.uv_coordinates.size(), 0);
 }
-TEST_F(ply_exporter_ply_data_test, CubeLoadPLYDataUV)
+TEST_F(PLYExportPLYDataTest, CubeLoadPLYDataUV)
 {
-  PLYExportParams params = {};
+  PLYExportParams params;
   params.export_uv = true;
   PlyData plyData = load_ply_data_from_blendfile("io_tests/blend_geometry/cube_all_data.blend",
                                                  params);
   EXPECT_EQ(plyData.vertices.size(), 8);
   EXPECT_EQ(plyData.uv_coordinates.size(), 8);
 }
-TEST_F(ply_exporter_ply_data_test, CubeLooseEdgesLoadPLYData)
+TEST_F(PLYExportPLYDataTest, CubeLooseEdgesLoadPLYData)
 {
-  PLYExportParams params = {};
+  PLYExportParams params;
+  params.export_uv = false;
   params.forward_axis = IO_AXIS_Y;
   params.up_axis = IO_AXIS_Z;
   params.global_scale = 1.0f;
@@ -479,9 +482,9 @@ TEST_F(ply_exporter_ply_data_test, CubeLooseEdgesLoadPLYData)
   EXPECT_EQ_ARRAY(exp_face_sizes, plyData.face_sizes.data(), ARRAY_SIZE(exp_face_sizes));
   EXPECT_EQ_ARRAY(exp_faces, plyData.face_vertices.data(), ARRAY_SIZE(exp_faces));
 }
-TEST_F(ply_exporter_ply_data_test, CubeLooseEdgesLoadPLYDataUV)
+TEST_F(PLYExportPLYDataTest, CubeLooseEdgesLoadPLYDataUV)
 {
-  PLYExportParams params = {};
+  PLYExportParams params;
   params.forward_axis = IO_AXIS_Y;
   params.up_axis = IO_AXIS_Z;
   params.global_scale = 1.0f;
@@ -525,9 +528,21 @@ TEST_F(ply_exporter_ply_data_test, CubeLooseEdgesLoadPLYDataUV)
   EXPECT_EQ_ARRAY(exp_faces, plyData.face_vertices.data(), ARRAY_SIZE(exp_faces));
 }
 
-TEST_F(ply_exporter_ply_data_test, SuzanneLoadPLYDataUV)
+TEST_F(PLYExportPLYDataTest, CubesVertexAttrs)
 {
-  PLYExportParams params = {};
+  PLYExportParams params;
+  params.export_uv = true;
+  params.export_attributes = true;
+  PlyData plyData = load_ply_data_from_blendfile(
+      "io_tests/blend_geometry/cubes_vertex_attrs.blend", params);
+  EXPECT_EQ(plyData.vertices.size(), 28);
+  EXPECT_EQ(plyData.vertex_custom_attr.size(), 11); /* Float 1 + Color 4 + ByteColor 4 + Int2D 2 */
+  EXPECT_EQ(plyData.vertex_custom_attr[0].data.size(), 28);
+}
+
+TEST_F(PLYExportPLYDataTest, SuzanneLoadPLYDataUV)
+{
+  PLYExportParams params;
   params.export_uv = true;
   PlyData plyData = load_ply_data_from_blendfile("io_tests/blend_geometry/suzanne_all_data.blend",
                                                  params);

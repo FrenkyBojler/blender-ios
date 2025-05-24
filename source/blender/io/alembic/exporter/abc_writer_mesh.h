@@ -39,13 +39,13 @@ class ABCGenericMeshWriter : public ABCAbstractWriter {
  public:
   explicit ABCGenericMeshWriter(const ABCWriterConstructorArgs &args);
 
-  virtual void create_alembic_objects(const HierarchyContext *context) override;
-  virtual Alembic::Abc::OObject get_alembic_object() const override;
+  void create_alembic_objects(const HierarchyContext *context) override;
+  Alembic::Abc::OObject get_alembic_object() const override;
   Alembic::Abc::OCompoundProperty abc_prop_for_custom_props() override;
 
  protected:
-  virtual bool is_supported(const HierarchyContext *context) const override;
-  virtual void do_write(HierarchyContext &context) override;
+  bool is_supported(const HierarchyContext *context) const override;
+  void do_write(HierarchyContext &context) override;
 
   virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) = 0;
   virtual void free_export_mesh(Mesh *mesh);
@@ -57,7 +57,7 @@ class ABCGenericMeshWriter : public ABCAbstractWriter {
   void write_subd(HierarchyContext &context, Mesh *mesh);
   template<typename Schema> void write_face_sets(Object *object, Mesh *mesh, Schema &schema);
 
-  void write_arb_geo_params(Mesh *me);
+  void write_arb_geo_params(Mesh *mesh);
   bool get_velocities(Mesh *mesh, std::vector<Imath::V3f> &vels);
   void get_geo_groups(Object *object,
                       Mesh *mesh,
@@ -70,7 +70,7 @@ class ABCMeshWriter : public ABCGenericMeshWriter {
   ABCMeshWriter(const ABCWriterConstructorArgs &args);
 
  protected:
-  virtual Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
+  Mesh *get_export_mesh(Object *object_eval, bool &r_needsfree) override;
 };
 
 }  // namespace blender::io::alembic

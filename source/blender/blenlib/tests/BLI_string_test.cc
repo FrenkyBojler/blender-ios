@@ -15,116 +15,13 @@
 
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-#include "BLI_string_utils.h"
+#include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
 using std::initializer_list;
 using std::pair;
 using std::string;
 using std::vector;
-
-/* -------------------------------------------------------------------- */
-/** \name String Copy (UTF8)
- * \{ */
-
-TEST(string, StrCopyUTF8_ASCII)
-{
-#define STRNCPY_UTF8_ASCII(...) \
-  { \
-    const char src[] = {__VA_ARGS__, 0}; \
-    char dst[sizeof(src)]; \
-    memset(dst, 0xff, sizeof(dst)); \
-    STRNCPY_UTF8(dst, src); \
-    EXPECT_EQ(strlen(dst), sizeof(dst) - 1); \
-    EXPECT_STREQ(dst, src); \
-  }
-
-  STRNCPY_UTF8_ASCII('a');
-  STRNCPY_UTF8_ASCII('a', 'b', 'c');
-
-#undef STRNCPY_UTF8_ASCII
-}
-
-TEST(string, StrCopyUTF8_ASCII_Truncate)
-{
-#define STRNCPY_UTF8_ASCII_TRUNCATE(maxncpy, ...) \
-  { \
-    char src[] = {__VA_ARGS__}; \
-    char dst[sizeof(src)]; \
-    memset(dst, 0xff, sizeof(dst)); \
-    BLI_strncpy_utf8(dst, src, maxncpy); \
-    int len_expect = MIN2(sizeof(src), maxncpy) - 1; \
-    src[len_expect] = '\0'; /* To be able to use `EXPECT_STREQ`. */ \
-    EXPECT_EQ(strlen(dst), len_expect); \
-    EXPECT_STREQ(dst, src); \
-  }
-
-  STRNCPY_UTF8_ASCII_TRUNCATE(1, '\0');
-  STRNCPY_UTF8_ASCII_TRUNCATE(3, 'A', 'A', 'A', 'A');
-
-#undef STRNCPY_UTF8_ASCII_TRUNCATE
-}
-
-TEST(string, StrCopyUTF8_TruncateEncoding)
-{
-  /* Ensure copying one byte less than the code-point results in it being ignored entirely. */
-#define STRNCPY_UTF8_TRUNCATE(byte_size, ...) \
-  { \
-    const char src[] = {__VA_ARGS__, 0}; \
-    EXPECT_EQ(BLI_str_utf8_size_or_error(src), byte_size); \
-    char dst[sizeof(src)]; \
-    memset(dst, 0xff, sizeof(dst)); \
-    STRNCPY_UTF8(dst, src); \
-    EXPECT_EQ(strlen(dst), sizeof(dst) - 1); \
-    EXPECT_STREQ(dst, src); \
-    BLI_strncpy_utf8(dst, src, sizeof(dst) - 1); \
-    EXPECT_STREQ(dst, ""); \
-  }
-
-  STRNCPY_UTF8_TRUNCATE(6, 252, 1, 1, 1, 1, 1);
-  STRNCPY_UTF8_TRUNCATE(5, 248, 1, 1, 1, 1);
-  STRNCPY_UTF8_TRUNCATE(4, 240, 1, 1, 1);
-  STRNCPY_UTF8_TRUNCATE(3, 224, 1, 1);
-  STRNCPY_UTF8_TRUNCATE(2, 192, 1);
-  STRNCPY_UTF8_TRUNCATE(1, 96);
-
-#undef STRNCPY_UTF8_TRUNCATE
-}
-
-TEST(string, StrCopyUTF8_TerminateEncodingEarly)
-{
-  /* A UTF8 sequence that has a null byte before the sequence ends.
-   * Ensure the UTF8 sequence does not step over the null byte. */
-#define STRNCPY_UTF8_TERMINATE_EARLY(byte_size, ...) \
-  { \
-    char src[] = {__VA_ARGS__, 0}; \
-    EXPECT_EQ(BLI_str_utf8_size_or_error(src), byte_size); \
-    char dst[sizeof(src)]; \
-    memset(dst, 0xff, sizeof(dst)); \
-    STRNCPY_UTF8(dst, src); \
-    EXPECT_EQ(strlen(dst), sizeof(dst) - 1); \
-    EXPECT_STREQ(dst, src); \
-    for (int i = sizeof(dst) - 1; i > 1; i--) { \
-      src[i] = '\0'; \
-      memset(dst, 0xff, sizeof(dst)); \
-      const int dst_copied = STRNCPY_UTF8_RLEN(dst, src); \
-      EXPECT_STREQ(dst, src); \
-      EXPECT_EQ(strlen(dst), i); \
-      EXPECT_EQ(dst_copied, i); \
-    } \
-  }
-
-  STRNCPY_UTF8_TERMINATE_EARLY(6, 252, 1, 1, 1, 1, 1);
-  STRNCPY_UTF8_TERMINATE_EARLY(5, 248, 1, 1, 1, 1);
-  STRNCPY_UTF8_TERMINATE_EARLY(4, 240, 1, 1, 1);
-  STRNCPY_UTF8_TERMINATE_EARLY(3, 224, 1, 1);
-  STRNCPY_UTF8_TERMINATE_EARLY(2, 192, 1);
-  STRNCPY_UTF8_TERMINATE_EARLY(1, 96);
-
-#undef STRNCPY_UTF8_TERMINATE_EARLY
-}
-
-/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name String Concatenate
@@ -948,9 +845,10 @@ TEST(string, StrJoin_Truncate)
     EXPECT_STREQ(buffer, "");
   }
   { /* Empty array. */
-    string_join_array_test_truncate(nullptr, 0, buffer);
+    const char *strings[] = {"a"};
+    string_join_array_test_truncate(strings, 0, buffer);
     EXPECT_STREQ(buffer, "");
-    string_join_array_with_sep_char_test_truncate(nullptr, 0, buffer);
+    string_join_array_with_sep_char_test_truncate(strings, 0, buffer);
     EXPECT_STREQ(buffer, "");
   }
 }
@@ -1080,6 +978,56 @@ TEST_F(StringFindSplitWords, LimitChars)
   testStringFindSplitWords(words, words_len - 5, {{0, 3}, {4, 4}, {-1, -1}});
   testStringFindSplitWords(words, 1, {{0, 1}, {-1, -1}});
   testStringFindSplitWords(words, 0, {{-1, -1}});
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name String Element
+ * \{ */
+
+/* #BLI_string_elem_split_by_delim */
+
+TEST(string, StringElemEmpty)
+{
+  EXPECT_FALSE(BLI_string_elem_split_by_delim("A", ':', ""));
+
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("", ':', ""));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim(":", ':', ""));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("::", ':', ""));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("A:", ':', ""));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim(":A", ':', ""));
+}
+
+TEST(string, StringElemSingle)
+{
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("A", ':', "A"));
+  EXPECT_FALSE(BLI_string_elem_split_by_delim("A", ':', "B"));
+
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("B", 'A', "B"));
+  EXPECT_FALSE(BLI_string_elem_split_by_delim("A", 'A', "A"));
+}
+
+TEST(string, StringElemComplex)
+{
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("TEST", ':', "TEST"));
+
+  EXPECT_TRUE(BLI_string_elem_split_by_delim(":TEST", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("TEST:", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim(":TEST:", ':', "TEST"));
+
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("::TEST", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("TEST::", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("::TEST::", ':', "TEST"));
+
+  EXPECT_FALSE(BLI_string_elem_split_by_delim(":TEST ", ':', "TEST"));
+  EXPECT_FALSE(BLI_string_elem_split_by_delim(" TEST:", ':', "TEST"));
+  EXPECT_FALSE(BLI_string_elem_split_by_delim(": TEST :", ':', "TEST"));
+
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("A:B:TEST", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("TEST:A:B", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim("A:TEST:B", ':', "TEST"));
+  EXPECT_TRUE(BLI_string_elem_split_by_delim(":A:TEST:B:", ':', "TEST"));
 }
 
 /** \} */
@@ -1389,7 +1337,7 @@ class StringEscape : public testing::Test {
     size_t dst_test_len;
     char dst_test[64]; /* Must be big enough for all input. */
     for (const auto &item : items) {
-      /* Validate the static size is big enough (test the test it's self). */
+      /* Validate the static size is big enough (test the test itself). */
       EXPECT_LT((strlen(item[0]) * 2) + 1, sizeof(dst_test));
       /* Escape the string. */
       dst_test_len = BLI_str_escape(dst_test, item[0], sizeof(dst_test));
@@ -1475,4 +1423,22 @@ TEST(BLI_string, bounded_strcpy)
     STRNCPY(str, "Hello, World!");
     EXPECT_STREQ(str, "Hello, ");
   }
+}
+
+TEST(BLI_string, StartsWith)
+{
+  EXPECT_TRUE(BLI_str_startswith("ab", "a"));
+  EXPECT_FALSE(BLI_str_startswith("ab", "b"));
+  EXPECT_TRUE(BLI_str_startswith("ab", "ab"));
+  EXPECT_TRUE(BLI_str_startswith("ab", ""));
+  EXPECT_TRUE(BLI_str_startswith("", ""));
+}
+
+TEST(BLI_string, EndsWith)
+{
+  EXPECT_TRUE(BLI_str_endswith("ab", "b"));
+  EXPECT_FALSE(BLI_str_endswith("ab", "a"));
+  EXPECT_TRUE(BLI_str_endswith("ab", "ab"));
+  EXPECT_TRUE(BLI_str_endswith("ab", ""));
+  EXPECT_TRUE(BLI_str_endswith("", ""));
 }

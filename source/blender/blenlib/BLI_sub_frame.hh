@@ -2,12 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #include <cmath>
 
 #include "BLI_assert.h"
+#include "BLI_hash.hh"
 #include "BLI_math_base.h"
+#include "BLI_struct_equality_utils.hh"
 
 namespace blender {
 
@@ -58,15 +64,12 @@ struct SubFrame {
     return {INT32_MAX, std::nexttowardf(1.0f, 0.0)};
   }
 
-  friend bool operator==(const SubFrame &a, const SubFrame &b)
+  uint64_t hash() const
   {
-    return a.frame_ == b.frame_ && a.subframe_ == b.subframe_;
+    return get_default_hash(frame_, subframe_);
   }
 
-  friend bool operator!=(const SubFrame &a, const SubFrame &b)
-  {
-    return !(a == b);
-  }
+  BLI_STRUCT_EQUALITY_OPERATORS_2(SubFrame, frame_, subframe_)
 
   friend bool operator<(const SubFrame &a, const SubFrame &b)
   {

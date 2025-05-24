@@ -4,26 +4,14 @@
 
 set(INC
   ../include
-  ../../asset_system
-  ../../blenfont
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../depsgraph
-  ../../functions
-  ../../gpencil_modifiers_legacy
-  ../../gpu
   ../../ikplugin
-  ../../imbuf
   ../../makesrna
   ../../modifiers
+  ../../nodes
   ../../python
-  ../../render
   ../../shader_fx
-  ../../windowmanager
-  ../../../../intern/clog
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -36,16 +24,17 @@ set(SRC
   object_bake.cc
   object_bake_api.cc
   object_bake_simulation.cc
+  object_camera.cc
   object_collection.cc
   object_constraint.cc
   object_data_transfer.cc
   object_data_transform.cc
   object_edit.cc
-  object_gpencil_modifier.cc
   object_hook.cc
   object_light_linking_ops.cc
   object_modes.cc
   object_modifier.cc
+  object_multires_modifier.cc
   object_ops.cc
   object_random.cc
   object_relations.cc
@@ -56,22 +45,35 @@ set(SRC
   object_transform.cc
   object_utils.cc
   object_vgroup.cc
+  object_visual_geometry_to_objects.cc
   object_volume.cc
   object_warp.cc
 
-  object_intern.h
+  object_intern.hh
 )
 
 set(LIB
   PRIVATE bf::animrig
-  bf_blenkernel
+  PRIVATE bf::asset_system
+  PRIVATE bf::blenfont
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
+  PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_mesh
+  bf_editor_metaball
   bf_editor_grease_pencil
+  PRIVATE bf::extern::fmtlib
+  PRIVATE bf::functions
+  PRIVATE bf::geometry
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
-  bf_render
-  bf_windowmanager
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 
@@ -81,11 +83,10 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
-  add_definitions(-DWITH_POINT_CLOUD)
-  add_definitions(-DWITH_GREASE_PENCIL_V3)
+  add_definitions(-DWITH_POINTCLOUD)
 endif()
 
 blender_add_lib(bf_editor_object "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_object bf_rna)

@@ -9,30 +9,20 @@
 #include <cstdlib>
 
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_path_util.h"
-#include "BLI_utildefines.h"
+#include "BLI_path_utils.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
-
-#include "DEG_depsgraph.hh"
-
-#include "BKE_image.h"
-#include "BKE_scene.h"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "RE_engine.h"
-#include "RE_pipeline.h"
-
-#include "ED_render.hh"
 
 /* Deprecated, only provided for API compatibility. */
 const EnumPropertyItem rna_enum_render_pass_type_items[] = {
@@ -86,16 +76,20 @@ const EnumPropertyItem rna_enum_bake_pass_type_items[] = {
 
 #  include "RNA_access.hh"
 
-#  include "BKE_appdir.h"
-#  include "BKE_context.h"
-#  include "BKE_report.h"
+#  include "BKE_appdir.hh"
+#  include "BKE_context.hh"
+#  include "BKE_image.hh"
+#  include "BKE_report.hh"
+#  include "BKE_scene.hh"
 
-#  include "GPU_capabilities.h"
-#  include "GPU_shader.h"
-#  include "IMB_colormanagement.h"
-#  include "IMB_imbuf_types.h"
+#  include "GPU_capabilities.hh"
+#  include "GPU_shader.hh"
+#  include "IMB_colormanagement.hh"
+#  include "IMB_imbuf_types.hh"
 
 #  include "DEG_depsgraph_query.hh"
+
+#  include "ED_render.hh"
 
 /* RenderEngine Callbacks */
 
@@ -109,9 +103,9 @@ static void engine_tag_update(RenderEngine *engine)
   engine->flag |= RE_ENGINE_DO_UPDATE;
 }
 
-static bool engine_support_display_space_shader(RenderEngine * /*engine*/, Scene *scene)
+static bool engine_support_display_space_shader(RenderEngine * /*engine*/, Scene * /*scene*/)
 {
-  return IMB_colormanagement_support_glsl_draw(&scene->view_settings);
+  return true;
 }
 
 static int engine_get_preview_pixel_size(RenderEngine * /*engine*/, Scene *scene)
@@ -137,7 +131,7 @@ static void engine_update(RenderEngine *engine, Main *bmain, Depsgraph *depsgrap
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -154,7 +148,7 @@ static void engine_render(RenderEngine *engine, Depsgraph *depsgraph)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -170,7 +164,7 @@ static void engine_render_frame_finish(RenderEngine *engine)
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_render_frame_finish_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -185,7 +179,7 @@ static void engine_draw(RenderEngine *engine, const bContext *context, Depsgraph
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -208,7 +202,7 @@ static void engine_bake(RenderEngine *engine,
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_bake_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -229,7 +223,7 @@ static void engine_view_update(RenderEngine *engine, const bContext *context, De
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_update_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -246,7 +240,7 @@ static void engine_view_draw(RenderEngine *engine, const bContext *context, Deps
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_view_draw_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -263,8 +257,8 @@ static void engine_update_script_node(RenderEngine *engine, bNodeTree *ntree, bN
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
-  PointerRNA nodeptr = RNA_pointer_create((ID *)ntree, &RNA_Node, node);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA nodeptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_Node, node);
   func = &rna_RenderEngine_update_script_node_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -280,12 +274,28 @@ static void engine_update_render_passes(RenderEngine *engine, Scene *scene, View
   ParameterList list;
   FunctionRNA *func;
 
-  PointerRNA ptr = RNA_pointer_create(nullptr, engine->type->rna_ext.srna, engine);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
   func = &rna_RenderEngine_update_render_passes_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "scene", &scene);
   RNA_parameter_set_lookup(&list, "renderlayer", &view_layer);
+  engine->type->rna_ext.call(nullptr, &ptr, func, &list);
+
+  RNA_parameter_list_free(&list);
+}
+
+static void engine_update_custom_camera(RenderEngine *engine, Camera *cam)
+{
+  extern FunctionRNA rna_RenderEngine_update_custom_camera_func;
+  ParameterList list;
+  FunctionRNA *func;
+
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, engine->type->rna_ext.srna, engine);
+  func = &rna_RenderEngine_update_custom_camera_func;
+
+  RNA_parameter_list_create(&list, &ptr, func);
+  RNA_parameter_set_lookup(&list, "cam", &cam);
   engine->type->rna_ext.call(nullptr, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -322,12 +332,13 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   const char *error_prefix = "Registering render engine class:";
   RenderEngineType *et, dummy_et = {nullptr};
   RenderEngine dummy_engine = {nullptr};
-  bool have_function[9];
+  bool have_function[10];
 
   /* setup dummy engine & engine type to store static properties in */
   dummy_engine.type = &dummy_et;
   dummy_et.flag |= RE_USE_SHADING_NODES_CUSTOM;
-  PointerRNA dummy_engine_ptr = RNA_pointer_create(nullptr, &RNA_RenderEngine, &dummy_engine);
+  PointerRNA dummy_engine_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_RenderEngine, &dummy_engine);
 
   /* validate the python class */
   if (validate(&dummy_engine_ptr, data, have_function) != 0) {
@@ -348,6 +359,13 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   et = static_cast<RenderEngineType *>(
       BLI_findstring(&R_engines, dummy_et.idname, offsetof(RenderEngineType, idname)));
   if (et) {
+    BKE_reportf(reports,
+                RPT_INFO,
+                "%s '%s', bl_idname '%s' has been registered before, unregistering previous",
+                error_prefix,
+                identifier,
+                dummy_et.idname);
+
     StructRNA *srna = et->rna_ext.srna;
     if (!(srna && rna_RenderEngine_unregister(bmain, srna))) {
       BKE_reportf(reports,
@@ -362,8 +380,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   }
 
   /* create a new engine type */
-  et = static_cast<RenderEngineType *>(
-      MEM_mallocN(sizeof(RenderEngineType), "Python render engine"));
+  et = MEM_mallocN<RenderEngineType>("Python render engine");
   memcpy(et, &dummy_et, sizeof(dummy_et));
 
   et->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, et->idname, &RNA_RenderEngine);
@@ -381,6 +398,7 @@ static StructRNA *rna_RenderEngine_register(Main *bmain,
   et->view_draw = (have_function[6]) ? engine_view_draw : nullptr;
   et->update_script_node = (have_function[7]) ? engine_update_script_node : nullptr;
   et->update_render_passes = (have_function[8]) ? engine_update_render_passes : nullptr;
+  et->update_custom_camera = (have_function[9]) ? engine_update_custom_camera : nullptr;
 
   RE_engines_register(et);
 
@@ -417,11 +435,9 @@ static PointerRNA rna_RenderEngine_render_get(PointerRNA *ptr)
   if (engine->re) {
     RenderData *r = RE_engine_get_render_data(engine->re);
 
-    return rna_pointer_inherit_refine(ptr, &RNA_RenderSettings, r);
+    return RNA_pointer_create_with_parent(*ptr, &RNA_RenderSettings, r);
   }
-  else {
-    return rna_pointer_inherit_refine(ptr, &RNA_RenderSettings, nullptr);
-  }
+  return PointerRNA_NULL;
 }
 
 static PointerRNA rna_RenderEngine_camera_override_get(PointerRNA *ptr)
@@ -430,11 +446,11 @@ static PointerRNA rna_RenderEngine_camera_override_get(PointerRNA *ptr)
   /* TODO(sergey): Shouldn't engine point to an evaluated datablocks already? */
   if (engine->re) {
     Object *cam = RE_GetCamera(engine->re);
-    Object *cam_eval = DEG_get_evaluated_object(engine->depsgraph, cam);
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, cam_eval);
+    Object *cam_eval = DEG_get_evaluated(engine->depsgraph, cam);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(cam_eval));
   }
   else {
-    return rna_pointer_inherit_refine(ptr, &RNA_Object, engine->camera_override);
+    return RNA_id_pointer_create(reinterpret_cast<ID *>(engine->camera_override));
   }
 }
 
@@ -454,13 +470,13 @@ static void rna_RenderEngine_engine_frame_set(RenderEngine *engine, int frame, f
 static void rna_RenderResult_views_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderResult *rr = (RenderResult *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rr->views, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rr->views, nullptr);
 }
 
 static void rna_RenderResult_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderResult *rr = (RenderResult *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rr->layers, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rr->layers, nullptr);
 }
 
 static void rna_RenderResult_stamp_data_add_field(RenderResult *rr,
@@ -473,7 +489,7 @@ static void rna_RenderResult_stamp_data_add_field(RenderResult *rr,
 static void rna_RenderLayer_passes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   RenderLayer *rl = (RenderLayer *)ptr->data;
-  rna_iterator_listbase_begin(iter, &rl->passes, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &rl->passes, nullptr);
 }
 
 static int rna_RenderPass_rect_get_length(const PointerRNA *ptr,
@@ -631,6 +647,11 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
   parm = RNA_def_pointer(func, "scene", "Scene", "", "");
   parm = RNA_def_pointer(func, "renderlayer", "ViewLayer", "", "");
+
+  func = RNA_def_function(srna, "update_custom_camera", nullptr);
+  RNA_def_function_ui_description(func, "Compile custom camera");
+  RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+  parm = RNA_def_pointer(func, "cam", "Camera", "", "");
 
   /* tag for redraw */
   func = RNA_def_function(srna, "tag_redraw", "engine_tag_redraw");
@@ -963,7 +984,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
       prop,
       "Use Image Save",
       "Save images/movie to disk while rendering an animation. "
-      "Disabling image saving is only supported when bl_use_postprocess is also disabled");
+      "Disabling image saving is only supported when bl_use_postprocess is also disabled.");
 
   prop = RNA_def_property(srna, "bl_use_gpu_context", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_GPU_CONTEXT);
@@ -980,7 +1001,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Use Custom Shading Nodes",
                            "Don't expose Cycles and EEVEE shading nodes in the node editor user "
-                           "interface, so own nodes can be used instead");
+                           "interface, so separate nodes can be used instead");
 
   prop = RNA_def_property(srna, "bl_use_spherical_stereo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "type->flag", RE_USE_SPHERICAL_STEREO);

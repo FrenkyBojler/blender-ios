@@ -53,12 +53,12 @@ class GHOST_EventManager {
    * Do not delete the event!
    * \param event: The event to push on the stack.
    */
-  GHOST_TSuccess pushEvent(GHOST_IEvent *event);
+  GHOST_TSuccess pushEvent(const GHOST_IEvent *event);
 
   /**
    * Dispatches the given event directly, bypassing the event stack.
    */
-  void dispatchEvent(GHOST_IEvent *event);
+  void dispatchEvent(const GHOST_IEvent *event);
 
   /**
    * Dispatches the event at the back of the stack.
@@ -108,19 +108,17 @@ class GHOST_EventManager {
   void disposeEvents();
 
   /** A stack with events. */
-  typedef std::deque<GHOST_IEvent *> TEventStack;
+  using TEventStack = std::deque<const GHOST_IEvent *>;
 
   /** The event stack. */
-  std::deque<GHOST_IEvent *> m_events;
-  std::deque<GHOST_IEvent *> m_handled_events;
+  std::deque<const GHOST_IEvent *> m_events;
+  std::deque<const GHOST_IEvent *> m_handled_events;
 
   /** A vector with event consumers. */
-  typedef std::vector<GHOST_IEventConsumer *> TConsumerVector;
+  using TConsumerVector = std::vector<GHOST_IEventConsumer *>;
 
   /** The list with event consumers. */
   TConsumerVector m_consumers;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_EventManager")
-#endif
 };

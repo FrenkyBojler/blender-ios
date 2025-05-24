@@ -10,30 +10,21 @@
 
 #pragma once
 
-#include <mutex>
+#include <string>
 
 #include "DNA_customdata_types.h"
 
-#include "BKE_attribute.h"
-
+#include "BLI_mutex.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
-#include "GPU_shader.h"
-#include "GPU_vertex_format.h"
+#include "BLI_vector_set.hh"
 
-struct DRW_AttributeRequest {
-  eCustomDataType cd_type;
-  int layer_index;
-  eAttrDomain domain;
-  char attribute_name[64];
-};
+namespace blender::bke {
+enum class AttrDomain : int8_t;
+}
 
-struct DRW_Attributes {
-  DRW_AttributeRequest requests[GPU_MAX_ATTR];
-  int num_requests;
-};
+namespace blender::draw {
 
 struct DRW_MeshCDMask {
   uint32_t uv : 8;
@@ -50,24 +41,20 @@ struct DRW_MeshCDMask {
 /* Keep `DRW_MeshCDMask` struct within a `uint32_t`.
  * bit-wise and atomic operations are used to compare and update the struct.
  * See `mesh_cd_layers_type_*` functions. */
-BLI_STATIC_ASSERT(sizeof(DRW_MeshCDMask) <= sizeof(uint32_t), "DRW_MeshCDMask exceeds 32 bits")
+static_assert(sizeof(DRW_MeshCDMask) <= sizeof(uint32_t), "DRW_MeshCDMask exceeds 32 bits");
 
-void drw_attributes_clear(DRW_Attributes *attributes);
-
-void drw_attributes_merge(DRW_Attributes *dst,
-                          const DRW_Attributes *src,
-                          std::mutex &render_mutex);
+void drw_attributes_merge(VectorSet<std::string> *dst,
+                          const VectorSet<std::string> *src,
+                          Mutex &render_mutex);
 
 /* Return true if all requests in b are in a. */
-bool drw_attributes_overlap(const DRW_Attributes *a, const DRW_Attributes *b);
+bool drw_attributes_overlap(const VectorSet<std::string> *a, const VectorSet<std::string> *b);
 
-void drw_attributes_add_request(DRW_Attributes *attrs,
-                                const char *name,
-                                eCustomDataType data_type,
-                                int layer_index,
-                                eAttrDomain domain);
+void drw_attributes_add_request(VectorSet<std::string> *attrs, StringRef name);
 
-bool drw_custom_data_match_attribute(const CustomData *custom_data,
-                                     const char *name,
+bool drw_custom_data_match_attribute(const CustomData &custom_data,
+                                     StringRef name,
                                      int *r_layer_index,
                                      eCustomDataType *r_type);
+
+}  // namespace blender::draw

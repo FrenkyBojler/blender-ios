@@ -33,7 +33,7 @@ int libmv_trackRegion(const libmv_TrackRegionOptions* /*options*/,
                       libmv_TrackRegionResult* result,
                       double* x2,
                       double* y2) {
-  /* Convert to doubles for the libmv api. The four corners and the center. */
+  /* Convert to doubles for the libmv API. The four corners and the center. */
   for (int i = 0; i < 5; ++i) {
     x2[i] = x1[i];
     y2[i] = y1[i];
@@ -218,10 +218,6 @@ void libmv_cameraIntrinsicsUpdate(
     libmv_CameraIntrinsics* /*libmv_intrinsics*/) {
 }
 
-void libmv_cameraIntrinsicsSetThreads(
-    libmv_CameraIntrinsics* /*libmv_intrinsics*/, int /*threads*/) {
-}
-
 void libmv_cameraIntrinsicsExtractOptions(
     const libmv_CameraIntrinsics* /*libmv_intrinsics*/,
     libmv_CameraIntrinsicsOptions* camera_intrinsics_options) {
@@ -303,8 +299,8 @@ void libmv_cameraIntrinsicsInvert(
   *y1 = 0.0;
 }
 
-void libmv_homography2DFromCorrespondencesEuc(/* const */ double (*/*x1*/)[2],
-                                              /* const */ double (*/*x2*/)[2],
+void libmv_homography2DFromCorrespondencesEuc(/* const */ double (* /*x1*/)[2],
+                                              /* const */ double (* /*x2*/)[2],
                                               int /*num_points*/,
                                               double H[3][3]) {
   memset(H, 0, sizeof(double[3][3]));

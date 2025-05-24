@@ -10,10 +10,11 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_mask.h"
 
 #include "DNA_mask_types.h"
@@ -28,12 +29,11 @@
 
 #include "BIF_glutil.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_matrix.h"
-#include "GPU_shader.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_matrix.hh"
+#include "GPU_shader.hh"
+#include "GPU_state.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -125,14 +125,14 @@ static void draw_single_handle(const MaskLayer *mask_layer,
 
   switch (handle_type) {
     case HD_FREE:
-      immUniformThemeColor(TH_HANDLE_FREE);
+      immUniformThemeColor3(TH_HANDLE_FREE);
       break;
     case HD_AUTO:
-      immUniformThemeColor(TH_HANDLE_AUTO);
+      immUniformThemeColor3(TH_HANDLE_AUTO);
       break;
     case HD_ALIGN:
     case HD_ALIGN_DOUBLESIDE:
-      immUniformThemeColor(TH_HANDLE_ALIGN);
+      immUniformThemeColor3(TH_HANDLE_ALIGN);
       break;
   }
 
@@ -392,7 +392,7 @@ static void mask_draw_curve_type(const bContext *C,
     const bool undistort = sc->clip && (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT);
 
     if (undistort) {
-      points = MEM_cnew_array<float[2]>(tot_point, "undistorthed mask curve");
+      points = MEM_calloc_arrayN<float[2]>(tot_point, "undistorthed mask curve");
 
       for (int i = 0; i < tot_point; i++) {
         mask_point_undistort_pos(sc, points[i], orig_points[i]);
@@ -624,7 +624,7 @@ static void draw_mask_layers(
 static float *mask_rasterize(Mask *mask, const int width, const int height)
 {
   MaskRasterHandle *handle;
-  float *buffer = MEM_cnew_array<float>(height * width, "rasterized mask buffer");
+  float *buffer = MEM_calloc_arrayN<float>(height * width, "rasterized mask buffer");
 
   /* Initialize rasterization handle. */
   handle = BKE_maskrasterize_handle_new();
@@ -659,7 +659,7 @@ void ED_mask_draw_region(
     const bContext *C)
 {
   View2D *v2d = &region->v2d;
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_);
 
   /* aspect always scales vertically in movie and image spaces */
   const float width = width_i, height = float(height_i) * (aspy / aspx);
@@ -740,7 +740,7 @@ void ED_mask_draw_region(
       GPU_blend(GPU_BLEND_NONE);
     }
 
-    MEM_freeN((void *)buffer);
+    MEM_freeN(buffer);
   }
 
   /* apply transformation so mask editing tools will assume drawing from the
@@ -788,8 +788,7 @@ void ED_mask_draw_frames(
   const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ub(255, 175, 0, 255);
@@ -802,8 +801,8 @@ void ED_mask_draw_frames(
     // draw_keyframe(i, scene->r.cfra, sfra, framelen, 1);
     int height = (frame == cfra) ? 22 : 10;
     int x = (frame - sfra) * framelen;
-    immVertex2i(pos, x, region_bottom);
-    immVertex2i(pos, x, region_bottom + height * UI_SCALE_FAC);
+    immVertex2f(pos, x, region_bottom);
+    immVertex2f(pos, x, region_bottom + height * UI_SCALE_FAC);
   }
   immEnd();
   immUnbindProgram();

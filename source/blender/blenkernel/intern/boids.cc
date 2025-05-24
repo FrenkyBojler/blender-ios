@@ -14,22 +14,25 @@
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
+#include "BLI_math_base_safe.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_boids.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
 #include "BKE_particle.h"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -275,13 +278,13 @@ static bool rule_avoid_collision(BoidRule *rule,
       mul_v3_fl(bbd->wanted_co, (1.0f - t) * val->personal_space * pa->size);
 
       bbd->wanted_speed = sqrtf(t) * len_v3(pa->prev_state.vel);
-      bbd->wanted_speed = MAX2(bbd->wanted_speed, val->min_speed);
+      bbd->wanted_speed = std::max(bbd->wanted_speed, val->min_speed);
 
       return true;
     }
   }
 
-  /* Check boids in own system. */
+  /* Check boids in their own system. */
   if (acbr->options & BRULE_ACOLL_WITH_BOIDS) {
     neighbors = BLI_kdtree_3d_range_search_with_len_squared_cb(bbd->sim->psys->tree,
                                                                pa->prev_state.co,
@@ -689,7 +692,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   int n;
   bool ret = false;
 
-  /* calculate own group strength */
+  /* calculate its own group strength */
   int neighbors = BLI_kdtree_3d_range_search(
       bbd->sim->psys->tree, pa->prev_state.co, &ptn, fbr->distance);
   for (n = 0; n < neighbors; n++) {
@@ -704,7 +707,7 @@ static bool rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Part
   /* add other friendlies and calculate enemy strength and find closest enemy */
   LISTBASE_FOREACH (ParticleTarget *, pt, &bbd->sim->psys->targets) {
     ParticleSystem *epsys = psys_get_target_system(bbd->sim->ob, pt);
-    if (epsys) {
+    if (epsys && epsys->part->boids) {
       epars = epsys->particles;
 
       neighbors = BLI_kdtree_3d_range_search(epsys->tree, pa->prev_state.co, &ptn, fbr->distance);
@@ -961,7 +964,7 @@ void boids_precalc_rules(ParticleSettings *part, float cfra)
         if (flbr->ob && flbr->cfra != cfra) {
           /* save object locations for velocity calculations */
           copy_v3_v3(flbr->oloc, flbr->loc);
-          copy_v3_v3(flbr->loc, flbr->ob->object_to_world[3]);
+          copy_v3_v3(flbr->loc, flbr->ob->object_to_world().location());
           flbr->cfra = cfra;
         }
       }
@@ -1169,17 +1172,18 @@ void boid_brain(BoidBrainData *bbd, int p, ParticleData *pa)
         if (dot_v2v2(cvel, dir) > 0.95f / mul || len <= state->rule_fuzziness) {
           /* try to reach goal at highest point of the parabolic path */
           cur_v = len_v2(pa->prev_state.vel);
-          z_v = sasqrt(-2.0f * bbd->sim->scene->physics_settings.gravity[2] * bbd->wanted_co[2]);
+          z_v = safe_sqrtf(-2.0f * bbd->sim->scene->physics_settings.gravity[2] *
+                           bbd->wanted_co[2]);
           ground_v = len_v2(bbd->wanted_co) *
-                     sasqrt(-0.5f * bbd->sim->scene->physics_settings.gravity[2] /
-                            bbd->wanted_co[2]);
+                     safe_sqrtf(-0.5f * bbd->sim->scene->physics_settings.gravity[2] /
+                                bbd->wanted_co[2]);
 
-          len = sasqrt((ground_v - cur_v) * (ground_v - cur_v) + z_v * z_v);
+          len = safe_sqrtf((ground_v - cur_v) * (ground_v - cur_v) + z_v * z_v);
 
           if (len < val.jump_speed * mul || bbd->part->boids->options & BOID_ALLOW_FLIGHT) {
             jump = 1;
 
-            len = MIN2(len, val.jump_speed);
+            len = std::min(len, val.jump_speed);
 
             copy_v3_v3(jump_v, dir);
             jump_v[2] = z_v;
@@ -1298,7 +1302,7 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
       }
 
       /* constrain direction with maximum angular velocity */
-      angle = saacos(dot_v3v3(old_dir, wanted_dir));
+      angle = safe_acosf(dot_v3v3(old_dir, wanted_dir));
       angle = min_ff(angle, val.max_ave);
 
       cross_v3_v3v3(nor, old_dir, wanted_dir);
@@ -1318,10 +1322,10 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
     old_speed = len_v3(pa->prev_state.vel);
 
     if (bbd->wanted_speed < old_speed) {
-      new_speed = MAX2(bbd->wanted_speed, old_speed - val.max_acc);
+      new_speed = std::max(bbd->wanted_speed, old_speed - val.max_acc);
     }
     else {
-      new_speed = MIN2(bbd->wanted_speed, old_speed + val.max_acc);
+      new_speed = std::min(bbd->wanted_speed, old_speed + val.max_acc);
     }
 
     /* combine direction and speed */
@@ -1333,18 +1337,18 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
       float len2 = dot_v2v2(new_vel, new_vel);
       float root;
 
-      len2 = MAX2(len2, val.min_speed * val.min_speed);
-      root = sasqrt(new_speed * new_speed - len2);
+      len2 = std::max(len2, val.min_speed * val.min_speed);
+      root = safe_sqrtf(new_speed * new_speed - len2);
 
       new_vel[2] = new_vel[2] < 0.0f ? -root : root;
 
       normalize_v2(new_vel);
-      mul_v2_fl(new_vel, sasqrt(len2));
+      mul_v2_fl(new_vel, safe_sqrtf(len2));
     }
 
     /* finally constrain speed to max speed */
     new_speed = normalize_v3(new_vel);
-    mul_v3_fl(new_vel, MIN2(new_speed, val.max_speed));
+    mul_v3_fl(new_vel, std::min(new_speed, val.max_speed));
 
     /* get acceleration from difference of velocities */
     sub_v3_v3v3(acc, new_vel, pa->prev_state.vel);
@@ -1367,7 +1371,7 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
   if (ELEM(bpa->data.mode, eBoidMode_OnLand, eBoidMode_Climbing)) {
     float length = normalize_v3(force);
 
-    length = MAX2(0.0f, length - boids->land_stick_force);
+    length = std::max(0.0f, length - boids->land_stick_force);
 
     mul_v3_fl(force, length);
   }
@@ -1587,31 +1591,41 @@ BoidRule *boid_new_rule(int type)
 
   switch (type) {
     case eBoidRuleType_Goal:
-    case eBoidRuleType_Avoid:
-      rule = static_cast<BoidRule *>(MEM_callocN(sizeof(BoidRuleGoalAvoid), "BoidRuleGoalAvoid"));
+    case eBoidRuleType_Avoid: {
+      BoidRuleGoalAvoid *rule_goal = MEM_callocN<BoidRuleGoalAvoid>("BoidRuleGoalAvoid");
+      rule = reinterpret_cast<BoidRule *>(rule_goal);
       break;
-    case eBoidRuleType_AvoidCollision:
-      rule = static_cast<BoidRule *>(
-          MEM_callocN(sizeof(BoidRuleAvoidCollision), "BoidRuleAvoidCollision"));
-      ((BoidRuleAvoidCollision *)rule)->look_ahead = 2.0f;
+    }
+    case eBoidRuleType_AvoidCollision: {
+      BoidRuleAvoidCollision *rule_avoid = MEM_callocN<BoidRuleAvoidCollision>(
+          "BoidRuleAvoidCollision");
+      rule_avoid->look_ahead = 2.0f;
+      rule = reinterpret_cast<BoidRule *>(rule_avoid);
       break;
-    case eBoidRuleType_FollowLeader:
-      rule = static_cast<BoidRule *>(
-          MEM_callocN(sizeof(BoidRuleFollowLeader), "BoidRuleFollowLeader"));
-      ((BoidRuleFollowLeader *)rule)->distance = 1.0f;
+    }
+    case eBoidRuleType_FollowLeader: {
+      BoidRuleFollowLeader *rule_follow = MEM_callocN<BoidRuleFollowLeader>(
+          "BoidRuleFollowLeader");
+      rule_follow->distance = 1.0f;
+      rule = reinterpret_cast<BoidRule *>(rule_follow);
       break;
-    case eBoidRuleType_AverageSpeed:
-      rule = static_cast<BoidRule *>(
-          MEM_callocN(sizeof(BoidRuleAverageSpeed), "BoidRuleAverageSpeed"));
-      ((BoidRuleAverageSpeed *)rule)->speed = 0.5f;
+    }
+    case eBoidRuleType_AverageSpeed: {
+      BoidRuleAverageSpeed *rule_avgspeed = MEM_callocN<BoidRuleAverageSpeed>(
+          "BoidRuleAverageSpeed");
+      rule_avgspeed->speed = 0.5f;
+      rule = reinterpret_cast<BoidRule *>(rule_avgspeed);
       break;
-    case eBoidRuleType_Fight:
-      rule = static_cast<BoidRule *>(MEM_callocN(sizeof(BoidRuleFight), "BoidRuleFight"));
-      ((BoidRuleFight *)rule)->distance = 100.0f;
-      ((BoidRuleFight *)rule)->flee_distance = 100.0f;
+    }
+    case eBoidRuleType_Fight: {
+      BoidRuleFight *rule_fight = MEM_callocN<BoidRuleFight>("BoidRuleFight");
+      rule_fight->distance = 100.0f;
+      rule_fight->flee_distance = 100.0f;
+      rule = reinterpret_cast<BoidRule *>(rule_fight);
       break;
+    }
     default:
-      rule = static_cast<BoidRule *>(MEM_callocN(sizeof(BoidRule), "BoidRule"));
+      rule = MEM_callocN<BoidRule>("BoidRule");
       break;
   }
 
@@ -1649,7 +1663,7 @@ void boid_default_settings(BoidSettings *boids)
 
 BoidState *boid_new_state(BoidSettings *boids)
 {
-  BoidState *state = static_cast<BoidState *>(MEM_callocN(sizeof(BoidState), "BoidState"));
+  BoidState *state = MEM_callocN<BoidState>("BoidState");
 
   state->id = boids->last_state_id++;
   if (state->id) {

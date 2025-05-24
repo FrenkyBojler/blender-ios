@@ -2,13 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/workbench_depth_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(workbench_merge_depth)
+
 void main()
 {
-  float depth = texture(depth_tx, uvcoordsvar.xy).r;
-  if (depth != 1.0) {
-    gl_FragDepth = depth;
-  }
-  else {
-    discard;
-  }
+  gl_FragDepth = texture(depth_tx, screen_uv).r;
 }

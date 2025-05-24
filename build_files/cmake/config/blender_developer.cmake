@@ -9,6 +9,7 @@
 #
 
 set(WITH_ASSERT_ABORT                 ON  CACHE BOOL "" FORCE)
+set(WITH_ASSERT_RELEASE               ON  CACHE BOOL "" FORCE)
 set(WITH_BUILDINFO                    OFF CACHE BOOL "" FORCE)
 # Sadly ASAN is more often broken than working with MSVC do not enable it in the
 # developer profile for now.
@@ -24,7 +25,3 @@ set(WITH_PYTHON_SAFETY                ON  CACHE BOOL "" FORCE)
 if(WIN32)
   set(WITH_WINDOWS_BUNDLE_CRT         OFF CACHE BOOL "" FORCE)
 endif()
-
-# This may have issues with C++ initialization order, needs to be tested
-# on all platforms to be sure this is safe to enable.
-# set(WITH_CXX_GUARDEDALLOC             ON  CACHE BOOL "" FORCE)

@@ -13,6 +13,10 @@
 #  error WIN32 only!
 #endif /* WIN32 */
 
+#ifndef NOMINMAX
+#  define NOMINMAX
+#endif
+
 #define WIN32_LEAN_AND_MEAN
 #include <ole2.h> /* For drag-n-drop. */
 #include <windows.h>
@@ -43,7 +47,7 @@ class GHOST_SystemWin32 : public GHOST_System {
   /**
    * Destructor.
    */
-  ~GHOST_SystemWin32();
+  ~GHOST_SystemWin32() override;
 
   /***************************************************************************************
    ** Time(r) functionality
@@ -51,25 +55,18 @@ class GHOST_SystemWin32 : public GHOST_System {
 
   /**
    * This method converts performance counter measurements into milliseconds since the start of the
-   * system process.
-   * \return The number of milliseconds since the start of the system process.
+   * Blender process.
+   * \return The number of milliseconds since the start of the Blender process.
    */
   uint64_t performanceCounterToMillis(__int64 perf_ticks) const;
 
   /**
-   * This method converts system ticks into milliseconds since the start of the
-   * system process.
-   * \return The number of milliseconds since the start of the system process.
-   */
-  uint64_t tickCountToMillis(__int64 ticks) const;
-
-  /**
    * Returns the system time.
-   * Returns the number of milliseconds since the start of the system process.
+   * Returns the number of milliseconds since the start of the Blender process.
    * This overloaded method uses the high frequency timer if available.
    * \return The number of milliseconds.
    */
-  uint64_t getMilliSeconds() const;
+  uint64_t getMilliSeconds() const override;
 
   /***************************************************************************************
    ** Display/window management functionality
@@ -79,19 +76,19 @@ class GHOST_SystemWin32 : public GHOST_System {
    * Returns the number of displays on this system.
    * \return The number of displays.
    */
-  uint8_t getNumDisplays() const;
+  uint8_t getNumDisplays() const override;
 
   /**
    * Returns the dimensions of the main display on this system.
    * \return The dimension of the main display.
    */
-  void getMainDisplayDimensions(uint32_t &width, uint32_t &height) const;
+  void getMainDisplayDimensions(uint32_t &width, uint32_t &height) const override;
 
   /**
    * Returns the dimensions of all displays on this system.
    * \return The dimension of the main display.
    */
-  void getAllDisplayDimensions(uint32_t &width, uint32_t &height) const;
+  void getAllDisplayDimensions(uint32_t &width, uint32_t &height) const override;
 
   /**
    * Create a new window.
@@ -118,21 +115,21 @@ class GHOST_SystemWin32 : public GHOST_System {
                               GHOST_GPUSettings gpuSettings,
                               const bool exclusive = false,
                               const bool is_dialog = false,
-                              const GHOST_IWindow *parentWindow = 0);
+                              const GHOST_IWindow *parentWindow = nullptr) override;
 
   /**
    * Create a new off-screen context.
    * Never explicitly delete the window, use #disposeContext() instead.
    * \return The new context (or 0 if creation failed).
    */
-  GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings);
+  GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override;
 
   /**
    * Dispose of a context.
    * \param context: Pointer to the context to be disposed.
    * \return Indication of success.
    */
-  GHOST_TSuccess disposeContext(GHOST_IContext *context);
+  GHOST_TSuccess disposeContext(GHOST_IContext *context) override;
 
   /**
    * Create a new off-screen DirectX context.
@@ -155,7 +152,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * Get the Window under the mouse cursor. Location obtained from the OS.
    * \return The window under the cursor or nullptr if none.
    */
-  GHOST_IWindow *getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/);
+  GHOST_IWindow *getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/) override;
 
   /***************************************************************************************
    ** Event management functionality
@@ -166,7 +163,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param waitForEvent: Flag to wait for an event (or return immediately).
    * \return Indication of the presence of events.
    */
-  bool processEvents(bool waitForEvent);
+  bool processEvents(bool waitForEvent) override;
 
   /***************************************************************************************
    ** Cursor management functionality
@@ -178,7 +175,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param y: The y-coordinate of the cursor.
    * \return Indication of success.
    */
-  GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const;
+  GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const override;
 
   /**
    * Updates the location of the cursor (location in screen coordinates).
@@ -186,14 +183,14 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param y: The y-coordinate of the cursor.
    * \return Indication of success.
    */
-  GHOST_TSuccess setCursorPosition(int32_t x, int32_t y);
+  GHOST_TSuccess setCursorPosition(int32_t x, int32_t y) override;
 
   /**
    * Get the color of the pixel at the current mouse cursor location
    * \param r_color: returned sRGB float colors
    * \return Success value (true == successful and supported by platform)
    */
-  GHOST_TSuccess getPixelAtCursor(float r_color[3]) const;
+  GHOST_TSuccess getPixelAtCursor(float r_color[3]) const override;
 
   /***************************************************************************************
    ** Access to mouse button and keyboard states.
@@ -204,35 +201,35 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param keys: The state of all modifier keys (true == pressed).
    * \return Indication of success.
    */
-  GHOST_TSuccess getModifierKeys(GHOST_ModifierKeys &keys) const;
+  GHOST_TSuccess getModifierKeys(GHOST_ModifierKeys &keys) const override;
 
   /**
    * Returns the state of the mouse buttons (outside the message queue).
    * \param buttons: The state of the buttons.
    * \return Indication of success.
    */
-  GHOST_TSuccess getButtons(GHOST_Buttons &buttons) const;
+  GHOST_TSuccess getButtons(GHOST_Buttons &buttons) const override;
 
-  GHOST_TCapabilityFlag getCapabilities() const;
+  GHOST_TCapabilityFlag getCapabilities() const override;
 
   /**
    * Returns unsigned char from CUT_BUFFER0
    * \param selection: Used by X11 only.
    * \return Returns the Clipboard.
    */
-  char *getClipboard(bool selection) const;
+  char *getClipboard(bool selection) const override;
 
   /**
    * Puts buffer to system clipboard.
    * \param selection: Used by X11 only.
    * \return No return.
    */
-  void putClipboard(const char *buffer, bool selection) const;
+  void putClipboard(const char *buffer, bool selection) const override;
 
   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
-  GHOST_TSuccess hasClipboardImage(void) const;
+  GHOST_TSuccess hasClipboardImage() const override;
 
   /**
    * Get image data from the Clipboard
@@ -240,7 +237,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param r_height: the returned image height in pixels.
    * \return pointer uint array in RGBA byte order. Caller must free.
    */
-  uint *getClipboardImage(int *r_width, int *r_height) const;
+  uint *getClipboardImage(int *r_width, int *r_height) const override;
 
   /**
    * Put image data to the Clipboard
@@ -248,7 +245,7 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param width: the image width in pixels.
    * \param height: the image height in pixels.
    */
-  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const;
+  GHOST_TSuccess putClipboardImage(uint *rgba, int width, int height) const override;
 
   /**
    * Show a system message box
@@ -264,12 +261,12 @@ class GHOST_SystemWin32 : public GHOST_System {
                                 const char *help_label,
                                 const char *continue_label,
                                 const char *link,
-                                GHOST_DialogOptions dialog_options) const;
+                                GHOST_DialogOptions dialog_options) const override;
 
   /**
-   * Creates a drag'n'drop event and pushes it immediately onto the event queue.
-   * Called by GHOST_DropTargetWin32 class.
-   * \param eventType: The type of drag'n'drop event
+   * Creates a drag & drop event and pushes it immediately onto the event queue.
+   * Called by #GHOST_DropTargetWin32 class.
+   * \param eventType: The type of drag & drop event
    * \param draggedObjectType: The type object concerned
    * (currently array of file names, string, ?bitmap)
    * \param mouseX: x mouse coordinate (in window coordinates)
@@ -310,13 +307,13 @@ class GHOST_SystemWin32 : public GHOST_System {
    * For now, it just registers the window class (WNDCLASS).
    * \return A success value.
    */
-  GHOST_TSuccess init();
+  GHOST_TSuccess init() override;
 
   /**
    * Closes the system down.
    * \return A success value.
    */
-  GHOST_TSuccess exit();
+  GHOST_TSuccess exit() override;
 
   /**
    * Converts raw WIN32 key codes from the `wndproc` to GHOST keys.
@@ -372,12 +369,20 @@ class GHOST_SystemWin32 : public GHOST_System {
                                                const int32_t screen_co[2]);
 
   /**
-   * Handles a mouse wheel event.
+   * Handles a vertical mouse wheel event.
    * \param window: The window receiving the event (the active window).
    * \param wParam: The wParam from the `wndproc`.
    * \param lParam: The lParam from the `wndproc`.
    */
-  static void processWheelEvent(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
+  static void processWheelEventVertical(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
+
+  /**
+   * Handles a horizontal mouse wheel event.
+   * \param window: The window receiving the event (the active window).
+   * \param wParam: The wParam from the `wndproc`.
+   * \param lParam: The lParam from the `wndproc`.
+   */
+  static void processWheelEventHorizontal(GHOST_WindowWin32 *window, WPARAM wParam, LPARAM lParam);
 
   /**
    * Creates a key event and updates the key data stored locally (m_modifierKeys).
@@ -454,7 +459,7 @@ class GHOST_SystemWin32 : public GHOST_System {
   /**
    * Check current key layout for AltGr
    */
-  inline void handleKeyboardChange(void);
+  inline void handleKeyboardChange();
 
   /**
    * Windows call back routine for our window class.
@@ -466,16 +471,12 @@ class GHOST_SystemWin32 : public GHOST_System {
    * \param action: console state
    * \return current status (1 -visible, 0 - hidden)
    */
-  bool setConsoleWindowState(GHOST_TConsoleWindowState action);
+  bool setConsoleWindowState(GHOST_TConsoleWindowState action) override;
 
   /** State variable set at initialization. */
   bool m_hasPerformanceCounter;
   /** High frequency timer variable. */
   __int64 m_freq;
-  /** High frequency timer variable. */
-  __int64 m_start;
-  /** Low frequency timer variable. */
-  __int64 m_lfstart;
   /** AltGr on current keyboard layout. */
   bool m_hasAltGr;
   /** Language identifier. */
@@ -486,11 +487,12 @@ class GHOST_SystemWin32 : public GHOST_System {
   /** Console status. */
   bool m_consoleStatus;
 
-  /** Wheel delta accumulator. */
-  int m_wheelDeltaAccum;
+  /** Wheel delta accumulators. */
+  int m_wheelDeltaAccumVertical;
+  int m_wheelDeltaAccumHorizontal;
 };
 
-inline void GHOST_SystemWin32::handleKeyboardChange(void)
+inline void GHOST_SystemWin32::handleKeyboardChange()
 {
   m_keylayout = GetKeyboardLayout(0); /* Get keylayout for current thread. */
   int i;

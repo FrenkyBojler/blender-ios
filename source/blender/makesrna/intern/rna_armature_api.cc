@@ -6,24 +6,31 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h" /* own include */
+#include "rna_internal.hh" /* own include */
 
 #ifdef RNA_RUNTIME
 
-#  include <stddef.h>
+#  include <cstddef>
 
 #  include "DNA_armature_types.h"
 
-#  include "BKE_armature.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
+
+#  include "BKE_armature.hh"
+#  include "BKE_report.hh"
+
+#  include "ED_armature.hh"
+
+#  include "ANIM_bone_collections.hh"
+
+#  include "WM_api.hh"
 
 static void rna_EditBone_align_roll(EditBone *ebo, const float no[3])
 {
@@ -237,7 +244,7 @@ void RNA_api_bone(StructRNA *srna)
   RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
   RNA_def_property_ui_text(
       parm, "", "The custom rest matrix of the parent bone (Bone.matrix_local)");
-  parm = RNA_def_boolean(func, "invert", false, "", "Convert from Pose to Local space");
+  RNA_def_boolean(func, "invert", false, "", "Convert from Pose to Local space");
 
   /* Conversions between Matrix and Axis + Roll representations. */
   func = RNA_def_function(srna, "MatrixFromAxisRoll", "rna_Bone_MatrixFromAxisRoll");
@@ -287,11 +294,7 @@ void RNA_api_bonecollection(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Assign the given bone to this collection");
   parm = RNA_def_pointer(
-      func,
-      "bone",
-      "AnyType",
-      "",
-      "Bone to assign to this collection. This must be a Bone, PoseBone, or EditBone");
+      func, "bone", "AnyType", "", "Bone, PoseBone, or EditBone to assign to this collection");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   /* return value */
   parm = RNA_def_boolean(func,
@@ -306,11 +309,7 @@ void RNA_api_bonecollection(StructRNA *srna)
   RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Remove the given bone from this collection");
   parm = RNA_def_pointer(
-      func,
-      "bone",
-      "AnyType",
-      "",
-      "Bone to remove from this collection. This must be a Bone, PoseBone, or EditBone");
+      func, "bone", "AnyType", "", "Bone, PoseBone, or EditBone to remove from this collection");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   /* return value */
   parm = RNA_def_boolean(func,

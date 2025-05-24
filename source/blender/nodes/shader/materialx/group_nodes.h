@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2022 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,7 +8,7 @@
 
 /* TODO: #pxr::UsdMtlxRead() doesn't perform node-graphs.
  * Uncomment USE_MATERIALX_NODEGRAPH after fixing it. */
-//#define USE_MATERIALX_NODEGRAPH
+// #define USE_MATERIALX_NODEGRAPH
 
 namespace blender::nodes::materialx {
 
@@ -21,14 +21,11 @@ class GroupNodeParser : public NodeParser {
   bool use_group_default_;
 
  public:
-  GroupNodeParser(MaterialX::GraphElement *graph,
-                  const Depsgraph *depsgraph,
-                  const Material *material,
+  GroupNodeParser(NodeGraph &graph,
                   const bNode *node,
                   const bNodeSocket *socket_out,
                   NodeItem::Type to_type,
                   GroupNodeParser *group_parser,
-                  ExportImageFunction export_image_fn,
                   bool use_group_default);
   NodeItem compute() override;
   NodeItem compute_full() override;

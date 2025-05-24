@@ -41,15 +41,14 @@
  * starts again.
  */
 
-#include <mutex>
-#include <sstream>
+#include <atomic>
 
-#include "BLI_compute_context.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_mutex.hh"
+#include "BLI_stack.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "FN_lazy_function_graph_executor.hh"
 
@@ -132,11 +131,6 @@ struct OutputState {
 
 struct NodeState {
   /**
-   * Needs to be locked when any data in this state is accessed that is not explicitly marked as
-   * not needing the lock.
-   */
-  mutable std::mutex mutex;
-  /**
    * States of the individual input and output sockets. One can index into these arrays without
    * locking. However, to access data inside, a lock is needed unless noted otherwise.
    * Those are not stored as #Span to reduce memory usage. The number of inputs and outputs is
@@ -150,6 +144,11 @@ struct NodeState {
    * cases.
    */
   int missing_required_inputs = 0;
+  /**
+   * Needs to be locked when any data in this state is accessed that is not explicitly marked as
+   * not needing the lock.
+   */
+  mutable Mutex mutex;
   /**
    * Is set to true once the node is done with its work, i.e. when all outputs that may be used
    * have been computed.
@@ -250,13 +249,32 @@ struct ScheduledNodes {
   {
     return this->priority_.is_empty() && this->normal_.is_empty();
   }
+
+  int64_t nodes_num() const
+  {
+    return priority_.size() + normal_.size();
+  }
+
+  /**
+   * Split up the scheduled nodes into two groups that can be worked on in parallel.
+   */
+  void split_into(ScheduledNodes &other)
+  {
+    BLI_assert(this != &other);
+    const int64_t priority_split = priority_.size() / 2;
+    const int64_t normal_split = normal_.size() / 2;
+    other.priority_.extend(priority_.as_span().drop_front(priority_split));
+    other.normal_.extend(normal_.as_span().drop_front(normal_split));
+    priority_.resize(priority_split);
+    normal_.resize(normal_split);
+  }
 };
 
 struct CurrentTask {
   /**
    * Mutex used to protect #scheduled_nodes when the executor uses multi-threading.
    */
-  std::mutex mutex;
+  Mutex mutex;
   /**
    * Nodes that have been scheduled to execute next.
    */
@@ -640,7 +658,7 @@ class Executor {
   {
     const OutputSocket &socket = *self_.graph_inputs_[graph_input_index];
     const CPPType &type = socket.type();
-    void *buffer = local_data.allocator->allocate(type.size(), type.alignment());
+    void *buffer = local_data.allocator->allocate(type);
     type.move_construct(input_data, buffer);
     this->forward_value_to_linked_inputs(socket, {type, buffer}, current_task, local_data);
   }
@@ -708,7 +726,7 @@ class Executor {
               }
               else {
                 /* Schedule as priority node. This allows freeing up memory earlier which results
-                 * in better memory reuse and less copy-on-write copies caused by shared data. */
+                 * in better memory reuse and fewer implicit sharing copies. */
                 this->schedule_node(locked_node, current_task, true);
               }
             }
@@ -794,6 +812,16 @@ class Executor {
         current_task.has_scheduled_nodes.store(false, std::memory_order_relaxed);
       }
       this->run_node_task(*node, current_task, local_data);
+
+      /* If there are many nodes scheduled at the same time, it's beneficial to let multiple
+       * threads work on those. */
+      if (current_task.scheduled_nodes.nodes_num() > 128) {
+        if (this->try_enable_multi_threading()) {
+          std::unique_ptr<ScheduledNodes> split_nodes = std::make_unique<ScheduledNodes>();
+          current_task.scheduled_nodes.split_into(*split_nodes);
+          this->push_to_task_pool(std::move(split_nodes));
+        }
+      }
     }
   }
 
@@ -882,7 +910,7 @@ class Executor {
             self_.logger_->log_socket_value(input_socket, {type, default_value}, local_context);
           }
           BLI_assert(input_state.value == nullptr);
-          input_state.value = allocator.allocate(type.size(), type.alignment());
+          input_state.value = allocator.allocate(type);
           type.copy_construct(default_value, input_state.value);
           input_state.was_ready_for_execution = true;
         }
@@ -898,7 +926,7 @@ class Executor {
 
     this->with_locked_node(
         node, node_state, current_task, local_data, [&](LockedNode &locked_node) {
-#ifdef DEBUG
+#ifndef NDEBUG
           if (node_needs_execution) {
             this->assert_expected_outputs_have_been_computed(locked_node, local_data);
           }
@@ -1099,7 +1127,7 @@ class Executor {
       const int input_index = target_socket->index();
       InputState &input_state = node_state.inputs[input_index];
       const bool is_last_target = target_socket == targets.last();
-#ifdef DEBUG
+#ifndef NDEBUG
       if (input_state.value != nullptr) {
         if (self_.logger_ != nullptr) {
           self_.logger_->dump_when_input_is_set_twice(*target_socket, from_socket, local_context);
@@ -1144,7 +1172,7 @@ class Executor {
               value_to_forward = {};
             }
             else {
-              void *buffer = local_data.allocator->allocate(type.size(), type.alignment());
+              void *buffer = local_data.allocator->allocate(type);
               type.copy_construct(value_to_forward.get(), buffer);
               this->forward_value_to_input(locked_node, input_state, {type, buffer}, current_task);
             }
@@ -1229,10 +1257,10 @@ class Executor {
   /**
    * Allow other threads to steal all the nodes that are currently scheduled on this thread.
    */
-  void move_scheduled_nodes_to_task_pool(CurrentTask &current_task)
+  void push_all_scheduled_nodes_to_task_pool(CurrentTask &current_task)
   {
     BLI_assert(this->use_multi_threading());
-    ScheduledNodes *scheduled_nodes = MEM_new<ScheduledNodes>(__func__);
+    std::unique_ptr<ScheduledNodes> scheduled_nodes = std::make_unique<ScheduledNodes>();
     {
       std::lock_guard lock{current_task.mutex};
       if (current_task.scheduled_nodes.is_empty()) {
@@ -1241,6 +1269,11 @@ class Executor {
       *scheduled_nodes = std::move(current_task.scheduled_nodes);
       current_task.has_scheduled_nodes.store(false, std::memory_order_relaxed);
     }
+    this->push_to_task_pool(std::move(scheduled_nodes));
+  }
+
+  void push_to_task_pool(std::unique_ptr<ScheduledNodes> scheduled_nodes)
+  {
     /* All nodes are pushed as a single task in the pool. This avoids unnecessary threading
      * overhead when the nodes are fast to compute. */
     BLI_task_pool_push(
@@ -1254,9 +1287,9 @@ class Executor {
           const LocalData local_data = executor.get_local_data();
           executor.run_task(new_current_task, local_data);
         },
-        scheduled_nodes,
+        scheduled_nodes.release(),
         true,
-        [](TaskPool * /*pool*/, void *data) { MEM_delete(static_cast<ScheduledNodes *>(data)); });
+        [](TaskPool * /*pool*/, void *data) { delete static_cast<ScheduledNodes *>(data); });
   }
 
   LocalData get_local_data()
@@ -1334,7 +1367,7 @@ class GraphExecutorLFParams final : public Params {
     if (output_state.value == nullptr) {
       LinearAllocator<> &allocator = *this->get_local_data().allocator;
       const CPPType &type = node_.output(index).type();
-      output_state.value = allocator.allocate(type.size(), type.alignment());
+      output_state.value = allocator.allocate(type);
     }
     return output_state.value;
   }
@@ -1410,7 +1443,7 @@ inline void Executor::execute_node(const FunctionNode &node,
     if (!this->try_enable_multi_threading()) {
       return;
     }
-    this->move_scheduled_nodes_to_task_pool(current_task);
+    this->push_all_scheduled_nodes_to_task_pool(current_task);
   };
 
   lazy_threading::HintReceiver blocking_hint_receiver{blocking_hint_fn};
@@ -1424,6 +1457,19 @@ inline void Executor::execute_node(const FunctionNode &node,
   if (self_.logger_ != nullptr) {
     self_.logger_->log_after_node_execute(node, node_params, fn_context);
   }
+}
+
+GraphExecutor::GraphExecutor(const Graph &graph,
+                             const Logger *logger,
+                             const SideEffectProvider *side_effect_provider,
+                             const NodeExecuteWrapper *node_execute_wrapper)
+    : GraphExecutor(graph,
+                    Vector<const GraphInputSocket *>(graph.graph_inputs()),
+                    Vector<const GraphOutputSocket *>(graph.graph_outputs()),
+                    logger,
+                    side_effect_provider,
+                    node_execute_wrapper)
+{
 }
 
 GraphExecutor::GraphExecutor(const Graph &graph,
@@ -1441,6 +1487,8 @@ GraphExecutor::GraphExecutor(const Graph &graph,
       side_effect_provider_(side_effect_provider),
       node_execute_wrapper_(node_execute_wrapper)
 {
+  debug_name_ = graph.name().c_str();
+
   /* The graph executor can handle partial execution when there are still missing inputs. */
   allow_missing_requested_inputs_ = true;
 

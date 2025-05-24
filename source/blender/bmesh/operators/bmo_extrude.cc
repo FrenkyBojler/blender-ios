@@ -13,14 +13,15 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_buffer.h"
+#include "BLI_math_base.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define USE_EDGE_REGION_FLAGS
 
@@ -56,7 +57,7 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 
     BMO_face_flag_enable(bm, f_org, EXT_DEL);
 
-    f_new = BM_face_copy(bm, bm, f_org, true, true);
+    f_new = BM_face_copy(bm, f_org, true, true);
     BMO_face_flag_enable(bm, f_new, EXT_KEEP);
 
     if (select_history_map) {
@@ -74,20 +75,20 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
       BMFace *f_side;
       BMLoop *l_side_iter;
 
-      BM_elem_attrs_copy(bm, bm, l_org, l_new);
+      BM_elem_attrs_copy(bm, l_org, l_new);
 
       f_side = BM_face_create_quad_tri(
           bm, l_org->next->v, l_new->next->v, l_new->v, l_org->v, f_org, BM_CREATE_NOP);
 
       l_side_iter = BM_FACE_FIRST_LOOP(f_side);
 
-      BM_elem_attrs_copy(bm, bm, l_org->next, l_side_iter);
+      BM_elem_attrs_copy(bm, l_org->next, l_side_iter);
       l_side_iter = l_side_iter->next;
-      BM_elem_attrs_copy(bm, bm, l_org->next, l_side_iter);
+      BM_elem_attrs_copy(bm, l_org->next, l_side_iter);
       l_side_iter = l_side_iter->next;
-      BM_elem_attrs_copy(bm, bm, l_org, l_side_iter);
+      BM_elem_attrs_copy(bm, l_org, l_side_iter);
       l_side_iter = l_side_iter->next;
-      BM_elem_attrs_copy(bm, bm, l_org, l_side_iter);
+      BM_elem_attrs_copy(bm, l_org, l_side_iter);
 
       if (select_history_map) {
         BMEditSelection *ese;
@@ -142,14 +143,14 @@ static void bm_extrude_copy_face_loop_attributes(BMesh *bm, BMFace *f)
   l_other_1 = BM_edge_other_loop(l_first_0->e, l_first_1);
 
   /* copy data */
-  BM_elem_attrs_copy(bm, bm, l_other_0->f, f);
+  BM_elem_attrs_copy(bm, l_other_0->f, f);
   BM_elem_flag_disable(f, BM_ELEM_HIDDEN); /* possibly we copy from a hidden face */
 
-  BM_elem_attrs_copy(bm, bm, l_other_0, l_first_0);
-  BM_elem_attrs_copy(bm, bm, l_other_0, l_first_3);
+  BM_elem_attrs_copy(bm, l_other_0, l_first_0);
+  BM_elem_attrs_copy(bm, l_other_0, l_first_3);
 
-  BM_elem_attrs_copy(bm, bm, l_other_1, l_first_1);
-  BM_elem_attrs_copy(bm, bm, l_other_1, l_first_2);
+  BM_elem_attrs_copy(bm, l_other_1, l_first_1);
+  BM_elem_attrs_copy(bm, l_other_1, l_first_2);
 }
 
 /* Disable the skin root flag on the input vert, assumes that the vert
@@ -265,7 +266,7 @@ void bmo_extrude_vert_indiv_exec(BMesh *bm, BMOperator *op)
     /* not essential, but ensures face normals from extruded edges are contiguous */
     if (BM_vert_is_wire_endpoint(v)) {
       if (v->e->v1 == v) {
-        SWAP(BMVert *, v, dupev);
+        std::swap(v, dupev);
       }
     }
 
@@ -596,7 +597,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
     /* not essential, but ensures face normals from extruded edges are contiguous */
     if (BM_vert_is_wire_endpoint(v)) {
       if (v->e->v1 == v) {
-        SWAP(BMVert *, v, v2);
+        std::swap(v, v2);
       }
     }
 
@@ -643,7 +644,7 @@ static void calc_solidify_normals(BMesh *bm)
   int i;
 
   /* can't use BM_edge_face_count because we need to count only marked faces */
-  int *edge_face_count = static_cast<int *>(MEM_callocN(sizeof(int) * bm->totedge, __func__));
+  int *edge_face_count = MEM_calloc_arrayN<int>(bm->totedge, __func__);
 
   BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
     BM_elem_flag_enable(v, BM_ELEM_TAG);
@@ -672,7 +673,7 @@ static void calc_solidify_normals(BMesh *bm)
       continue;
     }
 
-    i = edge_face_count[BM_elem_index_get(e)]++;
+    i = edge_face_count[BM_elem_index_get(e)];
 
     if (i == 0 || i > 2) {
       /* Edge & vertices are non-manifold even when considering
@@ -784,8 +785,7 @@ static void solidify_add_thickness(BMesh *bm, const float dist)
   BMVert *v;
   BMLoop *l;
   BMIter iter, loopIter;
-  float *vert_angles = static_cast<float *>(
-      MEM_callocN(sizeof(float) * bm->totvert * 2, "solidify")); /* 2 in 1 */
+  float *vert_angles = MEM_calloc_arrayN<float>(size_t(bm->totvert) * 2, "solidify"); /* 2 in 1 */
   float *vert_accum = vert_angles + bm->totvert;
   int i, index;
 

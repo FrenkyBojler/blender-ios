@@ -9,23 +9,21 @@
 #include <climits>
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "BLT_translation.h"
-
-#include "BKE_text.h"
-
-#include "ED_text.hh"
+#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "DNA_text_types.h"
 
 #include "WM_types.hh"
 
 #ifdef RNA_RUNTIME
+
+#  include "BKE_text.h"
+
+#  include "ED_text.hh"
 
 static void rna_Text_filepath_get(PointerRNA *ptr, char *value)
 {
@@ -108,12 +106,10 @@ static int rna_Text_current_character_get(PointerRNA *ptr)
   return BLI_str_utf8_offset_to_index(line->line, line->len, text->curc);
 }
 
-static void rna_Text_current_character_set(PointerRNA *ptr, int index)
+static void rna_Text_current_character_set(PointerRNA *ptr, const int index)
 {
   Text *text = static_cast<Text *>(ptr->data);
   TextLine *line = text->curl;
-  const int len_utf8 = BLI_strlen_utf8(line->line);
-  CLAMP_MAX(index, len_utf8);
   text->curc = BLI_str_utf8_offset_from_index(line->line, line->len, index);
 }
 
@@ -124,12 +120,10 @@ static int rna_Text_select_end_character_get(PointerRNA *ptr)
   return BLI_str_utf8_offset_to_index(line->line, line->len, text->selc);
 }
 
-static void rna_Text_select_end_character_set(PointerRNA *ptr, int index)
+static void rna_Text_select_end_character_set(PointerRNA *ptr, const int index)
 {
   Text *text = static_cast<Text *>(ptr->data);
   TextLine *line = text->sell;
-  const int len_utf8 = BLI_strlen_utf8(line->line);
-  CLAMP_MAX(index, len_utf8);
   text->selc = BLI_str_utf8_offset_from_index(line->line, line->len, index);
 }
 
@@ -154,20 +148,17 @@ static int rna_TextLine_body_length(PointerRNA *ptr)
 static void rna_TextLine_body_set(PointerRNA *ptr, const char *value)
 {
   TextLine *line = (TextLine *)ptr->data;
-  int len = strlen(value);
+  size_t len = strlen(value);
 
   if (line->line) {
     MEM_freeN(line->line);
   }
 
-  line->line = static_cast<char *>(MEM_mallocN((len + 1) * sizeof(char), "rna_text_body"));
-  line->len = len;
+  line->line = MEM_malloc_arrayN<char>(len + 1, "rna_text_body");
+  line->len = int(len);
   memcpy(line->line, value, len + 1);
 
-  if (line->format) {
-    MEM_freeN(line->format);
-    line->format = nullptr;
-  }
+  MEM_SAFE_FREE(line->format);
 }
 
 #else

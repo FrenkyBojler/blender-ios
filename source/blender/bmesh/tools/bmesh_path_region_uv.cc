@@ -20,8 +20,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines_stack.h"
 
-#include "bmesh.h"
-#include "bmesh_path_region_uv.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_path_region_uv.hh" /* own include */
 
 /**
  * Special handling of vertices with 2 edges
@@ -160,9 +160,8 @@ static LinkNode *mesh_calc_path_region_elem(BMesh *bm,
   int *depths[2] = {nullptr};
   int pass = 0;
 
-  BMLoop **stack = static_cast<BMLoop **>(MEM_mallocN(sizeof(*stack) * bm->totloop, __func__));
-  BMLoop **stack_other = static_cast<BMLoop **>(
-      MEM_mallocN(sizeof(*stack_other) * bm->totloop, __func__));
+  BMLoop **stack = MEM_malloc_arrayN<BMLoop *>(bm->totloop, __func__);
+  BMLoop **stack_other = MEM_malloc_arrayN<BMLoop *>(bm->totloop, __func__);
 
   STACK_DECLARE(stack);
   STACK_INIT(stack, bm->totloop);

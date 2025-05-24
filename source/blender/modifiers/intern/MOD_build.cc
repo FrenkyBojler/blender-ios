@@ -14,30 +14,25 @@
 #include "BLI_math_vector.h"
 #include "BLI_rand.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "BKE_context.h"
+#include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
-#include "BKE_modifier.h"
-#include "BKE_particle.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
+#include "BKE_modifier.hh"
+#include "BKE_scene.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 static void init_data(ModifierData *md)
@@ -69,15 +64,15 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* maps edge indices in old mesh to indices in new mesh */
   GHash *edgeHash2 = BLI_ghash_int_new("build ed apply gh");
 
-  const int vert_src_num = mesh->totvert;
+  const int vert_src_num = mesh->verts_num;
   const blender::Span<blender::int2> edges_src = mesh->edges();
   const blender::OffsetIndices faces_src = mesh->faces();
   const blender::Span<int> corner_verts_src = mesh->corner_verts();
   const blender::Span<int> corner_edges_src = mesh->corner_edges();
 
-  int *vertMap = static_cast<int *>(MEM_malloc_arrayN(vert_src_num, sizeof(int), __func__));
-  int *edgeMap = static_cast<int *>(MEM_malloc_arrayN(edges_src.size(), sizeof(int), __func__));
-  int *faceMap = static_cast<int *>(MEM_malloc_arrayN(faces_src.size(), sizeof(int), __func__));
+  int *vertMap = MEM_malloc_arrayN<int>(size_t(vert_src_num), __func__);
+  int *edgeMap = MEM_malloc_arrayN<int>(size_t(edges_src.size()), __func__);
+  int *faceMap = MEM_malloc_arrayN<int>(size_t(faces_src.size()), __func__);
 
   range_vn_i(vertMap, vert_src_num, 0);
   range_vn_i(edgeMap, edges_src.size(), 0);
@@ -229,7 +224,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     CustomData_copy_data(&mesh->face_data, &result->face_data, faceMap[i], i, 1);
 
     CustomData_copy_data(
-        &mesh->loop_data, &result->loop_data, src_face.start(), k, src_face.size());
+        &mesh->corner_data, &result->corner_data, src_face.start(), k, src_face.size());
 
     for (j = 0; j < src_face.size(); j++, k++) {
       const int vert_src = corner_verts_src[src_face[j]];
@@ -261,11 +256,11 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "frame_start", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "frame_duration", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_reverse", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "frame_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
@@ -274,7 +269,7 @@ static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_random_order", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "use_random_order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void random_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -286,7 +281,7 @@ static void random_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_random_order"));
-  uiItemR(layout, ptr, "seed", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -302,7 +297,7 @@ ModifierTypeInfo modifierType_Build = {
     /*struct_name*/ "BuildModifierData",
     /*struct_size*/ sizeof(BuildModifierData),
     /*srna*/ &RNA_BuildModifier,
-    /*type*/ eModifierTypeType_Nonconstructive,
+    /*type*/ ModifierTypeType::Nonconstructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_BUILD,
 
@@ -328,4 +323,5 @@ ModifierTypeInfo modifierType_Build = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

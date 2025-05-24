@@ -32,10 +32,10 @@ class GHOST_EventString : public GHOST_Event {
     m_data = data_ptr;
   }
 
-  ~GHOST_EventString()
+  ~GHOST_EventString() override
   {
     if (m_data) {
-      free(m_data);
+      free((void *)m_data);
     }
   }
 };

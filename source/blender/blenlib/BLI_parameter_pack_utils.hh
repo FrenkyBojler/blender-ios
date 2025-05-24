@@ -14,8 +14,6 @@
 #include <tuple>
 #include <type_traits>
 
-#include "BLI_utildefines.h"
-
 namespace blender {
 
 /**
@@ -96,8 +94,8 @@ template<typename T, T Value1, T Value2, size_t... Value1Indices, size_t... I>
 inline ValueSequence<T,
                      (ValueSequence<size_t, Value1Indices...>::template contains<I>() ? Value1 :
                                                                                         Value2)...>
-    make_two_value_sequence_impl(ValueSequence<size_t, Value1Indices...> /*value1_indices*/,
-                                 std::index_sequence<I...> /*indices*/)
+make_two_value_sequence_impl(ValueSequence<size_t, Value1Indices...> /*value1_indices*/,
+                             std::index_sequence<I...> /*indices*/)
 {
   return {};
 };

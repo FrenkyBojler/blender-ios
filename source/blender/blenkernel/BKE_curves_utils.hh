@@ -355,9 +355,7 @@ class IndexRangeCyclic {
     if (this->cycles_ > 0) {
       return this->size_before_loop() + this->end_ + (this->cycles_ - 1) * this->range_size_;
     }
-    else {
-      return int(this->end_ - this->start_);
-    }
+    return int(this->end_ - this->start_);
   }
 
   /**
@@ -415,10 +413,7 @@ class IndexRangeCyclic {
       BLI_assert(0 <= index && index <= range_end);
     }
 
-    constexpr CyclicIterator(const CyclicIterator &copy)
-        : index_(copy.index_), range_end_(copy.range_end_), cycles_(copy.cycles_)
-    {
-    }
+    constexpr CyclicIterator(const CyclicIterator &copy) = default;
     ~CyclicIterator() = default;
 
     constexpr CyclicIterator &operator=(const CyclicIterator &copy)
@@ -470,30 +465,9 @@ class IndexRangeCyclic {
 /** \name Utility Functions
  * \{ */
 
-/**
- * Copy the provided point attribute values between all curves in the #curve_ranges index
- * ranges, assuming that all curves have the same number of control points in #src_curves
- * and #dst_curves.
- */
-void copy_point_data(OffsetIndices<int> src_points_by_curve,
-                     OffsetIndices<int> dst_points_by_curve,
-                     const IndexMask &src_curve_selection,
-                     GSpan src,
-                     GMutableSpan dst);
-
-template<typename T>
-void copy_point_data(OffsetIndices<int> src_points_by_curve,
-                     OffsetIndices<int> dst_points_by_curve,
-                     const IndexMask &src_curve_selection,
-                     Span<T> src,
-                     MutableSpan<T> dst)
-{
-  copy_point_data(src_points_by_curve,
-                  dst_points_by_curve,
-                  src_curve_selection,
-                  GSpan(src),
-                  GMutableSpan(dst));
-}
+IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
+                                   const IndexMask &curve_selection,
+                                   IndexMaskMemory &memory);
 
 void fill_points(OffsetIndices<int> points_by_curve,
                  const IndexMask &curve_selection,
@@ -534,6 +508,58 @@ void foreach_curve_by_type(const VArray<int8_t> &types,
                            FunctionRef<void(IndexMask)> bezier_fn,
                            FunctionRef<void(IndexMask)> nurbs_fn);
 
+using SelectedCallback = FunctionRef<void(
+    int curve_i, IndexRange curve_points, Span<IndexRange> selected_point_ranges)>;
+using UnselectedCallback = FunctionRef<void(IndexRange curves, IndexRange unselected_points)>;
+
+/**
+ * Calls callback function for each curve having selected points.
+ *
+ * \param mask: selected points.
+ * \param points_by_curve: The offsets of every curve into arrays on the points domain.
+ * \param selected_fn: callback function called for each curve with at least one point selected.
+ */
+void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                             const OffsetIndices<int> points_by_curve,
+                                             SelectedCallback selected_fn);
+
+/**
+ * Calls callback function for each curve having selected points.
+ * Calls second callback for groups of curves with no points selected.
+ *
+ * \param mask: selected points.
+ * \param points_by_curve: The offsets of every curve into arrays on the points domain.
+ * \param selected_fn: callback function called for each curve with at least one point selected.
+ * \param unselected_fn: callback function called for groups of curves with no selected points.
+ */
+void foreach_selected_point_ranges_per_curve(const IndexMask &mask,
+                                             const OffsetIndices<int> points_by_curve,
+                                             SelectedCallback selected_fn,
+                                             UnselectedCallback unselected_fn);
+
+namespace bezier {
+
+/**
+ * Return a flat array of all the bezier positions including the left and right handles.
+ * The layout is
+ * `[handle_left#0, position#0, handle_right#0, handle_left#1, position#1, handle_right#1, ...]`
+ */
+Array<float3> retrieve_all_positions(const bke::CurvesGeometry &curves,
+                                     const IndexMask &curves_selection);
+
+/**
+ * Write to `handle_position_left`, `position`, and `handle_position_right` from a lat array of
+ * positions.
+ * \param curves_selection: The curves to write to.
+ * \param all_positions: All positions of the selected bezier curves. The size of \a all_positions
+ * must be equal to 3 * the size of \a curves_selection.
+ */
+void write_all_positions(bke::CurvesGeometry &curves,
+                         const IndexMask &curves_selection,
+                         Span<float3> all_positions);
+
+}  // namespace bezier
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -561,11 +587,9 @@ inline bool CurvePoint::operator<(const CurvePoint &other) const
   if (index == other.index) {
     return parameter < other.parameter;
   }
-  else {
-    /* Use next index for cyclic comparison due to loop segment < first segment. */
-    return next_index < other.next_index &&
-           !(next_index == other.index && parameter == 1.0 && other.parameter == 0.0);
-  }
+  /* Use next index for cyclic comparison due to loop segment < first segment. */
+  return next_index < other.next_index &&
+         !(next_index == other.index && parameter == 1.0 && other.parameter == 0.0);
 }
 
 /** \} */

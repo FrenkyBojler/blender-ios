@@ -13,9 +13,10 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_scene.h"
+#include "BKE_context.hh"
+#include "BKE_editmesh.hh"
+#include "BKE_object_types.hh"
+#include "BKE_scene.hh"
 
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -37,9 +38,7 @@
 
 #include "UI_resources.hh"
 
-#include "BLT_translation.h"
-
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Helper Functions
@@ -64,9 +63,8 @@ static void calc_initial_placement_point_from_view(bContext *C,
 
   bool use_mouse_project = true; /* TODO: make optional */
 
-  float cursor_matrix[4][4];
+  const blender::float4x4 cursor_matrix = scene->cursor.matrix<blender::float4x4>();
   float orient_matrix[3][3];
-  BKE_scene_cursor_to_mat4(&scene->cursor, cursor_matrix);
 
   const float dots[3] = {
       dot_v3v3(rv3d->viewinv[2], cursor_matrix[0]),
@@ -123,8 +121,8 @@ struct GizmoPlacementGroup {
 static void gizmo_placement_exec(GizmoPlacementGroup *ggd)
 {
   wmOperator *op = ggd->data.op;
-  if (op == WM_operator_last_redo((bContext *)ggd->data.context)) {
-    ED_undo_operator_repeat((bContext *)ggd->data.context, op);
+  if (op == WM_operator_last_redo(ggd->data.context)) {
+    ED_undo_operator_repeat(ggd->data.context, op);
   }
 }
 
@@ -237,8 +235,7 @@ static void gizmo_mesh_placement_setup(const bContext *C, wmGizmoGroup *gzgroup)
     return;
   }
 
-  GizmoPlacementGroup *ggd = static_cast<GizmoPlacementGroup *>(
-      MEM_callocN(sizeof(GizmoPlacementGroup), __func__));
+  GizmoPlacementGroup *ggd = MEM_callocN<GizmoPlacementGroup>(__func__);
   gzgroup->customdata = ggd;
 
   const wmGizmoType *gzt_cage = WM_gizmotype_find("GIZMO_GT_cage_3d", true);
@@ -277,7 +274,7 @@ static void gizmo_mesh_placement_draw_prepare(const bContext * /*C*/, wmGizmoGro
 {
   GizmoPlacementGroup *ggd = static_cast<GizmoPlacementGroup *>(gzgroup->customdata);
   if (ggd->data.op->next) {
-    ggd->data.op = WM_operator_last_redo((bContext *)ggd->data.context);
+    ggd->data.op = WM_operator_last_redo(ggd->data.context);
   }
   gizmo_mesh_placement_update_from_op(ggd);
 }
@@ -307,7 +304,7 @@ static void MESH_GGT_add_bounds(wmGizmoGroupType *gzgt)
  * and share the same BMesh creation code.
  * \{ */
 
-static int add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -318,8 +315,8 @@ static int add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
     PropertyRNA *prop_matrix = RNA_struct_find_property(op->ptr, "matrix");
     if (RNA_property_is_set(op->ptr, prop_matrix)) {
       RNA_property_float_get_array(op->ptr, prop_matrix, &matrix[0][0]);
-      invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
-      mul_m4_m4m4(matrix, obedit->world_to_object, matrix);
+      invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
+      mul_m4_m4m4(matrix, obedit->world_to_object().ptr(), matrix);
     }
     else {
       /* For the first update the widget may not set the matrix. */
@@ -347,7 +344,7 @@ static int add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
 
   EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
   EDBMUpdate_Params params{};
-  params.calc_looptri = true;
+  params.calc_looptris = true;
   params.calc_normals = false;
   params.is_destructive = true;
   EDBM_update(static_cast<Mesh *>(obedit->data), &params);
@@ -355,11 +352,13 @@ static int add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int add_primitive_cube_gizmo_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
 {
   View3D *v3d = CTX_wm_view3d(C);
 
-  int ret = add_primitive_cube_gizmo_exec(C, op);
+  wmOperatorStatus ret = add_primitive_cube_gizmo_exec(C, op);
   if (ret & OPERATOR_FINISHED) {
     /* Setup gizmos */
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
@@ -381,7 +380,7 @@ void MESH_OT_primitive_cube_add_gizmo(wmOperatorType *ot)
   ot->description = "Construct a cube mesh";
   ot->idname = "MESH_OT_primitive_cube_add_gizmo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = add_primitive_cube_gizmo_invoke;
   ot->exec = add_primitive_cube_gizmo_exec;
   ot->poll = ED_operator_editmesh_view3d;
@@ -389,8 +388,8 @@ void MESH_OT_primitive_cube_add_gizmo(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  ED_object_add_mesh_props(ot);
-  ED_object_add_generic_props(ot, true);
+  blender::ed::object::add_mesh_props(ot);
+  blender::ed::object::add_generic_props(ot, true);
 
   /* hidden props */
   PropertyRNA *prop = RNA_def_float_matrix(

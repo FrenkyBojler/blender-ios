@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .supports_field()
       .make_available([](bNode &node) { node_storage(node).data_type = CD_PROP_BOOL; });
-  b.add_input<decl::Int>("ID").implicit_field(implicit_field_inputs::id_or_index);
+  b.add_input<decl::Int>("ID").implicit_field(NODE_DEFAULT_INPUT_ID_INDEX_FIELD);
   b.add_input<decl::Int>("Seed").default_value(0).min(-10000).max(10000).supports_field();
 
   b.add_output<decl::Vector>("Value").dependent_field();
@@ -46,12 +46,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void fn_node_random_value_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeRandomValue *data = MEM_cnew<NodeRandomValue>(__func__);
+  NodeRandomValue *data = MEM_callocN<NodeRandomValue>(__func__);
   data->data_type = CD_PROP_FLOAT;
   node->storage = data;
 }
@@ -74,18 +74,18 @@ static void fn_node_random_value_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *sock_out_int = sock_out_float->next;
   bNodeSocket *sock_out_bool = sock_out_int->next;
 
-  bke::nodeSetSocketAvailability(ntree, sock_min_vector, data_type == CD_PROP_FLOAT3);
-  bke::nodeSetSocketAvailability(ntree, sock_max_vector, data_type == CD_PROP_FLOAT3);
-  bke::nodeSetSocketAvailability(ntree, sock_min_float, data_type == CD_PROP_FLOAT);
-  bke::nodeSetSocketAvailability(ntree, sock_max_float, data_type == CD_PROP_FLOAT);
-  bke::nodeSetSocketAvailability(ntree, sock_min_int, data_type == CD_PROP_INT32);
-  bke::nodeSetSocketAvailability(ntree, sock_max_int, data_type == CD_PROP_INT32);
-  bke::nodeSetSocketAvailability(ntree, sock_probability, data_type == CD_PROP_BOOL);
+  bke::node_set_socket_availability(*ntree, *sock_min_vector, data_type == CD_PROP_FLOAT3);
+  bke::node_set_socket_availability(*ntree, *sock_max_vector, data_type == CD_PROP_FLOAT3);
+  bke::node_set_socket_availability(*ntree, *sock_min_float, data_type == CD_PROP_FLOAT);
+  bke::node_set_socket_availability(*ntree, *sock_max_float, data_type == CD_PROP_FLOAT);
+  bke::node_set_socket_availability(*ntree, *sock_min_int, data_type == CD_PROP_INT32);
+  bke::node_set_socket_availability(*ntree, *sock_max_int, data_type == CD_PROP_INT32);
+  bke::node_set_socket_availability(*ntree, *sock_probability, data_type == CD_PROP_BOOL);
 
-  bke::nodeSetSocketAvailability(ntree, sock_out_vector, data_type == CD_PROP_FLOAT3);
-  bke::nodeSetSocketAvailability(ntree, sock_out_float, data_type == CD_PROP_FLOAT);
-  bke::nodeSetSocketAvailability(ntree, sock_out_int, data_type == CD_PROP_INT32);
-  bke::nodeSetSocketAvailability(ntree, sock_out_bool, data_type == CD_PROP_BOOL);
+  bke::node_set_socket_availability(*ntree, *sock_out_vector, data_type == CD_PROP_FLOAT3);
+  bke::node_set_socket_availability(*ntree, *sock_out_float, data_type == CD_PROP_FLOAT);
+  bke::node_set_socket_availability(*ntree, *sock_out_int, data_type == CD_PROP_INT32);
+  bke::node_set_socket_availability(*ntree, *sock_out_bool, data_type == CD_PROP_BOOL);
 }
 
 static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSocket &socket)
@@ -99,6 +99,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
       return CD_PROP_INT32;
     case SOCK_VECTOR:
     case SOCK_RGBA:
+    case SOCK_ROTATION:
       return CD_PROP_FLOAT3;
     default:
       return {};
@@ -107,7 +108,7 @@ static std::optional<eCustomDataType> node_type_from_other_socket(const bNodeSoc
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const NodeDeclaration &declaration = *params.node_type().fixed_declaration;
+  const NodeDeclaration &declaration = *params.node_type().static_declaration;
   const std::optional<eCustomDataType> type = node_type_from_other_socket(params.other_socket());
   if (!type) {
     return;
@@ -198,18 +199,21 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, FN_NODE_RANDOM_VALUE, "Random Value", NODE_CLASS_CONVERTER);
+  fn_node_type_base(&ntype, "FunctionNodeRandomValue", FN_NODE_RANDOM_VALUE);
+  ntype.ui_name = "Random Value";
+  ntype.enum_name_legacy = "RANDOM_VALUE";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = fn_node_random_value_init;
   ntype.updatefunc = fn_node_random_value_update;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
-  node_type_storage(
-      &ntype, "NodeRandomValue", node_free_standard_storage, node_copy_standard_storage);
-  nodeRegisterType(&ntype);
+  blender::bke::node_type_storage(
+      ntype, "NodeRandomValue", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
