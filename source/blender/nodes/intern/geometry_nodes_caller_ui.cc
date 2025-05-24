@@ -43,6 +43,7 @@ namespace blender::nodes {
 
 namespace geo_log = geo_eval_log;
 
+namespace {
 struct PanelOpenProperty {
   PointerRNA ptr;
   StringRefNull name;
@@ -78,6 +79,7 @@ struct DrawGroupInputsContext {
   std::function<void(uiLayout &, int icon, const bNodeTreeInterfaceSocket &)>
       draw_attribute_toggle_fn;
 };
+}  // namespace
 
 static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
 {
