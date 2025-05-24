@@ -633,7 +633,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           panel_layout = layout->panel_prop_with_bool_header(&ctx.C,
                                                              &panel_ptr,
                                                              "is_open",
-                                                             ctx.md_ptr,
+                                                             ctx.properties_ptr,
                                                              rna_path,
                                                              IFACE_(sub_interface_panel.name));
           skip_first = true;
