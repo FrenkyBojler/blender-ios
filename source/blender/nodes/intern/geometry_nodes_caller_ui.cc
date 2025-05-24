@@ -56,9 +56,15 @@ struct SearchInfo {
   IDProperty *properties = nullptr;
 };
 
-struct SocketSearchData {
+struct ModifierSearchData {
   uint32_t object_session_uid;
   char modifier_name[MAX_NAME];
+};
+
+struct OperatorSearchData {};
+
+struct SocketSearchData {
+  std::variant<ModifierSearchData, OperatorSearchData> search_data;
   char socket_identifier[MAX_NAME];
   bool is_output;
 
@@ -93,7 +99,7 @@ static geo_log::GeoTreeLog *get_root_tree_log(const NodesModifierData &nmd)
 
 static NodesModifierData *get_modifier_data(Main &bmain,
                                             const wmWindowManager &wm,
-                                            const SocketSearchData &data)
+                                            const ModifierSearchData &data)
 {
   if (ED_screen_animation_playing(&wm)) {
     /* Work around an issue where the attribute search exec function has stale pointers when data
@@ -117,15 +123,19 @@ static NodesModifierData *get_modifier_data(Main &bmain,
 
 SearchInfo SocketSearchData::info(const bContext &C) const
 {
-  const NodesModifierData *nmd = get_modifier_data(*CTX_data_main(&C), *CTX_wm_manager(&C), *this);
-  if (nmd == nullptr) {
-    return {};
+  if (const auto *modifier_search_data = std::get_if<ModifierSearchData>(&this->search_data)) {
+    const NodesModifierData *nmd = get_modifier_data(
+        *CTX_data_main(&C), *CTX_wm_manager(&C), *modifier_search_data);
+    if (nmd == nullptr) {
+      return {};
+    }
+    if (nmd->node_group == nullptr) {
+      return {};
+    }
+    geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
+    return {tree_log, nmd->node_group, nmd->settings.properties};
   }
-  if (nmd->node_group == nullptr) {
-    return {};
-  }
-  geo_log::GeoTreeLog *tree_log = get_root_tree_log(*nmd);
-  return {tree_log, nmd->node_group, nmd->settings.properties};
+  return {};
 }
 
 static void layer_name_search_update_fn(
@@ -233,7 +243,9 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  SocketSearchData *data = MEM_dupallocN(__func__, ctx.socket_search_data_fn(socket));
+  SocketSearchData *data = static_cast<SocketSearchData *>(
+      MEM_mallocN(sizeof(SocketSearchData), __func__));
+  *data = ctx.socket_search_data_fn(socket);
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   UI_but_func_search_set(but,
@@ -347,7 +359,9 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  SocketSearchData *data = MEM_dupallocN(__func__, ctx.socket_search_data_fn(socket));
+  SocketSearchData *data = static_cast<SocketSearchData *>(
+      MEM_mallocN(sizeof(SocketSearchData), __func__));
+  *data = ctx.socket_search_data_fn(socket);
   UI_but_func_search_set_results_are_suggestions(but, true);
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
   UI_but_func_search_set(but,
@@ -882,8 +896,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   };
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
-    data.object_session_uid = object.id.session_uid;
-    STRNCPY(data.modifier_name, nmd.modifier.name);
+    ModifierSearchData &modifier_search_data = data.search_data.emplace<ModifierSearchData>();
+    modifier_search_data.object_session_uid = object.id.session_uid;
+    STRNCPY(modifier_search_data.modifier_name, nmd.modifier.name);
     STRNCPY(data.socket_identifier, io_socket.identifier);
     data.is_output = io_socket.flag & NODE_INTERFACE_SOCKET_OUTPUT;
     return data;
