@@ -511,6 +511,9 @@ static void read_file_bhead_idname_map_create(FileData *fd)
     }
 
     if (is_link) {
+      /* #idname may be null in case the ID name of the given BHead is detected as invalid (e.g.
+       * because it comes from a future version of Blender allowing for longer ID names). These
+       * 'invalid-named IDs' are skipped here, which will e.g. prevent them from being linked. */
       const char *idname = blo_bhead_id_name(fd, bhead);
       if (idname) {
         const blender::StringRefNull name = idname;
@@ -810,7 +813,7 @@ const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
     return id_name;
   }
 
-  /* ID name longer than MAX_ID_NAME - 1. */
+  /* ID name longer than MAX_ID_NAME - 1, or otherwise corrupted. */
   fd->flags |= FD_FLAGS_HAS_LONG_ID_NAME;
   return nullptr;
 }
@@ -947,11 +950,15 @@ static int *read_file_thumbnail(FileData *fd)
 }
 
 /**
- * ID names are truncated the thier maximum allowed length at a very low level of the readfile code
+ * ID names are truncated the their maximum allowed length at a very low level of the readfile code
  * (see #read_id_struct).
  *
  * However, ensuring they remain unique can only be done once all IDs have been read and put in
  * Main.
+ *
+ * \note #BKE_main_namemap_validate_and_fix could also be used here - but it is designed for a more
+ * general usage, where names are typically expected to be valid, and would generate noisy logs in
+ * this case, where names are expected to _not_ be valid.
  */
 static void long_id_names_ensure_unique_id_names(Main *bmain)
 {
@@ -970,9 +977,12 @@ static void long_id_names_ensure_unique_id_names(Main *bmain)
 }
 
 /**
- * Iterate all IDs from Main->actions and look for non-null terminated slot_array->identifier. This
- * is for forward compatibility if blend file was saved using app version with higher MAX_ID_NAME
- * value than current one (introduced when switching from MAX_ID_NAME = 66 to MAX_ID_NAME = 258)
+ * Iterate all IDs from Actions and look for non-null terminated #ActionSlot.identifier. Also
+ * handle slot users (in Action constraint, AnimData, and NLA strips).
+ *
+ * This is for forward compatibility, if the blendfile was saved from a version allowing larger
+ * MAX_ID_NAME value than the current one (introduced when switching from MAX_ID_NAME = 66 to
+ * MAX_ID_NAME = 258).
  */
 static void long_id_names_process_action_slots_identifiers(Main *bmain)
 {
@@ -4675,6 +4685,10 @@ static void read_library_linked_id(
                         ((id->tag & ID_TAG_EXTERN) == 0);
 
   if (fd) {
+    /* About future longer ID names: This is one of the main places that prevent linking IDs with
+     * names longer than MAX_ID_NAME - 1.
+     *
+     * See also #read_file_bhead_idname_map_create. */
     bhead = find_bhead_from_idname(fd, id->name);
   }
 
