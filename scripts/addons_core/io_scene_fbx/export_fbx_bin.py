@@ -1582,6 +1582,12 @@ def fbx_data_material_elements(root, ma, scene_data):
     fbx_ma.add_string(fbx_name_class(ma.name.encode(), b"Material"))
     fbx_ma.add_string(b"")
 
+    def convertColorSpace(color):
+        if scene_data.settings.material_colors_type == 'SRGB':
+            return color.from_scene_linear_to_srgb()
+        else:
+            return color
+
     elem_data_single_int32(fbx_ma, b"Version", FBX_MATERIAL_VERSION)
     # those are not yet properties, it seems...
     elem_data_single_string(fbx_ma, b"ShadingModel", ma_type)
@@ -1591,14 +1597,14 @@ def fbx_data_material_elements(root, ma, scene_data):
     props = elem_properties(fbx_ma)
 
     elem_props_template_set(tmpl, props, "p_string", b"ShadingModel", ma_type.decode())
-    elem_props_template_set(tmpl, props, "p_color", b"DiffuseColor", ma_wrap.base_color)
+    elem_props_template_set(tmpl, props, "p_color", b"DiffuseColor", convertColorSpace(ma_wrap.base_color))
     # Not in Principled BSDF, so assuming always 1
     elem_props_template_set(tmpl, props, "p_number", b"DiffuseFactor", 1.0)
     # Principled BSDF only has an emissive color, so we assume factor to be always 1.0.
-    elem_props_template_set(tmpl, props, "p_color", b"EmissiveColor", ma_wrap.emission_color)
+    elem_props_template_set(tmpl, props, "p_color", b"EmissiveColor", convertColorSpace(ma_wrap.emission_color))
     elem_props_template_set(tmpl, props, "p_number", b"EmissiveFactor", ma_wrap.emission_strength)
     # Not in Principled BSDF, so assuming always 0
-    elem_props_template_set(tmpl, props, "p_color", b"AmbientColor", ambient_color)
+    elem_props_template_set(tmpl, props, "p_color", b"AmbientColor", convertColorSpace(ambient_color))
     elem_props_template_set(tmpl, props, "p_number", b"AmbientFactor", 0.0)
     # Sweetness... Looks like we are not the only ones to not know exactly how FBX is supposed to work (see T59850).
     # According to one of its developers, Unity uses that formula to extract alpha value:
@@ -1611,7 +1617,7 @@ def fbx_data_material_elements(root, ma, scene_data):
     if ma_wrap.alpha < 1.0e-5 or ma_wrap.alpha > (1.0 - 1.0e-5):
         elem_props_template_set(tmpl, props, "p_color", b"TransparentColor", (1.0 - ma_wrap.alpha,) * 3)
     else:
-        elem_props_template_set(tmpl, props, "p_color", b"TransparentColor", ma_wrap.base_color)
+        elem_props_template_set(tmpl, props, "p_color", b"TransparentColor", convertColorSpace(ma_wrap.base_color))
     elem_props_template_set(tmpl, props, "p_number", b"TransparencyFactor", 1.0 - ma_wrap.alpha)
     elem_props_template_set(tmpl, props, "p_number", b"Opacity", ma_wrap.alpha)
     elem_props_template_set(tmpl, props, "p_vector_3d", b"NormalMap", (0.0, 0.0, 0.0))
@@ -1623,7 +1629,7 @@ def fbx_data_material_elements(root, ma, scene_data):
     b"DisplacementFactor": (0.0, "p_double"),
     """
     # TODO: use specular tint?
-    elem_props_template_set(tmpl, props, "p_color", b"SpecularColor", ma_wrap.base_color)
+    elem_props_template_set(tmpl, props, "p_color", b"SpecularColor", convertColorSpace(ma_wrap.base_color))
     elem_props_template_set(tmpl, props, "p_number", b"SpecularFactor", ma_wrap.specular / 2.0)
     # See Material template about those two!
     # XXX Totally empirical conversion, trying to adapt it
@@ -1632,7 +1638,7 @@ def fbx_data_material_elements(root, ma, scene_data):
     shininess *= shininess
     elem_props_template_set(tmpl, props, "p_number", b"Shininess", shininess)
     elem_props_template_set(tmpl, props, "p_number", b"ShininessExponent", shininess)
-    elem_props_template_set(tmpl, props, "p_color", b"ReflectionColor", ma_wrap.base_color)
+    elem_props_template_set(tmpl, props, "p_color", b"ReflectionColor", convertColorSpace(ma_wrap.base_color))
     elem_props_template_set(tmpl, props, "p_number", b"ReflectionFactor", ma_wrap.metallic)
 
     elem_props_template_finalize(tmpl, props)
@@ -3449,6 +3455,7 @@ def save_single(operator, scene, depsgraph, filepath="",
                 bake_space_transform=False,
                 armature_nodetype='NULL',
                 colors_type='SRGB',
+                material_colors_type='SRGB',
                 prioritize_active_color=False,
                 **kwargs
                 ):
@@ -3516,7 +3523,7 @@ def save_single(operator, scene, depsgraph, filepath="",
         add_leaf_bones, bone_correction_matrix, bone_correction_matrix_inv,
         bake_anim, bake_anim_use_all_bones, bake_anim_use_nla_strips, bake_anim_use_all_actions,
         bake_anim_step, bake_anim_simplify_factor, bake_anim_force_startend_keying,
-        False, media_settings, use_custom_props, colors_type, prioritize_active_color
+        False, media_settings, use_custom_props, colors_type, material_colors_type, prioritize_active_color
     )
 
     import bpy_extras.io_utils
@@ -3588,6 +3595,7 @@ def defaults_unity3d():
         "use_mesh_edges": False,
         "mesh_smooth_type": 'FACE',
         "colors_type": 'SRGB',
+        "material_colors_type": 'SRGB',
         "use_subsurf": False,
         "use_tspace": False,  # XXX Why? Unity is expected to support tspace import...
         "use_triangles": False,

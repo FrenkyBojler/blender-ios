@@ -103,6 +103,14 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
         description="Import vertex color attributes",
         default='SRGB',
     )
+    material_colors_type: EnumProperty(
+        name="Material Colors",
+        items=(('SRGB', "sRGB", "Expect file colors in sRGB color space"),
+               ('LINEAR', "Linear", "Expect file colors in linear color space"),
+               ),
+        description="Import material color attributes",
+        default='SRGB',
+    )
 
     use_image_search: BoolProperty(
         name="Image Search",
@@ -238,6 +246,7 @@ def import_panel_include(layout, operator):
         sub.prop(operator, "use_custom_props_enum_as_string")
         body.prop(operator, "use_image_search")
         body.prop(operator, "colors_type")
+        body.prop(operator, "material_colors_type")
 
 
 def import_panel_transform(layout, operator):
@@ -406,6 +415,14 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
                ('LINEAR', "Linear", "Export colors in linear color space"),
                ),
         description="Export vertex color attributes",
+        default='SRGB',
+    )
+    material_colors_type: EnumProperty(
+        name="Material Colors",
+        items=(('SRGB', "sRGB", "Export colors in sRGB color space"),
+               ('LINEAR', "Linear", "Export colors in linear color space"),
+               ),
+        description="Export material color attributes",
         default='SRGB',
     )
     prioritize_active_color: BoolProperty(
@@ -660,6 +677,7 @@ def export_panel_geometry(layout, operator):
         # ~ sub.enabled = operator.mesh_smooth_type in {'OFF'}
         sub.prop(operator, "use_tspace")
         body.prop(operator, "colors_type")
+        body.prop(operator, "material_colors_type")
         body.prop(operator, "prioritize_active_color")
 
 

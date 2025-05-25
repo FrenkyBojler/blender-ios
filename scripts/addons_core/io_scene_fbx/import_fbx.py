@@ -2061,6 +2061,8 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
 
     ma_wrap = node_shader_utils.PrincipledBSDFWrapper(ma, is_readonly=False, use_nodes=True)
     ma_wrap.base_color = elem_props_get_color_rgb(fbx_props, b'DiffuseColor', const_color_white)
+    if settings.material_colors_type == 'SRGB':
+        ma_wrap.base_color = list(ma_wrap.base_color.from_srgb_to_scene_linear())
     # No specular color in Principled BSDF shader, assumed to be either white or take some tint from diffuse one...
     # TODO: add way to handle tint option (guesstimate from spec color + intensity...)?
     ma_wrap.specular = elem_props_get_number(fbx_props, b'SpecularFactor', 0.25) * 2.0
@@ -2092,6 +2094,8 @@ def blen_read_material(fbx_tmpl, fbx_obj, settings):
     # Emission strength and color
     ma_wrap.emission_strength = elem_props_get_number(fbx_props, b'EmissiveFactor', 1.0)
     ma_wrap.emission_color = elem_props_get_color_rgb(fbx_props, b'EmissiveColor', const_color_black)
+    if settings.material_colors_type == 'SRGB':
+        ma_wrap.emission_color = list(ma_wrap.emission_color.from_srgb_to_scene_linear())
 
     nodal_material_wrap_map[ma] = ma_wrap
 
@@ -3042,7 +3046,8 @@ def load(operator, context, filepath="",
          primary_bone_axis='Y',
          secondary_bone_axis='X',
          use_prepost_rot=True,
-         colors_type='SRGB'):
+         colors_type='SRGB',
+         material_colors_type='SRGB'):
 
     global fbx_elem_nil
     fbx_elem_nil = FBXElem('', (), (), ())
@@ -3181,7 +3186,7 @@ def load(operator, context, filepath="",
         use_custom_props, use_custom_props_enum_as_string,
         nodal_material_wrap_map, image_cache,
         ignore_leaf_bones, force_connect_children, automatic_bone_orientation, bone_correction_matrix,
-        use_prepost_rot, colors_type,
+        use_prepost_rot, colors_type, material_colors_type,
     )
 
     # #### And now, the "real" data.
