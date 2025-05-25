@@ -743,6 +743,9 @@ void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *sock
   if (socket->flag & SOCK_HIDE_VALUE) {
     this->flag |= NODE_INTERFACE_SOCKET_HIDE_VALUE;
   }
+  if (socket->flag & SOCK_HIDE_LABEL) {
+    this->flag |= NODE_INTERFACE_SOCKET_HIDE_LABEL;
+  }
 
   this->socket_type = BLI_strdupn(idname->data(), idname->size());
   this->socket_data = socket_types::make_socket_data(*idname);
