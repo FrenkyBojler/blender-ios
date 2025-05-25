@@ -569,6 +569,12 @@ static bool rna_BrushCapabilitiesSculpt_has_tilt_get(PointerRNA *ptr)
   return blender::bke::brush::supports_tilt(*br);
 }
 
+static bool rna_BrushCapabilitiesSculpt_has_dyntopo_get(PointerRNA *ptr)
+{
+  const Brush *br = static_cast<const Brush *>(ptr->data);
+  return blender::bke::brush::supports_dyntopo(*br);
+}
+
 static bool rna_BrushCapabilitiesImagePaint_has_accumulate_get(PointerRNA *ptr)
 {
   /* only support for draw brush */
@@ -1192,6 +1198,7 @@ static void rna_def_sculpt_capabilities(BlenderRNA *brna)
   SCULPT_BRUSH_CAPABILITY(has_direction, "Has Direction");
   SCULPT_BRUSH_CAPABILITY(has_gravity, "Has Gravity");
   SCULPT_BRUSH_CAPABILITY(has_tilt, "Has Tilt");
+  SCULPT_BRUSH_CAPABILITY(has_dyntopo, "Has Dyntopo");
 
 #  undef SCULPT_CAPABILITY
 }
@@ -2812,7 +2819,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "tip_scale_x", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "tip_scale_x");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_range(prop, 0.0001f, 1.0f);
   RNA_def_property_ui_range(prop, 0.0001f, 1.0f, 0.001, 3);
   RNA_def_property_ui_text(prop, "Tip Scale X", "Scale of the brush tip in the X axis");
   RNA_def_property_update(prop, 0, "rna_Brush_update");

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'1f4cae0c4623')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-28 09:32+0000\n"
+"POT-Creation-Date: 2025-05-19 11:37+0000\n"
 "PO-Revision-Date: 2025-04-14 08:41+0000\n"
 "Last-Translator: Marcus Edmark Lindh <marcus.lindh@outlook.com>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -1887,6 +1887,10 @@ msgid "Children"
 msgstr "Barn"
 
 
+msgid "Wire"
+msgstr "Trådmodell"
+
+
 msgid "Head"
 msgstr "Huvud"
 
@@ -3486,10 +3490,6 @@ msgstr "Grupper"
 
 msgid "Layers"
 msgstr "Lager"
-
-
-msgid "Wire"
-msgstr "Trådmodell"
 
 
 msgid "Theme"
@@ -5193,40 +5193,12 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Names"
-msgstr "Namn"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
+msgid "Mirror"
+msgstr "Spegla"
 
 
 msgid "Snap"
 msgstr "Snäpp"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Local View"
@@ -5243,6 +5215,10 @@ msgstr "Justera vy till aktiv"
 
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
 
 
 msgid "Light"
@@ -5265,12 +5241,36 @@ msgid "Rigid Body"
 msgstr "Rigid kropp"
 
 
+msgid "Apply"
+msgstr "Applicera"
+
+
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
 
 
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
 msgid "Asset"
 msgstr "Tillgång"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
 
 
 msgid "Catalog"
@@ -12403,14 +12403,6 @@ msgid "UI Scale"
 msgstr "Gränssnittsskala"
 
 
-msgid "Use Disk Cache"
-msgstr "Använd disk-cache"
-
-
-msgid "Store cached images to disk"
-msgstr "Lagra cachade bilder på disk"
-
-
 msgid "Edit Studio Light"
 msgstr "Redigera studioljus"
 
@@ -14076,10 +14068,6 @@ msgstr "Ytspänning"
 
 msgid "Velocity Source"
 msgstr "Hastighetskälla"
-
-
-msgid "Is Resumable"
-msgstr "Kan återupptas"
 
 
 msgctxt "Operator"
@@ -16471,10 +16459,6 @@ msgstr "Spara som..."
 
 msgid "Don't Save"
 msgstr "Spara inte"
-
-
-msgid "This file was saved by a newer version of Blender (%s)"
-msgstr "Denna fil har sparats av en nyare version av Blender (%s)"
 
 
 msgid "Save changes before closing?"

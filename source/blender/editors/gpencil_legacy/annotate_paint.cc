@@ -1748,8 +1748,8 @@ static void annotation_draw_eraser(bContext * /*C*/,
     immUniform1f("udash_factor", 0.5f);
 
     imm_draw_circle_wire_2d(shdr_pos,
-                            xy.y,
                             xy.x,
+                            xy.y,
                             p->radius,
                             /* XXX Dashed shader gives bad results with sets of small segments
                              * currently, temp hack around the issue. :( */
@@ -1819,7 +1819,7 @@ static void annotation_draw_stabilizer(bContext *C,
   immUniformColor4f(color[0], color[1], color[2], 0.8f);
   immBegin(GPU_PRIM_LINES, 2);
   immVertex2f(pos, pt->m_xy[0] + region->winrct.xmin, pt->m_xy[1] + region->winrct.ymin);
-  immVertex2iv(pos, xy);
+  immVertex2fv(pos, blender::float2(xy));
   immEnd();
 
   /* Returns back all GPU settings */
@@ -2762,7 +2762,7 @@ void GPENCIL_OT_annotate(wmOperatorType *ot)
   ot->idname = "GPENCIL_OT_annotate";
   ot->description = "Make annotations on the active data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = annotation_draw_exec;
   ot->invoke = annotation_draw_invoke;
   ot->modal = annotation_draw_modal;

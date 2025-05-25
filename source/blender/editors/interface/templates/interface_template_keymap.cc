@@ -25,10 +25,10 @@ static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
 {
-  uiItemS(layout);
+  layout->separator();
 
   if (title) {
-    uiItemL(layout, title, ICON_NONE);
+    layout->label(title, ICON_NONE);
   }
 
   uiLayout *flow = &layout->column_flow(2, false);
@@ -53,7 +53,7 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
     uiLayout *row = &box->row(false);
 
     /* property value */
-    uiItemFullR(row, ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (is_set) {
       /* unset operator */
