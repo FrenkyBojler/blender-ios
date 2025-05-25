@@ -251,7 +251,7 @@ static void camera_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CA = {
-    /*id_code*/ ID_CA,
+    /*id_code*/ Camera::id_type,
     /*id_filter*/ FILTER_ID_CA,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_IM,
     /*main_listbase_index*/ INDEX_ID_CA,
@@ -290,7 +290,7 @@ Camera *BKE_camera_add(Main *bmain, const char *name)
 {
   Camera *cam;
 
-  cam = static_cast<Camera *>(BKE_id_new(bmain, ID_CA, name));
+  cam = BKE_id_new<Camera>(bmain, name);
 
   return cam;
 }

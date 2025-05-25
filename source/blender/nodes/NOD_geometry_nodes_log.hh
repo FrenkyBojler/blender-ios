@@ -10,8 +10,8 @@
  * search, node warnings, socket inspection and the viewer node.
  *
  * This file provides the system for logging data during evaluation and accessing the data after
- * evaluation. Geometry nodes is executed by a modifier, therefore the "root" of logging is
- * #GeoModifierLog which will contain all data generated in a modifier.
+ * evaluation. At the root of the logging data is a #GeoNodesLog which is created by the code that
+ * invokes Geometry Nodes (e.g. the Geometry Nodes modifier).
  *
  * The system makes a distinction between "loggers" and the "log":
  * - Logger (#GeoTreeLogger): Is used during geometry nodes evaluation. Each thread logs data
@@ -50,6 +50,7 @@
 
 struct SpaceNode;
 struct NodesModifierData;
+struct Report;
 
 namespace blender::nodes::geo_eval_log {
 
@@ -68,6 +69,9 @@ int node_warning_type_severity(NodeWarningType type);
 struct NodeWarning {
   NodeWarningType type;
   std::string message;
+
+  NodeWarning(NodeWarningType type, StringRef message) : type(type), message(message) {}
+  NodeWarning(const Report &report);
 
   uint64_t hash() const
   {
@@ -335,7 +339,7 @@ class GeoNodeLog {
   ~GeoNodeLog();
 };
 
-class GeoModifierLog;
+class GeoNodesLog;
 
 /**
  * Contains data that has been logged for a specific node group in a context. If the same node
@@ -346,7 +350,7 @@ class GeoModifierLog;
  */
 class GeoTreeLog {
  private:
-  GeoModifierLog *modifier_log_;
+  GeoNodesLog *root_log_;
   Vector<GeoTreeLogger *> tree_loggers_;
   VectorSet<ComputeContextHash> children_hashes_;
   bool reduced_node_warnings_ = false;
@@ -369,7 +373,7 @@ class GeoTreeLog {
   Set<int> evaluated_gizmo_nodes;
   Vector<std::string> all_layer_names;
 
-  GeoTreeLog(GeoModifierLog *modifier_log, Vector<GeoTreeLogger *> tree_loggers);
+  GeoTreeLog(GeoNodesLog *root_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();
 
   /**
@@ -431,11 +435,11 @@ class ContextualGeoTreeLogs {
 };
 
 /**
- * There is one #GeoModifierLog for every modifier that evaluates geometry nodes. It contains all
+ * There is one #GeoNodesLog for every modifier that evaluates geometry nodes. It contains all
  * the loggers that are used during evaluation as well as the preprocessed logs that are used by UI
  * code.
  */
-class GeoModifierLog {
+class GeoNodesLog {
  private:
   /** Data that is stored for each thread. */
   struct LocalData {
@@ -456,8 +460,8 @@ class GeoModifierLog {
   Map<ComputeContextHash, std::unique_ptr<GeoTreeLog>> tree_logs_;
 
  public:
-  GeoModifierLog();
-  ~GeoModifierLog();
+  GeoNodesLog();
+  ~GeoNodesLog();
 
   /**
    * Get a thread-local logger for the current node tree.
