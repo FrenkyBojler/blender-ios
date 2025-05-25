@@ -191,9 +191,9 @@ export void squared_distances_table(const uniform float row_x[],
 
     const uniform int batch_col_count = (col_count / programCount) * programCount;
     for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
-      const varying float<3> col_xyz = {col_x[col_index + programIndex],
-                                        col_y[col_index + programIndex],
-                                        col_z[col_index + programIndex]};
+      const varying float<3> col_xyz = {streaming_load(&col_x[col_index]),
+                                        streaming_load(&col_y[col_index]),
+                                        streaming_load(&col_z[col_index])};
       const varying float<3> batch = square<3>(row_xyz - col_xyz);
       distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
     }
