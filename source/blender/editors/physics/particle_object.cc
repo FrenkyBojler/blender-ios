@@ -1388,7 +1388,7 @@ static wmOperatorStatus particle_system_remove_all_exec(bContext *C, wmOperator 
   }
 
   const eObjectMode mode_orig = eObjectMode(ob->mode);
-  LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+  LISTBASE_FOREACH_MUTABLE (ParticleSystem *, psys, &ob->particlesystem) {
     object_remove_particle_system(bmain, scene, ob, psys);
   }
 
@@ -1410,11 +1410,11 @@ static wmOperatorStatus particle_system_remove_all_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-void PARTICLE_OT_remove_all_particle_system(wmOperatorType *ot)
+void PARTICLE_OT_particle_system_remove_all(wmOperatorType *ot)
 {
   ot->name = "Remove All Particle Systems";
   ot->description = "Remove all particle system within the active object";
-  ot->idname = "PARTICLE_OT_remove_all_particle_system";
+  ot->idname = "PARTICLE_OT_particle_system_remove_all";
 
   ot->poll = ED_operator_object_active_local_editable;
   ot->exec = particle_system_remove_all_exec;
