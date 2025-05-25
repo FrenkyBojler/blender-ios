@@ -19,7 +19,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::String>("String");
+  b.add_input<decl::String>("String").hide_label();
 
   if (node != nullptr) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
