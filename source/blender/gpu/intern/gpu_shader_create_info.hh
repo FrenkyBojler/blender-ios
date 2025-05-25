@@ -25,6 +25,12 @@
 #  include <iostream>
 #endif
 
+#if defined(GPU_SHADER)
+#  include "gpu_shader_srd_cpp.hh"
+#else
+#  include "gpu_shader_srd_info.hh"
+#endif
+
 /* Force enable `printf` support in release build. */
 #define GPU_FORCE_ENABLE_SHADER_PRINTF 0
 
@@ -117,7 +123,9 @@
 #  define LOCAL_GROUP_SIZE(...) .local_group_size(__VA_ARGS__)
 
 #  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type##_t, #name)
+#  define VERTEX_IN_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define VERTEX_OUT(stage_interface) .vertex_out(stage_interface)
+#  define VERTEX_OUT_SRD(srd) .vertex_out(srd)
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...) .geometry_layout(__VA_ARGS__)
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
@@ -126,10 +134,13 @@
     .subpass_in(slot, Type::type##_t, ImageType::img_type, #name, rog)
 
 #  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type##_t, #name)
+#  define FRAGMENT_OUT_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define FRAGMENT_OUT_DUAL(slot, type, name, blend) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::blend)
 #  define FRAGMENT_OUT_ROG(slot, type, name, rog) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::NONE, rog)
+
+#  define RESOURCE_SRD(srd) .shared_resource_descriptor(srd::populate)
 
 #  define EARLY_FRAGMENT_TEST(enable) .early_fragment_test(enable)
 #  define DEPTH_WRITE(value) .depth_write(value)
@@ -201,7 +212,12 @@
     namespace gl_VertexShader { \
     const type name = {}; \
     }
+#  define VERTEX_IN_SRD(srd) \
+    namespace gl_VertexShader { \
+    using namespace srd; \
+    }
 #  define VERTEX_OUT(stage_interface) using namespace interface::stage_interface;
+#  define VERTEX_OUT_SRD(srd) using namespace interface::srd;
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...)
 #  define GEOMETRY_OUT(stage_interface) using namespace interface::stage_interface;
@@ -220,6 +236,12 @@
     namespace gl_FragmentShader { \
     type name; \
     }
+#  define FRAGMENT_OUT_SRD(srd) \
+    namespace gl_FragmentShader { \
+    using namespace srd; \
+    }
+
+#  define RESOURCE_SRD(srd) using namespace srd;
 
 #  define EARLY_FRAGMENT_TEST(enable)
 #  define DEPTH_WRITE(value)
@@ -994,6 +1016,12 @@ struct ShaderCreateInfo {
       int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
     subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
+    return *(Self *)this;
+  }
+
+  Self &shared_resource_descriptor(void (*fn)(ShaderCreateInfo &))
+  {
+    fn(*this);
     return *(Self *)this;
   }
 
