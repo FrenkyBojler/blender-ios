@@ -1172,15 +1172,18 @@ def brush_shared_settings(layout, context, brush, popover=False):
         layout.row().prop(brush, "direction", expand=True)
 
 
-def color_jitter_panel(layout, context, brush, default_closed=True):
+def color_jitter_panel(layout, context, brush):
     mode = UnifiedPaintPanel.get_brush_mode(context)
     ups = context.scene.tool_settings.unified_paint_settings
 
-    if mode in ('PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX', 'SCULPT'):
+    is_sculpt_paint_mode = mode == 'SCULPT' and brush.sculpt_capabilities.has_color
+    if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX'} or is_sculpt_paint_mode:
         prop_owner = ups if ups.use_unified_color else brush
-        header, panel = layout.panel("color_jitter_panel", default_closed=default_closed)
-        header.prop(prop_owner, "use_color_jitter", text="Randomize Color")
+        header, panel = layout.panel("color_jitter_panel", default_closed=True)
+
+        header.label(text="Randomize Color")
         if panel:
+            panel.prop(prop_owner, "use_color_jitter", text="Use Color Jitter")
             panel.use_property_split = True
             panel.use_property_decorate = False
 
@@ -1216,9 +1219,6 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
         brush_settings(layout, context, brush, popover=True)
         layout.separator()
         layout.label(text="Advanced")
-
-        if brush.sculpt_capabilities.has_color:
-            color_jitter_panel(layout, context, brush, default_closed=False)
 
     # These options are shared across many modes.
     use_accumulate = False
@@ -1410,6 +1410,10 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             panel.label(text="Brush icons have moved to the asset preview image", icon='ERROR')
             panel.prop(brush, "use_custom_icon")
             panel.prop(brush, "icon_filepath")
+
+    if popover:
+        color_jitter_panel(layout, context, brush)
+
 
 
 def draw_color_settings(context, layout, brush, color_type=False):
