@@ -212,6 +212,7 @@ class Preprocessor {
       str = preprocessor_directive_mutation(str);
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
+        str = stage_function_mutation(str);
         str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
         static_strings_parsing(str);
@@ -1024,6 +1025,68 @@ class Preprocessor {
       str = std::regex_replace(str, regex, std::to_string(hash_string(str_var)) + 'u');
     }
     return str;
+  }
+
+  std::string stage_function_mutation(const std::string &str)
+  {
+    using namespace std;
+
+    if (str.find("_function]]") == string::npos) {
+      return str;
+    }
+
+    vector<pair<string, string>> mutations;
+
+    int64_t line = 1;
+    regex regex_attr(R"(\[\[gpu::(vertex|fragment|compute)_function\]\])");
+    regex_global_search(str, regex_attr, [&](const smatch &match) {
+      string prefix = match.prefix().str();
+      string suffix = match.suffix().str();
+      string attribute = match[0].str();
+      string shader_stage = match[1].str();
+
+      line += line_count(prefix);
+      string signature = suffix.substr(0, suffix.find('{'));
+      string body = '{' +
+                    get_content_between_balanced_pair(suffix.substr(signature.size()), '{', '}') +
+                    "}\n";
+
+      string function = signature + body;
+
+      string check = "defined(";
+      if (shader_stage == "vertex") {
+        check += "GPU_VERTEX_SHADER";
+      }
+      else if (shader_stage == "fragment") {
+        check += "GPU_FRAGMENT_SHADER";
+      }
+      else if (shader_stage == "compute") {
+        check += "GPU_COMPUTE_SHADER";
+      }
+      check += ")";
+
+      string mutated = guarded_scope_mutation(
+          string(attribute.size(), ' ') + function, line, check);
+      mutations.emplace_back(attribute + function, mutated);
+    });
+
+    string out = str;
+    for (auto mutation : mutations) {
+      replace_all(out, mutation.first, mutation.second);
+    }
+    return out;
+  }
+
+  std::string guarded_scope_mutation(std::string content, int64_t line_start, std::string check)
+  {
+    int64_t line_end = line_start + line_count(content);
+    std::string guarded_cope;
+    guarded_cope += "#if " + check + "\n";
+    guarded_cope += "#line " + std::to_string(line_start) + "\n";
+    guarded_cope += content;
+    guarded_cope += "#endif\n";
+    guarded_cope += "#line " + std::to_string(line_end) + "\n";
+    return guarded_cope;
   }
 
   std::string enum_macro_injection(std::string str)
