@@ -2011,6 +2011,7 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
+bool WM_event_is_ndof(const wmEvent *event);
 void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
 
