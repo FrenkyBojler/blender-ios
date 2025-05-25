@@ -74,7 +74,8 @@ inline void for_each_to_bottom(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], depth_i);
           }
         },
-        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) *
+                                                min_bucket_size));
   }
 }
 
@@ -101,7 +102,8 @@ inline void for_each_to_top(const OffsetIndices<int> buckets_offsets,
             func(buckets_offsets[joint_buckets], joints_range[joint_i], sub_joints, depth_i);
           }
         },
-        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) *
+                                                min_bucket_size));
   }
 }
 
@@ -175,14 +177,14 @@ inline void batch_for_each_to_bottom_skip(const OffsetIndices<int> buckets_offse
 
 template<typename LeafFuncT, typename JointPredicateT, typename JointFuncT>
 inline void batch_for_each_to_bottom_skip_(const OffsetIndices<int> buckets_offsets,
-                                          const int total_depth,
-                                          const IndexRange batch_range,
-                                          const JointPredicateT &joint_predicate,
-                                          const JointFuncT &joint_func,
-                                          const LeafFuncT &leaf_func)
+                                           const int total_depth,
+                                           const IndexRange batch_range,
+                                           const JointPredicateT &joint_predicate,
+                                           const JointFuncT &joint_func,
+                                           const LeafFuncT &leaf_func)
 {
   using namespace blender::bits;
-  
+
   BitGroupVector masks_stack(33, batch_range.size(), false);
   masks_stack[0].fill(true);
 
@@ -209,7 +211,10 @@ inline void batch_for_each_to_bottom_skip_(const OffsetIndices<int> buckets_offs
 
     joint_func(int(joints_range[joint_i]), buffer);
 
-    mix_into_first_expr([](const BitInt parent, const BitInt current_ended) { return parent & (~current_ended); }, batch_mask, buffer);
+    mix_into_first_expr(
+        [](const BitInt parent, const BitInt current_ended) { return parent & (~current_ended); },
+        batch_mask,
+        buffer);
     if (!any_bit_set(batch_mask)) {
       continue;
     }

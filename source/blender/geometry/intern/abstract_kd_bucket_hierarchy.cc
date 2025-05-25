@@ -10,8 +10,8 @@
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_bits.h"
-#include "BLI_task.hh"
 #include "BLI_sort.hh"
+#include "BLI_task.hh"
 #include "BLI_task_size_hints.hh"
 #include "BLI_virtual_array.hh"
 
@@ -107,12 +107,15 @@ void from_positions(const Span<float3> positions,
       [&](const IndexRange bucket_range, const int /*joint_index*/, const int depth_i) {
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
-        std::nth_element(segment.begin(), segment.begin() + segment.size() / 2, segment.end(), [&](const int a, const int b) {
-          if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
-            return a < b;
-          }
-          return positions[a][axis_index] < positions[b][axis_index];
-        });
+        std::nth_element(segment.begin(),
+                         segment.begin() + segment.size() / 2,
+                         segment.end(),
+                         [&](const int a, const int b) {
+                           if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
+                             return a < b;
+                           }
+                           return positions[a][axis_index] < positions[b][axis_index];
+                         });
       });
 }
 
@@ -123,7 +126,7 @@ void from_positions_non_uniform(const Span<float3> positions,
 {
   BLI_assert(positions.size() == indices.size());
   BLI_assert(buckets_offsets.size() == akdbh::total_buckets_for(total_depth) + 1);
-  
+
   buckets_offsets.fill(-1);
   buckets_offsets.first() = 0;
   buckets_offsets.last() = indices.size();
@@ -137,7 +140,8 @@ void from_positions_non_uniform(const Span<float3> positions,
         1'000'000,
         [&](const IndexRange range) {
           for (const int joint_i : range) {
-            const IndexRange joint_buckets = joint_buckets_range_at_depth(total_depth, depth_i, joint_i);
+            const IndexRange joint_buckets = joint_buckets_range_at_depth(
+                total_depth, depth_i, joint_i);
 
             const int first_offset = buckets_offsets[joint_buckets.start()];
             const int end_offset = buckets_offsets[joint_buckets.one_after_last()];
@@ -145,43 +149,67 @@ void from_positions_non_uniform(const Span<float3> positions,
             BLI_assert(end_offset != -1);
             BLI_assert(first_offset <= end_offset);
 
-            BLI_assert(joint_buckets.start() == joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).start());
-            BLI_assert(joint_buckets.one_after_last() == joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 1).one_after_last());
+            BLI_assert(
+                joint_buckets.start() ==
+                joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).start());
+            BLI_assert(joint_buckets.one_after_last() ==
+                       joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 1)
+                           .one_after_last());
 
-            const int child_offset = joint_buckets_range_at_depth(total_depth, depth_i + 1, joint_i * 2 + 0).one_after_last();
+            const int child_offset = joint_buckets_range_at_depth(
+                                         total_depth, depth_i + 1, joint_i * 2 + 0)
+                                         .one_after_last();
             BLI_assert(buckets_offsets[child_offset] == -1);
 
-            MutableSpan<int> joint_buckets_indices = indices.slice(IndexRange::from_begin_end(first_offset, end_offset));
+            MutableSpan<int> joint_buckets_indices = indices.slice(
+                IndexRange::from_begin_end(first_offset, end_offset));
             if (joint_buckets_indices.is_empty()) {
               buckets_offsets[child_offset] = end_offset;
               continue;
             }
 
-            parallel_sort(joint_buckets_indices.begin(), joint_buckets_indices.end(), [&](const int a, const int b) {
-              if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
-                return a < b;
-              }
-              return positions[a][axis_index] < positions[b][axis_index];
-            });
+            parallel_sort(joint_buckets_indices.begin(),
+                          joint_buckets_indices.end(),
+                          [&](const int a, const int b) {
+                            if (UNLIKELY(positions[a][axis_index] == positions[b][axis_index])) {
+                              return a < b;
+                            }
+                            return positions[a][axis_index] < positions[b][axis_index];
+                          });
 
             BLI_assert(!joint_buckets_indices.is_empty());
-            const int *centre = std::max_element(joint_buckets_indices.begin(), joint_buckets_indices.end() - 1, [&](const int &a, const int &b) {
-              const int a_index = std::distance(joint_buckets_indices.as_span().data(), &a);
-              const int b_index = std::distance(joint_buckets_indices.as_span().data(), &b);
+            const int *centre = std::max_element(
+                joint_buckets_indices.begin(),
+                joint_buckets_indices.end() - 1,
+                [&](const int &a, const int &b) {
+                  const int a_index = std::distance(joint_buckets_indices.as_span().data(), &a);
+                  const int b_index = std::distance(joint_buckets_indices.as_span().data(), &b);
 
-              const float a_segment = positions[joint_buckets_indices[a_index + 1]][axis_index] - positions[a][axis_index];
-              const float b_segment = positions[joint_buckets_indices[b_index + 1]][axis_index] - positions[b][axis_index];
+                  const float a_segment =
+                      positions[joint_buckets_indices[a_index + 1]][axis_index] -
+                      positions[a][axis_index];
+                  const float b_segment =
+                      positions[joint_buckets_indices[b_index + 1]][axis_index] -
+                      positions[b][axis_index];
 
-              const double a_factor = 0.5 - math::abs<double>((a_index / double(joint_buckets_indices.size())) - 0.5);
-              const double b_factor = 0.5 - math::abs<double>((b_index / double(joint_buckets_indices.size())) - 0.5);
+                  const double a_factor =
+                      0.5 -
+                      math::abs<double>((a_index / double(joint_buckets_indices.size())) - 0.5);
+                  const double b_factor =
+                      0.5 -
+                      math::abs<double>((b_index / double(joint_buckets_indices.size())) - 0.5);
 
-              return a_factor * a_factor * a_segment * a_factor * a_segment < b_factor * b_factor * b_segment * b_factor * b_segment;
-            });
+                  return a_factor * a_factor * a_segment * a_factor * a_segment <
+                         b_factor * b_factor * b_segment * b_factor * b_segment;
+                });
 
-            buckets_offsets[child_offset] = first_offset + std::distance(joint_buckets_indices.as_span().data(), centre);
+            buckets_offsets[child_offset] = first_offset +
+                                            std::distance(joint_buckets_indices.as_span().data(),
+                                                          centre);
           }
         },
-        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) * min_bucket_size));
+        threading::detail::TaskSizeHints_Static(joint_size_at_depth(total_depth, depth_i) *
+                                                min_bucket_size));
   }
 }
 

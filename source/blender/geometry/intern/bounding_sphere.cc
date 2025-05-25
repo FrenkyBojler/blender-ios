@@ -85,11 +85,11 @@ void joints_packing_spheres(const OffsetIndices<int> buckets_offsets,
                                        const int joint_index,
                                        const int2 /*sub_joints*/,
                                        const int /*depth_i*/) {
-                                      if (buckets_range.is_empty()) {
-                                        dst_joints_centre[joint_index] = float3(0);
-                                        dst_joints_radii[joint_index] = 0.0f;
-                                        return;
-                                      }
+                                     if (buckets_range.is_empty()) {
+                                       dst_joints_centre[joint_index] = float3(0);
+                                       dst_joints_radii[joint_index] = 0.0f;
+                                       return;
+                                     }
                                      const auto [centre, radius] = min_packing_sphere(
                                          src_bucket_points.slice(buckets_range));
                                      dst_joints_centre[joint_index] = centre;

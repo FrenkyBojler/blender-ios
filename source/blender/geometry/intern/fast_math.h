@@ -8,116 +8,202 @@
 #include <stdint.h>
 
 #if !defined(__cplusplus)
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
-#include <stdbool.h>
-#else
+#  if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+#    include <stdbool.h>
+#  else
 typedef int bool;
+#  endif
 #endif
-#endif
-
-
 
 #ifdef __cplusplus
 namespace ispc { /* namespace */
-#endif // __cplusplus
+#endif           // __cplusplus
 ///////////////////////////////////////////////////////////////////////////
 // Enumerator types with external visibility from ispc code
 ///////////////////////////////////////////////////////////////////////////
 
 #ifndef __ISPC_ENUM_ePredicateStatisics__
-#define __ISPC_ENUM_ePredicateStatisics__
-enum ePredicateStatisics {
-    epsNone = 0,
-    epsAll = 1,
-    epsMixed = 2 
-};
+#  define __ISPC_ENUM_ePredicateStatisics__
+enum ePredicateStatisics { epsNone = 0, epsAll = 1, epsMixed = 2 };
 #endif
 
 #ifndef __ISPC_ENUM_FMMConstants__
-#define __ISPC_ENUM_FMMConstants__
-enum FMMConstants {
-    ChunkSize = 8 
-};
+#  define __ISPC_ENUM_FMMConstants__
+enum FMMConstants { ChunkSize = 8 };
 #endif
-
 
 #ifndef __ISPC_ALIGN__
-#if defined(__clang__) || !defined(_MSC_VER)
+#  if defined(__clang__) || !defined(_MSC_VER)
 // Clang, GCC, ICC
-#define __ISPC_ALIGN__(s) __attribute__((aligned(s)))
-#define __ISPC_ALIGNED_STRUCT__(s) struct __ISPC_ALIGN__(s)
-#else
+#    define __ISPC_ALIGN__(s) __attribute__((aligned(s)))
+#    define __ISPC_ALIGNED_STRUCT__(s) struct __ISPC_ALIGN__(s)
+#  else
 // Visual Studio
-#define __ISPC_ALIGN__(s) __declspec(align(s))
-#define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
-#endif
+#    define __ISPC_ALIGN__(s) __declspec(align(s))
+#    define __ISPC_ALIGNED_STRUCT__(s) __ISPC_ALIGN__(s) struct
+#  endif
 #endif
 
 #ifndef __ISPC_STRUCT_IndicesStruct__
-#define __ISPC_STRUCT_IndicesStruct__
+#  define __ISPC_STRUCT_IndicesStruct__
 struct IndicesStruct {
-    int32_t max_size_items_start;
-    int32_t max_size_items_end;
-    int32_t rest_size_start;
-    int32_t rest_size_end;
+  int32_t max_size_items_start;
+  int32_t max_size_items_end;
+  int32_t rest_size_start;
+  int32_t rest_size_end;
 };
 #endif
-
 
 ///////////////////////////////////////////////////////////////////////////
 // Functions exported from ispc code
 ///////////////////////////////////////////////////////////////////////////
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
+#if defined(__cplusplus) && (!defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C)
 extern "C" {
-#endif // __cplusplus
-    extern void chunked_squared_distances_table(const float row_x[][8], const float row_y[][8], const float row_z[][8], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][8]);
-    extern int32_t chunked_table_product_reduce(const float rows_and_cols[][8], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][8]);
-    extern void chunked_zero_if_index_in_range(const int32_t row_indices[][8], const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float rows_and_cols[][8]);
-    extern int32_t count_floats_less_than(float * values, float min_predicate_value, int32_t count);
-    extern void distance_to_n(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
-    extern float fixed_2_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_0_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_10_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_11_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_12_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_1_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_2_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_3_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_4_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_5_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_6_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_7_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_8_rpow_n(float * values, const int32_t count);
-    extern float fixed_safe_9_rpow_n(float * values, const int32_t count);
-    extern void float3_dot_product(const float values[][3], const float * factors, const int32_t count, float * result);
-    extern void float3_gather_dot_product(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
-    extern void float3_gather_dot_product_(const int32_t * indices, const float values[][3], const float * factors, const int32_t count, float * result);
-    extern int32_t float_compare_n_indices_segmented(float * predicates, const float min_predicate_value, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller, int32_t * indices, int32_t * buffer, const int32_t count);
-    extern float float_dot_product(const float * values, const float * factors, const int32_t count);
-    extern float float_gather_dot_product(const int32_t * indices, const float * values, const float * factors, const int32_t count);
-    extern enum ePredicateStatisics float_more_then_single(float * values, float min_predicate_value, int32_t count);
-    extern enum FMMConstants fmm_constants();
-    extern void gather_distances(const int32_t * indices, const float positions[][3], const float * target, const int32_t count, float * distances, const float offset);
-    extern int32_t gather_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
-    extern int32_t gather_ints_buffer_segmented(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, struct IndicesStruct * more_or_equal, struct IndicesStruct * smaller);
-    extern int32_t mul_n_add_to(float * dst, float * src, const float value, const int32_t count);
-    extern void parition_as_gather(int32_t * values, int32_t * indices, int32_t * buffer, int32_t mapping_total);
-    extern void parition_as_gather_front(int32_t * values, int32_t * indices, int32_t * buffer, const int32_t mapping_total, const int32_t count, const int32_t total_front_size);
-    extern int32_t partition_int_compare_float(int32_t * values, int32_t * buffer, const float * predicates, const int32_t count, const float min_predicate_value);
-    extern int32_t predicate_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
-    extern int32_t predicate_partition_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value, const int32_t total_front_size);
-    extern int32_t predicate_revers_indices_float_cmp(int32_t * indices, float * predicates, const int32_t count, const float min_predicate_value);
-    extern int32_t scatter_ints_buffer(int32_t * values, int32_t * indices, int32_t * buffer, int32_t count, int32_t front_self_range);
-    extern void split_float3_to_3_float(const float xyz_values[][3], float * x_components, float * y_components, float * z_components, int32_t count);
-    extern void sqrt_n_add_single(float * values, const int32_t count, const float offset);
-    extern void squared_distances_table(const float * row_x, const float * row_y, const float * row_z, const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float * distances);
-    extern int32_t table_product_reduce(const float * rows_and_cols, const int32_t col_count, const float * col_values, const int32_t row_count, float * row_values);
-    extern void zero_if_index_in_range(const int32_t * row_indices, const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float * rows_and_cols);
-#if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
+#endif  // __cplusplus
+extern void chunked_squared_distances_table(const float row_x[][8],
+                                            const float row_y[][8],
+                                            const float row_z[][8],
+                                            const int32_t row_count,
+                                            const float *col_x,
+                                            const float *col_y,
+                                            const float *col_z,
+                                            const int32_t col_count,
+                                            float distances[][8]);
+extern int32_t chunked_table_product_reduce(const float rows_and_cols[][8],
+                                            const int32_t col_count,
+                                            const float *col_values,
+                                            const int32_t row_count,
+                                            float row_values[][8]);
+extern void chunked_zero_if_index_in_range(const int32_t row_indices[][8],
+                                           const int32_t col_count,
+                                           const int32_t from_bucket_to_sampler_offset,
+                                           const int32_t row_count,
+                                           float rows_and_cols[][8]);
+extern int32_t count_floats_less_than(float *values, float min_predicate_value, int32_t count);
+extern void distance_to_n(const float *src_a_x,
+                          const float *src_a_y,
+                          const float *src_a_z,
+                          const float *src_b_xyz,
+                          const int32_t count,
+                          float *dst);
+extern float fixed_2_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_0_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_10_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_11_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_12_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_1_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_2_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_3_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_4_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_5_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_6_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_7_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_8_rpow_n(float *values, const int32_t count);
+extern float fixed_safe_9_rpow_n(float *values, const int32_t count);
+extern void float3_dot_product(const float values[][3],
+                               const float *factors,
+                               const int32_t count,
+                               float *result);
+extern void float3_gather_dot_product(const int32_t *indices,
+                                      const float values[][3],
+                                      const float *factors,
+                                      const int32_t count,
+                                      float *result);
+extern void float3_gather_dot_product_(const int32_t *indices,
+                                       const float values[][3],
+                                       const float *factors,
+                                       const int32_t count,
+                                       float *result);
+extern int32_t float_compare_n_indices_segmented(float *predicates,
+                                                 const float min_predicate_value,
+                                                 struct IndicesStruct *more_or_equal,
+                                                 struct IndicesStruct *smaller,
+                                                 int32_t *indices,
+                                                 int32_t *buffer,
+                                                 const int32_t count);
+extern float float_dot_product(const float *values, const float *factors, const int32_t count);
+extern float float_gather_dot_product(const int32_t *indices,
+                                      const float *values,
+                                      const float *factors,
+                                      const int32_t count);
+extern enum ePredicateStatisics float_more_then_single(float *values,
+                                                       float min_predicate_value,
+                                                       int32_t count);
+extern enum FMMConstants fmm_constants();
+extern void gather_distances(const int32_t *indices,
+                             const float positions[][3],
+                             const float *target,
+                             const int32_t count,
+                             float *distances,
+                             const float offset);
+extern int32_t gather_ints_buffer(
+    int32_t *values, int32_t *indices, int32_t *buffer, int32_t count, int32_t front_self_range);
+extern int32_t gather_ints_buffer_segmented(int32_t *values,
+                                            int32_t *indices,
+                                            int32_t *buffer,
+                                            int32_t count,
+                                            struct IndicesStruct *more_or_equal,
+                                            struct IndicesStruct *smaller);
+extern int32_t mul_n_add_to(float *dst, float *src, const float value, const int32_t count);
+extern void parition_as_gather(int32_t *values,
+                               int32_t *indices,
+                               int32_t *buffer,
+                               int32_t mapping_total);
+extern void parition_as_gather_front(int32_t *values,
+                                     int32_t *indices,
+                                     int32_t *buffer,
+                                     const int32_t mapping_total,
+                                     const int32_t count,
+                                     const int32_t total_front_size);
+extern int32_t partition_int_compare_float(int32_t *values,
+                                           int32_t *buffer,
+                                           const float *predicates,
+                                           const int32_t count,
+                                           const float min_predicate_value);
+extern int32_t predicate_indices_float_cmp(int32_t *indices,
+                                           float *predicates,
+                                           const int32_t count,
+                                           const float min_predicate_value);
+extern int32_t predicate_partition_indices_float_cmp(int32_t *indices,
+                                                     float *predicates,
+                                                     const int32_t count,
+                                                     const float min_predicate_value,
+                                                     const int32_t total_front_size);
+extern int32_t predicate_revers_indices_float_cmp(int32_t *indices,
+                                                  float *predicates,
+                                                  const int32_t count,
+                                                  const float min_predicate_value);
+extern int32_t scatter_ints_buffer(
+    int32_t *values, int32_t *indices, int32_t *buffer, int32_t count, int32_t front_self_range);
+extern void split_float3_to_3_float(const float xyz_values[][3],
+                                    float *x_components,
+                                    float *y_components,
+                                    float *z_components,
+                                    int32_t count);
+extern void sqrt_n_add_single(float *values, const int32_t count, const float offset);
+extern void squared_distances_table(const float *row_x,
+                                    const float *row_y,
+                                    const float *row_z,
+                                    const int32_t row_count,
+                                    const float *col_x,
+                                    const float *col_y,
+                                    const float *col_z,
+                                    const int32_t col_count,
+                                    float *distances);
+extern int32_t table_product_reduce(const float *rows_and_cols,
+                                    const int32_t col_count,
+                                    const float *col_values,
+                                    const int32_t row_count,
+                                    float *row_values);
+extern void zero_if_index_in_range(const int32_t *row_indices,
+                                   const int32_t col_count,
+                                   const int32_t from_bucket_to_sampler_offset,
+                                   const int32_t row_count,
+                                   float *rows_and_cols);
+#if defined(__cplusplus) && (!defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C)
 } /* end extern C */
-#endif // __cplusplus
-
+#endif  // __cplusplus
 
 #ifdef __cplusplus
 } /* namespace */
-#endif // __cplusplus
+#endif  // __cplusplus
