@@ -1,0 +1,1 @@
+Referenced by issue #139369, ASAN heap-buffer-overflow crash when copy-pasting to text object with fewer material slots
