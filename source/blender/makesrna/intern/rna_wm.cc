@@ -810,9 +810,9 @@ static void rna_Event_ndof_translation_get(PointerRNA *ptr, float *values)
   
   if (ndof == nullptr)
   {
-    values[0] = 2.0f;
-    values[1] = 1.0f;
-    values[2] = 3.0f;
+    values[0] = 0.0f;
+    values[1] = 0.0f;
+    values[2] = 0.0f;
     return;
   }
   WM_event_ndof_pan_get(ndof, values, false);
