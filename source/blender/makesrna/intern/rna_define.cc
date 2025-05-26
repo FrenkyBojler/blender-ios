@@ -1245,7 +1245,7 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna,
       srna,
       "bl_system_properties",
       "PropertyGroup",
-      "",
+      "System Properties Storage",
       "Internal access to runtime-defined RNA data storage, intended solely for testing and "
       "debugging purposes. Do not access it in regular scripting work, and in particular, do "
       "not assume that it contains writable data");
