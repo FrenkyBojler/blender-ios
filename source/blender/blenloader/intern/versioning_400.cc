@@ -61,6 +61,8 @@
 
 #include "versioning_common.hh"
 
+// static CLG_LogRef LOG = {"blo.readfile.doversion"};
+
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 {
   for (bNode *node : ntree->all_nodes()) {

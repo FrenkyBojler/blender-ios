@@ -40,6 +40,10 @@
 
 static CLG_LogRef LOG = {"rna.define"};
 
+#ifdef RNA_RUNTIME
+#  include "RNA_prototypes.hh"
+#endif
+
 #ifndef NDEBUG
 #  define ASSERT_SOFT_HARD_LIMITS \
     if (softmin < hardmin || softmax > hardmax) { \
@@ -1205,6 +1209,51 @@ void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties)
   if (idproperties) {
     srna->idproperties = (IDPropertiesFunc)idproperties;
   }
+}
+
+#ifdef RNA_RUNTIME
+PointerRNA rna_struct_system_properties_get(PointerRNA *ptr)
+{
+  /* NOTE: Creating the IDProps root group if it does not exist here, such that
+   * `my_data.bl_system_properties['prop'] = True` can work without requiring something like a call
+   * to a `my_data.bl_system_properties_ensure()` first. */
+  IDProperty *system_idprops_root = RNA_struct_system_idprops(ptr, true);
+
+  return RNA_pointer_create_with_parent(*ptr, &RNA_PropertyGroup, system_idprops_root);
+}
+#endif
+
+void RNA_def_struct_system_idprops_func(StructRNA *srna,
+                                        const char *system_idproperties,
+                                        const bool generate_rna_property)
+{
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  if (!system_idproperties) {
+    return;
+  }
+  srna->system_idproperties = reinterpret_cast<IDPropertiesFunc>(
+      const_cast<char *>(system_idproperties));
+
+  if (!generate_rna_property) {
+    return;
+  }
+  PropertyRNA *prop = RNA_def_pointer(
+      srna,
+      "bl_system_properties",
+      "PropertyGroup",
+      "",
+      "Internal access to runtime-defined RNA data storage, intended solely for testing and "
+      "debugging purposes. Do not access it in regular scripting work, and in particular, do "
+      "not assume that it contains writable data");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
+  /* These IDProperties should never be used directly, but only accessed through their RNA property
+   * wrappers. As such, they should never be used when comparing two different RNA data. */
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
 }
 
 void RNA_def_struct_register_funcs(StructRNA *srna,
