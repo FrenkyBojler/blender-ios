@@ -216,6 +216,7 @@ class GHOST_DeviceVK {
     vector<const char *> device_extensions(required_extensions);
     for (const char *optional_extension : optional_extensions) {
       if (has_extensions({optional_extension})) {
+        CLOG_INFO(&LOG, 2, "enable optional extension: `%s`", optional_extension);
         device_extensions.push_back(optional_extension);
       }
     }
@@ -577,13 +578,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
    */
   GHOST_Frame &submission_frame_data = m_frame_data[m_render_frame];
   m_render_frame = (m_render_frame + 1) % m_frame_data.size();
-  CLOG_INFO(&LOG, 2, "render_frame=%lu", m_render_frame);
 
   /* Wait for next frame to finish rendering. Presenting can still
    * happen in parallel, but acquiring needs can only happen when the frame acquire semaphore has
    * been signaled and waited for. */
   VkFence *next_frame_fence = &m_frame_data[m_render_frame].submission_fence;
-  CLOG_INFO(&LOG, 2, "waiting for finish rendering vk_fence=%lu", uint64_t(*next_frame_fence));
   vkWaitForFences(device, 1, next_frame_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
 
@@ -620,7 +619,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
       recreateSwapchain();
     }
   }
-  CLOG_INFO(&LOG, 2, "acquire swap chain image image_index=%u", image_index);
+  CLOG_INFO(&LOG, 3, "render_frame=%lu, image_index=%u", m_render_frame, image_index);
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
@@ -630,17 +629,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   swap_chain_data.acquire_semaphore = submission_frame_data.acquire_semaphore;
   swap_chain_data.present_semaphore = submission_frame_data.present_semaphore;
 
-  CLOG_INFO(&LOG,
-            2,
-            "reset submission fence vk_fence=%lu",
-            uint64_t(submission_frame_data.submission_fence));
   vkResetFences(device, 1, &submission_frame_data.submission_fence);
-  CLOG_INFO(&LOG,
-            2,
-            "render wait_semaphore=%lu, signal_semaphore=%lu, submission_fence=%lu",
-            uint64_t(submission_frame_data.acquire_semaphore),
-            uint64_t(submission_frame_data.present_semaphore),
-            uint64_t(submission_frame_data.submission_fence));
   if (swap_buffers_pre_callback_) {
     swap_buffers_pre_callback_(&swap_chain_data);
   }
@@ -656,11 +645,6 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   VkResult present_result = VK_SUCCESS;
   {
-    CLOG_INFO(&LOG,
-              2,
-              "presenting wait_semaphore=%lu, image_index=%u",
-              uint64_t(submission_frame_data.present_semaphore),
-              image_index);
     std::scoped_lock lock(vulkan_device->queue_mutex);
     present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
@@ -673,9 +657,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     return GHOST_kSuccess;
   }
   if (present_result != VK_SUCCESS) {
-    fprintf(stderr,
-            "Error: Failed to present swap chain image : %s\n",
-            vulkan_error_as_string(acquire_result));
+    CLOG_ERROR(
+        &LOG, "failed to present swap chain image : %s", vulkan_error_as_string(acquire_result));
   }
 
   if (swap_buffers_post_callback_) {
@@ -880,17 +863,11 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
     return GHOST_kFailure;
   }
-  CLOG_INFO(&LOG,
-            2,
-            "selected surface format: format=%d, colorSpace=%d",
-            m_surface_format.format,
-            m_surface_format.colorSpace);
 
   VkPresentModeKHR present_mode;
   if (!selectPresentMode(physical_device, m_surface, &present_mode)) {
     return GHOST_kFailure;
   }
-  CLOG_INFO(&LOG, 2, "selected present mode: present_mode=%d", present_mode);
 
   /* Query the surface capabilities for the given present mode on the surface. */
   VkSurfacePresentScalingCapabilitiesEXT vk_surface_present_scaling_capabilities = {
@@ -1005,6 +982,16 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
           VK_PRESENT_GRAVITY_MAX_BIT_EXT,
   };
 
+  CLOG_INFO(&LOG,
+            2,
+            "recreating swapchain: width=%u, height=%u, format=%d, colorSpace=%d, "
+            "present_mode=%d, old_swapchain=%lu",
+            m_render_extent.width,
+            m_render_extent.height,
+            m_surface_format.format,
+            m_surface_format.colorSpace,
+            present_mode,
+            uint64_t(old_swapchain));
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
