@@ -165,8 +165,17 @@ struct SocketNameRNA {
   std::string property_name;
 };
 
-using CustomSocketDrawFn = std::function<void(
-    const bContext &C, uiLayout &layout, bNodeTree &tree, bNode &node, bNodeSocket &socket)>;
+struct CustomSocketDrawParams {
+  const bContext &C;
+  uiLayout &layout;
+  bNodeTree &tree;
+  bNode &node;
+  bNodeSocket &socket;
+  PointerRNA node_ptr;
+  PointerRNA socket_ptr;
+};
+
+using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.

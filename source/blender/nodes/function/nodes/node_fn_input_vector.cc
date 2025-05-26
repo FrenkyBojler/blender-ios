@@ -16,17 +16,11 @@ namespace blender::nodes::node_fn_input_vector_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>("Vector").custom_draw([](const bContext & /*C*/,
-                                                      uiLayout &layout,
-                                                      bNodeTree &tree,
-                                                      bNode &node,
-                                                      bNodeSocket &socket) {
-    PointerRNA node_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_Node, &node);
-    PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
-    uiLayout &row = layout.row(true);
-    row.column(true).prop(&node_ptr, "vector", UI_ITEM_NONE, "", ICON_NONE);
-    if (gizmos::value_node_has_gizmo(tree, node)) {
-      row.prop(&socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
+  b.add_output<decl::Vector>("Vector").custom_draw([](CustomSocketDrawParams &params) {
+    uiLayout &row = params.layout.row(true);
+    row.column(true).prop(&params.node_ptr, "vector", UI_ITEM_NONE, "", ICON_NONE);
+    if (gizmos::value_node_has_gizmo(params.tree, params.node)) {
+      row.prop(&params.socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }
   });
 }

@@ -23,15 +23,11 @@ namespace blender::nodes::node_composite_value_cc {
 
 static void cmp_node_value_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Value").default_value(0.5f).custom_draw([](const bContext & /*C*/,
-                                                                        uiLayout &layout,
-                                                                        bNodeTree &tree,
-                                                                        bNode & /*node*/,
-                                                                        bNodeSocket &socket) {
-    PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
-    uiLayout &row = layout.row(true);
-    row.prop(&socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
-  });
+  b.add_output<decl::Float>("Value").default_value(0.5f).custom_draw(
+      [](CustomSocketDrawParams &params) {
+        uiLayout &row = params.layout.row(true);
+        row.prop(&params.socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+      });
   ;
 }
 

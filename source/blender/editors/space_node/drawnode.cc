@@ -1168,7 +1168,8 @@ static void std_node_socket_draw(
   const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
   if (socket_decl) {
     if (socket_decl->custom_draw_fn) {
-      (*socket_decl->custom_draw_fn)(*C, *layout, *tree, *node, *sock);
+      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
+      (*socket_decl->custom_draw_fn)(params);
       return;
     }
   }
