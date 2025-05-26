@@ -5811,7 +5811,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 72)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 78)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         do_version_replace_image_info_node_coordinates(node_tree);
