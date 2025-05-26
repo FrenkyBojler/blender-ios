@@ -1034,6 +1034,11 @@ static void render_result_exr_file_cache_path(Scene *sce,
     root = root_buf;
   }
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * This can already easily overflow I think? `filename` itself is already `FILE_MAXFILE`, and
+   * initialized from the blendfile name itself.
+   */
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);
