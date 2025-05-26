@@ -1182,10 +1182,7 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
-  /* Gray out inputs that do not affect the output of the node currently.
-   * Don't gray out any inputs if the node has no outputs (in which case no input can affect the
-   * output). Otherwise, viewer node inputs would be inactive. */
-  if (sock->is_input() && !sock->affects_node_output() && !node->output_sockets().is_empty()) {
+  if (sock->is_inactive()) {
     uiLayoutSetActive(layout, false);
   }
 
@@ -1461,6 +1458,7 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_VECTOR: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "dimensions", DEFAULT_FLAGS, IFACE_("Dimensions"), ICON_NONE);
       col->prop(&ptr, "default_value", UI_ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
       uiLayout *sub = &col->column(true);
       sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);

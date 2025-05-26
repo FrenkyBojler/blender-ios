@@ -653,7 +653,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   }
 
   sce->compositing_node_group = blender::bke::node_tree_add_tree(
-      bmain, DATA_("Compositing Nodetree"), ntreeType_Composite->idname);
+      bmain, DATA_("Compositing Node Tree"), ntreeType_Composite->idname);
 
   ED_node_composit_default_init(C, sce->compositing_node_group);
 
@@ -1350,7 +1350,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_IN) {
       for (bNodeSocket *sock : node->input_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;
@@ -1368,7 +1368,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_OUT) {
       for (bNodeSocket *sock : node->output_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;

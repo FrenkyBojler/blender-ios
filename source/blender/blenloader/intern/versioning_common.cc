@@ -741,7 +741,7 @@ void do_versions_after_setup(Main *new_bmain,
   }
 
   // todo(habib): update subversion number before merging
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 76)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 405, 80)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       bNodeTree *ntree = scene->nodetree;
       if (!ntree) {
