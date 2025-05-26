@@ -4,3 +4,4 @@ Referenced by issue #135004, Grease Pencil: Crash with linked duplicates with an
 Referenced by pull request #135020, Fix #134984: Grease Pencil: Apply modifier removed hidden layer data
 Referenced by issue #135163, Grease Pencil layer visibility animations don't work in NLA.
 Referenced by issue #135674, Grease Pencil: Layer Group visibility animations don't unhide layer group content
+Referenced by issue #139395, Grease Pencil: grey ghosting strokes
