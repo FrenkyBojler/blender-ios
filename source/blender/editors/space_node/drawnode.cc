@@ -1189,9 +1189,7 @@ static void std_node_socket_draw(
                              false;
 
   if (has_gizmo) {
-    if (sock->in_out == SOCK_OUT &&
-        ELEM(node->type_legacy, FN_NODE_INPUT_ROTATION, NODE_GROUP_INPUT))
-    {
+    if (sock->in_out == SOCK_OUT && ELEM(node->type_legacy, NODE_GROUP_INPUT)) {
       if (node->is_group_input()) {
         uiLayout *row = &layout->row(false);
         uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
