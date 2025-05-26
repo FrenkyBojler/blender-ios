@@ -4,20 +4,30 @@
 
 #include "node_function_util.hh"
 
+#include "NOD_geometry_nodes_gizmos.hh"
+#include "NOD_multi_function.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "RNA_prototypes.hh"
 
 namespace blender::nodes::node_fn_input_vector_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Vector>("Vector");
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiLayout *col = &layout->column(true);
-  col->prop(ptr, "vector", UI_ITEM_R_EXPAND, "", ICON_NONE);
+  b.add_output<decl::Vector>("Vector").custom_draw([](const bContext & /*C*/,
+                                                      uiLayout &layout,
+                                                      bNodeTree &tree,
+                                                      bNode &node,
+                                                      bNodeSocket &socket) {
+    PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
+    uiLayout &row = layout.row(true);
+    row.column(true).prop(&socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+    if (gizmos::value_node_has_gizmo(tree, node)) {
+      row.prop(&socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
+    }
+  });
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -47,7 +57,6 @@ static void node_register()
   blender::bke::node_type_storage(
       ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
-  ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
