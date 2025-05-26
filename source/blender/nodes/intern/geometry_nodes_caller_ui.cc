@@ -691,6 +691,10 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         }
         break;
       }
+      case NODE_INTERFACE_SEPARATOR: {
+        layout->separator(1.0f, LayoutSeparatorType::Line);
+        break;
+      }
     }
   }
 }
