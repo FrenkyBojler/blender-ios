@@ -318,7 +318,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         if kb:
             rows = 5
 
-        #row.template_list("MESH_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
+        # row.template_list("MESH_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
         row.template_shape_key_tree()
 
         col = row.column(align=True)

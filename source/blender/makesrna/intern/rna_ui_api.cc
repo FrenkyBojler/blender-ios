@@ -2516,8 +2516,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(
-      srna, "template_shape_key_tree", "uiTemplateShapeKeyTree");
+  func = RNA_def_function(srna, "template_shape_key_tree", "uiTemplateShapeKeyTree");
   RNA_def_function_ui_description(func, "Shape Key tree view");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }

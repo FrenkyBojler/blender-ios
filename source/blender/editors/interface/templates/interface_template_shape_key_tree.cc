@@ -33,7 +33,7 @@ class ShapeKeyTreeView : public AbstractTreeView {
   Object &object_;
 
  public:
-  ShapeKeyTreeView(Object &ob) : object_(ob) {};
+  ShapeKeyTreeView(Object &ob) : object_(ob){};
 
   void build_tree() override;
 };
@@ -87,7 +87,7 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
   {
   }
 
-  bool can_drop(const wmDrag &drag, const char **/*r_disabled_hint*/) const override
+  bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
   {
     if (drag.type != WM_DRAG_SHAPE_KEY) {
       return false;
