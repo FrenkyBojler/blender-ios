@@ -229,15 +229,15 @@ static void rna_GreasePencilDrawing_vertex_group_remove(ID *id,
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, &grease_pencil);
 }
 
-static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
-                                                      GreasePencilDrawing *drawing_ptr,
-                                                      ReportList *reports,
-                                                      const char *vgroup_name,
-                                                      const int *indices_ptr,
-                                                      const int indices_num,
-                                                      const float *weights_ptr,
-                                                      const int weights_num,
-                                                      const int assignmode)
+static void rna_GreasePencilDrawing_set_vertex_weights(ID *grease_pencil_id,
+                                                       GreasePencilDrawing *drawing_ptr,
+                                                       ReportList *reports,
+                                                       const char *vertex_group_name,
+                                                       const int *indices,
+                                                       const int indices_num,
+                                                       const float *weights,
+                                                       const int weights_num,
+                                                       const int assignmode)
 {
   if (indices_num != weights_num) {
     BKE_report(reports, RPT_ERROR, "Indices and Weights arrays have different lengths");
@@ -246,28 +246,29 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
 
   using namespace blender;
   const GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(grease_pencil_id);
-  const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names, vgroup_name);
+  const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names,
+                                                   vertex_group_name);
   if (vgroup_index == -1) {
-    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" does not exist", vgroup_name);
+    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" does not exist", vertex_group_name);
     return;
   }
 
   const bDeformGroup *dg = static_cast<const bDeformGroup *>(
       BLI_findlink(&grease_pencil.vertex_group_names, vgroup_index));
   if (dg->flag & DG_LOCK_WEIGHT) {
-    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" is locked", vgroup_name);
+    BKE_reportf(reports, RPT_ERROR, "Vertex Group \"%s\" is locked", vertex_group_name);
     return;
   }
 
   bke::CurvesGeometry &curves = drawing_ptr->wrap().strokes_for_write();
-  const int def_nr = bke::greasepencil::ensure_vertex_group(vgroup_name,
+  const int def_nr = bke::greasepencil::ensure_vertex_group(vertex_group_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
   const int dverts_size = dverts.size();
 
   for (int i = 0; i < indices_num; i++) {
-    const int dvert_index = indices_ptr[i];
-    const float weight = weights_ptr[i];
+    const int dvert_index = indices[i];
+    const float weight = weights[i];
 
     if (dvert_index >= dverts_size) {
       BKE_reportf(reports, RPT_ERROR, "Index \"%d\" is out of range for curves", dvert_index);
@@ -780,14 +781,19 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
       {WEIGHT_SUBTRACT, "SUBTRACT", 0, "Subtract", "Subtract"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  func = RNA_def_function(srna, "add_vertex_weight", "rna_GreasePencilDrawing_add_vertex_weight");
-  RNA_def_function_ui_description(func, "Set the weights of vertices in a grease pencil object");
+  func = RNA_def_function(
+      srna, "set_vertex_weights", "rna_GreasePencilDrawing_set_vertex_weights");
+  RNA_def_function_ui_description(func, "Set the weights of vertices in a grease pencil drawing");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_REPORTS);
-  parm = RNA_def_string(
-      func, "vgroup_name", "Group", MAX_NAME, "Vertex Group Name", "Name of the vertex group");
+  parm = RNA_def_string(func,
+                        "vertex_group_name",
+                        "Group",
+                        MAX_NAME,
+                        "Vertex Group Name",
+                        "Name of the vertex group");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int_array(func,
-                           "indices_ptr",
+                           "indices",
                            1,
                            nullptr,
                            0,
@@ -798,7 +804,7 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                            0);
   RNA_def_parameter_flags(parm, PROP_DYNAMIC, PARM_REQUIRED);
   parm = RNA_def_float_array(func,
-                             "weights_ptr",
+                             "weights",
                              1,
                              nullptr,
                              0.0f,
