@@ -8,15 +8,34 @@
 
 #include "node_shader_util.hh"
 
+#include "RNA_access.hh"
+
 #include "FN_multi_function_builder.hh"
 
+#include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_multi_function.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "RNA_prototypes.hh"
 
 namespace blender::nodes::node_shader_value_cc {
 
 static void sh_node_value_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Value");
+  b.add_output<decl::Float>("Value").custom_draw([](const bContext & /*C*/,
+                                                    uiLayout &layout,
+                                                    bNodeTree &tree,
+                                                    bNode &node,
+                                                    bNodeSocket &socket) {
+    PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
+    uiLayout &row = layout.row(true);
+    row.prop(&socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+    if (gizmos::value_node_has_gizmo(tree, node)) {
+      row.prop(&socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
+    }
+  });
 }
 
 static int gpu_shader_value(GPUMaterial *mat,

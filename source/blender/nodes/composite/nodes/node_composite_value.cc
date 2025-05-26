@@ -10,13 +10,29 @@
 
 #include "node_composite_util.hh"
 
+#include "RNA_access.hh"
+
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
+#include "RNA_prototypes.hh"
+
 /* **************** VALUE ******************** */
 
 namespace blender::nodes::node_composite_value_cc {
 
 static void cmp_node_value_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Value").default_value(0.5f);
+  b.add_output<decl::Float>("Value").default_value(0.5f).custom_draw([](const bContext & /*C*/,
+                                                                        uiLayout &layout,
+                                                                        bNodeTree &tree,
+                                                                        bNode & /*node*/,
+                                                                        bNodeSocket &socket) {
+    PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
+    uiLayout &row = layout.row(true);
+    row.prop(&socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+  });
+  ;
 }
 
 using namespace blender::compositor;

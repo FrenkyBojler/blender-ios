@@ -135,4 +135,6 @@ void apply_gizmo_change(bContext &C,
                         const bNodeSocket &gizmo_socket,
                         FunctionRef<void(bke::SocketValueVariant &value)> apply_on_gizmo_value_fn);
 
+bool value_node_has_gizmo(const bNodeTree &tree, const bNode &node);
+
 }  // namespace blender::nodes::gizmos

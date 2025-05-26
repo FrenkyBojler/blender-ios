@@ -89,17 +89,6 @@ static void node_socket_button_label(bContext * /*C*/,
 
 /* ****************** BUTTON CALLBACKS FOR ALL TREES ***************** */
 
-static void node_buts_value(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  uiLayout *row = &layout->row(true);
-  row->prop(&sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
-}
-
 static void node_buts_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
@@ -462,9 +451,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_CURVE_FLOAT:
       ntype->draw_buttons = node_buts_curvefloat;
       break;
-    case SH_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
-      break;
     case SH_NODE_RGB:
       ntype->draw_buttons = node_buts_rgb;
       break;
@@ -662,9 +648,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
-      break;
-    case CMP_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
       break;
     case CMP_NODE_RGB:
       ntype->draw_buttons = node_buts_rgb;
@@ -1182,6 +1165,14 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
+  const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
+  if (socket_decl) {
+    if (socket_decl->custom_draw_fn) {
+      (*socket_decl->custom_draw_fn)(*C, *layout, *tree, *node, *sock);
+      return;
+    }
+  }
+
   if (sock->is_inactive()) {
     uiLayoutSetActive(layout, false);
   }
@@ -1349,10 +1340,8 @@ static void std_node_socket_draw(
           row->label(IFACE_("No Items"), ICON_NONE);
         }
         else {
-          if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
-                  sock->runtime->declaration))
-          {
-            if (socket_decl->is_expanded) {
+          if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(socket_decl)) {
+            if (menu_decl->is_expanded) {
               layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
               break;
             }
