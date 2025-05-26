@@ -178,7 +178,10 @@ class ShapeKeyItem : public AbstractTreeViewItem {
   {
     PointerRNA object_ptr = RNA_pointer_create_discrete(
         &shape_key_.object->id, &RNA_Object, shape_key_.object);
-    RNA_int_set(&object_ptr, "active_shape_key_index", shape_key_.index);
+    PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
+    RNA_property_int_set(&object_ptr, prop, shape_key_.index);
+    RNA_property_update(&C, &object_ptr, prop);
+
     ED_undo_push(&C, "Set Active Shape Key");
   }
 
