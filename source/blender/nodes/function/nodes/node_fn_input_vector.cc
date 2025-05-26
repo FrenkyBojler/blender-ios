@@ -21,9 +21,10 @@ static void node_declare(NodeDeclarationBuilder &b)
                                                       bNodeTree &tree,
                                                       bNode &node,
                                                       bNodeSocket &socket) {
+    PointerRNA node_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_Node, &node);
     PointerRNA socket_ptr = RNA_pointer_create_discrete(&tree.id, &RNA_NodeSocket, &socket);
     uiLayout &row = layout.row(true);
-    row.column(true).prop(&socket_ptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+    row.column(true).prop(&node_ptr, "vector", UI_ITEM_NONE, "", ICON_NONE);
     if (gizmos::value_node_has_gizmo(tree, node)) {
       row.prop(&socket_ptr, "pin_gizmo", UI_ITEM_NONE, "", ICON_GIZMO);
     }
