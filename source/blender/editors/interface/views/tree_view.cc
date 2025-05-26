@@ -1017,8 +1017,7 @@ void BasicTreeViewItem::build_row(uiLayout &row)
 void BasicTreeViewItem::add_label(uiLayout &layout, StringRefNull label_override)
 {
   const StringRefNull label = label_override.is_empty() ? StringRefNull(label_) : label_override;
-  uiBut *but = uiItemL_ex(&layout, IFACE_(label.c_str()), icon, false, false);
-  UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
+  layout.label(IFACE_(label), icon);
 }
 
 void BasicTreeViewItem::on_activate(bContext &C)

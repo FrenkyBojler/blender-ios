@@ -220,8 +220,6 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     uiLayout *sub = &row.row(true);
 
     uiBut *name_label = uiItemL_ex(sub, bone_collection_.name, ICON_NONE, false, false);
-    UI_but_flag_enable(name_label, UI_BUT_LIST_ITEM);
-
     if (!ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_)) {
       UI_but_flag_enable(name_label, UI_BUT_INACTIVE);
     }
