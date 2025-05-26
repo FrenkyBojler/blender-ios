@@ -26,7 +26,9 @@
 #include "WM_types.hh"
 #include <fmt/format.h>
 
-namespace blender::ui::shapekey {
+namespace blender::ed::object::shapekey {
+
+  using namespace blender::ui;
 
 class ShapeKeyTreeView : public AbstractTreeView {
  protected:
@@ -246,10 +248,10 @@ void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
   blender::ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "Shape Key Tree View",
-      std::make_unique<blender::ui::shapekey::ShapeKeyTreeView>(*ob));
+      std::make_unique<blender::ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(3);
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
-}  // namespace blender::ui::shapekey
+}  // blender::ed::object::shapekey

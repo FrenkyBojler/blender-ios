@@ -2659,7 +2659,7 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr);
 
 void uiTemplateCollectionExporters(uiLayout *layout, bContext *C);
 
-namespace blender::ui::shapekey {
+namespace blender::ed::object::shapekey {
 void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C);
 }
 /**

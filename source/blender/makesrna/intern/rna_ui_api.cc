@@ -2460,7 +2460,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(
-      srna, "template_shape_key_tree", "blender::ui::shapekey::uiTemplateShapeKeyTree");
+      srna, "template_shape_key_tree", "blender::ed::object::shapekey::uiTemplateShapeKeyTree");
   RNA_def_function_ui_description(func, "Shape Key tree view");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }
