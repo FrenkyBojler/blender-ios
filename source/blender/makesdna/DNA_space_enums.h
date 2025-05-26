@@ -1022,7 +1022,7 @@ typedef enum eSpreadsheetColumnValueType {
 typedef enum eSpreadsheetColumnFlag {
   /**
    * There is no data for this column currently, so it's not displayed. However, it is still kept
-   * around so that the column remembers it's position and width when the data becomes available
+   * around so that the column remembers its position and width when the data becomes available
    * again.
    */
   SPREADSHEET_COLUMN_FLAG_UNAVAILABLE = (1 << 0),
