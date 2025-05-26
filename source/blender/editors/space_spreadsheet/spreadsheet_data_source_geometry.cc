@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute.hh"
-#include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
@@ -20,23 +20,18 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node_socket_value.hh"
 #include "BKE_object_types.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 
-#include "DNA_ID.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_curves.hh"
 #include "ED_outliner.hh"
-#include "ED_spreadsheet.hh"
 
-#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_log.hh"
 
 #include "BLT_translation.hh"
@@ -53,44 +48,52 @@
 
 using blender::nodes::geo_eval_log::ViewerNodeLog;
 
+uint64_t SpreadsheetInstanceID::hash() const
+{
+  return blender::get_default_hash(this->reference_index);
+}
+
+bool operator==(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
+{
+  return a.reference_index == b.reference_index;
+}
+
+bool operator!=(const SpreadsheetInstanceID &a, const SpreadsheetInstanceID &b)
+{
+  return !(a == b);
+}
+
 namespace blender::ed::spreadsheet {
-
-void ExtraColumns::foreach_default_column_ids(
-    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
-{
-  for (const auto item : columns_.items()) {
-    SpreadsheetColumnID column_id;
-    column_id.name = (char *)item.key.c_str();
-    fn(column_id, true);
-  }
-}
-
-std::unique_ptr<ColumnValues> ExtraColumns::get_column_values(
-    const SpreadsheetColumnID &column_id) const
-{
-  const GSpan *values = columns_.lookup_ptr(column_id.name);
-  if (values == nullptr) {
-    return {};
-  }
-  return std::make_unique<ColumnValues>(column_id.name, GVArray::ForSpan(*values));
-}
 
 static void add_mesh_debug_column_names(
     const Mesh &mesh,
     const bke::AttrDomain domain,
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn)
 {
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  auto add_attribute = [&](const StringRefNull name) {
+    if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name))
+    {
+      if (meta_data->domain == domain) {
+        fn({(char *)name.c_str()}, false);
+      }
+    }
+  };
+
   switch (domain) {
     case bke::AttrDomain::Point:
       if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
+      add_attribute(".sculpt_mask");
+      add_attribute(".hide_vert");
       break;
     case bke::AttrDomain::Edge:
       if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
       fn({(char *)"Vertices"}, false);
+      add_attribute(".hide_edge");
       break;
     case bke::AttrDomain::Face:
       if (CustomData_has_layer(&mesh.face_data, CD_ORIGINDEX)) {
@@ -98,6 +101,8 @@ static void add_mesh_debug_column_names(
       }
       fn({(char *)"Corner Start"}, false);
       fn({(char *)"Corner Size"}, false);
+      add_attribute(".sculpt_face_set");
+      add_attribute(".hide_poly");
       break;
     case bke::AttrDomain::Corner:
       fn({(char *)"Vertex"}, false);
@@ -195,8 +200,6 @@ void GeometryDataSource::foreach_default_column_ids(
     fn({(char *)"Name"}, false);
   }
 
-  extra_columns_.foreach_default_column_ids(fn);
-
   attributes->foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != domain_) {
       return;
@@ -244,11 +247,6 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
   }
 
   std::lock_guard lock{mutex_};
-
-  std::unique_ptr<ColumnValues> extra_column_values = extra_columns_.get_column_values(column_id);
-  if (extra_column_values) {
-    return extra_column_values;
-  }
 
   if (component_->type() == bke::GeometryComponent::Type::Instance) {
     if (const bke::Instances *instances =
@@ -522,7 +520,7 @@ IndexMask GeometryDataSource::apply_selection_filter(IndexMaskMemory &memory) co
       BLI_assert(object_orig_->type == OB_POINTCLOUD);
       const bke::AttributeAccessor attributes = *component_->attributes();
       const VArray<bool> selection = *attributes.lookup_or_default(
-          ".selection", bke::AttrDomain::Point, false);
+          ".selection", bke::AttrDomain::Point, true);
       return IndexMask::from_bools(selection, memory);
     }
     default:
@@ -646,13 +644,13 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
                                                       Object *object_eval)
 {
   bke::GeometrySet geometry_set;
-  if (sspreadsheet->object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
-    const Object *object_orig = DEG_get_original_object(object_eval);
+  if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_ORIGINAL) {
+    const Object *object_orig = DEG_get_original(object_eval);
     if (object_orig->type == OB_MESH) {
       const Mesh *mesh = static_cast<const Mesh *>(object_orig->data);
       if (object_orig->mode == OB_MODE_EDIT) {
         if (const BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-          Mesh *new_mesh = (Mesh *)BKE_id_new_nomain(ID_ME, nullptr);
+          Mesh *new_mesh = BKE_id_new_nomain<Mesh>(nullptr);
           /* This is a potentially heavy operation to do on every redraw. The best solution here is
            * to display the data directly from the bmesh without a conversion, which can be
            * implemented a bit later. */
@@ -681,22 +679,13 @@ bke::GeometrySet spreadsheet_get_display_geometry_set(const SpaceSpreadsheet *ss
     }
   }
   else {
-    if (BLI_listbase_is_single(&sspreadsheet->viewer_path.path)) {
-      if (const bke::GeometrySet *geometry_eval = object_eval->runtime->geometry_set_eval) {
-        geometry_set = *geometry_eval;
-      }
-
-      if (object_eval->mode == OB_MODE_EDIT && object_eval->type == OB_MESH) {
-        if (Mesh *mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(object_eval)) {
-          BKE_mesh_wrapper_ensure_mdata(mesh);
-          geometry_set.replace_mesh(mesh, bke::GeometryOwnershipType::ReadOnly);
-        }
-      }
+    if (BLI_listbase_is_single(&sspreadsheet->geometry_id.viewer_path.path)) {
+      geometry_set = bke::object_get_evaluated_geometry_set(*object_eval);
     }
     else {
       if (const ViewerNodeLog *viewer_log =
-              nodes::geo_eval_log::GeoModifierLog::find_viewer_node_log_for_path(
-                  sspreadsheet->viewer_path))
+              nodes::geo_eval_log::GeoNodesLog::find_viewer_node_log_for_path(
+                  sspreadsheet->geometry_id.viewer_path))
       {
         geometry_set = viewer_log->geometry;
       }
@@ -735,11 +724,13 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   const bke::GeometrySet root_geometry_set = spreadsheet_get_display_geometry_set(sspreadsheet,
                                                                                   object_eval);
   const bke::GeometrySet geometry_set = get_geometry_set_for_instance_ids(
-      root_geometry_set, Span{sspreadsheet->instance_ids, sspreadsheet->instance_ids_num});
+      root_geometry_set,
+      Span{sspreadsheet->geometry_id.instance_ids, sspreadsheet->geometry_id.instance_ids_num});
 
-  const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->attribute_domain;
-  const auto component_type = bke::GeometryComponent::Type(sspreadsheet->geometry_component_type);
-  const int active_layer_index = sspreadsheet->active_layer_index;
+  const bke::AttrDomain domain = (bke::AttrDomain)sspreadsheet->geometry_id.attribute_domain;
+  const auto component_type = bke::GeometryComponent::Type(
+      sspreadsheet->geometry_id.geometry_component_type);
+  const int layer_index = sspreadsheet->geometry_id.layer_index;
   if (!geometry_set.has(component_type)) {
     return {};
   }
@@ -747,11 +738,11 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   if (component_type == bke::GeometryComponent::Type::Volume) {
     return std::make_unique<VolumeDataSource>(std::move(geometry_set));
   }
-  Object *object_orig = sspreadsheet->instance_ids_num == 0 ?
-                            DEG_get_original_object(object_eval) :
+  Object *object_orig = sspreadsheet->geometry_id.instance_ids_num == 0 ?
+                            DEG_get_original(object_eval) :
                             nullptr;
   return std::make_unique<GeometryDataSource>(
-      object_orig, std::move(geometry_set), component_type, domain, active_layer_index);
+      object_orig, std::move(geometry_set), component_type, domain, layer_index);
 }
 
 }  // namespace blender::ed::spreadsheet

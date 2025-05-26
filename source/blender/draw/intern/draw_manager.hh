@@ -14,17 +14,16 @@
  * \note It is currently work in progress and should replace the old global draw manager.
  */
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_sys_types.h"
 
 #include "GPU_material.hh"
 
 #include "draw_resource.hh"
-#include "draw_sculpt.hh"
 #include "draw_view.hh"
 
 #include <atomic>
-#include <string>
 
 namespace blender::draw {
 
@@ -85,11 +84,6 @@ class Manager {
    * This is because attribute list is arbitrary.
    */
   ObjectAttributeBuf attributes_buf;
-  /**
-   * TODO(@fclem): Remove once we get rid of old EEVEE code-base.
-   * Only here to satisfy bindings.
-   */
-  ObjectAttributeLegacyBuf attributes_buf_legacy;
 
   /**
    * Table of all View Layer attributes required by shaders, used to populate the buffer below.
@@ -253,6 +247,13 @@ class Manager {
   void generate_commands(PassSimple &pass);
 
   /**
+   * Make sure the shader specialization constants are already compiled.
+   * This avoid stalling the real submission call because of specialization.
+   */
+  void warm_shader_specialization(PassMain &pass);
+  void warm_shader_specialization(PassSimple &pass);
+
+  /**
    * Submit a pass for drawing. All resource reference will be dereferenced and commands will be
    * sent to GPU. Visibility and command generation **must** have already been done explicitly
    * using `compute_visibility` and `generate_commands`.
@@ -300,7 +301,7 @@ class Manager {
   }
 
   /** TODO(fclem): The following should become private at some point. */
-  void begin_sync();
+  void begin_sync(Object *object_active = nullptr);
   void end_sync();
 
   void debug_bind();
@@ -465,4 +466,3 @@ inline void Manager::register_layer_attributes(GPUMaterial *material)
 /* TODO(@fclem): This is for testing. The manager should be passed to the engine through the
  * callbacks. */
 blender::draw::Manager *DRW_manager_get();
-blender::draw::ObjectRef DRW_object_ref_get(Object *object);

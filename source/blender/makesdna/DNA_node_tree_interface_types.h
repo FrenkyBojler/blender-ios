@@ -65,8 +65,12 @@ typedef enum NodeTreeInterfaceSocketFlag {
   NODE_INTERFACE_SOCKET_LAYER_SELECTION = 1 << 6,
   /* INSPECT is used by Connect to Output operator to ensure socket that exits from node group. */
   NODE_INTERFACE_SOCKET_INSPECT = 1 << 7,
+  /* Socket is used in the panel header as a toggle. */
+  NODE_INTERFACE_SOCKET_PANEL_TOGGLE = 1 << 8,
+  /* Menu socket should be drawn expanded instead of as drop-down menu. */
+  NODE_INTERFACE_SOCKET_MENU_EXPANDED = 1 << 9,
 } NodeTreeInterfaceSocketFlag;
-ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_INSPECT);
+ENUM_OPERATORS(NodeTreeInterfaceSocketFlag, NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
 
 typedef struct bNodeTreeInterfaceSocket {
   bNodeTreeInterfaceItem item;
@@ -81,7 +85,7 @@ typedef struct bNodeTreeInterfaceSocket {
 
   /* AttrDomain */
   int16_t attribute_domain;
-  /** GeometryNodeDefaultInputType. */
+  /** NodeDefaultInputType. */
   int16_t default_input;
   char *default_attribute_name;
 
@@ -90,7 +94,7 @@ typedef struct bNodeTreeInterfaceSocket {
   /* Socket default value and associated data, e.g. bNodeSocketValueFloat. */
   void *socket_data;
 
-  IDProperty *properties;
+  struct IDProperty *properties;
 
 #ifdef __cplusplus
   bNodeSocketTypeHandle *socket_typeinfo() const;
@@ -100,7 +104,7 @@ typedef struct bNodeTreeInterfaceSocket {
    * Set the \a socket_type and replace the \a socket_data.
    * \param new_socket_type: Socket type idname, e.g. "NodeSocketFloat"
    */
-  bool set_socket_type(const char *new_socket_type);
+  bool set_socket_type(blender::StringRef new_socket_type);
 
   /**
    * Use an existing socket to define an interface socket.
@@ -121,17 +125,16 @@ typedef enum NodeTreeInterfacePanelFlag {
 } NodeTreeInterfacePanelFlag;
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag, NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
 
-/** Use the same default for different node systems. */
-#define NODE_INPUT_DEFAULT_VALUE 0
-
-typedef enum GeometryNodeDefaultInputType {
-  GEO_NODE_DEFAULT_INPUT_VALUE = NODE_INPUT_DEFAULT_VALUE,
-  GEO_NODE_DEFAULT_FIELD_INPUT_INDEX_FIELD = 1,
-  GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD = 2,
-  GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD = 3,
-  GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD = 4,
-  GEO_NODE_DEFAULT_FIELD_INPUT_INSTANCE_TRANSFORM_FIELD = 5,
-} GeometryNodeDefaultInputType;
+typedef enum NodeDefaultInputType {
+  NODE_DEFAULT_INPUT_VALUE = 0,
+  NODE_DEFAULT_INPUT_INDEX_FIELD = 1,
+  NODE_DEFAULT_INPUT_ID_INDEX_FIELD = 2,
+  NODE_DEFAULT_INPUT_NORMAL_FIELD = 3,
+  NODE_DEFAULT_INPUT_POSITION_FIELD = 4,
+  NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD = 5,
+  NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD = 6,
+  NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD = 7,
+} NodeDefaultInputType;
 
 typedef struct bNodeTreeInterfacePanel {
   bNodeTreeInterfaceItem item;
@@ -221,6 +224,10 @@ typedef struct bNodeTreeInterfacePanel {
   /** Same as above but for a const interface. */
   void foreach_item(blender::FunctionRef<bool(const bNodeTreeInterfaceItem &item)> fn,
                     bool include_self = false) const;
+
+  /** Get the socket that is part of the panel header if available. */
+  const bNodeTreeInterfaceSocket *header_toggle_socket() const;
+  bNodeTreeInterfaceSocket *header_toggle_socket();
 
  private:
   /** Find a valid position for inserting in the items span. */

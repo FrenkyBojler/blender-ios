@@ -3,25 +3,21 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  .
+  PUBLIC .
   dummy
   intern
   metal
   opengl
   vulkan
-  ../blenkernel
-  ../bmesh
-  ../draw
-  ../imbuf
   ../makesrna
 
   # For theme color access.
   ../editors/include
 
   # For `*_info.hh` includes.
-  ../compositor/realtime_compositor/shaders/infos
-  ../draw/engines/eevee_next
-  ../draw/engines/eevee_next/shaders/infos
+  ../compositor/shaders/infos
+  ../draw/engines/eevee
+  ../draw/engines/eevee/shaders/infos
   ../draw/engines/gpencil
   ../draw/engines/gpencil/shaders/infos
   ../draw/engines/image/shaders/infos
@@ -35,8 +31,6 @@ set(INC
   metal/kernels
   shaders/infos
 
-  # For node muting stuff.
-  ../nodes
 
   # For shader includes
   shaders/common
@@ -44,6 +38,7 @@ set(INC
 
   ../../../intern/ghost
   ../../../intern/mantaflow/extern
+  ../../../intern/opensubdiv
 )
 
 if(WITH_BUILDINFO)
@@ -82,6 +77,7 @@ set(SRC
   intern/gpu_material.cc
   intern/gpu_matrix.cc
   intern/gpu_node_graph.cc
+  intern/gpu_pass.cc
   intern/gpu_platform.cc
   intern/gpu_query.cc
   intern/gpu_select.cc
@@ -97,11 +93,15 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
+  intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
+  intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
+  intern/gpu_worker.cc
 
+  GPU_attribute_convert.hh
   GPU_batch.hh
   GPU_batch_presets.hh
   GPU_batch_utils.hh
@@ -119,6 +119,7 @@ set(SRC
   GPU_init_exit.hh
   GPU_material.hh
   GPU_matrix.hh
+  GPU_pass.hh
   GPU_platform.hh
   GPU_platform_backend_enum.h
   GPU_primitive.hh
@@ -129,10 +130,12 @@ set(SRC
   GPU_state.hh
   GPU_storage_buffer.hh
   GPU_texture.hh
+  GPU_texture_pool.hh
   GPU_uniform_buffer.hh
   GPU_vertex_buffer.hh
   GPU_vertex_format.hh
   GPU_viewport.hh
+  GPU_worker.hh
 
   intern/gpu_backend.hh
   intern/gpu_capabilities_private.hh
@@ -146,9 +149,11 @@ set(SRC
   intern/gpu_node_graph.hh
   intern/gpu_platform_private.hh
   intern/gpu_private.hh
+  intern/gpu_profile_report.hh
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_list.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
@@ -222,6 +227,7 @@ set(VULKAN_SRC
   vulkan/vk_descriptor_set.cc
   vulkan/vk_descriptor_set_layouts.cc
   vulkan/vk_device.cc
+  vulkan/vk_device_submission.cc
   vulkan/vk_fence.cc
   vulkan/vk_framebuffer.cc
   vulkan/vk_image_view.cc
@@ -275,6 +281,7 @@ set(VULKAN_SRC
   vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
+  vulkan/vk_memory.hh
   vulkan/vk_memory_layout.hh
   vulkan/vk_pipeline_pool.hh
   vulkan/vk_pixel_buffer.hh
@@ -372,7 +379,7 @@ set(METAL_SRC
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh
   metal/mtl_shader_log.hh
-  metal/mtl_shader_shared.h
+  metal/mtl_shader_shared.hh
   metal/mtl_state.hh
   metal/mtl_storage_buffer.hh
   metal/mtl_texture.hh
@@ -381,12 +388,18 @@ set(METAL_SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::bmesh
   PRIVATE bf::dna
+  PRIVATE bf::draw
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 # Select Backend source based on availability
@@ -437,24 +450,11 @@ if(WITH_VULKAN_BACKEND)
     ${VULKAN_LIBRARIES}
     ${SHADERC_LIBRARIES}
     extern_vulkan_memory_allocator
+    PRIVATE bf::extern::xxhash
   )
 
   add_definitions(-DWITH_VULKAN_BACKEND)
 endif()
-
-set(MSL_SRC
-  shaders/metal/mtl_shader_defines.msl
-  shaders/metal/mtl_shader_common.msl
-
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
-  metal/kernels/depth_2d_update_float_frag.glsl
-  metal/kernels/depth_2d_update_int24_frag.glsl
-  metal/kernels/depth_2d_update_int32_frag.glsl
-  metal/kernels/depth_2d_update_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_vert.glsl
-  metal/kernels/gpu_shader_fullscreen_blit_frag.glsl
-)
 
 set(GLSL_SRC
   GPU_shader_shared.hh
@@ -531,6 +531,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_math_utils.glsl
   shaders/common/gpu_shader_common_mix_rgb.glsl
   shaders/common/gpu_shader_debug_gradients_lib.glsl
+  shaders/common/gpu_shader_fullscreen_vert.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
   shaders/common/gpu_shader_math_base_lib.glsl
   shaders/common/gpu_shader_math_fast_lib.glsl
@@ -631,6 +632,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_volume_absorption.glsl
   shaders/material/gpu_shader_material_volume_principled.glsl
   shaders/material/gpu_shader_material_volume_scatter.glsl
+  shaders/material/gpu_shader_material_volume_coefficients.glsl
   shaders/material/gpu_shader_material_voronoi.glsl
   shaders/material/gpu_shader_material_wireframe.glsl
   shaders/material/gpu_shader_material_world_normals.glsl
@@ -667,8 +669,6 @@ set(GLSL_SRC_TEST
 )
 
 set(MTL_BACKEND_GLSL_SRC
-  metal/kernels/compute_texture_update.msl
-  metal/kernels/compute_texture_read.msl
   metal/kernels/depth_2d_update_float_frag.glsl
   metal/kernels/depth_2d_update_int24_frag.glsl
   metal/kernels/depth_2d_update_int32_frag.glsl
@@ -678,13 +678,17 @@ set(MTL_BACKEND_GLSL_SRC
 )
 
 set(MSL_SRC
+  metal/mtl_shader_shared.hh
+
+  metal/kernels/compute_texture_update.msl
+  metal/kernels/compute_texture_read.msl
+
   shaders/metal/mtl_shader_defines.msl
   shaders/metal/mtl_shader_common.msl
-  metal/mtl_shader_shared.h
 )
 
 if(WITH_GTESTS)
-  if(WITH_GPU_DRAW_TESTS)
+  if(WITH_GPU_BACKEND_TESTS)
     list(APPEND GLSL_SRC ${GLSL_SRC_TEST})
   endif()
 endif()
@@ -710,52 +714,60 @@ if(WITH_METAL_BACKEND)
 endif()
 
 blender_add_lib(bf_gpu_shaders "${SHADER_C}" "" "" "")
+blender_set_target_unity_build(bf_gpu_shaders 10)
 
 list(APPEND LIB
   bf_gpu_shaders
 )
 
 set(GLSL_SOURCE_CONTENT "")
+set(GLSL_METADATA_CONTENT "")
 foreach(GLSL_FILE ${GLSL_SRC})
   get_filename_component(GLSL_FILE_NAME ${GLSL_FILE} NAME)
   string(REPLACE "." "_" GLSL_FILE_NAME_UNDERSCORES ${GLSL_FILE_NAME})
-  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(datatoc_${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_SOURCE_CONTENT "SHADER_SOURCE\(${GLSL_FILE_NAME_UNDERSCORES}, \"${GLSL_FILE_NAME}\", \"${GLSL_FILE}\"\)\n")
+  string(APPEND GLSL_METADATA_CONTENT "#include \"${GLSL_FILE}.hh\"\n")
 endforeach()
 
 set(glsl_source_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_source_list.h")
 file(GENERATE OUTPUT ${glsl_source_list_file} CONTENT "${GLSL_SOURCE_CONTENT}")
 list(APPEND SRC ${glsl_source_list_file})
+set(glsl_metadata_list_file "${CMAKE_CURRENT_BINARY_DIR}/glsl_gpu_metadata_list.hh")
+file(GENERATE OUTPUT ${glsl_metadata_list_file} CONTENT "${GLSL_METADATA_CONTENT}")
+list(APPEND SRC ${glsl_metadata_list_file})
 list(APPEND INC ${CMAKE_CURRENT_BINARY_DIR})
 
 if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
+if(WITH_OPENSUBDIV)
+  add_definitions(-DWITH_OPENSUBDIV)
 endif()
 
-if(WITH_GPU_DRAW_TESTS)
-  add_definitions(-DWITH_GPU_DRAW_TESTS)
+if(WITH_GPU_BACKEND_TESTS)
+  add_definitions(-DWITH_GPU_BACKEND_TESTS)
 endif()
 
-if(WITH_GTEST)
-  add_definitions(-DWITH_GTEST)
+if(WITH_GTESTS)
+  add_definitions(-DWITH_GTESTS)
 endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::gpu ALIAS bf_gpu)
 target_link_libraries(bf_gpu PUBLIC
   bf_compositor_shaders
   bf_draw_shaders
   bf_gpu_shaders
+  bf_imbuf_opencolorio_shaders
 )
 
 if(WITH_OPENGL_BACKEND AND UNIX)
-target_link_libraries(bf_gpu PUBLIC rt)
+  target_link_libraries(bf_gpu PUBLIC rt)
 endif()
 
-if(WITH_OPENCOLORIO)
-  target_link_libraries(bf_gpu PUBLIC bf_ocio_shaders)
+if(WITH_OPENSUBDIV)
+  target_link_libraries(bf_gpu PUBLIC bf_osd_shaders)
 endif()
 
 if(WITH_RENDERDOC)
@@ -777,7 +789,7 @@ if(WITH_GTESTS)
     bf_windowmanager
   )
 
-  if(WITH_GPU_DRAW_TESTS)
+  if(WITH_GPU_BACKEND_TESTS)
     list(APPEND TEST_SRC
       tests/buffer_texture_test.cc
       tests/compute_test.cc
@@ -787,6 +799,7 @@ if(WITH_GTESTS)
       tests/push_constants_test.cc
       tests/shader_create_info_test.cc
       tests/shader_test.cc
+      tests/shader_preprocess_test.cc
       tests/specialization_constants_test.cc
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
@@ -810,20 +823,19 @@ if(WITH_GTESTS)
   endif()
 
   # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS)
+  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
+     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
     list(APPEND TEST_SRC
       tests/shader_create_info_test.cc
     )
   endif()
 
-  if(TEST_SRC)
-    set(TEST_COMMON_SRC
-      tests/gpu_testing.cc
-      tests/gpu_testing.hh
-    )
+  set(TEST_COMMON_SRC
+    tests/gpu_testing.cc
+    tests/gpu_testing.hh
+  )
 
-    blender_add_test_suite_lib(gpu
-      "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
-    )
-  endif()
+  blender_add_test_suite_lib(gpu
+    "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}"
+  )
 endif()

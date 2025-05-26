@@ -68,7 +68,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -178,13 +178,17 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_SDF_GRID_BOOLEAN, "SDF Grid Boolean", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSDFGridBoolean", GEO_NODE_SDF_GRID_BOOLEAN);
+  ntype.ui_name = "SDF Grid Boolean";
+  ntype.ui_description = "Cut, subtract, or join multiple SDF volume grid inputs";
+  ntype.enum_name_legacy = "SDF_GRID_BOOLEAN";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

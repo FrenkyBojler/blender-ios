@@ -2,11 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_pointcloud_types.h"
+
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
-#include "BKE_pointcloud.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
 
@@ -14,11 +17,13 @@ namespace blender::nodes::node_geo_set_position_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Vector>("Offset").subtype(PROP_TRANSLATION).field_on_all();
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
 }
 
 static const auto &get_add_fn()
@@ -135,9 +140,9 @@ static void node_geo_exec(GeoNodeExecParams params)
                         selection_field,
                         position_field);
   }
-  if (PointCloud *point_cloud = geometry.get_pointcloud_for_write()) {
-    set_points_position(point_cloud->attributes_for_write(),
-                        bke::PointCloudFieldContext(*point_cloud),
+  if (PointCloud *pointcloud = geometry.get_pointcloud_for_write()) {
+    set_points_position(pointcloud->attributes_for_write(),
+                        bke::PointCloudFieldContext(*pointcloud),
                         selection_field,
                         position_field);
   }
@@ -162,10 +167,14 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_POSITION, "Set Position", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetPosition", GEO_NODE_SET_POSITION);
+  ntype.ui_name = "Set Position";
+  ntype.ui_description = "Set the location of each point";
+  ntype.enum_name_legacy = "SET_POSITION";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

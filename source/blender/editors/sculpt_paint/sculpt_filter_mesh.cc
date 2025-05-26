@@ -18,10 +18,9 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix.h"
-#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_task.h"
 
 #include "BLT_translation.hh"
 
@@ -60,6 +59,7 @@
 
 #include "bmesh.hh"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -124,7 +124,7 @@ void zero_disabled_axis_components(const filter::Cache &filter_cache,
   }
 }
 
-Cache::~Cache() {}
+Cache::~Cache() = default;
 
 void cache_init(bContext *C,
                 Object &ob,
@@ -166,19 +166,13 @@ void cache_init(bContext *C,
 
   float3 co;
 
-  if (vc.rv3d && SCULPT_stroke_get_location(C, co, mval_fl, false)) {
+  if (vc.rv3d && stroke_get_location_bvh(C, co, mval_fl, false)) {
     /* Get radius from brush. */
     const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
     float radius;
     if (brush) {
-      if (BKE_brush_use_locked_size(scene, brush)) {
-        radius = paint_calc_object_space_radius(
-            vc, co, float(BKE_brush_size_get(scene, brush) * area_normal_radius));
-      }
-      else {
-        radius = BKE_brush_unprojected_radius_get(scene, brush) * area_normal_radius;
-      }
+      object_space_radius_get(vc, *scene, *brush, co, area_normal_radius);
     }
     else {
       radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);
@@ -353,7 +347,7 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
@@ -621,7 +615,7 @@ static void calc_scale_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -736,7 +730,7 @@ static void calc_sphere_filter(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
       const PositionDeformData position_data(depsgraph, object);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -845,7 +839,7 @@ static void calc_random_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -959,7 +953,7 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
       const OffsetIndices faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1111,7 +1105,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
       const OffsetIndices faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1273,7 +1267,7 @@ static void calc_surface_smooth_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       const OffsetIndices faces = mesh.faces();
       const Span<int> corner_verts = mesh.corner_verts();
@@ -1555,7 +1549,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
 
       const OffsetIndices faces = mesh.faces();
@@ -1719,7 +1713,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
     }
     case bke::pbvh::Type::BMesh: {
       BMesh &bm = *ss.bm;
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int node_index) {
@@ -1752,7 +1746,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
         tls.translations.resize(verts.size());
         const MutableSpan<float3> translations = tls.translations;
 
-        Vector<BMVert *, 64> neighbors;
+        BMeshNeighborVerts neighbors;
 
         int i = 0;
         for (BMVert *vert : verts) {
@@ -1807,7 +1801,7 @@ static void calc_enhance_details_filter(const Depsgraph &depsgraph,
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *static_cast<Mesh *>(object.data);
-      const MeshAttributeData attribute_data(mesh.attributes());
+      const MeshAttributeData attribute_data(mesh);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -1986,12 +1980,10 @@ static void mesh_filter_sharpen_init(const Depsgraph &depsgraph,
 
   float max_factor = 0.0f;
   for (int i = 0; i < totvert; i++) {
-    if (sharpen_factors[i] > max_factor) {
-      max_factor = sharpen_factors[i];
-    }
+    max_factor = std::max(sharpen_factors[i], max_factor);
   }
 
-  max_factor = 1.0f / max_factor;
+  max_factor = math::safe_rcp(max_factor);
   for (int i = 0; i < totvert; i++) {
     sharpen_factors[i] *= max_factor;
     sharpen_factors[i] = 1.0f - pow2f(1.0f - sharpen_factors[i]);
@@ -2014,7 +2006,7 @@ static void mesh_filter_sharpen_init(const Depsgraph &depsgraph,
         const Span<int> corner_verts = mesh.corner_verts();
         const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
         const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-        const MeshAttributeData attribute_data(mesh.attributes());
+        const MeshAttributeData attribute_data(mesh);
         node_mask.foreach_index(GrainSize(1), [&](const int i) {
           LocalData &tls = all_tls.local();
           const Span<int> verts = nodes[i].verts();
@@ -2130,9 +2122,14 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
   const float strength = RNA_float_get(op->ptr, "strength");
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
+  if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
+      ss.filter_cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.filter_cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
+  }
   switch (filter_type) {
     case MeshFilterType::Smooth:
       calc_smooth_filter(depsgraph,
@@ -2176,10 +2173,10 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   pbvh.tag_positions_changed(node_mask);
+  pbvh.update_bounds(depsgraph, ob);
 
   ss.filter_cache->iteration_count++;
 
-  bke::pbvh::update_bounds(depsgraph, ob, pbvh);
   flush_update_step(C, UpdateType::Position);
 }
 
@@ -2235,9 +2232,9 @@ static void sculpt_mesh_filter_end(bContext *C)
   flush_update_done(C, ob, UpdateType::Position);
 }
 
-static int sculpt_mesh_filter_confirm(SculptSession &ss,
-                                      wmOperator *op,
-                                      const MeshFilterType filter_type)
+static wmOperatorStatus sculpt_mesh_filter_confirm(SculptSession &ss,
+                                                   wmOperator *op,
+                                                   const MeshFilterType filter_type)
 {
   float initial_strength = ss.filter_cache->start_filter_strength;
   /* Don't update strength property if we're storing an event history. */
@@ -2261,10 +2258,10 @@ static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
 
   undo::restore_position_from_undo_step(depsgraph, ob);
   bke::pbvh::update_normals(depsgraph, ob, *pbvh);
-  bke::pbvh::update_bounds(depsgraph, ob, *pbvh);
+  pbvh->update_bounds(depsgraph, ob);
 }
 
-static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2275,7 +2272,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   sculpt_mesh_update_status_bar(C, op);
 
   if (event->type == EVT_MODAL_MAP) {
-    int ret = OPERATOR_FINISHED;
+    wmOperatorStatus ret = OPERATOR_FINISHED;
     switch (event->val) {
       case FILTER_MESH_MODAL_CANCEL:
         sculpt_mesh_filter_cancel(C, op);
@@ -2376,7 +2373,7 @@ static void sculpt_filter_specific_init(const Depsgraph &depsgraph,
 }
 
 /* Returns OPERATOR_PASS_THROUGH on success. */
-static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
@@ -2421,11 +2418,11 @@ static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   if (use_automasking) {
     /* Update the active face set manually as the paint cursor is not enabled when using the
      * Mesh Filter Tool. */
-    SculptCursorGeometryInfo sgi;
-    SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+    CursorGeometryInfo cgi;
+    cursor_geometry_info_update(C, &cgi, mval_fl, false);
   }
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   if (needs_topology_info) {
     boundary::ensure_boundary_info(ob);
   }
@@ -2442,7 +2439,7 @@ static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   sculpt_filter_specific_init(*depsgraph, filter_type, op, ob);
 
@@ -2455,10 +2452,12 @@ static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_mesh_filter_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   RNA_int_set_array(op->ptr, "start_mouse", event->mval);
-  int ret = sculpt_mesh_filter_start(C, op);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
     WM_event_add_modal_handler(C, op);
@@ -2468,9 +2467,9 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
   return ret;
 }
 
-static int sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
 {
-  int ret = sculpt_mesh_filter_start(C, op);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
     int iterations = RNA_int_get(op->ptr, "iteration_count");
@@ -2503,8 +2502,9 @@ void register_operator_props(wmOperatorType *ot)
                 "of brush radius",
                 0.01,
                 1.0);
-  RNA_def_float(
+  PropertyRNA *prop = RNA_def_float(
       ot->srna, "strength", 1.0f, -10.0f, 10.0f, "Strength", "Filter strength", -10.0f, 10.0f);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_int(ot->srna,
               "iteration_count",
               1,
@@ -2516,20 +2516,19 @@ void register_operator_props(wmOperatorType *ot)
               100);
 
   /* Smooth filter requires entire event history. */
-  PropertyRNA *prop = RNA_def_collection_runtime(
-      ot->srna, "event_history", &RNA_OperatorStrokeElement, "", "");
-  RNA_def_property_flag(prop, PropertyFlag(int(PROP_HIDDEN) | int(PROP_SKIP_SAVE)));
+  prop = RNA_def_collection_runtime(ot->srna, "event_history", &RNA_OperatorStrokeElement, "", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = uiLayoutRow(layout, true);
-  uiItemR(layout, op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout = &layout->row(true);
+  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

@@ -7,7 +7,7 @@ from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bl_ui.utils import PresetPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class CameraButtonsPanel:
@@ -137,6 +137,19 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     col.prop(cam, "angle")
                 col.prop(cam, "lens_unit")
 
+        elif cam.type == 'CUSTOM':
+            engine = context.engine
+            if engine == 'CYCLES':
+                sub = col.row()
+                sub.prop(cam, "custom_mode", text=" ", expand=True)
+
+                sub = col.row(align=True)
+                if cam.custom_mode == 'EXTERNAL':
+                    sub.prop(cam, "custom_filepath", text=" ")
+                else:
+                    sub.prop(cam, "custom_shader", text=" ")
+                sub.operator("object.camera_custom_update", icon='FILE_REFRESH', text="")
+
         col = layout.column()
         col.separator()
 
@@ -147,7 +160,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
         col.separator()
         sub = col.column(align=True)
         sub.prop(cam, "clip_start", text="Clip Start")
-        sub.prop(cam, "clip_end", text="End")
+        sub.prop(cam, "clip_end", text="End", text_ctxt=i18n_contexts.id_camera)
 
 
 class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
@@ -268,7 +281,8 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         row.operator(
             "ui.eyedropper_depth",
             icon='EYEDROPPER',
-            text="").prop_data_path = "scene.camera.data.dof.focus_distance"
+            text="",
+        ).prop_data_path = "scene.camera.data.dof.focus_distance"
 
 
 class DATA_PT_camera_dof_aperture(CameraButtonsPanel, Panel):
@@ -560,29 +574,6 @@ class DATA_PT_custom_props_camera(CameraButtonsPanel, PropertyPanel, Panel):
     }
     _context_path = "object.data"
     _property_type = bpy.types.Camera
-
-
-def draw_display_safe_settings(layout, safe_data, settings):
-    show_safe_areas = settings.show_safe_areas
-    show_safe_center = settings.show_safe_center
-
-    layout.use_property_split = True
-
-    col = layout.column()
-    col.active = show_safe_areas
-
-    sub = col.column()
-    sub.prop(safe_data, "title", slider=True)
-    sub.prop(safe_data, "action", slider=True)
-
-    col.separator()
-
-    col.prop(settings, "show_safe_center", text="Center-Cut Safe Areas")
-
-    sub = col.column()
-    sub.active = show_safe_areas and show_safe_center
-    sub.prop(safe_data, "title_center", slider=True)
-    sub.prop(safe_data, "action_center", slider=True)
 
 
 classes = (

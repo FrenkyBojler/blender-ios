@@ -7,8 +7,6 @@
  */
 
 #include "BLI_index_mask.hh"
-#include "BLI_math_rotation.hh"
-#include "BLI_string.h" /* For #STRNCPY. */
 
 #include "BLT_translation.hh"
 
@@ -25,7 +23,6 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_vertex_groups.hh"
-#include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
@@ -135,7 +132,7 @@ static void write_weights_for_drawing(const ModifierData &md,
 
   BLI_assert(!dst_weights.span.is_empty());
 
-  const VArray<float> input_weights = modifier::greasepencil::get_influence_vertex_weights(
+  const VArray<float> influence_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, mmd.influence);
 
   /* Use default Z up. */
@@ -164,6 +161,11 @@ static void write_weights_for_drawing(const ModifierData &md,
       return;
     }
     for (const int point : points.drop_front(1)) {
+      const float influence_weight = influence_weights[point];
+      if (influence_weight <= 0.0f) {
+        continue;
+      }
+
       const float3 p1 = math::transform_point(obmat3x3, positions[point]);
       const float3 p2 = math::transform_point(obmat3x3, positions[point - 1]);
       const float3 vec = p2 - p1;
@@ -177,6 +179,7 @@ static void write_weights_for_drawing(const ModifierData &md,
       dst_weights.span[point] = (mmd.flag & MOD_GREASE_PENCIL_WEIGHT_ANGLE_MULTIPLY_DATA) ?
                                     dst_weights.span[point] * weight :
                                     weight;
+      dst_weights.span[point] *= influence_weight;
       dst_weights.span[point] = math::clamp(dst_weights.span[point], mmd.min_weight, 1.0f);
     }
     /* First point has the same weight as the second one. */
@@ -226,32 +229,32 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  row = uiLayoutRow(layout, true);
+  row = &layout->row(true);
   uiItemPointerR(
       row, ptr, "target_vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_NONE);
 
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   bool has_output = RNA_string_length(ptr, "target_vertex_group") != 0;
   uiLayoutSetPropDecorate(sub, false);
   uiLayoutSetActive(sub, has_output);
-  uiItemR(sub, ptr, "use_invert_output", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
+  sub->prop(ptr, "use_invert_output", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
 
-  uiItemR(layout, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "minimum_weight", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "use_multiply", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "minimum_weight", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_multiply", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

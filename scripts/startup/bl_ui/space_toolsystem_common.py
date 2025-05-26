@@ -7,8 +7,11 @@ from bpy.types import (
     Menu,
 )
 
-from bpy.app.translations import pgettext_tip as tip_
-from bpy.app.translations import pgettext_iface as iface_
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    pgettext_tip as tip_,
+    contexts as i18n_contexts,
+)
 
 __all__ = (
     "ToolDef",
@@ -813,7 +816,11 @@ class ToolSelectPanelHelper:
         # NOTE: we could show `item.text` here but it makes the layout jitter when switching tools.
         # Add some spacing since the icon is currently assuming regular small icon size.
         if show_tool_icon_always:
-            layout.label(text="    " + iface_(item.label, "Operator"), icon_value=icon_value)
+            layout.label(
+                text="    " + iface_(item.label, i18n_contexts.operator_default),
+                icon_value=icon_value,
+                translate=False,
+            )
             layout.separator()
         else:
             if not context.space_data.show_region_toolbar:
@@ -836,9 +843,13 @@ class ToolSelectPanelHelper:
             else:
                 label = "Active Tool"
 
-            row = layout.row(heading="Drag")
+            row = layout.row(heading="Drag", heading_ctxt=i18n_contexts.editor_view3d)
             row.context_pointer_set("tool", tool)
-            row.popover(panel="TOPBAR_PT_tool_fallback", text=iface_(label, "Operator"))
+            row.popover(
+                panel="TOPBAR_PT_tool_fallback",
+                text=iface_(label, i18n_contexts.operator_default),
+                translate=False,
+            )
 
         return tool
 
@@ -1223,9 +1234,36 @@ def keymap_from_id(context, space_type, idname):
 def _keymap_from_item(context, item):
     if item.keymap is not None:
         wm = context.window_manager
-        keyconf = wm.keyconfigs.active
+        keyconf = wm.keyconfigs.user
         return keyconf.keymaps.get(item.keymap[0])
     return None
+
+
+class PlayheadSnappingPanel:
+    bl_region_type = 'HEADER'
+    bl_label = "Playhead"
+
+    @classmethod
+    def poll(cls, context):
+        del context
+        return True
+
+    def draw(self, context):
+        tool_settings = context.tool_settings
+        layout = self.layout
+        col = layout.column()
+
+        col.prop(tool_settings, "use_snap_playhead")
+        col.prop(tool_settings, "playhead_snap_distance")
+        col.separator()
+        col.label(text="Snap Target")
+        col.prop(tool_settings, "snap_playhead_element", expand=True)
+        col.separator()
+
+        if 'FRAME' in tool_settings.snap_playhead_element:
+            col.prop(tool_settings, "snap_playhead_frame_step")
+        if 'SECOND' in tool_settings.snap_playhead_element:
+            col.prop(tool_settings, "snap_playhead_second_step")
 
 
 classes = (

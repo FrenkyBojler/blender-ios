@@ -954,7 +954,7 @@ int GPU_texture_opengl_bindcode(const GPUTexture *texture)
 
 void GPU_texture_get_mipmap_size(GPUTexture *texture, int mip_level, int *r_size)
 {
-  return unwrap(texture)->mip_size_get(mip_level, r_size);
+  unwrap(texture)->mip_size_get(mip_level, r_size);
 }
 
 /** \} */
@@ -999,7 +999,7 @@ size_t GPU_pixel_buffer_size(GPUPixelBuffer *pixel_buf)
   return unwrap(pixel_buf)->get_size();
 }
 
-int64_t GPU_pixel_buffer_get_native_handle(GPUPixelBuffer *pixel_buf)
+GPUPixelBufferNativeHandle GPU_pixel_buffer_get_native_handle(GPUPixelBuffer *pixel_buf)
 {
   return unwrap(pixel_buf)->get_native_handle();
 }

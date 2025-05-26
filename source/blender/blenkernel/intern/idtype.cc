@@ -9,12 +9,8 @@
 #include <array>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
-
-#include "CLG_log.h"
 
 #include "BLT_translation.hh"
 
@@ -23,7 +19,6 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_main.hh"
 #include "BKE_node.hh"
 
 #include "BKE_idtype.hh"
@@ -135,6 +130,8 @@ const IDTypeInfo *BKE_idtype_get_info_from_idtype_index(const int idtype_index)
   if (idtype_index >= 0 && idtype_index < int(id_types.size())) {
     const IDTypeInfo *id_type = id_types[size_t(idtype_index)];
     if (id_type && id_type->name[0] != '\0') {
+      BLI_assert_msg(BKE_idtype_idcode_to_index(id_type->id_code) == idtype_index,
+                     "Critical inconsistency in ID type information");
       return id_type;
     }
   }

@@ -7,12 +7,12 @@
 
 #include "NOD_geo_repeat.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "BLO_read_write.hh"
-
-#include "BLI_string_utils.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -41,25 +41,25 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node) {
+  if (!zone->output_node_id) {
     return;
   }
-  bNode &output_node = const_cast<bNode &>(*zone->output_node);
-  PointerRNA output_node_ptr = RNA_pointer_create(
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
+  PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "repeat_items", false, TIP_("Repeat Items"))) {
+  if (uiLayout *panel = layout->panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
     socket_items::ui::draw_items_list_with_operators<RepeatItemsAccessor>(
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace repeat_input_node {
@@ -104,7 +104,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryRepeatInput *data = MEM_cnew<NodeGeometryRepeatInput>(__func__);
+  NodeGeometryRepeatInput *data = MEM_callocN<NodeGeometryRepeatInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -131,7 +131,10 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REPEAT_INPUT, "Repeat Input", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeRepeatInput", GEO_NODE_REPEAT_INPUT);
+  ntype.ui_name = "Repeat Input";
+  ntype.enum_name_legacy = "REPEAT_INPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
@@ -140,8 +143,8 @@ static void node_register()
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryRepeatInput", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -180,11 +183,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryRepeatOutput *data = MEM_cnew<NodeGeometryRepeatOutput>(__func__);
+  NodeGeometryRepeatOutput *data = MEM_callocN<NodeGeometryRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_cnew_array<NodeRepeatItem>(1, __func__);
+  data->items = MEM_calloc_arrayN<NodeRepeatItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
   data->items[0].identifier = data->next_identifier++;
@@ -202,7 +205,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeGeometryRepeatOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeGeometryRepeatOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<RepeatItemsAccessor>(*src_node, *dst_node);
@@ -219,20 +222,70 @@ static void node_operators()
   socket_items::ops::make_common_operators<RepeatItemsAccessor>();
 }
 
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  if (!RepeatItemsAccessor::supports_socket_type(eNodeSocketDatatype(other_socket.type))) {
+    return;
+  }
+  params.add_item_full_name(IFACE_("Repeat"), [](LinkSearchOpParams &params) {
+    bNode &input_node = params.add_node("GeometryNodeRepeatInput");
+    bNode &output_node = params.add_node("GeometryNodeRepeatOutput");
+    output_node.location[0] = 300;
+
+    auto &input_storage = *static_cast<NodeGeometryRepeatInput *>(input_node.storage);
+    input_storage.output_node_id = output_node.identifier;
+
+    socket_items::clear<RepeatItemsAccessor>(output_node);
+    socket_items::add_item_with_socket_type_and_name<RepeatItemsAccessor>(
+        output_node, eNodeSocketDatatype(params.socket.type), params.socket.name);
+    update_node_declaration_and_sockets(params.node_tree, input_node);
+    update_node_declaration_and_sockets(params.node_tree, output_node);
+    if (params.socket.in_out == SOCK_IN) {
+      params.connect_available_socket(output_node, params.socket.name);
+    }
+    else {
+      params.connect_available_socket(input_node, params.socket.name);
+    }
+    params.node_tree.ensure_topology_cache();
+    bke::node_add_link(params.node_tree,
+                       input_node,
+                       input_node.output_socket(1),
+                       output_node,
+                       output_node.input_socket(0));
+  });
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<RepeatItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<RepeatItemsAccessor>(&reader, node);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(&ntype, GEO_NODE_REPEAT_OUTPUT, "Repeat Output", NODE_CLASS_INTERFACE);
+  geo_node_type_base(&ntype, "GeometryNodeRepeatOutput", GEO_NODE_REPEAT_OUTPUT);
+  ntype.ui_name = "Repeat Output";
+  ntype.enum_name_legacy = "REPEAT_OUTPUT";
+  ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.labelfunc = repeat_input_node::node_label;
   ntype.insert_link = node_insert_link;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryRepeatOutput", node_free_storage, node_copy_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryRepeatOutput", node_free_storage, node_copy_storage);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
@@ -243,8 +296,6 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *RepeatItemsAccessor::item_srna = &RNA_RepeatItem;
-int RepeatItemsAccessor::node_type = GEO_NODE_REPEAT_OUTPUT;
-int RepeatItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeRepeatItem);
 
 void RepeatItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

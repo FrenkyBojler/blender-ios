@@ -81,51 +81,65 @@
 #elif !defined(GPU_SHADER_CREATE_INFO)
 /* Helps intellisense / auto-completion inside info files. */
 #  define GPU_SHADER_NAMED_INTERFACE_INFO(_interface, _inst_name) \
-    StageInterfaceInfo _interface(#_interface, _inst_name); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface, _inst_name); \
+      _interface
 #  define GPU_SHADER_INTERFACE_INFO(_interface) \
-    StageInterfaceInfo _interface(#_interface); \
-    _interface
+    static inline void autocomplete_helper_interface_##_interface() \
+    { \
+      StageInterfaceInfo _interface(#_interface); \
+      _interface
 #  define GPU_SHADER_CREATE_INFO(_info) \
-    ShaderCreateInfo _info(#_info); \
-    _info
+    static inline void autocomplete_helper_info_##_info() \
+    { \
+      ShaderCreateInfo _info(#_info); \
+      _info
 
-#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) ;
-#  define GPU_SHADER_INTERFACE_END() ;
-#  define GPU_SHADER_CREATE_END() ;
+#  define GPU_SHADER_NAMED_INTERFACE_END(_inst_name) \
+    ; \
+    }
+#  define GPU_SHADER_INTERFACE_END() \
+    ; \
+    }
+#  define GPU_SHADER_CREATE_END() \
+    ; \
+    }
 
 #endif
 
 #ifndef GLSL_CPP_STUBS
-#  define SMOOTH(type, name) .smooth(Type::type, #name)
-#  define FLAT(type, name) .flat(Type::type, #name)
-#  define NO_PERSPECTIVE(type, name) .no_perspective(Type::type, #name)
+#  define SMOOTH(type, name) .smooth(Type::type##_t, #name)
+#  define FLAT(type, name) .flat(Type::type##_t, #name)
+#  define NO_PERSPECTIVE(type, name) .no_perspective(Type::type##_t, #name)
 
 /* LOCAL_GROUP_SIZE(int size_x, int size_y = -1, int size_z = -1) */
 #  define LOCAL_GROUP_SIZE(...) .local_group_size(__VA_ARGS__)
 
-#  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type, #name)
+#  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type##_t, #name)
 #  define VERTEX_OUT(stage_interface) .vertex_out(stage_interface)
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...) .geometry_layout(__VA_ARGS__)
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
 
-#  define SUBPASS_IN(slot, type, name, rog) .subpass_in(slot, Type::type, #name, rog)
+#  define SUBPASS_IN(slot, type, img_type, name, rog) \
+    .subpass_in(slot, Type::type##_t, ImageType::img_type, #name, rog)
 
-#  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type, #name)
+#  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type##_t, #name)
 #  define FRAGMENT_OUT_DUAL(slot, type, name, blend) \
-    .fragment_out(slot, Type::type, #name, DualBlend::blend)
+    .fragment_out(slot, Type::type##_t, #name, DualBlend::blend)
 #  define FRAGMENT_OUT_ROG(slot, type, name, rog) \
-    .fragment_out(slot, Type::type, #name, DualBlend::NONE, rog)
+    .fragment_out(slot, Type::type##_t, #name, DualBlend::NONE, rog)
 
 #  define EARLY_FRAGMENT_TEST(enable) .early_fragment_test(enable)
 #  define DEPTH_WRITE(value) .depth_write(value)
 
 #  define SPECIALIZATION_CONSTANT(type, name, default_value) \
-    .specialization_constant(Type::type, #name, default_value)
+    .specialization_constant(Type::type##_t, #name, default_value)
 
-#  define PUSH_CONSTANT(type, name) .push_constant(Type::type, #name)
-#  define PUSH_CONSTANT_ARRAY(type, name, array_size) .push_constant(Type::type, #name, array_size)
+#  define PUSH_CONSTANT(type, name) .push_constant(Type::type##_t, #name)
+#  define PUSH_CONSTANT_ARRAY(type, name, array_size) \
+    .push_constant(Type::type##_t, #name, array_size)
 
 #  define UNIFORM_BUF(slot, type_name, name) .uniform_buf(slot, #type_name, #name)
 #  define UNIFORM_BUF_FREQ(slot, type_name, name, freq) \
@@ -141,14 +155,13 @@
     .sampler(slot, ImageType::type, #name, Frequency::freq)
 
 #  define IMAGE(slot, format, qualifiers, type, name) \
-    .image(slot, format, Qualifier::qualifiers, ImageType::type, #name)
+    .image(slot, format, Qualifier::qualifiers, ImageReadWriteType::type, #name)
 #  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) \
-    .image(slot, format, Qualifier::qualifiers, ImageType::type, #name, Frequency::freq)
+    .image(slot, format, Qualifier::qualifiers, ImageReadWriteType::type, #name, Frequency::freq)
 
 #  define BUILTINS(builtin) .builtins(builtin)
 
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
-#  define GEOMETRY_SOURCE(filename) .geometry_source(filename)
 #  define FRAGMENT_SOURCE(filename) .fragment_source(filename)
 #  define COMPUTE_SOURCE(filename) .compute_source(filename)
 
@@ -169,48 +182,9 @@
 
 #else
 
-#  define READ const
-#  define WRITE
-#  define READ_WRITE
-
-#  define _FLOAT_BUFFER(T) T##Buffer
-#  define _FLOAT_1D(T) T##1D
-#  define _FLOAT_1D_ARRAY(T) T##1DArray
-#  define _FLOAT_2D(T) T##2D
-#  define _FLOAT_2D_ARRAY(T) T##2DArray
-#  define _FLOAT_3D(T) T##3D
-#  define _FLOAT_CUBE(T) T##Cube
-#  define _FLOAT_CUBE_ARRAY(T) T##CubeArray
-#  define _INT_BUFFER(T) i##T##Buffer
-#  define _INT_1D(T) i##T##1D
-#  define _INT_1D_ARRAY(T) i##T##1DArray
-#  define _INT_2D(T) i##T##2D
-#  define _INT_2D_ATOMIC(T) i##T##2D
-#  define _INT_2D_ARRAY(T) i##T##2DArray
-#  define _INT_2D_ARRAY_ATOMIC(T) i##T##2DArray
-#  define _INT_3D(T) i##T##3D
-#  define _INT_3D_ATOMIC(T) i##T##3D
-#  define _INT_CUBE(T) i##T##Cube
-#  define _INT_CUBE_ARRAY(T) i##T##CubeArray
-#  define _UINT_BUFFER(T) u##T##Buffer
-#  define _UINT_1D(T) u##T##1D
-#  define _UINT_1D_ARRAY(T) u##T##1DArray
-#  define _UINT_2D(T) u##T##2D
-#  define _UINT_2D_ATOMIC(T) u##T##2D
-#  define _UINT_2D_ARRAY(T) u##T##2DArray
-#  define _UINT_2D_ARRAY_ATOMIC(T) u##T##2DArray
-#  define _UINT_3D(T) u##T##3D
-#  define _UINT_3D_ATOMIC(T) u##T##3D
-#  define _UINT_CUBE(T) u##T##Cube
-#  define _UINT_CUBE_ARRAY(T) u##T##CubeArray
-#  define _SHADOW_2D(T) T##2DShadow
-#  define _SHADOW_2D_ARRAY(T) T##2DArrayShadow
-#  define _SHADOW_CUBE(T) T##CubeShadow
-#  define _SHADOW_CUBE_ARRAY(T) T##CubeArrayShadow
-#  define _DEPTH_2D(T) T##2D
-#  define _DEPTH_2D_ARRAY(T) T##2DArray
-#  define _DEPTH_CUBE(T) T##Cube
-#  define _DEPTH_CUBE_ARRAY(T) T##CubeArray
+#  define _read const
+#  define _write
+#  define _read_write
 
 #  define SMOOTH(type, name) type name = {};
 #  define FLAT(type, name) type name = {};
@@ -228,7 +202,7 @@
 #  define GEOMETRY_LAYOUT(...)
 #  define GEOMETRY_OUT(stage_interface) using namespace interface::stage_interface;
 
-#  define SUBPASS_IN(slot, type, name, rog) const type name = {};
+#  define SUBPASS_IN(slot, type, img_type, name, rog) const type name = {};
 
 #  define FRAGMENT_OUT(slot, type, name) \
     namespace gl_FragmentShader { \
@@ -255,15 +229,15 @@
 #  define UNIFORM_BUF(slot, type_name, name) extern const type_name name;
 #  define UNIFORM_BUF_FREQ(slot, type_name, name, freq) extern const type_name name;
 
-#  define STORAGE_BUF(slot, qualifiers, type_name, name) extern qualifiers type_name name;
+#  define STORAGE_BUF(slot, qualifiers, type_name, name) extern _##qualifiers type_name name;
 #  define STORAGE_BUF_FREQ(slot, qualifiers, type_name, name, freq) \
-    extern qualifiers type_name name;
+    extern _##qualifiers type_name name;
 
-#  define SAMPLER(slot, type, name) _##type(sampler) name;
-#  define SAMPLER_FREQ(slot, type, name, freq) _##type(sampler) name;
+#  define SAMPLER(slot, type, name) type name;
+#  define SAMPLER_FREQ(slot, type, name, freq) type name;
 
-#  define IMAGE(slot, format, qualifiers, type, name) qualifiers _##type(image) name;
-#  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) qualifiers _##type(image) name;
+#  define IMAGE(slot, format, qualifiers, type, name) _##qualifiers type name;
+#  define IMAGE_FREQ(slot, format, qualifiers, type, name, freq) _##qualifiers type name;
 
 #  define BUILTINS(builtin)
 
@@ -314,89 +288,89 @@ static inline Type to_type(const eGPUType type)
 {
   switch (type) {
     case GPU_FLOAT:
-      return Type::FLOAT;
+      return Type::float_t;
     case GPU_VEC2:
-      return Type::VEC2;
+      return Type::float2_t;
     case GPU_VEC3:
-      return Type::VEC3;
+      return Type::float3_t;
     case GPU_VEC4:
-      return Type::VEC4;
+      return Type::float4_t;
     case GPU_MAT3:
-      return Type::MAT3;
+      return Type::float3x3_t;
     case GPU_MAT4:
-      return Type::MAT4;
+      return Type::float4x4_t;
     default:
       BLI_assert_msg(0, "Error: Cannot convert eGPUType to shader::Type.");
-      return Type::FLOAT;
+      return Type::float_t;
   }
 }
 
 static inline std::ostream &operator<<(std::ostream &stream, const Type type)
 {
   switch (type) {
-    case Type::FLOAT:
+    case Type::float_t:
       return stream << "float";
-    case Type::VEC2:
+    case Type::float2_t:
       return stream << "vec2";
-    case Type::VEC3:
+    case Type::float3_t:
       return stream << "vec3";
-    case Type::VEC4:
+    case Type::float4_t:
       return stream << "vec4";
-    case Type::MAT3:
+    case Type::float3x3_t:
       return stream << "mat3";
-    case Type::MAT4:
+    case Type::float4x4_t:
       return stream << "mat4";
-    case Type::VEC3_101010I2:
+    case Type::float3_10_10_10_2_t:
       return stream << "vec3_1010102_Inorm";
-    case Type::UCHAR:
+    case Type::uchar_t:
       return stream << "uchar";
-    case Type::UCHAR2:
+    case Type::uchar2_t:
       return stream << "uchar2";
-    case Type::UCHAR3:
+    case Type::uchar3_t:
       return stream << "uchar3";
-    case Type::UCHAR4:
+    case Type::uchar4_t:
       return stream << "uchar4";
-    case Type::CHAR:
+    case Type::char_t:
       return stream << "char";
-    case Type::CHAR2:
+    case Type::char2_t:
       return stream << "char2";
-    case Type::CHAR3:
+    case Type::char3_t:
       return stream << "char3";
-    case Type::CHAR4:
+    case Type::char4_t:
       return stream << "char4";
-    case Type::INT:
+    case Type::int_t:
       return stream << "int";
-    case Type::IVEC2:
+    case Type::int2_t:
       return stream << "ivec2";
-    case Type::IVEC3:
+    case Type::int3_t:
       return stream << "ivec3";
-    case Type::IVEC4:
+    case Type::int4_t:
       return stream << "ivec4";
-    case Type::UINT:
+    case Type::uint_t:
       return stream << "uint";
-    case Type::UVEC2:
+    case Type::uint2_t:
       return stream << "uvec2";
-    case Type::UVEC3:
+    case Type::uint3_t:
       return stream << "uvec3";
-    case Type::UVEC4:
+    case Type::uint4_t:
       return stream << "uvec4";
-    case Type::USHORT:
+    case Type::ushort_t:
       return stream << "ushort";
-    case Type::USHORT2:
+    case Type::ushort2_t:
       return stream << "ushort2";
-    case Type::USHORT3:
+    case Type::ushort3_t:
       return stream << "ushort3";
-    case Type::USHORT4:
+    case Type::ushort4_t:
       return stream << "ushort4";
-    case Type::SHORT:
+    case Type::short_t:
       return stream << "short";
-    case Type::SHORT2:
+    case Type::short2_t:
       return stream << "short2";
-    case Type::SHORT3:
+    case Type::short3_t:
       return stream << "short3";
-    case Type::SHORT4:
+    case Type::short4_t:
       return stream << "short4";
-    case Type::BOOL:
+    case Type::bool_t:
       return stream << "bool";
     default:
       BLI_assert(0);
@@ -448,6 +422,10 @@ enum class BuiltinBits {
   /* Texture atomics requires usage options to alter compilation flag. */
   TEXTURE_ATOMIC = (1 << 18),
 
+  /* Enable shader patching on GL to remap clip range to 0..1.
+   * Will do nothing if ClipControl is unsupported. */
+  CLIP_CONTROL = (1 << 19),
+
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
   USE_DEBUG_DRAW = (1 << 29),
@@ -468,40 +446,32 @@ enum class DepthWrite {
 
 /* Samplers & images. */
 enum class ImageType {
+  undefined = 0,
+#  define TYPES_EXPAND(s) \
+    Float##s, Uint##s, Int##s, sampler##s = Float##s, usampler##s = Uint##s, isampler##s = Int##s
   /** Color samplers/image. */
-  FLOAT_BUFFER = 0,
-  FLOAT_1D,
-  FLOAT_1D_ARRAY,
-  FLOAT_2D,
-  FLOAT_2D_ARRAY,
-  FLOAT_3D,
-  FLOAT_CUBE,
-  FLOAT_CUBE_ARRAY,
-  INT_BUFFER,
-  INT_1D,
-  INT_1D_ARRAY,
-  INT_2D,
-  INT_2D_ARRAY,
-  INT_3D,
-  INT_CUBE,
-  INT_CUBE_ARRAY,
-  UINT_BUFFER,
-  UINT_1D,
-  UINT_1D_ARRAY,
-  UINT_2D,
-  UINT_2D_ARRAY,
-  UINT_3D,
-  UINT_CUBE,
-  UINT_CUBE_ARRAY,
+  TYPES_EXPAND(1D),
+  TYPES_EXPAND(1DArray),
+  TYPES_EXPAND(2D),
+  TYPES_EXPAND(2DArray),
+  TYPES_EXPAND(3D),
+  TYPES_EXPAND(Cube),
+  TYPES_EXPAND(CubeArray),
+  TYPES_EXPAND(Buffer),
+#  undef TYPES_EXPAND
+
+#  define TYPES_EXPAND(s) \
+    Shadow##s, Depth##s, sampler##s##Shadow = Shadow##s, sampler##s##Depth = Depth##s
   /** Depth samplers (not supported as image). */
-  SHADOW_2D,
-  SHADOW_2D_ARRAY,
-  SHADOW_CUBE,
-  SHADOW_CUBE_ARRAY,
-  DEPTH_2D,
-  DEPTH_2D_ARRAY,
-  DEPTH_CUBE,
-  DEPTH_CUBE_ARRAY,
+  TYPES_EXPAND(2D),
+  TYPES_EXPAND(2DArray),
+  TYPES_EXPAND(Cube),
+  TYPES_EXPAND(CubeArray),
+#  undef TYPES_EXPAND
+
+#  define TYPES_EXPAND(s) \
+    AtomicUint##s, AtomicInt##s, usampler##s##Atomic = AtomicUint##s, \
+                                 isampler##s##Atomic = AtomicInt##s
   /** Atomic texture type wrappers.
    * For OpenGL, these map to the equivalent (U)INT_* types.
    * NOTE: Atomic variants MUST be used if the texture bound to this resource has usage flag:
@@ -510,23 +480,52 @@ enum class ImageType {
    * The shader source MUST also utilize the correct atomic sampler handle e.g.
    * `usampler2DAtomic` in conjunction with these types, for passing texture/image resources into
    * functions. */
-  UINT_2D_ATOMIC,
-  UINT_2D_ARRAY_ATOMIC,
-  UINT_3D_ATOMIC,
-  INT_2D_ATOMIC,
-  INT_2D_ARRAY_ATOMIC,
-  INT_3D_ATOMIC
+  TYPES_EXPAND(2D),
+  TYPES_EXPAND(2DArray),
+  TYPES_EXPAND(3D),
+#  undef TYPES_EXPAND
+};
+
+/* Samplers & images. */
+enum class ImageReadWriteType {
+  undefined = 0,
+#  define TYPES_EXPAND(s) \
+    Float##s = int(ImageType::Float##s), Uint##s = int(ImageType::Uint##s), \
+    Int##s = int(ImageType::Int##s), image##s = Float##s, uimage##s = Uint##s, iimage##s = Int##s
+  /** Color image. */
+  TYPES_EXPAND(1D),
+  TYPES_EXPAND(1DArray),
+  TYPES_EXPAND(2D),
+  TYPES_EXPAND(2DArray),
+  TYPES_EXPAND(3D),
+#  undef TYPES_EXPAND
+
+#  define TYPES_EXPAND(s) \
+    AtomicUint##s = int(ImageType::AtomicUint##s), AtomicInt##s = int(ImageType::AtomicInt##s), \
+    uimage##s##Atomic = AtomicUint##s, iimage##s##Atomic = AtomicInt##s
+  /** Atomic texture type wrappers.
+   * For OpenGL, these map to the equivalent (U)INT_* types.
+   * NOTE: Atomic variants MUST be used if the texture bound to this resource has usage flag:
+   * `GPU_TEXTURE_USAGE_ATOMIC`, even if atomic texture operations are not used in the given
+   * shader.
+   * The shader source MUST also utilize the correct atomic sampler handle e.g.
+   * `usampler2DAtomic` in conjunction with these types, for passing texture/image resources into
+   * functions. */
+  TYPES_EXPAND(2D),
+  TYPES_EXPAND(2DArray),
+  TYPES_EXPAND(3D),
+#  undef TYPES_EXPAND
 };
 
 /* Storage qualifiers. */
 enum class Qualifier {
   /** Restrict flag is set by default. Unless specified otherwise. */
-  NO_RESTRICT = (1 << 0),
-  READ = (1 << 1),
-  WRITE = (1 << 2),
+  no_restrict = (1 << 0),
+  read = (1 << 1),
+  write = (1 << 2),
   /** Shorthand version of combined flags. */
-  READ_WRITE = READ | WRITE,
-  QUALIFIER_MAX = (WRITE << 1) - 1,
+  read_write = read | write,
+  QUALIFIER_MAX = (write << 1) - 1,
 };
 ENUM_OPERATORS(Qualifier, Qualifier::QUALIFIER_MAX);
 
@@ -588,7 +587,7 @@ struct StageInterfaceInfo {
 
   StageInterfaceInfo(const char *name_, const char *instance_name_ = "")
       : name(name_), instance_name(instance_name_){};
-  ~StageInterfaceInfo(){};
+  ~StageInterfaceInfo() = default;
 
   using Self = StageInterfaceInfo;
 
@@ -630,8 +629,6 @@ struct ShaderCreateInfo {
   bool auto_resource_location_ = false;
   /** If true, force depth and stencil tests to always happen before fragment shader invocation. */
   bool early_fragment_test_ = false;
-  /** If true, force the use of the GL shader introspection for resource location. */
-  bool legacy_resource_location_ = false;
   /** Allow optimization when fragment shader writes to `gl_FragDepth`. */
   DepthWrite depth_write_ = DepthWrite::UNCHANGED;
   /** GPU Backend compatibility flag. Temporary requirement until Metal enablement is fully
@@ -645,11 +642,11 @@ struct ShaderCreateInfo {
   /** Manually set builtins. */
   BuiltinBits builtins_ = BuiltinBits::NONE;
   /** Manually set generated code. */
-  std::string vertex_source_generated = "";
-  std::string fragment_source_generated = "";
-  std::string compute_source_generated = "";
-  std::string geometry_source_generated = "";
-  std::string typedef_source_generated = "";
+  std::string vertex_source_generated;
+  std::string fragment_source_generated;
+  std::string compute_source_generated;
+  std::string geometry_source_generated;
+  std::string typedef_source_generated;
   /** Manually set generated dependencies. */
   Vector<StringRefNull, 0> dependencies_generated;
 
@@ -732,7 +729,24 @@ struct ShaderCreateInfo {
   };
   Vector<FragOut> fragment_outputs_;
 
-  using SubpassIn = FragOut;
+  struct SubpassIn {
+    int index;
+    Type type;
+    ImageType img_type;
+    StringRefNull name;
+    /* NOTE: Currently only supported by Metal. */
+    int raster_order_group;
+
+    bool operator==(const SubpassIn &b) const
+    {
+      TEST_EQUAL(*this, b, index);
+      TEST_EQUAL(*this, b, type);
+      TEST_EQUAL(*this, b, img_type);
+      TEST_EQUAL(*this, b, name);
+      TEST_EQUAL(*this, b, raster_order_group);
+      return true;
+    }
+  };
   Vector<SubpassIn> subpass_inputs_;
 
   Vector<SpecializationConstant> specialization_constants_;
@@ -873,18 +887,14 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
-  /* Transform feedback properties. */
-  eGPUShaderTFBType tf_type_ = GPU_SHADER_TFB_NONE;
-  Vector<const char *> tf_names_;
-
-  /* Api-specific parameters. */
+  /* API-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
 #  endif
 
  public:
   ShaderCreateInfo(const char *name) : name_(name){};
-  ~ShaderCreateInfo(){};
+  ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
 
@@ -971,9 +981,10 @@ struct ShaderCreateInfo {
    * be difficult to inject implicitly and will require more high level changes.
    * TODO(fclem): OpenGL can emulate that using `GL_EXT_shader_framebuffer_fetch`.
    */
-  Self &subpass_in(int slot, Type type, StringRefNull name, int raster_order_group = -1)
+  Self &subpass_in(
+      int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
-    subpass_inputs_.append({slot, type, DualBlend::NONE, name, raster_order_group});
+    subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
     return *(Self *)this;
   }
 
@@ -1011,15 +1022,15 @@ struct ShaderCreateInfo {
     constant.type = type;
     constant.name = name;
     switch (type) {
-      case Type::INT:
-        constant.value.i = static_cast<int>(default_value);
+      case Type::int_t:
+        constant.value.i = int(default_value);
         break;
-      case Type::BOOL:
-      case Type::UINT:
-        constant.value.u = static_cast<uint>(default_value);
+      case Type::bool_t:
+      case Type::uint_t:
+        constant.value.u = uint(default_value);
         break;
-      case Type::FLOAT:
-        constant.value.f = static_cast<float>(default_value);
+      case Type::float_t:
+        constant.value.f = float(default_value);
         break;
       default:
         BLI_assert_msg(0, "Only scalar types can be used as constants");
@@ -1071,14 +1082,14 @@ struct ShaderCreateInfo {
   Self &image(int slot,
               eGPUTextureFormat format,
               Qualifier qualifiers,
-              ImageType type,
+              ImageReadWriteType type,
               StringRefNull name,
               Frequency freq = Frequency::PASS)
   {
     Resource res(Resource::BindType::IMAGE, slot);
     res.image.format = format;
     res.image.qualifiers = qualifiers;
-    res.image.type = type;
+    res.image.type = ImageType(type);
     res.image.name = name;
     resources_get_(freq).append(res);
     interface_names_size_ += name.size() + 1;
@@ -1114,12 +1125,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &geometry_source(StringRefNull filename)
-  {
-    geometry_source_ = filename;
-    return *(Self *)this;
-  }
-
   Self &fragment_source(StringRefNull filename)
   {
     fragment_source_ = filename;
@@ -1143,7 +1148,7 @@ struct ShaderCreateInfo {
   Self &push_constant(Type type, StringRefNull name, int array_size = 0)
   {
     /* We don't have support for UINT push constants yet, use INT instead. */
-    BLI_assert(type != Type::UINT);
+    BLI_assert(type != Type::uint_t);
     BLI_assert_msg(name.find("[") == -1,
                    "Array syntax is forbidden for push constants."
                    "Use the array_size parameter instead.");
@@ -1195,12 +1200,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  Self &legacy_resource_location(bool value)
-  {
-    legacy_resource_location_ = value;
-    return *(Self *)this;
-  }
-
   Self &metal_backend_only(bool flag)
   {
     metal_backend_only_ = flag;
@@ -1244,27 +1243,6 @@ struct ShaderCreateInfo {
     return *(Self *)this;
   }
 
-  /** \} */
-
-  /* -------------------------------------------------------------------- */
-  /** \name Transform feedback properties
-   *
-   * Transform feedback enablement and output binding assignment.
-   * \{ */
-
-  Self &transform_feedback_mode(eGPUShaderTFBType tf_mode)
-  {
-    BLI_assert(tf_mode != GPU_SHADER_TFB_NONE);
-    tf_type_ = tf_mode;
-    return *(Self *)this;
-  }
-
-  Self &transform_feedback_output_name(const char *name)
-  {
-    BLI_assert(tf_type_ != GPU_SHADER_TFB_NONE);
-    tf_names_.append(name);
-    return *(Self *)this;
-  }
   /** \} */
 
   /* -------------------------------------------------------------------- */
@@ -1371,13 +1349,13 @@ struct ShaderCreateInfo {
     };
 
     /* TODO(@fclem): Order the resources. */
-    for (auto &res : info.batch_resources_) {
+    for (const auto &res : info.batch_resources_) {
       print_resource(res);
     }
-    for (auto &res : info.pass_resources_) {
+    for (const auto &res : info.pass_resources_) {
       print_resource(res);
     }
-    for (auto &res : info.geometry_resources_) {
+    for (const auto &res : info.geometry_resources_) {
       print_resource(res);
     }
     return stream;
@@ -1385,17 +1363,17 @@ struct ShaderCreateInfo {
 
   bool has_resource_type(Resource::BindType bind_type) const
   {
-    for (auto &res : batch_resources_) {
+    for (const auto &res : batch_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }
     }
-    for (auto &res : pass_resources_) {
+    for (const auto &res : pass_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }
     }
-    for (auto &res : geometry_resources_) {
+    for (const auto &res : geometry_resources_) {
       if (res.bind_type == bind_type) {
         return true;
       }

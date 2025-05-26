@@ -6,7 +6,9 @@
  * \ingroup edtransform
  */
 
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_string.h"
 
 #include "BKE_editmesh.hh"
@@ -15,6 +17,7 @@
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -34,7 +37,7 @@
 #include "transform_mode.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Edge Slide)
@@ -82,7 +85,7 @@ struct EdgeSlideData {
 };
 
 struct EdgeSlideParams {
-  wmOperator *op = nullptr;
+  wmOperator *op;
   float perc;
 
   /** When un-clamped - use this index: #TransDataEdgeSlideVert.dir_side. */
@@ -189,7 +192,7 @@ static bool is_vert_slide_visible_bmesh(TransInfo *t,
                                         const BMBVHTree *bmbvh,
                                         TransDataEdgeSlideVert *sv)
 {
-  /* NOTE:  */
+  /* NOTE: */
   BMIter iter_other;
   BMEdge *e;
 
@@ -250,8 +253,8 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   BMBVHTree *bmbvh = nullptr;
   Array<float3> bmbvh_coord_storage;
   if (use_occlude_geometry) {
-    Scene *scene_eval = (Scene *)DEG_get_evaluated_id(t->depsgraph, &t->scene->id);
-    Object *obedit_eval = DEG_get_evaluated_object(t->depsgraph, tc->obedit);
+    Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);
+    Object *obedit_eval = DEG_get_evaluated(t->depsgraph, tc->obedit);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
 
     const Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
@@ -274,8 +277,8 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   float *loop_maxdist = nullptr;
 
   if (use_calc_direction) {
-    loop_dir = static_cast<float2 *>(MEM_callocN(sizeof(float2) * loop_nr, "sv loop_dir"));
-    loop_maxdist = static_cast<float *>(MEM_mallocN(sizeof(float) * loop_nr, "sv loop_maxdist"));
+    loop_dir = MEM_calloc_arrayN<float2>(loop_nr, "sv loop_dir");
+    loop_maxdist = MEM_malloc_arrayN<float>(loop_nr, "sv loop_maxdist");
     copy_vn_fl(loop_maxdist, loop_nr, FLT_MAX);
   }
 
@@ -473,7 +476,7 @@ static void drawEdgeSlide(TransInfo *t)
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   TransDataEdgeSlideVert *curr_sv = &sld->sv[sld->curr_sv_index];
-  const float3 &curr_sv_co_orig = curr_sv->v_co_orig();
+  const float3 curr_sv_co_orig = curr_sv->v_co_orig();
 
   if (slp->use_even == true) {
     /* Even mode. */
@@ -550,7 +553,7 @@ static void drawEdgeSlide(TransInfo *t)
       mul_v3_fl(a, 100.0f);
       negate_v3_v3(b, a);
 
-      const float3 &sv_co_orig = sv.v_co_orig();
+      const float3 sv_co_orig = sv.v_co_orig();
       add_v3_v3(a, sv_co_orig);
       add_v3_v3(b, sv_co_orig);
 
@@ -622,8 +625,7 @@ static void edge_slide_snap_apply(TransInfo *t, float *value)
   }
   else {
     /* Could be pre-calculated. */
-    t_mid = line_point_factor_v3(
-        blender::float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
+    t_mid = line_point_factor_v3(float3{0.0f, 0.0f, 0.0f}, sv->dir_side[0], sv->dir_side[1]);
 
     float t_snap = line_point_factor_v3(snap_point, co_dest[0], co_dest[1]);
     side_index = t_snap >= t_mid;
@@ -793,7 +795,7 @@ static void applyEdgeSlide(TransInfo *t)
   ofs += BLI_strncpy_rlen(str + ofs, RPT_("Edge Slide: "), sizeof(str) - ofs);
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
     ofs += BLI_strncpy_rlen(str + ofs, &c[0], sizeof(str) - ofs);
   }
   else {
@@ -882,7 +884,7 @@ static void initEdgeSlide_ex(TransInfo *t,
   t->mode = TFM_EDGE_SLIDE;
 
   {
-    EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(MEM_callocN(sizeof(*slp), __func__));
+    EdgeSlideParams *slp = MEM_callocN<EdgeSlideParams>(__func__);
     slp->op = op;
     slp->use_even = use_even;
     slp->flipped = flipped;
@@ -989,3 +991,5 @@ TransModeInfo TransMode_edgeslide = {
     /*snap_apply_fn*/ edge_slide_snap_apply,
     /*draw_fn*/ drawEdgeSlide,
 };
+
+}  // namespace blender::ed::transform

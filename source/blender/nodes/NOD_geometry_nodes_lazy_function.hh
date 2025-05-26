@@ -30,6 +30,7 @@
 
 #include "BLI_compute_context.hh"
 #include "BLI_math_quaternion_types.hh"
+#include "BLI_multi_value_map.hh"
 
 #include "BKE_bake_items.hh"
 #include "BKE_node_tree_zones.hh"
@@ -206,6 +207,7 @@ struct GeoNodesOperatorData {
   int active_point_index = -1;
   int active_edge_index = -1;
   int active_face_index = -1;
+  int active_layer_index = -1;
 };
 
 struct GeoNodesCallData {
@@ -217,7 +219,7 @@ struct GeoNodesCallData {
    * Optional logger that keeps track of data generated during evaluation to allow for better
    * debugging afterwards.
    */
-  geo_eval_log::GeoModifierLog *eval_log = nullptr;
+  geo_eval_log::GeoNodesLog *eval_log = nullptr;
   /**
    * Optional injected behavior for simulations.
    */
@@ -257,9 +259,9 @@ struct GeoNodesCallData {
 };
 
 /**
- * Custom user data that is passed to every geometry nodes related lazy-function evaluation.
+ * Custom user data that can be passed to every geometry nodes related evaluation.
  */
-struct GeoNodesLFUserData : public lf::UserData {
+struct GeoNodesUserData : public fn::UserData {
   /**
    * Data provided by the root caller of geometry nodes.
    */
@@ -274,10 +276,10 @@ struct GeoNodesLFUserData : public lf::UserData {
    */
   bool log_socket_values = true;
 
-  destruct_ptr<lf::LocalUserData> get_local(LinearAllocator<> &allocator) override;
+  destruct_ptr<fn::LocalUserData> get_local(LinearAllocator<> &allocator) override;
 };
 
-struct GeoNodesLFLocalUserData : public lf::LocalUserData {
+struct GeoNodesLocalUserData : public fn::LocalUserData {
  private:
   /**
    * Thread-local logger for the current node tree in the current compute context. It is only
@@ -286,13 +288,13 @@ struct GeoNodesLFLocalUserData : public lf::LocalUserData {
   mutable std::optional<geo_eval_log::GeoTreeLogger *> tree_logger_;
 
  public:
-  GeoNodesLFLocalUserData(GeoNodesLFUserData & /*user_data*/) {}
+  GeoNodesLocalUserData(GeoNodesUserData & /*user_data*/) {}
 
   /**
    * Get the current tree logger. This method is not thread-safe, each thread is supposed to have
    * a separate logger.
    */
-  geo_eval_log::GeoTreeLogger *try_get_tree_logger(const GeoNodesLFUserData &user_data) const
+  geo_eval_log::GeoTreeLogger *try_get_tree_logger(const GeoNodesUserData &user_data) const
   {
     if (!tree_logger_.has_value()) {
       this->ensure_tree_logger(user_data);
@@ -301,7 +303,7 @@ struct GeoNodesLFLocalUserData : public lf::LocalUserData {
   }
 
  private:
-  void ensure_tree_logger(const GeoNodesLFUserData &user_data) const;
+  void ensure_tree_logger(const GeoNodesUserData &user_data) const;
 };
 
 /**
@@ -453,6 +455,7 @@ void set_default_remaining_node_outputs(lf::Params &params, const bNode &node);
 void set_default_value_for_output_socket(lf::Params &params,
                                          const int lf_index,
                                          const bNodeSocket &bsocket);
+void construct_socket_default_value(const bke::bNodeSocketType &stype, void *r_value);
 
 std::string make_anonymous_attribute_socket_inspection_string(const bNodeSocket &socket);
 std::string make_anonymous_attribute_socket_inspection_string(StringRef node_name,
@@ -462,9 +465,10 @@ struct FoundNestedNodeID {
   int id;
   bool is_in_simulation = false;
   bool is_in_loop = false;
+  bool is_in_closure = false;
 };
 
-std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesLFUserData &user_data,
+std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &user_data,
                                                      const int node_id);
 
 /**
@@ -493,8 +497,8 @@ class ScopedComputeContextTimer {
   ~ScopedComputeContextTimer()
   {
     const geo_eval_log::TimePoint end = geo_eval_log::Clock::now();
-    auto &user_data = static_cast<GeoNodesLFUserData &>(*context_.user_data);
-    auto &local_user_data = static_cast<GeoNodesLFLocalUserData &>(*context_.local_user_data);
+    auto &user_data = static_cast<GeoNodesUserData &>(*context_.user_data);
+    auto &local_user_data = static_cast<GeoNodesLocalUserData &>(*context_.local_user_data);
     if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
     {
       tree_logger->execution_time += (end - start_);
@@ -520,8 +524,8 @@ class ScopedNodeTimer {
   ~ScopedNodeTimer()
   {
     const geo_eval_log::TimePoint end = geo_eval_log::Clock::now();
-    auto &user_data = static_cast<GeoNodesLFUserData &>(*context_.user_data);
-    auto &local_user_data = static_cast<GeoNodesLFLocalUserData &>(*context_.local_user_data);
+    auto &user_data = static_cast<GeoNodesUserData &>(*context_.user_data);
+    auto &local_user_data = static_cast<GeoNodesLocalUserData &>(*context_.local_user_data);
     if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
     {
       tree_logger->node_execution_times.append(*tree_logger->allocator,
@@ -530,7 +534,7 @@ class ScopedNodeTimer {
   }
 };
 
-bool should_log_socket_values_for_context(const GeoNodesLFUserData &user_data,
+bool should_log_socket_values_for_context(const GeoNodesUserData &user_data,
                                           const ComputeContextHash hash);
 
 /**
@@ -588,9 +592,36 @@ LazyFunction &build_foreach_geometry_element_zone_lazy_function(ResourceScope &s
                                                                 ZoneBuildInfo &zone_info,
                                                                 const ZoneBodyFunction &body_fn);
 
+LazyFunction &build_closure_zone_lazy_function(ResourceScope &scope,
+                                               const bNodeTree &btree,
+                                               const bke::bNodeTreeZone &zone,
+                                               ZoneBuildInfo &zone_info,
+                                               const ZoneBodyFunction &body_fn);
+
+struct EvaluateClosureFunctionIndices {
+  struct {
+    Vector<int> main;
+    Vector<int> output_usages;
+    Map<int, int> reference_set_by_output;
+  } inputs;
+  struct {
+    Vector<int> main;
+    Vector<int> input_usages;
+  } outputs;
+};
+
+struct EvaluateClosureFunction {
+  const LazyFunction *lazy_function = nullptr;
+  EvaluateClosureFunctionIndices indices;
+};
+
+EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,
+                                                                  const bNode &bnode);
+
 void initialize_zone_wrapper(const bke::bNodeTreeZone &zone,
                              ZoneBuildInfo &zone_info,
                              const ZoneBodyFunction &body_fn,
+                             bool expose_all_reference_sets,
                              Vector<lf::Input> &r_inputs,
                              Vector<lf::Output> &r_outputs);
 
@@ -603,5 +634,22 @@ std::string zone_wrapper_output_name(const ZoneBuildInfo &zone_info,
                                      const bke::bNodeTreeZone &zone,
                                      const Span<lf::Output> outputs,
                                      const int lf_socket_i);
+
+/**
+ * Performs implicit conversion between socket types. Returns false if the conversion is not
+ * possible. In that case, r_to_value is left uninitialized.
+ */
+[[nodiscard]] bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
+                                                   const void *from_value,
+                                                   const bke::bNodeSocketType &to_type,
+                                                   void *r_to_value);
+
+/**
+ * Builds a lazy-function that can convert between socket types. Returns null if the conversion is
+ * never possible.
+ */
+const LazyFunction *build_implicit_conversion_lazy_function(const bke::bNodeSocketType &from_type,
+                                                            const bke::bNodeSocketType &to_type,
+                                                            ResourceScope &scope);
 
 }  // namespace blender::nodes

@@ -61,8 +61,7 @@ static bke::VolumeGrid<float> points_to_grid(const GeometrySet &geometry_set,
                                              const Field<float> &radius_field,
                                              const float voxel_size)
 {
-  const double determinant = std::pow(double(voxel_size), 3.0);
-  if (!BKE_volume_grid_determinant_valid(determinant)) {
+  if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return {};
   }
 
@@ -107,12 +106,15 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_SDF_GRID, "Points to SDF Grid", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodePointsToSDFGrid", GEO_NODE_POINTS_TO_SDF_GRID);
+  ntype.ui_name = "Points to SDF Grid";
+  ntype.ui_description = "Create a signed distance volume grid from points";
+  ntype.enum_name_legacy = "POINTS_TO_SDF_GRID";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_volume_grid_node;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

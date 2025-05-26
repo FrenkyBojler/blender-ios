@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <mutex>
 #include <optional>
 
 #include "BLI_span.hh"
@@ -40,6 +41,12 @@ constexpr static int GPU_MAX_UNIFORM_ATTR = 8;
  * \{ */
 
 /**
+ * Preprocess a raw GLSL source to adhere to our backend compatible shader language.
+ * Needed if the string was not part of our build system and is used in a #GPUShaderCreateInfo.
+ */
+std::string GPU_shader_preprocess_source(blender::StringRefNull original);
+
+/**
  * Create a shader using the given #GPUShaderCreateInfo.
  * Can return a null pointer if compilation fails.
  */
@@ -64,9 +71,6 @@ GPUShader *GPU_shader_create_from_info_name(const char *info_name);
  * Can return a null pointer if no match is found.
  */
 const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
-
-void GPU_shader_create_info_get_unfinalized_copy(const char *info_name,
-                                                 GPUShaderCreateInfo &r_info);
 
 /**
  * Error checking for user created shaders.
@@ -96,6 +100,15 @@ bool GPU_shader_batch_is_ready(BatchHandle handle);
  * WARNING: The handle will be invalidated by this call, you can't request the same batch twice.
  */
 blender::Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle);
+/**
+ * Cancel the compilation of the batch.
+ * WARNING: The handle will be invalidated by this call.
+ */
+void GPU_shader_batch_cancel(BatchHandle &handle);
+/**
+ *  Wait until all the requested batches have been compiled.
+ */
+void GPU_shader_batch_wait_for_all();
 
 /** \} */
 
@@ -118,7 +131,9 @@ void GPU_shader_free(GPUShader *shader);
  * Uniform functions need to have the shader bound in order to work. (TODO: until we use
  * glProgramUniform)
  */
-void GPU_shader_bind(GPUShader *shader);
+void GPU_shader_bind(
+    GPUShader *shader,
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 
 /**
  * Unbind the active shader.
@@ -206,12 +221,14 @@ void GPU_shader_uniform_4fv_array(GPUShader *sh, const char *name, int len, cons
  * Used to create #GPUVertexFormat from the shader's vertex input layout.
  * \{ */
 
-unsigned int GPU_shader_get_attribute_len(const GPUShader *shader);
+uint GPU_shader_get_attribute_len(const GPUShader *shader);
+uint GPU_shader_get_ssbo_input_len(const GPUShader *shader);
 int GPU_shader_get_attribute(const GPUShader *shader, const char *name);
 bool GPU_shader_get_attribute_info(const GPUShader *shader,
                                    int attr_location,
                                    char r_name[256],
                                    int *r_type);
+bool GPU_shader_get_ssbo_input_info(const GPUShader *shader, int ssbo_location, char r_name[256]);
 
 /** \} */
 
@@ -223,21 +240,16 @@ bool GPU_shader_get_attribute_info(const GPUShader *shader,
  * Otherwise, it will produce undefined behavior.
  * \{ */
 
-void GPU_shader_constant_int_ex(GPUShader *sh, int location, int value);
-void GPU_shader_constant_uint_ex(GPUShader *sh, int location, unsigned int value);
-void GPU_shader_constant_float_ex(GPUShader *sh, int location, float value);
-void GPU_shader_constant_bool_ex(GPUShader *sh, int location, bool value);
-
-void GPU_shader_constant_int(GPUShader *sh, const char *name, int value);
-void GPU_shader_constant_uint(GPUShader *sh, const char *name, unsigned int value);
-void GPU_shader_constant_float(GPUShader *sh, const char *name, float value);
-void GPU_shader_constant_bool(GPUShader *sh, const char *name, bool value);
+/* Return the default constants.
+ * All constants available for this shader should fit the returned structure. */
+const blender::gpu::shader::SpecializationConstants &GPU_shader_get_default_constant_state(
+    GPUShader *sh);
 
 using SpecializationBatchHandle = int64_t;
 
 struct ShaderSpecialization {
   GPUShader *shader;
-  blender::Vector<blender::gpu::shader::SpecializationConstant> constants;
+  blender::gpu::shader::SpecializationConstants constants;
 };
 
 /**
@@ -261,6 +273,12 @@ SpecializationBatchHandle GPU_shader_batch_specializations(
  */
 bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle);
 
+/**
+ * Cancel the specialization batch.
+ * WARNING: The handle will be invalidated by this call.
+ */
+void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -268,13 +286,6 @@ bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle
  *
  * All of this section is deprecated and should be ported to use the API described above.
  * \{ */
-
-enum eGPUShaderTFBType {
-  GPU_SHADER_TFB_NONE = 0, /* Transform feedback unsupported. */
-  GPU_SHADER_TFB_POINTS = 1,
-  GPU_SHADER_TFB_LINES = 2,
-  GPU_SHADER_TFB_TRIANGLES = 3,
-};
 
 GPUShader *GPU_shader_create(std::optional<blender::StringRefNull> vertcode,
                              std::optional<blender::StringRefNull> fragcode,
@@ -298,16 +309,7 @@ GPUShader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
                                 std::optional<blender::StringRefNull> computecode,
                                 std::optional<blender::StringRefNull> libcode,
                                 std::optional<blender::StringRefNull> defines,
-                                eGPUShaderTFBType tf_type,
-                                const char **tf_names,
-                                int tf_count,
                                 blender::StringRefNull shname);
-
-/**
- * Returns true if transform feedback was successfully enabled.
- */
-bool GPU_shader_transform_feedback_enable(GPUShader *shader, blender::gpu::VertBuf *vertbuf);
-void GPU_shader_transform_feedback_disable(GPUShader *shader);
 
 /**
  * Shader cache warming.
@@ -351,9 +353,6 @@ void GPU_shader_warm_cache(GPUShader *shader, int limit);
  * called. */
 void GPU_shader_set_parent(GPUShader *shader, GPUShader *parent);
 
-/** DEPRECATED: Kept only because of BGL API. */
-int GPU_shader_get_program(GPUShader *shader);
-
 /**
  * Indexed commonly used uniform name for faster lookup into the uniform cache.
  */
@@ -372,7 +371,6 @@ enum GPUUniformBuiltin {
   GPU_UNIFORM_VIEWPROJECTION_INV, /* mat4 ViewProjectionMatrixInverse */
 
   GPU_UNIFORM_NORMAL,     /* mat3 NormalMatrix */
-  GPU_UNIFORM_ORCO,       /* vec4 OrcoTexCoFactors[] */
   GPU_UNIFORM_CLIPPLANES, /* vec4 WorldClipPlanes[] */
 
   GPU_UNIFORM_COLOR,          /* vec4 color */
@@ -419,3 +417,133 @@ int GPU_shader_get_builtin_block(GPUShader *shader, int builtin);
 int GPU_shader_get_uniform_block(GPUShader *shader, const char *name);
 
 /** \} */
+
+#define GPU_SHADER_FREE_SAFE(shader) \
+  do { \
+    if (shader != nullptr) { \
+      GPU_shader_free(shader); \
+      shader = nullptr; \
+    } \
+  } while (0)
+
+#include "BLI_utility_mixins.hh"
+#include <atomic>
+#include <mutex>
+
+namespace blender::gpu {
+
+/* GPUShader wrapper that makes compilation threadsafe.
+ * The compilation is deferred until the first get() call.
+ * Concurrently using the shader from multiple threads is still unsafe. */
+class StaticShader : NonCopyable {
+ private:
+  std::string info_name_;
+  std::atomic<GPUShader *> shader_ = nullptr;
+  /* TODO: Failed compilation detection should be supported by the GPUShader API. */
+  std::atomic<bool> failed_ = false;
+  std::mutex mutex_;
+
+  void move(StaticShader &&other)
+  {
+    std::scoped_lock lock1(mutex_);
+    std::scoped_lock lock2(other.mutex_);
+    BLI_assert(shader_ == nullptr && info_name_.empty());
+    std::swap(info_name_, other.info_name_);
+    /* No std::swap support for atomics. */
+    shader_.exchange(other.shader_.exchange(shader_));
+    failed_.exchange(other.failed_.exchange(failed_));
+  }
+
+ public:
+  StaticShader(std::string info_name) : info_name_(info_name) {}
+
+  StaticShader() = default;
+  StaticShader(StaticShader &&other)
+  {
+    move(std::move(other));
+  }
+  StaticShader &operator=(StaticShader &&other)
+  {
+    move(std::move(other));
+    return *this;
+  };
+
+  ~StaticShader()
+  {
+    GPU_SHADER_FREE_SAFE(shader_);
+  }
+
+  GPUShader *get()
+  {
+    if (shader_ || failed_) {
+      return shader_;
+    }
+
+    std::scoped_lock lock(mutex_);
+
+    if (!shader_ && !failed_) {
+      BLI_assert(!info_name_.empty());
+      shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
+      failed_ = shader_ != nullptr;
+    }
+
+    return shader_;
+  }
+
+  /* For batch compiled shaders. */
+  /* TODO: Find a better way to handle this. */
+  void set(GPUShader *shader)
+  {
+    std::scoped_lock lock(mutex_);
+    BLI_assert(shader_ == nullptr);
+    shader_ = shader;
+  }
+};
+
+/* Thread-safe container for StaticShader cache classes.
+ * The class instance creation is deferred until the first get() call. */
+template<typename T> class StaticShaderCache {
+  std::atomic<T *> cache_ = nullptr;
+  std::mutex mutex_;
+
+ public:
+  ~StaticShaderCache()
+  {
+    BLI_assert(cache_ == nullptr);
+  }
+
+  template<typename... Args> T &get(Args &&...constructor_args)
+  {
+    if (cache_) {
+      return *cache_;
+    }
+
+    std::lock_guard lock(mutex_);
+
+    if (cache_ == nullptr) {
+      cache_ = new T(std::forward<Args>(constructor_args)...);
+    }
+    return *cache_;
+  }
+
+  void release()
+  {
+    if (!cache_) {
+      return;
+    }
+
+    std::lock_guard lock(mutex_);
+
+    if (cache_) {
+      delete cache_;
+      cache_ = nullptr;
+    }
+  }
+
+  std::lock_guard<std::mutex> lock_guard()
+  {
+    return std::lock_guard(mutex_);
+  }
+};
+
+}  // namespace blender::gpu

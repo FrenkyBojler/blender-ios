@@ -289,8 +289,7 @@ typedef struct bPoseChannel {
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
-  /** Need to match bone name length: MAXBONENAME. */
-  char name[64];
+  char name[/*MAXBONENAME*/ 64];
 
   /** Dynamic, for detecting transform changes. */
   short flag;
@@ -344,7 +343,7 @@ typedef struct bPoseChannel {
 
   /** Transforms - written in by actions or transform. */
   float loc[3];
-  float size[3];
+  float scale[3];
 
   /**
    * Rotations - written in by actions or transform
@@ -431,7 +430,7 @@ typedef enum ePchan_Flag {
   /* has transforms */
   POSE_LOC = (1 << 0),
   POSE_ROT = (1 << 1),
-  POSE_SIZE = (1 << 2),
+  POSE_SCALE = (1 << 2),
 
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
@@ -753,17 +752,16 @@ typedef enum eActionGroup_Flag {
 /* Actions -------------------------------------- */
 
 /**
- * Action - reusable F-Curve 'bag'  (act)
+ * Container of animation data.
  *
- * This contains F-Curves that may affect settings from more than one ID block-type and/or
- * data-block (i.e. sub-data linked/used directly to the ID block that the animation data is linked
- * to), but with the restriction that the other unrelated data (i.e. data that is not directly used
- * or linked to by the source ID block).
- *
- * It serves as a 'unit' of reusable animation information (i.e. keyframes/motion data),
- * that affects a group of related settings (as defined by the user).
+ * \see blender::animrig::Action for more detailed documentation.
  */
 typedef struct bAction {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_AC;
+#endif
+
   /** ID-serialization for relinking. */
   ID id;
 
@@ -777,7 +775,9 @@ typedef struct bAction {
 
   /* Storage for the underlying data of strips. Each strip type has its own
    * array, and strips reference this data with an enum indicating the strip
-   * type and an int containing the index in the array to use. */
+   * type and an int containing the index in the array to use.
+   *
+   * NOTE: when adding new strip data arrays, also update `duplicate_slot()`. */
   struct ActionStripKeyframeData **strip_keyframe_data_array;
   int strip_keyframe_data_array_num;
 
@@ -848,11 +848,11 @@ typedef enum eAction_Flags {
 } eAction_Flags;
 
 /* ************************************************ */
-/* Action/Dopesheet Editor */
+/* Action/Dope-sheet Editor */
 
-/** Storage for Dopesheet/Grease-Pencil Editor data. */
+/** Storage for Dope-sheet/Grease-Pencil Editor data. */
 typedef struct bDopeSheet {
-  /** Currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil). */
+  /** Currently ID_SCE (for Dope-sheet), and ID_SC (for Grease Pencil). */
   ID *source;
   /** Cache for channels (only initialized when pinned). */ /* XXX not used! */
   ListBase chanbase;
@@ -1116,8 +1116,8 @@ typedef struct bActionChannel {
 
   /** Settings accessed via bitmapping. */
   int flag;
-  /** Channel name, MAX_NAME. */
-  char name[64];
+  /** Channel name. */
+  char name[/*MAX_NAME*/ 64];
   /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
   int temp;
 } bActionChannel;
@@ -1130,7 +1130,7 @@ typedef struct bActionChannel {
  */
 typedef struct ActionLayer {
   /** User-Visible identifier, unique within the Animation. */
-  char name[64]; /* MAX_NAME. */
+  char name[/*MAX_NAME*/ 64];
 
   float influence; /* [0-1] */
 
@@ -1143,8 +1143,8 @@ typedef struct ActionLayer {
   uint8_t _pad0[2];
 
   /**
-   * There is always at least one strip.
-   * If there is only one, it can be infinite. This is the default for new layers.
+   * The layer's array of strips. See the documentation of
+   * #blender::animrig::Layer for the invariants of this array.
    */
   struct ActionStrip **strip_array; /* Array of 'strip_array_num' strips. */
   int strip_array_num;
@@ -1174,7 +1174,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[66]; /* MAX_ID_NAME */
+  char identifier[/*MAX_ID_NAME*/ 66];
 
   /**
    * Type of ID-block that this slot is intended for.

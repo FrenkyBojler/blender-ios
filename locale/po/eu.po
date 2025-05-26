@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'cfa63bfefa5b')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-12-09 09:50+0000\n"
-"PO-Revision-Date: 2024-04-29 13:54+0000\n"
+"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"PO-Revision-Date: 2025-04-14 08:18+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
 "Language: eu\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0.1"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Name"
@@ -167,6 +167,14 @@ msgid "Expanded"
 msgstr "Hedatua"
 
 
+msgid "Active"
+msgstr "Aktibo"
+
+
+msgid "Action"
+msgstr "Akzioa"
+
+
 msgid "Replace"
 msgstr "Ordezkatu"
 
@@ -177,14 +185,6 @@ msgstr "Gehitu"
 
 msgid "Multiply"
 msgstr "Biderkatu"
-
-
-msgid "Active"
-msgstr "Aktibo"
-
-
-msgid "Action"
-msgstr "Akzioa"
 
 
 msgid "Heads"
@@ -283,38 +283,6 @@ msgid "Weight"
 msgstr "Pisua"
 
 
-msgid "Armature"
-msgstr "Eskeletoa"
-
-
-msgid "Camera"
-msgstr "Kamera"
-
-
-msgid "Curve"
-msgstr "Kurba"
-
-
-msgid "Material"
-msgstr "Materiala"
-
-
-msgid "Sound"
-msgstr "Soinua"
-
-
-msgid "Speaker"
-msgstr "Bozgorailua"
-
-
-msgid "Text"
-msgstr "Testua"
-
-
-msgid "World"
-msgstr "Mundua"
-
-
 msgid "Distance"
 msgstr "Distantzia"
 
@@ -331,16 +299,16 @@ msgid "Parent"
 msgstr "Gurasoa"
 
 
-msgid "Direction"
-msgstr "Norabidea"
-
-
-msgid "Normal"
-msgstr "Normala"
+msgid "Material"
+msgstr "Materiala"
 
 
 msgid "Stroke"
 msgstr "Trazua"
+
+
+msgid "Curve"
+msgstr "Kurba"
 
 
 msgid "Look"
@@ -359,6 +327,10 @@ msgid "Disable"
 msgstr "Desgaitu"
 
 
+msgid "Armature"
+msgstr "Eskeletoa"
+
+
 msgid "Z"
 msgstr "Z"
 
@@ -367,12 +339,12 @@ msgid "Default"
 msgstr "Lehenetsia"
 
 
+msgid "Camera"
+msgstr "Kamera"
+
+
 msgid "Bone"
 msgstr "Hezurra"
-
-
-msgid "Script"
-msgstr "Script"
 
 
 msgid "Method"
@@ -435,6 +407,10 @@ msgid "Delete"
 msgstr "Ezabatu"
 
 
+msgid "Normal"
+msgstr "Normala"
+
+
 msgid "Onion Skinning"
 msgstr "Tipula-azapa"
 
@@ -457,6 +433,15 @@ msgstr "Taldeak"
 
 msgid "Local"
 msgstr "Lokala"
+
+
+msgctxt "Curve"
+msgid "Sphere"
+msgstr "Esfera"
+
+
+msgid "Direction"
+msgstr "Norabidea"
 
 
 msgid "Sequence"
@@ -483,6 +468,10 @@ msgid "Filter"
 msgstr "Filtroa"
 
 
+msgid "Script"
+msgstr "Script"
+
+
 msgid "Edit"
 msgstr "Editatu"
 
@@ -497,6 +486,10 @@ msgstr "Zirkulua"
 
 msgid "Angular Velocity"
 msgstr "Abiadura-angeluarra"
+
+
+msgid "Sound"
+msgstr "Soinua"
 
 
 msgid "Image Texture"
@@ -564,17 +557,16 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
-msgctxt "Curve"
-msgid "Sphere"
-msgstr "Esfera"
-
-
 msgid "Relations"
 msgstr "Loturak"
 
 
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
+
+
+msgid "Text"
+msgstr "Testua"
 
 
 msgid "UV"
@@ -620,6 +612,10 @@ msgstr "Azelerazio-faktorea"
 msgctxt "Curve"
 msgid "Curve"
 msgstr "Kurba"
+
+
+msgid "World"
+msgstr "Mundua"
 
 
 msgctxt "Curve"
@@ -974,11 +970,6 @@ msgstr "Lista-hasiera"
 
 msgid "Bottom of the list"
 msgstr "Lista-bukaera"
-
-
-msgctxt "Operator"
-msgid "Cancel File Load"
-msgstr "Fitxategi kargaketa indargabetu"
 
 
 msgctxt "Operator"
@@ -1698,6 +1689,30 @@ msgid "Language"
 msgstr "Hizkuntza"
 
 
+msgid "Gray Scale"
+msgstr "Gris-eskala"
+
+
+msgid "Sepia"
+msgstr "Sepia"
+
+
+msgid "Blender File"
+msgstr "Blender Fitxategia"
+
+
+msgid "Sort Alphabetically"
+msgstr "Alfabetikoki Ordenatu"
+
+
+msgid "Speaker"
+msgstr "Bozgorailua"
+
+
+msgid "3D"
+msgstr "3D"
+
+
 msgctxt "Sequence"
 msgid "Image"
 msgstr "Irudia"
@@ -1726,26 +1741,6 @@ msgstr "Soinua"
 msgctxt "Sequence"
 msgid "Cross"
 msgstr "Gurutzatu"
-
-
-msgid "Gray Scale"
-msgstr "Gris-eskala"
-
-
-msgid "Sepia"
-msgstr "Sepia"
-
-
-msgid "Blender File"
-msgstr "Blender Fitxategia"
-
-
-msgid "Sort Alphabetically"
-msgstr "Alfabetikoki Ordenatu"
-
-
-msgid "3D"
-msgstr "3D"
 
 
 msgctxt "WindowManager"
@@ -1971,6 +1966,10 @@ msgid "Speaker"
 msgstr "Bozgorailua"
 
 
+msgid "True Normal"
+msgstr "Geometria zuzena"
+
+
 msgid "Path is empty, cannot save"
 msgstr "Helbide hutsa, ezin da gorde"
 
@@ -2118,14 +2117,6 @@ msgid "Sphere"
 msgstr "Esfera"
 
 
-msgid "ON"
-msgstr "GAITUTA"
-
-
-msgid "OFF"
-msgstr "DESGAITUTA"
-
-
 msgid "normal"
 msgstr "Normala"
 
@@ -2168,10 +2159,6 @@ msgstr "Z sakonera bista"
 
 msgid "View Distance"
 msgstr "Distantzia-bista"
-
-
-msgid "True Normal"
-msgstr "Geometria zuzena"
 
 
 msgid "Backfacing"
@@ -2294,6 +2281,14 @@ msgid "dbl-"
 msgstr "dbl-"
 
 
+msgid "ON"
+msgstr "GAITUTA"
+
+
+msgid "OFF"
+msgstr "DESGAITUTA"
+
+
 msgid "unsupported format"
 msgstr "Euskarri gabeko formatua"
 
@@ -2304,10 +2299,6 @@ msgstr "Ezin da irakurri %s '%s': %s"
 
 msgid "Import-Export"
 msgstr "Inportatu-Esportatu"
-
-
-msgid "English (English)"
-msgstr "Ingelesa (English)"
 
 
 msgid "Japanese (日本語)"

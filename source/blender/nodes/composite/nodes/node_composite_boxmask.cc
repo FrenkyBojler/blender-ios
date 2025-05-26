@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "BKE_node.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -26,61 +27,41 @@
 
 namespace blender::nodes::node_composite_boxmask_cc {
 
-NODE_STORAGE_FUNCS(NodeBoxMask)
-
 static void cmp_node_boxmask_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Mask")
-      .default_value(0.0f)
+  b.add_input<decl::Float>("Mask").subtype(PROP_FACTOR).default_value(0.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Float>("Value").subtype(PROP_FACTOR).default_value(1.0f).min(0.0f).max(1.0f);
+  b.add_input<decl::Vector>("Position")
+      .subtype(PROP_FACTOR)
+      .default_value({0.5f, 0.5f, 0.0f})
+      .min(-0.5f)
+      .max(1.5f)
+      .compositor_expects_single_value();
+  b.add_input<decl::Vector>("Size")
+      .subtype(PROP_FACTOR)
+      .default_value({0.2f, 0.1f, 0.0f})
       .min(0.0f)
       .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Value")
-      .default_value(1.0f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(1);
+      .compositor_expects_single_value();
+  b.add_input<decl::Float>("Rotation").subtype(PROP_ANGLE).compositor_expects_single_value();
+
   b.add_output<decl::Float>("Mask");
 }
 
 static void node_composit_init_boxmask(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeBoxMask *data = MEM_cnew<NodeBoxMask>(__func__);
-  data->x = 0.5;
-  data->y = 0.5;
-  data->width = 0.2;
-  data->height = 0.1;
-  data->rotation = 0.0;
+  /* All members are deprecated and needn't be set, but the data is still allocated for forward
+   * compatibility. */
+  NodeBoxMask *data = MEM_callocN<NodeBoxMask>(__func__);
   node->storage = data;
 }
 
 static void node_composit_buts_boxmask(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *row;
-
-  row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "x", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "y", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-  row = uiLayoutRow(layout, true);
-  uiItemR(row,
-          ptr,
-          "mask_width",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          std::nullopt,
-          ICON_NONE);
-  uiItemR(row,
-          ptr,
-          "mask_height",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          std::nullopt,
-          ICON_NONE);
-
-  uiItemR(layout, ptr, "rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mask_type", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 template<CMPNodeMaskType MaskType>
 static void box_mask(const Result &base_mask,
@@ -99,8 +80,8 @@ static void box_mask(const Result &base_mask,
   uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
   bool is_inside = math::abs(uv.x) < size.x && math::abs(uv.y) < size.y;
 
-  float base_mask_value = base_mask.load_pixel<float>(texel);
-  float value = value_mask.load_pixel<float>(texel);
+  float base_mask_value = base_mask.load_pixel<float, true>(texel);
+  float value = value_mask.load_pixel<float, true>(texel);
 
   float output_mask_value = 0.0f;
   if constexpr (MaskType == CMP_NODE_MASKTYPE_ADD) {
@@ -271,22 +252,28 @@ class BoxMaskOperation : public NodeOperation {
 
   CMPNodeMaskType get_mask_type()
   {
-    return static_cast<CMPNodeMaskType>(bnode().custom1);
+    return CMPNodeMaskType(bnode().custom1);
   }
 
   float2 get_location()
   {
-    return float2(node_storage(bnode()).x, node_storage(bnode()).y);
+    return math::clamp(
+        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy(),
+        float2(-0.5f),
+        float2(1.5f));
   }
 
   float2 get_size()
   {
-    return float2(node_storage(bnode()).width, node_storage(bnode()).height);
+    return math::clamp(
+        this->get_input("Size").get_single_value_default(float3(0.2f, 0.1f, 0.0f)).xy(),
+        float2(0.0f),
+        float2(1.0f));
   }
 
   float get_angle()
   {
-    return node_storage(bnode()).rotation;
+    return this->get_input("Rotation").get_single_value_default(0.0f);
   }
 };
 
@@ -297,19 +284,24 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_boxmask_cc
 
-void register_node_type_cmp_boxmask()
+static void register_node_type_cmp_boxmask()
 {
   namespace file_ns = blender::nodes::node_composite_boxmask_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MASK_BOX, "Box Mask", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeBoxMask", CMP_NODE_MASK_BOX);
+  ntype.ui_name = "Box Mask";
+  ntype.ui_description = "Create rectangular mask suitable for use as a simple matte";
+  ntype.enum_name_legacy = "BOXMASK";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_boxmask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_boxmask;
   ntype.initfunc = file_ns::node_composit_init_boxmask;
   blender::bke::node_type_storage(
-      &ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_boxmask)
