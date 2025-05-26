@@ -77,6 +77,23 @@ struct GHOST_FrameDiscard {
   }
 };
 
+struct GHOST_SwapchainImage {
+  /** Swapchain image (owned by the swapchain). */
+  VkImage vk_image = VK_NULL_HANDLE;
+
+  /**
+   * Semaphore for presenting; being signaled when the swap chain image is ready to be presented.
+   */
+  VkSemaphore present_semaphore = VK_NULL_HANDLE;
+
+  void destroy(VkDevice vk_device)
+  {
+    vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+    present_semaphore = VK_NULL_HANDLE;
+    vk_image = VK_NULL_HANDLE;
+  }
+};
+
 struct GHOST_Frame {
   /**
    * Fence signaled when "previous" use of the frame has finished rendering. When signaled the
@@ -85,10 +102,6 @@ struct GHOST_Frame {
   VkFence submission_fence = VK_NULL_HANDLE;
   /** Semaphore for acquiring; being signaled when the swap chain image is ready to be updated. */
   VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
-  /**
-   * Semaphore for presenting; being signaled when the swap chain image is ready to be presented.
-   */
-  VkSemaphore present_semaphore = VK_NULL_HANDLE;
 
   GHOST_FrameDiscard discard_pile;
 
@@ -98,8 +111,6 @@ struct GHOST_Frame {
     submission_fence = VK_NULL_HANDLE;
     vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
     acquire_semaphore = VK_NULL_HANDLE;
-    vkDestroySemaphore(vk_device, present_semaphore, nullptr);
-    present_semaphore = VK_NULL_HANDLE;
     discard_pile.destroy(vk_device);
   }
 };
@@ -250,7 +261,7 @@ class GHOST_ContextVK : public GHOST_Context {
   /* For display only. */
   VkSurfaceKHR m_surface;
   VkSwapchainKHR m_swapchain;
-  std::vector<VkImage> m_swapchain_images;
+  std::vector<GHOST_SwapchainImage> m_swapchain_images;
   std::vector<GHOST_Frame> m_frame_data;
   uint64_t m_render_frame;
   uint64_t m_image_count;
