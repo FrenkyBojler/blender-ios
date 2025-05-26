@@ -6,3 +6,4 @@ Referenced by commit 153abc372e914b92bb960cf17482fd1956a5ec96, GPU: Replace U32/
 Referenced by pull request #138873, GPU: Remove int float fetch mode combination
 Referenced by commit 745582ee01f536d82e537016d80516fcc81ae96a, Fix #138851: Assert on entering Sculpting workspace
 Referenced by commit 91627b3d471c8aa87c321f87d57eefe718760201, GPU: Remove int float fetch mode combination
+Referenced by pull request #139429, Fix: Viewport: Assert when drawing fly navigation aim symbol.
