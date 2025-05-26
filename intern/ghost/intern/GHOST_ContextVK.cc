@@ -828,6 +828,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
   const VkFenceCreateInfo vk_fence_create_info = {
       VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
+    /* VK_EXT_swapchain_maintenance1 reuses present semaphores. */
     if (swapchain_image.present_semaphore == VK_NULL_HANDLE) {
       VK_CHECK(vkCreateSemaphore(
           device, &vk_semaphore_create_info, nullptr, &swapchain_image.present_semaphore));
@@ -836,6 +837,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
 
   for (int index = 0; index < m_frame_data.size(); index++) {
     GHOST_Frame &frame_data = m_frame_data[index];
+    /* VK_EXT_swapchain_maintenance1 reuses acquire semaphores. */
     if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
       VK_CHECK(vkCreateSemaphore(
           device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore));
@@ -1013,11 +1015,11 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    if (swapchain_image.present_semaphore != VK_NULL_HANDLE) {
+    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 && swapchain_image.present_semaphore != VK_NULL_HANDLE) {
       discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
+      swapchain_image.present_semaphore = VK_NULL_HANDLE;
     }
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    swapchain_image.present_semaphore = VK_NULL_HANDLE;
   }
   m_swapchain_images.resize(actual_image_count);
   std::vector<VkImage> swapchain_images(actual_image_count);
