@@ -17,8 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_output<decl::String>("String").custom_draw([](CustomSocketDrawParams &params) {
-    PropertyRNA *prop = RNA_struct_find_property(&params.node_ptr, "string");
     uiLayoutSetAlignment(&params.layout, UI_LAYOUT_ALIGN_EXPAND);
+    PropertyRNA *prop = RNA_struct_find_property(&params.node_ptr, "string");
     params.layout.prop(
         &params.node_ptr, prop, -1, 0, UI_ITEM_NONE, "", ICON_NONE, IFACE_("String"));
   });
