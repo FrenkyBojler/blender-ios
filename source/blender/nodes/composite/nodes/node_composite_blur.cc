@@ -42,7 +42,7 @@ static void cmp_node_blur_declare(NodeDeclarationBuilder &b)
       .default_value(true)
       .compositor_expects_single_value()
       .description(
-          "Use faster approximate by blurring along the horizontal and vertical directions "
+          "Use faster approximation by blurring along the horizontal and vertical directions "
           "independently");
 
   b.add_output<decl::Color>("Image");
