@@ -206,9 +206,13 @@ class GHOST_DeviceVK {
     vector<VkDeviceQueueCreateInfo> queue_create_infos;
     vector<const char *> device_extensions(required_extensions);
     for (const char *optional_extension : optional_extensions) {
-      if (has_extensions({optional_extension})) {
+      const bool extension_found = has_extensions({optional_extension});
+      if (extension_found) {
         CLOG_INFO(&LOG, 2, "enable optional extension: `%s`", optional_extension);
         device_extensions.push_back(optional_extension);
+      }
+      else {
+        CLOG_INFO(&LOG, 2, "optional extension not found: `%s`", optional_extension);
       }
     }
 
