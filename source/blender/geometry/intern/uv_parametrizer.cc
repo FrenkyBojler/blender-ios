@@ -4246,12 +4246,13 @@ void uv_parametrizer_pack(ParamHandle *handle,
 
   uv_parametrizer_scale_x(handle, 1.0f / handle->aspect_y);
 
-  Vector<PackIsland *> pack_island_vector;
-
   UVPackIsland_Params local_params = params;
   local_params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
   local_params.margin = margin;
   local_params.margin_method = ED_UVPACK_MARGIN_SCALED;
+
+  Vector<geometry::PackIsland> island_objects;
+  island_objects.reserve(handle->ncharts);
 
   for (const int index : IndexRange(handle->ncharts)) {
     PChart *chart = handle->charts[index];
@@ -4259,36 +4260,39 @@ void uv_parametrizer_pack(ParamHandle *handle,
       continue;
     }
 
-    geometry::PackIsland *pack_island = new geometry::PackIsland();
-    pack_island->caller_index = index;
-    pack_island->aspect_y = handle->aspect_y;
-    pack_island->pinned = chart->has_pins;
+    island_objects.append(geometry::PackIsland());
+    geometry::PackIsland &pack_island = island_objects.last();
+    
+    pack_island.caller_index = index;
+    pack_island.aspect_y = handle->aspect_y;
+    pack_island.pinned = chart->has_pins;
 
     for (PFace *f = chart->faces; f; f = f->nextlink) {
       PVert *v0 = f->edge->vert;
       PVert *v1 = f->edge->next->vert;
       PVert *v2 = f->edge->next->next->vert;
-      pack_island->add_triangle(v0->uv, v1->uv, v2->uv);
+      pack_island.add_triangle(v0->uv, v1->uv, v2->uv);
     }
-
-    pack_island_vector.append(pack_island);
   }
 
-  const float scale = pack_islands(pack_island_vector, local_params);
+  Vector<geometry::PackIsland *> pack_island_pointers;
+  pack_island_pointers.reserve(island_objects.size());
+  
+  for (geometry::PackIsland &pack_island : island_objects) {
+    pack_island_pointers.append(&pack_island);
+  }
 
-  for (const int64_t i : pack_island_vector.index_range()) {
-    PackIsland *pack_island = pack_island_vector[i];
-    const float island_scale = pack_island->can_scale_(local_params) ? scale : 1.0f;
-    PChart *chart = handle->charts[pack_island->caller_index];
+  const float scale = pack_islands(pack_island_pointers, local_params);
+
+  for (geometry::PackIsland &pack_island : island_objects) {
+    const float island_scale = pack_island.can_scale_(local_params) ? scale : 1.0f;
+    PChart *chart = handle->charts[pack_island.caller_index];
 
     float matrix[2][2];
-    pack_island->build_transformation(island_scale, pack_island->angle, matrix);
+    pack_island.build_transformation(island_scale, pack_island.angle, matrix);
     for (PVert *v = chart->verts; v; v = v->nextlink) {
-      geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
+      geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island.pre_translate);
     }
-
-    pack_island_vector[i] = nullptr;
-    delete pack_island;
   }
 
   uv_parametrizer_scale_x(handle, handle->aspect_y);
