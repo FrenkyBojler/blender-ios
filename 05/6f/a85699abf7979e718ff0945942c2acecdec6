@@ -2,3 +2,4 @@ Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #137759, Unable to move certain objects with Gizmo.
 Referenced by issue #137983, List of bug fixes per release override
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by issue #139419, I have recently been having trouble with the move/grab tool. The gizmo is moving, but they layout/model isn't.
