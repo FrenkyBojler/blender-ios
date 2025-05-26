@@ -152,17 +152,16 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
 
     /* Scene render output path, the compositor's File Output node's paths, etc. */
     case PROP_VARIABLES_RENDER_OUTPUT: {
-      const RenderData *render_data;
+      const Scene *scene;
       if (GS(ptr->owner_id->name) == ID_SCE) {
-        render_data = &reinterpret_cast<const Scene *>(ptr->owner_id)->r;
+        scene = reinterpret_cast<const Scene *>(ptr->owner_id);
       }
       else {
-        const Scene *scene = CTX_data_scene(C);
-        render_data = scene ? &scene->r : nullptr;
+        scene = CTX_data_scene(C);
       }
 
       return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                          render_data);
+                                                          scene);
     }
   }
 
@@ -174,7 +173,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
 }
 
 VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_path,
-                                                         const RenderData *render_data)
+                                                         const Scene *scene)
 {
   VariableMap variables;
 
@@ -198,9 +197,9 @@ VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_
   }
 
   /* Render resolution and fps. */
-  if (render_data) {
+  if (scene) {
     int res_x, res_y;
-    BKE_render_resolution(render_data, false, &res_x, &res_y);
+    BKE_render_resolution(&scene->r, false, &res_x, &res_y);
     variables.add_integer("resolution_x", res_x);
     variables.add_integer("resolution_y", res_y);
 
@@ -210,8 +209,10 @@ VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_
      * fps is computed consistently, but at the time of writing no such function
      * seems to exist. Every place in the code base just has its own bespoke
      * code, using different precision, etc. */
-    const double fps = double(render_data->frs_sec) / double(render_data->frs_sec_base);
+    const double fps = double(scene->r.frs_sec) / double(scene->r.frs_sec_base);
     variables.add_float("fps", fps);
+
+    variables.add_string("scene_name", scene->id.name + 2);
   }
 
   return variables;
