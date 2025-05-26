@@ -1589,8 +1589,8 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
 static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  char tree_name[MAX_NAME];
 
+  char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "name", tree_name);
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
@@ -1615,7 +1615,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", DATA_("Compositing Nodetree"), MAX_NAME, "Name", "");
+  RNA_def_string(ot->srna, "name", DATA_("Compositing Nodetree"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */
