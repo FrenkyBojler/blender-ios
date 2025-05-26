@@ -22,6 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The dimensions of the image in pixels with transformations applied");
   b.add_output<decl::Vector>("Resolution")
       .description("The original resolution of the image in pixels before any transformations");
+
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Float>("Rotation");
   b.add_output<decl::Vector>("Scale");
@@ -87,6 +88,11 @@ class ImageInfoOperation : public NodeOperation {
 
   void execute_invalid()
   {
+    Result &dimensions_result = this->get_result("Dimensions");
+    if (dimensions_result.should_compute()) {
+      dimensions_result.allocate_invalid();
+    }
+
     Result &resolution_result = this->get_result("Resolution");
     if (resolution_result.should_compute()) {
       resolution_result.allocate_invalid();
