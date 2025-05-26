@@ -4253,14 +4253,14 @@ void uv_parametrizer_pack(ParamHandle *handle,
   local_params.margin = margin;
   local_params.margin_method = ED_UVPACK_MARGIN_SCALED;
 
-  for (int i = 0; i < handle->ncharts; i++) {
-    PChart *chart = handle->charts[i];
+  for (const int index : IndexRange(handle->ncharts)) {
+    PChart *chart = handle->charts[index];
     if (ignore_pinned && chart->has_pins) {
       continue;
     }
 
     geometry::PackIsland *pack_island = new geometry::PackIsland();
-    pack_island->caller_index = i;
+    pack_island->caller_index = index;
     pack_island->aspect_y = handle->aspect_y;
     pack_island->pinned = chart->has_pins;
 
