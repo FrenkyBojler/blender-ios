@@ -121,13 +121,15 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
   {
     const ShapeKey *drag_shapekey = static_cast<const ShapeKey *>(drag_info.drag_data.poin);
     int drop_index = drop_index_;
+    const int drag_index = drag_shapekey->index;
+
     switch (drag_info.drop_location) {
       case DropLocation::Before: {
-        drop_index -= 1;
+        drop_index -= int(drag_index < drop_index);
         break;
       }
       case DropLocation::After: {
-        drop_index += 1;
+        drop_index += int(drag_index > drop_index);
         break;
       }
     }
