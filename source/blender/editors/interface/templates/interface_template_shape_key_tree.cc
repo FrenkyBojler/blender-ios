@@ -96,6 +96,7 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     if (drag_shapekey->index == drop_index_) {
       return false;
     }
+    return true;
   }
 
   std::string drop_tooltip(const DragInfo &drag_info) const override
@@ -105,6 +106,8 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     const StringRef drop_name = drop_kb_.name;
 
     switch (drag_info.drop_location) {
+      case DropLocation::Into:
+        break;
       case DropLocation::Before:
         return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
       case DropLocation::After:
@@ -124,6 +127,8 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     const int drag_index = drag_shapekey->index;
 
     switch (drag_info.drop_location) {
+      case DropLocation::Into:
+        break;
       case DropLocation::Before: {
         drop_index -= int(drag_index < drop_index);
         break;
@@ -160,7 +165,7 @@ class ShapeKeyItem : public AbstractTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiBut *but = uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
+    uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
     uiLayout *sub = &row.row(true);
     uiLayoutSetPropDecorate(sub, false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
