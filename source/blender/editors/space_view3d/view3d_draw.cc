@@ -64,7 +64,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
-#include "GPU_material.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
@@ -1290,7 +1289,7 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   int name_array_len = 1;
 
   /* 6 is the maximum size of the axis roll text. */
-  /* increase size for unicode languages (Chinese in utf-8...) */
+  /* increase size for unicode languages (Chinese in UTF8...). */
   char tmpstr[96 + 6];
 
   if (RV3D_VIEW_IS_AXIS(rv3d->view) && (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
@@ -1683,7 +1682,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);
   BKE_image_free_old_gputextures(bmain);
-  GPU_pass_cache_garbage_collect();
 
   /* No depth test for drawing action zones afterwards. */
   GPU_depth_test(GPU_DEPTH_NONE);

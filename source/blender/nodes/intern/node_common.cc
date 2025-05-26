@@ -281,7 +281,8 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueVector>(io_socket);
         decl = &b.add_socket<decl::Vector>(name, identifier, in_out)
                     .subtype(PropertySubType(value.subtype))
-                    .default_value(value.value)
+                    .default_value(float4(value.value))
+                    .dimensions(value.dimensions)
                     .min(value.min)
                     .max(value.max);
         break;
@@ -387,40 +388,11 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
   decl->hide_value(io_socket.flag & NODE_INTERFACE_SOCKET_HIDE_VALUE);
   decl->compact(io_socket.flag & NODE_INTERFACE_SOCKET_COMPACT);
   decl->panel_toggle(io_socket.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE);
+  decl->default_input_type(NodeDefaultInputType(io_socket.default_input));
+  if (io_socket.default_input != NODE_DEFAULT_INPUT_VALUE) {
+    decl->hide_value();
+  }
   return *decl;
-}
-
-static void set_default_input_field(const bNodeTreeInterfaceSocket &input, SocketDeclaration &decl)
-{
-  if (decl.socket_type == SOCK_VECTOR) {
-    if (input.default_input == GEO_NODE_DEFAULT_FIELD_INPUT_NORMAL_FIELD) {
-      decl.implicit_input_fn = std::make_unique<ImplicitInputValueFn>(
-          implicit_field_inputs::normal);
-      decl.hide_value = true;
-    }
-    else if (input.default_input == GEO_NODE_DEFAULT_FIELD_INPUT_POSITION_FIELD) {
-      decl.implicit_input_fn = std::make_unique<ImplicitInputValueFn>(
-          implicit_field_inputs::position);
-      decl.hide_value = true;
-    }
-  }
-  else if (decl.socket_type == SOCK_INT) {
-    if (input.default_input == GEO_NODE_DEFAULT_FIELD_INPUT_INDEX_FIELD) {
-      decl.implicit_input_fn = std::make_unique<ImplicitInputValueFn>(
-          implicit_field_inputs::index);
-      decl.hide_value = true;
-    }
-    else if (input.default_input == GEO_NODE_DEFAULT_FIELD_INPUT_ID_INDEX_FIELD) {
-      decl.implicit_input_fn = std::make_unique<ImplicitInputValueFn>(
-          implicit_field_inputs::id_or_index);
-      decl.hide_value = true;
-    }
-  }
-  else if (decl.socket_type == SOCK_MATRIX) {
-    decl.implicit_input_fn = std::make_unique<ImplicitInputValueFn>(
-        implicit_field_inputs::instance_transform);
-    decl.hide_value = true;
-  }
 }
 
 static void node_group_declare_panel_recursive(DeclarationListBuilder &b,
@@ -437,7 +409,7 @@ static void node_group_declare_panel_recursive(DeclarationListBuilder &b,
   };
 
   for (const bNodeTreeInterfaceItem *item : io_parent_panel.items()) {
-    switch (item->item_type) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const auto &io_socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(*item);
         const eNodeSocketInOut in_out = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT) ? SOCK_IN :
@@ -493,7 +465,6 @@ void node_group_declare(NodeDeclarationBuilder &b)
     for (const int i : inputs.index_range()) {
       SocketDeclaration &decl = *r_declaration.inputs[i];
       decl.input_field_type = field_interface.inputs[i];
-      set_default_input_field(*inputs[i], decl);
     }
 
     for (const int i : r_declaration.outputs.index_range()) {
@@ -769,13 +740,16 @@ static void group_input_declare(NodeDeclarationBuilder &b)
     return;
   }
   node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (item.item_type) {
+    switch (NodeTreeInterfaceItemType(item.item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const bNodeTreeInterfaceSocket &socket =
             node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
         if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
           build_interface_socket_declaration(*node_tree, socket, SOCK_OUT, b);
         }
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
         break;
       }
     }
@@ -791,13 +765,16 @@ static void group_output_declare(NodeDeclarationBuilder &b)
     return;
   }
   node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (item.item_type) {
+    switch (NodeTreeInterfaceItemType(item.item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const bNodeTreeInterfaceSocket &socket =
             node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
         if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
           build_interface_socket_declaration(*node_tree, socket, SOCK_IN, b);
         }
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
         break;
       }
     }

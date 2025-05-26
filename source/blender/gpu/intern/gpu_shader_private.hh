@@ -47,24 +47,9 @@ class Shader {
   /** Bit-set indicating the frame-buffer color attachments that this shader writes to. */
   uint16_t fragment_output_bits = 0;
 
-  /**
-   * Specialization constants as a Struct-of-Arrays. Allow simpler comparison and reset.
-   * The backend is free to implement their support as they see fit.
-   */
-  struct Constants {
-    using Value = shader::SpecializationConstant::Value;
-    Vector<gpu::shader::Type> types;
-    /* Current values set by `GPU_shader_constant_*()` call. The backend can choose to interpret
-     * that however it wants (i.e: bind another shader instead). */
-    Vector<Value> values;
-
-    /**
-     * OpenGL needs to know if a different program needs to be attached when constants are
-     * changed. Vulkan and Metal uses pipelines and don't have this issue. Attribute can be
-     * removed after the OpenGL backend has been phased out.
-     */
-    bool is_dirty;
-  } constants;
+  /* Default specialization constants state as defined inside ShaderCreateInfo.
+   * Should be considered as const after init(). */
+  std::unique_ptr<const shader::SpecializationConstants> constants;
 
   /* WORKAROUND: True if this shader is a polyline shader and needs an appropriate setup to render.
    * Eventually, in the future, we should modify the user code instead of relying on such hacks. */
@@ -86,6 +71,8 @@ class Shader {
 
   /* TODO: Remove `is_batch_compilation`. */
   virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
+  /* Variant for legacy python shaders. To be removed, not supported in Vulkan or Metal. */
+  virtual void init() = 0;
 
   virtual void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
   virtual void geometry_shader_from_glsl(MutableSpan<StringRefNull> sources) = 0;
@@ -98,7 +85,7 @@ class Shader {
    * See `GPU_shader_warm_cache(..)` in `GPU_shader.hh` for more information. */
   virtual void warm_cache(int limit) = 0;
 
-  virtual void bind() = 0;
+  virtual void bind(const shader::SpecializationConstants *constants_state) = 0;
   virtual void unbind() = 0;
 
   virtual void uniform_float(int location, int comp_len, int array_size, const float *data) = 0;
@@ -238,6 +225,8 @@ class ShaderCompiler {
   SpecializationBatchHandle precompile_specializations(Span<ShaderSpecialization> specializations);
 
   bool specialization_batch_is_ready(SpecializationBatchHandle &handle);
+
+  void wait_for_all();
 };
 
 enum class Severity {
