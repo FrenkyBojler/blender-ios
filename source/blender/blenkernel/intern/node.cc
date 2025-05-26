@@ -680,10 +680,16 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
   }
 
   for (bNode *node : node_tree.all_nodes()) {
-    auto write_input_to_property_bool_char = [&](const char *identifier, char &property) {
-      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
-      property = input->default_value_typed<bNodeSocketValueBoolean>()->value;
-    };
+    auto write_input_to_property_bool_char =
+        [&](const char *identifier, char &property, const bool invert = false) {
+          const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+          if (invert) {
+            property = !input->default_value_typed<bNodeSocketValueBoolean>()->value;
+          }
+          else {
+            property = input->default_value_typed<bNodeSocketValueBoolean>()->value;
+          }
+        };
 
     auto write_input_to_property_bool_short = [&](const char *identifier, short &property) {
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
@@ -1048,6 +1054,93 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       const bNodeSocket *height_input = blender::bke::node_find_socket(*node, SOCK_IN, "Height");
       storage->y1 = y_input->default_value_typed<bNodeSocketValueInt>()->value +
                     height_input->default_value_typed<bNodeSocketValueInt>()->value;
+    }
+
+    if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+      NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Lift");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Lift");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value +
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->lift, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gamma");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gamma");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gamma, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gain");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gain");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gain, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Power");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Power");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->power, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Slope");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Slope");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->slope, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Offset");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Offset");
+        storage->offset_basis = base_input->default_value_typed<bNodeSocketValueFloat>()->value;
+        copy_v3_v3(storage->offset,
+                   color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      }
+
+      write_input_to_property_float("Input Temperature", storage->input_temperature);
+      write_input_to_property_float("Input Tint", storage->input_tint);
+      write_input_to_property_float("Output Temperature", storage->output_temperature);
+      write_input_to_property_float("Output Tint", storage->output_tint);
+    }
+
+    if (node->type_legacy == CMP_NODE_BLUR) {
+      write_input_to_property_bool_int16_flag("Extend Bounds", node->custom1, (1 << 1));
+
+      NodeBlurData *storage = static_cast<NodeBlurData *>(node->storage);
+      write_input_to_property_bool_char("Separable", storage->bokeh, true);
+
+      const bNodeSocket *size_input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
+      storage->sizex = int(
+          math::ceil(size_input->default_value_typed<bNodeSocketValueVector>()->value[0]));
+      storage->sizey = int(
+          math::ceil(size_input->default_value_typed<bNodeSocketValueVector>()->value[1]));
     }
   }
 }
@@ -2905,8 +2998,12 @@ bool node_is_static_socket_type(const bNodeSocketType &stype)
   return RNA_struct_is_a(stype.ext_socket.srna, &RNA_NodeSocketStandard);
 }
 
-std::optional<StringRefNull> node_static_socket_type(const int type, const int subtype)
+std::optional<StringRefNull> node_static_socket_type(const int type,
+                                                     const int subtype,
+                                                     const std::optional<int> dimensions)
 {
+  BLI_assert(!(dimensions.has_value() && type != SOCK_VECTOR));
+
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
       switch (PropertySubType(subtype)) {
@@ -2953,26 +3050,78 @@ std::optional<StringRefNull> node_static_socket_type(const int type, const int s
     case SOCK_MATRIX:
       return "NodeSocketMatrix";
     case SOCK_VECTOR:
-      switch (PropertySubType(subtype)) {
-        case PROP_FACTOR:
-          return "NodeSocketVectorFactor";
-        case PROP_PERCENTAGE:
-          return "NodeSocketVectorPercentage";
-        case PROP_TRANSLATION:
-          return "NodeSocketVectorTranslation";
-        case PROP_DIRECTION:
-          return "NodeSocketVectorDirection";
-        case PROP_VELOCITY:
-          return "NodeSocketVectorVelocity";
-        case PROP_ACCELERATION:
-          return "NodeSocketVectorAcceleration";
-        case PROP_EULER:
-          return "NodeSocketVectorEuler";
-        case PROP_XYZ:
-          return "NodeSocketVectorXYZ";
-        case PROP_NONE:
-        default:
-          return "NodeSocketVector";
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage2D";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation2D";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection2D";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity2D";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration2D";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler2D";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ2D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector2D";
+        }
+      }
+      else if (dimensions.value() == 4) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor4D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage4D";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation4D";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection4D";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity4D";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration4D";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler4D";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ4D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector4D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeSocketVector";
       }
     case SOCK_RGBA:
       return "NodeSocketColor";
@@ -3009,8 +3158,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type, const int s
   return std::nullopt;
 }
 
-std::optional<StringRefNull> node_static_socket_interface_type_new(const int type,
-                                                                   const int subtype)
+std::optional<StringRefNull> node_static_socket_interface_type_new(
+    const int type, const int subtype, const std::optional<int> dimensions)
 {
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
@@ -3058,26 +3207,78 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(const int typ
     case SOCK_MATRIX:
       return "NodeTreeInterfaceSocketMatrix";
     case SOCK_VECTOR:
-      switch (PropertySubType(subtype)) {
-        case PROP_FACTOR:
-          return "NodeTreeInterfaceSocketVectorFactor";
-        case PROP_PERCENTAGE:
-          return "NodeTreeInterfaceSocketVectorPercentage";
-        case PROP_TRANSLATION:
-          return "NodeTreeInterfaceSocketVectorTranslation";
-        case PROP_DIRECTION:
-          return "NodeTreeInterfaceSocketVectorDirection";
-        case PROP_VELOCITY:
-          return "NodeTreeInterfaceSocketVectorVelocity";
-        case PROP_ACCELERATION:
-          return "NodeTreeInterfaceSocketVectorAcceleration";
-        case PROP_EULER:
-          return "NodeTreeInterfaceSocketVectorEuler";
-        case PROP_XYZ:
-          return "NodeTreeInterfaceSocketVectorXYZ";
-        case PROP_NONE:
-        default:
-          return "NodeTreeInterfaceSocketVector";
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage2D";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation2D";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection2D";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity2D";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration2D";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler2D";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ2D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector2D";
+        }
+      }
+      else if (dimensions.value() == 4) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor4D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage4D";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation4D";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection4D";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity4D";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration4D";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler4D";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ4D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector4D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeTreeInterfaceSocketVector";
       }
     case SOCK_RGBA:
       return "NodeTreeInterfaceSocketColor";
