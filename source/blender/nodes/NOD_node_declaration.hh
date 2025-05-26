@@ -236,6 +236,9 @@ class SocketDeclaration : public ItemDeclaration {
    * node without going to the side-bar.
    */
   std::unique_ptr<SocketNameRNA> socket_name_rna;
+  /**
+   * Draw function that overrides how the socket is drawn for a specific node.
+   */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
 
   friend NodeDeclarationBuilder;

@@ -9,8 +9,6 @@
 
 #include "NOD_geometry_nodes_gizmos.hh"
 
-#include "RNA_prototypes.hh"
-
 namespace blender::nodes::node_fn_input_int_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)

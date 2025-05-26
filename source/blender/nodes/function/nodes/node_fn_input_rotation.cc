@@ -4,14 +4,10 @@
 
 #include "BLI_math_euler.hh"
 
-#include "NOD_socket_search_link.hh"
-
 #include "NOD_geometry_nodes_gizmos.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
-
-#include "RNA_prototypes.hh"
 
 #include "node_function_util.hh"
 
