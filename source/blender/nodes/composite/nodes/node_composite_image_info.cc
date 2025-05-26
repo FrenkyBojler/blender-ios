@@ -22,7 +22,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The dimensions of the image in pixels with transformations applied");
   b.add_output<decl::Vector>("Resolution")
       .description("The original resolution of the image in pixels before any transformations");
-
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Float>("Rotation");
   b.add_output<decl::Vector>("Scale");
