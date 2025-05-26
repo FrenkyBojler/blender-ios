@@ -1194,16 +1194,16 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   SequencerAddData *sad = reinterpret_cast<SequencerAddData *>(op->customdata);
   ImageFormatData *imf = &sad->im_format;
 
-  uiItemR(op->layout, op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_boolean_get(op->ptr, "move_strips")) {
-    uiItemR(op->layout, op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(op->layout, op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (RNA_struct_find_property(op->ptr, "frame_end")) {
-      uiItemR(op->layout, op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
-  uiItemS(op->layout);
+  layout->separator();
 
   /* Main draw call. */
   uiDefAutoButsRNA(layout,
@@ -1214,7 +1214,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
 
-  uiItemS(op->layout);
+  layout->separator();
 
   /* Image template. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
