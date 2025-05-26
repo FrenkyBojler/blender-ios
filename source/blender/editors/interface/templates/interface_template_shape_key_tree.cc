@@ -105,8 +105,6 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     const StringRef drop_name = drop_kb_.name;
 
     switch (drag_info.drop_location) {
-      case DropLocation::Into:
-        return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
       case DropLocation::Before:
         return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
       case DropLocation::After:
@@ -124,9 +122,6 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     const ShapeKey *drag_shapekey = static_cast<const ShapeKey *>(drag_info.drag_data.poin);
     int drop_index = drop_index_;
     switch (drag_info.drop_location) {
-      case DropLocation::Into: {
-        break;
-      }
       case DropLocation::Before: {
         drop_index -= 1;
         break;
@@ -135,15 +130,15 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
         drop_index += 1;
         break;
       }
-      default: {
-        BLI_assert_unreachable();
-        return false;
-      }
     }
-    BKE_keyblock_move(drag_shapekey->object, drag_shapekey->index, drop_index);
+    Object *object = drag_shapekey->object;
+    BKE_keyblock_move(object, drag_shapekey->index, drop_index);
 
-    DEG_id_tag_update(&drag_shapekey->object->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, drag_shapekey->object);
+    DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, object);
+    ED_undo_push(C, "Drop Active Shape Key");
+
+    return true;
   }
 };
 
@@ -154,7 +149,7 @@ class ShapeKeyItem : public AbstractTreeViewItem {
  public:
   ShapeKeyItem(Object *object, Key *key, KeyBlock *kb, int index)
   {
-    this->label_ = kb->name;
+    label_ = kb->name;
     shape_key_.object = object;
     shape_key_.key = key;
     shape_key_.kb = kb;
@@ -182,7 +177,7 @@ class ShapeKeyItem : public AbstractTreeViewItem {
     PointerRNA object_ptr = RNA_pointer_create_discrete(
         &shape_key_.object->id, &RNA_Object, shape_key_.object);
     RNA_int_set(&object_ptr, "active_shape_key_index", shape_key_.index);
-    ED_undo_push(&C, "Active Shape Key");
+    ED_undo_push(&C, "Set Active Shape Key");
   }
 
   bool supports_renaming() const override
@@ -201,7 +196,7 @@ class ShapeKeyItem : public AbstractTreeViewItem {
 
   StringRef get_rename_string() const override
   {
-    return this->label_;
+    return label_;
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -229,8 +224,6 @@ void ShapeKeyTreeView::build_tree()
   }
 }
 
-}  // namespace blender::ui::shapekey
-
 void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
@@ -249,3 +242,4 @@ void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
+}  // namespace blender::ui::shapekey
