@@ -52,8 +52,10 @@
 #include "BLI_ghash.h"
 #include "BLI_map.hh"
 #include "BLI_memarena.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -107,8 +109,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_utils.hh"
 
-#include "BLI_string_ref.hh"
-#include "BLI_string_utils.hh"
 #include "readfile.hh"
 #include "versioning_common.hh"
 
@@ -975,14 +975,32 @@ static int *read_file_thumbnail(FileData *fd)
 static void long_id_names_ensure_unique_id_names(Main *bmain)
 {
   ListBase *lb_iter;
+  /* Using a set is needed, to avoid renaming names when there is no collision, and deal with IDs
+   * being moved around in their list when renamed. A simple set is enough, since here only local
+   * IDs are processed. */
+  blender::Set<blender::StringRef> used_names;
+  blender::Set<ID *> processed_ids;
+
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb_iter) {
-    LISTBASE_FOREACH (ID *, id_iter, lb_iter) {
+    LISTBASE_FOREACH_MUTABLE (ID *, id_iter, lb_iter) {
+      if (processed_ids.contains(id_iter)) {
+        continue;
+      }
+      processed_ids.add_new(id_iter);
       /* Linked IDs can be fully ignored here, 'long names' IDs cannot be linked in any way. */
       if (ID_IS_LINKED(id_iter)) {
         continue;
       }
+      if (!used_names.contains(id_iter->name)) {
+        used_names.add_new(id_iter->name);
+        continue;
+      }
+
       BKE_id_new_name_validate(
           *bmain, *lb_iter, *id_iter, nullptr, IDNewNameMode::RenameExistingNever, false);
+      BLI_assert(!used_names.contains(id_iter->name));
+      used_names.add_new(id_iter->name);
+      CLOG_INFO(&LOG, 3, "ID name has been de-duplicated to '%s'", id_iter->name);
     }
   }
   FOREACH_MAIN_LISTBASE_END;
@@ -1014,7 +1032,10 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         for (int i = 0; i < act->slot_array_num; i++) {
           if (!std::memchr(act->slot_array[i]->identifier, '\0', MAX_ID_NAME)) {
             act->slot_array[i]->identifier[MAX_ID_NAME - 1] = '\0';
-            printf("Truncated too long action slot name to %s\n", act->slot_array[i]->identifier);
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long action slot name to '%s'",
+                      act->slot_array[i]->identifier);
             has_truncated_slot_identifer = true;
           }
         }
@@ -1032,7 +1053,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
                   if (i == j) {
                     continue;
                   }
-                  if (STREQ(act->slot_array[j]->identifier, name.data())) {
+                  if (act->slot_array[j]->identifier == name.data()) {
                     return true;
                   }
                 }
@@ -1051,8 +1072,10 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
           if (!std::memchr(constraint_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
             constraint_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
-            printf("Truncated too long bActionConstraint.last_slot_identifier to %s\n",
-                   constraint_data->last_slot_identifier);
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long bActionConstraint.last_slot_identifier to '%s'",
+                      constraint_data->last_slot_identifier);
           }
           return true;
         };
@@ -1075,20 +1098,26 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         if (anim_data) {
           if (!std::memchr(anim_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
             anim_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
-            printf("Truncated too long AnimData.last_slot_identifier to %s\n",
-                   anim_data->last_slot_identifier);
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long AnimData.last_slot_identifier to '%s'",
+                      anim_data->last_slot_identifier);
           }
           if (!std::memchr(anim_data->tmp_last_slot_identifier, '\0', MAX_ID_NAME)) {
             anim_data->tmp_last_slot_identifier[MAX_ID_NAME - 1] = '\0';
-            printf("Truncated too long AnimData.tmp_last_slot_identifier to %s\n",
-                   anim_data->tmp_last_slot_identifier);
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long AnimData.tmp_last_slot_identifier to '%s'",
+                      anim_data->tmp_last_slot_identifier);
           }
 
           blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
             if (!std::memchr(strip->last_slot_identifier, '\0', MAX_ID_NAME)) {
               strip->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
-              printf("Truncated too long NlaStrip.last_slot_identifier to %s\n",
-                     strip->last_slot_identifier);
+              CLOG_INFO(&LOG,
+                        4,
+                        "Truncated too long NlaStrip.last_slot_identifier to '%s'",
+                        strip->last_slot_identifier);
             }
 
             return true;
@@ -1918,7 +1947,7 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
   /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
   id->name[MAX_ID_NAME - 1] = '\0';
   fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
-  printf("Truncated too long ID name to %s\n", id->name);
+  CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
   return id;
 }
 
@@ -3831,8 +3860,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     if (bfd->main->has_forward_compatibility_issues) {
       BKE_reportf(fd->reports->reports,
                   RPT_WARNING,
-                  "Blendfile '%s' was created by a future version of Blender and likely contains "
-                  "ID names longer than currently supported. These have been truncated.",
+                  "Blendfile '%s' was created by a future version of Blender and contains ID "
+                  "names longer than currently supported. These have been truncated.",
                   bfd->filepath);
     }
     else {
@@ -4183,9 +4212,9 @@ static void read_libraries_report_invalid_id_names(FileData *fd,
   if (has_forward_compatibility_issues) {
     BKE_reportf(reports,
                 RPT_WARNING,
-                "Library '%s' was created by a future version of Blender and likely contains ID "
-                "names longer than currently supported. This may cause missing linked data, "
-                "consider opening and re-saving that library with the current Blender version.",
+                "Library '%s' was created by a future version of Blender and contains ID names "
+                "longer than currently supported. This may cause missing linked data, consider "
+                "opening and re-saving that library with the current Blender version.",
                 filepath);
   }
   else {
