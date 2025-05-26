@@ -14,8 +14,8 @@
 
 namespace blender::nodes::node_geo_uv_pack_islands_cc {
 
-/** Local node enum that maps to eUVPackIsland_ShapeMethod in GEO_uv_pack.hh*/
-enum class UVPackIslandsShapeMethod : int16_t {
+/** Local node enum that maps to eUVPackIsland_ShapeMethod in GEO_uv_pack.hh. */
+enum class ShapeMethod : int16_t {
   Aabb = 0,
   Convex = 1,
   Concave = 2,
@@ -45,7 +45,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = int16_t(UVPackIslandsShapeMethod::Aabb);
+  node->custom1 = int16_t(ShapeMethod::Aabb);
 }
 
 static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
@@ -177,17 +177,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem shape_method_items[] = {
-      {int(UVPackIslandsShapeMethod::Aabb),
+      {int(ShapeMethod::Aabb),
        "AABB",
        0,
        "Bounding Box",
        "Uses axis-aligned bounding boxes for packing (fastest, least efficient)"},
-      {int(UVPackIslandsShapeMethod::Convex),
+      {int(ShapeMethod::Convex),
        "CONVEX",
        0,
        "Convex Hull",
        "Uses convex hull approximation of islands (good balance of speed and efficiency)"},
-      {int(UVPackIslandsShapeMethod::Concave),
+      {int(ShapeMethod::Concave),
        "CONCAVE",
        0,
        "Exact Shape",
@@ -201,7 +201,7 @@ static void node_rna(StructRNA *srna)
                     "Method used for packing UV islands",
                     shape_method_items,
                     NOD_inline_enum_accessors(custom1),
-                    int(UVPackIslandsShapeMethod::Aabb));
+                    int(ShapeMethod::Aabb));
 }
 
 static void node_register()
