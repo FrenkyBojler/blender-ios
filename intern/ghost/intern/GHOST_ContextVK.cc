@@ -1015,7 +1015,9 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 && swapchain_image.present_semaphore != VK_NULL_HANDLE) {
+    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 &&
+        swapchain_image.present_semaphore != VK_NULL_HANDLE)
+    {
       discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
       swapchain_image.present_semaphore = VK_NULL_HANDLE;
     }
