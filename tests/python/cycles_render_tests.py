@@ -219,7 +219,7 @@ def main():
     blocklist = BLOCKLIST_ALL
     if device != 'CPU':
         blocklist += BLOCKLIST_GPU
-    if device != 'CPU' or 'OSL' in args.blocklist:
+    if not (device == 'CPU' or (device == 'OPTIX' and args.osl)) or 'OSL' in args.blocklist:
         blocklist += BLOCKLIST_EXPLICIT_OSL
     if device == 'OPTIX':
         blocklist += BLOCKLIST_OPTIX
