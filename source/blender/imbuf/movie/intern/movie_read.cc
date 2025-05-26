@@ -642,7 +642,7 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
         }
       }
     }
-    else {
+    else if (rotation == 0) {
       /* No rotation. */
       for (const int64_t y : y_range) {
         int64_t src_offset = src_linesize * (size_y - y - 1);
