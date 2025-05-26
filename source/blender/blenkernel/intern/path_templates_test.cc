@@ -154,8 +154,7 @@ TEST(path_templates, validate_and_apply_template)
       /* Simple case, testing all variables. */
       {
           "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_"
-          "{"
-          "tiny}",
+          "{tiny}",
           "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.970029970029973_2.0_-3."
           "141592653589793_2e+32_2e-33",
           {},
@@ -185,8 +184,7 @@ TEST(path_templates, validate_and_apply_template)
       /* Float formatting: specify both integer and fractional digits. */
       {
           "{pi:##.####}_{e:####.###}_{ntsc:#.########}_{two:###.##}_{f_negative:###.##}_{huge:###."
-          "##}"
-          "_{tiny:###.##}",
+          "##}_{tiny:###.##}",
           "03.1416_0002.718_29.97002997_002.00_-03.14_200000000000000010732324408786944.00_000.00",
           {},
       },
