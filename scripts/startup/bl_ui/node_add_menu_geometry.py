@@ -172,6 +172,7 @@ class NODE_MT_geometry_node_grease_pencil_write(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilSoftness")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
 
 
@@ -729,6 +730,8 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type_with_searchable_enum(
+            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0)
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")
