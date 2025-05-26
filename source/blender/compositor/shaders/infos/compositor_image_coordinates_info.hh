@@ -4,10 +4,10 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(compositor_image_coordinates_texture)
+GPU_SHADER_CREATE_INFO(compositor_image_coordinates_uniform)
 LOCAL_GROUP_SIZE(16, 16)
 IMAGE(0, GPU_RGBA16F, write, image2D, output_img)
-COMPUTE_SOURCE("compositor_image_coordinates_texture.glsl")
+COMPUTE_SOURCE("compositor_image_coordinates_uniform.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

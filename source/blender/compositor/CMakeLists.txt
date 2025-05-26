@@ -205,7 +205,7 @@ set(GLSL_SRC
   shaders/compositor_id_mask.glsl
   shaders/compositor_image_coordinates_normalized.glsl
   shaders/compositor_image_coordinates_pixel.glsl
-  shaders/compositor_image_coordinates_texture.glsl
+  shaders/compositor_image_coordinates_uniform.glsl
   shaders/compositor_image_crop.glsl
   shaders/compositor_inpaint_compute_boundary.glsl
   shaders/compositor_inpaint_compute_region.glsl
