@@ -612,13 +612,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
       recreateSwapchain();
     }
   }
-  CLOG_INFO(&LOG,
-            3,
-            "render_frame=%lu, image_index=%u, acquire_semaphore=%lx, present_semaphore=%lx",
-            m_render_frame,
-            image_index,
-            uint64_t(submission_frame_data.acquire_semaphore),
-            uint64_t(submission_frame_data.present_semaphore));
+  CLOG_INFO(&LOG, 3, "render_frame=%lu, image_index=%u", m_render_frame, image_index);
 
   GHOST_VulkanSwapChainData swap_chain_data;
   swap_chain_data.image = m_swapchain_images[image_index];
@@ -1031,7 +1025,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
             uint64_t(old_swapchain));
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
-  /* Previous handles from the frame data cannot be used and needs to be discarded. */
+  /* Previous handles from the frame data cannot be used and should be discarded. */
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_Frame &frame : m_frame_data) {
     discard_pile.semaphores.push_back(frame.acquire_semaphore);
