@@ -13,6 +13,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
+#include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_sequence_types.h"
 
@@ -3830,6 +3831,260 @@ static void do_version_crop_node_options_to_inputs_animation(bNodeTree *node_tre
   });
 }
 
+/* The options were converted into inputs. */
+static void do_version_color_balance_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
+{
+  NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
+  if (!storage) {
+    return;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Lift")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Lift", "Lift");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->lift);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Gamma")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Gamma", "Gamma");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->gamma);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Gain")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Gain", "Gain");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->gain);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Offset")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Offset", "Offset");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->offset);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Power")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Power", "Power");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->power);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Color Slope")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "Color Slope", "Slope");
+    copy_v3_v3(input->default_value_typed<bNodeSocketValueRGBA>()->value, storage->slope);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Base Offset")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Base Offset", "Offset");
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->offset_basis;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Input Temperature")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(*node_tree,
+                                                              *node,
+                                                              SOCK_IN,
+                                                              SOCK_FLOAT,
+                                                              PROP_COLOR_TEMPERATURE,
+                                                              "Input Temperature",
+                                                              "Temperature");
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->input_temperature;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Input Tint")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Input Tint", "Tint");
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->input_tint;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Output Temperature")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(*node_tree,
+                                                              *node,
+                                                              SOCK_IN,
+                                                              SOCK_FLOAT,
+                                                              PROP_COLOR_TEMPERATURE,
+                                                              "Output Temperature",
+                                                              "Temperature");
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->output_temperature;
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Output Tint")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Output Tint", "Tint");
+    input->default_value_typed<bNodeSocketValueFloat>()->value = storage->output_tint;
+  }
+}
+
+/* The options were converted into inputs. */
+static void do_version_color_balance_node_options_to_inputs_animation(bNodeTree *node_tree,
+                                                                      bNode *node)
+{
+  /* Compute the RNA path of the node. */
+  char escaped_node_name[sizeof(node->name) * 2 + 1];
+  BLI_str_escape(escaped_node_name, node->name, sizeof(escaped_node_name));
+  const std::string node_rna_path = fmt::format("nodes[\"{}\"]", escaped_node_name);
+
+  BKE_fcurves_id_cb(&node_tree->id, [&](ID * /*id*/, FCurve *fcurve) {
+    /* The FCurve does not belong to the node since its RNA path doesn't start with the node's RNA
+     * path. */
+    if (!blender::StringRef(fcurve->rna_path).startswith(node_rna_path)) {
+      return;
+    }
+
+    /* Change the RNA path of the FCurve from the old properties to the new inputs, adjusting the
+     * values of the FCurves frames when needed. */
+    char *old_rna_path = fcurve->rna_path;
+    if (BLI_str_endswith(fcurve->rna_path, "lift")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[3].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "gamma")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[5].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "gain")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[7].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "offset_basis")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[8].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "offset")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[9].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "power")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[11].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "slope")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[13].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "input_temperature")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[14].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "input_tint")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[15].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "output_temperature")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[16].default_value");
+    }
+    else if (BLI_str_endswith(fcurve->rna_path, "output_tint")) {
+      fcurve->rna_path = BLI_sprintfN("%s.%s", node_rna_path.c_str(), "inputs[17].default_value");
+    }
+
+    /* The RNA path was changed, free the old path. */
+    if (fcurve->rna_path != old_rna_path) {
+      MEM_freeN(old_rna_path);
+    }
+  });
+}
+
+/* The Coordinates outputs were moved into their own Texture Coordinate node. If used, add a
+ * Texture Coordinates node and use it instead. */
+static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+    if (!STREQ(node->idname, "CompositorNodeImageInfo")) {
+      continue;
+    }
+
+    bNodeLink *input_link = nullptr;
+    bNodeLink *output_texture_link = nullptr;
+    bNodeLink *output_pixel_link = nullptr;
+    LISTBASE_FOREACH (bNodeLink *, link, &node_tree->links) {
+      if (link->tonode == node) {
+        input_link = link;
+      }
+
+      if (link->fromnode == node &&
+          blender::StringRef(link->fromsock->identifier) == "Texture Coordinates")
+      {
+        output_texture_link = link;
+      }
+
+      if (link->fromnode == node &&
+          blender::StringRef(link->fromsock->identifier) == "Pixel Coordinates")
+      {
+        output_pixel_link = link;
+      }
+    }
+
+    if (!output_texture_link && !output_pixel_link) {
+      continue;
+    }
+
+    bNode *image_coordinates_node = blender::bke::node_add_node(
+        nullptr, *node_tree, "CompositorNodeImageCoordinates");
+    image_coordinates_node->parent = node->parent;
+    image_coordinates_node->location[0] = node->location[0];
+    image_coordinates_node->location[1] = node->location[1] - node->height - 10.0f;
+
+    if (input_link) {
+      bNodeSocket *image_input = blender::bke::node_find_socket(
+          *image_coordinates_node, SOCK_IN, "Image");
+      version_node_add_link(*node_tree,
+                            *input_link->fromnode,
+                            *input_link->fromsock,
+                            *image_coordinates_node,
+                            *image_input);
+    }
+
+    if (output_texture_link) {
+      bNodeSocket *uniform_output = blender::bke::node_find_socket(
+          *image_coordinates_node, SOCK_OUT, "Uniform");
+      version_node_add_link(*node_tree,
+                            *image_coordinates_node,
+                            *uniform_output,
+                            *output_texture_link->tonode,
+                            *output_texture_link->tosock);
+      blender::bke::node_remove_link(node_tree, *output_texture_link);
+    }
+
+    if (output_pixel_link) {
+      bNodeSocket *pixel_output = blender::bke::node_find_socket(
+          *image_coordinates_node, SOCK_OUT, "Pixel");
+      version_node_add_link(*node_tree,
+                            *image_coordinates_node,
+                            *pixel_output,
+                            *output_pixel_link->tonode,
+                            *output_pixel_link->tosock);
+      blender::bke::node_remove_link(node_tree, *output_pixel_link);
+    }
+  }
+}
+
+/* Vector sockets can now have different dimensions, so set the dimensions for existing sockets to
+ * 3.*/
+static void do_version_vector_sockets_dimensions(bNodeTree *node_tree)
+{
+  node_tree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    if (item.item_type != NODE_INTERFACE_SOCKET) {
+      return true;
+    }
+
+    bNodeTreeInterfaceSocket &interface_socket =
+        blender::bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+    blender::bke::bNodeSocketType *base_typeinfo = blender::bke::node_socket_type_find(
+        interface_socket.socket_type);
+
+    if (base_typeinfo->type == SOCK_VECTOR) {
+      blender::bke::node_interface::get_socket_data_as<bNodeSocketValueVector>(interface_socket)
+          .dimensions = 3;
+    }
+    return true;
+  });
+
+  LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+      if (socket->type == SOCK_VECTOR) {
+        socket->default_value_typed<bNodeSocketValueVector>()->dimensions = 3;
+      }
+    }
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+      if (socket->type == SOCK_VECTOR) {
+        socket->default_value_typed<bNodeSocketValueVector>()->dimensions = 3;
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -4403,6 +4658,29 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_CROP) {
             do_version_crop_node_options_to_inputs_animation(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 76)) {
+    ToolSettings toolsettings_default = *DNA_struct_default_get(ToolSettings);
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      scene->toolsettings->snap_playhead_mode = toolsettings_default.snap_playhead_mode;
+      scene->toolsettings->snap_step_frames = toolsettings_default.snap_step_frames;
+      scene->toolsettings->snap_step_seconds = toolsettings_default.snap_step_seconds;
+      scene->toolsettings->playhead_snap_distance = toolsettings_default.playhead_snap_distance;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 77)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+            do_version_color_balance_node_options_to_inputs_animation(node_tree, node);
           }
         }
       }
@@ -5543,6 +5821,43 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
         }
       }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 76)) {
+    LISTBASE_FOREACH (Light *, light, &bmain->lights) {
+      if (light->temperature == 0.0f) {
+        light->temperature = 6500.0f;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 77)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+            do_version_color_balance_node_options_to_inputs(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 78)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        do_version_replace_image_info_node_coordinates(node_tree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 79)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      do_version_vector_sockets_dimensions(node_tree);
     }
     FOREACH_NODETREE_END;
   }
