@@ -89,19 +89,6 @@ static void node_socket_button_label(bContext * /*C*/,
 
 /* ****************** BUTTON CALLBACKS FOR ALL TREES ***************** */
 
-static void node_buts_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  uiLayout *col;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  col = &layout->column(false);
-  uiTemplateColorPicker(col, &sockptr, "default_value", true, false, false, false);
-  col->prop(&sockptr, "default_value", DEFAULT_FLAGS | UI_ITEM_R_SLIDER, "", ICON_NONE);
-}
-
 static void node_buts_mix_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
@@ -451,9 +438,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_CURVE_FLOAT:
       ntype->draw_buttons = node_buts_curvefloat;
       break;
-    case SH_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
-      break;
     case SH_NODE_MIX_RGB_LEGACY:
       ntype->draw_buttons = node_buts_mix_rgb;
       break;
@@ -648,9 +632,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
-      break;
-    case CMP_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
       break;
     case CMP_NODE_MIX_RGB:
       ntype->draw_buttons = node_buts_mix_rgb;

@@ -8,8 +8,6 @@
 
 #include "node_shader_util.hh"
 
-#include "RNA_access.hh"
-
 #include "FN_multi_function_builder.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"
@@ -17,8 +15,6 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
-
-#include "RNA_prototypes.hh"
 
 namespace blender::nodes::node_shader_value_cc {
 
