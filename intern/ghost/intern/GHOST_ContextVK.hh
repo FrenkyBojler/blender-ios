@@ -60,6 +60,7 @@ struct GHOST_ContextVK_WindowInfo {
 
 struct GHOST_FrameDiscard {
   std::vector<VkSwapchainKHR> swapchains;
+  std::vector<VkSemaphore> semaphores;
 
   void destroy(VkDevice vk_device)
   {
@@ -67,6 +68,11 @@ struct GHOST_FrameDiscard {
       VkSwapchainKHR vk_swapchain = swapchains.back();
       swapchains.pop_back();
       vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+    }
+    while (!semaphores.empty()) {
+      VkSemaphore vk_semaphore = semaphores.back();
+      semaphores.pop_back();
+      vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
     }
   }
 };
@@ -102,10 +108,10 @@ struct GHOST_Frame {
  * The number of frames that GHOST manages.
  *
  * This must be kept in sync with any frame-aligned resources in the
- * Vulkan backend. Notably, VKThreadData's resource_pool_count must
+ * Vulkan backend. Notably, VKThreadData::resource_pools_count must
  * match this value.
  */
-constexpr static uint32_t GHOST_FRAMES_IN_FLIGHT = 3;
+constexpr static uint32_t GHOST_FRAMES_IN_FLIGHT = 4;
 
 class GHOST_ContextVK : public GHOST_Context {
   friend class GHOST_XrGraphicsBindingVulkan;
