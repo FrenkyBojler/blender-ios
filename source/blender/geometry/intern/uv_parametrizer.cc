@@ -4235,9 +4235,9 @@ void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, boo
 }
 
 void uv_parametrizer_pack(ParamHandle *handle,
-                          float margin,
-                          bool do_rotate,
-                          bool ignore_pinned,
+                          const float margin,
+                          const bool do_rotate,
+                          const bool ignore_pinned,
                           const UVPackIsland_Params &params)
 {
   if (handle->ncharts == 0) {
