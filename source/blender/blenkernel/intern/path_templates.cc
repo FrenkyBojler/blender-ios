@@ -103,6 +103,57 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
   return *value;
 }
 
+bool VariableMap::add_filename(StringRef var_name, StringRefNull full_path, StringRef fallback)
+{
+  const char *file_name = BLI_path_basename(full_path.c_str());
+
+  const char *file_name_end = BLI_path_extension_or_end(file_name);
+  if (file_name[0] == '\0') {
+    /* If there is no file name, default to the fallback. */
+    return this->add_string(var_name, fallback);
+  }
+  else if (file_name_end == file_name) {
+    /* When the filename has no extension, but starts with a period. */
+    return this->add_string(var_name, StringRef(file_name));
+  }
+  else {
+    /* Normal case. */
+    return this->add_string(var_name, StringRef(file_name, file_name_end));
+  }
+}
+
+bool VariableMap::add_parent_directory_name(StringRef var_name,
+                                            StringRefNull full_path,
+                                            StringRef fallback)
+{
+  int offset, length;
+  const bool success = BLI_path_name_at_index(full_path.c_str(), -2, &offset, &length);
+
+  if (!success) {
+    /* If no parent directory path, default to the fallback. */
+    return this->add_string(var_name, fallback);
+  }
+
+  return this->add_string(var_name, full_path.substr(offset, length));
+}
+
+bool VariableMap::add_parent_directory_abs_path(StringRef var_name,
+                                                StringRefNull full_path,
+                                                StringRef fallback)
+{
+  Vector<char> dir_path(full_path.size() + 1);
+  full_path.copy_unsafe(dir_path.data());
+
+  const bool success = BLI_path_parent_dir(dir_path.data());
+
+  if (!success) {
+    /* If no parent directory path, default to the fallback. */
+    return this->add_string(var_name, fallback);
+  }
+
+  return this->add_string(var_name, dir_path.data());
+}
+
 bool operator==(const Error &left, const Error &right)
 {
   return left.type == right.type && left.byte_range == right.byte_range;
@@ -177,23 +228,25 @@ VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_
 {
   VariableMap variables;
 
-  /* Blend file name. */
+  /* ID-specific blend filepath variables. */
   if (blend_file_path) {
-    const char *file_name = BLI_path_basename(blend_file_path);
-    const char *file_name_end = BLI_path_extension_or_end(file_name);
-    if (file_name[0] == '\0') {
-      /* If the file has never been saved (indicated by an empty file name),
-       * default to "Unsaved". */
-      variables.add_string("blend_name", blender::StringRef(DATA_("Unsaved")));
-    }
-    else if (file_name_end == file_name) {
-      /* When the filename has no extension, but starts with a period. */
-      variables.add_string("blend_name", blender::StringRef(file_name));
-    }
-    else {
-      /* Normal case. */
-      variables.add_string("blend_name", blender::StringRef(file_name, file_name_end));
-    }
+    variables.add_filename("blend_name", blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_name(
+        "blend_dir_name", blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_abs_path(
+        "blend_dir", blend_file_path, blender::StringRef(DATA_("Unsaved")));
+  }
+
+  /* Global blend filepath variables. */
+  {
+    const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
+
+    variables.add_filename(
+        "blend_name_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_name(
+        "blend_dir_name_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_abs_path(
+        "blend_dir_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
   /* Render resolution and fps. */

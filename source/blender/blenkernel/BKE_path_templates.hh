@@ -114,6 +114,19 @@ class VariableMap {
    * #std::nullopt otherwise.
    */
   std::optional<double> get_float(blender::StringRef name) const;
+
+  /* ------------------------------------------------------------------
+   * Convenience methods, to aid in consistency across different uses. */
+
+  bool add_filename(blender::StringRef var_name,
+                    blender::StringRefNull full_path,
+                    blender::StringRef fallback);
+  bool add_parent_directory_name(blender::StringRef var_name,
+                                 blender::StringRefNull full_path,
+                                 blender::StringRef fallback);
+  bool add_parent_directory_abs_path(blender::StringRef var_name,
+                                     blender::StringRefNull full_path,
+                                     blender::StringRef fallback);
 };
 
 enum class ErrorType {
