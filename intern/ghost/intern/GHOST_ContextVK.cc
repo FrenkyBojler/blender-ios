@@ -96,20 +96,11 @@ static const char *vulkan_error_as_string(VkResult result)
   do { \
     VkResult r = (__expression); \
     if (r != VK_SUCCESS) { \
-      fprintf(stderr, \
-              "Vulkan Error : %s:%d : %s failed with %s\n", \
-              __FILE__, \
-              __LINE__, \
-              __STR(__expression), \
-              vulkan_error_as_string(r)); \
+      CLOG_ERROR( \
+          &LOG, "%s resulted in code %s.", __STR(__expression), vulkan_error_as_string(r)); \
       return GHOST_kFailure; \
     } \
   } while (0)
-
-#define DEBUG_PRINTF(...) \
-  if (m_debug) { \
-    printf(__VA_ARGS__); \
-  }
 
 /* Check if the given extension name is in the extension_list.
  */
@@ -374,8 +365,6 @@ class GHOST_DeviceVK {
       }
       generic_queue_family++;
     }
-
-    fprintf(stderr, "Couldn't find any Graphic queue family on selected device\n");
   }
 };
 
@@ -479,7 +468,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
   }
 
   if (best_physical_device == VK_NULL_HANDLE) {
-    fprintf(stderr, "Error: No suitable Vulkan Device found!\n");
+    CLOG_ERROR(&LOG, "Error: No suitable Vulkan Device found!");
     return GHOST_kFailure;
   }
 
@@ -758,7 +747,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
     extensions_enabled.push_back(extension_name);
   }
   else {
-    fprintf(stderr, "Error: %s not found.\n", extension_name);
+    CLOG_ERROR(&LOG, "required extension not found: %s", extension_name);
   }
 }
 
