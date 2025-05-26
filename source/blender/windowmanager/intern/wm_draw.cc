@@ -730,6 +730,15 @@ static void wm_draw_region_buffer_create(Scene *scene,
 
       wm_draw_offscreen_texture_parameters(offscreen);
 
+      /* Fix #139443: Clear the framebuffer color texture to avoid visual corruption when resizing
+       * the main window while rendering when "Lock Interface" is enabled. */
+      float const empty_pixel[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+      GPUFrameBuffer *framebuffer;
+      GPUTexture *color_texture;
+      GPUTexture *depth_texture;
+      GPU_offscreen_viewport_data_get(offscreen, &framebuffer, &color_texture, &depth_texture);
+      GPU_texture_clear(color_texture, GPU_DATA_FLOAT, empty_pixel);
+
       region->runtime->draw_buffer = MEM_callocN<wmDrawBuffer>("wmDrawBuffer");
       region->runtime->draw_buffer->offscreen = offscreen;
     }
