@@ -87,6 +87,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
   export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
   export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
+  export_params.apply_transforms = RNA_boolean_get(op->ptr, "apply_transforms");
   export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op->ptr, "export_eval_mode"));
 
   export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
@@ -153,6 +154,7 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
     col->prop(
         ptr, "export_triangulated_mesh", UI_ITEM_NONE, IFACE_("Triangulated Mesh"), ICON_NONE);
     col->prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+    col->prop(ptr, "apply_transforms", UI_ITEM_NONE, IFACE_("Apply Transforms"), ICON_NONE);
     col->prop(ptr, "export_eval_mode", UI_ITEM_NONE, IFACE_("Properties"), ICON_NONE);
   }
 
@@ -307,6 +309,8 @@ void WM_OT_obj_export(wmOperatorType *ot)
   /* File Writer options. */
   RNA_def_boolean(
       ot->srna, "apply_modifiers", true, "Apply Modifiers", "Apply modifiers to exported meshes");
+  RNA_def_boolean(
+      ot->srna, "apply_transforms", true, "Apply Transforms", "Apply object transforms to exported vertices");
   RNA_def_enum(ot->srna,
                "export_eval_mode",
                io_obj_export_evaluation_mode,
