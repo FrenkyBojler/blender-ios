@@ -260,12 +260,19 @@ class ShaderModule {
   ~ShaderModule();
 
   bool static_shaders_are_ready(bool block_until_ready,
+                                /* Only queried before initial synchronization, only if needed. */
                                 bool use_ao_pass,
                                 bool use_dof,
+                                bool use_motion_blur,
                                 bool use_fast_gi,
                                 bool use_bake,
                                 bool use_raytracing,
-                                bool use_deferred_light_triple);
+                                /* Only queried after initial synchronization, only if needed. */
+                                bool use_deferred_light_triple = false,
+                                bool use_capture = false,
+                                bool use_planar = false,
+                                bool use_subsurface = false,
+                                bool use_volume = false);
   bool request_specializations(bool block_until_ready,
                                int render_buffers_shadow_id,
                                int shadow_ray_count,

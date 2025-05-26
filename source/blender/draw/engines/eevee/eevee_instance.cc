@@ -211,10 +211,10 @@ void Instance::init(const int2 &output_res,
   shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render,
                                                         false,
                                                         depth_of_field.postfx_enabled(),
+                                                        motion_blur.postfx_enabled(),
                                                         raytracing.use_fast_gi(),
                                                         false,
-                                                        raytracing.use_raytracing(),
-                                                        false /* Recheck after sync. */) &&
+                                                        raytracing.use_raytracing()) &&
                        shaders.request_specializations(
                            is_image_render,
                            render_buffers.data.shadow_id,
@@ -260,9 +260,9 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   volume.init();
   lookdev.init(&empty_rect);
 
-  shaders.static_shaders_are_ready(true, false, false, false, true, false, false);
+  shaders.static_shaders_are_ready(true, false, false, false, false, true, false);
   shaders.request_specializations(true,
-                                  render_buffers.data.shadow_id,
+                                  -1,
                                   shadows.get_data().ray_count,
                                   shadows.get_data().step_count,
                                   DeferredLayer::do_split_direct_indirect_radiance(*this),
@@ -406,21 +406,34 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 
 void Instance::end_sync()
 {
+  if (skip_render_) {
+    /* We might run in the case where the next check sets skip_render_ to false after the
+     * begin_sync was skipped, which would call `end_sync` function with invalid data. */
+    return;
+  }
+
   shaders_are_ready_ =
       shaders.static_shaders_are_ready(is_image_render,
+                                       /* Already queried before sync. */
                                        false,
-                                       depth_of_field.postfx_enabled(),
-                                       raytracing.use_fast_gi(),
                                        false,
+                                       false,
+                                       false,
+                                       false,
+                                       /* After sync additional static shader. */
                                        raytracing.use_raytracing(),
-                                       pipelines.deferred.closure_layer_count() == 3) &&
+                                       pipelines.deferred.closure_layer_count() >= 3,
+                                       needs_lightprobe_sphere_passes(),
+                                       needs_planar_probe_passes(),
+                                       pipelines.deferred.closure_bits_get() & CLOSURE_SSS,
+                                       volume.will_enable()) &&
       shaders.request_specializations(is_image_render,
                                       render_buffers.data.shadow_id,
                                       shadows.get_data().ray_count,
                                       shadows.get_data().step_count,
                                       DeferredLayer::do_split_direct_indirect_radiance(*this),
                                       DeferredLayer::do_merge_direct_indirect_eval(*this),
-                                      pipelines.deferred.closure_layer_count() == 3);
+                                      pipelines.deferred.closure_layer_count() >= 3);
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 
   if (skip_render_) {
