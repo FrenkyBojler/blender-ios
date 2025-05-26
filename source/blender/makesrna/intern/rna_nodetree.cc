@@ -747,14 +747,11 @@ const EnumPropertyItem *rna_node_tree_type_itemf(
 int rna_node_socket_idname_to_enum(const char *idname)
 {
   using namespace blender;
-  Span<const bke::bNodeSocketType *> types = bke::node_socket_types_get();
-  for (const int i : types.index_range()) {
-    const bke::bNodeSocketType *nt = types[i];
-    if (nt->idname == idname) {
-      return i;
-    }
-  }
-  return -1;
+
+  bke::bNodeSocketType *socket_type = bke::node_socket_type_find(idname);
+  bke::bNodeSocketType *base_socket_type = bke::node_socket_type_find_static(socket_type->type,
+                                                                             PROP_NONE);
+  return bke::node_socket_types_get().first_index(base_socket_type);
 }
 
 blender::bke::bNodeSocketType *rna_node_socket_type_from_enum(int value)
@@ -13838,6 +13835,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeHueSat");
   define("CompositorNode", "CompositorNodeIDMask", def_cmp_id_mask);
   define("CompositorNode", "CompositorNodeImage", def_cmp_image);
+  define("CompositorNode", "CompositorNodeImageCoordinates");
   define("CompositorNode", "CompositorNodeImageInfo");
   define("CompositorNode", "CompositorNodeInpaint", def_cmp_inpaint);
   define("CompositorNode", "CompositorNodeInvert", def_cmp_invert);
