@@ -1607,7 +1607,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* identifiers */
   ot->name = "New Compositing Node Tree";
   ot->idname = "NODE_OT_new_compositing_node_group";
-  ot->description = "Create a new compositing node tree and initialize it with default nodes.";
+  ot->description = "Create a new compositing node tree and initialize it with default nodes";
 
   /* api callbacks */
   ot->exec = new_compositing_node_group_exec;
@@ -1615,7 +1615,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", DATA_("Compositing Nodetree"), MAX_ID_NAME - 2, "Name", "");
+  RNA_def_string(ot->srna, "name", DATA_("Compositing Node Tree"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */

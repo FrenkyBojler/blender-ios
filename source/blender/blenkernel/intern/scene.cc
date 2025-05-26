@@ -374,6 +374,9 @@ static void scene_free_data(ID *id)
 
   BKE_keyingsets_free(&scene->keyingsets);
 
+  BLI_assert_msg(scene->nodetree == nullptr,
+                 "Pointer should not be valid after blend file reading.");
+
   if (scene->rigidbody_world) {
     /* Prevent rigidbody freeing code to follow other IDs pointers, this should never be allowed
      * nor necessary from here, and with new undo code, those pointers may be fully invalid or
@@ -976,8 +979,9 @@ static void scene_foreach_cache(ID *id,
 static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Scene *sce = (Scene *)id;
+  const bool is_write_undo = BLO_write_is_undo(writer);
 
-  if (BLO_write_is_undo(writer)) {
+  if (is_write_undo) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
     sce->cursor = View3DCursor{};
@@ -985,7 +989,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
-  if (sce->compositing_node_group && !BLO_write_is_undo(writer)) {
+  if (sce->compositing_node_group && !is_write_undo) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
     /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
@@ -1096,7 +1100,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
-  if (sce->compositing_node_group && !BLO_write_is_undo(writer)) {
+  if (sce->compositing_node_group && !is_write_undo) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_node_group->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
