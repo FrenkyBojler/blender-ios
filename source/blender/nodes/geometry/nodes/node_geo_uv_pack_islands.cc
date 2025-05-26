@@ -211,7 +211,7 @@ static void node_rna(StructRNA *srna)
 
   RNA_def_node_enum(srna,
                     "shape_method",
-                    "Shape method",
+                    "Shape Method",
                     "Method used for packing UV islands",
                     shape_method_items,
                     NOD_inline_enum_accessors(custom1),
