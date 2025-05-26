@@ -33,7 +33,6 @@ const EnumPropertyItem rna_enum_tree_node_move_type_items[] = {
 #  include "BKE_grease_pencil.hh"
 #  include "BKE_grease_pencil_vertex_groups.hh"
 #  include "BKE_report.hh"
-#  include "BLI_listbase.h"
 #  include "DNA_meshdata_types.h"
 
 #  include "DEG_depsgraph.hh"
@@ -266,7 +265,6 @@ static void rna_GreasePencilDrawing_add_vertex_weight(ID *grease_pencil_id,
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
   const int dverts_size = dverts.size();
 
-  int weight_idx = 0;
   for (int i = 0; i < indices_num; i++) {
     const int dvert_index = indices_ptr[i];
     const float weight = weights_ptr[i];
@@ -803,8 +801,8 @@ void RNA_api_grease_pencil_drawing(StructRNA *srna)
                              "weights_ptr",
                              1,
                              nullptr,
-                             0,
-                             0,
+                             0.0f,
+                             1.0f,
                              "Weights",
                              "The weight for each corresponding index in the indices array",
                              0,
