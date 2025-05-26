@@ -21,6 +21,20 @@ enum class ShapeMethod : int16_t {
   Concave = 2,
 };
 
+static eUVPackIsland_ShapeMethod convert_shape_method(const ShapeMethod method)
+{
+  switch (method) {
+    case ShapeMethod::Aabb:
+      return ED_UVPACK_SHAPE_AABB;
+    case ShapeMethod::Convex:
+      return ED_UVPACK_SHAPE_CONVEX;
+    case ShapeMethod::Concave:
+      return ED_UVPACK_SHAPE_CONCAVE;
+  }
+  BLI_assert_unreachable();
+  return ED_UVPACK_SHAPE_AABB;
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -162,8 +176,8 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const bNode &node = params.node();
-  const eUVPackIsland_ShapeMethod shape_method = static_cast<eUVPackIsland_ShapeMethod>(
-      node.custom1);
+  const ShapeMethod local_shape_method = ShapeMethod(node.custom1);
+  const eUVPackIsland_ShapeMethod shape_method = convert_shape_method(local_shape_method);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
