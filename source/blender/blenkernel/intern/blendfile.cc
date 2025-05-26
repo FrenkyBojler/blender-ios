@@ -1642,7 +1642,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       ok_write = BKE_blendfile_userdef_write(filepath, reports);
     }
 
-    if (ok_write) {
+    if (!ok_write) {
       if (!G.quiet) {
         printf("ok\n");
       }

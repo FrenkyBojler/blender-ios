@@ -549,55 +549,36 @@ uiLayout *UI_popup_menu_layout(uiPopupMenu *pup)
 
 void UI_popup_menu_reports(bContext *C, ReportList *reports)
 {
-  uiPopupMenu *pup = nullptr;
-  uiLayout *layout;
-
   if (!CTX_wm_window(C)) {
     return;
   }
 
   BKE_reports_lock(reports);
+  int alert_count = 0;
 
   LISTBASE_FOREACH (Report *, report, &reports->list) {
-    int icon;
-    const char *msg, *msg_next;
-
-    if (report->type < reports->printlevel) {
-      continue;
+    if (report->type >= reports->printlevel) {
+      alert_count++;
+      break;
     }
+  }
 
-    if (pup == nullptr) {
-      char title[UI_MAX_DRAW_STR];
-      SNPRINTF(title, "%s: %s", RPT_("Report"), report->typestr);
-      /* popup_menu stuff does just what we need (but pass meaningful block name) */
-      pup = UI_popup_menu_begin_ex(C, title, __func__, ICON_NONE);
-      layout = UI_popup_menu_layout(pup);
-    }
-    else {
-      layout->separator();
-    }
-
-    /* split each newline into a label */
-    msg = report->message;
-    icon = UI_icon_from_report_type(report->type);
-    do {
-      char buf[UI_MAX_DRAW_STR];
-      msg_next = strchr(msg, '\n');
-      if (msg_next) {
-        msg_next++;
-        BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
-        msg = buf;
+  if (alert_count) {
+    std::string title = RPT_("Error");
+    std::string messages;
+    LISTBASE_FOREACH (Report *, report, &reports->list) {
+      if (report->type < reports->printlevel) {
+        continue;
       }
-      layout->label(msg, icon);
-      icon = ICON_NONE;
-    } while ((msg = msg_next) && *msg);
+      if (!messages.empty()) {
+        messages += "\n";
+      }
+      messages += report->message;
+    }
+    UI_alert(C, title, messages, ALERT_ICON_ERROR, true);
   }
 
   BKE_reports_unlock(reports);
-
-  if (pup) {
-    UI_popup_menu_end(C, pup);
-  }
 }
 
 static void ui_popup_menu_create_from_menutype(bContext *C,
