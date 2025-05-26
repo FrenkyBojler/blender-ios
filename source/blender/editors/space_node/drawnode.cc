@@ -1190,19 +1190,11 @@ static void std_node_socket_draw(
                              false;
 
   if (has_gizmo) {
-    if (sock->in_out == SOCK_OUT && ELEM(node->type_legacy, NODE_GROUP_INPUT)) {
-      if (node->is_group_input()) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        row->label("", ICON_GIZMO);
-      }
-      else if (nodes::partial_eval::is_supported_value_node(*node)) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        draw_gizmo_pin_icon(row, ptr);
-      }
+    if (sock->in_out == SOCK_OUT && node->is_group_input()) {
+      uiLayout *row = &layout->row(false);
+      uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+      node_socket_button_label(C, row, ptr, node_ptr, text);
+      row->label("", ICON_GIZMO);
       return;
     }
     if (sock->in_out == SOCK_IN && sock->index() == 0 &&
