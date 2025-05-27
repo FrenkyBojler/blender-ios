@@ -275,50 +275,51 @@ static void rna_GreasePencilDrawing_set_vertex_weights(ID *grease_pencil_id,
   const int def_nr = bke::greasepencil::ensure_vertex_group(vertex_group_name,
                                                             curves.vertex_group_names);
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
-  const int dverts_size = dverts.size();
-
-  for (int i = 0; i < indices_num; i++) {
-    const int dvert_index = indices[i];
-    const float weight = weights[i];
-
-    if (dvert_index >= dverts_size) {
-      BKE_reportf(reports, RPT_ERROR, "Index \"%d\" is out of range for curves", dvert_index);
-      return;
-    }
-
-    MDeformVert *dv = &dverts[dvert_index];
-    /* Lets first check to see if this vert is already in the weight group - if so lets update it.
-     */
-    if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
-      switch (assignmode) {
-        case WEIGHT_REPLACE:
-          dw->weight = weight;
-          break;
-        case WEIGHT_ADD:
-          dw->weight += weight;
-          break;
-        case WEIGHT_SUBTRACT:
-          dw->weight -= weight;
-          break;
-      }
-      dw->weight = std::clamp(dw->weight, 0.0f, 1.0f);
-    }
-    else {
-      /* If the vert wasn't in the deform group then we must take a different form of action. */
-      switch (assignmode) {
-        case WEIGHT_SUBTRACT:
-          /* If we are subtracting then we don't need to do anything. */
-          return;
-
-        case WEIGHT_REPLACE:
-        case WEIGHT_ADD:
-          /* If we are doing an additive assignment, then we need to create the deform weight. */
-          /* We checked if the vertex was added before so no need to test again, simply add. */
-          BKE_defvert_add_index_notest(dv, def_nr, std::clamp(weight, 0.0f, 1.0f));
-          break;
-      }
-    }
+  if (std::any_of(indices.begin(), indices.end(), [&](const int index) {
+        return !dverts.index_range().contains(index);
+      }))
+  {
+    BKE_reportf(reports, RPT_ERROR, "Indices must be in range");
+    return;
   }
+
+  threading::parallel_for(indices.index_range(), 2048, [&](const IndexRange range) {
+    for (const int i : range) {
+      const int dvert_index = indices[i];
+      const float weight = weights[i];
+      MDeformVert *dv = &dverts[dvert_index];
+      /* Lets first check to see if this vert is already in the weight group and update it. */
+      if (MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr)) {
+        switch (assignmode) {
+          case WEIGHT_REPLACE:
+            dw->weight = weight;
+            break;
+          case WEIGHT_ADD:
+            dw->weight += weight;
+            break;
+          case WEIGHT_SUBTRACT:
+            dw->weight -= weight;
+            break;
+        }
+        dw->weight = std::clamp(dw->weight, 0.0f, 1.0f);
+      }
+      else {
+        /* If the vert wasn't in the deform group then we must take a different form of action. */
+        switch (assignmode) {
+          case WEIGHT_SUBTRACT:
+            /* If we are subtracting then we don't need to do anything. */
+            return;
+
+          case WEIGHT_REPLACE:
+          case WEIGHT_ADD:
+            /* If we are doing an additive assignment, then we need to create the deform weight. */
+            /* We checked if the vertex was added before so no need to test again, simply add. */
+            BKE_defvert_add_index_notest(dv, def_nr, std::clamp(weight, 0.0f, 1.0f));
+            break;
+        }
+      }
+    }
+  });
 
   WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, nullptr);
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
