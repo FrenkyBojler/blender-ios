@@ -28,9 +28,7 @@
 
 namespace blender::ed::object::shapekey {
 
-  using namespace blender::ui;
-
-class ShapeKeyTreeView : public AbstractTreeView {
+class ShapeKeyTreeView : public ui::AbstractTreeView {
  protected:
   Object &object_;
 
@@ -47,7 +45,7 @@ struct ShapeKey {
   int index;
 };
 
-class ShapeKeyDragController : public AbstractViewItemDragController {
+class ShapeKeyDragController : public ui::AbstractViewItemDragController {
  private:
   ShapeKey drag_key_;
 
@@ -75,14 +73,14 @@ class ShapeKeyDragController : public AbstractViewItemDragController {
   }
 };
 
-class ShapeKeyDropTarget : public TreeViewItemDropTarget {
+class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
  private:
   KeyBlock &drop_kb_;
   int drop_index_;
 
  public:
-  ShapeKeyDropTarget(AbstractTreeViewItem &item,
-                     DropBehavior behavior,
+  ShapeKeyDropTarget(ui::AbstractTreeViewItem &item,
+                     ui::DropBehavior behavior,
                      KeyBlock &drop_kb,
                      int index)
       : TreeViewItemDropTarget(item, behavior), drop_kb_(drop_kb), drop_index_(index)
@@ -101,18 +99,19 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     return true;
   }
 
-  std::string drop_tooltip(const DragInfo &drag_info) const override
+  std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
     const ShapeKey *drag_shapekey = static_cast<const ShapeKey *>(drag_info.drag_data.poin);
     const StringRef drag_name = drag_shapekey->kb->name;
     const StringRef drop_name = drop_kb_.name;
 
     switch (drag_info.drop_location) {
-      case DropLocation::Into:
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
         break;
-      case DropLocation::Before:
+      case ui::DropLocation::Before:
         return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
-      case DropLocation::After:
+      case ui::DropLocation::After:
         return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
       default:
         BLI_assert_unreachable();
@@ -122,23 +121,22 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
     return "";
   }
 
-  bool on_drop(bContext *C, const DragInfo &drag_info) const override
+  bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
     const ShapeKey *drag_shapekey = static_cast<const ShapeKey *>(drag_info.drag_data.poin);
     int drop_index = drop_index_;
     const int drag_index = drag_shapekey->index;
 
     switch (drag_info.drop_location) {
-      case DropLocation::Into:
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
         break;
-      case DropLocation::Before: {
+      case ui::DropLocation::Before:
         drop_index -= int(drag_index < drop_index);
         break;
-      }
-      case DropLocation::After: {
+      case ui::DropLocation::After:
         drop_index += int(drag_index > drop_index);
         break;
-      }
     }
     Object *object = drag_shapekey->object;
     BKE_keyblock_move(object, drag_shapekey->index, drop_index);
@@ -151,7 +149,7 @@ class ShapeKeyDropTarget : public TreeViewItemDropTarget {
   }
 };
 
-class ShapeKeyItem : public AbstractTreeViewItem {
+class ShapeKeyItem : public ui::AbstractTreeViewItem {
  private:
   ShapeKey shape_key_;
 
@@ -211,16 +209,16 @@ class ShapeKeyItem : public AbstractTreeViewItem {
     return label_;
   }
 
-  std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
+  std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
   {
     return std::make_unique<ShapeKeyDragController>(
         static_cast<ShapeKeyTreeView &>(get_tree_view()), shape_key_);
   }
 
-  std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override
+  std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
   {
     return std::make_unique<ShapeKeyDropTarget>(
-        *this, DropBehavior::Reorder, *shape_key_.kb, shape_key_.index);
+        *this, ui::DropBehavior::Reorder, *shape_key_.kb, shape_key_.index);
   }
 };
 
@@ -236,6 +234,7 @@ void ShapeKeyTreeView::build_tree()
   }
 }
 
+namespace template_tree {
 void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
@@ -245,13 +244,14 @@ void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
 
   uiBlock *block = uiLayoutGetBlock(layout);
 
-  blender::ui::AbstractTreeView *tree_view = UI_block_add_view(
+  ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "Shape Key Tree View",
-      std::make_unique<blender::ed::object::shapekey::ShapeKeyTreeView>(*ob));
+      std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(3);
 
-  blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+}
 }
 }  // blender::ed::object::shapekey
