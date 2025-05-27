@@ -14,6 +14,7 @@
 #include "BLO_read_write.hh"
 
 #include "NOD_fn_format_string.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -427,7 +428,8 @@ static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
                            const IndexMask &mask,
-                           MutableSpan<std::string> r_formatted_strings)
+                           MutableSpan<std::string> r_formatted_strings,
+                           std::optional<std::string> &r_error_message)
 {
   CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
@@ -458,6 +460,10 @@ static bool format_strings(const StringRef format,
     const std::optional<StringRef> format_outer = find_format_specifier(
         format.substr(current_index));
     if (!format_outer.has_value()) {
+      if (!r_error_message) {
+        r_error_message = fmt::format(fmt::runtime(TIP_("Format specifier is not closed: \"{}\"")),
+                                      format.substr(current_index));
+      }
       return false;
     }
     const StringRef format_inner = format_outer->substr(1, format_outer->size() - 2);
@@ -525,7 +531,7 @@ class FormatStringMultiFunction : public mf::MultiFunction {
     this->set_signature(&signature_);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context context) const override
   {
     const NodeFunctionFormatString &storage = node_storage(node_);
 
@@ -538,18 +544,26 @@ class FormatStringMultiFunction : public mf::MultiFunction {
       inputs[i] = params.readonly_single_input(i + 1);
     }
 
+    std::optional<std::string> error_message;
+
     if (const std::optional<std::string> single_format = formats.get_if_single()) {
-      if (!format_strings(*single_format, inputs, input_names_, mask, outputs)) {
+      if (!format_strings(*single_format, inputs, input_names_, mask, outputs, error_message)) {
         mask.foreach_index([&](const int64_t i) { outputs[i].clear(); });
       }
     }
     else {
       mask.foreach_index(GrainSize(256), [&](const int64_t i) {
         const StringRef format = formats[i];
-        if (!format_strings(format, inputs, input_names_, IndexRange::from_single(i), outputs)) {
+        if (!format_strings(
+                format, inputs, input_names_, IndexRange::from_single(i), outputs, error_message))
+        {
           outputs[i].clear();
         }
       });
+    }
+
+    if (error_message.has_value()) {
+      report_from_multi_function(context, NodeWarningType::Error, std::move(*error_message));
     }
   }
 };
