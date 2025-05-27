@@ -270,12 +270,11 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     request(compilation_handles_.light, light_shader_list);
   }
   if (use_bake) {
-    const std::array<eShaderType, 5> lightprobe_irradiance_shader_list = {
+    const std::array<eShaderType, 4> lightprobe_irradiance_shader_list = {
         LIGHTPROBE_IRRADIANCE_BOUNDS,
         LIGHTPROBE_IRRADIANCE_OFFSET,
         LIGHTPROBE_IRRADIANCE_RAY,
-        LIGHTPROBE_IRRADIANCE_LOAD,
-        LIGHTPROBE_IRRADIANCE_WORLD};
+        LIGHTPROBE_IRRADIANCE_LOAD};
     request(compilation_handles_.lightprobe_irradiance, lightprobe_irradiance_shader_list);
   }
   // if (use_lookdev) {
@@ -306,11 +305,12 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     request(compilation_handles_.renderpass, renderpass_shader_list);
   }
   {
-    const std::array<eShaderType, 5> sphere_probe_shader_list = {SPHERE_PROBE_CONVOLVE,
+    const std::array<eShaderType, 6> sphere_probe_shader_list = {SPHERE_PROBE_CONVOLVE,
                                                                  SPHERE_PROBE_IRRADIANCE,
                                                                  SPHERE_PROBE_REMAP,
                                                                  SPHERE_PROBE_SELECT,
-                                                                 SPHERE_PROBE_SUNLIGHT};
+                                                                 SPHERE_PROBE_SUNLIGHT,
+                                                                 LIGHTPROBE_IRRADIANCE_WORLD};
     request(compilation_handles_.sphere_probe, sphere_probe_shader_list);
   }
   {
