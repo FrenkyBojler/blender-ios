@@ -50,7 +50,7 @@ Engine::Engine(RenderEngine *bl_engine, const std::string &render_delegate_name)
       case GPU_BACKEND_NONE:
       case GPU_BACKEND_ANY:
         /* When pxr::Hgi::CreateNamedHgi is called with an empty token it will select the default
-         * platform Hgi. This is Metal or OpenGL. */
+         * platform Hgi. */
         break;
     }
     hgi_ = pxr::Hgi::CreateNamedHgi(hgi_token);
