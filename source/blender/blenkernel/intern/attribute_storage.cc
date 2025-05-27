@@ -64,7 +64,7 @@ Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
   const CPPType &type = *value.type();
   const void *value_ptr = type.default_value();
 
-  /* Prefer `calloc` to filling after allocation since it is faster. */
+  /* Prefer `calloc` to zeroing after allocation since it is faster. */
   if (BLI_memory_is_zero(value_ptr, type.size) && type.alignment <= MEM_MIN_CPP_ALIGNMENT) {
     data.data = MEM_calloc_arrayN(domain_size, type.size, __func__);
   }
