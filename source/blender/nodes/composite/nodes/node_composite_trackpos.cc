@@ -37,7 +37,7 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>("X");
   b.add_output<decl::Float>("Y");
-  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY);
+  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY).dimensions(2);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -352,7 +352,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_trackpos_cc
 
-void register_node_type_cmp_trackpos()
+static void register_node_type_cmp_trackpos()
 {
   namespace file_ns = blender::nodes::node_composite_trackpos_cc;
 
@@ -373,3 +373,4 @@ void register_node_type_cmp_trackpos()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_trackpos)
