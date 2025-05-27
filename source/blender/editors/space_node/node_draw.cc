@@ -3630,10 +3630,36 @@ static void node_draw_basis(const bContext &C,
     const int but_size = U.widget_unit * 0.8f;
     UI_block_emboss_set(&block, blender::ui::EmbossType::None);
 
+    const int icon = [&]() {
+      if (!(node.flag & NODE_OPTIONS)) {
+        return ICON_NODE_HIDDEN_2;
+      }
+      for (const bNodeSocket *socket : node.input_sockets()) {
+        if (!socket->is_available()) {
+          continue;
+        }
+        /* TODO: Handle panel toggles. */
+        if (socket->is_user_hidden() && socket->inferred_input_socket_visibility() &&
+            !socket->is_panel_collapsed())
+        {
+          return ICON_NODE_HIDDEN_1;
+        }
+      }
+      for (const bNodeSocket *socket : node.output_sockets()) {
+        if (!socket->is_available()) {
+          continue;
+        }
+        if (socket->is_user_hidden() && !socket->is_panel_collapsed()) {
+          return ICON_NODE_HIDDEN_1;
+        }
+      }
+      return ICON_NODE_FULL;
+    }();
+
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
                               0,
-                              ICON_DOWNARROW_HLT,
+                              icon,
                               rct.xmin + (NODE_MARGIN_X / 3),
                               rct.ymax - NODE_DY / 2.2f - but_size / 2,
                               but_size,
@@ -3884,7 +3910,7 @@ static void node_draw_hidden(const bContext &C,
     uiBut *but = uiDefIconBut(&block,
                               UI_BTYPE_BUT_TOGGLE,
                               0,
-                              ICON_RIGHTARROW,
+                              ICON_NODE_COLLAPSED,
                               rct.xmin + (NODE_MARGIN_X / 3),
                               centy - but_size / 2,
                               but_size,

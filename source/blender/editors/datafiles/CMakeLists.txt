@@ -631,8 +631,12 @@ if(WITH_BLENDER)
       nocurve
       node
       nodetree
+      node_collapsed
       node_compositing
       node_corner
+      node_full
+      node_hidden_1
+      node_hidden_2
       node_insert_off
       node_insert_on
       node_material
