@@ -1783,7 +1783,80 @@ static wmOperatorStatus node_hide_toggle_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  node_flag_toggle_exec(snode, NODE_HIDDEN);
+  bNodeTree &tree = *snode->edittree;
+  tree.ensure_topology_cache();
+  for (bNode *node : tree.all_nodes()) {
+    if (!(node->flag & NODE_SELECT)) {
+      continue;
+    }
+
+    bool has_hideable_sockets = false;
+    bool has_visible_sockets = false;
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      if (!socket->is_available()) {
+        continue;
+      }
+      if (socket->is_visible()) {
+        has_visible_sockets = true;
+      }
+      /* TODO: Handle panel toggles. */
+      const bool is_user_visible = socket->is_icon_visible();
+      if (!socket->is_directly_linked() && is_user_visible) {
+        has_hideable_sockets = true;
+      }
+    }
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (!socket->is_available()) {
+        continue;
+      }
+      if (socket->is_visible()) {
+        has_visible_sockets = true;
+      }
+      const bool is_user_visible = socket->is_icon_visible();
+      if (!socket->is_directly_linked() && is_user_visible) {
+        has_hideable_sockets = true;
+      }
+    }
+
+    auto hide_unlinked_sockets = [&]() {
+      for (bNodeSocket *socket : node->input_sockets()) {
+        if (!socket->is_directly_linked()) {
+          socket->flag |= SOCK_HIDDEN;
+        }
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        if (!socket->is_directly_linked()) {
+          socket->flag |= SOCK_HIDDEN;
+        }
+      }
+    };
+    auto unhide_all_sockets = [&]() {
+      for (bNodeSocket *socket : node->input_sockets()) {
+        socket->flag &= ~SOCK_HIDDEN;
+      }
+      for (bNodeSocket *socket : node->output_sockets()) {
+        socket->flag &= ~SOCK_HIDDEN;
+      }
+    };
+
+    if (node->flag & NODE_HIDDEN) {
+      node->flag &= ~NODE_HIDDEN;
+      node->flag |= NODE_OPTIONS;
+      unhide_all_sockets();
+    }
+    else {
+      if (has_hideable_sockets) {
+        hide_unlinked_sockets();
+      }
+      else if (has_visible_sockets && node->flag & NODE_OPTIONS && node->typeinfo->draw_buttons) {
+        node->flag &= ~NODE_OPTIONS;
+      }
+      else {
+        node->flag |= NODE_HIDDEN;
+        hide_unlinked_sockets();
+      }
+    }
+  }
 
   WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
