@@ -34,6 +34,7 @@ set(SRC
   render_graph_finalize_test.cpp
   util_aligned_malloc_test.cpp
   util_boundbox_test.cpp
+  util_hash_test.cpp
   util_ies_test.cpp
   util_math_test.cpp
   util_math_fast_test.cpp
