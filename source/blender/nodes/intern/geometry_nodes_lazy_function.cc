@@ -467,12 +467,16 @@ std::string make_anonymous_attribute_socket_inspection_string(StringRef node_nam
 static void execute_multi_function_on_value_variant__single(
     const MultiFunction &fn,
     const Span<SocketValueVariant *> input_values,
-    const Span<SocketValueVariant *> output_values)
+    const Span<SocketValueVariant *> output_values,
+    GeoNodesUserData *user_data,
+    GeoNodesLocalUserData *local_user_data)
 {
   /* In this case, the multi-function is evaluated directly. */
   const IndexMask mask(1);
   mf::ParamsBuilder params{fn, &mask};
   mf::ContextBuilder context;
+  context.user_data(user_data);
+  context.local_user_data(local_user_data);
 
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
@@ -744,6 +748,13 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+
+    GeoNodesUserData eval_user_data = user_data;
+    eval_user_data.compute_context = &compute_context;
+    GeoNodesLocalUserData eval_local_user_data{local_user_data};
+
     Vector<SocketValueVariant *> input_values(inputs_.size());
     Vector<SocketValueVariant *> output_values(outputs_.size());
     for (const int i : inputs_.index_range()) {
