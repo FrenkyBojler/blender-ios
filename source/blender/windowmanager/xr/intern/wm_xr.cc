@@ -53,7 +53,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
   }
 }
 
-bool wm_xr_init(wmWindowManager *wm)
+bool wm_xr_init(wmWindowManager *wm, eGPUBackendType gpu_backend)
 {
   if (wm->xr.runtime && wm->xr.runtime->context) {
     return true;
@@ -66,7 +66,7 @@ bool wm_xr_init(wmWindowManager *wm)
 
   {
     blender::Vector<GHOST_TXrGraphicsBinding> gpu_bindings_candidates;
-    switch (GPU_backend_get_type()) {
+    switch (gpu_backend) {
 #ifdef WITH_OPENGL_BACKEND
       case GPU_BACKEND_OPENGL:
         gpu_bindings_candidates.append(GHOST_kXrGraphicsOpenGL);
@@ -78,7 +78,7 @@ bool wm_xr_init(wmWindowManager *wm)
 
 #ifdef WITH_VULKAN_BACKEND
       case GPU_BACKEND_VULKAN:
-        gpu_bindings_candidates.append(bool(U.gpu_flag & USER_GPU_FLAG_XR_SHARE_RESOURCES) ?
+        gpu_bindings_candidates.append(bool(U.gpu_preferred_index == 0) ?
                                            GHOST_kXrGraphicsVulkanShared :
                                            GHOST_kXrGraphicsVulkan);
 #  ifdef WIN32
@@ -155,6 +155,15 @@ bool wm_xr_events_handle(wmWindowManager *wm)
     /* #wm_window_events_process() uses the return value to determine if it can put the main thread
      * to sleep for some milliseconds. We never want that to happen while the VR session runs on
      * the main thread. So always return true. */
+    return true;
+  }
+  return false;
+}
+
+bool wm_xr_context_handle_get(const wmWindowManager *wm, GHOST_XrContextHandle *r_xr_context)
+{
+  if (wm->xr.runtime) {
+    *r_xr_context = wm->xr.runtime->context;
     return true;
   }
   return false;

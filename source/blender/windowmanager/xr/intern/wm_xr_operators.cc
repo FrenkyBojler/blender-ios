@@ -34,6 +34,7 @@
 
 #include "GHOST_Types.h"
 
+#include "GPU_context.hh"
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
 
@@ -129,7 +130,7 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
-  if (wm_xr_init(wm) == false) {
+  if (wm_xr_init(wm, GPU_backend_get_type()) == false) {
     return OPERATOR_CANCELLED;
   }
 

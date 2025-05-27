@@ -832,6 +832,19 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     }
   }
 
+  /* Create OpenXR System. For optimal OpenXR performance OpenXR should create and select the
+   * vulkan instance, physical device and logical device. if this isn't the case we need to
+   * fallback by exporting/importing memory and doing CPU synchronization. The fallback has a big
+   * performance impact.
+   */
+#ifdef WITH_XR_OPENXR
+  if (gpu_backend == GPU_BACKEND_VULKAN && U.gpu_preferred_index == 0) {
+    if (wm_xr_init(wm, gpu_backend)) {
+      wm_xr_context_handle_get(wm, &gpuSettings.preferred_device.xr_context);
+    }
+  }
+#endif
+
   /* Clear drawable so we can set the new window. */
   wmWindow *prev_windrawable = wm->windrawable;
   wm_window_clear_drawable(wm);

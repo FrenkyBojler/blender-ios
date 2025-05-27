@@ -731,6 +731,13 @@ typedef struct {
   uint vendor_id;
   /** Device ID of the GPU provided by the vendor. */
   uint device_id;
+  /**
+   * Contains handle to XrContext.
+   *
+   * When xr_context is set OpenXR decides which Vulkan GPU is best for running Blender.
+   * Has more priority than other variables.
+   */
+  GHOST_XrContextHandle xr_context;
 } GHOST_GPUDevice;
 
 typedef struct {
