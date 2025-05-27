@@ -70,7 +70,7 @@ struct FormatStringItemsAccessor {
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type)
   {
-    return ELEM(socket_type, SOCK_INT, SOCK_BOOLEAN, SOCK_FLOAT, SOCK_STRING);
+    return ELEM(socket_type, SOCK_INT, SOCK_FLOAT, SOCK_STRING);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
