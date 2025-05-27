@@ -167,7 +167,21 @@ ImBuf *IMB_load_image_from_file_descriptor(const int file,
   const uchar *mem = static_cast<const uchar *>(BLI_mmap_get_pointer(mmap_file));
   const size_t size = BLI_mmap_get_length(mmap_file);
 
+  /* There could be broken memmap due to network drives and other issues, handles exception the
+   * same way as in #BLI_mmap_read. */
+#ifndef WIN32
   ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
+#else
+  __try
+  {
+    ibuf = IMB_load_image_from_memory(mem, size, flags, filepath, filepath, r_colorspace);
+  }
+  __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER :
+                                                            EXCEPTION_CONTINUE_SEARCH)
+  {
+    ibuf = nullptr;
+  }
+#endif
 
   imb_mmap_lock();
   BLI_mmap_free(mmap_file);
