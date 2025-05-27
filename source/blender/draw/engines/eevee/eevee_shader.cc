@@ -180,7 +180,7 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
   bool ready = true;
 
   auto is_ready = [&](HandleRequest &batch_request, Span<eShaderType> shader_types) {
-    if (!ready || batch_request.handle == 0) {
+    if (ready == false || batch_request.handle == 0) {
       return true;
     }
     if (GPU_shader_batch_is_ready(batch_request.handle) || block_until_ready) {
@@ -221,7 +221,7 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
                                                          FILM_PASS_CONVERT_VALUE,
                                                          FILM_PASS_CONVERT_COLOR,
                                                          FILM_PASS_CONVERT_CRYPTOMATTE};
-    batch_ensure(compilation_handles_.film, film_shader_list);
+    request(compilation_handles_.film, film_shader_list);
   }
   if (use_capture) {
     static const std::array<eShaderType, 1> deferred_capture_shader_list = {DEFERRED_CAPTURE_EVAL};
