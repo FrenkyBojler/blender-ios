@@ -776,7 +776,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
   if (checkExtensionSupport(extensions_available, extension_name)) {
     extensions_enabled.push_back(extension_name);
   }
-  else if (required) {
+  else {
     CLOG_ERROR(&LOG, "required extension not found: %s", extension_name);
   }
 }
