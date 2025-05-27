@@ -221,15 +221,15 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
 static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
 {
   if (type.is<float>()) {
-    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<float>())};
+    static FormatPatternInfo info = get_pattern_by_type_impl(CPPType::get<float>());
     return &info;
   }
   if (type.is<int>()) {
-    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<int>())};
+    static FormatPatternInfo info = get_pattern_by_type_impl(CPPType::get<int>());
     return &info;
   }
   if (type.is<std::string>()) {
-    static FormatPatternInfo info{get_pattern_by_type_impl(CPPType::get<std::string>())};
+    static FormatPatternInfo info = get_pattern_by_type_impl(CPPType::get<std::string>());
     return &info;
   }
   return nullptr;
