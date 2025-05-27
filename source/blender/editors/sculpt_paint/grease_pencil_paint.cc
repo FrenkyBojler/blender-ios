@@ -12,6 +12,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_vertex_groups.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_scene.hh"
@@ -137,6 +138,47 @@ static void morph_points_to_curve(Span<float2> src, Span<float2> target, Mutable
   dst.last() = src.last();
 }
 
+/* Creates a temporary brush with the fill guide settings. */
+static Brush *create_fill_guide_brush()
+{
+  Brush *fill_guides_brush = BKE_id_new_nomain<Brush>("Draw Fill Guides");
+  fill_guides_brush->ob_mode = OB_MODE_PAINT_GREASE_PENCIL;
+
+  if (fill_guides_brush->gpencil_settings == nullptr) {
+    BKE_brush_init_gpencil_settings(fill_guides_brush);
+  }
+  BrushGpencilSettings *settings = fill_guides_brush->gpencil_settings;
+
+  BKE_curvemapping_init(settings->curve_sensitivity);
+  BKE_curvemapping_init(settings->curve_strength);
+  BKE_curvemapping_init(settings->curve_jitter);
+  BKE_curvemapping_init(settings->curve_rand_pressure);
+  BKE_curvemapping_init(settings->curve_rand_strength);
+  BKE_curvemapping_init(settings->curve_rand_uv);
+  BKE_curvemapping_init(settings->curve_rand_hue);
+  BKE_curvemapping_init(settings->curve_rand_saturation);
+  BKE_curvemapping_init(settings->curve_rand_value);
+
+  fill_guides_brush->flag |= BRUSH_LOCK_SIZE;
+  fill_guides_brush->unprojected_radius = 0.005f;
+
+  settings->flag &= ~GP_BRUSH_USE_PRESSURE;
+
+  settings->brush_draw_mode = GP_BRUSH_MODE_VERTEXCOLOR;
+  /* TODO: Use theme setting. */
+  copy_v3_fl3(fill_guides_brush->rgb, 0.0f, 1.0f, 1.0f);
+  settings->vertex_factor = 1.0f;
+
+  settings->active_smooth = 0.35f;
+  settings->hardness = 1.0f;
+  fill_guides_brush->spacing = 100;
+
+  settings->flag |= GP_BRUSH_GROUP_SETTINGS;
+  settings->simplify_px = 0.4f;
+
+  return fill_guides_brush;
+}
+
 class PaintOperation : public GreasePencilStrokeOperation {
  private:
   bke::greasepencil::Drawing *drawing_;
@@ -197,6 +239,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   friend struct PaintOperationExecutor;
 
   Brush *saved_active_brush_;
+  Brush *fill_guides_brush_;
 
  public:
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
@@ -1072,13 +1115,11 @@ IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
 void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
-  Main *bmain = CTX_data_main(&C);
   Brush *current_brush = BKE_paint_brush(paint);
 
-  /* Switch to the pencil brush if possible. */
-  BKE_paint_brush_set_essentials(bmain, paint, "Pencil");
-  Brush *pencil_brush = BKE_paint_brush(paint);
-  BLI_assert(pencil_brush != nullptr);
+  fill_guides_brush_ = create_fill_guide_brush();
+  BLI_assert(fill_guides_brush_ != nullptr);
+  BKE_paint_brush_set(paint, fill_guides_brush_);
 
   saved_active_brush_ = current_brush;
 }
@@ -1086,10 +1127,12 @@ void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
 void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
-  if (saved_active_brush_) {
-    BKE_paint_brush_set(paint, saved_active_brush_);
-    saved_active_brush_ = nullptr;
-  }
+  BLI_assert(saved_active_brush_ != nullptr);
+  BKE_paint_brush_set(paint, saved_active_brush_);
+  saved_active_brush_ = nullptr;
+  /* Free the temporary brush. */
+  BKE_id_free_ex(nullptr, fill_guides_brush_, LIB_ID_FREE_NO_MAIN, false);
+  fill_guides_brush_ = nullptr;
 }
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
