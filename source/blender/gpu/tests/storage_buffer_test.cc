@@ -98,6 +98,30 @@ static void test_storage_buffer_clear()
 
 GPU_TEST(storage_buffer_clear);
 
+static void test_storage_buffer_clear_byte_pattern()
+{
+  GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
+      SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  EXPECT_NE(ssbo, nullptr);
+
+  /* Tests a different clear command on Metal. */
+  GPU_storagebuf_clear(ssbo, 0xFCFCFCFCu);
+
+  /* Read back data from SSBO. */
+  Vector<int32_t> read_data;
+  read_data.resize(SIZE, 0);
+  GPU_storagebuf_read(ssbo, read_data.data());
+
+  /* Check if datatest_ is the same. */
+  for (int i : IndexRange(SIZE)) {
+    EXPECT_EQ(0xFCFCFCFCu, read_data[i]);
+  }
+
+  GPU_storagebuf_free(ssbo);
+}
+
+GPU_TEST(storage_buffer_clear_byte_pattern);
+
 static void test_storage_buffer_copy_from_vertex_buffer()
 {
   GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
@@ -109,8 +133,8 @@ static void test_storage_buffer_copy_from_vertex_buffer()
   GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   GPU_vertformat_attr_add(&format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
 
-  VertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, 4);
+  VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
 
   struct Vert {
     float2 pos;

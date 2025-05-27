@@ -12,6 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_rotation_types.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_unroll.hh"
 
 namespace blender::math {
 
@@ -206,12 +207,25 @@ template<typename MatT, typename RotationT>
                                 const RotationT &rotation);
 
 /**
+ * Create a transform matrix with translation and scale applied in this order.
+ */
+template<typename MatT, int ScaleDim>
+[[nodiscard]] MatT from_loc_scale(const typename MatT::loc_type &location,
+                                  const VecBase<typename MatT::base_type, ScaleDim> &scale);
+
+/**
  * Create a transform matrix with translation, rotation and scale applied in this order.
  */
 template<typename MatT, typename RotationT, int ScaleDim>
 [[nodiscard]] MatT from_loc_rot_scale(const typename MatT::loc_type &location,
                                       const RotationT &rotation,
                                       const VecBase<typename MatT::base_type, ScaleDim> &scale);
+
+/**
+ * Create a rotation matrix with the angle that the given direction makes with the x axis. Assumes
+ * the direction vector is normalized.
+ */
+template<typename T> [[nodiscard]] MatBase<T, 2, 2> from_direction(const VecBase<T, 2> &direction);
 
 /**
  * Create a rotation matrix from 2 basis vectors.
@@ -355,6 +369,20 @@ inline void to_loc_rot_scale(const MatBase<T, 4, 4> &mat,
  * \{ */
 
 /**
+ * Transform a 2d point using a 2x2 matrix (rotation & scale).
+ */
+template<typename T>
+[[nodiscard]] VecBase<T, 2> transform_point(const MatBase<T, 2, 2> &mat,
+                                            const VecBase<T, 2> &point);
+
+/**
+ * Transform a 2d point using a 3x3 matrix (location & rotation & scale).
+ */
+template<typename T>
+[[nodiscard]] VecBase<T, 2> transform_point(const MatBase<T, 3, 3> &mat,
+                                            const VecBase<T, 2> &point);
+
+/**
  * Transform a 3d point using a 3x3 matrix (rotation & scale).
  */
 template<typename T>
@@ -463,13 +491,10 @@ template<typename T>
 /**
  * Returns true if matrix has inverted handedness.
  *
- * \note It doesn't use determinant(mat4x4) as only the 3x3 components are needed
- * when the matrix is used as a transformation to represent location/scale/rotation.
+ * \note It doesn't use determinant(mat4x4) as only the 3x3 components are needed assuming
+ * the matrix is used as a transformation to represent 3D location/scale/rotation.
  */
-template<typename T, int Size> [[nodiscard]] bool is_negative(const MatBase<T, Size, Size> &mat)
-{
-  return determinant(mat) < T(0);
-}
+template<typename T> [[nodiscard]] bool is_negative(const MatBase<T, 3, 3> &mat);
 template<typename T> [[nodiscard]] bool is_negative(const MatBase<T, 4, 4> &mat);
 
 /**
@@ -483,6 +508,22 @@ template<typename T, int NumCol, int NumRow>
   for (int i = 0; i < NumCol; i++) {
     for (int j = 0; j < NumRow; j++) {
       if (math::abs(a[i][j] - b[i][j]) > epsilon) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Returns true if the matrix is exactly the identity matrix.
+ */
+template<typename T, int NumCol, int NumRow>
+[[nodiscard]] inline bool is_identity(const MatBase<T, NumCol, NumRow> &mat)
+{
+  for (int i = 0; i < NumCol; i++) {
+    for (int j = 0; j < NumRow; j++) {
+      if (mat[i][j] != (i != j ? 0.0f : 1.0f)) {
         return false;
       }
     }
@@ -911,6 +952,21 @@ template<typename T> QuaternionBase<T> normalized_to_quat_fast(const MatBase<T, 
   }
 
   BLI_assert(!(q.w < 0.0f));
+
+  /* Sometimes normalization is necessary due to round-off errors in the above
+   * calculations. The comparison here uses tighter tolerances than
+   * BLI_ASSERT_UNIT_QUAT(), so it's likely that even after a few more
+   * transformations the quaternion will still be considered unit-ish. */
+  const T q_len_squared = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+  const T threshold = 0.0002f /* #BLI_ASSERT_UNIT_EPSILON */ * 3;
+  if (math::abs(q_len_squared - 1.0f) >= threshold) {
+    const T q_len_inv = 1.0 / math::sqrt(q_len_squared);
+    q.x *= q_len_inv;
+    q.y *= q_len_inv;
+    q.z *= q_len_inv;
+    q.w *= q_len_inv;
+  }
+
   BLI_assert(math::is_unit_scale(VecBase<T, 4>(q)));
   return q;
 }
@@ -921,7 +977,7 @@ template<typename T> QuaternionBase<T> normalized_to_quat_with_checks(const MatB
   if (UNLIKELY(!std::isfinite(det))) {
     return QuaternionBase<T>::identity();
   }
-  else if (UNLIKELY(det < T(0))) {
+  if (UNLIKELY(det < T(0))) {
     return normalized_to_quat_fast(-mat);
   }
   return normalized_to_quat_fast(mat);
@@ -1234,12 +1290,6 @@ template<typename T>
   return to_quaternion(to_euler(mat));
 }
 
-template<typename T>
-[[nodiscard]] inline QuaternionBase<T> normalized_to_quaternion_safe(const MatBase<T, 4, 4> &mat)
-{
-  return to_quaternion(to_euler(mat));
-}
-
 template<bool AllowNegativeScale, typename T, int NumCol, int NumRow>
 [[nodiscard]] inline VecBase<T, 3> to_scale(const MatBase<T, NumCol, NumRow> &mat)
 {
@@ -1343,6 +1393,26 @@ inline void to_loc_rot_scale(const MatBase<T, 4, 4> &mat,
   to_rot_scale<AllowNegativeScale>(MatBase<T, 3, 3>(mat), r_rotation, r_scale);
 }
 
+/**
+ * Same as #to_loc_rot_scale but is handles matrices that are not only location, rotation and scale
+ * more gracefully, e.g. when the matrix has skew.
+ */
+template<bool AllowNegativeScale, typename T, typename RotationT>
+inline void to_loc_rot_scale_safe(const MatBase<T, 4, 4> &mat,
+                                  VecBase<T, 3> &r_location,
+                                  RotationT &r_rotation,
+                                  VecBase<T, 3> &r_scale)
+{
+  EulerXYZBase<T> euler_rotation;
+  to_loc_rot_scale<AllowNegativeScale>(mat, r_location, euler_rotation, r_scale);
+  if constexpr (std::is_same_v<std::decay_t<RotationT>, QuaternionBase<T>>) {
+    r_rotation = to_quaternion(euler_rotation);
+  }
+  else {
+    r_rotation = RotationT(euler_rotation);
+  }
+}
+
 template<typename MatT> [[nodiscard]] MatT from_location(const typename MatT::loc_type &location)
 {
   MatT mat = MatT::identity();
@@ -1393,6 +1463,22 @@ template<typename MatT, typename RotationT>
   MatT mat = MatT(from_rotation<MatRotT>(rotation));
   mat.location() = location;
   return mat;
+}
+
+template<typename MatT, int ScaleDim>
+[[nodiscard]] MatT from_loc_scale(const typename MatT::loc_type &location,
+                                  const VecBase<typename MatT::base_type, ScaleDim> &scale)
+{
+  MatT mat = MatT(from_scale<MatT>(scale));
+  mat.location() = location;
+  return mat;
+}
+
+template<typename T> MatBase<T, 2, 2> from_direction(const VecBase<T, 2> &direction)
+{
+  BLI_assert(is_unit_scale(direction));
+  return MatBase<T, 2, 2>(direction,
+                          VecBase<T, 2>(direction.y, direction.x) * VecBase<T, 2>(-1, 1));
 }
 
 template<typename MatT, typename VectorT>
@@ -1537,6 +1623,18 @@ template<typename MatT, typename VectorT>
 [[nodiscard]] MatT from_origin_transform(const MatT &transform, const VectorT origin)
 {
   return from_location<MatT>(origin) * transform * from_location<MatT>(-origin);
+}
+
+template<typename T>
+VecBase<T, 2> transform_point(const MatBase<T, 2, 2> &mat, const VecBase<T, 2> &point)
+{
+  return mat * point;
+}
+
+template<typename T>
+VecBase<T, 2> transform_point(const MatBase<T, 3, 3> &mat, const VecBase<T, 2> &point)
+{
+  return mat.template view<2, 2>() * point + mat.location();
 }
 
 template<typename T>

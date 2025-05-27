@@ -10,21 +10,24 @@
 
 #include "BKE_node.hh"
 
-namespace blender::realtime_compositor {
-class RenderContext;
-}
 namespace blender::compositor {
-class ProfilerData;
-}
-
+class RenderContext;
+class Profiler;
+}  // namespace blender::compositor
+namespace blender::bke {
 struct bNodeTreeType;
+}  // namespace blender::bke
+
 struct CryptomatteSession;
 struct Scene;
 struct RenderData;
 struct Render;
 struct ViewLayer;
 
-extern bNodeTreeType *ntreeType_Composite;
+extern blender::bke::bNodeTreeType *ntreeType_Composite;
+
+void register_node_tree_type_cmp();
+void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
 
 void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
 void node_cmp_rlayers_register_pass(bNodeTree *ntree,
@@ -34,16 +37,6 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree,
                                     const char *name,
                                     eNodeSocketDatatype type);
 const char *node_cmp_rlayers_sock_to_pass(int sock_index);
-
-void register_node_type_cmp_custom_group(bNodeType *ntype);
-
-void ntreeCompositExecTree(Render *render,
-                           Scene *scene,
-                           bNodeTree *ntree,
-                           RenderData *rd,
-                           const char *view_name,
-                           blender::realtime_compositor::RenderContext *render_context,
-                           blender::compositor::ProfilerData &profiler_data);
 
 /**
  * Called from render pipeline, to tag render input and output.
@@ -84,21 +77,15 @@ void ntreeCompositOutputFileUniqueLayer(ListBase *list,
                                         const char defname[],
                                         char delim);
 
-void ntreeCompositColorBalanceSyncFromLGG(bNodeTree *ntree, bNode *node);
-void ntreeCompositColorBalanceSyncFromCDL(bNodeTree *ntree, bNode *node);
-
-void ntreeCompositCryptomatteSyncFromAdd(const Scene *scene, bNode *node);
+void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
 int ntreeCompositCryptomatteRemoveSocket(bNodeTree *ntree, bNode *node);
-void ntreeCompositCryptomatteLayerPrefix(const Scene *scene,
-                                         const bNode *node,
-                                         char *r_prefix,
-                                         size_t prefix_maxncpy);
+void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size_t prefix_maxncpy);
 
 /**
  * Update the runtime layer names with the crypto-matte layer names of the references render layer
  * or image.
  */
-void ntreeCompositCryptomatteUpdateLayerNames(const Scene *scene, bNode *node);
-CryptomatteSession *ntreeCompositCryptomatteSession(const Scene *scene, bNode *node);
+void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
+CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);

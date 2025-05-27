@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.2.0 Alpha (b'c30667711948')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-04-15 10:09+0000\n"
-"PO-Revision-Date: 2024-03-25 00:51+0000\n"
+"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: william sélifet <williamselifet@live.be>\n"
 "Language-Team: Esperanto <https://translate.blender.org/projects/blender-ui/ui/eo/>\n"
 "Language: eo\n"
@@ -12,11 +12,15 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0.1"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Name"
 msgstr "Nomo"
+
+
+msgid "F-Curves"
+msgstr "F-Kurbecoj"
 
 
 msgid "Select"
@@ -27,16 +31,16 @@ msgid "Add"
 msgstr "Aldonia"
 
 
-msgid "F-Curves"
-msgstr "F-Kurbecoj"
-
-
 msgid "Cache Files"
 msgstr "Kaŝdosiero"
 
 
 msgid "Deflectors"
 msgstr "Deflekta"
+
+
+msgid "B-Bone"
+msgstr "B-osto"
 
 
 msgid "Angular"
@@ -55,12 +59,8 @@ msgid "Window"
 msgstr "Fenestro"
 
 
-msgid "Edit Mode"
-msgstr "Prilaborado Modo"
-
-
-msgid "B-Bone"
-msgstr "B-osto"
+msgid "Attribute"
+msgstr "Atributo"
 
 
 msgid "Links"
@@ -71,12 +71,12 @@ msgid "Object Mode"
 msgstr "Objekto Modo"
 
 
+msgid "Edit Mode"
+msgstr "Prilaborado Modo"
+
+
 msgid "Sculpt Mode"
 msgstr "Skulptaĵo Modo"
-
-
-msgid "Attribute"
-msgstr "Atributo"
 
 
 msgid "File"

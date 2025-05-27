@@ -9,27 +9,30 @@
  */
 
 #include <memory>
-#include <mutex>
+#include <variant>
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_implicit_sharing.hh"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
+#include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_customdata_types.h"
 
 struct BMEditMesh;
-struct BVHCache;
+struct BVHTree;
 struct Mesh;
 class ShrinkwrapBoundaryData;
 struct SubdivCCG;
 struct SubsurfRuntimeData;
 namespace blender::bke {
 struct EditMeshData;
-}
+}  // namespace blender::bke
 namespace blender::bke::bake {
 struct BakeMaterialsList;
 }
@@ -94,6 +97,37 @@ struct LooseEdgeCache : public LooseGeomCache {};
  */
 struct LooseVertCache : public LooseGeomCache {};
 
+/** Similar to #VArraySpan but with the ability to be resized and updated. */
+class NormalsCache {
+ public:
+  /**
+   * Signals that the data from the corresponding "true normals" cache can be used instead. Used to
+   * avoid referencing the data from another shared cache while not still not fetching the custom
+   * normal attribute on every cache request.
+   */
+  struct UseTrueCache {};
+  std::variant<UseTrueCache, Vector<float3>, Span<float3>> data;
+
+  MutableSpan<float3> ensure_vector_size(const int size);
+  Span<float3> get_span() const;
+  /** \note The caller must ensure that the data is valid as long as the cache. */
+  void store_varray(const VArray<float3> &data);
+  void store_vector(Vector<float3> &&data);
+};
+
+struct TrianglesCache {
+  SharedCache<Array<int3>> data;
+  bool frozen = false;
+  bool dirty_while_frozen = false;
+
+  /** Delay applying dirty tags from #tag_dirty() until #unfreeze is called. */
+  void freeze();
+  /** Apply dirty tags from after #freeze, and make future dirty tags apply immediately. */
+  void unfreeze();
+  /** Call instead of `data.tag_dirty()`. */
+  void tag_dirty();
+};
+
 struct MeshRuntime {
   /**
    * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
@@ -102,10 +136,10 @@ struct MeshRuntime {
    * threads, access and use must be protected by the #eval_mutex lock.
    */
   Mesh *mesh_eval = nullptr;
-  std::mutex eval_mutex;
+  Mutex eval_mutex;
 
   /** Needed to ensure some thread-safety during render data pre-processing. */
-  std::mutex render_mutex;
+  Mutex render_mutex;
 
   /** Implicit sharing user count for #Mesh::face_offset_indices. */
   const ImplicitSharingInfo *face_offsets_sharing_info = nullptr;
@@ -141,12 +175,21 @@ struct MeshRuntime {
   void *batch_cache = nullptr;
 
   /** Cache for derived triangulation of the mesh, accessed with #Mesh::corner_tris(). */
-  SharedCache<Array<int3>> corner_tris_cache;
+  TrianglesCache corner_tris_cache;
   /** Cache for triangle to original face index map, accessed with #Mesh::corner_tri_faces(). */
   SharedCache<Array<int>> corner_tri_faces_cache;
 
-  /** Cache for BVH trees generated for the mesh. Defined in 'BKE_bvhutil.c' */
-  BVHCache *bvh_cache = nullptr;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_verts;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_edges;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_faces;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_corner_tris;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_corner_tris_no_hidden;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_verts;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_verts_no_hidden;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges;
+  SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges_no_hidden;
+
+  SharedCache<std::optional<int>> max_material_index;
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
@@ -180,11 +223,13 @@ struct MeshRuntime {
   SubsurfRuntimeData *subsurf_runtime_data = nullptr;
 
   /** Lazily computed vertex normals (#Mesh::vert_normals()). */
-  SharedCache<Vector<float3>> vert_normals_cache;
+  SharedCache<NormalsCache> vert_normals_cache;
+  SharedCache<Vector<float3>> vert_normals_true_cache;
   /** Lazily computed face normals (#Mesh::face_normals()). */
-  SharedCache<Vector<float3>> face_normals_cache;
+  SharedCache<NormalsCache> face_normals_cache;
+  SharedCache<Vector<float3>> face_normals_true_cache;
   /** Lazily computed face corner normals (#Mesh::corner_normals()). */
-  SharedCache<Vector<float3>> corner_normals_cache;
+  SharedCache<NormalsCache> corner_normals_cache;
 
   /**
    * Cache of offsets for vert to face/corner maps. The same offsets array is used to group

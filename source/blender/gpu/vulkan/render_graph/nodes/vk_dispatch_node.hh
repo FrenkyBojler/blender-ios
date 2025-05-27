@@ -27,8 +27,9 @@ struct VKDispatchData {
  * Information needed to add a node to the render graph.
  */
 struct VKDispatchCreateInfo : NonCopyable {
-  VKDispatchData dispatch_node;
-  VKResourceAccessInfo resources;
+  VKDispatchData dispatch_node = {};
+  const VKResourceAccessInfo &resources;
+  VKDispatchCreateInfo(const VKResourceAccessInfo &resources) : resources(resources) {}
 };
 
 class VKDispatchNode : public VKNodeInfo<VKNodeType::DISPATCH,
@@ -44,7 +45,8 @@ class VKDispatchNode : public VKNodeInfo<VKNodeType::DISPATCH,
    * (`VK*Data`/`VK*CreateInfo`) types can be included in the same header file as the logic. The
    * actual node data (`VKRenderGraphNode` includes all header files.)
    */
-  template<typename Node> static void set_node_data(Node &node, const CreateInfo &create_info)
+  template<typename Node, typename Storage>
+  static void set_node_data(Node &node, Storage & /* storage */, const CreateInfo &create_info)
   {
     node.dispatch = create_info.dispatch_node;
     vk_pipeline_data_copy(node.dispatch.pipeline_data, create_info.dispatch_node.pipeline_data);
@@ -72,36 +74,14 @@ class VKDispatchNode : public VKNodeInfo<VKNodeType::DISPATCH,
    * Build the commands and add them to the command_buffer.
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
-                      const Data &data,
+                      Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
-    /* TODO: introduce helper function in pipeline types. */
-    const VKPipelineData &pipeline_data = data.pipeline_data;
-    if (assign_if_different(r_bound_pipelines.compute.vk_pipeline, pipeline_data.vk_pipeline)) {
-      command_buffer.bind_pipeline(VK_PIPELINE_BIND_POINT_COMPUTE,
-                                   r_bound_pipelines.compute.vk_pipeline);
-    }
-
-    if (assign_if_different(r_bound_pipelines.compute.vk_descriptor_set,
-                            pipeline_data.vk_descriptor_set))
-    {
-      command_buffer.bind_descriptor_sets(VK_PIPELINE_BIND_POINT_COMPUTE,
-                                          pipeline_data.vk_pipeline_layout,
-                                          0,
-                                          1,
-                                          &r_bound_pipelines.compute.vk_descriptor_set,
-                                          0,
-                                          nullptr);
-    }
-
-    if (pipeline_data.push_constants_size) {
-      command_buffer.push_constants(pipeline_data.vk_pipeline_layout,
-                                    VK_SHADER_STAGE_COMPUTE_BIT,
-                                    0,
-                                    pipeline_data.push_constants_size,
-                                    pipeline_data.push_constants_data);
-    }
-
+    vk_pipeline_data_build_commands(command_buffer,
+                                    data.pipeline_data,
+                                    r_bound_pipelines.compute,
+                                    VK_PIPELINE_BIND_POINT_COMPUTE,
+                                    VK_SHADER_STAGE_COMPUTE_BIT);
     command_buffer.dispatch(data.group_count_x, data.group_count_y, data.group_count_z);
   }
 };

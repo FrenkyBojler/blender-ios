@@ -17,21 +17,29 @@
  *   different workflow as its state can be altered externally and needs to be reset.
  * - Read/Write access masks: To generate correct and performing pipeline barriers the src/dst
  *   access masks needs to be accurate and precise. When creating pipeline barriers the resource
- *   usage upto that point should be known and the resource usage from that point on.
+ *   usage up to that point should be known and the resource usage from that point on.
  */
 
 #pragma once
 
-#include <mutex>
-
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
 #include "vk_common.hh"
 
+/**
+ * Enable VK_RESOURCE_STATE_TRACKER_VALIDATION to perform a consistency check
+ * on the state. The consistency check is time consuming and should only be
+ * turned on when needed.
+ */
+// #define VK_RESOURCE_STATE_TRACKER_VALIDATION
+
 namespace blender::gpu::render_graph {
 
 class VKCommandBuilder;
+struct VKRenderGraphLink;
+class VKScheduler;
 
 using ResourceHandle = uint64_t;
 
@@ -61,44 +69,23 @@ enum class VKResourceType { NONE = (0 << 0), IMAGE = (1 << 0), BUFFER = (1 << 1)
 ENUM_OPERATORS(VKResourceType, VKResourceType::BUFFER);
 
 /**
- * Resources can have deviations in its lifetime based on who owns it.
- */
-enum class ResourceOwner {
-  /**
-   * Resource is owned by Blender.
-   *
-   * These resources can be destroyed internally by Blender.
-   *
-   * NOTE: Most resources are application owned.
-   */
-  APPLICATION,
-
-  /**
-   * Resource is owned by a swap chain.
-   *
-   * These resources cannot be destroyed, could be recreated externally and its layout can be
-   * modified outside our context.
-   */
-  SWAP_CHAIN,
-};
-
-/**
  * State being tracked for a resource.
- *
- * NOTE: write_access and read_access are mutual exclusive.
- * NOTE: write_stages and read_stages are mutual exclusive.
  */
 struct VKResourceBarrierState {
-  /* How was the resource accessed when last written to. */
-  VkAccessFlags write_access = VK_ACCESS_NONE;
-  /* How is the resource currently been read from. */
-  VkAccessFlags read_access = VK_ACCESS_NONE;
-  /* Pipeline stage that created wrote last to the resource. */
-  VkPipelineStageFlags write_stages = VK_PIPELINE_STAGE_NONE;
-  /* Pipeline stage that is currently reading from the resource. */
-  VkPipelineStageFlags read_stages = VK_PIPELINE_STAGE_NONE;
-  /* Current image layout of the image resource. */
+  /** Last used access flags. Will be reset by the last write. Reads will accumulate flags. */
+  VkAccessFlags vk_access = VK_ACCESS_NONE;
+  /* Last known pipeline stage. Will be reset by the last write. Reads will accumulate flags. */
+  VkPipelineStageFlags vk_pipeline_stages = VK_PIPELINE_STAGE_NONE;
+  /** Last known image layout of an image resource. */
   VkImageLayout image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+  bool is_new_stamp() const
+  {
+    return bool(vk_access &
+                (VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                 VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT |
+                 VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_MEMORY_WRITE_BIT));
+  }
 };
 
 /**
@@ -112,6 +99,8 @@ class VKResourceStateTracker {
   /* When a command buffer is reset the resources are re-synced.
    * During the syncing the command builder attributes are resized to reduce reallocations. */
   friend class VKCommandBuilder;
+  friend struct VKRenderGraphLink;
+  friend class VKScheduler;
 
   /**
    * A render resource can be a buffer or an image that needs to be tracked during rendering.
@@ -132,40 +121,40 @@ class VKResourceStateTracker {
       struct {
         /** VkImage handle of the resource being tracked. */
         VkImage vk_image = VK_NULL_HANDLE;
-
-        /**
-         * Original image layout when the resource was added to the state tracker.
-         *
-         * It is used to reset the state tracker to its original state when working with swap chain
-         * images. See `reset_image_layout`.
-         */
-        VkImageLayout vk_image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        /** Number of layers that the resource has. */
+        uint32_t layer_count = 0;
       } image;
     };
 
     /** Current modification stamp of the resource. */
     ModificationStamp stamp = 0;
 
-    /** Who owns the resource. */
-    ResourceOwner owner = ResourceOwner::APPLICATION;
-
     /**
      * State tracking to ensure correct pipeline barriers and command creation.
      */
     VKResourceBarrierState barrier_state;
 
+#ifndef NDEBUG
+    const char *name;
+#endif
+
     /**
-     * Reset the image layout to its original layout.
+     * Check if the given resource handle has multiple layers.
      *
-     * The layout of swap chain images are externally managed. When they are used again we need to
-     * ensure the correct state.
+     * Returns true when
+     * - handle is a layered image with more than one layer.
      *
-     * NOTE: Also needed when for other external images (Cycles, OpenXR, multi device).
+     * Returns false when
+     * - handle isn't an image resource or
+     * - handle isn't a layered image or
+     * - handle has only a single layer.
      */
-    void reset_image_layout()
+    bool has_multiple_layers()
     {
-      BLI_assert(type == VKResourceType::IMAGE);
-      barrier_state.image_layout = image.vk_image_layout;
+      if (type == VKResourceType::BUFFER) {
+        return false;
+      }
+      return image.layer_count > 1;
     }
   };
 
@@ -183,7 +172,7 @@ class VKResourceStateTracker {
    * - Allowing test cases to do testing without setting up a device instance which requires ghost.
    * - Device instance isn't accessible in test cases.
    */
-  std::mutex mutex;
+  Mutex mutex;
 
   /**
    * Register a buffer resource.
@@ -191,7 +180,7 @@ class VKResourceStateTracker {
    * When a buffer is created in VKBuffer, it needs to be registered in the device resources so the
    * resource state can be tracked during its lifetime.
    */
-  void add_buffer(VkBuffer vk_buffer);
+  void add_buffer(VkBuffer vk_buffer, const char *name = nullptr);
 
   /**
    * Register an image resource.
@@ -199,7 +188,7 @@ class VKResourceStateTracker {
    * When an image is created in VKTexture, it needs to be registered in the device resources so
    * the resource state can be tracked during its lifetime.
    */
-  void add_image(VkImage vk_image, VkImageLayout vk_image_layout, ResourceOwner owner);
+  void add_image(VkImage vk_image, uint32_t layer_count, const char *name = nullptr);
 
   /**
    * Remove an registered image.
@@ -239,7 +228,7 @@ class VKResourceStateTracker {
    * This function is called when adding a node to the render graph, during building resource
    * dependencies. See `VKNodeInfo.build_links`
    */
-  ResourceWithStamp get_buffer_and_increase_version(VkBuffer vk_buffer);
+  ResourceWithStamp get_buffer_and_increase_stamp(VkBuffer vk_buffer);
 
   /**
    * Return the current stamp of the resource.
@@ -261,16 +250,16 @@ class VKResourceStateTracker {
    */
   ResourceWithStamp get_image(VkImage vk_image) const;
 
-  /**
-   * Reset the swap chain image layouts to its original layout.
-   *
-   * The layout of swap chain images are externally managed. When they are reused we need to
-   * ensure the correct state.
-   *
-   * NOTE: This is also needed when working with external memory (Cycles, OpenXR, multi device
-   * rendering).
-   */
-  void reset_image_layouts();
+  /** Get the resource type for the given handle. */
+  VKResourceType resource_type_get(ResourceHandle resource_handle) const
+  {
+    return resources_.lookup(resource_handle).type;
+  }
+
+  bool use_dynamic_rendering = true;
+  bool use_dynamic_rendering_local_read = true;
+
+  void debug_print() const;
 
  private:
   /**
@@ -284,6 +273,10 @@ class VKResourceStateTracker {
   static ResourceWithStamp get_and_increase_stamp(ResourceHandle handle, Resource &resource);
 
   ResourceHandle create_resource_slot();
+
+#ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
+  void validate() const;
+#endif
 };
 
 }  // namespace blender::gpu::render_graph
