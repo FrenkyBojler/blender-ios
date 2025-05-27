@@ -246,8 +246,16 @@ static void rna_GreasePencilDrawing_set_vertex_weights(ID *grease_pencil_id,
     BKE_report(reports, RPT_ERROR, "Indices and weights must have the same lengths");
     return;
   }
+  if (!std::is_sorted(indices.begin(), indices.end())) {
+    BKE_report(reports, RPT_ERROR, "Indices must be sorted in ascending order");
+    return;
+  }
+  if (std::adjacent_find(indices.begin(), indices.end(), std::greater_equal<>()) != indices.end())
+  {
+    BKE_report(reports, RPT_ERROR, "Indices can't have duplicates");
+    return;
+  }
 
-  using namespace blender;
   const GreasePencil &grease_pencil = *reinterpret_cast<GreasePencil *>(grease_pencil_id);
   const int vgroup_index = BKE_defgroup_name_index(&grease_pencil.vertex_group_names,
                                                    vertex_group_name);
