@@ -427,6 +427,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_C_COMPILER_ID MATCHES "Clang")
     _has_no_error_unused_macros "-Wno-error=unused-macros"
   )
   unset(_has_no_error_unused_macros)
+
+  # This can become enabled with: `-Wunused -Wextra`.
+  add_check_cxx_compiler_flags(
+    CMAKE_CXX_FLAGS
+    _has_no_unused_params "-Wno-unused-parameter"
+  )
+  unset(_has_no_unused_params)
 endif()
 
 if(WITH_USD)
