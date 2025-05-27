@@ -210,26 +210,28 @@ static void graph_bezt_get_transform_selection(const TransInfo *t,
   *r_right_handle = right;
 }
 
-static void graph_key_shortest_dist(
+static float graph_key_shortest_dist(
     TransInfo *t, FCurve *fcu, TransData *td_start, TransData *td, int cfra, bool use_handle)
 {
   int j = 0;
   TransData *td_iter = td_start;
   bool sel_key, sel_left, sel_right;
 
-  td->dist = FLT_MAX;
+  float dist = FLT_MAX;
   for (; j < fcu->totvert; j++) {
     BezTriple *bezt = fcu->bezt + j;
     if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
       graph_bezt_get_transform_selection(t, bezt, use_handle, &sel_left, &sel_key, &sel_right);
 
       if (sel_left || sel_key || sel_right) {
-        td->dist = td->rdist = min_ff(td->dist, fabs(td_iter->center[0] - td->center[0]));
+        dist = min_ff(td->dist, fabs(td_iter->center[0] - td->center[0]));
       }
 
       td_iter += 3;
     }
   }
+
+  return dist;
 }
 
 /**
@@ -609,39 +611,22 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
            * the key (bezt->vec[1]) which means that #graph_key_shortest_dist will return the
            * same for all of them and we can reuse that (expensive) result if needed. Might be
            * worth looking into using a 2D KDTree in the future as well. */
-          float dist_reuse = -1.0f;
 
-          if (sel_left || sel_key) {
-            td->dist = td->rdist = 0.0f;
+          float dist = FLT_MAX;
+          if (sel_left || sel_key || sel_right) {
+            /* If either left handle or key or right handle is selected, all will move fully. */
+            dist = 0.0f;
           }
           else {
-            graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
-            dist_reuse = td->dist;
+            /* If nothing is selected, left handle and key and right handle will share the same (to
+             * be calculated) distance. */
+            dist = graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
           }
-          td++;
 
-          if (sel_key) {
-            td->dist = td->rdist = 0.0f;
-          }
-          else if (dist_reuse > -1.0f) {
-            td->dist = td->rdist = dist_reuse;
-          }
-          else {
-            graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
-            dist_reuse = td->dist;
-          }
-          td++;
-
-          if (sel_right || sel_key) {
-            td->dist = td->rdist = 0.0f;
-          }
-          else if (dist_reuse > -1.0f) {
-            td->dist = td->rdist = dist_reuse;
-          }
-          else {
-            graph_key_shortest_dist(t, fcu, td_start, td, cfra, use_handle);
-          }
-          td++;
+          td->dist = td->rdist = dist;
+          (td + 1)->dist = (td + 1)->rdist = dist;
+          (td + 2)->dist = (td + 2)->rdist = dist;
+          td += 3;
         }
       }
     }
