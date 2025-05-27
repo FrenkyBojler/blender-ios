@@ -75,7 +75,7 @@ struct EffectHandle {
                     ImBuf *ibuf2);
 };
 
-EffectHandle effect_handle_get(Strip *strip);
+EffectHandle effect_handle_load_get(Strip *strip);
 int effect_get_num_inputs(int strip_type);
 void effect_text_font_unload(TextVars *data, bool do_id_user);
 void effect_text_font_load(TextVars *data, bool do_id_user);
