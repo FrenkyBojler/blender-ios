@@ -148,7 +148,13 @@ void World::sync()
     inst_.sampling.reset();
   }
 
-  GPUMaterial *gpumat = inst_.shaders.world_shader_get(bl_world, ntree, MAT_PIPE_DEFERRED, false);
+  GPUMaterial *gpumat = inst_.shaders.world_shader_get(
+      bl_world, ntree, MAT_PIPE_DEFERRED, !inst_.is_image_render);
+  if (GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
+    is_ready_ = false;
+    return;
+  }
+  is_ready_ = true;
 
   inst_.manager->register_layer_attributes(gpumat);
 
