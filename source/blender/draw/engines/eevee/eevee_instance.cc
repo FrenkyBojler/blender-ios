@@ -333,12 +333,14 @@ void Instance::update_eval_members()
 
 void Instance::begin_sync()
 {
+  /* Needs to be first for sun light parameters. */
+  world.sync();
+  /* Make sure to continue only if the world is ready. */
+  skip_render_ = skip_render_ || !world.is_ready();
+
   if (skip_render_) {
     return;
   }
-
-  /* Needs to be first for sun light parameters. */
-  world.sync();
 
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */

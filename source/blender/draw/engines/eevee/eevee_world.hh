@@ -76,6 +76,8 @@ class World {
   bool has_volume_absorption_ = false;
   /* Is true if the volume shader has scattering. */
   bool has_volume_scatter_ = false;
+  /* Is true if the surface shader is compiled and ready. */
+  bool is_ready_ = false;
 
   LookdevWorld lookdev_world_;
 
@@ -98,6 +100,11 @@ class World {
   bool has_volume_scatter() const
   {
     return has_volume_scatter_;
+  }
+
+  bool is_ready() const
+  {
+    return is_ready_;
   }
 
   float sun_threshold();
