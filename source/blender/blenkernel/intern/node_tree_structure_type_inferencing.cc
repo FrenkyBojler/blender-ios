@@ -529,6 +529,9 @@ static void propagate_left_to_right(const bNodeTree &tree,
                                     MutableSpan<StructureType> structure_types)
 {
   for (const bNodeSocket *input : tree.all_input_sockets()) {
+    if (input->owner_node().is_undefined()) {
+      continue;
+    }
     if (!input->is_directly_linked()) {
       const nodes::SocketDeclaration &declaration = *input->runtime->declaration;
       structure_types[input->index_in_tree()] = get_unconnected_input_structure_type(declaration);
