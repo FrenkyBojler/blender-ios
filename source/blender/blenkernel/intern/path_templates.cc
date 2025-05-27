@@ -147,7 +147,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr
       BLI_assert_msg(
           false,
           "Should never have `PROP_VARIABLES_NONE` for a path that supports path templates.");
-      return {};
+      return VariableMap();
     }
 
     /* Scene render output path, the compositor's File Output node's paths, etc. */
