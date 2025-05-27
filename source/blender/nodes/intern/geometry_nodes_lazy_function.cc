@@ -1611,6 +1611,39 @@ class LazyFunctionForSimulationZone : public LazyFunction {
   }
 };
 
+void report_from_multi_function(const mf::Context &context,
+                                NodeWarningType type,
+                                std::string message)
+{
+  const auto *user_data = dynamic_cast<const GeoNodesUserData *>(context.user_data);
+  if (!user_data) {
+    return;
+  }
+  geo_eval_log::GeoNodesLog *log = user_data->call_data->eval_log;
+  if (!log) {
+    return;
+  }
+  const bke::NodeComputeContext *node_context = nullptr;
+  for (const ComputeContext *compute_context = user_data->compute_context; compute_context;
+       compute_context = compute_context->parent())
+  {
+    node_context = dynamic_cast<const bke::NodeComputeContext *>(compute_context);
+    if (node_context) {
+      break;
+    }
+  }
+  if (!node_context) {
+    return;
+  }
+  const auto *tree_context = node_context->parent();
+  if (!tree_context) {
+    return;
+  }
+  geo_eval_log::GeoTreeLogger &logger = log->get_local_tree_logger(*tree_context);
+  logger.node_warnings.append(*logger.allocator,
+                              {node_context->node_id(), {type, std::move(message)}});
+}
+
 using JoinReferenceSetsCache = Map<Vector<lf::OutputSocket *>, lf::OutputSocket *>;
 
 struct BuildGraphParams {

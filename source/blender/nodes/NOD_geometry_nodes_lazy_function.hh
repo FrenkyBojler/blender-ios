@@ -652,4 +652,8 @@ const LazyFunction *build_implicit_conversion_lazy_function(const bke::bNodeSock
                                                             const bke::bNodeSocketType &to_type,
                                                             ResourceScope &scope);
 
+void report_from_multi_function(const mf::Context &context,
+                                NodeWarningType type,
+                                std::string message);
+
 }  // namespace blender::nodes
