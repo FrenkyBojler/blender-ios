@@ -3284,7 +3284,6 @@ void uiLayout::separator(float factor, const LayoutSeparatorType type)
   }
 }
 
-
 void uiItemProgressIndicator(uiLayout *layout,
                              const char *text,
                              const float factor,
