@@ -341,7 +341,10 @@ struct uiLayout : uiItem {
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
-  inline bool is_empty() const { return items_.is_empty(); }
+  inline bool is_empty() const
+  {
+    return items_.is_empty();
+  }
 };
 
 enum {
