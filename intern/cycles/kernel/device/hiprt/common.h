@@ -223,7 +223,6 @@ ccl_device_inline bool motion_triangle_custom_local_intersect(const hiprtRay &ra
                                          payload->ray_time,
                                          object_id,
                                          prim_id_global,
-                                         prim_id_local,
                                          ray.minT,
                                          ray.maxT,
                                          payload->lcg_state,
