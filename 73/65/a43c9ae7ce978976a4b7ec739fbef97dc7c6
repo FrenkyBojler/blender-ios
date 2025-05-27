@@ -1,1 +1,2 @@
 Referenced by issue #139191, Blender has stopped working
+Referenced by issue #139499, Significant increase of rendertime with persistent data and GPU denoising under very specific circumstances (Performance Regression)
