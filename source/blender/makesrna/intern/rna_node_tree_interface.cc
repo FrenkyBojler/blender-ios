@@ -14,8 +14,6 @@
 
 #include "rna_internal.hh"
 
-#include "NOD_socket.hh"
-
 #include "WM_types.hh"
 
 const EnumPropertyItem rna_enum_node_tree_interface_item_type_items[] = {
@@ -98,6 +96,7 @@ static const EnumPropertyItem node_default_input_items[] = {
 #  include "BLT_translation.hh"
 
 #  include "NOD_node_declaration.hh"
+#  include "NOD_socket.hh"
 
 #  include "DNA_material_types.h"
 #  include "ED_node.hh"
@@ -471,9 +470,19 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_socket_type_itemf(
 static void rna_NodeTreeInterfaceSocket_force_non_field_set(PointerRNA *ptr, const bool value)
 {
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
-  SET_FLAG_FROM_TEST(socket->flag, value, NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY);
+  SET_FLAG_FROM_TEST(socket->flag, value, NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
   socket->structure_type = value ? NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE :
                                    NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+}
+
+static void rna_NodeTreeInterfaceSocket_structure_type_set(PointerRNA *ptr, const int value)
+{
+  bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
+  socket->structure_type = NodeSocketInterfaceStructureType(value);
+  /* Set the legacy single flag for forward compatibility. To be removed in 5.0. */
+  SET_FLAG_FROM_TEST(socket->flag,
+                     value == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+                     NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
 }
 
 static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
@@ -1124,7 +1133,8 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "force_non_field", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "flag", NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
   RNA_def_property_boolean_funcs(prop, nullptr, "rna_NodeTreeInterfaceSocket_force_non_field_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
@@ -1187,8 +1197,10 @@ static void rna_def_node_interface_socket(BlenderRNA *brna)
       prop,
       "Structure Type",
       "What kind of higher order types are expected to flow through this socket");
-  RNA_def_property_enum_funcs(
-      prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocket_structure_type_itemf");
+  RNA_def_property_enum_funcs(prop,
+                              nullptr,
+                              "rna_NodeTreeInterfaceSocket_structure_type_set",
+                              "rna_NodeTreeInterfaceSocket_structure_type_itemf");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceItem_update");
 
   prop = RNA_def_property(srna, "default_input", PROP_ENUM, PROP_NONE);
