@@ -1239,7 +1239,7 @@ const char *RNA_property_description(PropertyRNA *prop)
 
 const char *RNA_property_deprecated(const PropertyRNA *prop)
 {
-  return prop->deprecated;
+  return prop->deprecated_note;
 }
 
 int RNA_property_deprecated_removal_version(const PropertyRNA *prop)

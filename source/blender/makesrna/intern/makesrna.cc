@@ -4370,8 +4370,8 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, "%d, ", prop->icon);
   rna_print_c_string(f, prop->translation_context);
   fprintf(f, ",\n\t");
-  if (prop->deprecated) {
-    rna_print_c_string(f, prop->deprecated);
+  if (prop->deprecated_note) {
+    rna_print_c_string(f, prop->deprecated_note);
     fprintf(f, ", %d,\n", prop->deprecated_removal_version);
   }
   else {
