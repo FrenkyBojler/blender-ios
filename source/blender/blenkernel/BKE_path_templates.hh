@@ -145,7 +145,7 @@ bool operator==(const Error &left, const Error &right);
  * returns nullopt.
  */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
-    PointerRNA *ptr, PropertyRNA *prop, const bContext *C);
+    const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 
 /**
  * Build a template variable map for render output paths.

@@ -1072,7 +1072,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
           const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
           const std::optional<blender::bke::path_templates::VariableMap> variables =
-              BKE_build_template_variables_for_prop(&but->rnapoin, rnaprop, C);
+              BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
           BLI_assert(variables.has_value());
 
           const blender::Vector<blender::bke::path_templates::Error> errors =

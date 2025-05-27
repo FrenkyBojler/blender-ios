@@ -305,7 +305,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
   if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
     const std::optional<blender::bke::path_templates::VariableMap> variables =
-        BKE_build_template_variables_for_prop(&ptr, prop, C);
+        BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(variables.has_value());
 
     const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(

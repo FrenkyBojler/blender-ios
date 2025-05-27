@@ -1124,7 +1124,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
         const std::string path = RNA_property_string_get(ptr, prop);
         const std::optional<blender::bke::path_templates::VariableMap> variables =
             BKE_build_template_variables_for_prop(
-                ptr, prop, static_cast<const bContext *>(block->evil_C));
+                static_cast<const bContext *>(block->evil_C), ptr, prop);
         BLI_assert(variables.has_value());
 
         if (!BKE_path_validate_template(path, *variables).is_empty()) {

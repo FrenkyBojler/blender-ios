@@ -112,9 +112,9 @@ bool operator==(const Error &left, const Error &right)
 
 using namespace blender::bke::path_templates;
 
-std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr,
-                                                                 PropertyRNA *prop,
-                                                                 const bContext *C)
+std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext *C,
+                                                                 PointerRNA *ptr,
+                                                                 PropertyRNA *prop)
 {
   /*
    * This function should be maintained such that it always produces variables
