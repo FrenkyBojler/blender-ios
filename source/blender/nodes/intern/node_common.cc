@@ -773,13 +773,28 @@ static void group_input_declare(NodeDeclarationBuilder &b)
   if (node_tree == nullptr) {
     return;
   }
-  node_tree->ensure_interface_cache();
-  const Span<const bNodeTreeInterfaceSocket *> inputs = node_tree->interface_inputs();
-  for (const int i : inputs.index_range()) {
-    build_interface_socket_declaration(
-        *node_tree, *inputs[i], StructureType::Dynamic, SOCK_OUT, b);
-  }
-  b.add_output<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
+    switch (NodeTreeInterfaceItemType(item.item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        const bNodeTreeInterfaceSocket &socket =
+            node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+        if (socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
+          /* Trying to use the evaluated structure type for the group output node introduces a
+           * "dependency cycle" between this and the structure type inferencing which uses node
+           * declarations. The compromise is to not use the proper structure type in the group
+           * input/output declarations and instead use a special case for the choice of socket
+           * shapes.*/
+          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_OUT, b);
+        }
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
+        break;
+      }
+    }
+    return true;
+  });
+  b.add_output<decl::Extend>("", "__extend__");
 }
 
 static void group_output_declare(NodeDeclarationBuilder &b)
@@ -788,14 +803,23 @@ static void group_output_declare(NodeDeclarationBuilder &b)
   if (node_tree == nullptr) {
     return;
   }
-  node_tree->ensure_interface_cache();
-  const Span<const bNodeTreeInterfaceSocket *> outputs = node_tree->interface_outputs();
-  for (const int i : outputs.index_range()) {
-    build_interface_socket_declaration(
-        *node_tree, *outputs[i], StructureType::Dynamic, SOCK_IN, b);
-  }
-
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
+    switch (NodeTreeInterfaceItemType(item.item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        const bNodeTreeInterfaceSocket &socket =
+            node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
+        if (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
+          build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_IN, b);
+        }
+        break;
+      }
+      case NODE_INTERFACE_PANEL: {
+        break;
+      }
+    }
+    return true;
+  });
+  b.add_input<decl::Extend>("", "__extend__");
 }
 
 static bool group_input_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
