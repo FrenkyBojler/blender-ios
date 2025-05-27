@@ -59,10 +59,9 @@ class AssetLibraryMeta(BaseModel):
         extra="allow",
     )
     api_versions: Annotated[
-        list[int],
+        dict[str, str],
         Field(
-            description="API versions of this asset library. This is reflected in the URLs of all OpenAPI operations except the one to get this metadata.\nA single asset library can expose multiple versions, in order to be backward-compatible with older versions of Blender.\n",
-            min_length=1,
+            description='API versions of this asset library. This is reflected in the URLs of all OpenAPI operations except the one to get this metadata.\nA single asset library can expose multiple versions, in order to be backward-compatible with older versions of Blender.\nProperties should be "v1", "v2", etc. and their values should point to their respective index files.\n'
         ),
     ]
     name: Annotated[str, Field(description="Name of this asset library.")]

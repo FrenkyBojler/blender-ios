@@ -152,11 +152,17 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
                 metadata.contact.email,
             )
 
-        if index_common.API_VERSION not in metadata.api_versions:
+        # Check API version.
+        api_key = "v{:d}".format(index_common.API_VERSION)
+        try:
+            main_index_url = metadata.api_versions[api_key]
+        except KeyError:
             # Abort, the API version for this Blender is not supported by the library.
-            msg = "This asset library supports API versions {}, but this Blender uses version {}".format(
-                metadata.api_versions,
-                index_common.API_VERSION)
+            library_versions = ", ".join(metadata.api_versions.keys())
+            msg = "This asset library supports API versions {!s}, but this Blender uses version {!s}".format(
+                library_versions,
+                index_common.API_VERSION,
+            )
             self.report({'ERROR'}, msg)
             logger.error(msg)
 
@@ -164,10 +170,10 @@ class ASSETS_OT_dummy_download(bpy.types.Operator):
             return
 
         # Download the asset index.
-        relative_path = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
+        main_index_filepath = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
         self._queue_download(
-            relative_path.as_posix(),
-            relative_path,
+            main_index_url,
+            main_index_filepath,
             self.parse_asset_lib_index,
         )
 

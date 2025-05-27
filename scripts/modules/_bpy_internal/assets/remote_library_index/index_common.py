@@ -35,3 +35,6 @@ in the same directory.
 def api_versioned(subpath: Path | str) -> Path:
     "Return the subpath, prefixed with API_VERSIONED_SUBDIR."
     return Path(API_VERSIONED_SUBDIR) / subpath
+
+
+API_VERSIONED_ASSET_INDEX_JSON_PATH = api_versioned(ASSET_INDEX_JSON_FILENAME).as_posix()

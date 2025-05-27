@@ -18,8 +18,12 @@ from . import blender_asset_library_openapi as api_models
 
 SCHEMA_VERSION = "1.0.0"
 
+
+_api_versions = {
+    "v{:d}".format(index_common.API_VERSION): index_common.API_VERSIONED_ASSET_INDEX_JSON_PATH,
+}
 DEFAULT_METADATA = api_models.AssetLibraryMeta(
-    api_versions=[index_common.API_VERSION],
+    api_versions=_api_versions.copy(),
     name="Your Asset Library",
     contact=api_models.Contact(
         name="Your Name",
@@ -45,6 +49,11 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     # Parse CLI arguments.
     arguments = _parse_cli_args(arguments_raw)
 
+    # Write the top-level meta file first. If this already exists, an attempt
+    # at parsing & upgrading it is performed. Better to do this (and stop on
+    # errors) before diving into the assets themselves.
+    _write_toplevel_meta(arguments)
+
     # Find all .blend files.
     filepaths: list[Path] = []
     logger.info("Traversing %s", arguments.repository)
@@ -69,21 +78,8 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     _write_json_files(arguments, asset_index_pages)
 
 
-def _write_json_files(
-    arguments: CLIArguments,
-    asset_index_pages: list[api_models.AssetLibraryIndexPageV1],
-) -> None:
+def _write_toplevel_meta(arguments: CLIArguments) -> None:
     outdir_root = arguments.repository
-    outdir_versioned = outdir_root / index_common.API_VERSIONED_SUBDIR
-
-    def _save_json(model: pydantic.BaseModel, json_path: Path) -> None:
-        as_json = model.model_dump_json(indent=2, exclude_defaults=True)
-
-        json_path.parent.mkdir(exist_ok=True, parents=True)
-
-        logger.info("Writing %s", json_path)
-        with json_path.open("wt") as json_file:
-            json_file.write(as_json)
 
     # Metadata file /_asset-library-meta.json. This gets loaded if it exists.
     meta_json_path = outdir_root / index_common.ASSET_TOP_METADATA_FILENAME
@@ -92,8 +88,17 @@ def _write_json_files(
     except pydantic.ValidationError as ex:
         msg = "Metadata file {} could not be parsed as JSON: {}"
         logger.error(msg.format(meta_json_path, ex))
-    else:
-        _save_json(metadata, meta_json_path)
+        raise SystemExit(1) from None
+
+    _save_json(metadata, meta_json_path)
+
+
+def _write_json_files(
+    arguments: CLIArguments,
+    asset_index_pages: list[api_models.AssetLibraryIndexPageV1],
+) -> None:
+    outdir_root = arguments.repository
+    outdir_versioned = outdir_root / index_common.API_VERSIONED_SUBDIR
 
     # Remove old pages, in case the number of assets per page was increased and
     # so less page files are needed.
@@ -129,6 +134,16 @@ def _write_json_files(
     _save_json(index, outdir_versioned / index_common.ASSET_INDEX_JSON_FILENAME)
 
 
+def _save_json(model: pydantic.BaseModel, json_path: Path) -> None:
+    as_json = model.model_dump_json(indent=2, exclude_defaults=True)
+
+    json_path.parent.mkdir(exist_ok=True, parents=True)
+
+    logger.info("Writing %s", json_path)
+    with json_path.open("wt") as json_file:
+        json_file.write(as_json)
+
+
 def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
     """Construct the top-level metadata.
 
@@ -149,7 +164,7 @@ def _toplevel_metadata(json_path: Path) -> api_models.AssetLibraryMeta:
 
     # Update the metadata to declare the API version for which we're going to
     # write the data.
-    metadata.api_versions = [index_common.API_VERSION]
+    metadata.api_versions = DEFAULT_METADATA.api_versions.copy()
 
     return metadata
 

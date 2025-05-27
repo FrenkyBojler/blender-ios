@@ -65,10 +65,20 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
                 metadata.contact.email,
             )
 
+        # Check API version.
+        api_key = "v{:d}".format(index_common.API_VERSION)
+        try:
+            main_index_url = metadata.api_versions[api_key]
+        except KeyError:
+            msg = "API version {!s} not supported by this remote asset library (supports {!s})".format(
+                api_key, ", ".join(metadata.api_versions.keys())
+            )
+            raise APIVersionError(msg) from None
+
         # Download the main index.
         main_index_relpath = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
         index_local_path = base_path / main_index_relpath
-        index_remote_url = urllib.parse.urljoin(base_url, main_index_relpath.as_posix())
+        index_remote_url = urllib.parse.urljoin(base_url, main_index_url)
 
         asset_index = _download_and_parse(
             bg_downloader,
@@ -163,3 +173,7 @@ def _parse_cli_args(arguments_raw: argparse.Namespace) -> CLIArguments:
     )
 
     return arguments
+
+
+class APIVersionError(Exception):
+    """Raised when none of the API versions declared by a remote asset library are supported by Blender."""
