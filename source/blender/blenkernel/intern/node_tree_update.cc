@@ -941,7 +941,8 @@ class NodeTreeMainUpdater {
   {
     ntree.ensure_topology_cache();
     if (U.experimental.use_socket_structure_type) {
-      const nodes::StructureTypeInterface &interface = *ntree.runtime->structure_type_interface;
+      const nodes::StructureTypeInterface &node_interface =
+          *ntree.runtime->structure_type_interface;
       const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
       for (bNode *node : ntree.all_nodes()) {
         if (node->is_undefined()) {
@@ -949,21 +950,21 @@ class NodeTreeMainUpdater {
         }
         if (node->is_group_input()) {
           const Span<bNodeSocket *> sockets = node->output_sockets();
-          for (const int i : interface.inputs.index_range()) {
+          for (const int i : node_interface.inputs.index_range()) {
             sockets[i]->display_shape = get_output_socket_shape(
                 *sockets[i]->runtime->declaration,
                 field_states[sockets[i]->index_in_tree()],
-                interface.inputs[i]);
+                node_interface.inputs[i]);
           }
           continue;
         }
         if (node->is_group_output()) {
           const Span<bNodeSocket *> sockets = node->input_sockets();
-          for (const int i : interface.outputs.index_range()) {
+          for (const int i : node_interface.outputs.index_range()) {
             sockets[i]->display_shape = get_output_socket_shape(
                 *sockets[i]->runtime->declaration,
                 field_states[sockets[i]->index_in_tree()],
-                interface.outputs[i].type);
+                node_interface.outputs[i].type);
           }
           continue;
         }
