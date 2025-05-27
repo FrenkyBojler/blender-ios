@@ -277,10 +277,6 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
         LIGHTPROBE_IRRADIANCE_LOAD};
     request(compilation_handles_.lightprobe_irradiance, lightprobe_irradiance_shader_list);
   }
-  // if (use_lookdev) {
-  // const std::array<eShaderType, 1> lookdev_shader_list = {LOOKDEV_DISPLAY};
-  // request(compilation_handles_.lookdev, lookdev_shader_list);
-  // }
   if (use_motion_blur) {
     const std::array<eShaderType, 4> motion_blur_shader_list = {MOTION_BLUR_GATHER,
                                                                 MOTION_BLUR_TILE_DILATE,
