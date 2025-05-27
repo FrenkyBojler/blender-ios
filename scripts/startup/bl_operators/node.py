@@ -141,7 +141,8 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
 
     output_name: StringProperty(
         name="Output Name",
-        description="If provided, all outputs that are named differently will be hidden"
+        description="If provided, all outputs that are named differently will be hidden",
+        options={'SKIP_SAVE'},
     )
 
     # Default execute simply adds a node.
