@@ -5736,6 +5736,7 @@ class VIEW3D_MT_edit_greasepencil_cleanup(Menu):
             layout.operator("grease_pencil.stroke_merge_by_distance", text="Merge by Distance")
 
         layout.operator("grease_pencil.reproject")
+        layout.operator("grease_pencil.remove_fill_guides")
 
 
 class VIEW3D_MT_edit_greasepencil(Menu):

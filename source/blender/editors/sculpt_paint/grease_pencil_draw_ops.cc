@@ -643,8 +643,6 @@ static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
 /** \name Bucket Fill Operator
  * \{ */
 
-constexpr const char *attr_is_fill_guide = ".is_fill_guide";
-
 struct GreasePencilFillOpData {
   blender::bke::greasepencil::Layer &layer;
 
@@ -1358,21 +1356,6 @@ static bke::CurvesGeometry simplify_fixed(bke::CurvesGeometry &curves, const int
   return bke::curves_copy_point_selection(curves, points_to_keep, {});
 }
 
-static void remove_fill_guides(bke::CurvesGeometry &curves)
-{
-  if (!curves.attributes().contains(attr_is_fill_guide)) {
-    return;
-  }
-
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<bool> is_fill_guide = *attributes.lookup<bool>(attr_is_fill_guide,
-                                                              bke::AttrDomain::Curve);
-
-  IndexMaskMemory memory;
-  const IndexMask fill_guides = IndexMask::from_bools(is_fill_guide, memory);
-  curves.remove_curves(fill_guides, {});
-}
-
 static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent &event)
 {
   using bke::greasepencil::Layer;
@@ -1448,7 +1431,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
     /* Remove strokes that were created using the fill tool as boundary strokes. */
     if (auto_remove_fill_guides) {
-      remove_fill_guides(dst_curves);
+      ed::greasepencil::remove_fill_guides(dst_curves);
     }
 
     /* If the `fill_strokes` function creates the "fill_opacity" attribute, make sure that we

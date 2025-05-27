@@ -4168,6 +4168,49 @@ static void GREASE_PENCIL_OT_stroke_split(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Remove Fill Guide Strokes Operator
+ * \{ */
+
+static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext *C, wmOperator * /*op*/)
+{
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    if (ed::greasepencil::remove_fill_guides(info.drawing.strokes_for_write())) {
+      changed.store(true, std::memory_order_relaxed);
+    }
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+    return OPERATOR_FINISHED;
+  }
+
+  return OPERATOR_CANCELLED;
+}
+
+static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Remove Fill Guides";
+  ot->idname = "GREASE_PENCIL_OT_remove_fill_guides";
+  ot->description = "Remove all the strokes that were created from the fill tool as guides";
+
+  /* Callbacks. */
+  ot->exec = grease_pencil_remove_fill_guides_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4208,6 +4251,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_reset_uvs);
   WM_operatortype_append(GREASE_PENCIL_OT_texture_gradient);
   WM_operatortype_append(GREASE_PENCIL_OT_stroke_split);
+  WM_operatortype_append(GREASE_PENCIL_OT_remove_fill_guides);
 }
 
 /* -------------------------------------------------------------------- */
