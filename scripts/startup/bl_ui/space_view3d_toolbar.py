@@ -2540,7 +2540,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
     bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_settings"
     bl_category = "Tool"
     bl_options = {'DEFAULT_CLOSED'}
-    bl_ui_units_x = 16
+    bl_ui_units_x = 14
 
     @classmethod
     def poll(cls, context):
