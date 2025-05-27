@@ -161,6 +161,7 @@ static int64_t find_next_format_start_or_end(const StringRef format,
 }
 
 struct FormatPatternInfo {
+  std::string pattern_str;
   std::regex pattern;
   int width_group;
   std::optional<int> precision_group;
@@ -214,7 +215,7 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
   }
   /* End of string. */
   pattern += '$';
-  return {std::regex{pattern}, width_group, precision_group};
+  return {pattern, std::regex{pattern}, width_group, precision_group};
 }
 
 static const FormatPatternInfo *get_pattern_by_type(const CPPType &type)
@@ -309,9 +310,10 @@ class FormatInputsLookup {
           else {
             r_error = fmt::format(
                 fmt::runtime(TIP_("Input with index {} does not exist. Currently, the maximum "
-                                  "possible index is {}.")),
+                                  "possible index is {}. Did you mean to use {{:{}}}?")),
                 identifier,
-                inputs_.size() - 1);
+                inputs_.size() - 1,
+                identifier);
           }
         }
         return std::nullopt;
@@ -335,21 +337,44 @@ struct ProcessedFormatString {
   std::string format_str;
 };
 
+static std::string create_invalid_format_error(const StringRef format,
+                                               const StringRef format_outer,
+                                               const FormatPatternInfo &pattern)
+{
+  for (const char c : format) {
+    if (pattern.pattern_str.find(c) == std::string::npos && std::isprint(c) && !std::isdigit(c)) {
+      return fmt::format(
+          fmt::runtime(TIP_("Format contains unsupported \"{}\" character: \"{}\"")),
+          c,
+          format_outer);
+    }
+  }
+  return fmt::format(fmt::runtime(TIP_("Invalid format: \"{}\"")), format_outer);
+}
+
 static std::optional<ProcessedFormatString> check_and_process_format_string(
     const StringRef format,
+    const StringRef format_outer,
     const CPPType &type,
     FormatInputsLookup &inputs_lookup,
     std::optional<std::string> &r_error)
 {
   const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
   if (!allowed_pattern) {
-    /* The type can't be formatted. */
+    /* The type can't be formatted. The user shouln't be able to trigger this error but nice to
+     * handle it anyway. */
+    if (!r_error) {
+      r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted.")), type.name());
+    }
     return std::nullopt;
   }
 
   /* Check the syntax of the format string with what is allowed. */
   std::cmatch m;
   if (!std::regex_search(format.begin(), format.end(), m, allowed_pattern->pattern)) {
+    if (!r_error) {
+      r_error = create_invalid_format_error(format, format_outer, *allowed_pattern);
+    }
     return std::nullopt;
   }
 
@@ -367,6 +392,11 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
       return std::nullopt;
     }
     if (!result.widths->type().is<int>()) {
+      if (!r_error) {
+        r_error = fmt::format(
+            fmt::runtime(TIP_("Only integer inputs can be used as dynamic width: \"{}\"")),
+            format_outer);
+      }
       return std::nullopt;
     }
     formats_to_replace.append(width_outer);
@@ -382,6 +412,11 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
         return std::nullopt;
       }
       if (!result.precisions->type().is<int>()) {
+        if (!r_error) {
+          r_error = fmt::format(
+              fmt::runtime(TIP_("Only integer inputs can be used as dynamic precision: \"{}\"")),
+              format_outer);
+        }
         return std::nullopt;
       }
       formats_to_replace.append(precision_outer);
@@ -523,7 +558,7 @@ static bool format_strings(const StringRef format,
 
     /* Extract information like width and precision inputs. */
     std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
-        format_pattern, type, inputs_lookup, r_error);
+        format_pattern, *format_outer, type, inputs_lookup, r_error);
     if (!processed_format.has_value()) {
       return false;
     }
