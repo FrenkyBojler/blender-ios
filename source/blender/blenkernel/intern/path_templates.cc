@@ -774,7 +774,7 @@ static blender::Vector<Error> eval_template(char *out_path,
             errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
-          strcpy(replacement_string, string_value->c_str());
+          BLI_strncpy(replacement_string, string_value->c_str(), sizeof(replacement_string));
           break;
         }
 
@@ -839,7 +839,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
 
   if (errors.is_empty()) {
     /* No errors, so copy the modified path back to the original. */
-    strcpy(path, path_buffer.data());
+    BLI_strncpy(path, path_buffer.data(), path_max_length);
   }
   return errors;
 }
