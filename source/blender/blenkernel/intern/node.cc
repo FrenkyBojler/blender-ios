@@ -5473,6 +5473,8 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
     return true;
   }
   if (ntreeiter->scene) {
+    /* Embedded compositing trees are deprecated, but still relevant for versioning/backward
+     * compatibility. */
     *r_nodetree = reinterpret_cast<bNodeTree *>(ntreeiter->scene->nodetree);
     *r_id = &ntreeiter->scene->id;
     ntreeiter->scene = reinterpret_cast<Scene *>(ntreeiter->scene->id.next);

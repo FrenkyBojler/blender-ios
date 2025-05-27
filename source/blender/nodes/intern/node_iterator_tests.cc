@@ -154,6 +154,8 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   ED_node_shader_default(context.C, &material->id);
 
   Scene *scene = BKE_scene_add(context.bmain, SCENE_NAME);
+  /* Embedded compositing trees are deprecated, but still relevant for versioning/backward
+   * compatibility. */
   scene->nodetree = bke::node_tree_add_tree_embedded(
       context.bmain, &scene->id, "compositing nodetree", "CompositorNodeTree");
 
