@@ -251,25 +251,34 @@ class FormatInputsLookup {
   {
   }
 
-  const GVArray *find_next_input(const StringRef identifier)
+  const GVArray *find_next_input(const StringRef identifier, std::optional<std::string> &r_error)
   {
-    const std::optional<int64_t> input_index = this->find_next_input_index(identifier);
+    const std::optional<int64_t> input_index = this->find_next_input_index(identifier, r_error);
     if (!input_index.has_value()) {
       return nullptr;
     }
     return &inputs_[*input_index];
   }
 
-  std::optional<int64_t> find_next_input_index(const StringRef identifier)
+  std::optional<int64_t> find_next_input_index(const StringRef identifier,
+                                               std::optional<std::string> &r_error)
   {
     if (identifier.is_empty()) {
       if (non_auto_index_used_) {
         /* Once the first explicit identifier is used, it's not allowed to use the auto-index
          * anymore. Only other explicit identifiers are allowed. */
+        if (!r_error) {
+          r_error = TIP_(
+              "Empty identifier can't be used when explicit identifier was used before. For "
+              "example, \"{} {x}\" is ok but \"{x} {}\" is not.");
+        }
         return std::nullopt;
       }
       if (next_auto_index_ == inputs_.size()) {
         /* Not enough inputs provided. */
+        if (!r_error) {
+          r_error = TIP_("Format uses more inputs than provided.");
+        }
         return std::nullopt;
       }
       return next_auto_index_++;
@@ -279,19 +288,41 @@ class FormatInputsLookup {
       int64_t index;
       std::from_chars_result res = std::from_chars(identifier.begin(), identifier.end(), index);
       if (res.ec != std::errc()) {
+        if (!r_error) {
+          r_error = fmt::format(fmt::runtime(TIP_("Invalid identifier: \"{}\"")), identifier);
+        }
         return std::nullopt;
       }
       if (res.ptr < identifier.end()) {
         /* There are other characters after the number.*/
+        if (!r_error) {
+          r_error = fmt::format(
+              fmt::runtime(TIP_("An input name can't start with a digit: \"{}\"")), identifier);
+        }
         return std::nullopt;
       }
       if (index >= inputs_.size()) {
+        if (!r_error) {
+          if (inputs_.is_empty()) {
+            r_error = fmt::format(fmt::runtime(TIP_("There are no inputs.")), identifier);
+          }
+          else {
+            r_error = fmt::format(
+                fmt::runtime(TIP_("Input with index {} does not exist. Currently, the maximum "
+                                  "possible index is {}.")),
+                identifier,
+                inputs_.size() - 1);
+          }
+        }
         return std::nullopt;
       }
       return index;
     }
     const int index = input_names_.index_of_try_as(identifier);
     if (index == -1) {
+      if (!r_error) {
+        r_error = fmt::format(fmt::runtime(TIP_("Input does not exist: \"{}\"")), identifier);
+      }
       return std::nullopt;
     }
     return index;
@@ -305,7 +336,10 @@ struct ProcessedFormatString {
 };
 
 static std::optional<ProcessedFormatString> check_and_process_format_string(
-    const StringRef format, const CPPType &type, FormatInputsLookup &inputs_lookup)
+    const StringRef format,
+    const CPPType &type,
+    FormatInputsLookup &inputs_lookup,
+    std::optional<std::string> &r_error)
 {
   const FormatPatternInfo *allowed_pattern = get_pattern_by_type(type);
   if (!allowed_pattern) {
@@ -325,17 +359,17 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
   Vector<std::string> formats_to_replace;
 
   /* Check if a dynamic width is specified. */
-  const std::string with_outer = m.str(allowed_pattern->width_group);
-  if (!with_outer.empty()) {
-    const StringRef width_inner = StringRef(with_outer).drop_prefix(1).drop_suffix(1);
-    result.widths = inputs_lookup.find_next_input(width_inner);
+  const std::string width_outer = m.str(allowed_pattern->width_group);
+  if (!width_outer.empty()) {
+    const StringRef width_inner = StringRef(width_outer).drop_prefix(1).drop_suffix(1);
+    result.widths = inputs_lookup.find_next_input(width_inner, r_error);
     if (!result.widths) {
       return std::nullopt;
     }
     if (!result.widths->type().is<int>()) {
       return std::nullopt;
     }
-    formats_to_replace.append(with_outer);
+    formats_to_replace.append(width_outer);
   }
 
   /* Check if a dynamic precision is specified. */
@@ -343,7 +377,7 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
     const std::string precision_outer = m.str(*allowed_pattern->precision_group);
     if (!precision_outer.empty()) {
       const StringRef precision_inner = StringRef(precision_outer).drop_prefix(1).drop_suffix(1);
-      result.precisions = inputs_lookup.find_next_input(precision_inner);
+      result.precisions = inputs_lookup.find_next_input(precision_inner, r_error);
       if (!result.precisions) {
         return std::nullopt;
       }
@@ -429,7 +463,7 @@ static bool format_strings(const StringRef format,
                            const VectorSet<std::string> &input_names,
                            const IndexMask &mask,
                            MutableSpan<std::string> r_formatted_strings,
-                           std::optional<std::string> &r_error_message)
+                           std::optional<std::string> &r_error)
 {
   CPPType::get<std::string>().value_initialize_indices(r_formatted_strings.data(), mask);
 
@@ -460,9 +494,9 @@ static bool format_strings(const StringRef format,
     const std::optional<StringRef> format_outer = find_format_specifier(
         format.substr(current_index));
     if (!format_outer.has_value()) {
-      if (!r_error_message) {
-        r_error_message = fmt::format(fmt::runtime(TIP_("Format specifier is not closed: \"{}\"")),
-                                      format.substr(current_index));
+      if (!r_error) {
+        r_error = fmt::format(fmt::runtime(TIP_("Format specifier is not closed: \"{}\"")),
+                              format.substr(current_index));
       }
       return false;
     }
@@ -481,7 +515,7 @@ static bool format_strings(const StringRef format,
     }
 
     /* Find the typed input values and get the corresponding allowed pattern. */
-    const GVArray *input = inputs_lookup.find_next_input(identifier);
+    const GVArray *input = inputs_lookup.find_next_input(identifier, r_error);
     if (!input) {
       return false;
     }
@@ -489,7 +523,7 @@ static bool format_strings(const StringRef format,
 
     /* Extract information like width and precision inputs. */
     std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
-        format_pattern, type, inputs_lookup);
+        format_pattern, type, inputs_lookup, r_error);
     if (!processed_format.has_value()) {
       return false;
     }
