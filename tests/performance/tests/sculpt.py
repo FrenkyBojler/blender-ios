@@ -13,10 +13,10 @@ class BrushSize(enum.Enum):
     LARGE = 1
 
 
-class MeshSize(enum.IntEnum):
-    SMALL = 50
-    MEDIUM = 500
-    LARGE = 3200
+class MultiresLevel(enum.IntEnum):
+    ONE = 1
+    THREE = 3
+    FIVE = 5
 
 
 class SculptMode(enum.IntEnum):
@@ -52,7 +52,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: SculptMode, mesh_size: MeshSize):
+def prepare_sculpt_scene(context: any, mode: SculptMode, multires_level: MultiresLevel):
     """
     Prepare a clean state of the scene suitable for benchmarking
 
@@ -80,7 +80,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, mesh_size: MeshSize):
     group_output_node = group.nodes.new('NodeGroupOutput')
 
     if mode == SculptMode.MESH:
-        size = mesh_size.value
+        size = 1500
     elif mode == SculptMode.MULTIRES:
         size = 150
     elif mode == SculptMode.DYNTOPO:
@@ -109,7 +109,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode, mesh_size: MeshSize):
     bpy.ops.object.mode_set(mode='SCULPT')
 
     if mode == SculptMode.MULTIRES:
-        bpy.ops.object.subdivision_set(level=3)
+        bpy.ops.object.subdivision_set(level=multires_level)
     elif mode == SculptMode.DYNTOPO:
         bpy.ops.sculpt.dynamic_topology_toggle()
 
@@ -185,7 +185,7 @@ def _run_brush_test(args: dict):
     # Create an undo stack explicitly. This isn't created by default in background mode.
     bpy.ops.ed.undo_push()
 
-    prepare_sculpt_scene(context, args['mode'], args['mesh_size'])
+    prepare_sculpt_scene(context, args['mode'], args['multires_level'])
     prepare_brush(context, args['brush_type'], args['brush_size'])
 
     context_override = context.copy()
@@ -224,7 +224,7 @@ def _run_bvh_test(args: dict):
     # Create an undo stack explicitly. This isn't created by default in background mode.
     bpy.ops.ed.undo_push()
 
-    prepare_sculpt_scene(context, args['mode'], args['mesh_size'])
+    prepare_sculpt_scene(context, args['mode'], args['multires_level'])
 
     context_override = context.copy()
     set_view3d_context_override(context_override)
@@ -252,20 +252,19 @@ class SculptBrushTest(api.Test):
             self,
             filepath: pathlib.Path,
             mode: SculptMode,
-            mesh_size: MeshSize,
+            multires_level: MultiresLevel,
             brush_type: BrushType,
             brush_size: BrushSize):
         self.filepath = filepath
         self.mode = mode
-        self.mesh_size = mesh_size
+        self.multires_level = multires_level
         self.brush_type = brush_type
         self.brush_size = brush_size
 
     def name(self):
-        mesh_size = self.mesh_size * self.mesh_size
         return "{}_{}_{}_{}".format(
             self.mode.name.lower(),
-            mesh_size,
+            self.multires_level.name.lower(),
             self.brush_type.name.lower(),
             self.brush_size.name)
 
@@ -275,7 +274,7 @@ class SculptBrushTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
-            'mesh_size': self.mesh_size,
+            'multires_level': self.multires_level,
             'brush_type': self.brush_type,
             'brush_size': self.brush_size,
         }
@@ -286,14 +285,13 @@ class SculptBrushTest(api.Test):
 
 
 class SculptRebuildBVHTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, mesh_size: MeshSize):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, multires_level: MultiresLevel):
         self.filepath = filepath
         self.mode = mode
-        self.mesh_size = mesh_size
+        self.multires_level = multires_level
 
     def name(self):
-        mesh_size = self.mesh_size * self.mesh_size
-        return "{}_{}_rebuild_bvh".format(self.mode.name.lower(), mesh_size)
+        return "{}_{}_rebuild_bvh".format(self.mode.name.lower(), self.multires_level.name.lower())
 
     def category(self):
         return "sculpt"
@@ -301,7 +299,7 @@ class SculptRebuildBVHTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
-            'mesh_size': self.mesh_size,
+            'multires_level': self.multires_level,
         }
 
         result, _ = env.run_in_blender(_run_bvh_test, args, [self.filepath])
@@ -314,16 +312,15 @@ def generate(env):
     # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
     assert len(filepaths) == 1
 
-    modes_to_test = [SculptMode.MESH]
-    sizes_to_test = [MeshSize.LARGE]
+    modes_to_test = [SculptMode.MULTIRES]
 
     brush_tests = [
         SculptBrushTest(
             filepaths[0],
             mode,
-            mesh_size,
+            multires_level,
             brush_type,
-            brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for mesh_size in sizes_to_test]
-    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, mesh_size)
-                 for mode in modes_to_test for mesh_size in sizes_to_test]
+            brush_size) for mode in modes_to_test for brush_type in BrushType for brush_size in BrushSize for multires_level in MultiresLevel]
+    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode, multires_level)
+                 for mode in modes_to_test for multires_level in MultiresLevel]
     return brush_tests + bvh_tests
