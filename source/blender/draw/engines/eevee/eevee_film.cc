@@ -642,6 +642,11 @@ void Film::end_sync()
 
   sync_mist();
 
+  /* Update sample table length for specialization warm up.
+   * Otherwise, we will warm a specialization that is not actually used.
+   * We still need to update it once per sample afterward. */
+  update_sample_table();
+
   inst_.manager->warm_shader_specialization(accumulate_ps_);
   inst_.manager->warm_shader_specialization(copy_ps_);
   inst_.manager->warm_shader_specialization(cryptomatte_post_ps_);
@@ -703,20 +708,6 @@ int Film::cryptomatte_layer_len_get() const
   result += data_.cryptomatte_asset_id == -1 ? 0 : 1;
   result += data_.cryptomatte_material_id == -1 ? 0 : 1;
   return result;
-}
-
-int Film::cryptomatte_layer_max_get() const
-{
-  if (data_.cryptomatte_material_id != -1) {
-    return 3;
-  }
-  if (data_.cryptomatte_asset_id != -1) {
-    return 2;
-  }
-  if (data_.cryptomatte_object_id != -1) {
-    return 1;
-  }
-  return 0;
 }
 
 void Film::update_sample_table()
@@ -784,15 +775,15 @@ void Film::update_sample_table()
           data_.samples_len++;
         }
       }
-      /* Avoid querying a different shader specialization for this case.
-       * This can happen with the default settings. */
-      if (data_.samples_len == 4) {
-        data_.samples_len++;
-      }
     }
     /* Put the closest one in first position. */
     if (closest_index != 0) {
       std::swap(data_.samples[closest_index], data_.samples[0]);
+    }
+    /* Avoid querying a different shader specialization for this case.
+     * This can happen with the default settings. */
+    if (data_.samples_len <= 9) {
+      data_.samples_len = 9;
     }
   }
   else {

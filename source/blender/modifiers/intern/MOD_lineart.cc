@@ -78,8 +78,9 @@ static void init_data(ModifierData *md)
 {
   GreasePencilLineartModifierData *gpmd = (GreasePencilLineartModifierData *)md;
 
-  MEMCPY_STRUCT_AFTER_CHECKED(
-      gpmd, DNA_struct_default_get(GreasePencilLineartModifierData), modifier);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilLineartModifierData), modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -668,13 +669,13 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *col = &layout->column(false);
   uiLayoutSetEnabled(col, !is_baked);
   col->op("OBJECT_OT_lineart_bake_strokes", std::nullopt, ICON_NONE);
-  uiItemBooleanO(
-      col, IFACE_("Bake All"), ICON_NONE, "OBJECT_OT_lineart_bake_strokes", "bake_all", true);
+  PointerRNA op_ptr = col->op("OBJECT_OT_lineart_bake_strokes", IFACE_("Bake All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "bake_all", true);
 
   col = &layout->column(false);
   col->op("OBJECT_OT_lineart_clear", std::nullopt, ICON_NONE);
-  uiItemBooleanO(
-      col, IFACE_("Clear All"), ICON_NONE, "OBJECT_OT_lineart_clear", "clear_all", true);
+  op_ptr = col->op("OBJECT_OT_lineart_clear", IFACE_("Clear All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "clear_all", true);
 }
 
 static void composition_panel_draw(const bContext * /*C*/, Panel *panel)

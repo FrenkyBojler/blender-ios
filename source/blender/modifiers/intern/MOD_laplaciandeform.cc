@@ -60,7 +60,7 @@ struct LaplacianSystem {
   int anchors_num;
   int repeat;
   /** Vertex Group name */
-  char anchor_grp_name[64];
+  char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   /** Original vertex coordinates. */
   float (*co)[3];
   /** Original vertex normal. */
@@ -724,7 +724,9 @@ static void init_data(ModifierData *md)
 {
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 
-  MEMCPY_STRUCT_AFTER_CHECKED(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
+  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(lmd, modifier));
+
+  MEMCPY_STRUCT_AFTER(lmd, DNA_struct_default_get(LaplacianDeformModifierData), modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
