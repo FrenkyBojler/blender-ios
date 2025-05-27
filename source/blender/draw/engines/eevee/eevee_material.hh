@@ -373,6 +373,8 @@ class MaterialModule {
   uint64_t gpu_pass_last_update_ = 0;
   uint64_t gpu_pass_next_update_ = 0;
 
+  uint64_t texture_loaded_ = 0;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
@@ -402,6 +404,8 @@ class MaterialModule {
                                  eMaterialPipeline pipeline_type,
                                  eMaterialGeometry geometry_type,
                                  eMaterialProbe probe_capture = MAT_PROBE_NONE);
+
+  bool textures_loaded(GPUMaterial *material);
 };
 
 /** \} */
