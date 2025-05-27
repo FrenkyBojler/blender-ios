@@ -8,6 +8,8 @@ set(INC
   ../intern
   ../../editors/include
   ../../makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -18,6 +20,7 @@ set(SRC
   nodes/node_fn_align_rotation_to_vector.cc
   nodes/node_fn_axes_to_rotation.cc
   nodes/node_fn_axis_angle_to_rotation.cc
+  nodes/node_fn_bit_math.cc
   nodes/node_fn_boolean_math.cc
   nodes/node_fn_combine_color.cc
   nodes/node_fn_combine_matrix.cc

@@ -509,7 +509,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   const SculptSession &ss = *ob.sculpt;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   return OPERATOR_PASS_THROUGH;
 }
@@ -578,7 +578,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
   ot->idname = "SCULPT_OT_color_filter";
   ot->description = "Applies a filter to modify the active color attribute";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = sculpt_color_filter_invoke;
   ot->exec = sculpt_color_filter_exec;
   ot->modal = sculpt_color_filter_modal;

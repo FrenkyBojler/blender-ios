@@ -172,6 +172,7 @@ class NODE_MT_geometry_node_grease_pencil_write(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilSoftness")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
 
 
@@ -345,7 +346,7 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeToolMousePosition")
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
-        node_add_menu.add_node_type(layout, "GeometryNodeInputSceneTime")
+        node_add_menu.add_node_type_with_subnames(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         node_add_menu.add_node_type(layout, "GeometryNodeSelfObject")
         if context.space_data.geometry_nodes_type == 'TOOL':
             node_add_menu.add_node_type(layout, "GeometryNodeViewportTransform")
@@ -547,11 +548,11 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
     bl_idname = "NODE_MT_category_GEO_OUTPUT"
     bl_label = "Output"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
         node_add_menu.add_node_type(layout, "GeometryNodeViewer")
-        node_add_menu.add_node_type(layout, "GeometryNodeWarning")
+        node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -729,6 +730,8 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type_with_searchable_enum(
+            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0)
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")
