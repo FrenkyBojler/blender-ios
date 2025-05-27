@@ -648,7 +648,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeFormatString");
   ntype.ui_name = "Format String";
-  ntype.ui_description = "Create a string from a format-string and a values to insert";
+  ntype.ui_description = "Insert values into a string using a Python compatible formatting syntax";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
       ntype, "NodeFunctionFormatString", node_free_storage, node_copy_storage);
