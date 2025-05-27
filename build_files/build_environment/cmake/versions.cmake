@@ -428,7 +428,7 @@ set(CYTHON_HASH_TYPE MD5)
 set(CYTHON_FILE cython-${CYTHON_VERSION}.tar.gz)
 set(CYTHON_HOMEPAGE https://cython.org/)
 set(CYTHON_LICENSE SPDX:Apache-2.0)
-# Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression.
+# Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression. (Once we move to Python 3.14, this could be replaced with inbuilt Zstandard support, see https://peps.python.org/pep-0784/)
 set(ZSTANDARD_VERSION 0.23.0)
 set(ZSTANDARD_URI
 # NOTE: the release is not yet on GITHUB.
