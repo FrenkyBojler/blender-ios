@@ -336,7 +336,8 @@ void Instance::begin_sync()
   /* Needs to be first for sun light parameters. */
   world.sync();
   /* Make sure to continue only if the world is ready. */
-  skip_render_ = skip_render_ || !world.is_ready();
+  shaders_are_ready_ = world.is_ready();
+  skip_render_ = !shaders_are_ready_;
 
   if (skip_render_) {
     return;
