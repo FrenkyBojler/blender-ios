@@ -428,7 +428,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
       const float2 cellOffset = make_float2(i, j);
       const float2 pointPosition = cellOffset + hash_float2_to_float2(cellPosition + cellOffset) *
                                                     params.randomness;
-      const float distanceToPoint = distance(pointPosition, localPosition);
+      const float distanceToPoint = len_squared(pointPosition - localPosition);
       if (distanceToPoint < minDistance) {
         minDistance = distanceToPoint;
         closestPoint = pointPosition;
@@ -447,7 +447,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
       const float2 cellOffset = make_float2(i, j) + closestPointOffset;
       const float2 pointPosition = cellOffset + hash_float2_to_float2(cellPosition + cellOffset) *
                                                     params.randomness;
-      const float distanceToPoint = distance(closestPoint, pointPosition);
+      const float distanceToPoint = len_squared(closestPoint - pointPosition);
       if (distanceToPoint < minDistance) {
         minDistance = distanceToPoint;
         closestPointToClosestPoint = pointPosition;
@@ -643,7 +643,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
         const float3 pointPosition = cellOffset +
                                      hash_float3_to_float3(cellPosition + cellOffset) *
                                          params.randomness;
-        const float distanceToPoint = distance(pointPosition, localPosition);
+        const float distanceToPoint = len_squared(pointPosition - localPosition);
         if (distanceToPoint < minDistance) {
           minDistance = distanceToPoint;
           closestPoint = pointPosition;
@@ -665,7 +665,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
         const float3 pointPosition = cellOffset +
                                      hash_float3_to_float3(cellPosition + cellOffset) *
                                          params.randomness;
-        const float distanceToPoint = distance(closestPoint, pointPosition);
+        const float distanceToPoint = len_squared(closestPoint - pointPosition);
         if (distanceToPoint < minDistance) {
           minDistance = distanceToPoint;
           closestPointToClosestPoint = pointPosition;
@@ -898,7 +898,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
           const float4 pointPosition = cellOffset +
                                        hash_float4_to_float4(cellPosition + cellOffset) *
                                            params.randomness;
-          const float distanceToPoint = distance(closestPoint, pointPosition);
+          const float distanceToPoint = len_squared(closestPoint - pointPosition);
           if (distanceToPoint < minDistance) {
             minDistance = distanceToPoint;
             closestPointToClosestPoint = pointPosition;
