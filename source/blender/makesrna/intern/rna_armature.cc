@@ -710,11 +710,30 @@ static void rna_EditBone_hide_update(Main * /*bmain*/, Scene * /*scene*/, Pointe
 }
 
 /* Unselect bones when hidden or not selectable. */
-static void rna_Bone_hide_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+static void rna_Bone_hide_update(Main *bmain, Scene * /* scene */, PointerRNA *ptr)
 {
   bArmature *arm = (bArmature *)ptr->owner_id;
   Bone *bone = (Bone *)ptr->data;
-
+  const bool bone_is_visible = !(bone->flag & BONE_HIDDEN_P);
+  /* Since the visibility flag is now stored on the pose bone, to ensure backwards compatibility we
+   * need to find all users of the armature and set the flag on the corresponding pose bone. */
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    if (object->data != arm) {
+      continue;
+    }
+    BLI_assert(object->pose);
+    LISTBASE_FOREACH (bPoseChannel *, pose_bone, &object->pose->chanbase) {
+      if (pose_bone->bone != bone) {
+        continue;
+      }
+      if (bone_is_visible) {
+        pose_bone->drawflag &= ~PCHAN_DRAW_HIDDEN;
+      }
+      else {
+        pose_bone->drawflag |= PCHAN_DRAW_HIDDEN;
+      }
+    }
+  }
   if (bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE)) {
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
@@ -1751,14 +1770,15 @@ static void rna_def_bone(BlenderRNA *brna)
 
   RNA_define_lib_overridable(true);
 
-  /* XXX should we define this in PoseChannel wrapping code instead?
-   *     But PoseChannels directly get some of their flags from here... */
+  /* Deprecated, but keeping for API backwards compatibility. Use the "hide" property on the pose
+   * bone instead. */
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_P);
   RNA_def_property_ui_text(
       prop,
       "Hide",
-      "Bone is not visible when it is not in Edit Mode (i.e. in Object or Pose Modes)");
+      "Deprecated: Use the `hide` property on the pose bone instead. Bone is not visible when it "
+      "is not in Edit Mode (i.e. in Object or Pose Modes)");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
   RNA_def_property_update(prop, 0, "rna_Bone_hide_update");
 
