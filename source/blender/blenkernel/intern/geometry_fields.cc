@@ -540,14 +540,18 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
     return {};
   }
 
-  auto layer_is_selected = [selection_name = StringRef(layer_name_),
+  StringRef selection_name = StringRef(layer_name_);
+  IndexMaskMemory memory;
+  IndexMask selection_mask = grease_pencil.layer_selection_by_name(selection_name, memory);
+
+  auto layer_is_selected = [selection_name,
                             &grease_pencil,
-                            size = mask.min_array_size()](const int layer_i) {
+                            size = mask.min_array_size(),
+                            selection_mask](const int layer_i) {
     if (layer_i < 0 || layer_i >= grease_pencil.layers().size()) {
       return false;
     }
-    const Layer &layer = grease_pencil.layer(layer_i);
-    return layer.name() == selection_name;
+    return selection_mask.contains(layer_i);
   };
 
   if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {

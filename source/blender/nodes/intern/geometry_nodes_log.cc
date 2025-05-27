@@ -180,10 +180,10 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
             component);
         if (const GreasePencil *grease_pencil = grease_pencil_component.get()) {
           GreasePencilInfo &info = this->grease_pencil_info.emplace(GreasePencilInfo());
-          info.layers_num = grease_pencil->layers().size();
+          info.layers_num = grease_pencil->nodes().size();
           Set<StringRef> unique_layer_names;
-          for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
-            const StringRefNull layer_name = layer->name();
+          for (const bke::greasepencil::TreeNode *node : grease_pencil->nodes()) {
+            const StringRefNull layer_name = node->name();
             if (unique_layer_names.add(layer_name)) {
               info.layer_names.append(layer_name);
             }
