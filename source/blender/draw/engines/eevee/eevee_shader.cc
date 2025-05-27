@@ -197,6 +197,16 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     ready &= is_ready(batch_request, shader_types);
   };
 
+  {
+    /* These are the slowest shaders by far. Submitting them first make sure they overlap with
+     * other shaders compilation. */
+    const std::array<eShaderType, 5> deferred_shader_list = {DEFERRED_LIGHT_TRIPLE,
+                                                             DEFERRED_LIGHT_SINGLE,
+                                                             DEFERRED_LIGHT_DOUBLE,
+                                                             DEFERRED_COMBINE,
+                                                             DEFERRED_TILE_CLASSIFY};
+    request(compilation_handles_.deferred, deferred_shader_list);
+  }
   if (use_ao_pass) {
     const std::array<eShaderType, 1> ambient_occlusion_shader_list = {AMBIENT_OCCLUSION_PASS};
     request(compilation_handles_.ambient_occlusion, ambient_occlusion_shader_list);
@@ -212,14 +222,6 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
                                                          FILM_PASS_CONVERT_COLOR,
                                                          FILM_PASS_CONVERT_CRYPTOMATTE};
     batch_ensure(compilation_handles_.film, film_shader_list);
-  }
-  {
-    const std::array<eShaderType, 5> deferred_shader_list = {DEFERRED_COMBINE,
-                                                             DEFERRED_LIGHT_SINGLE,
-                                                             DEFERRED_LIGHT_DOUBLE,
-                                                             DEFERRED_LIGHT_TRIPLE,
-                                                             DEFERRED_TILE_CLASSIFY};
-    request(compilation_handles_.deferred, deferred_shader_list);
   }
   if (use_capture) {
     static const std::array<eShaderType, 1> deferred_capture_shader_list = {DEFERRED_CAPTURE_EVAL};
