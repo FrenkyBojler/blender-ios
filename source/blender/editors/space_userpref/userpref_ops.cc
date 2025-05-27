@@ -245,6 +245,92 @@ static void PREFERENCES_OT_asset_library_remove(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Move Up/Down Asset Library Operator
+ * \{ */
+
+static bool preferences_asset_library_move_poll(bContext *C)
+{
+  if (BLI_listbase_is_empty(&U.asset_libraries) ||
+      BLI_listbase_count(&U.asset_libraries) < U.active_asset_library)
+  {
+    CTX_wm_operator_poll_msg_set(C, "There is no asset library to move");
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOperator *op)
+{
+  const int index = U.active_asset_library;
+  const int direction = RNA_enum_get(op->ptr, "direction");
+  bUserAssetLibrary *library = static_cast<bUserAssetLibrary *>(
+      BLI_findlink(&U.asset_libraries, index));
+
+  if (library == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  // up
+  if (direction == 1 && library->prev != nullptr) {
+    if (!BKE_preferences_asset_library_move(&U, library, index - 1)) {
+      return OPERATOR_CANCELLED;
+    }
+    U.active_asset_library--;
+  }
+  // down
+  else if (direction == -1 && library->next != nullptr) {
+    if (!BKE_preferences_asset_library_move(&U, library, index + 1)) {
+      return OPERATOR_CANCELLED;
+    }
+    U.active_asset_library++;
+  }
+  else {
+    return OPERATOR_CANCELLED;
+  }
+
+  blender::ed::asset::list::clear_all_library(C);
+  /* Trigger refresh for the Asset Browser. */
+  WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static void PREFERENCES_OT_asset_library_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem asset_library_move[] = {
+      {1, "UP", 0, "Up", ""},
+      {-1, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  ot->name = "Move Asset Library";
+  ot->idname = "PREFERENCES_OT_asset_library_move";
+  ot->description = "Move the active library up/down in the list";
+
+  ot->exec = preferences_asset_library_move_exec;
+  ot->poll = preferences_asset_library_move_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  RNA_def_enum(ot->srna,
+               "direction",
+               asset_library_move,
+               0,
+               "Direction",
+               "Direction to move the active library towards");
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER,
+                                 FILE_SPECIAL,
+                                 FILE_OPENFILE,
+                                 WM_FILESEL_DIRECTORY,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Add Extension Repository Operator
  * \{ */
 
@@ -1093,6 +1179,8 @@ void ED_operatortypes_userpref()
 
   WM_operatortype_append(PREFERENCES_OT_asset_library_add);
   WM_operatortype_append(PREFERENCES_OT_asset_library_remove);
+
+  WM_operatortype_append(PREFERENCES_OT_asset_library_move);
 
   WM_operatortype_append(PREFERENCES_OT_extension_repo_add);
   WM_operatortype_append(PREFERENCES_OT_extension_repo_remove);

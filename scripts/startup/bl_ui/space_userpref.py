@@ -1703,6 +1703,11 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
         if active_library is None:
             return
 
+        if len(paths.asset_libraries) > 1:
+            col.separator()
+            col.operator("preferences.asset_library_move", text="", icon='TRIA_UP').direction = 'UP'
+            col.operator("preferences.asset_library_move", text="", icon='TRIA_DOWN').direction = 'DOWN'
+
         layout.separator()
 
         layout.prop(active_library, "path")
