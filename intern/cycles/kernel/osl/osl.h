@@ -12,6 +12,11 @@
  * Holds all variables to execute and use OSL shaders from the kernel.
  */
 
+#ifdef __KERNEL_OPTIX__
+#  include "kernel/geom/attribute.h"
+#  include "kernel/geom/primitive.h"
+#endif
+
 #include "kernel/osl/closures_setup.h"
 #include "kernel/osl/types.h"
 
@@ -183,7 +188,7 @@ ccl_device_inline void osl_eval_nodes(KernelGlobals kg,
                                       const uint32_t path_flag)
 {
   ShaderGlobals globals;
-  shaderdata_to_shaderglobals(kg, sd, path_flag, &globals);
+  shaderdata_to_shaderglobals(sd, path_flag, &globals);
 
   const int shader = sd->shader & SHADER_MASK;
 
