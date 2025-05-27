@@ -13,7 +13,7 @@
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_forward)
 
-#include "common_hair_lib.glsl"
+#include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_forward_lib.glsl"
@@ -54,13 +54,6 @@ void main()
 
   nodetree_surface(closure_rand);
 
-  eObjectInfoFlag ob_flag = drw_object_infos().flag;
-  if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
-    g_holdout = 1.0f - average(g_transmittance);
-  }
-
-  g_holdout = saturate(g_holdout);
-
   float3 radiance, transmittance;
   forward_lighting_eval(g_thickness, radiance, transmittance);
 
@@ -73,6 +66,14 @@ void main()
    * Since we do that using the blending pipeline we need to account for material transmittance. */
   vol.scattering -= vol.scattering * g_transmittance;
   radiance = radiance * vol.transmittance + vol.scattering;
+
+  eObjectInfoFlag ob_flag = drw_object_infos().flag;
+  if (flag_test(ob_flag, OBJECT_HOLDOUT)) {
+    g_holdout = 1.0f - average(g_transmittance);
+    radiance *= 0.0f;
+  }
+
+  g_holdout = saturate(g_holdout);
 
   radiance *= 1.0f - saturate(g_holdout);
 

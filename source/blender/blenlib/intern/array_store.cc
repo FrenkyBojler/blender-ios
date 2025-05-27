@@ -376,7 +376,7 @@ static void bchunk_decref(BArrayMemory *bs_mem, BChunk *chunk)
 {
   BLI_assert(chunk->users > 0);
   if (chunk->users == 1) {
-    MEM_freeN((void *)chunk->data);
+    MEM_freeN(chunk->data);
     BLI_mempool_free(bs_mem->chunk, chunk);
   }
   else {
@@ -1554,7 +1554,7 @@ static void array_store_free_data(BArrayStore *bs)
     BLI_mempool_iternew(bs->memory.chunk, &iter);
     while ((chunk = static_cast<BChunk *>(BLI_mempool_iterstep(&iter)))) {
       BLI_assert(chunk->users > 0);
-      MEM_freeN((void *)chunk->data);
+      MEM_freeN(chunk->data);
     }
   }
 
@@ -1683,7 +1683,7 @@ void BLI_array_store_state_remove(BArrayStore *bs, BArrayState *state)
   MEM_freeN(state);
 }
 
-size_t BLI_array_store_state_size_get(BArrayState *state)
+size_t BLI_array_store_state_size_get(const BArrayState *state)
 {
   return state->chunk_list->total_expanded_size;
 }
@@ -1706,7 +1706,7 @@ void BLI_array_store_state_data_get(const BArrayState *state, void *data)
   }
 }
 
-void *BLI_array_store_state_data_get_alloc(BArrayState *state, size_t *r_data_len)
+void *BLI_array_store_state_data_get_alloc(const BArrayState *state, size_t *r_data_len)
 {
   void *data = MEM_mallocN(state->chunk_list->total_expanded_size, __func__);
   BLI_array_store_state_data_get(state, data);

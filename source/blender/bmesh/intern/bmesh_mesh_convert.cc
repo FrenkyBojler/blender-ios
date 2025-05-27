@@ -319,7 +319,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   /* -------------------------------------------------------------------- */
   /* Shape Key */
   int tot_shape_keys = 0;
-  if (mesh->key != nullptr && DEG_is_original_id(&mesh->id)) {
+  if (mesh->key != nullptr && DEG_is_original(mesh)) {
     /* Evaluated meshes can be topologically inconsistent with their shape keys.
      * Shape keys are also already integrated into the state of the evaluated
      * mesh, so considering them here would kind of apply them twice. */
@@ -616,7 +616,7 @@ static BMVert **bm_to_mesh_vertex_map(BMesh *bm, const int old_verts_num)
   /* Caller needs to ensure this. */
   BLI_assert(old_verts_num > 0);
 
-  vertMap = static_cast<BMVert **>(MEM_callocN(sizeof(*vertMap) * old_verts_num, "vertMap"));
+  vertMap = MEM_calloc_arrayN<BMVert *>(old_verts_num, "vertMap");
   if (cd_shape_keyindex_offset != -1) {
     BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
       const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
@@ -1575,8 +1575,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
 
         MEM_SAFE_FREE(mesh->mselect);
         if (mesh->totselect != 0) {
-          mesh->mselect = static_cast<MSelect *>(
-              MEM_mallocN(sizeof(MSelect) * mesh->totselect, "Mesh selection history"));
+          mesh->mselect = MEM_malloc_arrayN<MSelect>(mesh->totselect, "Mesh selection history");
         }
         int i;
         LISTBASE_FOREACH_INDEX (BMEditSelection *, selected, &bm->selected, i) {

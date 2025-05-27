@@ -137,7 +137,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ ID_PAL,
+    /*id_code*/ Palette::id_type,
     /*id_filter*/ FILTER_ID_PAL,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PAL,
@@ -206,7 +206,7 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ ID_PC,
+    /*id_code*/ PaintCurve::id_type,
     /*id_filter*/ FILTER_ID_PC,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_PC,
@@ -303,7 +303,7 @@ void BKE_paint_set_overlay_override(eOverlayFlags flags)
     }
   }
   else {
-    overlay_flags &= ~(PAINT_OVERRIDE_MASK);
+    overlay_flags &= ~PAINT_OVERRIDE_MASK;
   }
 }
 
@@ -1090,6 +1090,20 @@ bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name)
   return paint_brush_update_from_asset_reference(bmain, paint);
 }
 
+void BKE_paint_previous_asset_reference_set(Paint *paint,
+                                            AssetWeakReference &&asset_weak_reference)
+{
+  if (!paint->runtime.previous_active_brush_reference) {
+    paint->runtime.previous_active_brush_reference = MEM_new<AssetWeakReference>(__func__);
+  }
+  *paint->runtime.previous_active_brush_reference = asset_weak_reference;
+}
+
+void BKE_paint_previous_asset_reference_clear(Paint *paint)
+{
+  MEM_SAFE_DELETE(paint->runtime.previous_active_brush_reference);
+}
+
 void BKE_paint_brushes_validate(Main *bmain, Paint *paint)
 {
   /* Clear brush with invalid mode. Unclear if this can still happen,
@@ -1319,7 +1333,7 @@ std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush,
 
 PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
 {
-  PaintCurve *pc = static_cast<PaintCurve *>(BKE_id_new(bmain, ID_PC, name));
+  PaintCurve *pc = BKE_id_new<PaintCurve>(bmain, name);
   return pc;
 }
 
@@ -1366,7 +1380,7 @@ void BKE_palette_clear(Palette *palette)
 
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
-  Palette *palette = static_cast<Palette *>(BKE_id_new(bmain, ID_PAL, name));
+  Palette *palette = BKE_id_new<Palette>(bmain, name);
   return palette;
 }
 
@@ -1526,7 +1540,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(size_t(totpal), __func__);
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totpal, __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -1786,6 +1800,7 @@ void BKE_paint_free(Paint *paint)
     MEM_delete(brush_ref->brush_asset_reference);
     MEM_delete(brush_ref);
   }
+  MEM_delete(paint->runtime.previous_active_brush_reference);
 }
 
 void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
@@ -2090,7 +2105,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
 
-  ss->clear_active_vert(false);
+  ss->clear_active_elements(false);
 }
 
 void BKE_sculptsession_bm_to_me_for_render(Object *object)
@@ -2205,7 +2220,7 @@ blender::float3 SculptSession::active_vert_position(const Depsgraph &depsgraph,
   return float3(std::numeric_limits<float>::infinity());
 }
 
-void SculptSession::clear_active_vert(bool persist_last_active)
+void SculptSession::clear_active_elements(bool persist_last_active)
 {
   if (persist_last_active) {
     if (!std::holds_alternative<std::monostate>(active_vert_)) {
@@ -2216,6 +2231,8 @@ void SculptSession::clear_active_vert(bool persist_last_active)
     last_active_vert_ = {};
   }
   active_vert_ = {};
+  active_grid_index.reset();
+  active_face_index.reset();
 }
 
 void SculptSession::set_active_vert(const ActiveVert vert)
@@ -2490,7 +2507,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
 {
   using namespace blender;
   /* Update before mesh evaluation in the dependency graph. */
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
   SculptSession *ss = ob_orig->sculpt;
   if (!ss) {
     return;
@@ -2549,7 +2566,7 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval)
 {
   /* Update after mesh evaluation in the dependency graph, to rebuild pbvh::Tree or
    * other data when modifiers change the mesh. */
-  Object *ob_orig = DEG_get_original_object(ob_eval);
+  Object *ob_orig = DEG_get_original(ob_eval);
 
   sculpt_update_object(depsgraph, ob_orig, ob_eval, false);
 }
@@ -2580,9 +2597,9 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
 
 void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool)
 {
-  BLI_assert(ob_orig == DEG_get_original_object(ob_orig));
+  BLI_assert(ob_orig == DEG_get_original(ob_orig));
 
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_orig);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
 
   sculpt_update_object(depsgraph, ob_orig, ob_eval, is_paint_tool);
 }
@@ -2613,7 +2630,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       GridPaintMask *gpm = &gmask[i];
 
       gpm->level = level;
-      gpm->data = MEM_calloc_arrayN<float>(size_t(gridarea), "GridPaintMask.data");
+      gpm->data = MEM_calloc_arrayN<float>(gridarea, "GridPaintMask.data");
     }
 
     /* If vertices already have mask, copy into multires data. */
@@ -2800,7 +2817,7 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
     ss.pbvh = build_pbvh_for_dynamic_topology(&object);
   }
   else {
-    Object *object_eval = DEG_get_evaluated_object(&depsgraph, &object);
+    Object *object_eval = DEG_get_evaluated(&depsgraph, &object);
     Mesh *mesh_eval = static_cast<Mesh *>(object_eval->data);
     if (mesh_eval->runtime->subdiv_ccg != nullptr) {
       ss.pbvh = build_pbvh_from_ccg(&object, *mesh_eval->runtime->subdiv_ccg);

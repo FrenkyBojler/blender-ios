@@ -13,8 +13,10 @@
 
 #include "NOD_geo_foreach_geometry_element.hh"
 #include "NOD_node_extra_info.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -40,41 +42,41 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node) {
+  if (!zone->output_node_id) {
     return;
   }
   const bool is_zone_input_node = current_node->type_legacy ==
                                   GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
-  bNode &output_node = const_cast<bNode &>(*zone->output_node);
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
   auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(output_node.storage);
 
   if (is_zone_input_node) {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "input", false, IFACE_("Input Fields"))) {
+    if (uiLayout *panel = layout->panel(C, "input", false, IFACE_("Input Fields"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
   }
   else {
-    if (uiLayout *panel = uiLayoutPanel(C, layout, "main_items", false, IFACE_("Main Geometry"))) {
+    if (uiLayout *panel = layout->panel(C, "main_items", false, IFACE_("Main Geometry"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementMainItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
-    if (uiLayout *panel = uiLayoutPanel(
-            C, layout, "generation_items", false, IFACE_("Generated Geometry")))
+    if (uiLayout *panel = layout->panel(
+            C, "generation_items", false, IFACE_("Generated Geometry")))
     {
       socket_items::ui::draw_items_list_with_operators<
           ForeachGeometryElementGenerationItemsAccessor>(C, panel, ntree, output_node);
@@ -84,15 +86,15 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
                 storage.generation_items.items[storage.generation_items.active_index];
             uiLayoutSetPropSep(panel, true);
             uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             if (active_item.socket_type != SOCK_GEOMETRY) {
-              uiItemR(panel, item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+              panel->prop(item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             }
           });
     }
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace input_node {
@@ -168,7 +170,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   bNode *output_node = tree.node_by_id(storage.output_node_id);
 
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Node, output_node);
-  uiItemR(layout, &output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(&output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -372,6 +374,67 @@ static void node_extra_info(NodeExtraInfoParams &params)
   }
 }
 
+static std::pair<bNode *, bNode *> add_foreach_zone(LinkSearchOpParams &params)
+{
+  bNode &input_node = params.add_node("GeometryNodeForeachGeometryElementInput");
+  bNode &output_node = params.add_node("GeometryNodeForeachGeometryElementOutput");
+  output_node.location[0] = 300;
+
+  auto &input_storage = *static_cast<NodeGeometryForeachGeometryElementInput *>(
+      input_node.storage);
+  input_storage.output_node_id = output_node.identifier;
+
+  return {&input_node, &output_node};
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  const eNodeSocketDatatype type = eNodeSocketDatatype(other_socket.type);
+  if (type != SOCK_GEOMETRY) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_OUT) {
+    params.add_item_full_name(IFACE_("For Each Element"), [](LinkSearchOpParams &params) {
+      const auto [input_node, output_node] = add_foreach_zone(params);
+      params.update_and_connect_available_socket(*input_node, "Geometry");
+    });
+  }
+  else {
+    params.add_item_full_name(
+        IFACE_("For Each Element " UI_MENU_ARROW_SEP " Main"), [](LinkSearchOpParams &params) {
+          const auto [input_node, output_node] = add_foreach_zone(params);
+          socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
+          params.update_and_connect_available_socket(*output_node, "Geometry");
+        });
+
+    params.add_item_full_name(IFACE_("For Each Element " UI_MENU_ARROW_SEP " Generated"),
+                              [](LinkSearchOpParams &params) {
+                                const auto [input_node, output_node] = add_foreach_zone(params);
+                                params.node_tree.ensure_topology_cache();
+                                bke::node_add_link(params.node_tree,
+                                                   *output_node,
+                                                   output_node->output_socket(2),
+                                                   params.node,
+                                                   params.socket);
+                              });
+  }
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<ForeachGeometryElementInputItemsAccessor>(&writer, node);
+  socket_items::blend_write<ForeachGeometryElementGenerationItemsAccessor>(&writer, node);
+  socket_items::blend_write<ForeachGeometryElementMainItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<ForeachGeometryElementInputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ForeachGeometryElementMainItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ForeachGeometryElementGenerationItemsAccessor>(&reader, node);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -387,8 +450,11 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.get_extra_info = node_extra_info;
   ntype.no_muting = true;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryForeachGeometryElementOutput", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
@@ -403,9 +469,6 @@ namespace blender::nodes {
 
 StructRNA *ForeachGeometryElementInputItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementInputItem;
-int ForeachGeometryElementInputItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementInputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementInputItem);
 
 void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                 const ItemT &item)
@@ -421,9 +484,6 @@ void ForeachGeometryElementInputItemsAccessor::blend_read_data_item(BlendDataRea
 
 StructRNA *ForeachGeometryElementMainItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementMainItem;
-int ForeachGeometryElementMainItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementMainItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementMainItem);
 
 void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                const ItemT &item)
@@ -439,10 +499,6 @@ void ForeachGeometryElementMainItemsAccessor::blend_read_data_item(BlendDataRead
 
 StructRNA *ForeachGeometryElementGenerationItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementGenerationItem;
-int ForeachGeometryElementGenerationItemsAccessor::node_type =
-    GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementGenerationItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementGenerationItem);
 
 void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                      const ItemT &item)

@@ -570,10 +570,7 @@ class Strip : public ::ActionStrip {
    *
    * Does *not* make a copy of the strip's data, which is stored in an array on
    * the owning action. */
-  explicit Strip(const Strip &other)
-  {
-    memcpy(this, &other, sizeof(*this));
-  }
+  explicit Strip(const Strip &other) = default;
 
   /**
    * Creates a new strip of type `type` for `owning_action`, with the strip's
@@ -644,19 +641,12 @@ class Strip : public ::ActionStrip {
    *
    * For example, to get a keyframe strip's data:
    *
-   * ```
+   * \code{.cc}
    * StripKeyframeData &strip_data = strip.data<StripKeyframeData>(action);
-   * ```
+   * \endcode
    */
   template<typename T> const T &data(const Action &owning_action) const;
   template<typename T> T &data(Action &owning_action);
-
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Layer::slot_data_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
 };
 static_assert(sizeof(Strip) == sizeof(::ActionStrip),
               "DNA struct and its C++ wrapper must have the same size");
@@ -750,13 +740,6 @@ class Layer : public ::ActionLayer {
    * \return true when the strip was found & removed, false if it wasn't found.
    */
   bool strip_remove(Action &owning_action, Strip &strip);
-
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Action::slot_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
 
  protected:
   /**
@@ -1039,8 +1022,6 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
 
   /**
    * Remove all strip data for the given slot.
-   *
-   * Typically only called from #Strip::slot_data_remove().
    */
   void slot_data_remove(slot_handle_t slot_handle);
 
@@ -1126,14 +1107,14 @@ class Channelbag : public ::ActionChannelbag {
    * Create many F-Curves at once.
    *
    * Conceptually the same as adding many curves in a loop:
-   * ```
+   * \code{.cc}
    * Vector<FCurve*> res(fcurve_descriptors.size(), nullptr);
    * for (int64_t i = 0; i < fcurve_descriptors.size(); i++) {
    *  const FCurveDescriptor &desc = fcurve_descriptors[i];
    *  res[i] = this->fcurve_create_unique(bmain, desc);
    * }
    * return res;
-   * ```
+   * \endcode
    *
    * However that is quadratic complexity due to each curve uniqueness check being
    * a linear scan, plus invariants rebuilding after each curve.

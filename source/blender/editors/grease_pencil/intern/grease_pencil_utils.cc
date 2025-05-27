@@ -31,6 +31,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "GEO_merge_layers.hh"
 
 #include "RNA_prototypes.hh"
@@ -873,7 +875,7 @@ Vector<DrawingInfo> retrieve_visible_drawings(const Scene &scene,
                                               const bool do_onion_skinning)
 {
   using namespace blender::bke::greasepencil;
-  const int current_frame = scene.r.cfra;
+  const int current_frame = BKE_scene_ctime_get(&scene);
   const ToolSettings *toolsettings = scene.toolsettings;
   const bool use_multi_frame_editing = (toolsettings->gpencil_flags &
                                         GP_USE_MULTI_FRAME_EDITING) != 0;
@@ -972,7 +974,8 @@ IndexMask retrieve_editable_strokes(Object &object,
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1003,7 +1006,8 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
   const IndexRange curves_range = curves.curves_range();
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
   const VectorSet<int> fill_material_indices = get_fill_material_indices(object);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
@@ -1035,7 +1039,8 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
 
   const bke::AttributeAccessor attributes = curves.attributes();
 
-  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1082,7 +1087,8 @@ IndexMask retrieve_editable_points(Object &object,
 
   /* Propagate the material index to the points. */
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Point);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Point, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1181,6 +1187,11 @@ IndexMask retrieve_visible_bezier_handle_points(Object &object,
   const bke::CurvesGeometry &curves = drawing.strokes();
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return IndexMask(0);
+  }
+
+  /* Make sure that the handle position attributes exists. */
+  if (curves.handle_positions_left().is_empty() || curves.handle_positions_right().is_empty()) {
     return IndexMask(0);
   }
 
@@ -1788,10 +1799,6 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   Map<const Layer *, const Layer *> eval_to_orig_layer_map;
   {
-    /* Keep track of the last layer in each group to ensure layers get added to the same groups in
-     * the same order as the original. This is better than using the layer cache since it avoids
-     * updating the cache every time a new layer is added. */
-    Map<const LayerGroup *, TreeNode *> last_node_by_group;
     /* Set of orig layers that require the drawing on `eval_frame` to be cleared. These are layers
      * that existed in original geometry but were removed in the evaluated data. */
     Set<Layer *> orig_layers_to_clear;
@@ -1806,46 +1813,32 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       TreeNode *node_orig = orig_grease_pencil.find_node_by_name(node_eval->name());
 
       BLI_assert(node_eval != nullptr);
-      if (node_eval->is_layer()) {
-        /* If the orig layer isn't valid then a new layer with a unique name will be generated. */
-        const bool has_valid_orig_layer = (node_orig != nullptr && node_orig->is_layer());
-        if (!has_valid_orig_layer) {
-          /* Note: This name might be empty! This has to be resolved at a later stage! */
-          Layer &layer_orig = orig_grease_pencil.add_layer(node_eval->name(), true);
-          orig_layers_to_apply.add(&layer_orig);
-          /* Make sure to add a new keyframe with a new drawing. */
-          orig_grease_pencil.insert_frame(layer_orig, eval_frame);
-          node_orig = &layer_orig.as_node();
-        }
-        BLI_assert(node_orig != nullptr);
-        Layer &layer_orig = node_orig->as_layer();
-        /* This layer has a matching evaluated layer, so don't clear its keyframe. */
-        orig_layers_to_clear.remove(&layer_orig);
-        /* Only map layers in `eval_to_orig_layer_map` that we want to apply. */
-        if (orig_layers_to_apply.contains(&layer_orig)) {
-          /* Copy layer properties to original geometry. */
-          const Layer &layer_eval = node_eval->as_layer();
-          layer_orig.opacity = layer_eval.opacity;
-          layer_orig.set_local_transform(layer_eval.local_transform());
-
-          /* Add new mapping for `layer_eval` -> `layer_orig`. */
-          eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
-        }
+      if (!node_eval->is_layer()) {
+        continue;
       }
+      /* If the orig layer isn't valid then a new layer with a unique name will be generated. */
+      const bool has_valid_orig_layer = (node_orig != nullptr && node_orig->is_layer());
+      if (!has_valid_orig_layer) {
+        /* Note: This name might be empty! This has to be resolved at a later stage! */
+        Layer &layer_orig = orig_grease_pencil.add_layer(node_eval->name(), true);
+        orig_layers_to_apply.add(&layer_orig);
+        /* Make sure to add a new keyframe with a new drawing. */
+        orig_grease_pencil.insert_frame(layer_orig, eval_frame);
+        node_orig = &layer_orig.as_node();
+      }
+      BLI_assert(node_orig != nullptr);
+      Layer &layer_orig = node_orig->as_layer();
+      /* This layer has a matching evaluated layer, so don't clear its keyframe. */
+      orig_layers_to_clear.remove(&layer_orig);
+      /* Only map layers in `eval_to_orig_layer_map` that we want to apply. */
+      if (orig_layers_to_apply.contains(&layer_orig)) {
+        /* Copy layer properties to original geometry. */
+        const Layer &layer_eval = node_eval->as_layer();
+        layer_orig.opacity = layer_eval.opacity;
+        layer_orig.set_local_transform(layer_eval.local_transform());
 
-      /* Insert the updated node after the last node in the same group.
-       * This keeps the layer order consistent. */
-      if (node_orig && node_orig->parent_group()) {
-        last_node_by_group.add_or_modify(
-            node_orig->parent_group(),
-            [&](TreeNode **node_ptr) {
-              /* First layer in the group, set the last-layer pointer. */
-              *node_ptr = node_orig;
-            },
-            [&](TreeNode **node_ptr) {
-              orig_grease_pencil.move_node_after(*node_orig, **node_ptr);
-              *node_ptr = node_orig;
-            });
+        /* Add new mapping for `layer_eval` -> `layer_orig`. */
+        eval_to_orig_layer_map.add_new(&layer_eval, &layer_orig);
       }
     }
 
@@ -1882,21 +1875,23 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Get the original material pointers from the result geometry. */
   VectorSet<Material *> original_materials;
-  const Span<Material *> eval_materials = Span{merged_layers_grease_pencil.material_array,
-                                               merged_layers_grease_pencil.material_array_num};
+  const Span<Material *> eval_materials = Span{eval_grease_pencil.material_array,
+                                               eval_grease_pencil.material_array_num};
   for (Material *eval_material : eval_materials) {
-    if (eval_material != nullptr && eval_material->id.orig_id != nullptr) {
-      original_materials.add_new(reinterpret_cast<Material *>(eval_material->id.orig_id));
+    if (!eval_material) {
+      return;
     }
+    original_materials.add(DEG_get_original(eval_material));
   }
 
   /* Build material indices mapping. This maps the materials indices on the original geometry to
-   * the material indices used in the result geometry. The material indices for the drawings in the
-   * result geometry are already correct, but this might not be the case for all drawings in the
-   * original geometry (like for drawings that are not visible on the frame that the data is
+   * the material indices used in the result geometry. The material indices for the drawings in
+   * the result geometry are already correct, but this might not be the case for all drawings in
+   * the original geometry (like for drawings that are not visible on the frame that the data is
    * being applied on). */
-  Array<int> material_indices_map(orig_grease_pencil.material_array_num);
-  for (const int mat_i : IndexRange(orig_grease_pencil.material_array_num)) {
+  const IndexRange orig_material_indices = IndexRange(orig_grease_pencil.material_array_num);
+  Array<int> material_indices_map(orig_grease_pencil.material_array_num, -1);
+  for (const int mat_i : orig_material_indices) {
     Material *material = orig_grease_pencil.material_array[mat_i];
     const int map_index = original_materials.index_of_try(material);
     if (map_index != -1) {
@@ -1906,8 +1901,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Remap material indices for all other drawings. */
   if (!material_indices_map.is_empty() &&
-      !array_utils::indices_are_range(material_indices_map,
-                                      IndexRange(orig_grease_pencil.material_array_num)))
+      !array_utils::indices_are_range(material_indices_map, orig_material_indices))
   {
     for (GreasePencilDrawingBase *base : orig_grease_pencil.drawings()) {
       if (base->type != GP_DRAWING) {
@@ -1925,7 +1919,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
           "material_index", AttrDomain::Curve);
       for (int &material_index : material_indices.span) {
-        if (material_index >= 0 && material_index < material_indices_map.size()) {
+        if (material_indices_map.index_range().contains(material_index)) {
           material_index = material_indices_map[material_index];
         }
       }

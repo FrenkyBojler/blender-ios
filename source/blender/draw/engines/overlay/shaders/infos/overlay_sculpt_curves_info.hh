@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 
@@ -24,7 +23,7 @@ GPU_SHADER_CREATE_INFO(overlay_sculpt_curves_selection)
 DO_STATIC_COMPILATION()
 PUSH_CONSTANT(bool, is_point_domain)
 PUSH_CONSTANT(float, selection_opacity)
-SAMPLER(1, FLOAT_BUFFER, selection_tx)
+SAMPLER(1, samplerBuffer, selection_tx)
 VERTEX_OUT(overlay_sculpt_curves_selection_iface)
 VERTEX_SOURCE("overlay_sculpt_curves_selection_vert.glsl")
 FRAGMENT_SOURCE("overlay_sculpt_curves_selection_frag.glsl")
@@ -38,9 +37,9 @@ GPU_SHADER_CREATE_END()
 OVERLAY_INFO_CLIP_VARIATION(overlay_sculpt_curves_selection)
 
 GPU_SHADER_INTERFACE_INFO(overlay_sculpt_curves_cage_iface)
-NO_PERSPECTIVE(float2, edgePos)
-FLAT(float2, edgeStart)
-SMOOTH(float4, finalColor)
+NO_PERSPECTIVE(float2, edge_pos)
+FLAT(float2, edge_start)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_sculpt_curves_cage)
@@ -48,8 +47,8 @@ DO_STATIC_COMPILATION()
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float, selection)
 VERTEX_OUT(overlay_sculpt_curves_cage_iface)
-FRAGMENT_OUT(0, float4, fragColor)
-FRAGMENT_OUT(1, float4, lineOutput)
+FRAGMENT_OUT(0, float4, frag_color)
+FRAGMENT_OUT(1, float4, line_output)
 PUSH_CONSTANT(float, opacity)
 VERTEX_SOURCE("overlay_sculpt_curves_cage_vert.glsl")
 FRAGMENT_SOURCE("overlay_extra_frag.glsl")

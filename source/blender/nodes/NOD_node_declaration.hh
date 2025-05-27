@@ -150,8 +150,6 @@ std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
 }  // namespace anonymous_attribute_lifetime
 namespace aal = anonymous_attribute_lifetime;
 
-using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
-
 /* Socket or panel declaration. */
 class ItemDeclaration {
  public:
@@ -166,6 +164,18 @@ struct SocketNameRNA {
   PointerRNA owner = PointerRNA_NULL;
   std::string property_name;
 };
+
+struct CustomSocketDrawParams {
+  const bContext &C;
+  uiLayout &layout;
+  bNodeTree &tree;
+  bNode &node;
+  bNodeSocket &socket;
+  PointerRNA node_ptr;
+  PointerRNA socket_ptr;
+};
+
+using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
@@ -194,6 +204,7 @@ class SocketDeclaration : public ItemDeclaration {
   bool align_with_previous_socket = false;
   /** This socket is used as a toggle for the parent panel. */
   bool is_panel_toggle = false;
+  bool is_layer_name = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -218,14 +229,17 @@ class SocketDeclaration : public ItemDeclaration {
   std::function<void(bNode &)> make_available_fn_;
 
  public:
-  /** Some input sockets can have non-trivial values in the case when they are unlinked. This
-   * callback computes the default input of a values in geometry nodes when nothing is linked. */
-  std::unique_ptr<ImplicitInputValueFn> implicit_input_fn;
+  /** Some input sockets can have non-trivial values in the case when they are unlinked. */
+  NodeDefaultInputType default_input_type;
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
    */
   std::unique_ptr<SocketNameRNA> socket_name_rna;
+  /**
+   * Draw function that overrides how the socket is drawn for a specific node.
+   */
+  std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -304,6 +318,8 @@ class BaseSocketDeclarationBuilder {
 
   BaseSocketDeclarationBuilder &is_default_link_socket(bool value = true);
 
+  BaseSocketDeclarationBuilder &default_input_type(NodeDefaultInputType value);
+
   /** The input socket allows passing in a field. */
   BaseSocketDeclarationBuilder &supports_field();
 
@@ -320,13 +336,13 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &field_source();
 
   /** The input supports a field and is a field by default when nothing is connected. */
-  BaseSocketDeclarationBuilder &implicit_field(ImplicitInputValueFn fn);
+  BaseSocketDeclarationBuilder &implicit_field(NodeDefaultInputType default_input);
 
   /** The input is an implicit field that is evaluated on all geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on_all(ImplicitInputValueFn fn);
+  BaseSocketDeclarationBuilder &implicit_field_on_all(NodeDefaultInputType default_input);
 
   /** The input is evaluated on a subset of the geometry inputs. */
-  BaseSocketDeclarationBuilder &implicit_field_on(ImplicitInputValueFn fn,
+  BaseSocketDeclarationBuilder &implicit_field_on(NodeDefaultInputType default_input,
                                                   Span<int> input_indices);
 
   /** For inputs that are evaluated or available on a subset of the geometry sockets. */
@@ -382,6 +398,11 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &make_available(std::function<void(bNode &)> fn);
 
   /**
+   * Provide a fully custom draw function for the socket that overrides any default behaviour.
+   */
+  BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
+
+  /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
    * an input and the other is an output.
    */
@@ -400,6 +421,8 @@ class BaseSocketDeclarationBuilder {
    * Use the socket as a toggle in its panel.
    */
   BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
+
+  BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -533,6 +556,7 @@ class PanelDeclarationBuilder : public DeclarationListBuilder {
   }
 
   Self &description(std::string value = "");
+  Self &translation_context(std::optional<std::string> value = std::nullopt);
   Self &default_closed(bool closed);
 };
 
@@ -647,13 +671,10 @@ class NodeDeclarationBuilder : public DeclarationListBuilder {
   void build_remaining_anonymous_attribute_relations();
 };
 
-namespace implicit_field_inputs {
-void position(const bNode &node, void *r_value);
-void normal(const bNode &node, void *r_value);
-void index(const bNode &node, void *r_value);
-void id_or_index(const bNode &node, void *r_value);
-void instance_transform(const bNode &node, void *r_value);
-}  // namespace implicit_field_inputs
+using ImplicitInputValueFn = std::function<void(const bNode &node, void *r_value)>;
+std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInputType type);
+bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
+                                             NodeDefaultInputType input_type);
 
 void build_node_declaration(const bke::bNodeType &typeinfo,
                             NodeDeclaration &r_declaration,

@@ -9,7 +9,6 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstring>
-#include <mutex>
 
 #include "MEM_guardedalloc.h"
 
@@ -17,6 +16,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_mutex.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_task.hh"
@@ -80,6 +80,8 @@
 
 #include "render_intern.hh"
 
+namespace path_templates = blender::bke::path_templates;
+
 /* TODO(sergey): Find better approximation of the scheduled frames.
  * For really high-resolution renders it might fail still. */
 #define MAX_SCHEDULED_FRAMES 8
@@ -113,7 +115,7 @@ struct OGLRender : public RenderJobBase {
 
   GPUViewport *viewport = nullptr;
 
-  std::mutex reports_mutex;
+  blender::Mutex reports_mutex;
   ReportList *reports = nullptr;
 
   int cfrao = 0;
@@ -415,20 +417,32 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   rr = RE_AcquireResultRead(oglrender->re);
 
-  BKE_image_path_from_imformat(filepath,
-                               scene->r.pic,
-                               BKE_main_blendfile_path(oglrender->bmain),
-                               scene->r.cfra,
-                               &scene->r.im_format,
-                               (scene->r.scemode & R_EXTENSION) != 0,
-                               false,
-                               nullptr);
+  const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+  const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                      &scene->r);
+  const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+      filepath,
+      scene->r.pic,
+      relbase,
+      &template_variables,
+      scene->r.cfra,
+      &scene->r.im_format,
+      (scene->r.scemode & R_EXTENSION) != 0,
+      false,
+      nullptr);
 
-  /* write images as individual images or stereo */
-  BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-  ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath);
+  if (!errors.is_empty()) {
+    std::unique_lock lock(oglrender->reports_mutex);
+    BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+    ok = false;
+  }
+  else {
+    /* write images as individual images or stereo */
+    BKE_render_result_stamp_info(scene, scene->camera, rr, false);
+    ok = BKE_image_render_write(oglrender->reports, rr, scene, false, filepath);
 
-  RE_ReleaseResultImage(oglrender->re);
+    RE_ReleaseResultImage(oglrender->re);
+  }
 
   if (ok) {
     printf("OpenGL Render written to '%s'\n", filepath);
@@ -807,9 +821,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
 
     /* MUST be cleared on exit */
-    memset(&oglrender->scene->customdata_mask_modal,
-           0,
-           sizeof(oglrender->scene->customdata_mask_modal));
+    oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
     ED_view3d_datamask(oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
@@ -913,9 +925,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
 
   MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
 
-  memset(&oglrender->scene->customdata_mask_modal,
-         0,
-         sizeof(oglrender->scene->customdata_mask_modal));
+  oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
 
   if (oglrender->wm_job) { /* exec will not have a job */
     Depsgraph *depsgraph = oglrender->depsgraph;
@@ -1036,17 +1046,29 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      * calculate file name again here.
      */
     char filepath[FILE_MAX];
-    BKE_image_path_from_imformat(filepath,
-                                 scene->r.pic,
-                                 BKE_main_blendfile_path(oglrender->bmain),
-                                 cfra,
-                                 &scene->r.im_format,
-                                 (scene->r.scemode & R_EXTENSION) != 0,
-                                 true,
-                                 nullptr);
+    const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                        &scene->r);
+    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+        filepath,
+        scene->r.pic,
+        relbase,
+        &template_variables,
+        cfra,
+        &scene->r.im_format,
+        (scene->r.scemode & R_EXTENSION) != 0,
+        true,
+        nullptr);
 
-    BKE_render_result_stamp_info(scene, scene->camera, rr, false);
-    ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+    if (!errors.is_empty()) {
+      BKE_report_path_template_errors(&reports, RPT_ERROR, scene->r.pic, errors);
+      ok = false;
+    }
+    else {
+      BKE_render_result_stamp_info(scene, scene->camera, rr, false);
+      ok = BKE_image_render_write(nullptr, rr, scene, true, filepath);
+    }
+
     if (!ok) {
       BKE_reportf(&reports, RPT_ERROR, "Write error: cannot save %s", filepath);
     }
@@ -1125,16 +1147,26 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
   if (!is_movie) {
-    BKE_image_path_from_imformat(filepath,
-                                 scene->r.pic,
-                                 BKE_main_blendfile_path(oglrender->bmain),
-                                 scene->r.cfra,
-                                 &scene->r.im_format,
-                                 (scene->r.scemode & R_EXTENSION) != 0,
-                                 true,
-                                 nullptr);
+    const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
+    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
+                                                                                        &scene->r);
+    const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
+        filepath,
+        scene->r.pic,
+        relbase,
+        &template_variables,
+        scene->r.cfra,
+        &scene->r.im_format,
+        (scene->r.scemode & R_EXTENSION) != 0,
+        true,
+        nullptr);
 
-    if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
+    if (!errors.is_empty()) {
+      std::unique_lock lock(oglrender->reports_mutex);
+      BKE_report_path_template_errors(oglrender->reports, RPT_ERROR, scene->r.pic, errors);
+      ok = false;
+    }
+    else if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(filepath)) {
       {
         std::unique_lock lock(oglrender->reports_mutex);
         BKE_reportf(oglrender->reports, RPT_INFO, "Skipping existing frame \"%s\"", filepath);
@@ -1367,7 +1399,7 @@ void RENDER_OT_opengl(wmOperatorType *ot)
   ot->description = "Take a snapshot of the active viewport";
   ot->idname = "RENDER_OT_opengl";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->get_description = screen_opengl_render_get_description;
   ot->invoke = screen_opengl_render_invoke;
   ot->exec = screen_opengl_render_exec; /* blocking */

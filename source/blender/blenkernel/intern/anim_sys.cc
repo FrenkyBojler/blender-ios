@@ -43,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
@@ -453,7 +454,9 @@ bool BKE_animsys_read_from_rna_path(PathResolvedRNA *anim_rna, float *r_value)
   return true;
 }
 
-bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna, const float value)
+bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna,
+                                   const float value,
+                                   const bool force_write)
 {
   PropertyRNA *prop = anim_rna->prop;
   PointerRNA *ptr = &anim_rna->ptr;
@@ -462,13 +465,15 @@ bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna, const float value)
   /* caller must ensure this is animatable */
   BLI_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
 
-  /* Check whether value is new. Otherwise we skip all the updates. */
-  float old_value;
-  if (!BKE_animsys_read_from_rna_path(anim_rna, &old_value)) {
-    return false;
-  }
-  if (old_value == value) {
-    return true;
+  if (!force_write) {
+    /* Check whether value is new. Otherwise we skip all the updates. */
+    float old_value;
+    if (!BKE_animsys_read_from_rna_path(anim_rna, &old_value)) {
+      return false;
+    }
+    if (old_value == value) {
+      return true;
+    }
   }
 
   switch (RNA_property_type(prop)) {
@@ -1237,7 +1242,7 @@ static void nlaeval_snapshot_init(NlaEvalSnapshot *snapshot,
 {
   snapshot->base = base;
   snapshot->size = std::max(16, nlaeval->num_channels);
-  snapshot->channels = MEM_calloc_arrayN<NlaEvalChannelSnapshot *>(size_t(snapshot->size),
+  snapshot->channels = MEM_calloc_arrayN<NlaEvalChannelSnapshot *>(snapshot->size,
                                                                    "NlaEvalSnapshot::channels");
 }
 
@@ -1377,7 +1382,7 @@ static int nlaevalchan_validate_index(const NlaEvalChannel *nec, int index)
 
 static bool nlaevalchan_validate_index_ex(const NlaEvalChannel *nec, const int array_index)
 {
-  /** Although array_index comes from fcurve, that doesn't necessarily mean the property has that
+  /* Although array_index comes from fcurve, that doesn't necessarily mean the property has that
    * many elements. */
   const int index = nlaevalchan_validate_index(nec, array_index);
 
@@ -1878,15 +1883,15 @@ static bool nla_blend_get_inverted_strip_value(const int blendmode,
         return false;
       }
 
-      /** Math:
+      /* Math:
        *
-       *  blended_value = inf * (lower_value * strip_value) + (1 - inf) * lower_value
-       *  blended_value - (1 - inf) * lower_value = inf * (lower_value * strip_value)
-       *  (blended_value - (1 - inf) * lower_value) / (inf * lower_value) =  strip_value
-       *  (blended_value - lower_value + inf * lower_value) / (inf * lower_value) =  strip_value
-       *  ((blended_value - lower_value) / (inf * lower_value)) + 1 =  strip_value
+       * blended_value = inf * (lower_value * strip_value) + (1 - inf) * lower_value
+       * blended_value - (1 - inf) * lower_value = inf * (lower_value * strip_value)
+       * (blended_value - (1 - inf) * lower_value) / (inf * lower_value) =  strip_value
+       * (blended_value - lower_value + inf * lower_value) / (inf * lower_value) =  strip_value
+       * ((blended_value - lower_value) / (inf * lower_value)) + 1 =  strip_value
        *
-       *  strip_value = ((blended_value - lower_value) / (inf * lower_value)) + 1
+       * strip_value = ((blended_value - lower_value) / (inf * lower_value)) + 1
        */
       *r_strip_value = ((blended_value - lower_value) / (influence * lower_value)) + 1.0f;
       return true;
@@ -1897,13 +1902,13 @@ static bool nla_blend_get_inverted_strip_value(const int blendmode,
 
     default:
 
-      /** Math:
+      /* Math:
        *
-       *  blended_value = lower_value * (1.0f - inf) + (strip_value * inf)
-       *  blended_value - lower_value * (1.0f - inf) = (strip_value * inf)
-       *  (blended_value - lower_value * (1.0f - inf)) / inf = strip_value
+       * blended_value = lower_value * (1.0f - inf) + (strip_value * inf)
+       * blended_value - lower_value * (1.0f - inf) = (strip_value * inf)
+       * (blended_value - lower_value * (1.0f - inf)) / inf = strip_value
        *
-       *  strip_value = (blended_value - lower_value * (1.0f - inf)) / inf
+       * strip_value = (blended_value - lower_value * (1.0f - inf)) / inf
        */
       *r_strip_value = (blended_value - lower_value * (1.0f - influence)) / influence;
       return true;
@@ -3259,7 +3264,7 @@ static void animsys_create_action_track_strip(const AnimData *adt,
 {
   using namespace blender::animrig;
 
-  memset(r_action_strip, 0, sizeof(NlaStrip));
+  *r_action_strip = NlaStrip{};
 
   /* Set settings of dummy NLA strip from AnimData settings. */
   bAction *action = adt->action;
@@ -3666,8 +3671,8 @@ void nlasnapshot_blend_get_inverted_upper_snapshot(NlaEvalData *eval_data,
   LISTBASE_FOREACH (NlaEvalChannel *, nec, &eval_data->channels) {
     NlaEvalChannelSnapshot *blended_necs = nlaeval_snapshot_get(blended_snapshot, nec->index);
     if (blended_necs == nullptr) {
-      /** We assume the caller only wants a subset of channels to be inverted, those that exist
-       * within \a blended_snapshot. */
+      /* We assume the caller only wants a subset of channels to be inverted,
+       * those that exist within `blended_snapshot`. */
       continue;
     }
 
@@ -4184,6 +4189,37 @@ void BKE_animsys_update_driver_array(ID *id)
   }
 }
 
+void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
+{
+  BLI_assert(DEG_is_evaluated(id_eval));
+
+  AnimData *adt = BKE_animdata_from_id(id_eval);
+  PointerRNA id_ptr = RNA_id_pointer_create(id_eval);
+  const bool is_active_depsgraph = DEG_is_active(depsgraph);
+
+  LISTBASE_FOREACH (FCurve *, fcu, &adt->drivers) {
+    /* Resolve the driver RNA path. */
+    PathResolvedRNA anim_rna;
+    if (!BKE_animsys_rna_path_resolve(&id_ptr, fcu->rna_path, fcu->array_index, &anim_rna)) {
+      continue;
+    }
+
+    /* Write the current value back to RNA. */
+    float curval;
+    if (!BKE_animsys_read_from_rna_path(&anim_rna, &curval)) {
+      continue;
+    }
+    if (!BKE_animsys_write_to_rna_path(&anim_rna, curval, /*force_write=*/true)) {
+      continue;
+    }
+
+    if (is_active_depsgraph) {
+      /* Also un-share the original data, as the driver evaluation will write here too. */
+      animsys_write_orig_anim_rna(&id_ptr, fcu->rna_path, fcu->array_index, curval);
+    }
+  }
+}
+
 void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCurve *fcu_orig)
 {
   BLI_assert(fcu_orig != nullptr);
@@ -4256,6 +4292,38 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
         CLOG_WARN(&LOG, "invalid driver - %s[%d]", fcu->rna_path, fcu->array_index);
         driver_orig->flag |= DRIVER_FLAG_INVALID;
       }
+    }
+  }
+}
+
+void BKE_time_markers_blend_write(BlendWriter *writer, ListBase /* TimeMarker */ &markers)
+{
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_write_struct(writer, TimeMarker, marker);
+
+    if (marker->prop != nullptr) {
+      IDP_BlendWrite(writer, marker->prop);
+    }
+  }
+}
+
+void BKE_time_markers_blend_read(BlendDataReader *reader, ListBase /* TimeMarker */ &markers)
+{
+  BLO_read_struct_list(reader, TimeMarker, &markers);
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers) {
+    BLO_read_struct(reader, IDProperty, &marker->prop);
+    IDP_BlendDataRead(reader, &marker->prop);
+  }
+}
+
+void BKE_copy_time_markers(ListBase /* TimeMarker */ &markers_dst,
+                           const ListBase /* TimeMarker */ &markers_src,
+                           const int flag)
+{
+  BLI_duplicatelist(&markers_dst, &markers_src);
+  LISTBASE_FOREACH (TimeMarker *, marker, &markers_dst) {
+    if (marker->prop != nullptr) {
+      marker->prop = IDP_CopyProperty_ex(marker->prop, flag);
     }
   }
 }

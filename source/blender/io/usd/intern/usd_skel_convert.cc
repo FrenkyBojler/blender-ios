@@ -71,32 +71,6 @@ void resize_fcurve(FCurve *fcu, uint bezt_count)
   BKE_fcurve_bezt_resize(fcu, bezt_count);
 }
 
-/* Utility: create curve at the given array index and add it as a channel to a group. */
-FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
-                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
-                      const int totvert)
-{
-  FCurve *fcurve = channelbag.fcurve_create_unique(nullptr, fcurve_descriptor);
-  BLI_assert_msg(fcurve, "The same F-Curve is being created twice, this is unexpected.");
-  BKE_fcurve_bezt_resize(fcurve, totvert);
-  return fcurve;
-}
-
-/* Utility: add curve sample. */
-void add_bezt(FCurve *fcu,
-              uint bezt_index,
-              const float frame,
-              const float value,
-              const eBezTriple_Interpolation ipo = BEZT_IPO_LIN)
-{
-  BezTriple &bez = fcu->bezt[bezt_index];
-  bez.vec[1][0] = frame;
-  bez.vec[1][1] = value;
-  bez.ipo = ipo; /* use default interpolation mode here... */
-  bez.f1 = bez.f2 = bez.f3 = SELECT;
-  bez.h1 = bez.h2 = HD_AUTO;
-}
-
 /**
  * Import a USD skeleton animation as an action on the given armature object.
  * This assumes bones have already been created on the armature.
@@ -113,8 +87,9 @@ void import_skeleton_curves(Main *bmain,
                             const pxr::UsdSkelSkeletonQuery &skel_query,
                             const blender::Map<pxr::TfToken, std::string> &joint_to_bone_map,
                             ReportList *reports)
-
 {
+  using namespace blender::io::usd;
+
   if (!(bmain && arm_obj && skel_query)) {
     return;
   }
@@ -286,7 +261,7 @@ void import_skeleton_curves(Main *bmain,
           break;
         }
         if (FCurve *fcu = fcurves[k]) {
-          add_bezt(fcu, bezt_index, frame, t[j]);
+          set_fcurve_sample(fcu, bezt_index, frame, t[j]);
         }
       }
 
@@ -298,10 +273,10 @@ void import_skeleton_curves(Main *bmain,
         }
         if (FCurve *fcu = fcurves[k]) {
           if (j == 0) {
-            add_bezt(fcu, bezt_index, frame, re);
+            set_fcurve_sample(fcu, bezt_index, frame, re);
           }
           else {
-            add_bezt(fcu, bezt_index, frame, im[j - 1]);
+            set_fcurve_sample(fcu, bezt_index, frame, im[j - 1]);
           }
         }
       }
@@ -313,7 +288,7 @@ void import_skeleton_curves(Main *bmain,
           break;
         }
         if (FCurve *fcu = fcurves[k]) {
-          add_bezt(fcu, bezt_index, frame, s[j]);
+          set_fcurve_sample(fcu, bezt_index, frame, s[j]);
         }
       }
     }
@@ -658,7 +633,7 @@ void import_blendshapes(Main *bmain,
     Span<float> weights = Span(usd_weights.cdata(), usd_weights.size());
     for (int wi = 0; wi < weights.size(); ++wi) {
       if (curves[wi] != nullptr) {
-        add_bezt(curves[wi], bezt_index, frame, weights[wi]);
+        set_fcurve_sample(curves[wi], bezt_index, frame, weights[wi]);
       }
     }
 
@@ -762,8 +737,9 @@ void import_skeleton(Main *bmain,
 
   /* Create the bones. */
   for (const pxr::TfToken &joint : joint_order) {
-    std::string name = pxr::SdfPath(joint).GetName();
-    EditBone *bone = ED_armature_ebone_add(arm, name.c_str());
+    pxr::SdfPath bone_path(joint);
+    const std::string &bone_name = bone_path.GetName();
+    EditBone *bone = ED_armature_ebone_add(arm, bone_name.c_str());
     if (!bone) {
       BKE_reportf(reports,
                   RPT_WARNING,
@@ -1296,7 +1272,7 @@ void shape_key_export_chaser(pxr::UsdStageRefPtr stage,
 
 void export_deform_verts(const Mesh *mesh,
                          const pxr::UsdSkelBindingAPI &skel_api,
-                         const Span<std::string> bone_names)
+                         const Span<StringRef> bone_names)
 {
   BLI_assert(mesh);
   BLI_assert(skel_api);

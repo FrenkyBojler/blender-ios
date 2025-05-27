@@ -4095,7 +4095,7 @@ static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
      * otherwise if this is a generator it may free the strings before we copy them */
     Py_DECREF(items_fast);
 
-    MEM_freeN((void *)eitems);
+    MEM_freeN(eitems);
   }
 
   Py_RETURN_NONE;
@@ -4611,7 +4611,7 @@ PyObject *BPY_rna_props()
   submodule = PyModule_Create(&props_module);
   PyDict_SetItemString(PyImport_GetModuleDict(), props_module.m_name, submodule);
 
-  /* api needs the PyObjects internally */
+  /* API needs the PyObjects internally. */
   submodule_dict = PyModule_GetDict(submodule);
 
 #define ASSIGN_STATIC(_name) pymeth_##_name = PyDict_GetItemString(submodule_dict, #_name)

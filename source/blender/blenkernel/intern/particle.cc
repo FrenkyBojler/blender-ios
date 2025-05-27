@@ -381,7 +381,7 @@ static void particle_settings_blend_read_after_liblink(BlendLibReader * /*reader
 }
 
 IDTypeInfo IDType_ID_PA = {
-    /*id_code*/ ID_PA,
+    /*id_code*/ ParticleSettings::id_type,
     /*id_filter*/ FILTER_ID_PA,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_GR | FILTER_ID_TE,
     /*main_listbase_index*/ INDEX_ID_PA,
@@ -499,7 +499,7 @@ static ParticleCacheKey **psys_alloc_path_cache_buffers(ListBase *bufs, int tot,
 
   tot = std::max(tot, 1);
   totkey = 0;
-  cache = MEM_calloc_arrayN<ParticleCacheKey *>(size_t(tot), "PathCacheArray");
+  cache = MEM_calloc_arrayN<ParticleCacheKey *>(tot, "PathCacheArray");
 
   while (totkey < tot) {
     totbufkey = std::min(tot - totkey, PATH_CACHE_BUF_SIZE);
@@ -525,7 +525,7 @@ static void psys_free_path_cache_buffers(ParticleCacheKey **cache, ListBase *buf
   }
 
   LISTBASE_FOREACH (LinkData *, buf, bufs) {
-    MEM_freeN(buf->data);
+    MEM_freeN((ParticleCacheKey *)buf->data);
   }
   BLI_freelistN(bufs);
 }
@@ -666,7 +666,7 @@ ParticleSystem *psys_orig_get(ParticleSystem *psys)
 
 ParticleSystem *psys_eval_get(Depsgraph *depsgraph, Object *object, ParticleSystem *psys)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object);
   if (object_eval == object) {
     return psys;
   }
@@ -1145,7 +1145,7 @@ void psys_interpolate_particle(
     interp_cubic_v3(result->co, result->vel, keys[1].co, keys[1].vel, keys[2].co, keys[2].vel, dt);
   }
   else {
-    key_curve_position_weights(dt, t, type);
+    key_curve_position_weights(dt, t, KeyInterpolationType(type));
 
     interp_v3_v3v3v3v3(result->co, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
 
@@ -1153,12 +1153,12 @@ void psys_interpolate_particle(
       float temp[3];
 
       if (dt > 0.999f) {
-        key_curve_position_weights(dt - 0.001f, t, type);
+        key_curve_position_weights(dt - 0.001f, t, KeyInterpolationType(type));
         interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
         sub_v3_v3v3(result->vel, result->co, temp);
       }
       else {
-        key_curve_position_weights(dt + 0.001f, t, type);
+        key_curve_position_weights(dt + 0.001f, t, KeyInterpolationType(type));
         interp_v3_v3v3v3v3(temp, keys[0].co, keys[1].co, keys[2].co, keys[3].co, t);
         sub_v3_v3v3(result->vel, temp, result->co);
       }
@@ -1362,12 +1362,11 @@ static void do_particle_interpolation(ParticleSystem *psys,
                                       ParticleKey *result)
 {
   PTCacheEditPoint *point = pind->epoint;
-  ParticleKey keys[4];
   int point_vel = (point && point->keys->vel);
   float real_t, dfra, keytime, invdt = 1.0f;
 
   /* billboards won't fill in all of these, so start cleared */
-  memset(keys, 0, sizeof(keys));
+  ParticleKey keys[4] = {};
 
   /* interpret timing and find keys */
   if (point) {
@@ -2317,8 +2316,7 @@ void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
       }
 
       if (!eff->guide_data) {
-        eff->guide_data = MEM_calloc_arrayN<GuideEffectorData>(size_t(psys->totpart),
-                                                               "GuideEffectorData");
+        eff->guide_data = MEM_calloc_arrayN<GuideEffectorData>(psys->totpart, "GuideEffectorData");
       }
 
       data = eff->guide_data + p;
@@ -2587,7 +2585,7 @@ float *psys_cache_vgroup(Mesh *mesh, ParticleSystem *psys, int vgroup)
     const MDeformVert *dvert = mesh->deform_verts().data();
     if (dvert) {
       int totvert = mesh->verts_num, i;
-      vg = MEM_calloc_arrayN<float>(size_t(totvert), "vg_cache");
+      vg = MEM_calloc_arrayN<float>(totvert, "vg_cache");
       if (psys->vg_neg & (1 << vgroup)) {
         for (i = 0; i < totvert; i++) {
           vg[i] = 1.0f - BKE_defvert_find_weight(&dvert[i], psys->vgroup[vgroup] - 1);
@@ -4089,7 +4087,7 @@ ParticleSettings *BKE_particlesettings_add(Main *bmain, const char *name)
 {
   ParticleSettings *part;
 
-  part = static_cast<ParticleSettings *>(BKE_id_new(bmain, ID_PA, name));
+  part = BKE_id_new<ParticleSettings>(bmain, name);
 
   return part;
 }
@@ -4601,7 +4599,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim,
   ParticleData *pa;
   ChildParticle *cpa;
   ParticleTexture ptex;
-  ParticleKey *par = nullptr, keys[4], tstate;
+  ParticleKey *par = nullptr, tstate;
   ParticleThreadContext ctx; /* fake thread context for child modifiers */
   ParticleInterpolationData pind;
 
@@ -4620,7 +4618,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim,
   short cpa_from;
 
   /* initialize keys to zero */
-  memset(keys, 0, sizeof(ParticleKey[4]));
+  ParticleKey keys[4] = {};
 
   t = state->time;
   CLAMP(t, 0.0f, 1.0f);

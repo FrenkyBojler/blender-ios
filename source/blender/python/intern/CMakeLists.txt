@@ -8,7 +8,6 @@ set(INC
   ../../imbuf/intern/oiio
   ../../makesrna
   ../../../../intern/mantaflow/extern
-  ../../../../intern/opencolorio
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -130,6 +129,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   bf_python_gpu
+  PRIVATE bf::imbuf::opencolorio
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
@@ -316,16 +316,16 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
+endif()
+
 if(WITH_IO_GREASE_PENCIL)
   add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
 
 if(WITH_ALEMBIC)
   add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
 endif()
 
 if(WITH_OPENVDB)
