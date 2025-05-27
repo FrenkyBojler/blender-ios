@@ -23,6 +23,7 @@ struct FormatStringItemsAccessor {
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
   static constexpr bool has_name_validation = true;
+  static constexpr bool has_custom_initial_name = true;
   static constexpr char unique_name_separator = '_';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_format_string_item_add";
@@ -83,6 +84,8 @@ struct FormatStringItemsAccessor {
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<FormatStringItemsAccessor>(node, item, name);
   }
+
+  static std::string custom_initial_name(const bNode &node, StringRef src_name);
 
   static std::string socket_identifier_for_item(const NodeFunctionFormatStringItem &item)
   {

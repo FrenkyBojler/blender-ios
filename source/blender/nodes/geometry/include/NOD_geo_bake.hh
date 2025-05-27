@@ -36,6 +36,7 @@ struct BakeItemsAccessor {
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = true;
   static constexpr bool has_name_validation = false;
+  static constexpr bool has_custom_initial_name = false;
   static constexpr char unique_name_separator = '.';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_bake_node_item_add";

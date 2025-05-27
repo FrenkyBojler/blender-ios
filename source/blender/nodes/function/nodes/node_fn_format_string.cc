@@ -680,4 +680,33 @@ void FormatStringItemsAccessor::blend_read_data_item(BlendDataReader *reader, It
   BLO_read_string(reader, &item.name);
 }
 
+std::string FormatStringItemsAccessor::custom_initial_name(const bNode &node, StringRef src_name)
+{
+  /* The goal is to find a single-letter name that is not used already. Ideally, it starts with the
+   * same letter as the given name. */
+
+  const auto &storage = *static_cast<NodeFunctionFormatString *>(node.storage);
+  char initial = 'a';
+  if (!src_name.is_empty()) {
+    const char first_c = src_name[0];
+    if (first_c >= 'a' && first_c <= 'z') {
+      initial = first_c;
+    }
+    else if (first_c >= 'A' && first_c <= 'Z') {
+      initial = first_c - 'A' + 'a';
+    }
+  }
+  for (char c = initial; c <= 'z'; c++) {
+    const std::string potential_name = std::string(1, c);
+    const bool name_exists = std::any_of(
+        storage.items,
+        storage.items + storage.items_num,
+        [&](const NodeFunctionFormatStringItem &item) { return item.name == potential_name; });
+    if (!name_exists) {
+      return potential_name;
+    }
+  }
+  return src_name;
+}
+
 }  // namespace blender::nodes

@@ -262,8 +262,11 @@ template<typename Accessor>
     if (!Accessor::supports_socket_type(socket_type)) {
       return false;
     }
-    item = add_item_with_socket_type_and_name<Accessor>(
-        storage_node, socket_type, src_socket->name);
+    std::string name = src_socket->name;
+    if constexpr (Accessor::has_custom_initial_name) {
+      name = Accessor::custom_initial_name(storage_node, name);
+    }
+    item = add_item_with_socket_type_and_name<Accessor>(storage_node, socket_type, name.c_str());
   }
   else if constexpr (Accessor::has_name && !Accessor::has_type) {
     item = add_item_with_name<Accessor>(storage_node, src_socket->name);
