@@ -73,7 +73,7 @@ OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Obj
                            export_params.forward_axis,
                            export_params.up_axis,
                            export_params.global_scale,
-                           export_params.apply_transforms);
+                           export_params.apply_transform);
 }
 
 /**
