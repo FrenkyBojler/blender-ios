@@ -233,14 +233,17 @@ static void rna_GreasePencilDrawing_set_vertex_weights(ID *grease_pencil_id,
                                                        GreasePencilDrawing *drawing_ptr,
                                                        ReportList *reports,
                                                        const char *vertex_group_name,
-                                                       const int *indices,
+                                                       const int *indices_ptr,
                                                        const int indices_num,
-                                                       const float *weights,
+                                                       const float *weights_ptr,
                                                        const int weights_num,
                                                        const int assignmode)
 {
-  if (indices_num != weights_num) {
-    BKE_report(reports, RPT_ERROR, "Indices and Weights arrays have different lengths");
+  using namespace blender;
+  const Span<int> indices(indices_ptr, indices_num);
+  const Span<float> weights(weights_ptr, weights_num);
+  if (indices.size() != weights.size()) {
+    BKE_report(reports, RPT_ERROR, "Indices and weights must have the same lengths");
     return;
   }
 
