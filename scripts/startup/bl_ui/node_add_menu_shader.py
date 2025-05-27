@@ -5,7 +5,6 @@
 from bpy.types import Menu
 from bl_ui import node_add_menu
 from bpy.app.translations import (
-    pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
 
@@ -232,6 +231,10 @@ class NODE_MT_category_shader_shader(Menu):
             layout,
             "ShaderNodeVolumeScatter",
         )
+        node_add_menu.add_node_type(
+            layout,
+            "ShaderNodeVolumeCoefficients",
+        )
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -240,7 +243,7 @@ class NODE_MT_category_shader_color(Menu):
     bl_idname = "NODE_MT_category_shader_color"
     bl_label = "Color"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         node_add_menu.add_node_type(layout, "ShaderNodeBrightContrast")
@@ -248,10 +251,7 @@ class NODE_MT_category_shader_color(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeHueSaturation")
         node_add_menu.add_node_type(layout, "ShaderNodeInvert")
         node_add_menu.add_node_type(layout, "ShaderNodeLightFalloff")
-        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label=iface_("Mix Color"))
-        ops = props.settings.add()
-        ops.name = "data_type"
-        ops.value = "'RGBA'"
+        node_add_menu.add_color_mix_node(context, layout)
         node_add_menu.add_node_type(layout, "ShaderNodeRGBCurve")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)

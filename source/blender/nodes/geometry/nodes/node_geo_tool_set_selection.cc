@@ -45,8 +45,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "selection_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "selection_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -62,7 +62,7 @@ static GField clamp_selection(const GField &selection)
   }
   static auto clamp = mf::build::SI1_SO<float, float>(
       "Clamp", [](const float value) { return std::clamp(value, 0.0f, 1.0f); });
-  return Field<bool>(FieldOperation::Create(clamp, {selection}));
+  return Field<float>(FieldOperation::Create(clamp, {selection}));
 }
 
 static GField invert_selection(const GField &selection)

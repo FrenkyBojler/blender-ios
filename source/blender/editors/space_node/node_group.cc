@@ -204,7 +204,7 @@ void NODE_OT_group_edit(wmOperatorType *ot)
   ot->description = "Edit node group";
   ot->idname = "NODE_OT_group_edit";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_group_edit_exec;
   ot->poll = node_group_operator_active_poll;
 
@@ -492,7 +492,7 @@ void NODE_OT_group_ungroup(wmOperatorType *ot)
   ot->description = "Ungroup selected nodes";
   ot->idname = "NODE_OT_group_ungroup";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_group_ungroup_exec;
   ot->poll = node_group_operator_editable;
 
@@ -556,10 +556,8 @@ static bool node_group_separate_selected(
       bke::node_detach_node(ngroup, *newnode);
     }
 
-    if (!newnode->parent) {
-      newnode->location[0] += offset.x;
-      newnode->location[1] += offset.y;
-    }
+    newnode->location[0] += offset.x;
+    newnode->location[1] += offset.y;
   }
   if (!make_copy) {
     bke::node_rebuild_id_vector(ngroup);
@@ -696,7 +694,7 @@ void NODE_OT_group_separate(wmOperatorType *ot)
   ot->description = "Separate selected nodes from the node group";
   ot->idname = "NODE_OT_group_separate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = node_group_separate_invoke;
   ot->exec = node_group_separate_exec;
   ot->poll = node_group_operator_editable;
@@ -997,7 +995,7 @@ static void node_group_make_insert_selected(const bContext &C,
   /* Add all outputs first. */
   for (bNode *node : nodes_to_move) {
     for (bNodeSocket *output_socket : node->output_sockets()) {
-      if (!output_socket->is_available() || output_socket->is_hidden()) {
+      if (!output_socket->is_visible()) {
         for (bNodeLink *link : output_socket->directly_linked_links()) {
           links_to_remove.add(link);
         }
@@ -1038,7 +1036,7 @@ static void node_group_make_insert_selected(const bContext &C,
   /* Now add all inputs. */
   for (bNode *node : nodes_to_move) {
     for (bNodeSocket *input_socket : node->input_sockets()) {
-      if (!input_socket->is_available() || input_socket->is_hidden()) {
+      if (!input_socket->is_visible()) {
         for (bNodeLink *link : input_socket->directly_linked_links()) {
           links_to_remove.add(link);
         }
@@ -1125,10 +1123,8 @@ static void node_group_make_insert_selected(const bContext &C,
 
   /* move nodes in the group to the center */
   for (bNode *node : nodes_to_move) {
-    if (!node->parent) {
-      node->location[0] -= center[0];
-      node->location[1] -= center[1];
-    }
+    node->location[0] -= center[0];
+    node->location[1] -= center[1];
   }
 
   for (bNodeLink *link : internal_links_to_move) {
@@ -1276,7 +1272,7 @@ void NODE_OT_group_make(wmOperatorType *ot)
   ot->description = "Make group from selected nodes";
   ot->idname = "NODE_OT_group_make";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_group_make_exec;
   ot->poll = node_group_operator_editable;
 
@@ -1338,7 +1334,7 @@ void NODE_OT_group_insert(wmOperatorType *ot)
   ot->description = "Insert selected nodes into a node group";
   ot->idname = "NODE_OT_group_insert";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_group_insert_exec;
   ot->poll = node_group_operator_editable;
 
@@ -1404,7 +1400,7 @@ void NODE_OT_default_group_width_set(wmOperatorType *ot)
   ot->description = "Set the width based on the parent group node in the current context";
   ot->idname = "NODE_OT_default_group_width_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_default_group_width_set_exec;
   ot->poll = node_default_group_width_set_poll;
 
