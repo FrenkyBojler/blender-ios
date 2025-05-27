@@ -191,7 +191,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /* Current delta time from #start_time_, updated after each extension sample. */
   double delta_time_;
 
-  bool do_fill_boundary_;
+  /* Set to true when the painr operation is used to draw fill guides. */
+  bool do_fill_guides_;
 
   friend struct PaintOperationExecutor;
 
@@ -202,7 +203,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
   void on_stroke_done(const bContext &C) override;
 
-  PaintOperation(const bool do_fill_boundary = false) : do_fill_boundary_(do_fill_boundary) {}
+  PaintOperation(const bool do_fill_guides = false) : do_fill_guides_(do_fill_guides) {}
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
   /* Returns the range of actually reprojected points. */
@@ -210,8 +211,8 @@ class PaintOperation : public GreasePencilStrokeOperation {
                                       std::optional<int> start_point,
                                       float from_depth,
                                       float to_depth);
-  void toggle_pencil_brush_on(const bContext &C);
-  void toggle_pencil_brush_off(const bContext &C);
+  void toggle_fill_guides_brush_on(const bContext &C);
+  void toggle_fill_guides_brush_off(const bContext &C);
 };
 
 /**
@@ -428,13 +429,13 @@ struct PaintOperationExecutor {
       init_times.finish();
     }
 
-    if (self.do_fill_boundary_) {
+    if (self.do_fill_guides_) {
       if (bke::SpanAttributeWriter<bool> is_fill_boundary =
-              attributes.lookup_or_add_for_write_span<bool>(".is_boundary",
+              attributes.lookup_or_add_for_write_span<bool>(".is_fill_guide",
                                                             bke::AttrDomain::Curve))
       {
         is_fill_boundary.span[active_curve] = true;
-        curve_attributes_to_skip.add(".is_boundary");
+        curve_attributes_to_skip.add(".is_fill_guide");
         is_fill_boundary.finish();
       }
     }
@@ -1068,7 +1069,7 @@ IndexRange PaintOperation::interpolate_stroke_depth(const bContext &C,
   return active_points;
 }
 
-void PaintOperation::toggle_pencil_brush_on(const bContext &C)
+void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Main *bmain = CTX_data_main(&C);
@@ -1082,7 +1083,7 @@ void PaintOperation::toggle_pencil_brush_on(const bContext &C)
   saved_active_brush_ = current_brush;
 }
 
-void PaintOperation::toggle_pencil_brush_off(const bContext &C)
+void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   if (saved_active_brush_) {
@@ -1101,8 +1102,8 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   Object *eval_object = DEG_get_evaluated(depsgraph, object);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
-  if (do_fill_boundary_) {
-    this->toggle_pencil_brush_on(C);
+  if (do_fill_guides_) {
+    this->toggle_fill_guides_brush_on(C);
   }
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
@@ -1691,17 +1692,17 @@ void PaintOperation::on_stroke_done(const bContext &C)
   /* Now we're done drawing. */
   grease_pencil.runtime->is_drawing_stroke = false;
 
-  if (do_fill_boundary_) {
-    this->toggle_pencil_brush_off(C);
+  if (do_fill_guides_) {
+    this->toggle_fill_guides_brush_off(C);
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
-std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool do_fill_boundary)
+std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool do_fill_guides)
 {
-  return std::make_unique<PaintOperation>(do_fill_boundary);
+  return std::make_unique<PaintOperation>(do_fill_guides);
 }
 
 }  // namespace blender::ed::sculpt_paint::greasepencil

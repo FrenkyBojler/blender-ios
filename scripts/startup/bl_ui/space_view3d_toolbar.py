@@ -2593,7 +2593,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         row = col.row(align=True)
         row.prop(gp_settings, "use_fill_limit")
         row = col.row(align=True)
-        row.prop(gp_settings, "use_auto_remove_boundary_strokes")
+        row.prop(gp_settings, "use_auto_remove_fill_guides")
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_stroke(Panel, View3DPanel):

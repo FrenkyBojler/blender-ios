@@ -111,8 +111,8 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
       case GPAINT_BRUSH_TYPE_ERASE:
         return greasepencil::new_erase_operation();
       case GPAINT_BRUSH_TYPE_FILL:
-        /* Fill tool keymap uses the paint operator as alternative mode. */
-        return greasepencil::new_paint_operation(true);
+        /* Fill tool keymap uses the paint operator to draw fill guides. */
+        return greasepencil::new_paint_operation(/* do_fill_guides = */ true);
       case GPAINT_BRUSH_TYPE_TINT:
         return greasepencil::new_tint_operation(stroke_mode == BRUSH_STROKE_ERASE);
     }
@@ -643,7 +643,7 @@ static void GREASE_PENCIL_OT_vertex_brush_stroke(wmOperatorType *ot)
 /** \name Bucket Fill Operator
  * \{ */
 
-constexpr const char *attr_is_boundary = ".is_boundary";
+constexpr const char *attr_is_fill_guide = ".is_fill_guide";
 
 struct GreasePencilFillOpData {
   blender::bke::greasepencil::Layer &layer;
@@ -1358,19 +1358,19 @@ static bke::CurvesGeometry simplify_fixed(bke::CurvesGeometry &curves, const int
   return bke::curves_copy_point_selection(curves, points_to_keep, {});
 }
 
-static void remove_boundary_strokes(bke::CurvesGeometry &curves)
+static void remove_fill_guides(bke::CurvesGeometry &curves)
 {
-  if (!curves.attributes().contains(attr_is_boundary)) {
+  if (!curves.attributes().contains(attr_is_fill_guide)) {
     return;
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<bool> is_boundary = *attributes.lookup<bool>(attr_is_boundary,
-                                                            bke::AttrDomain::Curve);
+  const VArray<bool> is_fill_guide = *attributes.lookup<bool>(attr_is_fill_guide,
+                                                              bke::AttrDomain::Curve);
 
   IndexMaskMemory memory;
-  const IndexMask boundary_strokes = IndexMask::from_bools(is_boundary, memory);
-  curves.remove_curves(boundary_strokes, {});
+  const IndexMask fill_guides = IndexMask::from_bools(is_fill_guide, memory);
+  curves.remove_curves(fill_guides, {});
 }
 
 static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent &event)
@@ -1406,8 +1406,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
           std::nullopt :
           std::make_optional(brush.gpencil_settings->fill_threshold);
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
-  const bool auto_remove_boundary_strokes = (brush.gpencil_settings->flag &
-                                             GP_BRUSH_FILL_AUTO_REMOVE_BOUNDATY_STROKES) != 0;
+  const bool auto_remove_fill_guides = (brush.gpencil_settings->flag &
+                                        GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES) != 0;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1447,8 +1447,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
     /* Remove strokes that were created using the fill tool as boundary strokes. */
-    if (auto_remove_boundary_strokes) {
-      remove_boundary_strokes(dst_curves);
+    if (auto_remove_fill_guides) {
+      remove_fill_guides(dst_curves);
     }
 
     /* If the `fill_strokes` function creates the "fill_opacity" attribute, make sure that we
