@@ -249,7 +249,7 @@ bool metalrt_shadow_all_hit(
 
   short num_recorded_hits = payload.num_recorded_hits;
   if (context.intersection_skip_shadow_already_recoded(
-          nullptr, state, object, prim, num_recorded_hits))
+          state, object, prim, num_recorded_hits))
   {
     return true;
   }

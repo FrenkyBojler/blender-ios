@@ -12,9 +12,6 @@
  * Holds all variables to execute and use OSL shaders from the kernel.
  */
 
-#include "kernel/geom/attribute.h"
-#include "kernel/geom/primitive.h"
-
 #include "kernel/osl/closures_setup.h"
 #include "kernel/osl/types.h"
 
@@ -22,8 +19,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void shaderdata_to_shaderglobals(KernelGlobals kg,
-                                                   ccl_private ShaderData *sd,
+ccl_device_inline void shaderdata_to_shaderglobals(ccl_private ShaderData *sd,
                                                    const uint32_t path_flag,
                                                    ccl_private ShaderGlobals *globals)
 {
