@@ -27,10 +27,6 @@ class Context {
    * Custom user data that can be used in the function.
    */
   UserData *user_data = nullptr;
-  /**
-   * Custom user data that is local to the thread that executes the lazy-function.
-   */
-  LocalUserData *local_user_data = nullptr;
 
   friend ContextBuilder;
 
@@ -51,11 +47,6 @@ class ContextBuilder {
   void user_data(UserData *user_data)
   {
     context_.user_data = user_data;
-  }
-
-  void local_user_data(LocalUserData *local_user_data)
-  {
-    context_.local_user_data = local_user_data;
   }
 };
 

@@ -6,16 +6,13 @@
  * \ingroup shdnodes
  */
 
-#include "BKE_compute_contexts.hh"
 #include "node_shader_util.hh"
 
 #include "FN_multi_function_builder.hh"
 
-#include "NOD_geometry_exec.hh"
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_value_elem_eval.hh"
-#include <iostream>
 
 namespace blender::nodes::node_shader_sepcomb_xyz_cc::sep {
 

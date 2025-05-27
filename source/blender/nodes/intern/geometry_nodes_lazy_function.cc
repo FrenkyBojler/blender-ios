@@ -468,15 +468,13 @@ static void execute_multi_function_on_value_variant__single(
     const MultiFunction &fn,
     const Span<SocketValueVariant *> input_values,
     const Span<SocketValueVariant *> output_values,
-    GeoNodesUserData *user_data,
-    GeoNodesLocalUserData *local_user_data)
+    GeoNodesUserData *user_data)
 {
   /* In this case, the multi-function is evaluated directly. */
   const IndexMask mask(1);
   mf::ParamsBuilder params{fn, &mask};
   mf::ContextBuilder context;
   context.user_data(user_data);
-  context.local_user_data(local_user_data);
 
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
@@ -542,7 +540,6 @@ static void execute_multi_function_on_value_variant__field(
     const Span<SocketValueVariant *> input_values,
     const Span<SocketValueVariant *> output_values,
     GeoNodesUserData *user_data,
-    GeoNodesLocalUserData *local_user_data,
     std::string &r_error_message)
 {
   /* Check input types which determine how the function is evaluated. */
@@ -566,8 +563,7 @@ static void execute_multi_function_on_value_variant__field(
     execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
     return true;
   }
-  execute_multi_function_on_value_variant__single(
-      fn, input_values, output_values, user_data, local_user_data);
+  execute_multi_function_on_value_variant__single(fn, input_values, output_values, user_data);
   return true;
 }
 
@@ -594,7 +590,7 @@ bool implicitly_convert_socket_value(const bke::bNodeSocketType &from_type,
     SocketValueVariant *output_variant = new (r_to_value) SocketValueVariant();
     std::string error_message;
     if (!execute_multi_function_on_value_variant(
-            multi_fn, {}, {&input_variant}, {output_variant}, nullptr, nullptr, error_message))
+            multi_fn, {}, {&input_variant}, {output_variant}, nullptr, error_message))
     {
       std::destroy_at(output_variant);
       return false;
@@ -626,7 +622,7 @@ class LazyFunctionForImplicitConversion : public LazyFunction {
     BLI_assert(to_value != nullptr);
     std::string error_message;
     if (!execute_multi_function_on_value_variant(
-            fn_, {}, {from_value}, {to_value}, nullptr, nullptr, error_message))
+            fn_, {}, {from_value}, {to_value}, nullptr, error_message))
     {
       std::destroy_at(to_value);
       construct_socket_default_value(dst_type_, to_value);
@@ -753,14 +749,6 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
-    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
-
-    bke::NodeComputeContext eval_compute_context{
-        user_data.compute_context, node_.identifier, &node_.owner_tree()};
-
-    GeoNodesUserData eval_user_data = user_data;
-    eval_user_data.compute_context = &eval_compute_context;
-    GeoNodesLocalUserData eval_local_user_data{local_user_data};
 
     Vector<SocketValueVariant *> input_values(inputs_.size());
     Vector<SocketValueVariant *> output_values(outputs_.size());
@@ -775,13 +763,18 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
         output_values[i] = nullptr;
       }
     }
+
+    bke::NodeComputeContext eval_compute_context{
+        user_data.compute_context, node_.identifier, &node_.owner_tree()};
+    GeoNodesUserData eval_user_data = user_data;
+    eval_user_data.compute_context = &eval_compute_context;
+
     std::string error_message;
     if (!execute_multi_function_on_value_variant(*fn_item_.fn,
                                                  fn_item_.owned_fn,
                                                  input_values,
                                                  output_values,
                                                  &eval_user_data,
-                                                 &eval_local_user_data,
                                                  error_message))
     {
       int available_output_index = 0;
