@@ -78,9 +78,6 @@ ShaderModule::~ShaderModule()
   if (compilation_handles_.deferred.handle) {
     GPU_shader_batch_cancel(compilation_handles_.deferred.handle);
   }
-  if (compilation_handles_.deferred_triple.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.deferred_triple.handle);
-  }
   if (compilation_handles_.deferred_thickness.handle) {
     GPU_shader_batch_cancel(compilation_handles_.deferred_thickness.handle);
   }
@@ -157,7 +154,6 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
                                             bool use_fast_gi,
                                             bool use_bake,
                                             bool use_raytracing,
-                                            bool use_deferred_light_triple,
                                             bool use_capture,
                                             bool use_planar,
                                             bool use_subsurface,
@@ -218,13 +214,12 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     batch_ensure(compilation_handles_.film, film_shader_list);
   }
   {
-    const std::array<eShaderType, 4> deferred_shader_list = {
-        DEFERRED_COMBINE, DEFERRED_LIGHT_SINGLE, DEFERRED_LIGHT_DOUBLE, DEFERRED_TILE_CLASSIFY};
+    const std::array<eShaderType, 5> deferred_shader_list = {DEFERRED_COMBINE,
+                                                             DEFERRED_LIGHT_SINGLE,
+                                                             DEFERRED_LIGHT_DOUBLE,
+                                                             DEFERRED_LIGHT_TRIPLE,
+                                                             DEFERRED_TILE_CLASSIFY};
     request(compilation_handles_.deferred, deferred_shader_list);
-  }
-  if (use_deferred_light_triple) {
-    const std::array<eShaderType, 1> deferred_triple_shader_list = {DEFERRED_LIGHT_TRIPLE};
-    request(compilation_handles_.deferred_triple, deferred_triple_shader_list);
   }
   if (use_capture) {
     static const std::array<eShaderType, 1> deferred_capture_shader_list = {DEFERRED_CAPTURE_EVAL};
@@ -372,8 +367,7 @@ bool ShaderModule::request_specializations(bool block_until_ready,
                                            int shadow_ray_count,
                                            int shadow_ray_step_count,
                                            bool use_split_indirect,
-                                           bool use_lightprobe_eval,
-                                           bool use_deferred_light_triple)
+                                           bool use_lightprobe_eval)
 {
   std::lock_guard lock(mutex_);
 
@@ -382,13 +376,10 @@ bool ShaderModule::request_specializations(bool block_until_ready,
        shadow_ray_count,
        shadow_ray_step_count,
        use_split_indirect,
-       use_lightprobe_eval,
-       use_deferred_light_triple},
+       use_lightprobe_eval},
       [&]() {
         Vector<ShaderSpecialization> specializations;
-        /* The light triple batch contains only the specializations the triple eval shader. */
-        IndexRange range = use_deferred_light_triple ? IndexRange(2, 1) : IndexRange(0, 2);
-        for (int i : range) {
+        for (int i : IndexRange(3)) {
           GPUShader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
           int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
           int use_split_indirect_index = GPU_shader_get_constant(sh, "use_split_indirect");

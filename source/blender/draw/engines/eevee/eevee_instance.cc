@@ -221,8 +221,7 @@ void Instance::init(const int2 &output_res,
                            shadows.get_data().ray_count,
                            shadows.get_data().step_count,
                            DeferredLayer::do_split_direct_indirect_radiance(*this),
-                           DeferredLayer::do_merge_direct_indirect_eval(*this),
-                           false);
+                           DeferredLayer::do_merge_direct_indirect_eval(*this));
 
   {
     GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
@@ -304,8 +303,7 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
                                   shadows.get_data().ray_count,
                                   shadows.get_data().step_count,
                                   DeferredLayer::do_split_direct_indirect_radiance(*this),
-                                  DeferredLayer::do_merge_direct_indirect_eval(*this),
-                                  false);
+                                  DeferredLayer::do_merge_direct_indirect_eval(*this));
 }
 
 void Instance::set_time(float time)
@@ -460,7 +458,6 @@ void Instance::end_sync()
                                        false,
                                        /* After sync additional static shader. */
                                        raytracing.use_raytracing(),
-                                       pipelines.deferred.closure_layer_count() >= 3,
                                        needs_lightprobe_sphere_passes(),
                                        needs_planar_probe_passes(),
                                        pipelines.deferred.closure_bits_get() & CLOSURE_SSS,
@@ -470,8 +467,7 @@ void Instance::end_sync()
                                       shadows.get_data().ray_count,
                                       shadows.get_data().step_count,
                                       DeferredLayer::do_split_direct_indirect_radiance(*this),
-                                      DeferredLayer::do_merge_direct_indirect_eval(*this),
-                                      pipelines.deferred.closure_layer_count() >= 3);
+                                      DeferredLayer::do_merge_direct_indirect_eval(*this));
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 
   if (skip_render_) {
