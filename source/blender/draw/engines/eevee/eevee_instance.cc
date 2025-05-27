@@ -333,10 +333,12 @@ void Instance::update_eval_members()
 
 void Instance::begin_sync()
 {
-  /* Needs to be first for sun light parameters. */
-  world.sync();
+  /* Needs to be first for sun light parameters.
+   * Also not skipped to be able to request world shader.
+   * If engine shaders are not ready, will skip the pipeline sync. */
+  world.sync(shaders_are_ready_);
   /* Make sure to continue only if the world is ready. */
-  shaders_are_ready_ = world.is_ready();
+  shaders_are_ready_ = shaders_are_ready_ && world.is_ready();
   skip_render_ = !shaders_are_ready_;
 
   if (skip_render_) {
@@ -452,6 +454,7 @@ void Instance::end_sync()
   }
 
   shaders_are_ready_ =
+      shaders_are_ready_ &&
       shaders.static_shaders_are_ready(is_image_render,
                                        /* Already queried before sync. */
                                        false,
