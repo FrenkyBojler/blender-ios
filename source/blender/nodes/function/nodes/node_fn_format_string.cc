@@ -714,4 +714,28 @@ std::string FormatStringItemsAccessor::custom_initial_name(const bNode &node, St
   return src_name;
 }
 
+std::string FormatStringItemsAccessor::validate_name(const StringRef name)
+{
+  /* The name has to start with a letter or underscore. The remaining letters may additionally be
+   * digits. */
+  std::string result;
+  if (name.is_empty()) {
+    return result;
+  }
+  const char first_char = name[0];
+  if (!std::isalpha(first_char) && first_char != '_') {
+    result += '_';
+  }
+  for (const char c : name) {
+    if (std::isalnum(c) || c == '_') {
+      result += c;
+    }
+    if (ELEM(c, '-', '.', ' ', '\t')) {
+      result += '_';
+    }
+  }
+
+  return result;
+}
+
 }  // namespace blender::nodes
