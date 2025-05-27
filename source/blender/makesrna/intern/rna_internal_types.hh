@@ -367,6 +367,10 @@ struct PropertyRNA {
   int icon;
   /** Context for translation. */
   const char *translation_context;
+  /* Single line deprecation message, suggest alternatives where possible. */
+  const char *deprecated;
+  /* The version this will be removed. */
+  short deprecated_removal_version;
 
   /** Property type as it appears to the outside. */
   PropertyType type;

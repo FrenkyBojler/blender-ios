@@ -1436,6 +1436,18 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
   PyObject *ret;
   const int type = RNA_property_type(prop);
 
+  if (const char *deprecated = RNA_property_deprecated(prop)) {
+    const int version = RNA_property_deprecated_removal_version(prop);
+    PyErr_WarnFormat(PyExc_DeprecationWarning,
+                     1,
+                     "deprecated property access to '%s.%s', expected removal %d.%d: %s",
+                     RNA_struct_identifier(ptr->type),
+                     RNA_property_identifier(prop),
+                     version / 100,
+                     version % 100,
+                     deprecated);
+  }
+
   if (RNA_property_array_check(prop)) {
     return pyrna_py_from_array(ptr, prop);
   }
@@ -1606,6 +1618,18 @@ static int pyrna_py_to_prop(
 {
   /* XXX hard limits should be checked here. */
   const int type = RNA_property_type(prop);
+
+  if (const char *deprecated = RNA_property_deprecated(prop)) {
+    const int version = RNA_property_deprecated_removal_version(prop);
+    PyErr_WarnFormat(PyExc_DeprecationWarning,
+                     1,
+                     "deprecated property assignment to '%s.%s', expected removal %d.%d: %s",
+                     RNA_struct_identifier(ptr->type),
+                     RNA_property_identifier(prop),
+                     version / 100,
+                     version % 100,
+                     deprecated);
+  }
 
   if (RNA_property_array_check(prop)) {
     /* Done getting the length. */

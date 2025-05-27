@@ -1477,6 +1477,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   prop->subtype = PropertySubType(subtype);
   prop->name = identifier;
   prop->description = "";
+  prop->deprecated = nullptr;
   prop->translation_context = BLT_I18NCONTEXT_DEFAULT_BPYRNA;
   /* a priori not raw editable */
   prop->rawtype = RawPropertyType(-1);
@@ -1747,6 +1748,14 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
 {
   prop->name = name;
   prop->description = description;
+}
+
+void RNA_def_property_deprecated(PropertyRNA *prop,
+                                 const char *deprecated,
+                                 const int removal_version)
+{
+  prop->deprecated = deprecated;
+  prop->deprecated_removal_version = removal_version;
 }
 
 void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive)

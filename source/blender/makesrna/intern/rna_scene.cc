@@ -4697,6 +4697,8 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_pass_bloom", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "render_passes", 0 /*EEVEE_RENDER_PASS_BLOOM*/);
   RNA_def_property_ui_text(prop, "Bloom", "Deliver bloom pass (deprecated)");
+  RNA_def_property_deprecated(prop, "The viewport compositors bloom should be used instead", 521);
+
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 #  endif
 
@@ -8633,6 +8635,8 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_Camera_object_poll");
   RNA_def_property_ui_text(prop, "Camera", "Active camera, used for rendering the scene");
   RNA_def_property_update(prop, NC_SCENE | NA_EDITED, "rna_Scene_camera_update");
+
+  RNA_def_property_deprecated(prop, "Don't use the camera", 521);
 
   prop = RNA_def_property(srna, "background_set", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "set");
