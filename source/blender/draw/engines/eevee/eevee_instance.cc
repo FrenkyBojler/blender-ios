@@ -224,35 +224,42 @@ void Instance::init(const int2 &output_res,
                            DeferredLayer::do_merge_direct_indirect_eval(*this),
                            false);
 
-  shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(shaders.material_shader_get(
-                                                 materials.default_surface,
-                                                 materials.default_surface->nodetree,
-                                                 eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
-                                                 eMaterialGeometry::MAT_GEOM_MESH,
-                                                 true,
-                                                 nullptr)) == GPU_MAT_SUCCESS;
-  shaders_are_ready_ = shaders_are_ready_ &&
-                       GPU_material_status(shaders.material_shader_get(
-                           materials.default_surface,
-                           materials.default_surface->nodetree,
-                           eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-                           eMaterialGeometry::MAT_GEOM_MESH,
-                           true,
-                           nullptr)) == GPU_MAT_SUCCESS;
-  shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(shaders.material_shader_get(
-                                                 materials.default_surface,
-                                                 materials.default_surface->nodetree,
-                                                 eMaterialPipeline::MAT_PIPE_DEFERRED,
-                                                 eMaterialGeometry::MAT_GEOM_MESH,
-                                                 true,
-                                                 nullptr)) == GPU_MAT_SUCCESS;
-  shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(shaders.material_shader_get(
-                                                 materials.default_surface,
-                                                 materials.default_surface->nodetree,
-                                                 eMaterialPipeline::MAT_PIPE_SHADOW,
-                                                 eMaterialGeometry::MAT_GEOM_MESH,
-                                                 true,
-                                                 nullptr)) == GPU_MAT_SUCCESS;
+  {
+    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
+                                                       materials.default_surface->nodetree,
+                                                       MAT_PIPE_PREPASS_DEFERRED,
+                                                       MAT_GEOM_MESH,
+                                                       true,
+                                                       nullptr);
+    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  }
+  {
+    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
+                                                       materials.default_surface->nodetree,
+                                                       MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+                                                       MAT_GEOM_MESH,
+                                                       true,
+                                                       nullptr);
+    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  }
+  {
+    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
+                                                       materials.default_surface->nodetree,
+                                                       MAT_PIPE_DEFERRED,
+                                                       MAT_GEOM_MESH,
+                                                       true,
+                                                       nullptr);
+    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  }
+  {
+    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
+                                                       materials.default_surface->nodetree,
+                                                       MAT_PIPE_SHADOW,
+                                                       MAT_GEOM_MESH,
+                                                       true,
+                                                       nullptr);
+    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  }
 
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
