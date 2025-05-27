@@ -21,6 +21,9 @@ NODE_STORAGE_FUNCS(NodeSwitch)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   auto &switch_decl = b.add_input<decl::Bool>("Switch");
   const bNode *node = b.node_or_null();
   if (!node) {
@@ -30,9 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.input_type);
 
   auto &false_decl = b.add_input(socket_type, "False");
+  auto &output_decl = b.add_output(socket_type, "Output").align_with_previous();
   auto &true_decl = b.add_input(socket_type, "True");
-  auto &output_decl = b.add_output(socket_type, "Output");
-
+  
   if (socket_type_supports_fields(socket_type)) {
     switch_decl.supports_field();
     false_decl.supports_field();
@@ -42,6 +45,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (socket_type == SOCK_GEOMETRY) {
     output_decl.propagate_all();
   }
+  /* Labels are ugly in combination with data-block pickers and are usually disabled. */
+    false_decl.hide_label(ELEM(socket_type, SOCK_STRING, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    true_decl.hide_label(ELEM(socket_type, SOCK_STRING, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
