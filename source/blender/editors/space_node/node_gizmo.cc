@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -335,17 +336,28 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
     return false;
   }
 
-  if (snode->edittree && snode->edittree->type == NTREE_COMPOSIT) {
-    bNode *node = bke::node_get_active(*snode->edittree);
+  if (!snode->edittree || snode->edittree->type != NTREE_COMPOSIT) {
+    return false;
+  }
 
-    if (node && node->is_type("CompositorNodeCrop")) {
-      bNodeSocket *input = bke::node_find_socket(*node, SOCK_IN, "Alpha Crop");
+  bNode *node = bke::node_get_active(*snode->edittree);
+
+  if (!node || !node->is_type("CompositorNodeCrop")) {
+    return false;
+  }
+
+  snode->edittree->ensure_topology_cache();
+  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+    if (!STREQ(input->name, "Image") && input->is_directly_linked()) {
+      /* Note: the Image input could be connected to a single value input, in which case the gizmo
+       * has no effect. */
+      return false;
+    }
+    else if (STREQ(input->name, "Alpha Crop") && !input->is_directly_linked()) {
       PointerRNA input_rna_pointer = RNA_pointer_create_discrete(nullptr, &RNA_NodeSocket, input);
-      const bool alpha_crop = RNA_boolean_get(&input_rna_pointer, "default_value");
-
-      /* If Alpha Crop is not set, the image size changes depending on the input parameters, so we
-       * can't usefully edit the crop in this case. */
-      if (alpha_crop) {
+      if (RNA_boolean_get(&input_rna_pointer, "default_value")) {
+        /* If Alpha Crop is not set, the image size changes depending on the input parameters,
+         * so we can't usefully edit the crop in this case. */
         return true;
       }
     }
@@ -405,7 +417,7 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
     crop_group->update_data.ptr = RNA_pointer_create_discrete(
         (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
     crop_group->update_data.prop = RNA_struct_find_property(&crop_group->update_data.ptr,
-                                                            "use_crop_size");
+                                                            "relative");
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_crop_prop_matrix_get;
