@@ -447,8 +447,8 @@ static void panel_draw(const bContext *C, Panel *panel)
       uiLayout *split = &adaptive_panel.body->split(0.4f, false);
       split->column(true).label("", ICON_NONE);
       uiLayout *col = &split->column(true);
-      col->label(fmt::format(RPT_("Viewport {:.2f} px"), preview), ICON_NONE);
-      col->label(fmt::format(RPT_("Render {:.2f} px"), render), ICON_NONE);
+      col->label(fmt::format(fmt::runtime(RPT_("Viewport {:.2f} px")), preview), ICON_NONE);
+      col->label(fmt::format(fmt::runtime(RPT_("Render {:.2f} px")), render), ICON_NONE);
     }
   }
 
@@ -470,7 +470,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     advanced_layout->prop(ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

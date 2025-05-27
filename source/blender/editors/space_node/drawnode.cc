@@ -89,30 +89,6 @@ static void node_socket_button_label(bContext * /*C*/,
 
 /* ****************** BUTTON CALLBACKS FOR ALL TREES ***************** */
 
-static void node_buts_value(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  uiLayout *row = &layout->row(true);
-  row->prop(&sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
-}
-
-static void node_buts_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  uiLayout *col;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  col = &layout->column(false);
-  uiTemplateColorPicker(col, &sockptr, "default_value", true, false, false, false);
-  col->prop(&sockptr, "default_value", DEFAULT_FLAGS | UI_ITEM_R_SLIDER, "", ICON_NONE);
-}
-
 static void node_buts_mix_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
@@ -462,12 +438,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_CURVE_FLOAT:
       ntype->draw_buttons = node_buts_curvefloat;
       break;
-    case SH_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
-      break;
-    case SH_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
-      break;
     case SH_NODE_MIX_RGB_LEGACY:
       ntype->draw_buttons = node_buts_mix_rgb;
       break;
@@ -611,8 +581,8 @@ static void node_composit_buts_cryptomatte_legacy_ex(uiLayout *layout,
                                                      bContext * /*C*/,
                                                      PointerRNA * /*ptr*/)
 {
-  uiItemO(layout, IFACE_("Add Crypto Layer"), ICON_ADD, "NODE_OT_cryptomatte_layer_add");
-  uiItemO(layout, IFACE_("Remove Crypto Layer"), ICON_REMOVE, "NODE_OT_cryptomatte_layer_remove");
+  layout->op("NODE_OT_cryptomatte_layer_add", IFACE_("Add Crypto Layer"), ICON_ADD);
+  layout->op("NODE_OT_cryptomatte_layer_remove", IFACE_("Remove Crypto Layer"), ICON_REMOVE);
 }
 
 static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -662,12 +632,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
-      break;
-    case CMP_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
-      break;
-    case CMP_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
       break;
     case CMP_NODE_MIX_RGB:
       ntype->draw_buttons = node_buts_mix_rgb;
@@ -1182,10 +1146,16 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
-  /* Gray out inputs that do not affect the output of the node currently.
-   * Don't gray out any inputs if the node has no outputs (in which case no input can affect the
-   * output). Otherwise, viewer node inputs would be inactive. */
-  if (sock->is_input() && !sock->affects_node_output() && !node->output_sockets().is_empty()) {
+  const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
+  if (socket_decl) {
+    if (socket_decl->custom_draw_fn) {
+      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
+      (*socket_decl->custom_draw_fn)(params);
+      return;
+    }
+  }
+
+  if (sock->is_inactive()) {
     uiLayoutSetActive(layout, false);
   }
 
@@ -1201,26 +1171,11 @@ static void std_node_socket_draw(
                              false;
 
   if (has_gizmo) {
-    if (sock->in_out == SOCK_OUT && ELEM(node->type_legacy,
-                                         SH_NODE_VALUE,
-                                         FN_NODE_INPUT_VECTOR,
-                                         FN_NODE_INPUT_INT,
-                                         FN_NODE_INPUT_BOOL,
-                                         FN_NODE_INPUT_ROTATION,
-                                         NODE_GROUP_INPUT))
-    {
-      if (node->is_group_input()) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        row->label("", ICON_GIZMO);
-      }
-      else if (nodes::partial_eval::is_supported_value_node(*node)) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        draw_gizmo_pin_icon(row, ptr);
-      }
+    if (sock->in_out == SOCK_OUT && node->is_group_input()) {
+      uiLayout *row = &layout->row(false);
+      uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+      node_socket_button_label(C, row, ptr, node_ptr, text);
+      row->label("", ICON_GIZMO);
       return;
     }
     if (sock->in_out == SOCK_IN && sock->index() == 0 &&
@@ -1325,15 +1280,14 @@ static void std_node_socket_draw(
       }
       else {
         if (text.is_empty()) {
-          uiItemFullR(layout,
-                      ptr,
-                      RNA_struct_find_property(ptr, "default_value"),
-                      -1,
-                      0,
-                      UI_ITEM_NONE,
-                      "",
-                      ICON_NONE,
-                      label);
+          layout->prop(ptr,
+                       RNA_struct_find_property(ptr, "default_value"),
+                       -1,
+                       0,
+                       UI_ITEM_NONE,
+                       "",
+                       ICON_NONE,
+                       label);
         }
         else {
           uiLayout *row = &layout->split(0.4f, false);
@@ -1353,15 +1307,17 @@ static void std_node_socket_draw(
           row->label(IFACE_("No Items"), ICON_NONE);
         }
         else {
-          if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
-                  sock->runtime->declaration))
-          {
-            if (socket_decl->is_expanded) {
+          if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(socket_decl)) {
+            if (menu_decl->is_expanded) {
               layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
               break;
             }
           }
-          layout->prop(ptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
+          const char *name = "";
+          if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
+            name = sock->name;
+          }
+          layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
         }
       }
       else if (default_value->has_conflict()) {
@@ -1375,15 +1331,14 @@ static void std_node_socket_draw(
     case SOCK_COLLECTION:
     case SOCK_OBJECT:
     case SOCK_MATERIAL: {
-      uiItemFullR(layout,
-                  ptr,
-                  RNA_struct_find_property(ptr, "default_value"),
-                  -1,
-                  0,
-                  DEFAULT_FLAGS,
-                  text,
-                  ICON_NONE,
-                  text.is_empty() ? std::optional(label) : std::nullopt);
+      layout->prop(ptr,
+                   RNA_struct_find_property(ptr, "default_value"),
+                   -1,
+                   0,
+                   DEFAULT_FLAGS,
+                   text,
+                   ICON_NONE,
+                   text.is_empty() ? std::optional(label) : std::nullopt);
       break;
     }
     case SOCK_IMAGE: {
@@ -1459,6 +1414,7 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_VECTOR: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "dimensions", DEFAULT_FLAGS, IFACE_("Dimensions"), ICON_NONE);
       col->prop(&ptr, "default_value", UI_ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
       uiLayout *sub = &col->column(true);
       sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
@@ -1509,7 +1465,7 @@ static void std_node_socket_interface_draw(ID *id,
 
   {
     uiLayout *sub = &col->column(false);
-    uiLayoutSetActive(sub, interface_socket->default_input == NODE_INPUT_DEFAULT_VALUE);
+    uiLayoutSetActive(sub, interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
     sub->prop(&ptr, "hide_value", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
   }
 
@@ -1523,7 +1479,7 @@ static void std_node_socket_interface_draw(ID *id,
     if (nodes::socket_type_supports_fields(type)) {
       uiLayout *sub_sub = &col->column(false);
       uiLayoutSetActive(sub_sub,
-                        (interface_socket->default_input == NODE_INPUT_DEFAULT_VALUE) &&
+                        (interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE) &&
                             !is_layer_selection_field(*interface_socket));
       sub_sub->prop(&ptr, "force_non_field", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
@@ -1674,9 +1630,9 @@ void draw_nodespace_back_pix(const bContext &C,
   GPU_matrix_pop();
 }
 
-static float2 socket_link_connection_location(const bNode &node,
-                                              const bNodeSocket &socket,
-                                              const bNodeLink &link)
+float2 socket_link_connection_location(const bNode &node,
+                                       const bNodeSocket &socket,
+                                       const bNodeLink &link)
 {
   const float2 socket_location = socket.runtime->location;
   if (socket.is_multi_input() && socket.is_input() && !(node.flag & NODE_HIDDEN)) {
@@ -1959,7 +1915,7 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
                                 uint pos_id,
                                 uint exp_id,
                                 uint v,
-                                const uchar uv[2],
+                                const float uv[2],
                                 const float pos[2],
                                 const float exp[2])
 {
@@ -1971,7 +1927,7 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
 static void nodelink_batch_init()
 {
   GPUVertFormat format = {0};
-  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_U8, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint expand_id = GPU_vertformat_attr_add(&format, "expand", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
@@ -1986,7 +1942,7 @@ static void nodelink_batch_init()
   int v = 0;
 
   for (int k = 0; k < 2; k++) {
-    uchar uv[2] = {0, 0};
+    float uv[2] = {0.0f, 0.0f};
     float pos[2] = {0.0f, 0.0f};
     float exp[2] = {0.0f, 1.0f};
 
@@ -1997,47 +1953,47 @@ static void nodelink_batch_init()
 
     /* curve strip */
     for (int i = 0; i < LINK_RESOL; i++) {
-      uv[0] = 255 * (i / float(LINK_RESOL - 1));
-      uv[1] = 0;
+      uv[0] = (i / float(LINK_RESOL - 1));
+      uv[1] = 0.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
     /* restart */
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-    uv[0] = 127;
-    uv[1] = 0;
+    uv[0] = 0.5f;
+    uv[1] = 0.0f;
     copy_v2_v2(pos, arrow_verts[0]);
     copy_v2_v2(exp, arrow_expand_axis[0]);
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     /* arrow */
     for (int i = 0; i < 3; i++) {
-      uv[1] = 0;
+      uv[1] = 0.0f;
       copy_v2_v2(pos, arrow_verts[i]);
       copy_v2_v2(exp, arrow_expand_axis[i]);
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
 
     /* restart */
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-    uv[0] = 127;
-    uv[1] = 0;
+    uv[0] = 0.5f;
+    uv[1] = 0.0f;
     copy_v2_v2(pos, mute_verts[0]);
     copy_v2_v2(exp, mute_expand_axis[0]);
     set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     /* bar */
     for (int i = 0; i < 3; ++i) {
-      uv[1] = 0;
+      uv[1] = 0.0f;
       copy_v2_v2(pos, mute_verts[i]);
       copy_v2_v2(exp, mute_expand_axis[i]);
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
 
-      uv[1] = 255;
+      uv[1] = 1.0f;
       set_nodelink_vertex(vbo, uv_id, pos_id, expand_id, v++, uv, pos, exp);
     }
 
@@ -2071,7 +2027,7 @@ static void nodelink_batch_init()
   g_batch_link.end_color_id = GPU_vertformat_attr_add(
       &format_inst, "end_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
   g_batch_link.muted_id = GPU_vertformat_attr_add(
-      &format_inst, "domuted", GPU_COMP_U8, 2, GPU_FETCH_INT);
+      &format_inst, "domuted", GPU_COMP_U32, 1, GPU_FETCH_INT);
   g_batch_link.dim_factor_id = GPU_vertformat_attr_add(
       &format_inst, "dim_factor", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
   g_batch_link.thickness_id = GPU_vertformat_attr_add(
@@ -2197,7 +2153,7 @@ static void nodelink_batch_add_link(const SpaceNode &snode,
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.start_color_step),
              draw_config.start_color);
   copy_v4_v4((float *)GPU_vertbuf_raw_step(&g_batch_link.end_color_step), draw_config.end_color);
-  char *muted = (char *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
+  uint32_t *muted = (uint32_t *)GPU_vertbuf_raw_step(&g_batch_link.muted_step);
   muted[0] = draw_config.drawmuted;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.dim_factor_step) = draw_config.dim_factor;
   *(float *)GPU_vertbuf_raw_step(&g_batch_link.thickness_step) = draw_config.thickness;

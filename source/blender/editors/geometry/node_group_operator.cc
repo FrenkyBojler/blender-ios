@@ -68,6 +68,7 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_geometry_nodes_caller_ui.hh"
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -165,14 +166,23 @@ static void find_socket_log_contexts(const Main &bmain,
         }
         bke::ComputeContextCache compute_context_cache;
         const Map<const bke::bNodeTreeZone *, ComputeContextHash> hash_by_zone =
-            geo_log::GeoModifierLog::get_context_hash_by_zone_for_node_editor(
-                snode, compute_context_cache);
+            geo_log::GeoNodesLog::get_context_hash_by_zone_for_node_editor(snode,
+                                                                           compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
           r_socket_log_contexts.add(hash);
         }
       }
     }
   }
+}
+
+static const ImplicitSharingInfo *get_vertex_group_sharing_info(const Mesh &mesh)
+{
+  const int layer_index = CustomData_get_layer_index(&mesh.vert_data, CD_MDEFORMVERT);
+  if (layer_index == -1) {
+    return nullptr;
+  }
+  return mesh.vert_data.layers[layer_index].sharing_info;
 }
 
 /**
@@ -182,6 +192,7 @@ static void find_socket_log_contexts(const Main &bmain,
  */
 class MeshState {
   VectorSet<const ImplicitSharingInfo *> sharing_infos_;
+  const ImplicitSharingInfo *vertex_group_sharing_info_ = nullptr;
 
  public:
   MeshState(const Mesh &mesh)
@@ -194,8 +205,13 @@ class MeshState {
       if (attribute.varray.size() == 0) {
         return;
       }
-      this->freeze_shared_state(*attribute.sharing_info);
+      if (attribute.sharing_info) {
+        this->freeze_shared_state(*attribute.sharing_info);
+      }
     });
+    if (const ImplicitSharingInfo *sharing_info = get_vertex_group_sharing_info(mesh)) {
+      this->freeze_shared_state(*sharing_info);
+    }
   }
 
   void freeze_shared_state(const ImplicitSharingInfo &sharing_info)
@@ -209,6 +225,9 @@ class MeshState {
   {
     for (const ImplicitSharingInfo *sharing_info : sharing_infos_) {
       sharing_info->remove_user_and_delete_if_last();
+    }
+    if (vertex_group_sharing_info_) {
+      vertex_group_sharing_info_->remove_user_and_delete_if_last();
     }
   }
 };
@@ -657,7 +676,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   bke::OperatorComputeContext compute_context;
   Set<ComputeContextHash> socket_log_contexts;
   GeoOperatorLog &eval_log = get_static_eval_log();
-  eval_log.log = std::make_unique<geo_log::GeoModifierLog>();
+  eval_log.log = std::make_unique<geo_log::GeoNodesLog>();
   eval_log.node_group_name = node_tree->id.name + 2;
   find_socket_log_contexts(*bmain, socket_log_contexts);
 
@@ -708,7 +727,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
   tree_log.ensure_node_warnings(*bmain);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
-    if (warning.type == geo_log::NodeWarningType::Info) {
+    if (warning.type == nodes::NodeWarningType::Info) {
       BKE_report(op->reports, RPT_INFO, warning.message.c_str());
     }
     else {
@@ -793,127 +812,6 @@ static std::string run_node_group_get_description(bContext *C,
   return asset->get_metadata().description;
 }
 
-static void add_attribute_search_or_value_buttons(uiLayout *layout,
-                                                  PointerRNA *md_ptr,
-                                                  const StringRef socket_id_esc,
-                                                  const StringRefNull rna_path,
-                                                  const bNodeTreeInterfaceSocket &socket)
-{
-  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
-
-  const std::string rna_path_use_attribute = fmt::format(
-      "[\"{}{}\"]", socket_id_esc, nodes::input_use_attribute_suffix);
-  const std::string rna_path_attribute_name = fmt::format(
-      "[\"{}{}\"]", socket_id_esc, nodes::input_attribute_name_suffix);
-
-  /* We're handling this manually in this case. */
-  uiLayoutSetPropDecorate(layout, false);
-
-  uiLayout *split = &layout->split(0.4f, false);
-  uiLayout *name_row = &split->row(false);
-  uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
-
-  const bool use_attribute = RNA_boolean_get(md_ptr, rna_path_use_attribute.c_str());
-  if (socket_type == SOCK_BOOLEAN && !use_attribute) {
-    name_row->label("", ICON_NONE);
-  }
-  else {
-    name_row->label(socket.name ? socket.name : "", ICON_NONE);
-  }
-
-  uiLayout *prop_row = &split->row(true);
-  if (socket_type == SOCK_BOOLEAN) {
-    uiLayoutSetPropSep(prop_row, false);
-    uiLayoutSetAlignment(prop_row, UI_LAYOUT_ALIGN_EXPAND);
-  }
-
-  if (use_attribute) {
-    /* TODO: Add attribute search. */
-    prop_row->prop(md_ptr, rna_path_attribute_name, UI_ITEM_NONE, "", ICON_NONE);
-  }
-  else {
-    const char *name = socket_type == SOCK_BOOLEAN ? (socket.name ? socket.name : "") : "";
-    prop_row->prop(md_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-  }
-
-  prop_row->prop(md_ptr, rna_path_use_attribute, UI_ITEM_R_ICON_ONLY, "", ICON_SPREADSHEET);
-}
-
-static void draw_property_for_socket(const bNodeTree &node_tree,
-                                     uiLayout *layout,
-                                     const nodes::PropertiesVectorSet &properties_set,
-                                     PointerRNA *bmain_ptr,
-                                     PointerRNA *op_ptr,
-                                     const bNodeTreeInterfaceSocket &socket,
-                                     const int socket_index,
-                                     const bool affects_output)
-{
-  bke::bNodeSocketType *typeinfo = bke::node_socket_type_find(socket.socket_type);
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(typeinfo->type);
-
-  /* The property should be created in #MOD_nodes_update_interface with the correct type. */
-  const IDProperty *property = properties_set.lookup_key_default_as(socket.identifier, nullptr);
-
-  /* IDProperties can be removed with python, so there could be a situation where
-   * there isn't a property for a socket or it doesn't have the correct type. */
-  if (!property || !nodes::id_property_type_matches_socket(socket, *property, true)) {
-    return;
-  }
-
-  char socket_id_esc[MAX_NAME * 2];
-  BLI_str_escape(socket_id_esc, socket.identifier, sizeof(socket_id_esc));
-
-  char rna_path[sizeof(socket_id_esc) + 4];
-  SNPRINTF(rna_path, "[\"%s\"]", socket_id_esc);
-
-  uiLayout *row = &layout->row(true);
-  uiLayoutSetActive(row, affects_output);
-  uiLayoutSetPropDecorate(row, false);
-
-  /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
-   * information about what type of ID to select for editing the values. This is because
-   * pointer IDProperties contain no information about their type. */
-  const char *name = socket.name ? socket.name : "";
-  switch (socket_type) {
-    case SOCK_OBJECT:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "objects", name, ICON_OBJECT_DATA);
-      break;
-    case SOCK_COLLECTION:
-      uiItemPointerR(
-          row, op_ptr, rna_path, bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
-      break;
-    case SOCK_MATERIAL:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "materials", name, ICON_MATERIAL);
-      break;
-    case SOCK_TEXTURE:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "textures", name, ICON_TEXTURE);
-      break;
-    case SOCK_IMAGE:
-      uiItemPointerR(row, op_ptr, rna_path, bmain_ptr, "images", name, ICON_IMAGE);
-      break;
-    case SOCK_MENU: {
-      if (socket.flag & NODE_INTERFACE_SOCKET_MENU_EXPANDED) {
-        row->prop(op_ptr, rna_path, UI_ITEM_R_EXPAND, name, ICON_NONE);
-      }
-      else {
-        row->prop(op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-      }
-      break;
-    }
-    default:
-      if (nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-        add_attribute_search_or_value_buttons(row, op_ptr, socket_id_esc, rna_path, socket);
-      }
-      else {
-        row->prop(op_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-      }
-  }
-  if (!nodes::input_has_attribute_toggle(node_tree, socket_index)) {
-    row->label("", ICON_BLANK1);
-  }
-}
-
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
@@ -926,27 +824,12 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   if (!node_tree) {
     return;
   }
-  const nodes::PropertiesVectorSet properties_set = nodes::build_properties_vector_set(
-      op->properties);
 
-  node_tree->ensure_interface_cache();
-
-  Array<bool> input_usages(node_tree->interface_inputs().size());
-  nodes::socket_usage_inference::infer_group_interface_inputs_usage(
-      *node_tree, properties_set, input_usages);
-
-  int input_index = 0;
-  for (const bNodeTreeInterfaceSocket *io_socket : node_tree->interface_inputs()) {
-    draw_property_for_socket(*node_tree,
-                             layout,
-                             properties_set,
-                             &bmain_ptr,
-                             op->ptr,
-                             *io_socket,
-                             input_index,
-                             input_usages[input_index]);
-    ++input_index;
-  }
+  bke::OperatorComputeContext compute_context;
+  GeoOperatorLog &eval_log = get_static_eval_log();
+  geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
+  nodes::draw_geometry_nodes_operator_redo_ui(
+      *C, *op, const_cast<bNodeTree &>(*node_tree), &tree_log);
 }
 
 static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
@@ -1420,18 +1303,11 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1449,7 +1325,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       return;
     }
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", *layout);
@@ -1503,15 +1379,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1532,7 +1401,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     if (first) {
@@ -1540,15 +1409,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       first = false;
     }
 
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    group->id.name + 2,
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_REGION_WIN,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);
@@ -1620,7 +1482,7 @@ void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext
   });
 
   if (!tree->unassigned_assets.is_empty() || unassigned_local_poll(C)) {
-    uiItemM(&layout, "GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);
+    layout.menu("GEO_MT_node_operator_unassigned", "", ICON_FILE_HIDDEN);
   }
 }
 

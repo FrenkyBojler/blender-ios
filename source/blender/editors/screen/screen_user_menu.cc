@@ -226,15 +226,11 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
-            IDProperty *prop = umi_op->prop ? IDP_CopyProperty(umi_op->prop) : nullptr;
-            uiItemFullO_ptr(menu->layout,
-                            ot,
-                            ui_name,
-                            ICON_NONE,
-                            prop,
-                            wmOperatorCallContext(umi_op->opcontext),
-                            UI_ITEM_NONE,
-                            nullptr);
+            PointerRNA ptr = menu->layout->op(
+                ot, ui_name, ICON_NONE, wmOperatorCallContext(umi_op->opcontext), UI_ITEM_NONE);
+            if (umi_op->prop) {
+              IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);
+            }
           }
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
@@ -255,7 +251,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)umi;
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          uiItemM_ptr(menu->layout, mt, ui_name, ICON_NONE);
+          menu->layout->menu(mt, ui_name, ICON_NONE);
           is_empty = false;
         }
         else {
@@ -295,14 +291,8 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             prop = RNA_struct_find_property(&prop_ptr, umi_pr->prop_id);
             if (prop) {
               ok = true;
-              uiItemFullR(menu->layout,
-                          &prop_ptr,
-                          prop,
-                          umi_pr->prop_index,
-                          0,
-                          UI_ITEM_NONE,
-                          ui_name,
-                          ICON_NONE);
+              menu->layout->prop(
+                  &prop_ptr, prop, umi_pr->prop_index, 0, UI_ITEM_NONE, ui_name, ICON_NONE);
               is_empty = false;
             }
           }
@@ -315,7 +305,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
       }
       else if (umi->type == USER_MENU_TYPE_SEP) {
-        uiItemS(menu->layout);
+        menu->layout->separator();
       }
     }
   }

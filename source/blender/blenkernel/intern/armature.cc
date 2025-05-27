@@ -51,6 +51,7 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "DEG_depsgraph_build.hh"
@@ -509,7 +510,7 @@ bArmature *BKE_armature_add(Main *bmain, const char *name)
 {
   bArmature *arm;
 
-  arm = static_cast<bArmature *>(BKE_id_new(bmain, ID_AR, name));
+  arm = BKE_id_new<bArmature>(bmain, name);
   return arm;
 }
 
@@ -3164,7 +3165,7 @@ std::optional<blender::Bounds<blender::float3>> BKE_pose_minmax(const Object *ob
     if (!pchan->bone) {
       continue;
     }
-    if (!PBONE_VISIBLE(arm, pchan->bone)) {
+    if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
       continue;
     }
     if (use_select && !(pchan->bone->flag & BONE_SELECTED)) {
