@@ -179,31 +179,6 @@ class EvaluateClosureComputeContext : public NodeComputeContext {
   }
 };
 
-class EvaluateNodeComputeContext : public ComputeContext {
- private:
-  static constexpr const char *s_static_type = "EVALUATE_NODE";
-
-  int32_t node_id_;
-
-  /**
-   * Extra information that might not always be available.
-   */
-  const bNode *evaluate_node_ = nullptr;
-
- public:
-  EvaluateNodeComputeContext(const ComputeContext *parent,
-                             int32_t node_id,
-                             const bNode *evaluate_node = nullptr);
-
-  int32_t node_id() const
-  {
-    return node_id_;
-  }
-
- private:
-  void print_current_in_line(std::ostream &stream) const override;
-};
-
 class OperatorComputeContext : public ComputeContext {
  private:
   /** The tree that is executed. May be null. */

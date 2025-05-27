@@ -53,25 +53,8 @@ class MF_SeparateXYZ : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context context) const override
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    auto *user_data = static_cast<GeoNodesUserData *>(context.user_data);
-    auto *local_user_data = static_cast<GeoNodesLocalUserData *>(context.local_user_data);
-
-    if (user_data && local_user_data) {
-      if (const auto *compute_context = dynamic_cast<const bke::EvaluateNodeComputeContext *>(
-              user_data->compute_context))
-      {
-        geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(
-            *user_data);
-        if (tree_logger) {
-          tree_logger->node_warnings.append(
-              *tree_logger->allocator,
-              {compute_context->node_id(), {geo_eval_log::NodeWarningType::Error, "Hello World"}});
-        }
-      }
-    }
-
     const VArray<float3> &vectors = params.readonly_single_input<float3>(0, "XYZ");
     MutableSpan<float> xs = params.uninitialized_single_output_if_required<float>(1, "X");
     MutableSpan<float> ys = params.uninitialized_single_output_if_required<float>(2, "Y");
