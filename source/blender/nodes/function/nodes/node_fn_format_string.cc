@@ -696,7 +696,12 @@ std::string FormatStringItemsAccessor::custom_initial_name(const bNode &node, St
       initial = first_c - 'A' + 'a';
     }
   }
-  for (char c = initial; c <= 'z'; c++) {
+  for (const int i : IndexRange('z' - 'a' + 1)) {
+    char c = initial + i;
+    if (c > 'z') {
+      /* Start at 'a' again. */
+      c = c - 'z' + 'a' - 1;
+    }
     const std::string potential_name = std::string(1, c);
     const bool name_exists = std::any_of(
         storage.items,
