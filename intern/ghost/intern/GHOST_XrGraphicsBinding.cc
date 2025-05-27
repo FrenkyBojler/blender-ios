@@ -301,6 +301,11 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
     return ghost_ctx.isUpsideDown();
   }
 
+  XrSystemId getSystemId() override
+  {
+    return XR_NULL_SYSTEM_ID;
+  }
+
  private:
   std::list<std::vector<XrSwapchainImageOpenGLKHR>> m_image_cache;
   GLuint m_fbo = 0;

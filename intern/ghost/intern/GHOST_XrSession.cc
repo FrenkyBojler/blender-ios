@@ -108,6 +108,11 @@ void GHOST_XrSession::initSystem()
   assert(m_context->getInstance() != XR_NULL_HANDLE);
   assert(m_oxr->system_id == XR_NULL_SYSTEM_ID);
 
+  m_oxr->system_id = m_gpu_binding->getSystemId();
+  if (m_oxr->system_id != XR_NULL_SYSTEM_ID) {
+    return;
+  }
+
   XrSystemGetInfo system_info = {};
   system_info.type = XR_TYPE_SYSTEM_GET_INFO;
   system_info.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
@@ -220,8 +225,6 @@ void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
         "session (through GHOST_XrSessionStart()).");
   }
 
-  initSystem();
-
   bindGraphicsContext();
   if (m_gpu_ctx == nullptr) {
     throw GHOST_XrException(
@@ -233,6 +236,7 @@ void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
   std::string requirement_str;
   m_gpu_binding = GHOST_XrGraphicsBindingCreateFromType(m_context->getGraphicsBindingType(),
                                                         *m_gpu_ctx);
+  initSystem();
   if (!m_gpu_binding->checkVersionRequirements(
           *m_gpu_ctx, m_context->getInstance(), m_oxr->system_id, &requirement_str))
   {

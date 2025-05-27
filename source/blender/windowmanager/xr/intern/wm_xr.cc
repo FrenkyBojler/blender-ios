@@ -49,7 +49,7 @@ static void wm_xr_error_handler(const GHOST_XrError *error)
 
   if (wm->xr.runtime) {
     /* Just play safe and destroy the entire runtime data, including context. */
-    wm_xr_runtime_data_free(&wm->xr.runtime);
+    // wm_xr_runtime_data_free(&wm->xr.runtime);
   }
 }
 
@@ -133,8 +133,9 @@ bool wm_xr_init(wmWindowManager *wm, eGPUBackendType gpu_backend)
 
 void wm_xr_exit(wmWindowManager *wm)
 {
+  // TODO: This function should be split
   if (wm->xr.runtime != nullptr) {
-    wm_xr_runtime_data_free(&wm->xr.runtime);
+    // wm_xr_runtime_data_free(&wm->xr.runtime);
   }
   if (wm->xr.session_settings.shading.prop) {
     IDP_FreeProperty(wm->xr.session_settings.shading.prop);

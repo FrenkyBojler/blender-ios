@@ -774,6 +774,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
         vulkan_device->generic_queue_family,
         m_graphic_queue,
         &vulkan_device->queue_mutex,
+        vulkan_device->xr_system_id,
     };
   }
 

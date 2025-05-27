@@ -871,6 +871,7 @@ typedef struct {
   uint32_t graphic_queue_family;
   VkQueue queue;
   void *queue_mutex;
+  uint64_t xr_system_id;
 } GHOST_VulkanHandles;
 
 #endif

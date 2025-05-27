@@ -66,6 +66,11 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_XrGraphicsBindingVulkanBase {
                               const GHOST_XrDrawViewInfo &draw_info) override;
   void submitToSwapchainEnd() override;
 
+  XrSystemId getSystemId() override
+  {
+    return XR_NULL_SYSTEM_ID;
+  }
+
  private:
   VkInstance m_vk_instance = VK_NULL_HANDLE;
   VkPhysicalDevice m_vk_physical_device = VK_NULL_HANDLE;
@@ -132,6 +137,7 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
   void submitToSwapchainImage(XrSwapchainImageBaseHeader &swapchain_image,
                               const GHOST_XrDrawViewInfo &draw_info) override;
   void submitToSwapchainEnd() override;
+  XrSystemId getSystemId() override;
 
  private:
   /**
@@ -141,8 +147,5 @@ class GHOST_XrGraphicsBindingVulkanShared : public GHOST_XrGraphicsBindingVulkan
   VkFence m_vk_fence = VK_NULL_HANDLE;
   std::vector<GHOST_VulkanOpenXRData> m_openxr_datas;
 
-  static PFN_xrGetVulkanGraphicsRequirementsKHR s_xrGetVulkanGraphicsRequirementsKHR_fn;
-  static PFN_xrGetVulkanGraphicsDeviceKHR s_xrGetVulkanGraphicsDeviceKHR_fn;
-  static PFN_xrGetVulkanInstanceExtensionsKHR s_xrGetVulkanInstanceExtensionsKHR_fn;
-  static PFN_xrGetVulkanDeviceExtensionsKHR s_xrGetVulkanDeviceExtensionsKHR_fn;
+  static PFN_xrGetVulkanGraphicsRequirements2KHR s_xrGetVulkanGraphicsRequirements2KHR_fn;
 };

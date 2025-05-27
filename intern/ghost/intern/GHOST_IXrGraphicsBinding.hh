@@ -60,6 +60,13 @@ class GHOST_IXrGraphicsBinding {
   virtual void submitToSwapchainEnd() = 0;
   virtual bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const = 0;
 
+  /**
+   * Retrieve the XrSystemId that is already initialized for the graphics binding.
+   *
+   * Can return XR_NULL_SYSTEM_ID when XrSystemId doesn't need to be preinitialized.
+   */
+  virtual XrSystemId getSystemId() = 0;
+
  protected:
   /* Use GHOST_XrGraphicsBindingCreateFromType! */
   GHOST_IXrGraphicsBinding() = default;

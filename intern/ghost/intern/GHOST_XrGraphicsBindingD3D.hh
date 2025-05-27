@@ -48,6 +48,11 @@ class GHOST_XrGraphicsBindingD3D : public GHOST_IXrGraphicsBinding {
   void submitToSwapchainEnd() override {}
 
   bool needsUpsideDownDrawing(GHOST_Context &ghost_ctx) const override;
+  
+  XrSystemId getSystemId() override
+  {
+    return XR_NULL_SYSTEM_ID;
+  }
 
  protected:
   /** Secondary DirectX 11 context used by OpenXR. */

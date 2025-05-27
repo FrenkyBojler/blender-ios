@@ -103,7 +103,7 @@ static void wm_xr_session_exit_cb(void *customdata)
   }
 
   /* Free the entire runtime data (including session state and context), to play safe. */
-  wm_xr_runtime_data_free(&xr_data->runtime);
+  //wm_xr_runtime_data_free(&xr_data->runtime);
 }
 
 static void wm_xr_session_begin_info_create(wmXrData *xr_data,

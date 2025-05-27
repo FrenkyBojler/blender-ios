@@ -20,31 +20,14 @@
 #endif
 
 /** OpenXR/Vulkan specific function pointers. */
-PFN_xrGetVulkanGraphicsRequirementsKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanGraphicsRequirementsKHR_fn = nullptr;
-PFN_xrGetVulkanGraphicsDeviceKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanGraphicsDeviceKHR_fn = nullptr;
-PFN_xrGetVulkanInstanceExtensionsKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanInstanceExtensionsKHR_fn = nullptr;
-PFN_xrGetVulkanDeviceExtensionsKHR
-    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanDeviceExtensionsKHR_fn = nullptr;
+PFN_xrGetVulkanGraphicsRequirements2KHR
+    GHOST_XrGraphicsBindingVulkanShared::s_xrGetVulkanGraphicsRequirements2KHR_fn = nullptr;
 
 GHOST_XrGraphicsBindingVulkanShared::~GHOST_XrGraphicsBindingVulkanShared()
 {
   if (m_vk_fence != VK_NULL_HANDLE) {
     vkDestroyFence(oxr_binding.vk.device, m_vk_fence, nullptr);
   }
-}
-
-static std::vector<std::string> split_by_space(std::string text)
-{
-  std::string line;
-  std::vector<std::string> vec;
-  std::stringstream ss(text);
-  while (std::getline(ss, line, ' ')) {
-    vec.push_back(line);
-  }
-  return vec;
 }
 
 bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
@@ -63,17 +46,14 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
   }
   /* Get the function pointers for OpenXR/Vulkan. If any fails we expect that we cannot use the
    * given context. */
-  LOAD_PFN(s_xrGetVulkanGraphicsRequirementsKHR_fn, xrGetVulkanGraphicsRequirementsKHR);
-  LOAD_PFN(s_xrGetVulkanGraphicsDeviceKHR_fn, xrGetVulkanGraphicsDeviceKHR);
-  LOAD_PFN(s_xrGetVulkanInstanceExtensionsKHR_fn, xrGetVulkanInstanceExtensionsKHR);
-  LOAD_PFN(s_xrGetVulkanDeviceExtensionsKHR_fn, xrGetVulkanDeviceExtensionsKHR);
+  LOAD_PFN(s_xrGetVulkanGraphicsRequirements2KHR_fn, xrGetVulkanGraphicsRequirements2KHR);
 #undef LOAD_PFN
 
   XrGraphicsRequirementsVulkanKHR xr_graphics_requirements{
       /*type*/ XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
   };
-  if (XR_FAILED(
-          s_xrGetVulkanGraphicsRequirementsKHR_fn(instance, system_id, &xr_graphics_requirements)))
+  if (XR_FAILED(s_xrGetVulkanGraphicsRequirements2KHR_fn(
+          instance, system_id, &xr_graphics_requirements)))
   {
     *r_requirement_info = std::string("Unable to retrieve Xr version requirements for Vulkan");
     return false;
@@ -98,102 +78,10 @@ bool GHOST_XrGraphicsBindingVulkanShared::checkVersionRequirements(
     return false;
   }
 
-  /* Read the required instance extensions. */
-  uint32_t buffer_count = 0;
-  if (XR_FAILED(
-          s_xrGetVulkanInstanceExtensionsKHR_fn(instance, system_id, 0, &buffer_count, nullptr)))
-  {
-    *r_requirement_info = std::string("Unable to determine required instance vulkan extensions");
-    return false;
-  }
-  char *buffer = static_cast<char *>(malloc(buffer_count));
-  if (XR_FAILED(s_xrGetVulkanInstanceExtensionsKHR_fn(
-          instance, system_id, buffer_count, &buffer_count, buffer)))
-  {
-    *r_requirement_info = std::string("Unable to determine required instance vulkan extensions");
-    free(buffer);
-    return false;
-  }
-  std::vector<std::string> instance_extensions = split_by_space(buffer);
-  free(buffer);
-  buffer = nullptr;
-  buffer_count = 0;
-
-  /* Read the required device extensions. */
-  if (XR_FAILED(
-          s_xrGetVulkanDeviceExtensionsKHR_fn(instance, system_id, 0, &buffer_count, nullptr)))
-  {
-    *r_requirement_info = std::string("Unable to determine required device vulkan extensions");
-    return false;
-  }
-  buffer = static_cast<char *>(malloc(buffer_count));
-  if (XR_FAILED(s_xrGetVulkanDeviceExtensionsKHR_fn(
-          instance, system_id, buffer_count, &buffer_count, buffer)))
-  {
-    *r_requirement_info = std::string("Unable to determine required device vulkan extensions");
-    free(buffer);
-    return false;
-  }
-  std::vector<std::string> device_extensions = split_by_space(buffer);
-  free(buffer);
-  buffer = nullptr;
-
-  std::vector<std::string> missing_extensions;
-  /* Check for enabled instance extensions. */
-  for (const std::string &extension : instance_extensions) {
-    /* SteamVR + PSVR2 requests a vendor specific extension that is renamed and promoted to core
-     * Vulkan 1.2. */
-    if (extension == VK_NV_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME) {
-      continue;
-    }
-    if (!context_vk.is_instance_extension_enabled(extension)) {
-      missing_extensions.push_back(extension);
-    }
-  }
-
-  /* Check for enabled instance extensions. */
-  for (const std::string &extension : device_extensions) {
-    /* SteamVR + PSVR2 requests a deprecated extension, which isn't part of modern drivers anymore.
-     * NVIDIA 530 seems to be the first version that removed this extension, but OpenXR still
-     * reports it as being a required extension.
-     */
-    if (extension == VK_EXT_DEBUG_MARKER_EXTENSION_NAME) {
-      continue;
-    }
-    if (!context_vk.is_device_extension_enabled(extension)) {
-      missing_extensions.push_back(extension);
-    }
-  }
-  if (!missing_extensions.empty()) {
-    std::stringstream ss;
-    ss << "Unable to use shared resources as extensions aren't enabled: [";
-    for (std::string &extension : missing_extensions) {
-      ss << extension << " ";
-    }
-    ss << "]";
-    *r_requirement_info = ss.str();
-    return false;
-  }
-
   GHOST_VulkanHandles vulkan_handles = {};
   m_ghost_ctx.getVulkanHandles(vulkan_handles);
 
-  VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE;
-  XrResult xr_result = s_xrGetVulkanGraphicsDeviceKHR_fn(
-      instance, system_id, vulkan_handles.instance, &vk_physical_device);
-  if (XR_FAILED(xr_result)) {
-    std::stringstream ss;
-    ss << "Unable to retrieve Xr required physical device. xr_result=" << xr_result
-       << ", system_id=" << system_id << ", vk_instance=" << vulkan_handles.instance << "\n";
-    *r_requirement_info = ss.str();
-    return false;
-  }
-
-  if (vulkan_handles.physical_device != vk_physical_device) {
-    *r_requirement_info = std::string("Blender requires to use the same GPU as OpenXR");
-    return false;
-  }
-
+  /* TODO: check if vulkan handles originate from OpenXR. */
   return true;
 }
 
@@ -245,4 +133,11 @@ void GHOST_XrGraphicsBindingVulkanShared::submitToSwapchainEnd()
   for (GHOST_VulkanOpenXRData &openxr_data : m_openxr_datas) {
     m_ghost_ctx.openxr_release_framebuffer_image_callback_(&openxr_data);
   }
+}
+
+XrSystemId GHOST_XrGraphicsBindingVulkanShared::getSystemId()
+{
+  GHOST_VulkanHandles vulkan_handles = {};
+  m_ghost_ctx.getVulkanHandles(vulkan_handles);
+  return vulkan_handles.xr_system_id;
 }
