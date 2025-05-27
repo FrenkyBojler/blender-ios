@@ -303,6 +303,16 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
 
   bke::mesh_calc_edges(*mesh, false, false);
 
+  /* If we detect bad faces it would be unsafe to continue beyond this point without first
+   * performing a destructive validate. Edit mode, and the custom normal calculations, will either
+   * assert or crash if the problem isn't addressed. Performing the check here, before most of the
+   * data has been loaded, unfortunately means any remaining data will be lost. */
+  if (!all_faces_ok) {
+    CLOG_WARN(&LOG,
+              "Invalid face data detected for mesh '%s'. Automatic correction will be used.",
+              this->prim_path().GetAsString().c_str());
+    BKE_mesh_validate(mesh, false, false);
+  }
   return all_faces_ok;
 }
 
@@ -667,10 +677,25 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
     read_vertex_creases(mesh, motionSampleTime);
   }
 
-  bool ok_faces = true;
   if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
-    ok_faces = read_faces(mesh);
+    if (!read_faces(mesh)) {
+      return;
+    }
     read_edge_creases(mesh, motionSampleTime);
+
+    if (normal_interpolation_ == pxr::UsdGeomTokens->faceVarying) {
+      process_normals_face_varying(mesh);
+    }
+    else if (normal_interpolation_ == pxr::UsdGeomTokens->uniform) {
+      process_normals_uniform(mesh);
+    }
+  }
+
+  /* Process point normals after reading faces. */
+  if ((settings->read_flag & MOD_MESHSEQ_READ_VERT) != 0 &&
+      normal_interpolation_ == pxr::UsdGeomTokens->vertex)
+  {
+    process_normals_vertex_varying(mesh);
   }
 
   /* Custom Data layers. */
@@ -680,34 +705,6 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
   {
     read_velocities(mesh, motionSampleTime);
     read_custom_data(settings, mesh, motionSampleTime, new_mesh);
-  }
-
-  /* If we detect bad faces it would be unsafe to continue beyond this point without first
-   * performing a destructive validate. Edit mode, and the custom normal calculations, will either
-   * assert or crash if the problem isn't addressed. Performing the check here, after most of the
-   * data has been loaded, allows more of the data to remain. However, the normals will be lost for
-   * the entire mesh as the incoming data indices and sizes will no longer match. */
-  if (!ok_faces) {
-    CLOG_WARN(&LOG,
-              "Invalid face data detected for mesh '%s'. Correction will be attempted.",
-              this->prim_path().GetAsString().c_str());
-    BKE_mesh_validate(mesh, false, false);
-  }
-
-  /* Process normals after reading faces and potentially fixing invalid meshes. */
-  if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_POLY) != 0) {
-    if (normal_interpolation_ == pxr::UsdGeomTokens->faceVarying) {
-      process_normals_face_varying(mesh);
-    }
-    else if (normal_interpolation_ == pxr::UsdGeomTokens->uniform) {
-      process_normals_uniform(mesh);
-    }
-  }
-
-  if ((settings->read_flag & MOD_MESHSEQ_READ_VERT) != 0 &&
-      normal_interpolation_ == pxr::UsdGeomTokens->vertex)
-  {
-    process_normals_vertex_varying(mesh);
   }
 }
 
