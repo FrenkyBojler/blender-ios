@@ -201,6 +201,13 @@ enum {
    */
   LIB_ID_COPY_SET_COPIED_ON_WRITE = 1 << 10,
 
+  /**
+   * Set #ID.newid pointer of the given source ID with the address of its new copy.
+   *
+   * See also
+   */
+  LIB_ID_COPY_ID_NEW_SET = 1 << 11,
+
   /* *** Specific options to some ID types or usages. *** */
   /* *** May be ignored by unrelated ID copying functions. *** */
   /** Object only, needed by make_local code. */

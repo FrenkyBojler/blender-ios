@@ -63,19 +63,6 @@ struct LibraryRuntime {
 Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_abs);
 
 /**
- * Add a new 'archive' copy of the given reference library. It will be used to store linked
- * embedded IDs.
- */
-Library *add_archive_library(Main &bmain, Library &reference_library);
-
-/**
- * Embed given linked IDs. Low-level code, assumes all given IDs are valid and safe to embed.
- *
- * Will set final embedded ID into each ID::newid pointers.
- */
-void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed);
-
-/**
  * Embed given linked ID, and all the related hierarchy.
  *
  * Will set final embedded ID into each ID::newid pointers.

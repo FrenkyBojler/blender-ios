@@ -14,6 +14,8 @@
 
 /* all types are needed here, in order to do memory operations */
 #include "DNA_ID.h"
+#include "DNA_collection_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
 
@@ -31,11 +33,14 @@
 #include "BKE_bpath.hh"
 #include "BKE_id_hash.hh"
 #include "BKE_idtype.hh"
+#include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_namemap.hh"
+#include "BKE_node.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 
@@ -43,6 +48,7 @@ struct BlendDataReader;
 
 static CLG_LogRef LOG = {"bke.library"};
 
+using namespace blender::bke;
 using namespace blender::bke::library;
 
 static void library_runtime_reset(Library *lib)
@@ -96,7 +102,19 @@ static void library_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Library *lib = (Library *)id;
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->runtime->parent, IDWALK_CB_NEVER_SELF);
-  BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF);
+
+  if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+    /* Archive library must have a parent, this can't be nullptr. */
+    if (lib->archive_parent_library) {
+      BKE_LIB_FOREACHID_PROCESS_ID(
+          data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF | IDWALK_CB_NEVER_NULL);
+    }
+  }
+  else {
+    /* Regular libraries should never have an archive parent. */
+    BLI_assert(!lib->archive_parent_library);
+    BKE_LIB_FOREACHID_PROCESS_ID(data, lib->archive_parent_library, IDWALK_CB_NEVER_SELF);
+  }
 }
 
 static void library_foreach_path(ID *id, BPathForeachPathData *bpath_data)
@@ -380,7 +398,11 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
   return nullptr;
 }
 
-Library *blender::bke::library::add_archive_library(Main &bmain, Library &reference_library)
+/**
+ * Add a new 'archive' copy of the given reference library. It will be used to store linked
+ * embedded IDs.
+ */
+static Library *add_archive_library(Main &bmain, Library &reference_library)
 {
   BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
   /* Cannot copy libraries using generic ID copying functions, so create the copy manually. */
@@ -406,9 +428,47 @@ Library *blender::bke::library::add_archive_library(Main &bmain, Library &refere
   return archive_library;
 }
 
-void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed)
+static Library *get_archive_library(Main &bmain, ID *for_id)
+{
+  Library *reference_library = for_id->lib;
+  BLI_assert(reference_library && (reference_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+
+  Library *archive_lib = nullptr;
+  LISTBASE_FOREACH (Library *, lib_iter, &bmain.libraries) {
+    if ((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
+      continue;
+    }
+    BLI_assert(lib_iter->archive_parent_library != nullptr);
+    if (lib_iter->archive_parent_library != reference_library) {
+      continue;
+    }
+    /* Check if current archive library already contains an ID of same type and name. */
+    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(for_id->name), BKE_id_name(*for_id))) {
+      // TODO: If the ID in that library has the same deep hash as the ID we want to embed, they
+      // need to be deduplicated.
+      continue;
+    }
+    archive_lib = lib_iter;
+    break;
+  }
+  if (!archive_lib) {
+    archive_lib = add_archive_library(bmain, *reference_library);
+    reference_library->runtime->archived_libraries.append(archive_lib);
+  }
+  BLI_assert(reference_library->runtime->archived_libraries.contains(archive_lib));
+  return archive_lib;
+}
+
+/**
+ * Embed given linked IDs. Low-level code, assumes all given IDs are valid and safe to embed.
+ *
+ * Will set final embedded ID into each ID::newid pointers.
+ */
+static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed)
 {
   blender::VectorSet<ID *> final_ids_to_embed;
+  blender::VectorSet<ID *> ids_to_remap;
+  blender::bke::id::IDRemapper id_remap;
 
   for (ID *id : ids_to_embed) {
     BLI_assert(ID_IS_LINKED(id));
@@ -435,46 +495,43 @@ void blender::bke::library::embed_linked_ids(Main &bmain, const blender::Set<ID 
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
 
   for (ID *id : final_ids_to_embed) {
-    /* Find an existing archive Library ID not containing a 'version' of this ID yet. */
-    Library *reference_lib = id->lib;
-    Library *archive_lib = nullptr;
-    LISTBASE_FOREACH (Library *, lib_iter, &bmain.libraries) {
-      if ((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
-        continue;
-      }
-      BLI_assert(lib_iter->archive_parent_library != nullptr);
-      if (lib_iter->archive_parent_library != reference_lib) {
-        continue;
-      }
-      /* Check if current archive library already contains an ID of same type and name. */
-      if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id->name), BKE_id_name(*id))) {
-        // TODO: If the ID in that library has the same deep hash as the ID we want to embed, they
-        // need to be deduplicated.
-        continue;
-      }
-      archive_lib = lib_iter;
-      break;
-    }
-    if (!archive_lib) {
-      archive_lib = add_archive_library(bmain, *reference_lib);
-      reference_lib->runtime->archived_libraries.append(archive_lib);
-    }
-    BLI_assert(reference_lib->runtime->archived_libraries.contains(archive_lib));
+    /* TODO: lookup existing ID with same hash. */
 
-    /* Move the ID into its new archive library and mark it as embedded. */
-    BKE_main_namemap_remove_id(bmain, *id);
-    id->lib = archive_lib;
-    id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
-    /* Technically, this ID becomes a new data (since it comes from a new library), so its session
-     * UID needs to be renewed. */
-    BKE_lib_libblock_session_uid_renew(id);
-    const IDHash &deep_hash = deep_hashes.hashes.lookup(id);
-    id->deep_hash = deep_hash;
-    ListBase &lb = *which_libbase(&bmain, GS(id->name));
-    BKE_id_new_name_validate(
-        bmain, lb, *id, BKE_id_name(*id), IDNewNameMode::RenameExistingNever, true);
-    id->newid = id;
+    /* Find an existing archive Library not containing a 'version' of this ID yet. */
+    Library *archive_lib = get_archive_library(bmain, id);
+
+    ID *new_id = BKE_id_copy_in_lib(&bmain,
+                                    archive_lib,
+                                    id,
+                                    std::nullopt,
+                                    nullptr,
+                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
+                                        LIB_ID_COPY_NO_ANIMDATA);
+    id_us_min(new_id);
+
+    BLI_assert(new_id);
+    BLI_assert(new_id->lib == archive_lib);
+    BLI_assert(new_id->flag & ID_FLAG_LINKED_AND_EMBEDDED);
+    new_id->deep_hash = deep_hashes.hashes.lookup(id);
+    id_remap.add(id, new_id);
+    ids_to_remap.add(new_id);
+
+    /* Handle 'fake-embedded' ShapeKeys IDs */
+    {
+      Key *key = BKE_key_from_id(id);
+      Key *new_key = BKE_key_from_id(new_id);
+      if (key) {
+        BLI_assert(new_key);
+        BLI_assert(new_key->id.lib == new_id->lib);
+        BLI_assert(new_key->id.flag & ID_FLAG_LINKED_AND_EMBEDDED);
+        /* Shapekeys are 'normal' IDs, they need their deephash, unlike real embedded ones. */
+        new_key->id.deep_hash = deep_hashes.hashes.lookup(&key->id);
+        id_remap.add(&key->id, &new_key->id);
+        ids_to_remap.add(&new_key->id);
+      }
+    }
   }
+  BKE_libblock_relink_multiple(&bmain, ids_to_remap.as_span(), ID_REMAP_TYPE_REMAP, id_remap, 0);
 }
 
 void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
@@ -493,6 +550,13 @@ void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
       &root_id,
 
       [&](LibraryIDLinkCallbackData *cb_data) -> int {
+        if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+          return IDWALK_RET_NOP;
+        }
+        if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+          return IDWALK_RET_NOP;
+        }
+
         ID *referenced_id = *cb_data->id_pointer;
         if (!referenced_id) {
           return IDWALK_RET_NOP;
@@ -515,11 +579,17 @@ void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
               &LOG, "Non-embedded data-block references embedded data-block which is not allowed");
           return IDWALK_RET_NOP;
         }
+        if (GS(referenced_id->name) == ID_KE) {
+          /* Shape keys cannot be directly linked, from linking code PoV they behave as embedded
+           * data (i.e. their owning data is reposible to handle them). */
+          return IDWALK_RET_NOP;
+        }
+
         ids_to_embed.add(referenced_id);
         return IDWALK_RET_NOP;
       },
       nullptr,
       IDWALK_READONLY | IDWALK_RECURSE);
 
-  blender::bke::library::embed_linked_ids(bmain, ids_to_embed);
+  embed_linked_ids(bmain, ids_to_embed);
 }

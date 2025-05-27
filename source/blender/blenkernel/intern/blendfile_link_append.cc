@@ -940,6 +940,31 @@ static bool foreach_libblock_link_append_common_processing(
 
 /** \} */
 
+/** \name Library embedding code.
+ * \{ */
+
+void BKE_blendfile_link_embed(BlendfileLinkAppendContext *lapp_context, ReportList * /*reports*/)
+{
+  Main *bmain = lapp_context->params->bmain;
+
+  for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+    ID *id = item.new_id;
+    BLI_assert(ID_IS_LINKED(id));
+    if (!(ID_IS_LINKED_EMBEDDED(id) || (id->newid && ID_IS_LINKED_EMBEDDED(id->newid)))) {
+      /* No yet embedded. */
+      blender::bke::library::embed_linked_id_hierarchy(*bmain, *id);
+    }
+    /* Calling code may want to access newly linked embedded IDs from the link/append context
+     * items. */
+    if (id->newid) {
+      item.new_id = id->newid;
+    }
+  }
+  BKE_main_id_newptr_and_tag_clear(bmain);
+}
+
+/** \} */
+
 /** \name Library append code.
  * \{ */
 

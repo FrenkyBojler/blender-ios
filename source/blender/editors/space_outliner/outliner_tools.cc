@@ -1639,6 +1639,7 @@ static void id_embed_linked(bContext *C,
   }
   Main *bmain = CTX_data_main(C);
   blender::bke::library::embed_linked_id_hierarchy(*bmain, *root_id);
+  BKE_main_id_newptr_and_tag_clear(bmain);
 }
 
 static void singleuser_action_fn(bContext *C,

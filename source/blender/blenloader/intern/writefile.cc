@@ -1196,17 +1196,17 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     /* Write placeholders or embedded data for linked data-blocks that are used. */
     for (ID *id : ids_used_from_library) {
-      if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-        CLOG_ERROR(&LOG,
-                   "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
-                   "directly linked",
-                   id->name,
-                   library.runtime->filepath_abs);
-      }
       if (ID_IS_LINKED_EMBEDDED(id)) {
         write_id(wd, id);
       }
       else {
+        if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+          CLOG_ERROR(&LOG,
+                     "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
+                     "directly linked",
+                     id->name,
+                     library.runtime->filepath_abs);
+        }
         writestruct(wd, ID_LINK_PLACEHOLDER, ID, 1, id);
       }
     }

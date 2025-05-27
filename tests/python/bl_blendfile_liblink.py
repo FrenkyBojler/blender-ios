@@ -515,6 +515,9 @@ class TestBlendLibEmbeddedLinkedID(TestBlendLibLinkHelper):
 
         bpy.data.embed_linked_ids_hierarchy(bpy.data.objects[0]);
 
+        # Need to ensure that the newly embedded linked object is used, and kept in the scene.
+        bpy.data.scenes[0].collection.objects.link(bpy.data.objects[1])
+
         self.assertEqual(len(bpy.data.libraries), 2)
         library = bpy.data.libraries[0]
         archive_library = bpy.data.libraries[1]
@@ -525,13 +528,17 @@ class TestBlendLibEmbeddedLinkedID(TestBlendLibLinkHelper):
         self.assertTrue(archive_library.is_archive)
         self.assertEqual(archive_library.archive_parent_library, library)
 
-        self.assertEqual(len(bpy.data.meshes), 1)
-        for me in bpy.data.meshes:
-                self.assertEqual(me.library, archive_library)
-                self.assertEqual(me.users, 1)
-        self.assertEqual(len(bpy.data.objects), 1)
-        for ob in bpy.data.objects:
-            self.assertEqual(ob.library, archive_library)
+        self.assertEqual(len(bpy.data.meshes), 2)
+        self.assertEqual(bpy.data.meshes[0].library, library)
+        self.assertEqual(bpy.data.meshes[0].users, 1)
+        self.assertEqual(bpy.data.meshes[1].library, archive_library)
+        self.assertEqual(bpy.data.meshes[1].users, 1)
+
+        self.assertEqual(len(bpy.data.objects), 2)
+        self.assertEqual(bpy.data.objects[0].library, library)
+        self.assertEqual(bpy.data.objects[0].data, bpy.data.meshes[0])
+        self.assertEqual(bpy.data.objects[1].library, archive_library)
+        self.assertEqual(bpy.data.objects[1].data, bpy.data.meshes[1])
 
         output_work_path = os.path.join(output_dir, self.unique_blendfile_name("blendfile"))
         bpy.ops.wm.save_as_mainfile(filepath=output_work_path, check_existing=False, compress=False)
@@ -550,13 +557,15 @@ class TestBlendLibEmbeddedLinkedID(TestBlendLibLinkHelper):
         self.assertTrue(archive_library.is_archive)
         self.assertEqual(archive_library.archive_parent_library, library)
 
-        self.assertEqual(len(bpy.data.meshes), 1)
-        for me in bpy.data.meshes:
-                self.assertEqual(me.library, archive_library)
-                self.assertEqual(me.users, 1)
-        self.assertEqual(len(bpy.data.objects), 1)
-        for ob in bpy.data.objects:
-            self.assertEqual(ob.library, archive_library)
+        self.assertEqual(len(bpy.data.meshes), 2)
+        self.assertEqual(bpy.data.meshes[0].library, library)
+        self.assertEqual(bpy.data.meshes[0].users, 1)
+        self.assertEqual(bpy.data.meshes[1].library, archive_library)
+        self.assertEqual(bpy.data.meshes[1].users, 1)
+
+        self.assertEqual(len(bpy.data.objects), 2)
+        self.assertEqual(bpy.data.objects[0].library, library)
+        self.assertEqual(bpy.data.objects[1].library, archive_library)
 
 
 class TestBlendLibLibraryReload(TestBlendLibLinkHelper):

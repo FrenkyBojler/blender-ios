@@ -730,16 +730,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   BKE_blendfile_link(lapp_context, nullptr);
 
   if (do_embed) {
-    blender::Set<ID *> ids_to_embed;
-    for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
-      ID *id = item.new_id;
-      BLI_assert(ID_IS_LINKED(id));
-      if (ID_IS_LINKED_EMBEDDED(id)) {
-        /* Embedded already. */
-        continue;
-      }
-      blender::bke::library::embed_linked_id_hierarchy(*bmain, *id);
-    }
+    BKE_blendfile_link_embed(lapp_context, nullptr);
   }
   else if (do_append) {
     BKE_blendfile_append(lapp_context, nullptr);
