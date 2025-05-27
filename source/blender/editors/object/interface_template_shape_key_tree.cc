@@ -249,9 +249,9 @@ void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
       "Shape Key Tree View",
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(4);
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
-}
-}  // blender::ed::object::shapekey
+}  // namespace template_tree
+}  // namespace blender::ed::object::shapekey
