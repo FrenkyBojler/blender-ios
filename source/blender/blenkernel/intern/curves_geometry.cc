@@ -1588,6 +1588,15 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
   *this = curves_copy_curve_selection(*this, curves_to_copy, attribute_filter);
 }
 
+static void reverse_custom_knots(MutableSpan<float> custom_knots)
+{
+  const float last = custom_knots.last();
+  custom_knots.reverse();
+  for (float &knot_value : custom_knots) {
+    knot_value = last - knot_value;
+  }
+}
+
 template<typename T>
 static void reverse_curve_point_data(const CurvesGeometry &curves,
                                      const IndexMask &curve_selection,
@@ -1649,6 +1658,17 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
     attribute.finish();
     return;
   });
+
+  if (this->nurbs_has_custom_knots()) {
+    const OffsetIndices custom_knots_by_curve = this->nurbs_custom_knots_by_curve();
+    MutableSpan<float> custom_knots = this->nurbs_custom_knots_for_write();
+    curves_to_reverse.foreach_index(GrainSize(256), [&](const int64_t curve) {
+      const IndexRange curve_knots = custom_knots_by_curve[curve];
+      if (!custom_knots.is_empty()) {
+        reverse_custom_knots(custom_knots.slice(curve_knots));
+      }
+    });
+  }
 
   /* In order to maintain the shape of Bezier curves, handle attributes must reverse, but also the
    * values for the left and right must swap. Use a utility to swap and reverse at the same time,
