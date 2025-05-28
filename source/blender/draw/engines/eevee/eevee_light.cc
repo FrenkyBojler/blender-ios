@@ -513,6 +513,10 @@ void LightModule::end_sync()
 
 void LightModule::culling_pass_sync()
 {
+  if (!inst_.is_loaded(LIGHT_CULLING_SHADERS)) {
+    return;
+  }
+
   uint safe_lights_len = max_ii(lights_len_, 1);
   uint culling_select_dispatch_size = divide_ceil_u(safe_lights_len, CULLING_SELECT_GROUP_SIZE);
   uint culling_sort_dispatch_size = divide_ceil_u(safe_lights_len, CULLING_SORT_GROUP_SIZE);
@@ -566,6 +570,9 @@ void LightModule::culling_pass_sync()
 
 void LightModule::update_pass_sync()
 {
+  if (!inst_.is_loaded(LIGHT_CULLING_SHADERS)) {
+    return;
+  }
   /* TODO(fclem): This dispatch for all light before culling. This could be made better by
    * only running on lights that survive culling using an indirect dispatch. */
   uint safe_lights_len = max_ii(lights_len_, 1);

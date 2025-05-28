@@ -209,7 +209,9 @@ void Instance::init(const int2 &output_res,
   lookdev.init(visible_rect);
 
   /* Request static shaders */
-  LoadedBits request_bits = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS;
+  LoadedBits request_bits = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS |
+                            HIZ_SHADERS | SPHERE_PROBE_SHADERS | VOLUME_PROBE_SHADERS |
+                            LIGHT_CULLING_SHADERS;
   SET_FLAG_FROM_TEST(request_bits, depth_of_field.postfx_enabled(), DEPTH_OF_FIELD_SHADERS);
   SET_FLAG_FROM_TEST(request_bits, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
   SET_FLAG_FROM_TEST(request_bits, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
@@ -218,8 +220,11 @@ void Instance::init(const int2 &output_res,
   SET_FLAG_FROM_TEST(request_bits, raytracing.use_raytracing(), RAYTRACING_SHADERS);
 
   loaded = LoadedBits::NONE;
-  loaded |= shaders.static_shaders_load_async(request_bits);
+  /* Deferred lighting shaders are the slowest to compile. Schedule first. */
+  loaded |= shaders.static_shaders_load_async(DEFERRED_LIGHTING_SHADERS);
+  /* Default materials are needed to unlock the scheduling of the scene materials. */
   loaded |= materials.default_materials_load_async();
+  loaded |= shaders.static_shaders_load_async(request_bits);
 
   if (is_image_render) {
     /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
@@ -358,7 +363,7 @@ void Instance::begin_sync()
 
 void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 {
-  if (skip_render_) {
+  if (skip_render_ || !is_loaded(DEFAULT_MATERIALS)) {
     return;
   }
 

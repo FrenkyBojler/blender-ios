@@ -146,6 +146,10 @@ void VolumeProbeModule::bricks_free(Vector<IrradianceBrickPacked> &bricks)
 
 void VolumeProbeModule::set_view(View & /*view*/)
 {
+  if (!inst_.is_loaded(SPHERE_PROBE_SHADERS | VOLUME_PROBE_SHADERS)) {
+    return;
+  }
+
   Vector<VolumeProbe *> grid_loaded;
 
   bool any_update = false;

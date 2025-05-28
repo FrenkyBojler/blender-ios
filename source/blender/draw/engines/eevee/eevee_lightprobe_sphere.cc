@@ -30,6 +30,10 @@ void SphereProbeModule::init()
 
 void SphereProbeModule::begin_sync()
 {
+  if (!instance_.is_loaded(SPHERE_PROBE_SHADERS)) {
+    return;
+  }
+
   LightProbeModule &light_probes = instance_.light_probes;
   SphereProbeData &world_data = *static_cast<SphereProbeData *>(&light_probes.world_sphere_);
   {

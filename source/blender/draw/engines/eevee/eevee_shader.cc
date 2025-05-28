@@ -268,10 +268,8 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
     request(compilation_handles_.light, LIGHT_CULLING_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const eShaderType shader_list[] = {LIGHTPROBE_IRRADIANCE_BOUNDS,
-                                       LIGHTPROBE_IRRADIANCE_OFFSET,
-                                       LIGHTPROBE_IRRADIANCE_RAY,
-                                       LIGHTPROBE_IRRADIANCE_LOAD};
+    const eShaderType shader_list[] = {
+        LIGHTPROBE_IRRADIANCE_BOUNDS, LIGHTPROBE_IRRADIANCE_OFFSET, LIGHTPROBE_IRRADIANCE_RAY};
     request(
         compilation_handles_.lightprobe_irradiance, IRRADIANCE_BAKE_SHADERS, AS_SPAN(shader_list));
   }
@@ -299,9 +297,12 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        SPHERE_PROBE_IRRADIANCE,
                                        SPHERE_PROBE_REMAP,
                                        SPHERE_PROBE_SELECT,
-                                       SPHERE_PROBE_SUNLIGHT,
-                                       LIGHTPROBE_IRRADIANCE_WORLD};
+                                       SPHERE_PROBE_SUNLIGHT};
     request(compilation_handles_.sphere_probe, SPHERE_PROBE_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {LIGHTPROBE_IRRADIANCE_WORLD, LIGHTPROBE_IRRADIANCE_LOAD};
+    request(compilation_handles_.sphere_probe, VOLUME_PROBE_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SHADOW_CLIPMAP_CLEAR,
