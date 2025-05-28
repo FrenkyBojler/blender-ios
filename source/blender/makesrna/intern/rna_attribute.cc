@@ -454,7 +454,7 @@ static bool rna_Attribute_is_internal_get(PointerRNA *ptr)
   using namespace blender;
   if (GS(ptr->owner_id->name) == ID_PT) {
     const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
-    return bke::allow_procedural_attribute_access(attr->name());
+    return !bke::allow_procedural_attribute_access(attr->name());
   }
 
   const CustomDataLayer *layer = (const CustomDataLayer *)ptr->data;
