@@ -522,8 +522,7 @@ static void read_file_bhead_idname_map_create(FileData *fd)
        * 'invalid-named IDs' are skipped here, which will e.g. prevent them from being linked. */
       const char *idname = blo_bhead_id_name(fd, bhead);
       if (idname) {
-        const blender::StringRefNull name = idname;
-        fd->bhead_idname_map->add(name, bhead);
+        fd->bhead_idname_map->add(idname, bhead);
       }
     }
   }
