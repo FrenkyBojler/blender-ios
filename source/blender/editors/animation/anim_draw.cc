@@ -72,7 +72,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 /* PREVIEW RANGE 'CURTAINS' */
 /* NOTE: 'Preview Range' tools are defined in `anim_ops.cc`. */
 
-void ANIM_draw_previewrange(Scene *scene, View2D *v2d, int end_frame_width)
+void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width)
 {
   /* Only draw this if preview range is set. */
   if (PRVRANGEON) {
