@@ -4304,7 +4304,7 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, 10.0f, "Radius", "", 0.0f, 10.0f);
   RNA_def_float_factor(
       ot->srna, "offset_factor", -1.0f, -1.0f, 1.0f, "Offset Factor", "", -1.0f, 1.0f);
-  RNA_def_int(ot->srna, "corner_subdivisions", 2, 1, 100, "Corner Subdivisions", "", 1, 10);
+  RNA_def_int(ot->srna, "corner_subdivisions", 2, 0, 10, "Corner Subdivisions", "", 0, 5);
 }
 
 /** \} */
