@@ -575,6 +575,43 @@ static void format_with_hash_syntax(const StringRef format_pattern,
   }
 }
 
+static void format_without_format_specifier(const GVArray &input,
+                                            const IndexMask &mask,
+                                            MutableSpan<std::string> r_formatted_strings,
+                                            std::optional<std::string> &r_error)
+{
+  const CPPType &type = input.type();
+  if (type.is<float>()) {
+    mask.foreach_index([&](const int64_t i) {
+      const float value = input.get<float>(i);
+      std::string &output = r_formatted_strings[i];
+      std::string value_str = fmt::format("{}", value);
+      /* Add ".0" if there are no decimals yet to match Python. */
+      if (StringRef(value_str).find_first_not_of("-0123456789") == StringRef::not_found) {
+        value_str.append(".0");
+      }
+      output += value_str;
+    });
+  }
+  else if (type.is<int>()) {
+    mask.foreach_index([&](const int64_t i) {
+      const int64_t value = input.get<int>(i);
+      std::string &output = r_formatted_strings[i];
+      output += fmt::format("{}", value);
+    });
+  }
+  else if (type.is<std::string>()) {
+    mask.foreach_index([&](const int64_t i) {
+      const std::string value = input.get<std::string>(i);
+      std::string &output = r_formatted_strings[i];
+      output += value;
+    });
+  }
+  else if (!r_error) {
+    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
+  }
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
@@ -637,7 +674,10 @@ static bool format_strings(const StringRef format,
       return false;
     }
 
-    if (format_pattern.find('#') == StringRef::not_found) {
+    if (format_pattern.is_empty()) {
+      format_without_format_specifier(*input, mask, r_formatted_strings, r_error);
+    }
+    else if (format_pattern.find('#') == StringRef::not_found) {
       format_with_python_compatible_syntax(format_pattern,
                                            *format_outer,
                                            *input,
