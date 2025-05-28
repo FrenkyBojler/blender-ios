@@ -183,6 +183,20 @@ void pyrna_invalidate(BPy_DummyPointerRNA *self)
   self->ptr->invalidate();
 }
 
+static void pyrna_prop_warn_deprecated(const PointerRNA *ptr, const PropertyRNA *prop)
+{
+  const char *deprecated = RNA_property_deprecated(prop);
+  const int version = RNA_property_deprecated_removal_version(prop);
+  PyErr_WarnFormat(PyExc_DeprecationWarning,
+                   1,
+                   "'%s.%s' is expected to be removed in Blender %d.%d",
+                   RNA_struct_identifier(ptr->type),
+                   RNA_property_identifier(prop),
+                   version / 100,
+                   version % 100,
+                   deprecated);
+}
+
 #ifdef USE_PYRNA_INVALIDATE_GC
 #  define FROM_GC(g) ((PyObject *)(((PyGC_Head *)g) + 1))
 
@@ -1436,16 +1450,8 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
   PyObject *ret;
   const int type = RNA_property_type(prop);
 
-  if (const char *deprecated = RNA_property_deprecated(prop)) {
-    const int version = RNA_property_deprecated_removal_version(prop);
-    PyErr_WarnFormat(PyExc_DeprecationWarning,
-                     1,
-                     "deprecated property access to '%s.%s', expected removal %d.%d: %s",
-                     RNA_struct_identifier(ptr->type),
-                     RNA_property_identifier(prop),
-                     version / 100,
-                     version % 100,
-                     deprecated);
+  if (RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop);
   }
 
   if (RNA_property_array_check(prop)) {
@@ -1619,16 +1625,8 @@ static int pyrna_py_to_prop(
   /* XXX hard limits should be checked here. */
   const int type = RNA_property_type(prop);
 
-  if (const char *deprecated = RNA_property_deprecated(prop)) {
-    const int version = RNA_property_deprecated_removal_version(prop);
-    PyErr_WarnFormat(PyExc_DeprecationWarning,
-                     1,
-                     "deprecated property assignment to '%s.%s', expected removal %d.%d: %s",
-                     RNA_struct_identifier(ptr->type),
-                     RNA_property_identifier(prop),
-                     version / 100,
-                     version % 100,
-                     deprecated);
+  if (RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop);
   }
 
   if (RNA_property_array_check(prop)) {
