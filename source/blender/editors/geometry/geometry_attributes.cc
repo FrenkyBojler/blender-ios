@@ -307,15 +307,15 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
     }
     bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
     const int domain_size = accessor.domain_size(bke::AttrDomain(domain));
-    std::string unique_name = attributes.unique_name_calc(name);
-
+    
     const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
-    attributes.add(unique_name,
+bke::Attribute &attr =     attributes.add(
+        attributes.unique_name_calc(name),
                    bke::AttrDomain(domain),
                    *bke::custom_data_type_to_attr_type(type),
                    bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
 
-    BKE_attributes_active_set(owner, unique_name);
+    BKE_attributes_active_set(owner, attr.name());
 
     DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, id);
