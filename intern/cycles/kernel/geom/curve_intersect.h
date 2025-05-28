@@ -25,6 +25,23 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __HAIR__
 
+/* Linear curve evaluation. */
+
+ccl_device_inline float4 linear_basis_eval(const float4 curve[4], float u)
+{
+  return mix(curve[1], curve[2], u);
+}
+
+ccl_device_inline float4 linear_basis_derivative(const float4 curve[4], float)
+{
+  return curve[2] - curve[1];
+}
+
+ccl_device_inline float4 linear_basis_derivative2(const float4[4], float)
+{
+  return zero_float4();
+}
+
 /* Catmull-rom curve evaluation. */
 
 ccl_device_inline float4 catmull_rom_basis_eval(const float4 curve[4], float u)
@@ -51,7 +68,6 @@ ccl_device_inline float4 catmull_rom_basis_derivative(const float4 curve[4], flo
 
 ccl_device_inline float4 catmull_rom_basis_derivative2(const float4 curve[4], float u)
 {
-
   const float t = u;
   const float n0 = -3.0f * t + 2.0f;
   const float n1 = 9.0f * t - 5.0f;
@@ -61,6 +77,27 @@ ccl_device_inline float4 catmull_rom_basis_derivative2(const float4 curve[4], fl
 }
 
 /* Thick Curve */
+
+ccl_device_inline float4 curve_eval(const float4 curve[4], float u, int type)
+{
+  return (type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+             linear_basis_eval(curve, u) :
+             catmull_rom_basis_eval(curve, u);
+}
+
+ccl_device_inline float4 curve_derivative(const float4 curve[4], float u, int type)
+{
+  return (type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+             linear_basis_derivative(curve, u) :
+             catmull_rom_basis_derivative(curve, u);
+}
+
+ccl_device_inline float4 curve_derivative2(const float4 curve[4], float u, int type)
+{
+  return (type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+             linear_basis_derivative2(curve, u) :
+             catmull_rom_basis_derivative2(curve, u);
+}
 
 ccl_device_inline float3 dnormalize(const float3 p, const float3 dp)
 {
@@ -724,7 +761,7 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
 
   P = P + D * t;
 
-  const float4 dPdu4 = catmull_rom_basis_derivative(P_curve, sd->u);
+  const float4 dPdu4 = curve_derivative(P_curve, sd->u, sd->type);
   const float3 dPdu = make_float3(dPdu4);
 
   if ((sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_RIBBON) {
@@ -749,9 +786,7 @@ ccl_device_inline void curve_shader_setup(KernelGlobals kg,
      * however for Optix this would go beyond the size of the payload. */
     /* NOTE: It is possible that P will be the same as P_inside (precision issues, or very small
      * radius). In this case use the view direction to approximate the normal. */
-    const float3 P_inside = (sd->type & PRIMITIVE_CURVE_RIBBON) ?
-                                make_float3(mix(P_curve[1], P_curve[2], sd->u)) :
-                                make_float3(catmull_rom_basis_eval(P_curve, sd->u));
+    const float3 P_inside = make_float3(curve_eval(P_curve, sd->u, sd->type));
     const float3 N = (!isequal(P, P_inside)) ? normalize(P - P_inside) : -sd->wi;
 
     sd->N = N;

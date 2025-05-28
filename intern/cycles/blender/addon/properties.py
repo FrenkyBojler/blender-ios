@@ -63,6 +63,7 @@ enum_filter_types = (
 enum_curve_shape = (
     ('RIBBONS', "Rounded Ribbons", "Render curves as flat ribbons with rounded normals, for fast rendering"),
     ('THICK', "3D Curves", "Render curves as circular 3D geometry, for accurate results when viewing closely"),
+    ('THICK_LINEAR', "Linear 3D Curves", "Render curves as circular 3D geometry, with linear interpolation between control points, for fast rendering"),
 )
 
 enum_use_layer_samples = (
@@ -1085,10 +1086,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     debug_use_optix_debug: BoolProperty(
         name="OptiX Module Debug",
         description="Load OptiX module in debug mode: lower logging verbosity level, enable validations, and lower optimization level",
-        default=False)
-    debug_use_optix_linear_curves: BoolProperty(
-        name="OptiX Linear Curves",
-        description="Use linear instead of Catmull-Rom curve intersection (which has hardware acceleration on Blackwell)",
         default=False)
 
     debug_use_hip_adaptive_compile: BoolProperty(

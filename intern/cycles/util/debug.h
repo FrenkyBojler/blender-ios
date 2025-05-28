@@ -80,9 +80,6 @@ class DebugFlags {
     /* Load OptiX module with debug capabilities. Will lower logging verbosity level, enable
      * validations, and lower optimization level. */
     bool use_debug = false;
-
-    /* Use linear instead of Catmull-Rom curve intersection (which has hardware acceleration on Blackwell). */
-    bool linear_curves = false;
   };
 
   /* Descriptor of Metal feature-set to be used. */

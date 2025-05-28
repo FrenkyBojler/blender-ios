@@ -377,11 +377,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   pipeline_options.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
   if (kernel_features & KERNEL_FEATURE_HAIR) {
     if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
+      pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
 #  if OPTIX_ABI_VERSION >= 55
-      if (DebugFlags().optix.linear_curves)
-        pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR;
-      else
-        pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
+      pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
 #  else
       pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CUBIC_BSPLINE;
 #  endif
@@ -472,10 +470,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       /* Built-in thick curve intersection. */
       OptixBuiltinISOptions builtin_options = {};
 #  if OPTIX_ABI_VERSION >= 55
-      if (DebugFlags().optix.linear_curves)
-        builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
-      else
-        builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+      builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
       builtin_options.buildFlags = OPTIX_BUILD_FLAG_PREFER_FAST_TRACE |
                                    OPTIX_BUILD_FLAG_ALLOW_COMPACTION |
                                    OPTIX_BUILD_FLAG_ALLOW_UPDATE;
@@ -503,6 +498,29 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
         group_descs[PG_HITD_MOTION].hitgroup.moduleIS = builtin_modules[1];
         group_descs[PG_HITS_MOTION] = group_descs[PG_HITS];
         group_descs[PG_HITS_MOTION].hitgroup.moduleIS = builtin_modules[1];
+      }
+
+      builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+      builtin_options.usesMotionBlur = false;
+
+      optix_assert(optixBuiltinISModuleGet(
+          context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[2]));
+
+      group_descs[PG_HITD_CURVE_LINEAR] = group_descs[PG_HITD];
+      group_descs[PG_HITD_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
+      group_descs[PG_HITS_CURVE_LINEAR] = group_descs[PG_HITS];
+      group_descs[PG_HITS_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
+
+      if (pipeline_options.usesMotionBlur) {
+        builtin_options.usesMotionBlur = true;
+
+        optix_assert(optixBuiltinISModuleGet(
+            context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[3]));
+
+        group_descs[PG_HITD_CURVE_LINEAR_MOTION] = group_descs[PG_HITD_CURVE_LINEAR];
+        group_descs[PG_HITD_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
+        group_descs[PG_HITS_CURVE_LINEAR_MOTION] = group_descs[PG_HITS_CURVE_LINEAR];
+        group_descs[PG_HITS_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
       }
     }
     else {
@@ -658,6 +676,16 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   trace_css = std::max(trace_css,
                        stack_size[PG_HITS_MOTION].cssIS + stack_size[PG_HITS_MOTION].cssAH);
   trace_css = std::max(
+      trace_css, stack_size[PG_HITD_CURVE_LINEAR].cssIS + stack_size[PG_HITD_CURVE_LINEAR].cssAH);
+  trace_css = std::max(
+      trace_css, stack_size[PG_HITS_CURVE_LINEAR].cssIS + stack_size[PG_HITS_CURVE_LINEAR].cssAH);
+  trace_css = std::max(trace_css,
+                       stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssIS +
+                           stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssAH);
+  trace_css = std::max(trace_css,
+                       stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssIS +
+                           stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssAH);
+  trace_css = std::max(
       trace_css, stack_size[PG_HITD_POINTCLOUD].cssIS + stack_size[PG_HITD_POINTCLOUD].cssAH);
   trace_css = std::max(
       trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
@@ -691,6 +719,14 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     if (pipeline_options.usesMotionBlur) {
       pipeline_groups.push_back(groups[PG_HITD_MOTION]);
       pipeline_groups.push_back(groups[PG_HITS_MOTION]);
+    }
+    if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
+      pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR]);
+      if (pipeline_options.usesMotionBlur) {
+        pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR_MOTION]);
+      }
     }
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
@@ -734,6 +770,14 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     if (pipeline_options.usesMotionBlur) {
       pipeline_groups.push_back(groups[PG_HITD_MOTION]);
       pipeline_groups.push_back(groups[PG_HITS_MOTION]);
+    }
+    if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
+      pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR]);
+      if (pipeline_options.usesMotionBlur) {
+        pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR_MOTION]);
+      }
     }
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
@@ -1199,12 +1243,14 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
       /* Four control points for each curve segment. */
       size_t num_vertices = num_segments * 4;
-      if (hair->curve_shape == CURVE_THICK) {
+      if (hair->curve_shape == CURVE_THICK_LINEAR) {
+        num_vertices = hair->num_keys();
+        index_data.alloc(num_segments);
+        vertex_data.alloc(num_vertices * num_motion_steps);
+      }
+      else if (hair->curve_shape == CURVE_THICK) {
 #  if OPTIX_ABI_VERSION >= 55
-        if (DebugFlags().optix.linear_curves)
-          num_vertices = hair->num_keys();
-        else
-          num_vertices = hair->num_keys() + 2 * hair->num_curves();
+        num_vertices = hair->num_keys() + 2 * hair->num_curves();
 #  endif
         index_data.alloc(num_segments);
         vertex_data.alloc(num_vertices * num_motion_steps);
@@ -1225,7 +1271,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         }
 
 #  if OPTIX_ABI_VERSION >= 55
-        if (hair->curve_shape == CURVE_THICK) {
+        if (hair->curve_shape == CURVE_THICK || hair->curve_shape == CURVE_THICK_LINEAR) {
           for (size_t curve_index = 0, segment_index = 0, vertex_index = step * num_vertices;
                curve_index < hair->num_curves();
                ++curve_index)
@@ -1233,7 +1279,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
             const Hair::Curve curve = hair->get_curve(curve_index);
             const array<float> &curve_radius = hair->get_curve_radius();
 
-            if (DebugFlags().optix.linear_curves) {
+            if (hair->curve_shape == CURVE_THICK_LINEAR) {
               const int first_key_index = curve.first_key;
 
               for (int k = 0; k < curve.num_segments(); ++k) {
@@ -1368,15 +1414,15 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       /* Force a single any-hit call, so shadow record-all behavior works correctly. */
       unsigned int build_flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
       OptixBuildInput build_input = {};
-      if (hair->curve_shape == CURVE_THICK) {
+      if (hair->curve_shape != CURVE_RIBBON) {
         build_input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
-#  if OPTIX_ABI_VERSION >= 55
-        if (DebugFlags().optix.linear_curves)
+        if (hair->curve_shape == CURVE_THICK_LINEAR)
           build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
         else
+#  if OPTIX_ABI_VERSION >= 55
           build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
 #  else
-        build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE;
+          build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE;
 #  endif
         build_input.curveArray.numPrimitives = num_segments;
         build_input.curveArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
@@ -1651,11 +1697,19 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       }
 
       if (ob->get_geometry()->is_hair() &&
-          static_cast<const Hair *>(ob->get_geometry())->curve_shape == CURVE_THICK)
+          static_cast<const Hair *>(ob->get_geometry())->curve_shape != CURVE_RIBBON)
       {
-        if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
-          /* Select between motion blur and non-motion blur built-in intersection module. */
-          instance.sbtOffset = PG_HITD_MOTION - PG_HITD;
+        if (static_cast<const Hair *>(ob->get_geometry())->curve_shape == CURVE_THICK_LINEAR) {
+          instance.sbtOffset = PG_HITD_CURVE_LINEAR - PG_HITD;
+          if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
+            instance.sbtOffset = PG_HITD_CURVE_LINEAR_MOTION - PG_HITD;
+          }
+        }
+        else {
+          if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
+            /* Select between motion blur and non-motion blur built-in intersection module. */
+            instance.sbtOffset = PG_HITD_MOTION - PG_HITD;
+          }
         }
       }
       else if (ob->get_geometry()->is_pointcloud()) {
