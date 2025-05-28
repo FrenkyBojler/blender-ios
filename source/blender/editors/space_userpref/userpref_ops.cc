@@ -286,6 +286,8 @@ static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
+  U.runtime.is_dirty = true;
+
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
