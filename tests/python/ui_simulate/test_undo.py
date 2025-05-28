@@ -69,20 +69,24 @@ def _window_size_in_pixels(window):
     return size
 
 
-def _cursor_motion_data_x(window, y_offset):
+def _cursor_motion_data_x(window, y_offset, step_size = 80):
     size = _window_size_in_pixels(window)
-    return [
-        (x, (size[1] // 2) + y_offset) for x in
-        range(int(size[0] * 0.2), int(size[0] * 0.8), 80)
+    y_pos = (size[1] // 2) + y_offset
+    positions = [
+        (x, y_pos) for x in
+        range(int(size[0] * 0.05), int(size[0] * 0.95), step_size)
     ]
+    return positions
 
 
-def _cursor_motion_data_y(window, x_offset):
+def _cursor_motion_data_y(window, x_offset, step_size = 80):
     size = _window_size_in_pixels(window)
-    return [
-        ((size[0] // 2) + x_offset, y) for y in
-        range(int(size[1] * 0.2), int(size[1] * 0.8), 80)
+    x_pos = (size[0] // 2) + x_offset
+    positions = [
+        (x_pos, y) for y in
+        range(int(size[1] * 0.05), int(size[1] * 0.95), step_size)
     ]
+    return positions
 
 
 def _window_area_get_by_type(window, space_type):
@@ -355,24 +359,17 @@ def view3d_sculpt_performance():
     yield e.shift.f5()                  # 3D Viewport.
     yield e.ctrl.alt.space()            # Full-screen.
 
-    yield e.f().text("50").ret()        # Adjust size
+    yield e.f().text("25").ret()        # Adjust size
 
     print("Horizontal Strokes")
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -600))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -400))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, -200))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 0))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 200))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 400))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_x(window, 600))
+    horizontal_strokes = [_cursor_motion_data_x(window, offset, step_size=200) for offset in range(-600, 600, 200)]
+    all_horizontal_strokes = [pos for sublist in horizontal_strokes for pos in sublist]
+    yield from e.leftmouse.cursor_motion(all_horizontal_strokes)
     print("Vertical Strokes")
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -600))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -400))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, -200))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 0))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 200))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 400))
-    yield from e.leftmouse.cursor_motion(_cursor_motion_data_y(window, 600))
+    vertical_strokes = [_cursor_motion_data_y(window, offset, step_size=200) for offset in range(-600, 600, 200)]
+    all_vertical_strokes = [pos for sublist in vertical_strokes for pos in sublist]
+    yield from e.leftmouse.cursor_motion(all_vertical_strokes)
+
 
 def view3d_sculpt_with_memfile_step():
     e, t = _test_vars(window := _test_window())

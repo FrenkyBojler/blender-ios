@@ -620,19 +620,19 @@ void WM_main(bContext *C)
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);
 
-  std::chrono::steady_clock::time_point first = std::chrono::steady_clock::now();
-  std::chrono::steady_clock::time_point last = std::chrono::steady_clock::now();
-  long long updates_since_sample = 0;
-  int samples = 0;
+  auto first = std::chrono::high_resolution_clock::now();
+  auto last = std::chrono::high_resolution_clock::now();
+  long long samples = 0;
 
-  int below_60 = 0;
-  int below_30 = 0;
-  int below_10 = 0;
+  long long below_60 = 0;
+  long long below_45 = 0;
+  long long below_30 = 0;
+  long long below_15 = 0;
 
   double average = 0.0f;
+  double score = 0;
 
   while (true) {
-
     /* Get events from ghost, handle window events, add to window queues. */
     wm_window_events_process(C);
 
@@ -645,35 +645,50 @@ void WM_main(bContext *C)
     /* Execute cached changes draw. */
     wm_draw_update(C);
 
-    updates_since_sample++;
-    std::chrono::steady_clock::time_point current = std::chrono::steady_clock::now();
-    auto last_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - last);
-    auto total_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - first);
-    if (last_duration > std::chrono::milliseconds(50)) {
+    auto current = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> total_duration = current - first;
+    std::chrono::duration<double> last_duration = current - last;
+    double last_fps = 1 / last_duration.count();
+    const bool is_valid = last_fps < 120.0;
+    if (is_valid) {
       samples++;
-      double last_fps = updates_since_sample / (last_duration.count() / double(1000));
 
       average = average + (last_fps - average) / samples;
-      printf("FPS: last: %f avg: %f (sub 60: %d sub 30: %d, sub 10: %d) (Total Runtime: %lld)\n",
-             last_fps,
-             average,
-             below_60,
-             below_30,
-             below_10,
-             total_duration.count());
 
       if (last_fps < 60.0f) {
         below_60++;
       }
+      if (last_fps < 45.0f) {
+        below_45++;
+      }
       if (last_fps < 30.0f) {
         below_30++;
       }
-      if (last_fps < 10.0f) {
-        below_10++;
+      if (last_fps < 15.0f) {
+        below_15++;
+      }
+      if (last_fps < 60.0f) {
+        score += std::pow(60 / last_fps, 1.5);
+      } else {
+        score += 1.0f;
       }
 
-      last = current;
-      updates_since_sample = 0;
+      printf(
+          "FPS: last: %f (%f) avg: %f (sub 60: %lld sub 45: %lld, sub 30: %lld, sub 15: %lld) (Score: %f, %f) "
+          "(Total Samples/Runtime: %lld, %f)\n",
+          last_fps,
+          last_duration.count(),
+          average,
+          below_60,
+          below_45,
+          below_30,
+          below_15,
+          score,
+          score / samples,
+          samples,
+          total_duration.count());
     }
+
+    last = current;
   }
 }
