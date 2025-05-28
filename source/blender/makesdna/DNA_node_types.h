@@ -321,6 +321,8 @@ typedef enum eNodeSocketDisplayShape {
   SOCK_DISPLAY_SHAPE_CIRCLE_DOT = 3,
   SOCK_DISPLAY_SHAPE_SQUARE_DOT = 4,
   SOCK_DISPLAY_SHAPE_DIAMOND_DOT = 5,
+  SOCK_DISPLAY_SHAPE_LINE = 6,
+  SOCK_DISPLAY_SHAPE_VOLUME_GRID = 7,
 } eNodeSocketDisplayShape;
 
 /** Socket side (input/output). */
@@ -1091,10 +1093,6 @@ typedef enum CMPNodeMaskFlags {
   CMP_NODE_MASK_FLAG_SIZE_FIXED = (1 << 8),
   CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE = (1 << 9),
 } CMPNodeMaskFlags;
-
-enum {
-  CMP_NODEFLAG_BLUR_EXTEND_BOUNDS = (1 << 1),
-};
 
 typedef struct NodeFrame {
   short flag;
