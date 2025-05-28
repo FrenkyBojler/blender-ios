@@ -4729,7 +4729,7 @@ static void find_bounds_by_zone_recursive(const SpaceNode &snode,
 
   Vector<int> convex_indices(possible_bounds.size());
   const int convex_positions_num = BLI_convexhull_2d(
-      reinterpret_cast<float (*)[2]>(possible_bounds.data()),
+      reinterpret_cast<float(*)[2]>(possible_bounds.data()),
       possible_bounds.size(),
       convex_indices.data());
   convex_indices.resize(convex_positions_num);
