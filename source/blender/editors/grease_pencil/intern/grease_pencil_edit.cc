@@ -4237,6 +4237,7 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
       viewinv = scene->camera->world_to_object();
       break;
     default:
+      BLI_assert_unreachable();
       break;
   }
 
