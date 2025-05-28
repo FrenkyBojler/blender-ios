@@ -185,7 +185,7 @@ void pyrna_invalidate(BPy_DummyPointerRNA *self)
 
 static void pyrna_prop_warn_deprecated(const PointerRNA *ptr, const PropertyRNA *prop)
 {
-  const char *deprecated = RNA_property_deprecated(prop);
+  const char *note = RNA_property_deprecated_note(prop);
   const int version = RNA_property_deprecated_removal_version(prop);
   PyErr_WarnFormat(PyExc_DeprecationWarning,
                    1,
@@ -194,7 +194,7 @@ static void pyrna_prop_warn_deprecated(const PointerRNA *ptr, const PropertyRNA 
                    RNA_property_identifier(prop),
                    version / 100,
                    version % 100,
-                   deprecated);
+                   note);
 }
 
 #ifdef USE_PYRNA_INVALIDATE_GC
@@ -1450,7 +1450,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
   PyObject *ret;
   const int type = RNA_property_type(prop);
 
-  if (RNA_property_deprecated(prop)) {
+  if (UNLIKELY(RNA_property_is_deprecated(prop))) {
     pyrna_prop_warn_deprecated(ptr, prop);
   }
 
@@ -1625,7 +1625,7 @@ static int pyrna_py_to_prop(
   /* XXX hard limits should be checked here. */
   const int type = RNA_property_type(prop);
 
-  if (RNA_property_deprecated(prop)) {
+  if (UNLIKELY(RNA_property_is_deprecated(prop))) {
     pyrna_prop_warn_deprecated(ptr, prop);
   }
 
