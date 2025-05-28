@@ -412,10 +412,10 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
      * While harmless, it's noisy. */
     config.pathconfig_warnings = 0;
 
-    /* FIXME: running scripts directly uses the default behavior *but* for some reason
+    /* WARNING: running scripts directly uses the default behavior *but* for some reason
      * warnings are *not* shown run directly from C++ (RNA callbacks & operators for example).
-     * See: #139487. */
-    if (!py_use_system_env) {
+     * See: !139487. */
+    if ((py_use_system_env == false) || (BLI_getenv("PYTHONWARNINGS") == nullptr)) {
       PyWideStringList_Append(&config.warnoptions, L"default");
     }
 
