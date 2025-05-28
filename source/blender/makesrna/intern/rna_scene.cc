@@ -1205,6 +1205,20 @@ static bool rna_Scene_compositing_node_group_poll(PointerRNA * /*ptr*/, PointerR
   return ntree->type == NTREE_COMPOSIT;
 }
 
+static void rna_Scene_compositing_node_group_set(PointerRNA *ptr,
+                                                 const PointerRNA value,
+                                                 ReportList *reports)
+{
+  Scene *scene = static_cast<Scene *>(ptr->data);
+  bNodeTree *ntree = static_cast<bNodeTree *>(value.data);
+  if (ntree && ntree->type != NTREE_COMPOSIT) {
+    BKE_reportf(
+        reports, RPT_ERROR, "Node tree '%s' is not a compositing node tree.", ntree->id.name + 2);
+    return;
+  }
+  scene->compositing_node_group = ntree;
+}
+
 static std::optional<std::string> rna_SceneEEVEE_path(const PointerRNA * /*ptr*/)
 {
   return "eevee";
@@ -2298,14 +2312,14 @@ static void rna_View3DCursor_rotation_axis_angle_set(PointerRNA *ptr, const floa
 static void rna_View3DCursor_matrix_get(PointerRNA *ptr, float *values)
 {
   const View3DCursor *cursor = static_cast<const View3DCursor *>(ptr->data);
-  copy_m4_m4((float (*)[4])values, cursor->matrix<blender::float4x4>().ptr());
+  copy_m4_m4((float(*)[4])values, cursor->matrix<blender::float4x4>().ptr());
 }
 
 static void rna_View3DCursor_matrix_set(PointerRNA *ptr, const float *values)
 {
   View3DCursor *cursor = static_cast<View3DCursor *>(ptr->data);
   float unit_mat[4][4];
-  normalize_m4_m4(unit_mat, (const float (*)[4])values);
+  normalize_m4_m4(unit_mat, (const float(*)[4])values);
   cursor->set_matrix(blender::float4x4(unit_mat), false);
 }
 
@@ -8967,8 +8981,11 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Node Tree", "Compositing node tree");
   RNA_def_property_update(prop, 0, "rna_Scene_compositor_update");
-  RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_Scene_compositing_node_group_poll");
+  RNA_def_property_pointer_funcs(prop,
+                                 nullptr,
+                                 "rna_Scene_compositing_node_group_set",
+                                 nullptr,
+                                 "rna_Scene_compositing_node_group_poll");
 
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
