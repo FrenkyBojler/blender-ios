@@ -1219,6 +1219,7 @@ class PkgManifest_Normalized(NamedTuple):
     license: str
 
     # Optional.
+    location: str
     website: str
     permissions: dict[str, str]
     tags: tuple[str]
@@ -1259,6 +1260,7 @@ class PkgManifest_Normalized(NamedTuple):
             field_license = manifest_dict["license"]
 
             # Optional.
+            field_location = manifest_dict["location"]
             field_website = manifest_dict.get("website", "")
             field_permissions: list[str] | dict[str, str] = manifest_dict.get("permissions", {})
             field_tags = manifest_dict.get("tags", [])
@@ -1300,6 +1302,8 @@ class PkgManifest_Normalized(NamedTuple):
                 raise TypeError("{:s}: \"license\" must be a non-empty list of strings".format(pkg_idname))
 
             # Optional.
+            if not isinstance(field_location, str):
+                raise TypeError("{:s}: \"location\" must be a string".format(pkg_idname))
             if not isinstance(field_website, str):
                 raise TypeError("{:s}: \"website\" must be a string".format(pkg_idname))
 
@@ -1343,6 +1347,7 @@ class PkgManifest_Normalized(NamedTuple):
             license=license_info_to_text(field_license),
 
             # Optional.
+            location=field_location,
             website=field_website,
             permissions=field_permissions,
             tags=tuple(field_tags),

@@ -224,6 +224,7 @@ def addon_draw_item_expanded(
         item_doc_url,  # `str`
         item_tracker_url,  # `str`
         show_developer_ui,  # `bool`
+        item_location,  # `str`
 ):
     from bpy.app.translations import (
         contexts as i18n_contexts,
@@ -283,6 +284,9 @@ def addon_draw_item_expanded(
     if item_version:
         col_a.label(text="Version")
         col_b.label(text=item_version, translate=False)
+    if item_location:
+        col_a.label(text="Location")
+        col_b.label(text=item_location, translate=False)
     if item_warnings:
         # Only for legacy add-ons.
         col_a.label(text="Warning")
@@ -497,6 +501,7 @@ def addons_panel_draw_items(
                     item_version = item_local.version
                     item_doc_url = item_local.website
                     item_tracker_url = ""
+                    item_location = item_local.location
 
                     if USE_ADDON_IGNORE_EXTENSION_MANIFEST_HACK:
                         item_doc_url = addon_ignore_manifest_website_hack_remote_or_default(module_name, item_doc_url)
@@ -512,6 +517,7 @@ def addons_panel_draw_items(
                 item_version = "0.0.0"
                 item_doc_url = ""
                 item_tracker_url = ""
+                item_location = ""
 
             del item_local
         else:
@@ -536,6 +542,7 @@ def addons_panel_draw_items(
                 item_version = ".".join(str(x) for x in value) if (value := bl_info["version"]) else ""
                 item_doc_url = bl_info["doc_url"]
                 item_tracker_url = bl_info.get("tracker_url")
+                item_location = bl_info.get("location")
             del bl_info
 
         if search_casefold and (
@@ -606,6 +613,7 @@ def addons_panel_draw_items(
                 # pylint: disable-next=used-before-assignment
                 item_tracker_url=item_tracker_url,
                 show_developer_ui=show_developer_ui,
+                item_location=item_location,
             )
 
             if is_enabled:

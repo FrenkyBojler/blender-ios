@@ -5,6 +5,7 @@ id = "my_example_package"
 name = "Test Package"
 tagline = "Single line description"
 type = "add-on"
+location = "3D Viewport > Sidebar > My Example Addon's Tab"
 tags = ["UV", "Modeling"]
 version = "0.2.0"
 blender_version_min = "2.80.0"

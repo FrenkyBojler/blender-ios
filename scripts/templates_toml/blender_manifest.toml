@@ -10,6 +10,9 @@ maintainer = "Developer name <email@address.com>"
 # Supported types: "add-on", "theme"
 type = "add-on"
 
+# # Optional: Location of the GUI
+# location = "3D Viewport > Sidebar > My Example Addon's Tab"
+
 # # Optional: link to documentation, support, source files, etc
 # website = "https://extensions.blender.org/add-ons/my-example-package/"
 
