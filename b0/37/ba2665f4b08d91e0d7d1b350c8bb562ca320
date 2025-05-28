@@ -2,5 +2,5 @@ Referenced by issue #70634, Graph Editor: Reevaluate Key and Handle Selection Be
 Referenced by issue #57918, Tweaks & Fixes for Improved Left Click Select Support (Parent task)
 Referenced by pull request #139164, ANIM: optimize proportional editing many keys in the Graph Editor
 Referenced by pull request #139347, Fix: Graph Editor box select menu entries
-Referenced by pull request #139349, Fix: Graph Editor box select selects non-visible handles
+Referenced by pull request #139349, WIP: Fix: Graph Editor box select selects non-visible handles
 Referenced by pull request #139531, Fix: ANIM: Graph Editor Circle/Lasso select fails to select handles
