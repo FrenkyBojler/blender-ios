@@ -266,6 +266,20 @@ std::string AttributeStorage::unique_name_calc(const StringRef name)
       [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; }, '.', name);
 }
 
+void AttributeStorage::rename(const StringRef old_name, std::string new_name)
+{
+  /* The VectorSet must be rebuilt from scratch because the data used to create the hash is
+   * changed. */
+  auto old_vector_set = std::move(this->runtime->attributes);
+  const int index = old_vector_set.index_of_as(old_name);
+  auto old_vector = old_vector_set.extract_vector();
+  old_vector[index]->name_ = std::move(new_name);
+  this->runtime->attributes.reserve(old_vector.size());
+  for (std::unique_ptr<Attribute> &attribute : old_vector) {
+    this->runtime->attributes.add_new(std::move(attribute));
+  }
+}
+
 static void read_array_data(BlendDataReader &reader,
                             const int8_t dna_attr_type,
                             const int64_t size,

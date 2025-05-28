@@ -334,8 +334,8 @@ static void rna_Attribute_name_set(PointerRNA *ptr, const char *value)
   using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::PointCloud) {
-    // TODO
-    BLI_assert_unreachable();
+    const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
+    BKE_attribute_rename(owner, attr->name(), value, nullptr);
     return;
   }
 

@@ -278,6 +278,17 @@ bool BKE_attribute_rename(AttributeOwner &owner,
     return false;
   }
 
+  if (owner.type() == AttributeOwnerType::PointCloud) {
+    PointCloud &pointcloud = *owner.get_pointcloud();
+    bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
+    if (!attributes.lookup(old_name)) {
+      BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
+      return false;
+    }
+    attributes.rename(old_name, new_name);
+    return true;
+  }
+
   /* NOTE: Checking if the new name matches the old name only makes sense when the name
    * is clamped to it's maximum length, otherwise assigning an over-long name multiple times
    * will add `.001` suffix unnecessarily. */

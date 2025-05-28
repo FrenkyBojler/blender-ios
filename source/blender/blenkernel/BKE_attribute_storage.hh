@@ -166,6 +166,9 @@ class AttributeStorage : public ::AttributeStorage {
   /** Return a possibly changed version of the input name that is unique within existing names. */
   std::string unique_name_calc(StringRef name);
 
+  /** Change the name of a single existing attribute. */
+  void rename(StringRef old_name, std::string new_name);
+
   /**
    * Read data owned by the #AttributeStorage struct. This works by converting the DNA-specific
    * types stored in the files to the runtime data structures.
