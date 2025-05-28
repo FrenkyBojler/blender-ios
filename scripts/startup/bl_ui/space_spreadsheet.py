@@ -62,7 +62,7 @@ class SPREADSHEET_MT_view(bpy.types.Menu):
 
         layout.separator()
 
-        layout.prop(sspreadsheet, "show_internal_attributes")
+        layout.prop(sspreadsheet, "show_internal_attributes", text="Internal Attributes")
 
         layout.separator()
 
