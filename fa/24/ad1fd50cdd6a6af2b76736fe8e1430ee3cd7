@@ -1,2 +1,3 @@
 Referenced by issue #39092, Consistent crash when parenting mesh to bone
 Referenced by issue #39073, Hiding shelfs with "region overlap" activated doesn't popup the "+" icon to reopen them
+Referenced by pull request #139349, Fix: Graph Editor box select selects non-visible handles
