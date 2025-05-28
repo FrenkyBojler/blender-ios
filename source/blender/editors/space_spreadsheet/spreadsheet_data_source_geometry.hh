@@ -66,6 +66,7 @@ class GeometryDataSource : public DataSource {
 
  private:
   std::optional<const bke::AttributeAccessor> get_component_attributes() const;
+  bool display_attribute(StringRef name, bke::AttrDomain domain) const;
 };
 
 class VolumeDataSource : public DataSource {

@@ -181,6 +181,25 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
   }
 }
 
+bool GeometryDataSource::display_attribute(const StringRef name,
+                                           const bke::AttrDomain domain) const
+{
+  if (bke::attribute_name_is_anonymous(name)) {
+    return false;
+  }
+  if (!show_internal_attributes_) {
+    if (!bke::allow_procedural_attribute_access(name)) {
+      return false;
+    }
+    if (domain == bke::AttrDomain::Instance && name == "instance_transform") {
+      /* Don't display the instance transform attribute, since matrix visualization in the
+       * spreadsheet isn't helpful. */
+      return false;
+    }
+  }
+  return true;
+}
+
 void GeometryDataSource::foreach_default_column_ids(
     FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
 {
@@ -204,18 +223,8 @@ void GeometryDataSource::foreach_default_column_ids(
     if (iter.domain != domain_) {
       return;
     }
-    if (bke::attribute_name_is_anonymous(iter.name)) {
+    if (!display_attribute(iter.name, iter.domain)) {
       return;
-    }
-    if (!show_internal_attributes_) {
-      if (!bke::allow_procedural_attribute_access(iter.name)) {
-        return;
-      }
-      if (iter.domain == bke::AttrDomain::Instance && iter.name == "instance_transform") {
-        /* Don't display the instance transform attribute, since matrix visualization in the
-         * spreadsheet isn't helpful. */
-        return;
-      }
     }
     SpreadsheetColumnID column_id;
     column_id.name = (char *)iter.name.data();
@@ -247,15 +256,8 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
   if (domain_num == 0) {
     return {};
   }
-  if (!show_internal_attributes_) {
-    if (!bke::allow_procedural_attribute_access(column_id.name)) {
-      return {};
-    }
-    if (domain_ == bke::AttrDomain::Instance && STREQ(column_id.name, "instance_transform")) {
-      /* Don't display the instance transform attribute, since matrix visualization in the
-       * spreadsheet isn't helpful. */
-      return {};
-    }
+  if (!display_attribute(column_id.name, domain_)) {
+    return {};
   }
 
   std::lock_guard lock{mutex_};
