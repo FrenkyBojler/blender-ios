@@ -298,6 +298,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   eCustomDataType type = (eCustomDataType)RNA_enum_get(op->ptr, "data_type");
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   AttributeOwner owner = AttributeOwner::from_id(id);
+
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::MutableAttributeAccessor accessor = pointcloud.attributes_for_write();
@@ -307,13 +308,13 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
     }
     bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
     const int domain_size = accessor.domain_size(bke::AttrDomain(domain));
-    
+
     const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
-bke::Attribute &attr =     attributes.add(
+    bke::Attribute &attr = attributes.add(
         attributes.unique_name_calc(name),
-                   bke::AttrDomain(domain),
-                   *bke::custom_data_type_to_attr_type(type),
-                   bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+        bke::AttrDomain(domain),
+        *bke::custom_data_type_to_attr_type(type),
+        bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
 
     BKE_attributes_active_set(owner, attr.name());
 

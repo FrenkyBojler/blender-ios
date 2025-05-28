@@ -269,6 +269,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   BKE_libblock_init_empty(&pointcloud->id);
 
   pointcloud->totpoint = totpoint;
+
   pointcloud->attributes_for_write().add<float3>(
       "position", blender::bke::AttrDomain::Point, blender::bke::AttributeInitConstruct());
 
