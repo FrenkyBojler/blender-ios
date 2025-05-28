@@ -938,6 +938,22 @@ struct ExtensionRNA {
   StructFreeFunc free;
 };
 
+/**
+ * Deprecation meta-data.
+ */
+struct DeprecatedRNA {
+  /** Single line deprecation message, suggest alternatives where possible. */
+  const char *note;
+  /**
+   * The version this will be removed.
+   * The value represents major, minor versions (sub-version isn't supported).
+   * Compatible with #Main::versionfile (e.g. `502` for `v5.2`).
+   */
+  short version;
+  /** The released version this was deprecated. */
+  short removal_version;
+};
+
 /* Primitive types. */
 
 struct PrimitiveStringRNA {

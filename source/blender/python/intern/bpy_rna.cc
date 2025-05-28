@@ -183,18 +183,18 @@ void pyrna_invalidate(BPy_DummyPointerRNA *self)
   self->ptr->invalidate();
 }
 
-static void pyrna_prop_warn_deprecated(const PointerRNA *ptr, const PropertyRNA *prop)
+static void pyrna_prop_warn_deprecated(const PointerRNA *ptr,
+                                       const PropertyRNA *prop,
+                                       const DeprecatedRNA *deprecated)
 {
-  const char *note = RNA_property_deprecated_note(prop);
-  const short version = RNA_property_deprecated_removal_version(prop);
   PyErr_WarnFormat(PyExc_DeprecationWarning,
                    1,
                    "'%s.%s' is expected to be removed in Blender %d.%d",
                    RNA_struct_identifier(ptr->type),
                    RNA_property_identifier(prop),
-                   version / 100,
-                   version % 100,
-                   note);
+                   deprecated->removal_version / 100,
+                   deprecated->removal_version % 100,
+                   deprecated->note);
 }
 
 #ifdef USE_PYRNA_INVALIDATE_GC
@@ -1450,8 +1450,8 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
   PyObject *ret;
   const int type = RNA_property_type(prop);
 
-  if (UNLIKELY(RNA_property_is_deprecated(prop))) {
-    pyrna_prop_warn_deprecated(ptr, prop);
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop, deprecated);
   }
 
   if (RNA_property_array_check(prop)) {
@@ -1625,8 +1625,8 @@ static int pyrna_py_to_prop(
   /* XXX hard limits should be checked here. */
   const int type = RNA_property_type(prop);
 
-  if (UNLIKELY(RNA_property_is_deprecated(prop))) {
-    pyrna_prop_warn_deprecated(ptr, prop);
+  if (const DeprecatedRNA *deprecated = RNA_property_deprecated(prop)) {
+    pyrna_prop_warn_deprecated(ptr, prop, deprecated);
   }
 
   if (RNA_property_array_check(prop)) {

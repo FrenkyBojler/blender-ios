@@ -1237,22 +1237,9 @@ const char *RNA_property_description(PropertyRNA *prop)
   return TIP_(rna_ensure_property_description(prop));
 }
 
-bool RNA_property_is_deprecated(const PropertyRNA *prop)
+const DeprecatedRNA *RNA_property_deprecated(const PropertyRNA *prop)
 {
-  BLI_assert((prop->deprecated_removal_version != 0) == (prop->deprecated_note != nullptr));
-  return prop->deprecated_removal_version != 0;
-}
-
-const char *RNA_property_deprecated_note(const PropertyRNA *prop)
-{
-  BLI_assert(RNA_property_is_deprecated(prop));
-  return prop->deprecated_note;
-}
-
-short RNA_property_deprecated_removal_version(const PropertyRNA *prop)
-{
-  BLI_assert(RNA_property_is_deprecated(prop));
-  return prop->deprecated_removal_version;
+  return prop->deprecated;
 }
 
 PropertyType RNA_property_type(PropertyRNA *prop)

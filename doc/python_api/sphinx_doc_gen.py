@@ -1452,28 +1452,26 @@ def pyrna_enum2sphinx(prop, use_empty_descriptions=False):
 
 
 def pyrna_deprecated_directive(ident, deprecated):
-    note, removal_version = deprecated
+    note, version, removal_version = deprecated
 
     # Show a short string where possible to reduce noise.
+    if version[2] == 0:
+        version_str = "{:d}.{:d}".format(*version[:2])
+    else:
+        version_str = "{:d}.{:d}.{:d}".format(*version)
+
     if removal_version[2] == 0:
         removal_version_str = "{:d}.{:d}".format(*removal_version[:2])
     else:
         removal_version_str = "{:d}.{:d}.{:d}".format(*removal_version)
 
-    # Deprecated.
-    #
-    # NOTE: Use `admonition` instead of "deprecated" because
-    # Sphinx deprecated directive requires the version which was deprecated to be included.
     return (
-        "{:s}.. admonition:: Deprecated\n"
+        "{:s}.. deprecated:: {:s} will be removed in version {:s}\n"
         "\n"
         "{:s}   {:s}\n"
-        "\n"
-        "{:s}   To be removed: {:s}\n"
     ).format(
-        ident,
+        ident, version_str, removal_version_str,
         ident, note,
-        ident, removal_version_str,
     )
 
 

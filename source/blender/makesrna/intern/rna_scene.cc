@@ -4694,11 +4694,15 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
 #  if 1
   /* Bloom is deprecated since Blender 4.2, is kept for add-on compatibility reasons and needs to
    * be removed in a future release. */
+  static const DeprecatedRNA prop_deprecated_use_pass_bloom = {
+      /*note*/ "The viewport compositors bloom should be used instead.",
+      /*version*/ 405,
+      /*removal_version*/ 501,
+  };
   prop = RNA_def_property(srna, "use_pass_bloom", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "render_passes", 0 /*EEVEE_RENDER_PASS_BLOOM*/);
   RNA_def_property_ui_text(prop, "Bloom", "Deliver bloom pass (deprecated)");
-  RNA_def_property_deprecated(prop, "The viewport compositors bloom should be used instead.", 501);
-
+  RNA_def_property_deprecated(prop, &prop_deprecated_use_pass_bloom);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 #  endif
 

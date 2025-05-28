@@ -310,6 +310,7 @@ class InfoPropertyRNA:
         if rna_prop.is_deprecated:
             self.deprecated = (
                 rna_prop.deprecated_note,
+                tuple(rna_prop.deprecated_version),
                 tuple(rna_prop.deprecated_removal_version),
             )
         else:

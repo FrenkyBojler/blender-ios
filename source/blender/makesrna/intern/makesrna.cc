@@ -4130,6 +4130,17 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     freenest = true;
   }
 
+  if (prop->deprecated) {
+    fprintf(f,
+            "static const DeprecatedRNA rna_%s%s_%s_deprecated = {\n\t",
+            srna->identifier,
+            strnest,
+            prop->identifier);
+    rna_print_c_string(f, prop->deprecated->note);
+    fprintf(f, ",\n\t%d, %d,\n", prop->deprecated->version, prop->deprecated->removal_version);
+    fprintf(f, "};\n\n");
+  }
+
   switch (prop->type) {
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
@@ -4370,13 +4381,14 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
   fprintf(f, "%d, ", prop->icon);
   rna_print_c_string(f, prop->translation_context);
   fprintf(f, ",\n\t");
-  if (prop->deprecated_note) {
-    rna_print_c_string(f, prop->deprecated_note);
-    fprintf(f, ", %d,\n", prop->deprecated_removal_version);
+
+  if (prop->deprecated) {
+    fprintf(f, "&rna_%s%s_%s_deprecated,", srna->identifier, strnest, prop->identifier);
   }
   else {
-    fprintf(f, "nullptr, 0,\n");
+    fprintf(f, "nullptr,\n");
   }
+
   fprintf(f,
           "\t%s, PropertySubType(int(%s) | int(%s)), %s, %u, {%u, %u, %u}, %u,\n",
           RNA_property_typename(prop->type),
