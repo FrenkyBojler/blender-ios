@@ -242,6 +242,7 @@ class uiListNameFilter {
     char *filter_dyn = nullptr;
   } storage_;
   char *filter_ = nullptr;
+  bool filter_exclude_;
 
  public:
   uiListNameFilter(uiList &list);
