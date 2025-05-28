@@ -139,7 +139,7 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         description="Node type",
     )
 
-    output_name: StringProperty(
+    visible_output: StringProperty(
         name="Output Name",
         description="If provided, all outputs that are named differently will be hidden",
         options={'SKIP_SAVE'},
@@ -150,9 +150,9 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         if self.properties.is_property_set("type"):
             self.deselect_nodes(context)
             if node := self.create_node(context, self.type):
-                if self.output_name:
+                if self.visible_output:
                     for socket in node.outputs:
-                        if socket.name != self.output_name:
+                        if socket.name != self.visible_output:
                             socket.hide = True
             return {'FINISHED'}
         else:

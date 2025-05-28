@@ -36,7 +36,7 @@ def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=No
         for subname in subnames:
             sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
             item_props = add_node_type(layout, node_type, label=sublabel, search_weight=search_weight)
-            item_props.output_name = subname
+            item_props.visible_output = subname
             props.append(item_props)
     return props
 
