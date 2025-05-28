@@ -905,7 +905,7 @@ struct SocketUsageInferencer {
     const NodeInContext node = socket.owner_node();
     const int inputs_num = node->input_sockets().size();
 
-    Vector<const void *, 16> input_values(inputs_num, nullptr);
+    Array<const void *, 16> input_values(inputs_num, nullptr);
     std::optional<int> next_unknown_input_index;
     for (const int input_i : IndexRange(inputs_num)) {
       const SocketInContext input_socket = node.input_socket(input_i);
