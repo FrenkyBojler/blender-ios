@@ -29,6 +29,8 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
+#include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -4945,6 +4947,23 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->gpencil_settings) {
         do_convert_gp_jitter_flags(brush);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+    blender::IndexMaskMemory memory;
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->type == OB_CURVES) {
+        Curves *curves_id = static_cast<Curves *>(ob->data);
+        blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+        if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
+          blender::bke::curves::nurbs::update_custom_knot_modes(
+              curves.nurbs_custom_knot_curves(memory),
+              NURBS_KNOT_MODE_NORMAL,
+              NURBS_KNOT_MODE_NORMAL,
+              curves);
+        }
       }
     }
   }

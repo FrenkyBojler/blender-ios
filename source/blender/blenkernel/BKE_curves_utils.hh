@@ -560,6 +560,15 @@ void write_all_positions(bke::CurvesGeometry &curves,
 
 }  // namespace bezier
 
+namespace nurbs {
+
+void update_custom_knot_modes(const IndexMask mask,
+                              const KnotsMode mode_for_regular,
+                              const KnotsMode mode_for_cyclic,
+                              bke::CurvesGeometry &curves);
+
+}  // namespace nurbs
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

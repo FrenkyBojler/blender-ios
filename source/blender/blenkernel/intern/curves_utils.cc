@@ -214,4 +214,20 @@ void write_all_positions(bke::CurvesGeometry &curves,
 
 }  // namespace bezier
 
+namespace nurbs {
+
+void update_custom_knot_modes(const IndexMask mask,
+                              const KnotsMode mode_for_regular,
+                              const KnotsMode mode_for_cyclic,
+                              bke::CurvesGeometry &curves)
+{
+  const VArray<bool> cyclic = curves.cyclic();
+  MutableSpan<int8_t> knot_modes = curves.nurbs_knots_modes_for_write();
+  mask.foreach_index(GrainSize(512), [&](const int64_t curve) {
+    knot_modes[curve] = cyclic[curve] ? mode_for_cyclic : mode_for_regular;
+  });
+}
+
+}  // namespace nurbs
+
 }  // namespace blender::bke::curves
