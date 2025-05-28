@@ -34,15 +34,15 @@ TEST(hash, float3_to_float3)
 {
   {
     const float3 c = hash_float3_to_float3(make_float3(0, 1, 2));
-    EXPECT_NEAR(c.x, 0.8184969425201416f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.39474216103553772f, 1.0e-9f);
-    EXPECT_NEAR(c.z, 0.2105463445186615f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.84405595064163208f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.10765662044286728f, 1.0e-9f);
+    EXPECT_NEAR(c.z, 0.32112202048301697f, 1.0e-9f);
   }
   {
     const float3 c = hash_float3_to_float3(make_float3(1.5f, -0.1f, 12345.67f));
-    EXPECT_NEAR(c.x, 0.12775042653083801f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.085053838789463043f, 1.0e-9f);
-    EXPECT_NEAR(c.z, 0.81869912147521973f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.086377404630184174f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.66652321815490723f, 1.0e-9f);
+    EXPECT_NEAR(c.z, 0.30510097742080688f, 1.0e-9f);
   }
 }
 
@@ -50,17 +50,17 @@ TEST(hash, float4_to_float4)
 {
   {
     const float4 c = hash_float4_to_float4(make_float4(0, 1, 2, 3));
-    EXPECT_NEAR(c.x, 0.3785756528377533f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.10118526220321655f, 1.0e-9f);
-    EXPECT_NEAR(c.z, 0.23767852783203125f, 1.0e-9f);
-    EXPECT_NEAR(c.w, 0.72035640478134155f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.84419256448745728f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.94662964344024658f, 1.0e-9f);
+    EXPECT_NEAR(c.z, 0.5574309229850769f, 1.0e-9f);
+    EXPECT_NEAR(c.w, 0.98514074087142944f, 1.0e-9f);
   }
   {
     const float4 c = hash_float4_to_float4(make_float4(1.5f, -0.1f, 12345.67f, -310.73046875f));
-    EXPECT_NEAR(c.x, 0.58864277601242065f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.91455036401748657f, 1.0e-9f);
-    EXPECT_NEAR(c.z, 0.44810330867767334f, 1.0e-9f);
-    EXPECT_NEAR(c.w, 0.99361437559127808f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.2290133535861969f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.95477765798568726f, 1.0e-9f);
+    EXPECT_NEAR(c.z, 0.40136802196502686f, 1.0e-9f);
+    EXPECT_NEAR(c.w, 0.65203464031219482f, 1.0e-9f);
   }
 }
 

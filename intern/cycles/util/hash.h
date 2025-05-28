@@ -226,13 +226,7 @@ ccl_device_inline float2 hash_float2_to_float2(const float2 k)
 
 ccl_device_inline float3 hash_float3_to_float3(const float3 k)
 {
-  return make_float3(hash_float3_to_float(k),
-                     hash_float4_to_float(make_float4(k.x, k.y, k.z, 1.0)),
-                     hash_float4_to_float(make_float4(k.x, k.y, k.z, 2.0)));
-}
-
-ccl_device_inline float3 hash_float3_to_float3_pcg(const float3 k)
-{
+  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
   uint3 uk = __float3_as_uint3(k);
   uint3 h = hash_pcg3d(uk);
   float3 f = make_float3(h);
@@ -241,14 +235,7 @@ ccl_device_inline float3 hash_float3_to_float3_pcg(const float3 k)
 
 ccl_device_inline float4 hash_float4_to_float4(const float4 k)
 {
-  return make_float4(hash_float4_to_float(k),
-                     hash_float4_to_float(make_float4(k.w, k.x, k.y, k.z)),
-                     hash_float4_to_float(make_float4(k.z, k.w, k.x, k.y)),
-                     hash_float4_to_float(make_float4(k.y, k.z, k.w, k.x)));
-}
-
-ccl_device_inline float4 hash_float4_to_float4_pcg(const float4 k)
-{
+  /* Reinterpret float bits as uint, use PCG4D, return [0..1] float result. */
   uint4 uk = __float4_as_uint4(k);
   uint4 h = hash_pcg4d(uk);
   float4 f = make_float4(h);
