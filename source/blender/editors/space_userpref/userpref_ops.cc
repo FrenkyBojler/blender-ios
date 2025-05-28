@@ -270,14 +270,14 @@ static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOpera
 
   /* Move up. */
   if (direction == 1 && library->prev != nullptr) {
-    if (!BLI_listbase_link_move(&U.asset_libraries, library, index - 1)) {
+    if (!BLI_listbase_link_move(&U.asset_libraries, library, -1)) {
       return OPERATOR_CANCELLED;
     }
     U.active_asset_library--;
   }
   /* Move down. */
   else if (direction == -1 && library->next != nullptr) {
-    if (!BLI_listbase_link_move(&U.asset_libraries, library, index + 1)) {
+    if (!BLI_listbase_link_move(&U.asset_libraries, library, 1)) {
       return OPERATOR_CANCELLED;
     }
     U.active_asset_library++;
