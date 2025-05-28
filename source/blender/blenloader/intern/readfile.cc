@@ -2985,7 +2985,10 @@ static BHead *read_libblock(FileData *fd,
       BKE_main_idmap_insert_id(main->id_map, id_target);
     }
     if (ID_IS_LINKED_EMBEDDED(id)) {
+      BLI_assert(id->deep_hash != IDHash::get_null());
       fd->id_by_deep_hash->add_new(id->deep_hash, id);
+      BLI_assert(main->curlib);
+      main->curlib->runtime->embedded_id_by_deep_hash.add_new(id->deep_hash, id);
     }
   }
 

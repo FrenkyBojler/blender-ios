@@ -9,12 +9,13 @@
  * API to manage `Library` data-blocks.
  */
 
+#include "DNA_ID.h"
+
+#include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
 struct FileData;
-struct ID;
-struct Library;
 struct ListBase;
 struct Main;
 struct UniqueName_Map;
@@ -45,6 +46,12 @@ struct LibraryRuntime {
    * Should only contain something if this library is a regular 'real' blendfile library.
    */
   blender::Vector<Library *> archived_libraries = {};
+  /**
+   * Used to keep track of already loaded embedded IDs owned (coming from) that library.
+   *
+   * Only filled in for 'real' library IDs, archived ones are currently expected to have empty
+   * ones. */
+  blender::Map<IDHash, ID *> embedded_id_by_deep_hash = {};
 
   /** #eLibrary_Tag. */
   ushort tag = 0;

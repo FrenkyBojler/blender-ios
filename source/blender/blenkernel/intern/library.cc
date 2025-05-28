@@ -459,6 +459,84 @@ static Library *get_archive_library(Main &bmain, ID *for_id)
   return archive_lib;
 }
 
+static void embed_linked_id(Main &bmain,
+                            ID *linked_id,
+                            const id_hash::ValidDeepHashes &deep_hashes,
+                            blender::VectorSet<ID *> &ids_to_remap,
+                            blender::bke::id::IDRemapper &id_remapper)
+{
+  BLI_assert(linked_id->newid == nullptr);
+
+  Library *owner_lib = linked_id->lib;
+
+  ID *embedded_id = owner_lib->runtime->embedded_id_by_deep_hash.lookup_default(
+      deep_hashes.hashes.lookup_default(linked_id, IDHash::get_null()), nullptr);
+
+  if (embedded_id) {
+    /* Exact same ID (and all of its dependencies) have already been linked and embedded before,
+     * re-use these embedded data. */
+
+    auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *embedded_id) {
+      BLI_assert(embedded_id);
+      BLI_assert(ID_IS_LINKED_EMBEDDED(embedded_id));
+      BLI_assert(embedded_id->lib->archive_parent_library == linked_id->lib);
+      BLI_assert(embedded_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
+
+      id_remapper.add(linked_id, embedded_id);
+      linked_id->newid = embedded_id;
+      /* No need to remap this embedded ID - otherwise there would be something very wrong in
+       * embedded IDs state. */
+    };
+
+    existing_id_process(linked_id, embedded_id);
+
+    /* Handle 'fake-embedded' ShapeKeys IDs. */
+    Key *linked_key = BKE_key_from_id(linked_id);
+    if (linked_key) {
+      Key *embedded_key = BKE_key_from_id(embedded_id);
+      BLI_assert(embedded_key);
+      existing_id_process(&linked_key->id, &embedded_key->id);
+    }
+  }
+  else {
+    /* This exact version of the ID and its dependencies have not been embedded before, creates a
+     * new copy of it and embed it. */
+
+    /* Find an existing archive Library not containing a 'version' of this ID yet. */
+    Library *archive_lib = get_archive_library(bmain, linked_id);
+
+    auto copied_id_process = [&owner_lib, &archive_lib, &deep_hashes, &ids_to_remap, &id_remapper](
+                                 ID *linked_id, ID *embedded_id) {
+      BLI_assert(embedded_id);
+      BLI_assert(ID_IS_LINKED_EMBEDDED(embedded_id));
+      BLI_assert(embedded_id->lib == archive_lib);
+
+      embedded_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
+      owner_lib->runtime->embedded_id_by_deep_hash.add_new(embedded_id->deep_hash, embedded_id);
+      id_remapper.add(linked_id, embedded_id);
+      ids_to_remap.add(embedded_id);
+    };
+
+    embedded_id = BKE_id_copy_in_lib(&bmain,
+                                     archive_lib,
+                                     linked_id,
+                                     std::nullopt,
+                                     nullptr,
+                                     LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
+                                         LIB_ID_COPY_NO_ANIMDATA);
+    id_us_min(embedded_id);
+    copied_id_process(linked_id, embedded_id);
+
+    /* Handle 'fake-embedded' ShapeKeys IDs. */
+    Key *linked_key = BKE_key_from_id(linked_id);
+    if (linked_key) {
+      Key *embedded_key = BKE_key_from_id(embedded_id);
+      BLI_assert(embedded_key);
+      copied_id_process(&linked_key->id, &embedded_key->id);
+    }
+  }
+}
+
 /**
  * Embed given linked IDs. Low-level code, assumes all given IDs are valid and safe to embed.
  *
@@ -468,7 +546,7 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
 {
   blender::VectorSet<ID *> final_ids_to_embed;
   blender::VectorSet<ID *> ids_to_remap;
-  blender::bke::id::IDRemapper id_remap;
+  blender::bke::id::IDRemapper id_remapper;
 
   for (ID *id : ids_to_embed) {
     BLI_assert(ID_IS_LINKED(id));
@@ -494,44 +572,12 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
   }
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
 
-  for (ID *id : final_ids_to_embed) {
-    /* TODO: lookup existing ID with same hash. */
-
-    /* Find an existing archive Library not containing a 'version' of this ID yet. */
-    Library *archive_lib = get_archive_library(bmain, id);
-
-    ID *new_id = BKE_id_copy_in_lib(&bmain,
-                                    archive_lib,
-                                    id,
-                                    std::nullopt,
-                                    nullptr,
-                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                        LIB_ID_COPY_NO_ANIMDATA);
-    id_us_min(new_id);
-
-    BLI_assert(new_id);
-    BLI_assert(new_id->lib == archive_lib);
-    BLI_assert(new_id->flag & ID_FLAG_LINKED_AND_EMBEDDED);
-    new_id->deep_hash = deep_hashes.hashes.lookup(id);
-    id_remap.add(id, new_id);
-    ids_to_remap.add(new_id);
-
-    /* Handle 'fake-embedded' ShapeKeys IDs */
-    {
-      Key *key = BKE_key_from_id(id);
-      Key *new_key = BKE_key_from_id(new_id);
-      if (key) {
-        BLI_assert(new_key);
-        BLI_assert(new_key->id.lib == new_id->lib);
-        BLI_assert(new_key->id.flag & ID_FLAG_LINKED_AND_EMBEDDED);
-        /* Shapekeys are 'normal' IDs, they need their deephash, unlike real embedded ones. */
-        new_key->id.deep_hash = deep_hashes.hashes.lookup(&key->id);
-        id_remap.add(&key->id, &new_key->id);
-        ids_to_remap.add(&new_key->id);
-      }
-    }
+  for (ID *linked_id : final_ids_to_embed) {
+    embed_linked_id(bmain, linked_id, deep_hashes, ids_to_remap, id_remapper);
   }
-  BKE_libblock_relink_multiple(&bmain, ids_to_remap.as_span(), ID_REMAP_TYPE_REMAP, id_remap, 0);
+
+  BKE_libblock_relink_multiple(
+      &bmain, ids_to_remap.as_span(), ID_REMAP_TYPE_REMAP, id_remapper, 0);
 }
 
 void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
