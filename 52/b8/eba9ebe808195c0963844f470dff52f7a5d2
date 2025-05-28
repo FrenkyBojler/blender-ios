@@ -1,1 +1,2 @@
 Referenced by issue #139494, PyAPI Regression: UILists with custom filter string instead of built-in self.filter_name no longer work
+Referenced by pull request #139518, Fix #139494: Regression: Filtering doesn't work with custom search prop
