@@ -250,10 +250,8 @@ static void PREFERENCES_OT_asset_library_remove(wmOperatorType *ot)
 
 static bool preferences_asset_library_move_poll(bContext *C)
 {
-  if (BLI_listbase_is_empty(&U.asset_libraries) ||
-      BLI_listbase_count(&U.asset_libraries) < U.active_asset_library)
-  {
-    CTX_wm_operator_poll_msg_set(C, "There is no asset library to move");
+  if (BLI_listbase_count(&U.asset_libraries) < 2) {
+    CTX_wm_operator_poll_msg_set(C, "There must be at least two libraries to move.");
     return false;
   }
   return true;
