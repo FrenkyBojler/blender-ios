@@ -208,31 +208,44 @@ void Instance::init(const int2 &output_res,
   volume.init();
   lookdev.init(visible_rect);
 
-  bool static_shader_ready = shaders.static_shaders_are_ready(is_image_render,
-                                                              false,
-                                                              depth_of_field.postfx_enabled(),
-                                                              motion_blur.postfx_enabled(),
-                                                              raytracing.use_fast_gi(),
-                                                              false,
-                                                              raytracing.use_raytracing());
+  /* Request static shaders */
+  LoadedBits request_bits = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS;
+  SET_FLAG_FROM_TEST(request_bits, depth_of_field.postfx_enabled(), DEPTH_OF_FIELD_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, motion_blur.postfx_enabled(), MOTION_BLUR_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, raytracing.use_fast_gi(), HORIZON_SCAN_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, raytracing.use_raytracing(), RAYTRACING_SHADERS);
 
-  bool static_specialization_ready = false;
-  if (static_shader_ready) {
-    static_specialization_ready = shaders.request_specializations(
+  loaded = LoadedBits::NONE;
+  loaded |= shaders.static_shaders_load_async(request_bits);
+  loaded |= materials.default_materials_load_async();
+
+  if (is_image_render) {
+    /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
+    loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
+  }
+
+  if (loaded & DEFERRED_LIGHTING_SHADERS) {
+    bool ready = shaders.request_specializations(
         is_image_render,
         render_buffers.data.shadow_id,
         shadows.get_data().ray_count,
         shadows.get_data().step_count,
         DeferredLayer::do_split_direct_indirect_radiance(*this),
         DeferredLayer::do_merge_direct_indirect_eval(*this));
+    SET_FLAG_FROM_TEST(loaded, ready, DEFERRED_LIGHTING_SHADERS);
   }
 
-  bool default_material_ready = materials.default_materials_are_ready(is_image_render);
+  if (is_image_render) {
+    loaded |= shaders.static_shaders_wait_ready(request_bits);
+    loaded |= materials.default_materials_wait_ready();
+  }
 
-  shaders_are_ready_ = default_material_ready && static_shader_ready &&
-                       static_specialization_ready;
+  /* Needed bits to be able to display something to the screen. */
+  needed_bits = request_bits | DEFAULT_MATERIALS | WORLD_SHADERS;
 
-  skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
+  skip_render_ = !film.is_valid_render_extent();
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
@@ -269,13 +282,9 @@ void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
   volume.init();
   lookdev.init(&empty_rect);
 
-  shaders.static_shaders_are_ready(true, false, false, false, false, true, false);
-  shaders.request_specializations(true,
-                                  -1,
-                                  shadows.get_data().ray_count,
-                                  shadows.get_data().step_count,
-                                  DeferredLayer::do_split_direct_indirect_radiance(*this),
-                                  DeferredLayer::do_merge_direct_indirect_eval(*this));
+  needed_bits = IRRADIANCE_BAKE_SHADERS | SHADOW_SHADERS | SURFEL_SHADERS;
+  shaders.static_shaders_load_async(needed_bits);
+  shaders.static_shaders_wait_ready(needed_bits);
 }
 
 void Instance::set_time(float time)
@@ -308,14 +317,9 @@ void Instance::begin_sync()
   /* Needs to be first for sun light parameters.
    * Also not skipped to be able to request world shader.
    * If engine shaders are not ready, will skip the pipeline sync. */
-  world.sync(shaders_are_ready_);
-  /* Make sure to continue only if the world is ready. */
-  shaders_are_ready_ = shaders_are_ready_ && world.is_ready();
-  skip_render_ = !shaders_are_ready_;
+  world.sync();
 
-  if (skip_render_) {
-    return;
-  }
+  SET_FLAG_FROM_TEST(loaded, world.is_ready(), WORLD_SHADERS);
 
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
@@ -425,31 +429,17 @@ void Instance::end_sync()
     return;
   }
 
-  shaders_are_ready_ =
-      shaders_are_ready_ &&
-      shaders.static_shaders_are_ready(is_image_render,
-                                       /* Already queried before sync. */
-                                       false,
-                                       false,
-                                       false,
-                                       false,
-                                       false,
-                                       /* After sync additional static shader. */
-                                       raytracing.use_raytracing(),
-                                       needs_lightprobe_sphere_passes(),
-                                       needs_planar_probe_passes(),
-                                       pipelines.deferred.closure_bits_get() & CLOSURE_SSS,
-                                       volume.will_enable()) &&
-      shaders.request_specializations(is_image_render,
-                                      render_buffers.data.shadow_id,
-                                      shadows.get_data().ray_count,
-                                      shadows.get_data().step_count,
-                                      DeferredLayer::do_split_direct_indirect_radiance(*this),
-                                      DeferredLayer::do_merge_direct_indirect_eval(*this));
-  skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
+  bool use_sss = pipelines.deferred.closure_bits_get() & CLOSURE_SSS;
+  bool use_volume = volume.will_enable();
 
-  if (skip_render_) {
-    return;
+  LoadedBits request_bits = NONE;
+  SET_FLAG_FROM_TEST(request_bits, use_sss, SUBSURFACE_SHADERS);
+  SET_FLAG_FROM_TEST(request_bits, use_volume, VOLUME_EVAL_SHADERS);
+  loaded |= shaders.static_shaders_load_async(request_bits);
+  needed_bits |= request_bits;
+
+  if (is_image_render) {
+    loaded |= shaders.static_shaders_wait_ready(request_bits);
   }
 
   materials.end_sync();
@@ -638,6 +628,7 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
+  skip_render_ = !is_loaded(needed_bits);
   if (skip_render_) {
     if (!info_.empty()) {
       RE_engine_set_error_message(engine, info_.c_str());
@@ -696,10 +687,10 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
 
 void Instance::draw_viewport()
 {
-  if (skip_render_) {
+  if (skip_render_ || !is_loaded(needed_bits)) {
     DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
     GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
-    if (!shaders_are_ready_) {
+    if (!is_loaded(needed_bits & ~WORLD_SHADERS)) {
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
     }

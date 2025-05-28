@@ -85,9 +85,8 @@ class World {
   World(Instance &inst) : inst_(inst){};
   ~World();
 
-  /* Setup and request the background shader. If can_do_sync is true, will populate the background
-   * and world pipelines. */
-  void sync(bool can_do_sync);
+  /* Setup and request the background shader. */
+  void sync();
 
   bool has_volume() const
   {

@@ -147,17 +147,8 @@ ShaderModule::~ShaderModule()
  *
  * \{ */
 
-bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
-                                            bool use_ao_pass,
-                                            bool use_dof,
-                                            bool use_motion_blur,
-                                            bool use_fast_gi,
-                                            bool use_bake,
-                                            bool use_raytracing,
-                                            bool use_capture,
-                                            bool use_planar,
-                                            bool use_subsurface,
-                                            bool use_volume)
+LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits,
+                                                   bool block_until_ready)
 {
   std::lock_guard lock(mutex_);
 
@@ -177,10 +168,8 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     batch_request.requested = true;
   };
 
-  bool ready = true;
-
   auto is_ready = [&](HandleRequest &batch_request, Span<eShaderType> shader_types) {
-    if (ready == false || batch_request.handle == 0) {
+    if (batch_request.handle == 0) {
       return true;
     }
     if (GPU_shader_batch_is_ready(batch_request.handle) || block_until_ready) {
@@ -192,171 +181,175 @@ bool ShaderModule::static_shaders_are_ready(bool block_until_ready,
     return batch_request.handle == 0;
   };
 
-  auto request = [&](HandleRequest &batch_request, Span<eShaderType> shader_types) {
-    batch_ensure(batch_request, shader_types);
-    ready &= is_ready(batch_request, shader_types);
-  };
+  LoadedBits ready = LoadedBits::NONE;
+  auto request =
+      [&](HandleRequest &batch_request, LoadedBits bit, Span<eShaderType> shader_types) {
+        if (request_bits & bit) {
+          batch_ensure(batch_request, shader_types);
+          if (is_ready(batch_request, shader_types)) {
+            ready |= bit;
+          }
+        }
+      };
 
+#define AS_SPAN(arr) Span<eShaderType>(arr, ARRAY_SIZE(arr))
   {
     /* These are the slowest shaders by far. Submitting them first make sure they overlap with
      * other shaders compilation. */
-    const std::array<eShaderType, 5> deferred_shader_list = {DEFERRED_LIGHT_TRIPLE,
-                                                             DEFERRED_LIGHT_SINGLE,
-                                                             DEFERRED_LIGHT_DOUBLE,
-                                                             DEFERRED_COMBINE,
-                                                             DEFERRED_TILE_CLASSIFY};
-    request(compilation_handles_.deferred, deferred_shader_list);
-  }
-  if (use_ao_pass) {
-    const std::array<eShaderType, 1> ambient_occlusion_shader_list = {AMBIENT_OCCLUSION_PASS};
-    request(compilation_handles_.ambient_occlusion, ambient_occlusion_shader_list);
+    const eShaderType shader_list[] = {DEFERRED_LIGHT_TRIPLE,
+                                       DEFERRED_LIGHT_SINGLE,
+                                       DEFERRED_LIGHT_DOUBLE,
+                                       DEFERRED_COMBINE,
+                                       DEFERRED_TILE_CLASSIFY};
+    request(compilation_handles_.deferred, DEFERRED_LIGHTING_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 9> film_shader_list = {FILM_COPY,
-                                                         FILM_COMP,
-                                                         FILM_CRYPTOMATTE_POST,
-                                                         FILM_FRAG,
-                                                         FILM_PASS_CONVERT_COMBINED,
-                                                         FILM_PASS_CONVERT_DEPTH,
-                                                         FILM_PASS_CONVERT_VALUE,
-                                                         FILM_PASS_CONVERT_COLOR,
-                                                         FILM_PASS_CONVERT_CRYPTOMATTE};
-    request(compilation_handles_.film, film_shader_list);
-  }
-  if (use_capture) {
-    static const std::array<eShaderType, 1> deferred_capture_shader_list = {DEFERRED_CAPTURE_EVAL};
-    request(compilation_handles_.deferred_capture, deferred_capture_shader_list);
-  }
-  if (use_planar) {
-    static const std::array<eShaderType, 1> deferred_planar_shader_list = {DEFERRED_PLANAR_EVAL};
-    request(compilation_handles_.deferred_planar, deferred_planar_shader_list);
-  }
-  if (use_dof) {
-    const std::array<eShaderType, 17> dof_shader_list = {DOF_BOKEH_LUT,
-                                                         DOF_DOWNSAMPLE,
-                                                         DOF_FILTER,
-                                                         DOF_GATHER_BACKGROUND_LUT,
-                                                         DOF_GATHER_BACKGROUND,
-                                                         DOF_GATHER_FOREGROUND_LUT,
-                                                         DOF_GATHER_FOREGROUND,
-                                                         DOF_GATHER_HOLE_FILL,
-                                                         DOF_REDUCE,
-                                                         DOF_RESOLVE_LUT,
-                                                         DOF_RESOLVE,
-                                                         DOF_SCATTER,
-                                                         DOF_SETUP,
-                                                         DOF_STABILIZE,
-                                                         DOF_TILES_DILATE_MINABS,
-                                                         DOF_TILES_DILATE_MINMAX,
-                                                         DOF_TILES_FLATTEN};
-    request(compilation_handles_.dof, dof_shader_list);
+    const eShaderType shader_list[] = {AMBIENT_OCCLUSION_PASS};
+    request(
+        compilation_handles_.ambient_occlusion, AMBIENT_OCCLUSION_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 2> hiz_shader_list = {HIZ_UPDATE, HIZ_UPDATE_LAYER};
-    request(compilation_handles_.hiz, hiz_shader_list);
+    const eShaderType shader_list[] = {RENDERPASS_CLEAR,
+                                       FILM_COPY,
+                                       FILM_COMP,
+                                       FILM_CRYPTOMATTE_POST,
+                                       FILM_FRAG,
+                                       FILM_PASS_CONVERT_COMBINED,
+                                       FILM_PASS_CONVERT_DEPTH,
+                                       FILM_PASS_CONVERT_VALUE,
+                                       FILM_PASS_CONVERT_COLOR,
+                                       FILM_PASS_CONVERT_CRYPTOMATTE};
+    request(compilation_handles_.film, FILM_SHADERS, AS_SPAN(shader_list));
   }
-  if (use_fast_gi) {
-    const std::array<eShaderType, 4> horizon_shader_list = {
+  {
+    const eShaderType shader_list[] = {DEFERRED_CAPTURE_EVAL};
+    request(compilation_handles_.deferred_capture, DEFERRED_CAPTURE_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {DEFERRED_PLANAR_EVAL};
+    request(compilation_handles_.deferred_planar, DEFERRED_PLANAR_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {DOF_BOKEH_LUT,
+                                       DOF_DOWNSAMPLE,
+                                       DOF_FILTER,
+                                       DOF_GATHER_BACKGROUND_LUT,
+                                       DOF_GATHER_BACKGROUND,
+                                       DOF_GATHER_FOREGROUND_LUT,
+                                       DOF_GATHER_FOREGROUND,
+                                       DOF_GATHER_HOLE_FILL,
+                                       DOF_REDUCE,
+                                       DOF_RESOLVE_LUT,
+                                       DOF_RESOLVE,
+                                       DOF_SCATTER,
+                                       DOF_SETUP,
+                                       DOF_STABILIZE,
+                                       DOF_TILES_DILATE_MINABS,
+                                       DOF_TILES_DILATE_MINMAX,
+                                       DOF_TILES_FLATTEN};
+    request(compilation_handles_.dof, DEPTH_OF_FIELD_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {HIZ_UPDATE, HIZ_UPDATE_LAYER};
+    request(compilation_handles_.hiz, HIZ_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {
         HORIZON_DENOISE, HORIZON_RESOLVE, HORIZON_SCAN, HORIZON_SETUP};
-    request(compilation_handles_.horizon, horizon_shader_list);
+    request(compilation_handles_.horizon, HORIZON_SCAN_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 6> light_shader_list = {LIGHT_CULLING_DEBUG,
-                                                          LIGHT_CULLING_SELECT,
-                                                          LIGHT_CULLING_SORT,
-                                                          LIGHT_CULLING_TILE,
-                                                          LIGHT_CULLING_ZBIN,
-                                                          LIGHT_SHADOW_SETUP};
-    request(compilation_handles_.light, light_shader_list);
-  }
-  if (use_bake) {
-    const std::array<eShaderType, 4> lightprobe_irradiance_shader_list = {
-        LIGHTPROBE_IRRADIANCE_BOUNDS,
-        LIGHTPROBE_IRRADIANCE_OFFSET,
-        LIGHTPROBE_IRRADIANCE_RAY,
-        LIGHTPROBE_IRRADIANCE_LOAD};
-    request(compilation_handles_.lightprobe_irradiance, lightprobe_irradiance_shader_list);
-  }
-  if (use_motion_blur) {
-    const std::array<eShaderType, 4> motion_blur_shader_list = {MOTION_BLUR_GATHER,
-                                                                MOTION_BLUR_TILE_DILATE,
-                                                                MOTION_BLUR_TILE_FLATTEN_RGBA,
-                                                                MOTION_BLUR_TILE_FLATTEN_RG};
-    request(compilation_handles_.motion_blur, motion_blur_shader_list);
-  }
-  if (use_raytracing) {
-    const std::array<eShaderType, 9> ray_shader_list = {RAY_DENOISE_BILATERAL,
-                                                        RAY_DENOISE_SPATIAL,
-                                                        RAY_DENOISE_TEMPORAL,
-                                                        RAY_GENERATE,
-                                                        RAY_TILE_CLASSIFY,
-                                                        RAY_TILE_COMPACT,
-                                                        RAY_TRACE_FALLBACK,
-                                                        RAY_TRACE_PLANAR,
-                                                        RAY_TRACE_SCREEN};
-    request(compilation_handles_.ray, ray_shader_list);
+    const eShaderType shader_list[] = {LIGHT_CULLING_DEBUG,
+                                       LIGHT_CULLING_SELECT,
+                                       LIGHT_CULLING_SORT,
+                                       LIGHT_CULLING_TILE,
+                                       LIGHT_CULLING_ZBIN,
+                                       LIGHT_SHADOW_SETUP};
+    request(compilation_handles_.light, LIGHT_CULLING_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 1> renderpass_shader_list = {RENDERPASS_CLEAR};
-    request(compilation_handles_.renderpass, renderpass_shader_list);
+    const eShaderType shader_list[] = {LIGHTPROBE_IRRADIANCE_BOUNDS,
+                                       LIGHTPROBE_IRRADIANCE_OFFSET,
+                                       LIGHTPROBE_IRRADIANCE_RAY,
+                                       LIGHTPROBE_IRRADIANCE_LOAD};
+    request(
+        compilation_handles_.lightprobe_irradiance, IRRADIANCE_BAKE_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 6> sphere_probe_shader_list = {SPHERE_PROBE_CONVOLVE,
-                                                                 SPHERE_PROBE_IRRADIANCE,
-                                                                 SPHERE_PROBE_REMAP,
-                                                                 SPHERE_PROBE_SELECT,
-                                                                 SPHERE_PROBE_SUNLIGHT,
-                                                                 LIGHTPROBE_IRRADIANCE_WORLD};
-    request(compilation_handles_.sphere_probe, sphere_probe_shader_list);
+    const eShaderType shader_list[] = {MOTION_BLUR_GATHER,
+                                       MOTION_BLUR_TILE_DILATE,
+                                       MOTION_BLUR_TILE_FLATTEN_RGBA,
+                                       MOTION_BLUR_TILE_FLATTEN_RG};
+    request(compilation_handles_.motion_blur, MOTION_BLUR_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 17> shadow_shader_list = {SHADOW_CLIPMAP_CLEAR,
-                                                            SHADOW_PAGE_ALLOCATE,
-                                                            SHADOW_PAGE_CLEAR,
-                                                            SHADOW_PAGE_DEFRAG,
-                                                            SHADOW_PAGE_FREE,
-                                                            SHADOW_PAGE_MASK,
-                                                            SHADOW_PAGE_TILE_CLEAR,
-                                                            SHADOW_PAGE_TILE_STORE,
-                                                            SHADOW_TILEMAP_AMEND,
-                                                            SHADOW_TILEMAP_BOUNDS,
-                                                            SHADOW_TILEMAP_FINALIZE,
-                                                            SHADOW_TILEMAP_RENDERMAP,
-                                                            SHADOW_TILEMAP_INIT,
-                                                            SHADOW_TILEMAP_TAG_UPDATE,
-                                                            SHADOW_TILEMAP_TAG_USAGE_OPAQUE,
-                                                            SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
-                                                            SHADOW_VIEW_VISIBILITY};
-    request(compilation_handles_.shadow, shadow_shader_list);
-  }
-  if (use_subsurface) {
-    const std::array<eShaderType, 2> subsurface_shader_list = {SUBSURFACE_CONVOLVE,
-                                                               SUBSURFACE_SETUP};
-    request(compilation_handles_.subsurface, subsurface_shader_list);
-  }
-  if (use_bake) {
-    const std::array<eShaderType, 6> surfel_shader_list = {SURFEL_CLUSTER_BUILD,
-                                                           SURFEL_LIGHT,
-                                                           SURFEL_LIST_BUILD,
-                                                           SURFEL_LIST_SORT,
-                                                           SHADOW_TILEMAP_TAG_USAGE_SURFELS,
-                                                           SURFEL_RAY};
-    request(compilation_handles_.surfel, surfel_shader_list);
+    const eShaderType shader_list[] = {RAY_DENOISE_BILATERAL,
+                                       RAY_DENOISE_SPATIAL,
+                                       RAY_DENOISE_TEMPORAL,
+                                       RAY_GENERATE,
+                                       RAY_TILE_CLASSIFY,
+                                       RAY_TILE_COMPACT,
+                                       RAY_TRACE_FALLBACK,
+                                       RAY_TRACE_PLANAR,
+                                       RAY_TRACE_SCREEN};
+    request(compilation_handles_.ray, RAYTRACING_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const std::array<eShaderType, 1> vertex_copy_shader_list = {VERTEX_COPY};
-    request(compilation_handles_.vertex_copy, vertex_copy_shader_list);
+    const eShaderType shader_list[] = {SPHERE_PROBE_CONVOLVE,
+                                       SPHERE_PROBE_IRRADIANCE,
+                                       SPHERE_PROBE_REMAP,
+                                       SPHERE_PROBE_SELECT,
+                                       SPHERE_PROBE_SUNLIGHT,
+                                       LIGHTPROBE_IRRADIANCE_WORLD};
+    request(compilation_handles_.sphere_probe, SPHERE_PROBE_SHADERS, AS_SPAN(shader_list));
   }
-  if (use_volume) {
-    const std::array<eShaderType, 6> volume_shader_list = {SHADOW_TILEMAP_TAG_USAGE_VOLUME,
-                                                           VOLUME_INTEGRATION,
-                                                           VOLUME_OCCUPANCY_CONVERT,
-                                                           VOLUME_RESOLVE,
-                                                           VOLUME_SCATTER,
-                                                           VOLUME_SCATTER_WITH_LIGHTS};
-    request(compilation_handles_.volume, volume_shader_list);
+  {
+    const eShaderType shader_list[] = {SHADOW_CLIPMAP_CLEAR,
+                                       SHADOW_PAGE_ALLOCATE,
+                                       SHADOW_PAGE_CLEAR,
+                                       SHADOW_PAGE_DEFRAG,
+                                       SHADOW_PAGE_FREE,
+                                       SHADOW_PAGE_MASK,
+                                       SHADOW_PAGE_TILE_CLEAR,
+                                       SHADOW_PAGE_TILE_STORE,
+                                       SHADOW_TILEMAP_AMEND,
+                                       SHADOW_TILEMAP_BOUNDS,
+                                       SHADOW_TILEMAP_FINALIZE,
+                                       SHADOW_TILEMAP_RENDERMAP,
+                                       SHADOW_TILEMAP_INIT,
+                                       SHADOW_TILEMAP_TAG_UPDATE,
+                                       SHADOW_TILEMAP_TAG_USAGE_OPAQUE,
+                                       SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
+                                       SHADOW_VIEW_VISIBILITY};
+    request(compilation_handles_.shadow, SHADOW_SHADERS, AS_SPAN(shader_list));
   }
-
+  {
+    const eShaderType shader_list[] = {SUBSURFACE_CONVOLVE, SUBSURFACE_SETUP};
+    request(compilation_handles_.subsurface, SUBSURFACE_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {SURFEL_CLUSTER_BUILD,
+                                       SURFEL_LIGHT,
+                                       SURFEL_LIST_BUILD,
+                                       SURFEL_LIST_SORT,
+                                       SHADOW_TILEMAP_TAG_USAGE_SURFELS,
+                                       SURFEL_RAY};
+    request(compilation_handles_.surfel, SURFEL_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {VERTEX_COPY};
+    request(compilation_handles_.vertex_copy, VERTEX_COPY_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {SHADOW_TILEMAP_TAG_USAGE_VOLUME,
+                                       VOLUME_INTEGRATION,
+                                       VOLUME_OCCUPANCY_CONVERT,
+                                       VOLUME_RESOLVE,
+                                       VOLUME_SCATTER,
+                                       VOLUME_SCATTER_WITH_LIGHTS};
+    request(compilation_handles_.volume, VOLUME_EVAL_SHADERS, AS_SPAN(shader_list));
+  }
+#undef AS_SPAN
   return ready;
 }
 
