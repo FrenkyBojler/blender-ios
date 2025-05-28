@@ -260,9 +260,7 @@ ccl_device_inline float3 hash_float2_to_float3(const float2 k)
 
 ccl_device_inline float3 hash_float4_to_float3(const float4 k)
 {
-  return make_float3(hash_float4_to_float(k),
-                     hash_float4_to_float(make_float4(k.z, k.x, k.w, k.y)),
-                     hash_float4_to_float(make_float4(k.w, k.z, k.y, k.x)));
+  return make_float3(hash_float4_to_float4(k));
 }
 
 /* Hashing float or float[234] into float2 of components in range [0, 1]. */
