@@ -255,19 +255,12 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  bool static_shaders_are_ready(bool block_until_ready,
-                                /* Only queried before initial synchronization, only if needed. */
-                                bool use_ao_pass,
-                                bool use_dof,
-                                bool use_motion_blur,
-                                bool use_fast_gi,
-                                bool use_bake,
-                                bool use_raytracing,
-                                /* Only queried after initial synchronization, only if needed. */
-                                bool use_capture = false,
-                                bool use_planar = false,
-                                bool use_subsurface = false,
-                                bool use_volume = false);
+  LoadedBits static_shaders_load_async(LoadedBits request_bits, bool block_until_ready = false);
+  LoadedBits static_shaders_wait_ready(LoadedBits request_bits)
+  {
+    return static_shaders_load_async(request_bits, true);
+  }
+
   bool request_specializations(bool block_until_ready,
                                int render_buffers_shadow_id,
                                int shadow_ray_count,

@@ -392,7 +392,11 @@ class MaterialModule {
   Material &material_get(Object *ob, bool has_motion, int mat_nr, eMaterialGeometry geometry_type);
 
   /* Request default material and return true if they are compiled. */
-  bool default_materials_are_ready(bool block_until_ready);
+  LoadedBits default_materials_load_async(bool block_until_ready = false);
+  LoadedBits default_materials_wait_ready()
+  {
+    return default_materials_load_async(true);
+  }
 
  private:
   Material &material_sync(Object *ob,

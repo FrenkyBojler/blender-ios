@@ -95,7 +95,7 @@ float World::sun_threshold()
   return sun_threshold;
 }
 
-void World::sync(bool can_do_sync)
+void World::sync()
 {
   bool has_update = false;
 
@@ -150,7 +150,7 @@ void World::sync(bool can_do_sync)
 
   GPUMaterial *gpumat = inst_.shaders.world_shader_get(
       bl_world, ntree, MAT_PIPE_DEFERRED, !inst_.is_image_render);
-  if (!can_do_sync || GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
+  if (GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
     is_ready_ = false;
     return;
   }

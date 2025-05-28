@@ -682,7 +682,7 @@ void ShadowModule::begin_sync()
     box_batch_ = GPU_batch_unit_cube();
   }
 
-  {
+  if (inst_.is_loaded(SHADOW_SHADERS)) {
     Manager &manager = *inst_.manager;
 
     PassMain &pass = tilemap_usage_ps_;
@@ -871,7 +871,7 @@ void ShadowModule::end_sync()
     pages_infos_data_.push_update();
   }
 
-  {
+  if (inst_.is_loaded(SHADOW_SHADERS)) {
     Manager &manager = *inst_.manager;
 
     {
@@ -1270,7 +1270,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
 
 void ShadowModule::set_view(View &view, int2 extent)
 {
-  if (enabled_ == false) {
+  if (enabled_ == false || !inst_.is_loaded(SHADOW_SHADERS)) {
     /* All lights have been tagged to have no shadow. */
     return;
   }

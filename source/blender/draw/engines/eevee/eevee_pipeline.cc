@@ -33,6 +33,11 @@ void BackgroundPipeline::sync(GPUMaterial *gpumat,
                               const float background_opacity,
                               const float background_blur)
 {
+  if (!bool(inst_.loaded & RENDERPASS_CLEAR)) {
+    /* Async compiled shader not available yet. */
+    return;
+  }
+
   Manager &manager = *inst_.manager;
   RenderBuffers &rbufs = inst_.render_buffers;
 
@@ -576,6 +581,10 @@ void DeferredLayer::end_sync(bool is_first_pass,
                              bool is_last_pass,
                              bool next_layer_has_transmission)
 {
+  if (!inst_.is_loaded(DEFERRED_LIGHTING_SHADERS)) {
+    return;
+  }
+
   const bool has_any_closure = closure_bits_ != 0;
   /* We need the feedback output in case of refraction in the next pass (see #126455). */
   const bool is_layer_refracted = (next_layer_has_transmission && has_any_closure);

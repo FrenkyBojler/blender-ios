@@ -83,7 +83,6 @@ class Instance : public DrawEngine {
 
   uint64_t depsgraph_last_update_ = 0;
   bool overlays_enabled_ = false;
-  bool shaders_are_ready_ = true;
   bool skip_render_ = false;
 
   /** Info string displayed at the top of the render / viewport, or the console when baking. */
@@ -159,6 +158,9 @@ class Instance : public DrawEngine {
   /** True if overlays need to be displayed (only for viewport). */
   bool draw_overlays = false;
 
+  LoadedBits loaded = LoadedBits(0);
+  LoadedBits needed_bits = LoadedBits(0);
+
   /** View-layer overrides. */
   bool use_surfaces = true;
   bool use_curves = true;
@@ -222,6 +224,11 @@ class Instance : public DrawEngine {
   void begin_sync() final;
   void object_sync(ObjectRef &ob_ref, Manager &manager) final;
   void end_sync() final;
+
+  bool is_loaded(LoadedBits bits) const
+  {
+    return (loaded & bits) == bits;
+  }
 
   /**
    * Return true when probe pipeline is used during this sample.

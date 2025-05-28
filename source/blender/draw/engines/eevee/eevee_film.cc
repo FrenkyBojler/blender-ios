@@ -537,6 +537,10 @@ void Film::init(const int2 &extent, const rcti *output_rect)
 
 void Film::sync()
 {
+  if (!inst_.is_loaded(FILM_SHADERS)) {
+    return;
+  }
+
   /* We use a fragment shader for viewport because we need to output the depth.
    *
    * Compute shader is also used to work around Metal/Intel iGPU issues concerning
@@ -549,8 +553,8 @@ void Film::sync()
 
   /* TODO(fclem): Shader variation for panoramic & scaled resolution. */
 
-  GPUShader *sh = inst_.shaders.static_shader_get(shader);
   accumulate_ps_.init();
+  GPUShader *sh = inst_.shaders.static_shader_get(shader);
   init_pass(accumulate_ps_, sh);
   /* Sync with rendering passes. */
   accumulate_ps_.barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
