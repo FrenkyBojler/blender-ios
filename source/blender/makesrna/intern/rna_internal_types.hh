@@ -369,7 +369,8 @@ struct PropertyRNA {
   const char *translation_context;
   /* Single line deprecation message, suggest alternatives where possible. */
   const char *deprecated_note;
-  /* The version this will be removed. */
+  /* The version this will be removed.
+   * The value represents major, minor versions (sub-version isn't supported). */
   short deprecated_removal_version;
 
   /** Property type as it appears to the outside. */

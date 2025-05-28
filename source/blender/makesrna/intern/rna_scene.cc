@@ -4697,7 +4697,7 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_pass_bloom", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "render_passes", 0 /*EEVEE_RENDER_PASS_BLOOM*/);
   RNA_def_property_ui_text(prop, "Bloom", "Deliver bloom pass (deprecated)");
-  RNA_def_property_deprecated(prop, "The viewport compositors bloom should be used instead", 521);
+  RNA_def_property_deprecated(prop, "The viewport compositors bloom should be used instead.", 512);
 
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
 #  endif
