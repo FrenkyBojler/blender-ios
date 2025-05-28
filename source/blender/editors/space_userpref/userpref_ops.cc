@@ -316,14 +316,6 @@ static void PREFERENCES_OT_asset_library_move(wmOperatorType *ot)
                0,
                "Direction",
                "Direction to move the active library towards");
-
-  WM_operator_properties_filesel(ot,
-                                 FILE_TYPE_FOLDER,
-                                 FILE_SPECIAL,
-                                 FILE_OPENFILE,
-                                 WM_FILESEL_DIRECTORY,
-                                 FILE_DEFAULTDISPLAY,
-                                 FILE_SORT_DEFAULT);
 }
 
 /** \} */
