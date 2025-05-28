@@ -335,15 +335,19 @@ class FormatInputsLookup {
   }
 };
 
-struct ProcessedFormatString {
+struct ProcessedPythonCompatibleFormat {
   const GVArray *widths = nullptr;
   const GVArray *precisions = nullptr;
-  std::string format_str;
+  /**
+   * This is compatible with the C++ fmt library.
+   * It formats exactly one value and may use a dynamic width or precision.
+   */
+  std::string fmt_format_str;
 };
 
-static std::string create_invalid_format_error(const StringRef format,
-                                               const StringRef format_outer,
-                                               const FormatPatternInfo &pattern)
+static std::string create_invalid_python_compatible_format_error(const StringRef format,
+                                                                 const StringRef format_outer,
+                                                                 const FormatPatternInfo &pattern)
 {
   for (const char c : format) {
     if (pattern.pattern_str.find(c) == std::string::npos && std::isprint(c) && !std::isdigit(c)) {
@@ -356,7 +360,7 @@ static std::string create_invalid_format_error(const StringRef format,
   return fmt::format(fmt::runtime(TIP_("Invalid format: \"{}\"")), format_outer);
 }
 
-static std::optional<ProcessedFormatString> check_and_process_format_string(
+static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatible_syntax(
     const StringRef format,
     const StringRef format_outer,
     const CPPType &type,
@@ -377,12 +381,13 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
   std::cmatch m;
   if (!std::regex_search(format.begin(), format.end(), m, allowed_pattern->pattern)) {
     if (!r_error) {
-      r_error = create_invalid_format_error(format, format_outer, *allowed_pattern);
+      r_error = create_invalid_python_compatible_format_error(
+          format, format_outer, *allowed_pattern);
     }
     return std::nullopt;
   }
 
-  ProcessedFormatString result;
+  ProcessedPythonCompatibleFormat result;
 
   /* Identifiers that are used to specify the width or precision will be replaced with {}. */
   Vector<std::string> formats_to_replace;
@@ -427,27 +432,27 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
     }
   }
 
-  result.format_str = "{:";
-  result.format_str.append(format.begin(), format.end());
-  result.format_str += '}';
+  result.fmt_format_str = "{:";
+  result.fmt_format_str.append(format.begin(), format.end());
+  result.fmt_format_str += '}';
 
   /* Replace identifiers with {}, because the source identifiers are not passed to fmt. */
   for (const std::string &old : formats_to_replace) {
-    const int64_t old_start = result.format_str.find(old);
+    const int64_t old_start = result.fmt_format_str.find(old);
     if (old_start != std::string::npos) {
-      result.format_str.replace(old_start, old.size(), "{}");
+      result.fmt_format_str.replace(old_start, old.size(), "{}");
     }
   }
 
   return result;
 }
 
-static void append_formatted_strings(const fmt::format_string<> format,
-                                     const GVArray &input,
-                                     const GVArray *widths,
-                                     const GVArray *precisions,
-                                     const IndexMask &mask,
-                                     MutableSpan<std::string> r_formatted_strings)
+static void format_with_fmt(const fmt::format_string<> format,
+                            const GVArray &input,
+                            const GVArray *widths,
+                            const GVArray *precisions,
+                            const IndexMask &mask,
+                            MutableSpan<std::string> r_formatted_strings)
 {
   const auto append_single_formatted_string = [&](const auto &varray) {
     mask.foreach_index([&](const int64_t i) {
@@ -495,6 +500,31 @@ static void append_formatted_strings(const fmt::format_string<> format,
     /* The input type should have been checked earlier already. */
     BLI_assert_unreachable();
   }
+}
+
+static void format_with_python_compatible_syntax(const StringRef format_pattern,
+                                                 const StringRef format_outer,
+                                                 const GVArray &input,
+                                                 const IndexMask &mask,
+                                                 FormatInputsLookup &inputs_lookup,
+                                                 MutableSpan<std::string> r_formatted_strings,
+                                                 std::optional<std::string> &r_error)
+{
+  const CPPType &type = input.type();
+  /* Extract information like width and precision inputs. */
+  std::optional<ProcessedPythonCompatibleFormat> processed_format =
+      preprocess_python_compatible_syntax(
+          format_pattern, format_outer, type, inputs_lookup, r_error);
+  if (!processed_format.has_value()) {
+    BLI_assert(r_error);
+    return;
+  }
+  format_with_fmt(fmt::runtime(processed_format->fmt_format_str),
+                  input,
+                  processed_format->widths,
+                  processed_format->precisions,
+                  mask,
+                  r_formatted_strings);
 }
 
 static void format_with_hash_syntax(const StringRef format_pattern,
@@ -606,27 +636,21 @@ static bool format_strings(const StringRef format,
     if (!input) {
       return false;
     }
-    const CPPType &type = input->type();
 
     if (format_pattern.find('#') == StringRef::not_found) {
-      /* Extract information like width and precision inputs. */
-      std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
-          format_pattern, *format_outer, type, inputs_lookup, r_error);
-      if (!processed_format.has_value()) {
-        return false;
-      }
-      append_formatted_strings(fmt::runtime(processed_format->format_str),
-                               *input,
-                               processed_format->widths,
-                               processed_format->precisions,
-                               mask,
-                               r_formatted_strings);
+      format_with_python_compatible_syntax(format_pattern,
+                                           *format_outer,
+                                           *input,
+                                           mask,
+                                           inputs_lookup,
+                                           r_formatted_strings,
+                                           r_error);
     }
     else {
       format_with_hash_syntax(format_pattern, *input, mask, r_formatted_strings, r_error);
-      if (r_error) {
-        return false;
-      }
+    }
+    if (r_error) {
+      return false;
     }
 
     current_index += format_outer->size();
