@@ -98,7 +98,7 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
 }
 
 struct CustomDataAndSize {
-  const CustomData &data;
+  CustomData &data;
   int size;
 };
 
@@ -107,13 +107,14 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
 {
   AttributeStorage storage{};
   struct AttributeToAdd {
-    std::string name;
+    StringRef name;
     AttrDomain domain;
     AttrType type;
     void *array_data;
     int array_size;
     const ImplicitSharingInfo *sharing_info;
   };
+  Map<AttrDomain, Vector<CustomDataLayer>> layers_to_keep;
   Vector<AttributeToAdd> attributes_to_add;
   for (const auto &item : domains.items()) {
     const AttrDomain domain = item.key;
@@ -123,11 +124,11 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
       const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
           eCustomDataType(layer.type));
       if (!attr_type) {
+        layers_to_keep.lookup_or_add_default(domain).append(layer);
         continue;
       }
       attributes_to_add.append(
           {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
-      layer.sharing_info->add_user();
     }
   }
 
@@ -140,6 +141,21 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
                 attribute.domain,
                 attribute.type,
                 std::move(array_data));
+  }
+
+  for (auto [domain, custom_data] : domains.items()) {
+    Vector layers_vector = layers_to_keep.pop_default(domain, {});
+    MEM_SAFE_FREE(custom_data.data.layers);
+    custom_data.data.totlayer = 0;
+    custom_data.data.maxlayer = 0;
+    if (layers_vector.is_empty()) {
+      continue;
+    }
+    VectorData data = layers_vector.release();
+    custom_data.data.layers = data.data;
+    custom_data.data.totlayer = data.size;
+    custom_data.data.maxlayer = data.capacity;
+    CustomData_update_typemap(&custom_data.data);
   }
 
   return storage;
@@ -224,7 +240,7 @@ void mesh_convert_storage_to_customdata(Mesh &mesh)
                                  {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
                                  {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
 }
-AttributeStorage mesh_convert_customdata_to_storage(const Mesh &mesh)
+AttributeStorage mesh_convert_customdata_to_storage(Mesh &mesh)
 {
   return bke::attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
@@ -239,7 +255,7 @@ void curves_convert_storage_to_customdata(CurvesGeometry &curves)
                                 {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
                                  {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
 }
-AttributeStorage curves_convert_customdata_to_storage(const CurvesGeometry &curves)
+AttributeStorage curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
   return attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
@@ -253,7 +269,7 @@ void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
       {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
 }
 
-AttributeStorage pointcloud_convert_customdata_to_storage(const PointCloud &pointcloud)
+AttributeStorage pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 {
   return attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
@@ -265,7 +281,7 @@ void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
       grease_pencil.attribute_storage.wrap(),
       {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
 }
-AttributeStorage grease_pencil_convert_customdata_to_storage(const GreasePencil &grease_pencil)
+AttributeStorage grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
   return attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
