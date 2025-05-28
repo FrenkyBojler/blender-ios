@@ -88,6 +88,20 @@ struct FieldInferencingInterface {
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
 
+struct StructureTypeInterface {
+  struct OutputDependency {
+    StructureType type;
+    Array<int> linked_inputs;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(OutputDependency, type, linked_inputs)
+  };
+
+  Array<StructureType> inputs;
+  Array<OutputDependency> outputs;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
+};
+
 namespace anonymous_attribute_lifetime {
 
 /**
@@ -165,6 +179,18 @@ struct SocketNameRNA {
   std::string property_name;
 };
 
+struct CustomSocketDrawParams {
+  const bContext &C;
+  uiLayout &layout;
+  bNodeTree &tree;
+  bNode &node;
+  bNodeSocket &socket;
+  PointerRNA node_ptr;
+  PointerRNA socket_ptr;
+};
+
+using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
+
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
  */
@@ -200,6 +226,8 @@ class SocketDeclaration : public ItemDeclaration {
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
 
+  StructureType structure_type = StructureType::Single;
+
  private:
   CompositorInputRealizationMode compositor_realization_mode_ =
       CompositorInputRealizationMode::OperationDomain;
@@ -224,6 +252,10 @@ class SocketDeclaration : public ItemDeclaration {
    * node without going to the side-bar.
    */
   std::unique_ptr<SocketNameRNA> socket_name_rna;
+  /**
+   * Draw function that overrides how the socket is drawn for a specific node.
+   */
+  std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -382,6 +414,11 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &make_available(std::function<void(bNode &)> fn);
 
   /**
+   * Provide a fully custom draw function for the socket that overrides any default behaviour.
+   */
+  BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
+
+  /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
    * an input and the other is an output.
    */
@@ -400,6 +437,8 @@ class BaseSocketDeclarationBuilder {
    * Use the socket as a toggle in its panel.
    */
   BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
+
+  BaseSocketDeclarationBuilder &structure_type(StructureType structure_type);
 
   BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
 
