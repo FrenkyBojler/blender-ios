@@ -146,15 +146,6 @@ void BKE_preferences_asset_library_default_add(UserDef *userdef)
       library->dirpath, sizeof(library->dirpath), documents_path, N_("Blender"), N_("Assets"));
 }
 
-bool BKE_preferences_asset_library_move(struct UserDef *userdef,
-                                        struct bUserAssetLibrary *library,
-                                        int to_index)
-{
-  int from_index = BKE_preferences_asset_library_get_index(userdef, library);
-
-  return BLI_listbase_link_move(&userdef->asset_libraries, library, to_index - from_index);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -87,10 +87,6 @@ int BKE_preferences_asset_library_get_index(const struct UserDef *userdef,
 
 void BKE_preferences_asset_library_default_add(struct UserDef *userdef) ATTR_NONNULL();
 
-bool BKE_preferences_asset_library_move(struct UserDef *userdef,
-                                        struct bUserAssetLibrary *library,
-                                        int to_index) ATTR_NONNULL();
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
