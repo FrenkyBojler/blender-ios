@@ -3397,8 +3397,7 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   /* Use 3 values to match `bpy.app.version`. */
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(
-      prop, "Deprecated Removal Version", "The Blender version this is expected to be removed");
+  RNA_def_property_ui_text(prop, "Deprecated Version", "The Blender version this was deprecated");
   RNA_def_property_int_funcs(prop, "rna_Property_deprecated_version_get", nullptr, nullptr);
 
   prop = RNA_def_property(srna, "deprecated_removal_version", PROP_INT, PROP_NONE);
