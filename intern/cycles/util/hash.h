@@ -29,6 +29,28 @@ ccl_device_forceinline float uint_to_float_incl(const uint n)
 /* PCG 3D and 4D hash functions,
  * from "Hash Functions for GPU Rendering" JCGT 2020
  * https://jcgt.org/published/0009/03/02/ */
+
+ccl_device_inline uint2 __float2_as_uint2(const float2 f)
+{
+  return make_uint2(__float_as_uint(f.x), __float_as_uint(f.y));
+}
+
+ccl_device_inline float2 make_float2(const uint2 u)
+{
+  return make_float2((float)u.x, (float)u.y);
+}
+
+ccl_device_inline uint2 hash_pcg2d(uint2 v)
+{
+  v = v * make_uint2(1664525u) + make_uint2(1013904223u);
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  v = v ^ (v >> 16);
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  return v;
+}
+
 ccl_device_inline uint3 hash_pcg3d(uint3 v)
 {
   v = v * make_uint3(1664525u) + make_uint3(1013904223u);
@@ -221,7 +243,11 @@ ccl_device_inline float hash_float4_to_float(const float4 k)
 
 ccl_device_inline float2 hash_float2_to_float2(const float2 k)
 {
-  return make_float2(hash_float2_to_float(k), hash_float3_to_float(make_float3(k.x, k.y, 1.0)));
+  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
+  uint2 uk = __float2_as_uint2(k);
+  uint2 h = hash_pcg2d(uk);
+  float2 f = make_float2(h);
+  return f * (1.0f / (float)0xFFFFFFFFu);
 }
 
 ccl_device_inline float3 hash_float3_to_float3(const float3 k)

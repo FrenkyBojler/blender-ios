@@ -13,6 +13,7 @@
 #include "util/math_int4.h"  // IWYU pragma: export
 #include "util/math_int8.h"  // IWYU pragma: export
 
+#include "util/math_uint2.h"  // IWYU pragma: export
 #include "util/math_uint3.h"  // IWYU pragma: export
 #include "util/math_uint4.h"  // IWYU pragma: export
 

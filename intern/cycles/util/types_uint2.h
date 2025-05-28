@@ -27,10 +27,14 @@ struct uint2 {
 #  endif
 };
 
+ccl_device_inline uint2 make_uint2(const uint x)
+{
+  return {x, x};
+}
+
 ccl_device_inline uint2 make_uint2(const uint x, const uint y)
 {
-  uint2 a = {x, y};
-  return a;
+  return {x, y};
 }
 #endif /* __KERNEL_NATIVE_VECTOR_TYPES__ */
 

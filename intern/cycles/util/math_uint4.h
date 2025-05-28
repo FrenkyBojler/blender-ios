@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "util/types_float4.h"
 #include "util/types_uint4.h"
 
 CCL_NAMESPACE_BEGIN

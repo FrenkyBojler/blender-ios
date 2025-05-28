@@ -401,6 +401,7 @@ set(SRC_UTIL_HEADERS
   ../util/math_int3.h
   ../util/math_int4.h
   ../util/math_int8.h
+  ../util/math_uint2.h
   ../util/math_uint3.h
   ../util/math_uint4.h
   ../util/projection.h

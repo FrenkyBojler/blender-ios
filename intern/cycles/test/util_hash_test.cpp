@@ -20,13 +20,13 @@ TEST(hash, float2_to_float2)
 {
   {
     const float2 c = hash_float2_to_float2(make_float2(0, 1));
-    EXPECT_NEAR(c.x, 0.14955954253673553f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.15225376188755035f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.94104540348052979f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.57971519231796265f, 1.0e-9f);
   }
   {
     const float2 c = hash_float2_to_float2(make_float2(1.5f, -0.1f));
-    EXPECT_NEAR(c.x, 0.19543434679508209f, 1.0e-9f);
-    EXPECT_NEAR(c.y, 0.67111784219741821f, 1.0e-9f);
+    EXPECT_NEAR(c.x, 0.36130267381668091f, 1.0e-9f);
+    EXPECT_NEAR(c.y, 0.47897535562515259f, 1.0e-9f);
   }
 }
 
