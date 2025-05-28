@@ -525,6 +525,11 @@ ccl_device_inline float3 select(const MaskType mask, const float3 a, const float
 #endif
 }
 
+ccl_device_inline uint3 __float3_as_uint3(const float3 f)
+{
+  return make_uint3(__float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z));
+}
+
 template<class MaskType> ccl_device_inline float3 mask(const MaskType mask, const float3 a)
 {
   /* Replace elements of x with zero where mask isn't set. */

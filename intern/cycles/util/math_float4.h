@@ -644,6 +644,12 @@ ccl_device_inline int4 __float4_as_int4(const float4 f)
 #  endif
 }
 
+ccl_device_inline uint4 __float4_as_uint4(const float4 f)
+{
+  return make_uint4(
+      __float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z), __float_as_uint(f.w));
+}
+
 ccl_device_inline float4 __int4_as_float4(const int4 i)
 {
 #  ifdef __KERNEL_SSE__

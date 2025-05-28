@@ -27,6 +27,11 @@ struct uint3 {
 #  endif
 };
 
+ccl_device_inline uint3 make_uint3(const uint a)
+{
+  return {a, a, a};
+}
+
 ccl_device_inline uint3 make_uint3(const uint x, const uint y, uint z)
 {
   uint3 a = {x, y, z};

@@ -7,6 +7,7 @@
 #include "util/types_base.h"
 #include "util/types_float3.h"
 #include "util/types_int4.h"
+#include "util/types_uint4.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -99,6 +100,11 @@ ccl_device_inline float4 make_float4(const int4 i)
 #else
   return make_float4((float)i.x, (float)i.y, (float)i.z, (float)i.w);
 #endif
+}
+
+ccl_device_inline float4 make_float4(const uint4 u)
+{
+  return make_float4((float)u.x, (float)u.y, (float)u.z, (float)u.w);
 }
 
 ccl_device_inline float3 make_float3(const float4 a)

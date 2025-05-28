@@ -26,6 +26,37 @@ ccl_device_forceinline float uint_to_float_incl(const uint n)
   return (float)n * (1.0f / (float)0xFFFFFFFFu);
 }
 
+/* PCG 3D and 4D hash functions,
+ * from "Hash Functions for GPU Rendering" JCGT 2020
+ * https://jcgt.org/published/0009/03/02/ */
+ccl_device_inline uint3 hash_pcg3d(uint3 v)
+{
+  v = v * make_uint3(1664525u) + make_uint3(1013904223u);
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  return v;
+}
+
+ccl_device_inline uint4 hash_pcg4d(uint4 v)
+{
+  v = v * make_uint4(1664525u) + make_uint4(1013904223u);
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  return v;
+}
+
 /* ***** Jenkins Lookup3 Hash Functions ***** */
 
 /* Source: http://burtleburtle.net/bob/c/lookup3.c */
@@ -200,12 +231,28 @@ ccl_device_inline float3 hash_float3_to_float3(const float3 k)
                      hash_float4_to_float(make_float4(k.x, k.y, k.z, 2.0)));
 }
 
+ccl_device_inline float3 hash_float3_to_float3_pcg(const float3 k)
+{
+  uint3 uk = __float3_as_uint3(k);
+  uint3 h = hash_pcg3d(uk);
+  float3 f = make_float3(h);
+  return f * (1.0f / (float)0xFFFFFFFFu);
+}
+
 ccl_device_inline float4 hash_float4_to_float4(const float4 k)
 {
   return make_float4(hash_float4_to_float(k),
                      hash_float4_to_float(make_float4(k.w, k.x, k.y, k.z)),
                      hash_float4_to_float(make_float4(k.z, k.w, k.x, k.y)),
                      hash_float4_to_float(make_float4(k.y, k.z, k.w, k.x)));
+}
+
+ccl_device_inline float4 hash_float4_to_float4_pcg(const float4 k)
+{
+  uint4 uk = __float4_as_uint4(k);
+  uint4 h = hash_pcg4d(uk);
+  float4 f = make_float4(h);
+  return f * (1.0f / (float)0xFFFFFFFFu);
 }
 
 /* Hashing float or float[234] into float3 of components in range [0, 1]. */
