@@ -622,7 +622,7 @@ bool USDMaterialReader::set_displacement_node_inputs(bNodeTree *ntree,
 
   /* If the displacement input is not connected, then this is "constant" displacement which is
    * a lossy conversion from the UsdPreviewSurface. We adjust the Height input assuming a
-   * Midlevel of 0.5 and Scale of 1. */
+   * Midlevel of 0.5 and Scale of 1 as that closely matches the scene in `usdview`. */
   if (!displacement_input.HasConnectedSource()) {
     bNodeSocket *sock_height = blender::bke::node_find_socket(*displacement_node, SOCK_IN, height);
     bNodeSocket *sock_mid = blender::bke::node_find_socket(
