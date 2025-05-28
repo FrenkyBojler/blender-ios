@@ -572,6 +572,10 @@ void update_custom_knot_modes(const IndexMask mask,
                               const KnotsMode mode_for_cyclic,
                               bke::CurvesGeometry &curves);
 
+void copy_custom_knots(const bke::CurvesGeometry &src_curves,
+                       const IndexMask &exclude_curves,
+                       bke::CurvesGeometry &dst_curves);
+
 }  // namespace nurbs
 
 /** \} */

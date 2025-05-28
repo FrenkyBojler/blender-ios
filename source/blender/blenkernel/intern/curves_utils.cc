@@ -246,9 +246,32 @@ void update_custom_knot_modes(const IndexMask mask,
   const VArray<bool> cyclic = curves.cyclic();
   MutableSpan<int8_t> knot_modes = curves.nurbs_knots_modes_for_write();
   mask.foreach_index(GrainSize(512), [&](const int64_t curve) {
-    knot_modes[curve] = cyclic[curve] ? mode_for_cyclic : mode_for_regular;
+    int8_t &knot_mode = knot_modes[curve];
+    if (knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+      knot_mode = cyclic[curve] ? mode_for_cyclic : mode_for_regular;
+    }
   });
   curves.nurbs_custom_knots_update_size();
+}
+
+void copy_custom_knots(const bke::CurvesGeometry &src_curves,
+                       const IndexMask &exclude_curves,
+                       bke::CurvesGeometry &dst_curves)
+{
+  BLI_assert(src_curves.curves_num() == dst_curves.curves_num());
+
+  if (src_curves.nurbs_has_custom_knots()) {
+    /* Ensure excluded curves don't have NURBS_KNOT_MODE_CUSTOM set. */
+    bke::curves::nurbs::update_custom_knot_modes(
+        exclude_curves, NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+    IndexMaskMemory memory;
+    bke::curves::nurbs::gather_custom_knots(
+        src_curves,
+        IndexMask::from_difference(
+            src_curves.nurbs_custom_knot_curves(memory), exclude_curves, memory),
+        0,
+        dst_curves);
+  }
 }
 
 }  // namespace nurbs
