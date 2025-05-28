@@ -964,7 +964,9 @@ void ShadowModule::end_sync()
     /* Non volume usage tagging happens between these two steps.
      * (Setup at begin_sync) */
 
-    if (inst_.volume.needs_shadow_tagging() && !inst_.is_baking()) {
+    if (inst_.volume.needs_shadow_tagging() && !inst_.is_baking() &&
+        inst_.is_loaded(VOLUME_EVAL_SHADERS))
+    {
       PassMain::Sub &sub = tilemap_usage_ps_.sub("World Volume");
       sub.shader_set(inst_.shaders.static_shader_get(SHADOW_TILEMAP_TAG_USAGE_VOLUME));
       sub.bind_ssbo("tilemaps_buf", &tilemap_pool.tilemaps_data);

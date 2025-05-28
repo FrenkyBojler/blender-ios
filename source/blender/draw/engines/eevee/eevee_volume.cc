@@ -106,7 +106,7 @@ bool VolumeModule::will_enable() const
 
 void VolumeModule::end_sync()
 {
-  enabled_ = will_enable();
+  enabled_ = will_enable() && inst_.is_loaded(VOLUME_EVAL_SHADERS);
 
   const Scene *scene_eval = inst_.scene;
 
