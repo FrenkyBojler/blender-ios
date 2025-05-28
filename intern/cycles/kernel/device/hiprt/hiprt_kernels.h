@@ -84,7 +84,7 @@ ccl_gpu_kernel_threads(GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS)
 }
 
 ccl_gpu_kernel_postfix
-ccl_gpu_kernel_threads(GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS)
+ccl_gpu_kernel_threads(GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE)
     ccl_gpu_kernel_signature(integrator_shade_surface_raytrace,
                              const ccl_global int *path_index_array,
                              ccl_global float *render_buffer,

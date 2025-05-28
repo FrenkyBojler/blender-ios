@@ -667,6 +667,21 @@ function(get_hip_math_flag arch math_flag)
   set(${math_flag} "${result}" PARENT_SCOPE)
 endfunction()
 
+# Workaround for SDK 6.3.42560-881c2d702 compiler bug on RDNA3.5 and RDNA4
+# Issue #138656
+function(get_hip_shade_surface_max_thread arch shade_surface_max_thread)
+  if(WIN32 AND (${arch} MATCHES "gfx1200|gfx1201"))
+    set(result
+      -DGPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256)
+  elseif(${arch} MATCHES "gfx1150|gfx1151")
+    set(result
+      -DGPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256)
+  else()
+    set(result "")
+  endif()
+  set(${shade_surface_max_thread} "${result}" PARENT_SCOPE)
+endfunction()
+
 if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
   # build for each arch
   set(hip_sources device/hip/kernel.cpp
@@ -708,6 +723,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
     endif()
 
     get_hip_math_flag(${arch} math_flag)
+    get_hip_shade_surface_max_thread(${arch} shade_surface_max_thread)
 
     set(hip_flags
       ${hip_flags}
@@ -726,6 +742,7 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
       -ffast-math
       ${math_flag}
       ${hip_opt_flags}
+      ${shade_surface_max_thread}
       -o ${CMAKE_CURRENT_BINARY_DIR}/${hip_file})
 
     if(WITH_NANOVDB)
@@ -821,11 +838,13 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
   set(hiprt_hipfb)
   foreach(arch ${CYCLES_HIP_BINARIES_ARCH})
     get_hip_math_flag(${arch} math_flag)
+    get_hip_shade_surface_max_thread(${arch} shade_surface_max_thread)
     set(hiprt_file ${CMAKE_CURRENT_BINARY_DIR}/kernel_rt_${arch}.hipfb)
     set(hiprt_file_compressed ${hiprt_file}.zst)
     set(hiprt_flags
     ${hiprt_compile_flags}
     ${math_flag}
+    ${shade_surface_max_thread}
     --offload-arch=${arch}
     -o ${hiprt_file})
 

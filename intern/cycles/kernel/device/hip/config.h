@@ -25,6 +25,24 @@
  * that's why we don't use GPU_KERNEL_BLOCK_NUM_THREADS. */
 #define GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS 1024
 
+// Workaround for SDK 6.3.42560 - 881c2d702 compiler bug on RDNA3.5 and RDNA4
+// Issue #138656
+#if !defined(GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE) && \
+    !defined(GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE)
+#  define GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS
+#  define GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE GPU_BLOCK_MAX_THREADS
+#endif
+
+#if !defined(GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE) && \
+    defined(GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE)
+#  define GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE \
+    GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE
+#endif
+
+#if !defined(GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE)
+#  define GPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE GPU_BLOCK_MAX_THREADS
+#endif
+
 /* Compute number of threads per block and minimum blocks per multiprocessor
  * given the maximum number of registers per thread. */
 #define ccl_gpu_kernel(block_num_threads, thread_num_registers) \

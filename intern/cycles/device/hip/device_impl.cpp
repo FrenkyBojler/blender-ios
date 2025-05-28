@@ -269,6 +269,10 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
         "-fgpu-flush-denormals-to-zero -ffp-contract=off");
   }
 
+  if (arch == "gfx1150" || arch == "gfx1151") {
+    options.append("-DGPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256");
+  }
+
 #  ifndef NDEBUG
   options.append(" -save-temps");
 #  endif
