@@ -38,8 +38,9 @@ static void cmp_node_directional_blur_declare(NodeDeclarationBuilder &b)
           "to the power of this input, so it increases exponentially")
       .compositor_expects_single_value();
   b.add_input<decl::Vector>("Center")
-      .default_value({0.5f, 0.5f, 0.0f})
       .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
       .description(
@@ -304,7 +305,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_directionalblur_cc
 
-void register_node_type_cmp_dblur()
+static void register_node_type_cmp_dblur()
 {
   namespace file_ns = blender::nodes::node_composite_directionalblur_cc;
 
@@ -323,3 +324,4 @@ void register_node_type_cmp_dblur()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_dblur)
