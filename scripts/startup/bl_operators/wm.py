@@ -3308,6 +3308,9 @@ class WM_OT_batch_rename(Operator):
 
     def invoke(self, context, event):
 
+        # TEST: Make batch rename cause a warning, to be removed.
+        print(context.view_layer.eevee.use_pass_bloom)
+
         self._data_update(context)
 
         if not self.actions:
