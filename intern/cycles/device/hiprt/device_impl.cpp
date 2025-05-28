@@ -233,7 +233,7 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
   }
 #  ifdef _WIN32
   if (arch == "gfx1200" || arch == "gfx1201") {
-    options.append("-GPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256");
+    options.append("-DGPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256");
   }
 #  endif
 #  ifdef WITH_NANOVDB
