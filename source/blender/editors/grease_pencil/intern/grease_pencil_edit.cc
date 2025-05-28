@@ -4229,13 +4229,13 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
     case OutlineMode::Top:
       viewinv = float4x4::identity();
       break;
-    case OutlineMode::Camera:
-      viewinv = scene->camera->world_to_object();
-      break;
     case OutlineMode::Cursor: {
       viewinv = scene->cursor.matrix<float4x4>();
       break;
     }
+    case OutlineMode::Camera:
+      viewinv = scene->camera->world_to_object();
+      break;
     default:
       break;
   }
