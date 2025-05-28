@@ -81,7 +81,7 @@ class ProfileReport {
 
     _report << fmt::format(
         ",\n"
-        R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":1,"tid":{}}})",
+        R"({{"name":"{}","ph":"X","ts":{},"dur":{},"pid":2,"tid":{}}})",
         name.c_str(),
         cpu_start / uint64_t(1000),
         (cpu_end - cpu_start) / uint64_t(1000),
