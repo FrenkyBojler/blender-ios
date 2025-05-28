@@ -251,7 +251,7 @@ static void PREFERENCES_OT_asset_library_remove(wmOperatorType *ot)
 static bool preferences_asset_library_move_poll(bContext *C)
 {
   if (BLI_listbase_count(&U.asset_libraries) < 2) {
-    CTX_wm_operator_poll_msg_set(C, "There must be at least two libraries to move.");
+    CTX_wm_operator_poll_msg_set(C, "There must be at least two libraries to move");
     return false;
   }
   return true;
