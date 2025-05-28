@@ -266,6 +266,24 @@ static int to_nurbs_size(const CurveType src_type, const int src_size)
   }
 }
 
+static void copy_custom_knots(const bke::CurvesGeometry &src_curves,
+                              const IndexMask &exclude_curves,
+                              bke::CurvesGeometry &dst_curves)
+{
+  if (src_curves.nurbs_has_custom_knots()) {
+    /* Ensure converted curves don't have NURBS_KNOT_MODE_CUSTOM set. */
+    bke::curves::nurbs::update_custom_knot_modes(
+        exclude_curves, NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+    IndexMaskMemory memory;
+    bke::curves::nurbs::gather_custom_knots(
+        src_curves,
+        IndexMask::from_difference(
+            src_curves.nurbs_custom_knot_curves(memory), exclude_curves, memory),
+        0,
+        dst_curves);
+  }
+}
+
 static bke::CurvesGeometry convert_curves_to_bezier(const bke::CurvesGeometry &src_curves,
                                                     const IndexMask &selection,
                                                     const bke::AttributeFilter &attribute_filter)
@@ -450,7 +468,7 @@ static bke::CurvesGeometry convert_curves_to_bezier(const bke::CurvesGeometry &s
 
     attribute.dst.finish();
   }
-
+  copy_custom_knots(src_curves, selection, dst_curves);
   return dst_curves;
 }
 
@@ -623,7 +641,7 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
 
     attribute.dst.finish();
   }
-
+  copy_custom_knots(src_curves, IndexMask(), dst_curves);
   return dst_curves;
 }
 
@@ -754,7 +772,7 @@ static bke::CurvesGeometry convert_curves_to_catmull_rom_or_poly(
 
     attribute.dst.finish();
   }
-
+  copy_custom_knots(src_curves, selection, dst_curves);
   return dst_curves;
 }
 

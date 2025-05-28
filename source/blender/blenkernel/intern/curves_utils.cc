@@ -224,14 +224,18 @@ void gather_custom_knots(const bke::CurvesGeometry &src,
                          bke::CurvesGeometry &dst)
 {
   const OffsetIndices<int> src_knots_by_curve = src.nurbs_custom_knots_by_curve();
-  const OffsetIndices<int> dst_knots_by_curve = dst.nurbs_custom_knots_by_curve();
-  const OffsetIndices<int> dst_knots_by_curve_truncated = dst_knots_by_curve.slice(
-      IndexRange::from_begin_end(dst_curve_offset, dst_knots_by_curve.size()));
+  Array<int> dst_offsets(src_curves.size() + 1);
+  offset_indices::gather_group_sizes(src_knots_by_curve, src_curves, dst_offsets);
+  offset_indices::accumulate_counts_to_offsets(dst_offsets);
+  const int shift_by = dst.nurbs_custom_knots_by_curve()[dst_curve_offset].start();
+  for (int &offset : dst_offsets) {
+    offset += shift_by;
+  }
   MutableSpan<float> dst_knots = dst.nurbs_custom_knots_for_write();
   Span<float> src_knots = src.nurbs_custom_knots();
 
   array_utils::gather_group_to_group(
-      src_knots_by_curve, dst_knots_by_curve_truncated, src_curves, src_knots, dst_knots);
+      src_knots_by_curve, dst_offsets.as_span(), src_curves, src_knots, dst_knots);
 }
 
 void update_custom_knot_modes(const IndexMask mask,
@@ -244,6 +248,7 @@ void update_custom_knot_modes(const IndexMask mask,
   mask.foreach_index(GrainSize(512), [&](const int64_t curve) {
     knot_modes[curve] = cyclic[curve] ? mode_for_cyclic : mode_for_regular;
   });
+  curves.nurbs_custom_knots_update_size();
 }
 
 }  // namespace nurbs
