@@ -222,9 +222,18 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
   }
   const bke::AttrType type = bke::cpp_type_to_attribute_type(CPPType::get<T>());
   if (bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name)) {
-    if (auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data_for_write())) {
-      return MutableSpan(static_cast<T *>(array_data->data), pointcloud.totpoint);
+    if (attr->data_type() == type) {
+      if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
+        /* Convert single value storage to array storage. */
+        const GPointer g_value(CPPType::get<T>(), single_data->value);
+        attr->data_for_write() = bke::Attribute::ArrayData::ForValue(g_value, pointcloud.totpoint);
+      }
+      auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
+      return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
     }
+    /* The attribute has the wrong type. This shouldn't happen for builtin attributes, but just in
+     * case, remove it. */
+    pointcloud.attribute_storage.wrap().remove(name);
   }
   bke::Attribute &attr = pointcloud.attribute_storage.wrap().add(
       name,
