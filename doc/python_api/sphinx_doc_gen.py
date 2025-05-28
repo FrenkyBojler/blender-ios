@@ -1742,6 +1742,7 @@ def pyrna2sphinx(basepath):
                     ))
                     if (deprecated := prop.deprecated) is not None:
                         fw(pyrna_deprecated_directive("      ", deprecated))
+                        fw("\n")
 
                 fw("      :rtype: ({:s})\n".format(", ".join(type_descrs)))
 

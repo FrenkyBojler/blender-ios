@@ -413,7 +413,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
     config.pathconfig_warnings = 0;
 
     /* WARNING: running scripts directly uses the default behavior *but* for some reason
-     * warnings are *not* shown C++ calls into Python (RNA callbacks & operators for example).
+     * warnings are *not* shown when C++ calls into Python (RNA callbacks & operators for example).
      * See: !139487. */
     if ((py_use_system_env == false) || (BLI_getenv("PYTHONWARNINGS") == nullptr)) {
       PyWideStringList_Append(&config.warnoptions, L"default");
