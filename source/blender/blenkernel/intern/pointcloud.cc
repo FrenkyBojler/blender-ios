@@ -269,11 +269,6 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   BKE_libblock_init_empty(&pointcloud->id);
 
   pointcloud->totpoint = totpoint;
-  pointcloud->attributes_for_write().add("position",
-                                         blender::bke::AttrDomain::Point,
-                                         CD_PROP_FLOAT3,
-                                         blender::bke::AttributeInitConstruct());
-
   pointcloud->attributes_for_write().add<float3>(
       "position", blender::bke::AttrDomain::Point, blender::bke::AttributeInitConstruct());
 
@@ -284,6 +279,7 @@ void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud 
 {
   BLI_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
 
+  pointcloud_dst->totpoint = pointcloud_src->totpoint;
   pointcloud_dst->attribute_storage.wrap() = std::move(pointcloud_src->attribute_storage.wrap());
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
   pointcloud_dst->runtime->bounds_with_radius_cache =
