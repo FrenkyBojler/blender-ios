@@ -82,6 +82,8 @@ BLOCKLIST_OPTIX_OSL = [
     'image_mapping_udim_packed.blend',
     # Error during rendering. Need to investigate why.
     'points_volume.blend',
+    # OptiX OSL uses the SVM image code path rather than OIIO like the CPU, so it fails OSL image tests.
+    'image_.*_osl.blend',
 ]
 
 
