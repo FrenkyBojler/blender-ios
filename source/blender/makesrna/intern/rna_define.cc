@@ -1751,7 +1751,7 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
   prop->description = description;
 }
 
-void RNA_def_property_deprecated(PropertyRNA *prop, const char *note, const int removal_version)
+void RNA_def_property_deprecated(PropertyRNA *prop, const char *note, const short removal_version)
 {
   prop->deprecated_note = note;
   prop->deprecated_removal_version = removal_version;

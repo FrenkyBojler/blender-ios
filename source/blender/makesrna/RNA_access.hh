@@ -241,7 +241,7 @@ const char *RNA_property_description(PropertyRNA *prop);
 
 bool RNA_property_is_deprecated(const PropertyRNA *prop);
 const char *RNA_property_deprecated_note(const PropertyRNA *prop);
-int RNA_property_deprecated_removal_version(const PropertyRNA *prop);
+short RNA_property_deprecated_removal_version(const PropertyRNA *prop);
 
 PropertyType RNA_property_type(PropertyRNA *prop);
 PropertySubType RNA_property_subtype(PropertyRNA *prop);

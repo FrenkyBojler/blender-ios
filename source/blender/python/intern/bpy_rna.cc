@@ -186,7 +186,7 @@ void pyrna_invalidate(BPy_DummyPointerRNA *self)
 static void pyrna_prop_warn_deprecated(const PointerRNA *ptr, const PropertyRNA *prop)
 {
   const char *note = RNA_property_deprecated_note(prop);
-  const int version = RNA_property_deprecated_removal_version(prop);
+  const short version = RNA_property_deprecated_removal_version(prop);
   PyErr_WarnFormat(PyExc_DeprecationWarning,
                    1,
                    "'%s.%s' is expected to be removed in Blender %d.%d",

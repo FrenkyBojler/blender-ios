@@ -1249,7 +1249,7 @@ const char *RNA_property_deprecated_note(const PropertyRNA *prop)
   return prop->deprecated_note;
 }
 
-int RNA_property_deprecated_removal_version(const PropertyRNA *prop)
+short RNA_property_deprecated_removal_version(const PropertyRNA *prop)
 {
   BLI_assert(RNA_property_is_deprecated(prop));
   return prop->deprecated_removal_version;
