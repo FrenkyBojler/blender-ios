@@ -257,7 +257,7 @@ static bool preferences_asset_library_move_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus preferences_asset_library_move_exec(bContext * /*C*/, wmOperator *op)
 {
   const int index = U.active_asset_library;
   const int direction = RNA_enum_get(op->ptr, "direction");
