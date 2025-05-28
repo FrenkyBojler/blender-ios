@@ -268,24 +268,11 @@ static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
-  /* Move up. */
-  if (direction == 1 && library->prev != nullptr) {
-    if (!BLI_listbase_link_move(&U.asset_libraries, library, -1)) {
-      return OPERATOR_CANCELLED;
-    }
-    U.active_asset_library--;
-  }
-  /* Move down. */
-  else if (direction == -1 && library->next != nullptr) {
-    if (!BLI_listbase_link_move(&U.asset_libraries, library, 1)) {
-      return OPERATOR_CANCELLED;
-    }
-    U.active_asset_library++;
-  }
-  else {
+  if (!BLI_listbase_link_move(&U.asset_libraries, library, direction)) {
     return OPERATOR_CANCELLED;
   }
 
+  U.active_asset_library += direction;
   U.runtime.is_dirty = true;
 
   /* Trigger refresh for the Asset Browser. */
@@ -297,8 +284,8 @@ static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOpera
 static void PREFERENCES_OT_asset_library_move(wmOperatorType *ot)
 {
   static const EnumPropertyItem asset_library_move[] = {
-      {1, "UP", 0, "Up", ""},
-      {-1, "DOWN", 0, "Down", ""},
+      {-1, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
