@@ -9,6 +9,8 @@
 #include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
 
+#include "BLI_array_utils.hh"
+
 namespace blender::bke::curves {
 
 IndexMask curve_to_point_selection(OffsetIndices<int> points_by_curve,
@@ -215,6 +217,22 @@ void write_all_positions(bke::CurvesGeometry &curves,
 }  // namespace bezier
 
 namespace nurbs {
+
+void gather_custom_knots(const bke::CurvesGeometry &src,
+                         const IndexMask &src_curves,
+                         const int dst_curve_offset,
+                         bke::CurvesGeometry &dst)
+{
+  const OffsetIndices<int> src_knots_by_curve = src.nurbs_custom_knots_by_curve();
+  const OffsetIndices<int> dst_knots_by_curve = dst.nurbs_custom_knots_by_curve();
+  const OffsetIndices<int> dst_knots_by_curve_truncated = dst_knots_by_curve.slice(
+      IndexRange::from_begin_end(dst_curve_offset, dst_knots_by_curve.size()));
+  MutableSpan<float> dst_knots = dst.nurbs_custom_knots_for_write();
+  Span<float> src_knots = src.nurbs_custom_knots();
+
+  array_utils::gather_group_to_group(
+      src_knots_by_curve, dst_knots_by_curve_truncated, src_curves, src_knots, dst_knots);
+}
 
 void update_custom_knot_modes(const IndexMask mask,
                               const KnotsMode mode_for_regular,

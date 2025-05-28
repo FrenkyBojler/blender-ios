@@ -562,6 +562,11 @@ void write_all_positions(bke::CurvesGeometry &curves,
 
 namespace nurbs {
 
+void gather_custom_knots(const bke::CurvesGeometry &src,
+                         const IndexMask &src_curves,
+                         int dst_curve_offset,
+                         bke::CurvesGeometry &dst);
+
 void update_custom_knot_modes(const IndexMask mask,
                               const KnotsMode mode_for_regular,
                               const KnotsMode mode_for_cyclic,
