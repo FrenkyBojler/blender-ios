@@ -565,6 +565,23 @@ Material &MaterialModule::material_get(Object *ob,
   return mat;
 }
 
+bool MaterialModule::default_materials_are_ready(bool block_until_ready)
+{
+  bool shaders_are_ready = true;
+  auto request_shader = [&](::Material *mat, eMaterialPipeline pipeline, eMaterialGeometry geom) {
+    GPUMaterial *gpu_mat = inst_.shaders.material_shader_get(
+        mat, mat->nodetree, pipeline, geom, !block_until_ready, nullptr);
+    shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  };
+
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_PREPASS_DEFERRED_VELOCITY, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_DEFERRED, MAT_GEOM_MESH);
+  request_shader(default_surface, MAT_PIPE_SHADOW, MAT_GEOM_MESH);
+
+  return shaders_are_ready;
+}
+
 /** \} */
 
 }  // namespace blender::eevee

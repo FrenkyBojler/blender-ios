@@ -208,57 +208,29 @@ void Instance::init(const int2 &output_res,
   volume.init();
   lookdev.init(visible_rect);
 
-  shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render,
-                                                        false,
-                                                        depth_of_field.postfx_enabled(),
-                                                        motion_blur.postfx_enabled(),
-                                                        raytracing.use_fast_gi(),
-                                                        false,
-                                                        raytracing.use_raytracing()) &&
-                       shaders.request_specializations(
-                           is_image_render,
-                           render_buffers.data.shadow_id,
-                           shadows.get_data().ray_count,
-                           shadows.get_data().step_count,
-                           DeferredLayer::do_split_direct_indirect_radiance(*this),
-                           DeferredLayer::do_merge_direct_indirect_eval(*this));
+  bool static_shader_ready = shaders.static_shaders_are_ready(is_image_render,
+                                                              false,
+                                                              depth_of_field.postfx_enabled(),
+                                                              motion_blur.postfx_enabled(),
+                                                              raytracing.use_fast_gi(),
+                                                              false,
+                                                              raytracing.use_raytracing());
 
-  {
-    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
-                                                       materials.default_surface->nodetree,
-                                                       MAT_PIPE_PREPASS_DEFERRED,
-                                                       MAT_GEOM_MESH,
-                                                       true,
-                                                       nullptr);
-    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
+  bool static_specialization_ready = false;
+  if (static_shader_ready) {
+    static_specialization_ready = shaders.request_specializations(
+        is_image_render,
+        render_buffers.data.shadow_id,
+        shadows.get_data().ray_count,
+        shadows.get_data().step_count,
+        DeferredLayer::do_split_direct_indirect_radiance(*this),
+        DeferredLayer::do_merge_direct_indirect_eval(*this));
   }
-  {
-    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
-                                                       materials.default_surface->nodetree,
-                                                       MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-                                                       MAT_GEOM_MESH,
-                                                       true,
-                                                       nullptr);
-    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
-  }
-  {
-    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
-                                                       materials.default_surface->nodetree,
-                                                       MAT_PIPE_DEFERRED,
-                                                       MAT_GEOM_MESH,
-                                                       true,
-                                                       nullptr);
-    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
-  }
-  {
-    GPUMaterial *gpu_mat = shaders.material_shader_get(materials.default_surface,
-                                                       materials.default_surface->nodetree,
-                                                       MAT_PIPE_SHADOW,
-                                                       MAT_GEOM_MESH,
-                                                       true,
-                                                       nullptr);
-    shaders_are_ready_ = shaders_are_ready_ && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
-  }
+
+  bool default_material_ready = materials.default_materials_are_ready(is_image_render);
+
+  shaders_are_ready_ = default_material_ready && static_shader_ready &&
+                       static_specialization_ready;
 
   skip_render_ = !shaders_are_ready_ || !film.is_valid_render_extent();
 }
