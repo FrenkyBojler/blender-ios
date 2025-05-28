@@ -1460,11 +1460,21 @@ def pyrna_deprecated_directive(ident, deprecated):
     else:
         removal_version_str = "{:d}.{:d}.{:d}".format(*removal_version)
 
+    # Deprecated.
+    #
+    # NOTE: Use `admonition` instead of "deprecated" because
+    # Sphinx deprecated directive requires the version which was deprecated to be included.
     return (
-        "{:s}.. deprecated:: removal {:s}\n"
+        "{:s}.. admonition:: Deprecated\n"
         "\n"
         "{:s}   {:s}\n"
-    ).format(ident, removal_version_str, ident, note)
+        "\n"
+        "{:s}   To be removed: {:s}\n"
+    ).format(
+        ident,
+        ident, note,
+        ident, removal_version_str,
+    )
 
 
 def pyrna2sphinx(basepath):
