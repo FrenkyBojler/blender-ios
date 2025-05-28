@@ -106,6 +106,7 @@ static void append_point_knots(const Span<IndexRange> src_ranges,
   for (const int appended_curve : dst_to_src_curve.index_range()) {
     const int dst_curve = appended_curve + old_curves_num;
     if (knot_modes[dst_curve] != NURBS_KNOT_MODE_CUSTOM) {
+      range++;
       continue;
     }
     const int src_curve = dst_to_src_curve[appended_curve];
