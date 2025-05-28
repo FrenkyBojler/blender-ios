@@ -19,6 +19,8 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
+#include "BKE_path_templates.hh"
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_format_string_cc {
@@ -366,7 +368,7 @@ static std::optional<ProcessedFormatString> check_and_process_format_string(
     /* The type can't be formatted. The user shouln't be able to trigger this error but nice to
      * handle it anyway. */
     if (!r_error) {
-      r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted.")), type.name());
+      r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
     }
     return std::nullopt;
   }
@@ -495,6 +497,54 @@ static void append_formatted_strings(const fmt::format_string<> format,
   }
 }
 
+static void format_with_hash_syntax(const StringRef format_pattern,
+                                    const GVArray &input,
+                                    const IndexMask &mask,
+                                    MutableSpan<std::string> r_formatted_strings,
+                                    std::optional<std::string> &r_error)
+{
+  const CPPType &type = input.type();
+  if (type.is<float>()) {
+    mask.foreach_index([&](const int64_t i) {
+      std::string &output = r_formatted_strings[i];
+      const float value = input.get<float>(i);
+      if (const std::optional<std::string> value_str = BKE_path_template_format_float(
+              format_pattern, value))
+      {
+        output.append(*value_str);
+      }
+      else if (!r_error) {
+        r_error = fmt::format(fmt::runtime(TIP_("Invalid format specifier: \"{}\"")),
+                              format_pattern);
+      }
+    });
+  }
+  else if (type.is<int>()) {
+    mask.foreach_index([&](const int64_t i) {
+      std::string &output = r_formatted_strings[i];
+      const int64_t value = input.get<int>(i);
+      if (const std::optional<std::string> value_str = BKE_path_template_format_int(format_pattern,
+                                                                                    value))
+      {
+        output.append(*value_str);
+      }
+      else if (!r_error) {
+        r_error = fmt::format(fmt::runtime(TIP_("Invalid format specifier: \"{}\"")),
+                              format_pattern);
+      }
+    });
+  }
+  else if (type.is<std::string>()) {
+    if (!r_error) {
+      r_error = fmt::format(fmt::runtime(TIP_("Invalid format specifier for string: \"{}\"")),
+                            format_pattern);
+    }
+  }
+  else if (!r_error) {
+    r_error = fmt::format(fmt::runtime(TIP_("Type \"{}\" can't be formatted")), type.name());
+  }
+}
+
 static bool format_strings(const StringRef format,
                            const Span<GVArray> inputs,
                            const VectorSet<std::string> &input_names,
@@ -558,18 +608,26 @@ static bool format_strings(const StringRef format,
     }
     const CPPType &type = input->type();
 
-    /* Extract information like width and precision inputs. */
-    std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
-        format_pattern, *format_outer, type, inputs_lookup, r_error);
-    if (!processed_format.has_value()) {
-      return false;
+    if (format_pattern.find('#') == StringRef::not_found) {
+      /* Extract information like width and precision inputs. */
+      std::optional<ProcessedFormatString> processed_format = check_and_process_format_string(
+          format_pattern, *format_outer, type, inputs_lookup, r_error);
+      if (!processed_format.has_value()) {
+        return false;
+      }
+      append_formatted_strings(fmt::runtime(processed_format->format_str),
+                               *input,
+                               processed_format->widths,
+                               processed_format->precisions,
+                               mask,
+                               r_formatted_strings);
     }
-    append_formatted_strings(fmt::runtime(processed_format->format_str),
-                             *input,
-                             processed_format->widths,
-                             processed_format->precisions,
-                             mask,
-                             r_formatted_strings);
+    else {
+      format_with_hash_syntax(format_pattern, *input, mask, r_formatted_strings, r_error);
+      if (r_error) {
+        return false;
+      }
+    }
 
     current_index += format_outer->size();
   }
