@@ -892,7 +892,7 @@ void calculate_knots(
  * Knots: [0, 0, 0, 0.1, 0.3, 0.4, 0.4, 0.4]
  * Result: [3, 1, 1, 3]
  */
-Vector<int> calculate_multiplicity_sequence(const Span<float> knots);
+Vector<int> calculate_multiplicity_sequence(Span<float> knots);
 
 /**
  * Based on the knots, the order, and other properties of a NURBS curve, calculate a cache that can
