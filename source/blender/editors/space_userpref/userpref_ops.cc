@@ -270,14 +270,14 @@ static wmOperatorStatus preferences_asset_library_move_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
-  // up
+  /* Move up. */
   if (direction == 1 && library->prev != nullptr) {
     if (!BKE_preferences_asset_library_move(&U, library, index - 1)) {
       return OPERATOR_CANCELLED;
     }
     U.active_asset_library--;
   }
-  // down
+  /* Move down. */
   else if (direction == -1 && library->next != nullptr) {
     if (!BKE_preferences_asset_library_move(&U, library, index + 1)) {
       return OPERATOR_CANCELLED;
