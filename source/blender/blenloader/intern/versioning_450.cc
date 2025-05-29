@@ -32,6 +32,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
@@ -4952,17 +4953,32 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
-    blender::IndexMaskMemory memory;
+    auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
+      blender::IndexMaskMemory memory;
+      if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
+        blender::bke::curves::nurbs::update_custom_knot_modes(
+            curves.nurbs_custom_knot_curves(memory),
+            NURBS_KNOT_MODE_NORMAL,
+            NURBS_KNOT_MODE_NORMAL,
+            curves);
+      }
+    };
+
     LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
       if (ob->type == OB_CURVES) {
         Curves *curves_id = static_cast<Curves *>(ob->data);
         blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-        if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
-          blender::bke::curves::nurbs::update_custom_knot_modes(
-              curves.nurbs_custom_knot_curves(memory),
-              NURBS_KNOT_MODE_NORMAL,
-              NURBS_KNOT_MODE_NORMAL,
-              curves);
+        fix_curves(curves);
+      }
+      else if (ob->type == OB_GREASE_PENCIL) {
+        GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+        for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+          if (base->type != GP_DRAWING) {
+            continue;
+          }
+          blender::bke::greasepencil::Drawing &drawing =
+              reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+          fix_curves(drawing.strokes_for_write());
         }
       }
     }
