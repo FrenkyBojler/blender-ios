@@ -37,6 +37,7 @@
 
 #include "BKE_compute_context_cache_fwd.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_node.hh"
 #include "BKE_node_tree_zones.hh"
 #include "BKE_volume_grid_fwd.hh"
@@ -52,6 +53,8 @@
 struct SpaceNode;
 struct NodesModifierData;
 struct Report;
+
+using blender::bke::greasepencil::LayerSearchInfo;
 
 namespace blender::nodes::geo_eval_log {
 
@@ -155,7 +158,7 @@ class GeometryInfoLog : public ValueLog {
   };
   struct GreasePencilInfo {
     int layers_num;
-    Vector<std::string> layer_names;
+    Vector<LayerSearchInfo> layers;
   };
   struct InstancesInfo {
     int instances_num;
@@ -362,7 +365,7 @@ class GeoTreeLog {
   Vector<const GeometryAttributeInfo *> existing_attributes;
   Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
   Set<int> evaluated_gizmo_nodes;
-  Vector<std::string> all_layer_names;
+  Vector<LayerSearchInfo> all_layers;
 
   GeoTreeLog(GeoNodesLog *root_log, Vector<GeoTreeLogger *> tree_loggers);
   ~GeoTreeLog();

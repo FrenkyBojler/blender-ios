@@ -174,8 +174,8 @@ static void layer_name_search_update_fn(
     }
   }
 
-  Set<StringRef> names;
-  Vector<const std::string *> layer_names;
+  Set<LayerSearchInfo> filtered_layers;
+  Vector<LayerSearchInfo> layer_names;
   for (const bNodeSocket *socket : sockets_to_check) {
     const geo_log::ValueLog *value_log = info.tree_log->find_socket_value_log(*socket);
     if (value_log == nullptr) {
@@ -185,9 +185,9 @@ static void layer_name_search_update_fn(
       if (const std::optional<geo_log::GeometryInfoLog::GreasePencilInfo> &grease_pencil_info =
               geo_log->grease_pencil_info)
       {
-        for (const std::string &name : grease_pencil_info->layer_names) {
-          if (names.add(name)) {
-            layer_names.append(&name);
+        for (const LayerSearchInfo &name : grease_pencil_info->layers) {
+          if (filtered_layers.add(name)) {
+            layer_names.append(name);
           }
         }
       }

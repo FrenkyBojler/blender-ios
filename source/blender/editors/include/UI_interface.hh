@@ -15,9 +15,13 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_grease_pencil.hh"  // LayerSearchInfo
+
 #include "UI_resources.hh"
 
 #include "UI_interface_c.hh"  // IWYU pragma: export
+
+using blender::bke::greasepencil::LayerSearchInfo;
 
 namespace blender::nodes::geo_eval_log {
 struct GeometryAttributeInfo;
@@ -90,8 +94,9 @@ void attribute_search_add_items(StringRef str,
                                 Span<const nodes::geo_eval_log::GeometryAttributeInfo *> infos,
                                 uiSearchItems *items,
                                 bool is_first);
+
 void grease_pencil_layer_search_add_items(StringRef str,
-                                          Span<const std::string *> layer_names,
+                                          const Span<LayerSearchInfo> filtered_layer_infos,
                                           uiSearchItems &items,
                                           bool is_first);
 

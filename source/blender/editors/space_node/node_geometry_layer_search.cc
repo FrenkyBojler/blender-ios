@@ -11,6 +11,7 @@
 #include "DNA_space_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -32,6 +33,7 @@
 
 #include "node_intern.hh"
 
+using blender::bke::greasepencil::LayerSearchInfo;
 using blender::nodes::geo_eval_log::GeometryInfoLog;
 
 namespace blender::ed::space_node {
@@ -44,8 +46,8 @@ struct LayerSearchData {
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<LayerSearchData>, "");
 
-static Vector<const std::string *> get_layer_names_from_context(const bContext &C,
-                                                                LayerSearchData &data)
+static const Vector<LayerSearchInfo> get_layer_names_from_context(const bContext &C,
+                                                                  LayerSearchData &data)
 {
   using namespace nodes::geo_eval_log;
 
@@ -70,22 +72,22 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
   }
   const ContextualGeoTreeLogs tree_logs = GeoNodesLog::get_contextual_tree_logs(*snode);
 
-  Set<StringRef> names;
+  Set<LayerSearchInfo> layer_set;
 
   /* For the named layer selection input node, collect layer names from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_LAYER_SELECTION) {
-    Vector<const std::string *> layer_names;
+    Vector<LayerSearchInfo> layer_filters;
     tree_logs.foreach_tree_log([&](GeoTreeLog &tree_log) {
       tree_log.ensure_socket_values();
       tree_log.ensure_layer_names();
-      for (const std::string &name : tree_log.all_layer_names) {
-        if (!names.add(name)) {
+      for (const LayerSearchInfo &item : tree_log.all_layers) {
+        if (!layer_set.add(item)) {
           continue;
         }
-        layer_names.append(&name);
+        layer_filters.append(item);
       }
     });
-    return layer_names;
+    return layer_filters;
   }
   GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node);
   if (!tree_log) {
@@ -97,7 +99,7 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
     return {};
   }
 
-  Vector<const std::string *> layer_names;
+  Vector<LayerSearchInfo> layer_filters;
   for (const bNodeSocket *input_socket : node->input_sockets()) {
     if (input_socket->type != SOCK_GEOMETRY) {
       continue;
@@ -110,15 +112,15 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
       if (const std::optional<GeometryInfoLog::GreasePencilInfo> &grease_pencil_info =
               geo_log->grease_pencil_info)
       {
-        for (const std::string &name : grease_pencil_info->layer_names) {
-          if (names.add(name)) {
-            layer_names.append(&name);
+        for (const LayerSearchInfo &item : grease_pencil_info->layers) {
+          if (layer_set.add(item)) {
+            layer_filters.append(item);
           }
         }
       }
     }
   }
-  return layer_names;
+  return layer_filters;
 }
 
 static void layer_search_update_fn(
@@ -130,10 +132,10 @@ static void layer_search_update_fn(
 
   LayerSearchData *data = static_cast<LayerSearchData *>(arg);
 
-  Vector<const std::string *> names = get_layer_names_from_context(*C, *data);
+  const Vector<LayerSearchInfo> filtered_layer_info = get_layer_names_from_context(*C, *data);
 
   BLI_assert(items);
-  ui::grease_pencil_layer_search_add_items(str, names, *items, is_first);
+  ui::grease_pencil_layer_search_add_items(str, filtered_layer_info.as_span(), *items, is_first);
 }
 
 static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)

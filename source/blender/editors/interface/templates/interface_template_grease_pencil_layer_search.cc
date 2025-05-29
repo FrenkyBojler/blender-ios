@@ -16,6 +16,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "NOD_geometry_nodes_log.hh"
 
@@ -25,10 +26,12 @@
 
 #include <fmt/format.h>
 
+using blender::bke::greasepencil::LayerSearchInfo;
+
 namespace blender::ui {
 
 void grease_pencil_layer_search_add_items(const StringRef str,
-                                          const Span<const std::string *> layer_names,
+                                          const Span<LayerSearchInfo> filtered_layer_infos,
                                           uiSearchItems &seach_items,
                                           const bool is_first)
 {
@@ -37,8 +40,8 @@ void grease_pencil_layer_search_add_items(const StringRef str,
   /* Any string may be valid, so add the current search string along with the hints. */
   if (!str.is_empty()) {
     bool contained = false;
-    for (const std::string *name : layer_names) {
-      if (name != nullptr && str == *name) {
+    for (const LayerSearchInfo &item : filtered_layer_infos) {
+      if (item.name == str) {
         contained = true;
       }
     }
@@ -59,14 +62,20 @@ void grease_pencil_layer_search_add_items(const StringRef str,
    * so the items are in the same order they will appear in while searching. */
   const StringRef string = is_first ? "" : str;
 
-  ui::string_search::StringSearch<const std::string> search;
-  for (const std::string *name : layer_names) {
-    search.add(*name, name);
+  ui::string_search::StringSearch<const LayerSearchInfo> search;
+  for (const LayerSearchInfo &item : filtered_layer_infos) {
+    search.add(StringRef(item.name), &item);
   }
 
-  const Vector<const std::string *> filtered_names = search.query(string);
-  for (const std::string *name : filtered_names) {
-    if (!UI_search_item_add(&seach_items, *name, (void *)name, ICON_NONE, UI_BUT_HAS_SEP_CHAR, 0))
+  const Vector<const LayerSearchInfo *> filtered_items = search.query(string);
+  for (const LayerSearchInfo *item : filtered_items) {
+    if (!UI_search_item_add(&seach_items,
+                            item->name,
+                            (void *)item->name.c_str(),
+                            item->is_group ? ICON_GREASEPENCIL_LAYER_GROUP :
+                                             ICON_OUTLINER_DATA_GP_LAYER,
+                            UI_BUT_HAS_SEP_CHAR,
+                            0))
     {
       break;
     }

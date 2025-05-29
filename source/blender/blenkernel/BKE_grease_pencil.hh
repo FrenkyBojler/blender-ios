@@ -38,6 +38,19 @@ struct AttributeAccessorFunctions;
 
 namespace greasepencil {
 
+struct LayerSearchInfo {
+  StringRefNull name;
+  bool is_group;
+  bool operator==(const LayerSearchInfo &other) const
+  {
+    return name == other.name && is_group == other.is_group;
+  }
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(name);
+  }
+};
+
 /* Previously, Grease Pencil used a radius convention where 1 `px` = 0.001 units. This `px`
  * was the brush size which would be stored in the stroke thickness and then scaled by the
  * point pressure factor. Finally, the render engine would divide this thickness value by

@@ -181,11 +181,14 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
         if (const GreasePencil *grease_pencil = grease_pencil_component.get()) {
           GreasePencilInfo &info = this->grease_pencil_info.emplace(GreasePencilInfo());
           info.layers_num = grease_pencil->nodes().size();
-          Set<StringRef> unique_layer_names;
+          Set<LayerSearchInfo> unique_layers;
           for (const bke::greasepencil::TreeNode *node : grease_pencil->nodes()) {
             const StringRefNull layer_name = node->name();
-            if (unique_layer_names.add(layer_name)) {
-              info.layer_names.append(layer_name);
+            LayerSearchInfo item;
+            item.name = layer_name;
+            item.is_group = node->is_group();
+            if (unique_layers.add(item)) {
+              info.layers.append(item);
             }
           }
         }
@@ -632,8 +635,8 @@ void GeoTreeLog::ensure_layer_names()
     if (geo_log == nullptr || !geo_log->grease_pencil_info.has_value()) {
       return;
     }
-    for (const std::string &name : geo_log->grease_pencil_info->layer_names) {
-      this->all_layer_names.append(name);
+    for (const LayerSearchInfo &info : geo_log->grease_pencil_info->layers) {
+      this->all_layers.append(info);
     }
   };
 
