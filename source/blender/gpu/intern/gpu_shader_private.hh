@@ -216,17 +216,17 @@ class ShaderCompiler {
     {
       if (!high_priority.empty()) {
         ParallelWork work = high_priority.front();
-        high_priority.pop_back();
+        high_priority.pop_front();
         return work;
       }
       if (!normal_priority.empty()) {
         ParallelWork work = normal_priority.front();
-        normal_priority.pop_back();
+        normal_priority.pop_front();
         return work;
       }
       if (!low_priority.empty()) {
         ParallelWork work = low_priority.front();
-        low_priority.pop_back();
+        low_priority.pop_front();
         return work;
       }
       BLI_assert_unreachable();
