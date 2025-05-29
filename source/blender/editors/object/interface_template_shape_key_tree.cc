@@ -234,8 +234,7 @@ void ShapeKeyTreeView::build_tree()
   }
 }
 
-namespace template_tree {
-void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
+void template_tree(uiLayout *layout, bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
@@ -253,5 +252,4 @@ void uiTemplateShapeKeyTree(uiLayout *layout, bContext *C)
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
-}  // namespace template_tree
 }  // namespace blender::ed::object::shapekey
