@@ -412,13 +412,6 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
      * While harmless, it's noisy. */
     config.pathconfig_warnings = 0;
 
-    /* WARNING: running scripts directly uses the default behavior *but* for some reason
-     * warnings are *not* shown when C++ calls into Python (RNA callbacks & operators for example).
-     * See: !139487. */
-    if ((py_use_system_env == false) || (BLI_getenv("PYTHONWARNINGS") == nullptr)) {
-      PyWideStringList_Append(&config.warnoptions, L"default");
-    }
-
     /* Allow the user site directory because this is used
      * when PIP installing packages from Blender, see: #104000.
      *
