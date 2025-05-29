@@ -2711,8 +2711,9 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
       return OPERATOR_CANCELLED;
     }
 
-    Vector<MutableDrawingInfo> drawing_infos = ed::greasepencil::retrieve_editable_drawings(
-        scene, grease_pencil);
+    Vector<MutableDrawingInfo> drawing_infos =
+        ed::greasepencil::retrieve_editable_drawings_from_layer(
+            scene, grease_pencil, *active_layer);
     for (const MutableDrawingInfo info : drawing_infos) {
       paste_all_strokes_from_clipboard(
           *bmain, *object, object_to_layer, keep_world_transform, paste_on_back, info.drawing);
@@ -2776,8 +2777,9 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
         return OPERATOR_CANCELLED;
       }
 
-      Vector<MutableDrawingInfo> drawing_infos = ed::greasepencil::retrieve_editable_drawings(
-          scene, grease_pencil);
+      Vector<MutableDrawingInfo> drawing_infos =
+          ed::greasepencil::retrieve_editable_drawings_from_layer(
+              scene, grease_pencil, paste_layer);
       for (const MutableDrawingInfo info : drawing_infos) {
         clipboard_paste_strokes_ex(*bmain,
                                    *object,
