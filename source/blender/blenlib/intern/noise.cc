@@ -136,6 +136,49 @@ BLI_INLINE uint32_t float_as_uint(float f)
   return u.i;
 }
 
+/* PCG 2D, 3D and 4D hash functions,
+ * from "Hash Functions for GPU Rendering" JCGT 2020
+ * https://jcgt.org/published/0009/03/02/ */
+
+BLI_INLINE uint2 hash_pcg2d(uint2 v)
+{
+  v = v * uint2(1664525u) + uint2(1013904223u);
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  v = v ^ (v >> 16);
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  return v;
+}
+
+BLI_INLINE uint3 hash_pcg3d(uint3 v)
+{
+  v = v * uint3(1664525u) + uint3(1013904223u);
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  return v;
+}
+
+BLI_INLINE uint4 hash_pcg4d(uint4 v)
+{
+  v = v * uint4(1664525u) + uint4(1013904223u);
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  return v;
+}
+
 uint32_t hash_float(float kx)
 {
   return hash(float_as_uint(kx));
@@ -212,7 +255,10 @@ float hash_float_to_float(float4 k)
 
 float2 hash_float_to_float2(float2 k)
 {
-  return float2(hash_float_to_float(k), hash_float_to_float(float3(k.x, k.y, 1.0)));
+  /* Reinterpret float bits as uint, use PCG2D, return [0..1] float result. */
+  uint2 uk = uint2(float_as_uint(k.x), float_as_uint(k.y));
+  uint2 h = hash_pcg2d(uk);
+  return float2(uint_to_float_01(h.x), uint_to_float_01(h.y));
 }
 
 float2 hash_float_to_float2(float3 k)
@@ -243,24 +289,24 @@ float3 hash_float_to_float3(float2 k)
 
 float3 hash_float_to_float3(float3 k)
 {
-  return float3(hash_float_to_float(k),
-                hash_float_to_float(float4(k.x, k.y, k.z, 1.0)),
-                hash_float_to_float(float4(k.x, k.y, k.z, 2.0)));
+  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
+  uint3 uk = uint3(float_as_uint(k.x), float_as_uint(k.y), float_as_uint(k.z));
+  uint3 h = hash_pcg3d(uk);
+  return float3(uint_to_float_01(h.x), uint_to_float_01(h.y), uint_to_float_01(h.z));
 }
 
 float3 hash_float_to_float3(float4 k)
 {
-  return float3(hash_float_to_float(k),
-                hash_float_to_float(float4(k.z, k.x, k.w, k.y)),
-                hash_float_to_float(float4(k.w, k.z, k.y, k.x)));
+  return hash_float_to_float4(k).xyz();
 }
 
 float4 hash_float_to_float4(float4 k)
 {
-  return float4(hash_float_to_float(k),
-                hash_float_to_float(float4(k.w, k.x, k.y, k.z)),
-                hash_float_to_float(float4(k.z, k.w, k.x, k.y)),
-                hash_float_to_float(float4(k.y, k.z, k.w, k.x)));
+  /* Reinterpret float bits as uint, use PCG4D, return [0..1] float result. */
+  uint4 uk = uint4(float_as_uint(k.x), float_as_uint(k.y), float_as_uint(k.z), float_as_uint(k.w));
+  uint4 h = hash_pcg4d(uk);
+  return float4(
+      uint_to_float_01(h.x), uint_to_float_01(h.y), uint_to_float_01(h.z), uint_to_float_01(h.w));
 }
 
 /** \} */
