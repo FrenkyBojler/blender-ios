@@ -1,2 +1,3 @@
 Referenced by issue #139007, Instant Crash When Inputting non-English Language to the Keymap Search
 Referenced by pull request #139557, Fix #139248: Update IME Data with GHOST_kEventImeComposition Event
+Referenced by commit b26c2c1b386ad1ffe91b1654e1c9ff3bc4f7808e, Fix #139248: Update IME Data with GHOST_kEventImeComposition Event
