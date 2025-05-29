@@ -282,13 +282,13 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
     }
   }
 
-  /* Check for any bad faces which will require a mesh validate and fix-up. */
+  /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
   const OffsetIndices<int> faces = mesh->faces();
   const bool all_faces_ok = threading::parallel_reduce(
       faces.index_range(),
       1024,
       true,
-      [&faces, &corner_verts](const IndexRange part, const bool ok_so_far) {
+      [&](const IndexRange part, const bool ok_so_far) {
         bool current_faces_ok = ok_so_far;
         if (ok_so_far) {
           for (const int i : part) {
@@ -301,10 +301,8 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
       },
       std::logical_and<>());
 
-  bke::mesh_calc_edges(*mesh, false, false);
-
   /* If we detect bad faces it would be unsafe to continue beyond this point without first
-   * performing a destructive validate. Edit mode, and the custom normal calculations, will either
+   * performing a destructive validate. Any operation requiring mesh connectivity information can
    * assert or crash if the problem isn't addressed. Performing the check here, before most of the
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
@@ -313,6 +311,9 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
               this->prim_path().GetAsString().c_str());
     BKE_mesh_validate(mesh, false, false);
   }
+
+  bke::mesh_calc_edges(*mesh, false, false);
+
   return all_faces_ok;
 }
 
