@@ -30,14 +30,20 @@ ccl_device_forceinline float uint_to_float_incl(const uint n)
  * from "Hash Functions for GPU Rendering" JCGT 2020
  * https://jcgt.org/published/0009/03/02/ */
 
-ccl_device_inline uint2 __float2_as_uint2(const float2 f)
+ccl_device_inline uint2 float2_as_uint2(const float2 f)
 {
   return make_uint2(__float_as_uint(f.x), __float_as_uint(f.y));
 }
 
-ccl_device_inline float2 make_float2(const uint2 u)
+ccl_device_inline uint3 float3_as_uint3(const float3 f)
 {
-  return make_float2((float)u.x, (float)u.y);
+  return make_uint3(__float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z));
+}
+
+ccl_device_inline uint4 float4_as_uint4(const float4 f)
+{
+  return make_uint4(
+      __float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z), __float_as_uint(f.w));
 }
 
 ccl_device_inline uint2 hash_pcg2d(uint2 v)
@@ -244,27 +250,27 @@ ccl_device_inline float hash_float4_to_float(const float4 k)
 ccl_device_inline float2 hash_float2_to_float2(const float2 k)
 {
   /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
-  uint2 uk = __float2_as_uint2(k);
+  uint2 uk = float2_as_uint2(k);
   uint2 h = hash_pcg2d(uk);
-  float2 f = make_float2(h);
+  float2 f = make_float2((float)h.x, (float)h.y);
   return f * (1.0f / (float)0xFFFFFFFFu);
 }
 
 ccl_device_inline float3 hash_float3_to_float3(const float3 k)
 {
   /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
-  uint3 uk = __float3_as_uint3(k);
+  uint3 uk = float3_as_uint3(k);
   uint3 h = hash_pcg3d(uk);
-  float3 f = make_float3(h);
+  float3 f = make_float3((float)h.x, (float)h.y, (float)h.z);
   return f * (1.0f / (float)0xFFFFFFFFu);
 }
 
 ccl_device_inline float4 hash_float4_to_float4(const float4 k)
 {
   /* Reinterpret float bits as uint, use PCG4D, return [0..1] float result. */
-  uint4 uk = __float4_as_uint4(k);
+  uint4 uk = float4_as_uint4(k);
   uint4 h = hash_pcg4d(uk);
-  float4 f = make_float4(h);
+  float4 f = make_float4((float)h.x, (float)h.y, (float)h.z, (float)h.w);
   return f * (1.0f / (float)0xFFFFFFFFu);
 }
 

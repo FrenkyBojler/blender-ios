@@ -254,14 +254,29 @@ ccl_device_forceinline int4 make_int4(const int x, const int y, const int z, con
   return int4(x, y, z, w);
 }
 
+ccl_device_forceinline uint2 make_uint2(const uint x)
+{
+  return uint2(x, x);
+}
+
 ccl_device_forceinline uint2 make_uint2(const uint x, const uint y)
 {
   return uint2(x, y);
 }
 
+ccl_device_forceinline uint3 make_uint3(const uint x)
+{
+  return uint3(x, x, x);
+}
+
 ccl_device_forceinline uint3 make_uint3(const uint x, const uint y, const uint z)
 {
   return uint3(x, y, z);
+}
+
+ccl_device_forceinline uint4 make_uint4(const uint x)
+{
+  return uint4(x, x, x, x);
 }
 
 ccl_device_forceinline uint4 make_uint4(const uint x, const uint y, const uint z, const uint w)

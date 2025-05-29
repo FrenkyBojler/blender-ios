@@ -8,7 +8,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-#ifndef __KERNEL_GPU__
+#if !defined(__KERNEL_METAL__)
 ccl_device_inline uint2 operator+(const uint2 a, const uint2 b)
 {
   return make_uint2(a.x + b.x, a.y + b.y);
