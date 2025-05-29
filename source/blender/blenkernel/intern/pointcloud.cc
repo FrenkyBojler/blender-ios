@@ -189,6 +189,7 @@ static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
     const Span span(static_cast<const T *>(array_data->data), array_data->size);
+    BLI_assert(array_data->size == pointcloud.totpoint);
     return VArray<T>::ForSpan(span);
   }
   if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
@@ -206,6 +207,7 @@ static Span<T> get_span_attribute(const PointCloud &pointcloud, const StringRef 
     return {};
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
+    BLI_assert(array_data->size == pointcloud.totpoint);
     return Span(static_cast<const T *>(array_data->data), array_data->size);
   }
   return {};
@@ -229,6 +231,7 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
         attr->data_for_write() = bke::Attribute::ArrayData::ForValue(g_value, pointcloud.totpoint);
       }
       auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
+      BLI_assert(array_data.size == pointcloud.totpoint);
       return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
     }
     /* The attribute has the wrong type. This shouldn't happen for builtin attributes, but just in
@@ -242,6 +245,7 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
       bke::Attribute::ArrayData::ForValue({CPPType::get<T>(), &default_value},
                                           pointcloud.totpoint));
   auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
+  BLI_assert(array_data.size == pointcloud.totpoint);
   return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
 }
 
