@@ -11963,14 +11963,24 @@ static int ui_handle_menus_recursive(bContext *C,
   /* now handle events for our own menu */
   LISTBASE_FOREACH (uiBlock *, block, &menu->region->runtime->uiblocks) {
     if ((block->flag & UI_BLOCK_PIE_MENU) && event->val == KM_PRESS &&
-        ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
+        ELEM(event->type,
+             WHEELUPMOUSE,
+             WHEELDOWNMOUSE,
+             EVT_LEFTARROWKEY,
+             EVT_RIGHTARROWKEY,
+             EVT_TABKEY))
     {
+      if (event->type == EVT_TABKEY) {
+        block->pie_data.active_page += (event->modifier & KM_SHIFT ? -1 : 1);
+        block->pie_data.active_page = blender::math::mod_periodic(
+            block->pie_data.active_page, int(block->pie_data.pages.size()));
+      }
+      else {
+        block->pie_data.active_page += ELEM(event->type, WHEELUPMOUSE, EVT_LEFTARROWKEY) ? -1 : 1;
+        block->pie_data.active_page = std::clamp(
+            block->pie_data.active_page, 0, std::max<int>(block->pie_data.pages.size() - 1, 0));
+      }
 
-      block->pie_data.page += event->type == WHEELUPMOUSE ? -1 : 1;
-      block->pie_data.page = std::clamp(
-          block->pie_data.page,
-          0,
-          int(std::floor(float(block->pie_data.but_groups.size()) / 8.0)));
       blender::interface::internal::pie_menu_refresh_active_page(block);
       ED_region_tag_redraw(menu->region);
       ED_region_tag_refresh_ui(menu->region);

@@ -5628,9 +5628,9 @@ namespace blender::interface::internal {
 
 void pie_menu_refresh_active_page(uiBlock *block)
 {
-  for (int i : block->pie_data.but_groups.index_range()) {
-    for (uiBut *but : block->pie_data.but_groups[i]) {
-      if (i / PIE_PAGE_MAX_ITEMS == block->pie_data.page) {
+  for (int i : block->pie_data.pages.index_range()) {
+    for (uiBut *but : block->pie_data.pages[i]) {
+      if (i == block->pie_data.active_page) {
         but->flag &= ~UI_SCROLLED;
       }
       else {
@@ -5640,21 +5640,21 @@ void pie_menu_refresh_active_page(uiBlock *block)
   }
 }
 
-static void pie_menu_add_but_group_item(blender::Vector<uiBut *> &group, uiItem *item)
+static void pie_menu_add_buts_to_page(blender::Vector<uiBut *> &page, uiItem *item)
 {
   if (item->type_ != uiItemType::Button) {
     uiLayout *litem = static_cast<uiLayout *>(item);
     for (uiItem *subitem : litem->items_) {
-      pie_menu_add_but_group_item(group, subitem);
+      pie_menu_add_buts_to_page(page, subitem);
     }
   }
   else {
     uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
-    group.append(bitem->but);
+    page.append(bitem->but);
   }
 }
 
-static void pie_menu_gather_but_groups(uiBlock *block, uiLayout *layout)
+static void pie_menu_create_buts_pages(uiBlock *block, uiLayout *layout)
 {
   BLI_assert(layout->root_->type == UI_LAYOUT_PIEMENU);
   uiItem **pie_menu = std::find_if(layout->items_.begin(), layout->items_.end(), [](uiItem *item) {
@@ -5663,13 +5663,16 @@ static void pie_menu_gather_but_groups(uiBlock *block, uiLayout *layout)
   if (pie_menu == layout->items_.end()) {
     return;
   }
+  int current_page = -1;
+  int i = 0;
   for (uiItem *subitem : static_cast<uiLayout *>(*pie_menu)->items_) {
-    block->pie_data.but_groups.append({});
-    pie_menu_add_but_group_item(block->pie_data.but_groups.last(), subitem);
+    if (current_page != (i / PIE_PAGE_MAX_ITEMS)) {
+      current_page++;
+      block->pie_data.pages.append({});
+    }
+    pie_menu_add_buts_to_page(block->pie_data.pages.last(), subitem);
+    i++;
   }
-  block->pie_data.but_groups.remove_if(
-      [](const blender::Vector<uiBut *> elem) { return elem.is_empty(); });
-
   blender::interface::internal::pie_menu_refresh_active_page(block);
 }
 }  // namespace blender::interface::internal
@@ -5683,7 +5686,7 @@ static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
   ui_item_estimate(layout);
   ui_item_layout(layout);
   if (layout->root_->type == UI_LAYOUT_PIEMENU) {
-    blender::interface::internal::pie_menu_gather_but_groups(block, layout);
+    blender::interface::internal::pie_menu_create_buts_pages(block, layout);
   }
 
   if (r_x) {

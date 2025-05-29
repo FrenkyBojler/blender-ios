@@ -533,8 +533,8 @@ struct PieMenuData {
   /** Initial event used to fire the pie menu, store here so we can query for release */
   short event_type;
   float alphafac;
-  int page;
-  blender::Vector<blender::Vector<uiBut *>> but_groups;
+  int active_page;
+  blender::Vector<blender::Vector<uiBut *>> pages;
 };
 
 /** #uiBlock.content_hints */
@@ -1069,20 +1069,6 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
                                             uiBut *but,
                                             uiPopoverCreateFunc popover_func,
                                             const PanelType *panel_type);
-
-/* `interface_region_menu_pie.cc` */
-
-/**
- * Set up data for defining a new pie menu level and add button that invokes it.
- */
-void ui_pie_menu_level_create(uiBlock *block,
-                              wmOperatorType *ot,
-                              blender::StringRefNull propname,
-                              IDProperty *properties,
-                              const EnumPropertyItem *items,
-                              int totitem,
-                              wmOperatorCallContext context,
-                              eUI_Item_Flag flag);
 
 /* `interface_region_popup.cc` */
 
