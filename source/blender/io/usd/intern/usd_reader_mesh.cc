@@ -30,6 +30,7 @@
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_customdata_types.h"
@@ -47,6 +48,8 @@
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 #include <pxr/usd/usdShade/tokens.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
+
+#include <fmt/core.h>
 
 #include <algorithm>
 
@@ -306,9 +309,14 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
    * assert or crash if the problem isn't addressed. Performing the check here, before most of the
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
-    CLOG_WARN(&LOG,
-              "Invalid face data detected for mesh '%s'. Automatic correction will be used.",
-              this->prim_path().GetAsString().c_str());
+    if (is_initial_load_) {
+      const std::string message = fmt::format(
+          "Invalid face data detected for mesh '{}'. Automatic correction will be used, but some "
+          "data will most likely be lost",
+          this->prim_path().GetAsString().c_str());
+      BKE_report(this->reports(), RPT_WARNING, message.c_str());
+      CLOG_WARN(&LOG, message.c_str());
+    }
     BKE_mesh_validate(mesh, false, false);
   }
 
