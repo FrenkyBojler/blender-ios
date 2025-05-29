@@ -86,7 +86,19 @@ class World {
   ~World();
 
   /* Setup and request the background shader. */
-  void sync();
+  void sync(bool wait_until_ready = false);
+
+  LoadedBits load_async()
+  {
+    sync(false);
+    return is_ready_ ? WORLD_SHADERS : NONE;
+  }
+
+  LoadedBits wait_ready()
+  {
+    sync(true);
+    return WORLD_SHADERS;
+  }
 
   bool has_volume() const
   {
@@ -141,7 +153,7 @@ class World {
   }
 
  private:
-  void sync_volume(const WorldHandle &world_handle);
+  void sync_volume(const WorldHandle &world_handle, bool wait_until_ready);
 
   /* Returns a dummy black world for when a valid world isn't present or when we want to suppress
    * any light coming from the world. */

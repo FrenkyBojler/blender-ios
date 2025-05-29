@@ -226,25 +226,15 @@ void Instance::init(const int2 &output_res,
   loaded |= materials.default_materials_load_async();
   loaded |= shaders.static_shaders_load_async(request_bits);
 
-  if (is_image_render) {
-    /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
-    loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
-  }
-
   if (loaded & DEFERRED_LIGHTING_SHADERS) {
     bool ready = shaders.request_specializations(
-        is_image_render,
+        false,
         render_buffers.data.shadow_id,
         shadows.get_data().ray_count,
         shadows.get_data().step_count,
         DeferredLayer::do_split_direct_indirect_radiance(*this),
         DeferredLayer::do_merge_direct_indirect_eval(*this));
     SET_FLAG_FROM_TEST(loaded, ready, DEFERRED_LIGHTING_SHADERS);
-  }
-
-  if (is_image_render) {
-    loaded |= shaders.static_shaders_wait_ready(request_bits);
-    loaded |= materials.default_materials_wait_ready();
   }
 
   /* Needed bits to be able to display something to the screen. */
@@ -319,12 +309,15 @@ void Instance::update_eval_members()
 
 void Instance::begin_sync()
 {
+  if (skip_render_) {
+    return;
+  }
+  GPU_debug_group_begin("Begin Sync");
+
   /* Needs to be first for sun light parameters.
    * Also not skipped to be able to request world shader.
    * If engine shaders are not ready, will skip the pipeline sync. */
-  world.sync();
-
-  SET_FLAG_FROM_TEST(loaded, world.is_ready(), WORLD_SHADERS);
+  loaded |= world.load_async();
 
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
@@ -359,6 +352,7 @@ void Instance::begin_sync()
   if (is_viewport() && velocity.camera_has_motion()) {
     sampling.reset();
   }
+  GPU_debug_group_end();
 }
 
 void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
@@ -385,6 +379,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
   if (!is_renderable_type || (!partsys_is_visible && !object_is_visible)) {
     return;
   }
+
+  GPU_debug_group_begin("Object Sync");
 
   ObjectHandle &ob_handle = sync.sync_object(ob_ref);
 
@@ -424,15 +420,15 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
         break;
     }
   }
+  GPU_debug_group_end();
 }
 
 void Instance::end_sync()
 {
   if (skip_render_) {
-    /* We might run in the case where the next check sets skip_render_ to false after the
-     * begin_sync was skipped, which would call `end_sync` function with invalid data. */
     return;
   }
+  GPU_debug_group_begin("Object Sync");
 
   bool use_sss = pipelines.deferred.closure_bits_get() & CLOSURE_SSS;
   bool use_volume = volume.will_enable();
@@ -442,10 +438,6 @@ void Instance::end_sync()
   SET_FLAG_FROM_TEST(request_bits, use_volume, VOLUME_EVAL_SHADERS);
   loaded |= shaders.static_shaders_load_async(request_bits);
   needed_bits |= request_bits;
-
-  if (is_image_render) {
-    loaded |= shaders.static_shaders_wait_ready(request_bits);
-  }
 
   materials.end_sync();
   velocity.end_sync();
@@ -464,6 +456,7 @@ void Instance::end_sync()
   uniform_data.push_update();
 
   depsgraph_last_update_ = DEG_get_update_count(depsgraph);
+  GPU_debug_group_end();
 }
 
 void Instance::render_sync()
@@ -523,7 +516,32 @@ void Instance::render_sample()
   /* Motion blur may need to do re-sync after a certain number of sample. */
   if (!is_viewport() && sampling.do_render_sync()) {
     render_sync();
-    while (materials.queued_shaders_count > 0) {
+
+    if (!is_loaded(DEFAULT_MATERIALS)) {
+      /* Allow to push all material shaders to the compile queue as soon as possible. */
+      loaded |= materials.default_materials_wait_ready();
+      render_sync();
+    }
+
+    while (!is_loaded(needed_bits) || materials.queued_shaders_count > 0) {
+      /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
+      loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
+
+      if (loaded & DEFERRED_LIGHTING_SHADERS) {
+        bool ready = shaders.request_specializations(
+            true,
+            render_buffers.data.shadow_id,
+            shadows.get_data().ray_count,
+            shadows.get_data().step_count,
+            DeferredLayer::do_split_direct_indirect_radiance(*this),
+            DeferredLayer::do_merge_direct_indirect_eval(*this));
+        SET_FLAG_FROM_TEST(loaded, ready, DEFERRED_LIGHTING_SHADERS);
+      }
+
+      loaded |= shaders.static_shaders_wait_ready(needed_bits);
+      loaded |= materials.default_materials_wait_ready();
+      loaded |= world.wait_ready();
+
       GPU_pass_cache_wait_for_all();
       /** WORKAROUND: Re-sync now that all shaders are compiled. */
       /* This may need to happen more than once, since actual materials may require more passes

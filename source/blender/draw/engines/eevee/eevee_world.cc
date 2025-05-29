@@ -95,7 +95,7 @@ float World::sun_threshold()
   return sun_threshold;
 }
 
-void World::sync()
+void World::sync(bool wait_until_ready)
 {
   bool has_update = false;
 
@@ -107,7 +107,7 @@ void World::sync()
   }
 
   /* Sync volume first since its result can override the surface world. */
-  sync_volume(wo_handle);
+  sync_volume(wo_handle, wait_until_ready);
 
   ::World *bl_world;
   if (inst_.use_studio_light()) {
@@ -149,7 +149,7 @@ void World::sync()
   }
 
   GPUMaterial *gpumat = inst_.shaders.world_shader_get(
-      bl_world, ntree, MAT_PIPE_DEFERRED, !inst_.is_image_render);
+      bl_world, ntree, MAT_PIPE_DEFERRED, !wait_until_ready);
   if (GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
     is_ready_ = false;
     return;
@@ -166,7 +166,7 @@ void World::sync()
   inst_.pipelines.world.sync(gpumat);
 }
 
-void World::sync_volume(const WorldHandle &world_handle)
+void World::sync_volume(const WorldHandle &world_handle, bool wait_until_ready)
 {
   /* Studio lights have no volume shader. */
   ::World *world = inst_.use_studio_light() ? nullptr : inst_.scene->world;
@@ -176,7 +176,7 @@ void World::sync_volume(const WorldHandle &world_handle)
   /* Only the scene world nodetree can have volume shader. */
   if (world && world->nodetree && world->use_nodes) {
     gpumat = inst_.shaders.world_shader_get(
-        world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL, !inst_.is_image_render);
+        world, world->nodetree, MAT_PIPE_VOLUME_MATERIAL, !wait_until_ready);
   }
 
   bool had_volume = has_volume_;
