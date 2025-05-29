@@ -78,7 +78,7 @@ const GPUShaderCreateInfo *GPU_shader_create_info_get(const char *info_name);
  */
 bool GPU_shader_create_info_check_error(const GPUShaderCreateInfo *_info, char r_error[128]);
 
-enum class CompilationPriority { Normal, High };
+enum class CompilationPriority { Low, Normal, High };
 
 using BatchHandle = int64_t;
 /**

@@ -190,12 +190,16 @@ class ShaderCompiler {
   };
 
   struct CompilationQueue {
+    std::deque<ParallelWork> low_priority;
     std::deque<ParallelWork> normal_priority;
     std::deque<ParallelWork> high_priority;
 
     void push(ParallelWork &&work, CompilationPriority priority)
     {
       switch (priority) {
+        case CompilationPriority::Low:
+          low_priority.push_back(work);
+          break;
         case CompilationPriority::Normal:
           normal_priority.push_back(work);
           break;
@@ -220,13 +224,18 @@ class ShaderCompiler {
         normal_priority.pop_back();
         return work;
       }
+      if (!low_priority.empty()) {
+        ParallelWork work = low_priority.front();
+        low_priority.pop_back();
+        return work;
+      }
       BLI_assert_unreachable();
       return {};
     }
 
     bool is_empty()
     {
-      return normal_priority.empty() && high_priority.empty();
+      return low_priority.empty() && normal_priority.empty() && high_priority.empty();
     }
 
     void remove_batch(Batch *batch)
@@ -245,6 +254,7 @@ class ShaderCompiler {
                     queue.end());
       };
 
+      remove(low_priority, batch);
       remove(normal_priority, batch);
       remove(high_priority, batch);
     }
