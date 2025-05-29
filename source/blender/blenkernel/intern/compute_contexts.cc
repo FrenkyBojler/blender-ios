@@ -2,13 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <ostream>
+
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
-
-#include <ostream>
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 namespace blender::bke {
 
@@ -21,10 +23,13 @@ ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
 
 ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
                                                const int modifier_uid)
-    : ComputeContext(s_static_type, parent), modifier_uid_(std::move(modifier_uid))
+    : ComputeContext(parent), modifier_uid_(std::move(modifier_uid))
 {
-  hash_.mix_in(s_static_type, strlen(s_static_type));
-  hash_.mix_in(&modifier_uid_, sizeof(modifier_uid_));
+}
+
+ComputeContextHash ModifierComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "MODIFIER", modifier_uid_);
 }
 
 void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
@@ -34,66 +39,52 @@ void ModifierComputeContext::print_current_in_line(std::ostream &stream) const
   }
 }
 
-GroupNodeComputeContext::GroupNodeComputeContext(
-    const ComputeContext *parent,
-    const int32_t node_id,
-    const std::optional<ComputeContextHash> &cached_hash)
-    : ComputeContext(s_static_type, parent), node_id_(node_id)
+NodeComputeContext::NodeComputeContext(const ComputeContext *parent,
+                                       int32_t node_id,
+                                       const bNodeTree *tree)
+    : ComputeContext(parent), node_id_(node_id), tree_(tree)
 {
-  if (cached_hash.has_value()) {
-    hash_ = *cached_hash;
-  }
-  else {
-    /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-     * necessary. */
-    const int type_size = strlen(s_static_type);
-    const int buffer_size = type_size + 1 + sizeof(int32_t);
-    DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-    char *buffer = static_cast<char *>(buffer_owner.buffer());
-    memcpy(buffer, s_static_type, type_size + 1);
-    memcpy(buffer + type_size + 1, &node_id_, sizeof(int32_t));
-    hash_.mix_in(buffer, buffer_size);
-  }
 }
 
-GroupNodeComputeContext::GroupNodeComputeContext(
-    const ComputeContext *parent,
-    const bNode &caller_group_node,
-    const bNodeTree &caller_tree,
-    const std::optional<ComputeContextHash> &cached_hash)
-    : GroupNodeComputeContext(parent, caller_group_node.identifier, cached_hash)
+ComputeContextHash NodeComputeContext::compute_hash() const
 {
-  caller_group_node_ = &caller_group_node;
-  caller_tree_ = &caller_tree;
+  return ComputeContextHash::from(parent_, "NODE", node_id_);
 }
 
-void GroupNodeComputeContext::print_current_in_line(std::ostream &stream) const
+const bNode *NodeComputeContext::node() const
 {
-  if (caller_group_node_ != nullptr) {
-    stream << "Node: " << caller_group_node_->name;
-    return;
+  if (tree_) {
+    return tree_->node_by_id(node_id_);
   }
+  return nullptr;
+}
+
+void NodeComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  if (tree_) {
+    if (const bNode *node = tree_->node_by_id(node_id_)) {
+      stream << "Node: " << node_label(*tree_, *node);
+      return;
+    }
+  }
+  stream << "Node ID: " << node_id_;
 }
 
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
                                                            const int32_t output_node_id)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id)
+    : ComputeContext(parent), output_node_id_(output_node_id)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  hash_.mix_in(buffer, buffer_size);
 }
 
 SimulationZoneComputeContext::SimulationZoneComputeContext(const ComputeContext *parent,
                                                            const bNode &node)
     : SimulationZoneComputeContext(parent, node.identifier)
 {
+}
+
+ComputeContextHash SimulationZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "SIM_ZONE", output_node_id_);
 }
 
 void SimulationZoneComputeContext::print_current_in_line(std::ostream &stream) const
@@ -104,18 +95,8 @@ void SimulationZoneComputeContext::print_current_in_line(std::ostream &stream) c
 RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
                                                    const int32_t output_node_id,
                                                    const int iteration)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id), iteration_(iteration)
+    : ComputeContext(parent), output_node_id_(output_node_id), iteration_(iteration)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t) + sizeof(int);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  memcpy(buffer + type_size + 1 + sizeof(int32_t), &iteration_, sizeof(int));
-  hash_.mix_in(buffer, buffer_size);
 }
 
 RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
@@ -125,6 +106,11 @@ RepeatZoneComputeContext::RepeatZoneComputeContext(const ComputeContext *parent,
 {
 }
 
+ComputeContextHash RepeatZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "REPEAT_ZONE", output_node_id_, iteration_);
+}
+
 void RepeatZoneComputeContext::print_current_in_line(std::ostream &stream) const
 {
   stream << "Repeat Zone ID: " << output_node_id_;
@@ -132,18 +118,8 @@ void RepeatZoneComputeContext::print_current_in_line(std::ostream &stream) const
 
 ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeContext(
     const ComputeContext *parent, const int32_t output_node_id, const int index)
-    : ComputeContext(s_static_type, parent), output_node_id_(output_node_id), index_(index)
+    : ComputeContext(parent), output_node_id_(output_node_id), index_(index)
 {
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t) + sizeof(int);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &output_node_id_, sizeof(int32_t));
-  memcpy(buffer + type_size + 1 + sizeof(int32_t), &index_, sizeof(int));
-  hash_.mix_in(buffer, buffer_size);
 }
 
 ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeContext(
@@ -152,57 +128,41 @@ ForeachGeometryElementZoneComputeContext::ForeachGeometryElementZoneComputeConte
 {
 }
 
+ComputeContextHash ForeachGeometryElementZoneComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "FOREACH_GEOMETRY_ELEMENT", output_node_id_, index_);
+}
+
 void ForeachGeometryElementZoneComputeContext::print_current_in_line(std::ostream &stream) const
 {
   stream << "Foreach Geometry Element Zone ID: " << output_node_id_;
 }
 
-EvaluateClosureComputeContext::EvaluateClosureComputeContext(const ComputeContext *parent,
-                                                             const int32_t node_id)
-    : ComputeContext(s_static_type, parent), node_id_(node_id)
-{
-  /* Mix static type and node id into a single buffer so that only a single call to #mix_in is
-   * necessary. */
-  const int type_size = strlen(s_static_type);
-  const int buffer_size = type_size + 1 + sizeof(int32_t);
-  DynamicStackBuffer<64, 8> buffer_owner(buffer_size, 8);
-  char *buffer = static_cast<char *>(buffer_owner.buffer());
-  memcpy(buffer, s_static_type, type_size + 1);
-  memcpy(buffer + type_size + 1, &node_id_, sizeof(int32_t));
-  hash_.mix_in(buffer, buffer_size);
-}
-
 EvaluateClosureComputeContext::EvaluateClosureComputeContext(
     const ComputeContext *parent,
-    const int32_t evaluate_node_id,
-    const bNode *evaluate_node,
+    int32_t node_id,
+    const bNodeTree *tree,
     const std::optional<nodes::ClosureSourceLocation> &closure_source_location)
-    : EvaluateClosureComputeContext(parent, evaluate_node_id)
+    : NodeComputeContext(parent, node_id, tree), closure_source_location_(closure_source_location)
 {
-  evaluate_node_ = evaluate_node;
-  closure_source_location_ = closure_source_location;
-}
-
-void EvaluateClosureComputeContext::print_current_in_line(std::ostream &stream) const
-{
-  if (evaluate_node_ != nullptr) {
-    stream << "Evaluate Closure: " << evaluate_node_->name;
-    return;
-  }
 }
 
 OperatorComputeContext::OperatorComputeContext() : OperatorComputeContext(nullptr) {}
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent)
-    : ComputeContext(s_static_type, parent)
+    : ComputeContext(parent)
 {
-  hash_.mix_in(s_static_type, strlen(s_static_type));
 }
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent, const bNodeTree &tree)
     : OperatorComputeContext(parent)
 {
   tree_ = &tree;
+}
+
+ComputeContextHash OperatorComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "OPERATOR");
 }
 
 void OperatorComputeContext::print_current_in_line(std::ostream &stream) const
@@ -240,22 +200,12 @@ const OperatorComputeContext &ComputeContextCache::for_operator(const ComputeCon
 }
 
 const GroupNodeComputeContext &ComputeContextCache::for_group_node(const ComputeContext *parent,
-                                                                   const int32_t node_id)
+                                                                   const int32_t node_id,
+                                                                   const bNodeTree *tree)
 {
   return *group_node_contexts_cache_.lookup_or_add_cb(std::pair{parent, node_id}, [&]() {
-    return &this->for_any_uncached<GroupNodeComputeContext>(parent, node_id);
+    return &this->for_any_uncached<GroupNodeComputeContext>(parent, node_id, tree);
   });
-}
-
-const GroupNodeComputeContext &ComputeContextCache::for_group_node(const ComputeContext *parent,
-                                                                   const bNode &caller_group_node,
-                                                                   const bNodeTree &caller_tree)
-{
-  return *group_node_contexts_cache_.lookup_or_add_cb(
-      std::pair{parent, caller_group_node.identifier}, [&]() {
-        return &this->for_any_uncached<GroupNodeComputeContext>(
-            parent, caller_group_node, caller_tree);
-      });
 }
 
 const SimulationZoneComputeContext &ComputeContextCache::for_simulation_zone(
@@ -322,24 +272,15 @@ const ForeachGeometryElementZoneComputeContext &ComputeContextCache::
 }
 
 const EvaluateClosureComputeContext &ComputeContextCache::for_evaluate_closure(
-    const ComputeContext *parent, int32_t node_id)
-{
-  return *evaluate_closure_contexts_cache_.lookup_or_add_cb(std::pair{parent, node_id}, [&]() {
-    return &this->for_any_uncached<EvaluateClosureComputeContext>(parent, node_id);
-  });
-}
-
-const EvaluateClosureComputeContext &ComputeContextCache::for_evaluate_closure(
     const ComputeContext *parent,
-    const int32_t evaluate_node_id,
-    const bNode *evaluate_node,
+    const int32_t node_id,
+    const bNodeTree *tree,
     const std::optional<nodes::ClosureSourceLocation> &closure_source_location)
 {
-  return *evaluate_closure_contexts_cache_.lookup_or_add_cb(
-      std::pair{parent, evaluate_node_id}, [&]() {
-        return &this->for_any_uncached<EvaluateClosureComputeContext>(
-            parent, evaluate_node_id, evaluate_node, closure_source_location);
-      });
+  return *evaluate_closure_contexts_cache_.lookup_or_add_cb(std::pair{parent, node_id}, [&]() {
+    return &this->for_any_uncached<EvaluateClosureComputeContext>(
+        parent, node_id, tree, closure_source_location);
+  });
 }
 
 }  // namespace blender::bke

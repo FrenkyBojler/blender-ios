@@ -45,9 +45,9 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C, const StringRef nod
     return PointerRNA_NULL;
   }
   if (const bke::bNodeTreeZone *zone = zones->get_zone_by_node(active_node->identifier)) {
-    if (zone->input_node == active_node) {
+    if (zone->input_node() == active_node) {
       /* Assume the data is generally stored on the output and not the input node. */
-      active_node = const_cast<bNode *>(zone->output_node);
+      active_node = const_cast<bNode *>(zone->output_node());
     }
   }
   if (active_node->idname != node_idname) {
@@ -147,13 +147,17 @@ inline void add_item(wmOperatorType *ot,
     }
 
     if constexpr (Accessor::has_type && Accessor::has_name) {
+      std::string name = active_item ? active_item->name : "";
+      if constexpr (Accessor::has_custom_initial_name) {
+        name = Accessor::custom_initial_name(node, name);
+      }
       socket_items::add_item_with_socket_type_and_name<Accessor>(
           node,
           active_item ?
               Accessor::get_socket_type(*active_item) :
               (Accessor::supports_socket_type(SOCK_GEOMETRY) ? SOCK_GEOMETRY : SOCK_FLOAT),
           /* Empty name so it is based on the type. */
-          active_item ? active_item->name : "");
+          name.c_str());
     }
     else if constexpr (!Accessor::has_type && Accessor::has_name) {
       socket_items::add_item_with_name<Accessor>(node, active_item ? active_item->name : "");
@@ -228,16 +232,18 @@ inline void move_active_item(wmOperatorType *ot,
 template<typename Accessor> inline void make_common_operators()
 {
   WM_operatortype_append([](wmOperatorType *ot) {
-    socket_items::ops::add_item<Accessor>(
-        ot, "Add Item", Accessor::operator_idnames::add_item, "Add item below active item");
+    socket_items::ops::add_item<Accessor>(ot,
+                                          "Add Item",
+                                          Accessor::operator_idnames::add_item.c_str(),
+                                          "Add item below active item");
   });
   WM_operatortype_append([](wmOperatorType *ot) {
     socket_items::ops::remove_active_item<Accessor>(
-        ot, "Remove Item", Accessor::operator_idnames::remove_item, "Remove active item");
+        ot, "Remove Item", Accessor::operator_idnames::remove_item.c_str(), "Remove active item");
   });
   WM_operatortype_append([](wmOperatorType *ot) {
     socket_items::ops::move_active_item<Accessor>(
-        ot, "Move Item", Accessor::operator_idnames::move_item, "Move active item");
+        ot, "Move Item", Accessor::operator_idnames::move_item.c_str(), "Move active item");
   });
 }
 

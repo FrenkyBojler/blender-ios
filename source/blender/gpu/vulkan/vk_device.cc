@@ -8,6 +8,8 @@
 
 #include <sstream>
 
+#include "CLG_log.h"
+
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_device.hh"
@@ -24,7 +26,33 @@
 
 extern "C" char datatoc_glsl_shader_defines_glsl[];
 
+static CLG_LogRef LOG = {"gpu.vulkan"};
+
 namespace blender::gpu {
+
+void VKExtensions::log() const
+{
+  CLOG_INFO(&LOG,
+            2,
+            "Device features\n"
+            " - [%c] shader output viewport index\n"
+            " - [%c] shader output layer\n"
+            " - [%c] fragment shader barycentric\n"
+            "Device extensions\n"
+            " - [%c] dynamic rendering\n"
+            " - [%c] dynamic rendering local read\n"
+            " - [%c] dynamic rendering unused attachments\n"
+            " - [%c] external memory\n"
+            " - [%c] shader stencil export",
+            shader_output_viewport_index ? 'X' : ' ',
+            shader_output_layer ? 'X' : ' ',
+            fragment_shader_barycentric ? 'X' : ' ',
+            dynamic_rendering ? 'X' : ' ',
+            dynamic_rendering_local_read ? 'X' : ' ',
+            dynamic_rendering_unused_attachments ? 'X' : ' ',
+            external_memory ? 'X' : ' ',
+            GPU_stencil_export_support() ? 'X' : ' ');
+}
 
 void VKDevice::reinit()
 {
@@ -114,7 +142,7 @@ void VKDevice::init(void *ghost_context)
   init_dummy_buffer();
 
   debug::object_label(vk_handle(), "LogicalDevice");
-  debug::object_label(queue_get(), "GenericQueue");
+  debug::object_label(vk_queue_, "GenericQueue");
   init_glsl_patch();
 
   resources.use_dynamic_rendering = extensions_.dynamic_rendering;
@@ -139,13 +167,15 @@ void VKDevice::init_functions()
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
 
-  /* VK_KHR_external_memory_fd */
-  functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
-
+  if (extensions_.external_memory) {
 #ifdef _WIN32
-  /* VK_KHR_external_memory_win32 */
-  functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+    /* VK_KHR_external_memory_win32 */
+    functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+#elif not defined(__APPLE__)
+    /* VK_KHR_external_memory_fd */
+    functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
 #endif
+  }
 
 #undef LOAD_FUNCTION
 }
@@ -223,6 +253,9 @@ void VKDevice::init_memory_allocator()
   info.instance = vk_instance_;
   vmaCreateAllocator(&info, &mem_allocator_);
 
+  if (!extensions_.external_memory) {
+    return;
+  }
   /* External memory pool */
   /* Initialize a dummy image create info to find the memory type index that will be used for
    * allocating. */
@@ -291,6 +324,7 @@ void VKDevice::init_glsl_patch()
     ss << "#define GPU_ARB_shader_draw_parameters\n";
     ss << "#define gpu_BaseInstance (gl_BaseInstanceARB)\n";
   }
+  ss << "#define GPU_ARB_clip_control\n";
 
   ss << "#define gl_VertexID gl_VertexIndex\n";
   ss << "#define gpu_InstanceIndex (gl_InstanceIndex)\n";
@@ -596,12 +630,19 @@ void VKDevice::debug_print()
   }
   os << "Discard pool\n";
   debug_print(os, orphaned_data);
+  os << "Discard pool (render)\n";
+  debug_print(os, orphaned_data_render);
   os << "\n";
 
   for (const std::reference_wrapper<VKContext> &context : contexts_) {
     os << " VKContext \n";
     debug_print(os, context.get().discard_pool);
   }
+
+  int total_mem_kb;
+  int free_mem_kb;
+  memory_statistics_get(&total_mem_kb, &free_mem_kb);
+  os << "\nMemory: total=" << total_mem_kb << ", free=" << free_mem_kb << "\n";
 }
 
 /** \} */

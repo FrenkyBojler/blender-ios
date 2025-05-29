@@ -556,6 +556,13 @@ static std::optional<std::string> rna_FCurve_path(const PointerRNA *ptr)
 {
   using namespace blender;
   FCurve *fcurve = reinterpret_cast<FCurve *>(ptr->data);
+
+  /* If the F-Curve is not owned by an Action, bail out early. It could be a driver, NLA control
+   * curve, or stored in some place that's yet unknown at the time of writing of this code. */
+  if (GS(ptr->owner_id) != ID_AC) {
+    return {};
+  }
+
   animrig::Action &action = reinterpret_cast<bAction *>(ptr->owner_id)->wrap();
 
   for (animrig::Layer *layer : action.layers()) {
@@ -680,8 +687,8 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value, ReportList *
     /* try to remove F-Curve from action (including from any existing groups) */
     action_groups_remove_channel(act, fcu);
 
-    /* add the F-Curve back to the action now in the right place */
-    /* TODO: make the api function handle the case where there isn't any group to assign to. */
+    /* Add the F-Curve back to the action now in the right place. */
+    /* TODO: make the API function handle the case where there isn't any group to assign to. */
     if (value.data) {
       /* add to its group using API function, which makes sure everything goes ok */
       action_groups_add_channel(act, static_cast<bActionGroup *>(value.data), fcu);
@@ -2111,7 +2118,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_DriverVariable_update_data");
 
   /* Targets */
-  /* TODO: for nicer api, only expose the relevant props via subclassing,
+  /* TODO: for nicer API, only expose the relevant props via subclassing,
    *       instead of exposing the collection of targets */
   prop = RNA_def_property(srna, "targets", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "targets", "num_targets");
