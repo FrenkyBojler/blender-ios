@@ -121,9 +121,6 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
                                                 VArray<int>::ForSpan({data, mesh.edges_num}));
         }
       }
-      if (name == "Vertices") {
-        return std::make_unique<ColumnValues>(name, VArray<int2>::ForSpan(mesh.edges()));
-      }
       return {};
     }
     case bke::AttrDomain::Face: {
@@ -149,12 +146,6 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
       return {};
     }
     case bke::AttrDomain::Corner: {
-      if (name == "Vertex") {
-        return std::make_unique<ColumnValues>(name, VArray<int>::ForSpan(mesh.corner_verts()));
-      }
-      if (name == "Edge") {
-        return std::make_unique<ColumnValues>(name, VArray<int>::ForSpan(mesh.corner_edges()));
-      }
       return {};
     }
     default:
