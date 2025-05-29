@@ -202,23 +202,48 @@ typedef struct bNodeSocket {
    * \note: This is not the exact opposite of `is_visible()` which takes other things into account.
    */
   bool is_user_hidden() const;
-  bool is_available() const;
-  bool is_panel_collapsed() const;
+  /**
+   * Socket visibility depends on a few different factors like whether it's hidden by the user,
+   * it's available or it's inferred to be hidden based on other inputs.
+   *
+   * A visible socket has a valid #bNodeSocketRuntime::location. However, it may not actually be
+   * drawn as stand-alone socket if it's in a collapsed panel. To check for that, use
+   * #is_icon_visible.
+   */
   bool is_visible() const;
-  bool is_multi_input() const;
-  bool is_input() const;
-  bool is_output() const;
-
+  /**
+   * The socket is visible and it's drawn as a stand-alone icon in the node editor. So any parent
+   * panel is open.
+   */
+  bool is_icon_visible() const;
+  /**
+   * Unavailable sockets are usually treated as if they don't exist. It's not something that can be
+   * controlled by users for built-in nodes.
+   */
+  bool is_available() const;
+  /**
+   * Whether this socket is in a collapsed panel.
+   */
+  bool is_panel_collapsed() const;
+  /**
+   * Inputs may be grayed out if they are detected to be not affecting the output and the node is
+   * not itself some kind of output node.
+   */
+  bool is_inactive() const;
   /**
    * False when this input socket definitely does not affect the output.
    */
   bool affects_node_output() const;
   /**
    * This becomes false when it is detected that the input socket is currently not used and its
-   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whoose
+   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
    * visibility is controlled by a menu should be hidden.
    */
   bool inferred_input_socket_visibility() const;
+
+  bool is_multi_input() const;
+  bool is_input() const;
+  bool is_output() const;
 
   /** Utility to access the value of the socket. */
   template<typename T> T *default_value_typed();
@@ -296,6 +321,8 @@ typedef enum eNodeSocketDisplayShape {
   SOCK_DISPLAY_SHAPE_CIRCLE_DOT = 3,
   SOCK_DISPLAY_SHAPE_SQUARE_DOT = 4,
   SOCK_DISPLAY_SHAPE_DIAMOND_DOT = 5,
+  SOCK_DISPLAY_SHAPE_LINE = 6,
+  SOCK_DISPLAY_SHAPE_VOLUME_GRID = 7,
 } eNodeSocketDisplayShape;
 
 /** Socket side (input/output). */
@@ -520,9 +547,6 @@ typedef struct bNode {
 
   /* This node is reroute which is not logically connected to any source of value. */
   bool is_dangling_reroute() const;
-
-  /* True if the socket is drawn and the icon is visible. */
-  bool is_socket_icon_drawn(const bNodeSocket &socket) const;
 
   /* The following methods are only available when #bNodeTree.ensure_topology_cache has been
    * called. */
@@ -966,8 +990,11 @@ typedef struct bNodeSocketValueBoolean {
 typedef struct bNodeSocketValueVector {
   /** RNA subtype. */
   int subtype;
-  float value[3];
+  /* Only some of the values might be used depending on the dimensions. */
+  float value[4];
   float min, max;
+  /* The number of dimensions of the vector. Can be 2, 3, or 4. */
+  int dimensions;
 } bNodeSocketValueVector;
 
 typedef struct bNodeSocketValueRotation {
@@ -1066,10 +1093,6 @@ typedef enum CMPNodeMaskFlags {
   CMP_NODE_MASK_FLAG_SIZE_FIXED = (1 << 8),
   CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE = (1 << 9),
 } CMPNodeMaskFlags;
-
-enum {
-  CMP_NODEFLAG_BLUR_EXTEND_BOUNDS = (1 << 1),
-};
 
 typedef struct NodeFrame {
   short flag;
@@ -1226,7 +1249,7 @@ typedef struct NodeImageMultiFileSocket {
 
   /* Multi-layer output. */
   /** Subtract 2 because '.' and channel char are appended. */
-  char layer[/*EXR_TOT_MAXNAME - 2*/ 30];
+  char layer[/*EXR_TOT_MAXNAME - 2*/ 62];
   char _pad2[2];
 } NodeImageMultiFileSocket;
 
@@ -1324,22 +1347,22 @@ typedef struct NodeLensDist {
 
 typedef struct NodeColorBalance {
   /* ASC CDL parameters. */
-  float slope[3];
-  float offset[3];
-  float power[3];
-  float offset_basis;
+  float slope[3] DNA_DEPRECATED;
+  float offset[3] DNA_DEPRECATED;
+  float power[3] DNA_DEPRECATED;
+  float offset_basis DNA_DEPRECATED;
   char _pad[4];
 
   /* LGG parameters. */
-  float lift[3];
-  float gamma[3];
-  float gain[3];
+  float lift[3] DNA_DEPRECATED;
+  float gamma[3] DNA_DEPRECATED;
+  float gain[3] DNA_DEPRECATED;
 
   /* White-point parameters. */
-  float input_temperature;
-  float input_tint;
-  float output_temperature;
-  float output_tint;
+  float input_temperature DNA_DEPRECATED;
+  float input_tint DNA_DEPRECATED;
+  float output_temperature DNA_DEPRECATED;
+  float output_tint DNA_DEPRECATED;
 } NodeColorBalance;
 
 typedef struct NodeColorspill {
@@ -1520,7 +1543,7 @@ typedef struct TexNodeOutput {
 } TexNodeOutput;
 
 typedef struct NodeKeyingScreenData {
-  char tracking_object[64];
+  char tracking_object[/*MAX_NAME*/ 64];
   float smoothness DNA_DEPRECATED;
 } NodeKeyingScreenData;
 
@@ -1540,7 +1563,7 @@ typedef struct NodeKeyingData {
 } NodeKeyingData;
 
 typedef struct NodeTrackPosData {
-  char tracking_object[64];
+  char tracking_object[/*MAX_NAME*/ 64];
   char track_name[64];
 } NodeTrackPosData;
 
@@ -1576,20 +1599,20 @@ typedef struct NodeShaderScript {
 typedef struct NodeShaderTangent {
   int direction_type;
   int axis;
-  char uv_map[64];
+  char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
 } NodeShaderTangent;
 
 typedef struct NodeShaderNormalMap {
   int space;
-  char uv_map[64];
+  char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
 } NodeShaderNormalMap;
 
 typedef struct NodeShaderUVMap {
-  char uv_map[64];
+  char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
 } NodeShaderUVMap;
 
 typedef struct NodeShaderVertexColor {
-  char layer_name[64];
+  char layer_name[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
 } NodeShaderVertexColor;
 
 typedef struct NodeShaderTexIES {
@@ -1599,7 +1622,7 @@ typedef struct NodeShaderTexIES {
 } NodeShaderTexIES;
 
 typedef struct NodeShaderOutputAOV {
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 } NodeShaderOutputAOV;
 
 typedef struct NodeSunBeams {
@@ -2373,6 +2396,21 @@ typedef struct NodeGeometrySeparateBundle {
   int active_index;
   char _pad[4];
 } NodeGeometrySeparateBundle;
+
+typedef struct NodeFunctionFormatStringItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+  char _pad[2];
+} NodeFunctionFormatStringItem;
+
+typedef struct NodeFunctionFormatString {
+  NodeFunctionFormatStringItem *items;
+  int items_num;
+  int next_identifier;
+  int active_index;
+  char _pad[4];
+} NodeFunctionFormatString;
 
 /* script node mode */
 enum {

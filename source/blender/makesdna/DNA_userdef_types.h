@@ -104,7 +104,7 @@ typedef struct bUserExtensionRepo {
    * Use a shorter name than #NAME_MAX to leave room for a base module prefix.
    * e.g. `bl_ext.{submodule}.{add_on}` to allow this string to fit into #bAddon::module.
    */
-  char module[/*NAME_MAX-16*/ 48];
+  char module[/*MAX_NAME - 16*/ 48];
 
   /**
    * Secret access token for remote repositories (allocated).
@@ -227,7 +227,8 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
-  char _pad[5];
+  char use_socket_structure_type;
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
