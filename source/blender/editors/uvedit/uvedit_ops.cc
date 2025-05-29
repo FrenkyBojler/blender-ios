@@ -577,16 +577,18 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   float pos[2], min[2], max[2];
-
+  bool align_auto = false;
   INIT_MINMAX2(min, max);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
+  
   if (tool == UV_ALIGN_AUTO) {
     ED_uvedit_foreach_uv_multi(
         scene, objects, true, true, [&](float luv[2]) { minmax_v2v2_v2(min, max, luv); });
     tool = (max[0] - min[0] >= max[1] - min[1]) ? UV_ALIGN_Y : UV_ALIGN_X;
+    align_auto = true;
   }
 
   for (Object *obedit : objects) {
@@ -597,7 +599,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
       continue;
     }
 
-    if (ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) && ELEM(loc, UV_MIN, UV_MAX)) {
+    if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) && ELEM(loc, UV_MIN, UV_MAX)) {
       ED_uvedit_minmax_multi(scene, objects, min, max);
       if (loc == UV_MIN) {
         pos[0] = min[0];
