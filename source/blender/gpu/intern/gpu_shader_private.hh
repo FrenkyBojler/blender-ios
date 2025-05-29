@@ -200,7 +200,7 @@ class ShaderCompiler {
         case CompilationPriority::Low:
           low_priority.push_back(work);
           break;
-        case CompilationPriority::Normal:
+        case CompilationPriority::Medium:
           normal_priority.push_back(work);
           break;
         case CompilationPriority::High:
