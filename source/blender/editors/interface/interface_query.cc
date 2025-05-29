@@ -803,6 +803,18 @@ uiBut *ui_region_find_first_but_test_flag(ARegion *region, int flag_include, int
   return nullptr;
 }
 
+bool UI_region_has_aligned_buttons(const ARegion *region)
+{
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
+    for (const std::unique_ptr<uiBut> &but : block->buttons) {
+      if (but->drawflag & UI_BUT_ALIGN) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

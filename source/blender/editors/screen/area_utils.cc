@@ -43,16 +43,18 @@ int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, in
                          (BLI_rcti_size_y(&region->v2d.mask) + 1);
     const float column = UI_TOOLBAR_COLUMN / aspect;
     const float margin = UI_TOOLBAR_MARGIN / aspect;
-    const float snap_units[] = {
-        column + margin,
-        (2.0f * column) + margin,
-        (2.7f * column) + margin,
-    };
+    blender::Vector<float> snap_units = {column + margin};
+    /* Two column only if we have aligned items. */
+    if (UI_region_has_aligned_buttons(region)) {
+      snap_units.append((2.0f * column) + margin);
+    }
+    snap_units.append((2.7f * column) + margin);
+
     int best_diff = INT_MAX;
     int best_size = size;
     /* Only snap if less than last snap unit. */
-    if (size <= snap_units[ARRAY_SIZE(snap_units) - 1]) {
-      for (uint i = 0; i < ARRAY_SIZE(snap_units); i += 1) {
+    if (size <= snap_units.last()) {
+      for (uint i = 0; i < snap_units.size(); i += 1) {
         const int test_size = snap_units[i];
         const int test_diff = abs(test_size - size);
         if (test_diff < best_diff) {
