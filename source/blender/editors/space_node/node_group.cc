@@ -1412,7 +1412,9 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
     {
       for (bNodePanelState &new_panel_state : new_panel_states) {
         if (new_panel_state.identifier == *new_identifier) {
-          new_panel_state.flag = src_panel_state.flag & NODE_PANEL_COLLAPSED;
+          SET_FLAG_FROM_TEST(new_panel_state.flag,
+                             src_panel_state.flag & NODE_PANEL_COLLAPSED,
+                             NODE_PANEL_COLLAPSED);
         }
       }
     }
