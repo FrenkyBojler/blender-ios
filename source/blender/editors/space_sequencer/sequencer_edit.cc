@@ -2760,7 +2760,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  sh = seq::effect_handle_load_get(strip);
+  sh = seq::strip_effect_handle_get(strip);
   sh.free(strip, true);
 
   strip->type = new_type;
@@ -2775,7 +2775,7 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
     seq::ensure_unique_name(strip, scene);
   }
 
-  sh = seq::effect_handle_load_get(strip);
+  sh = seq::strip_effect_handle_get(strip);
   sh.init(strip);
 
   seq::relations_invalidate_cache(scene, strip);

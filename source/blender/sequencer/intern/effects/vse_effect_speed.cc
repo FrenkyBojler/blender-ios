@@ -126,7 +126,7 @@ float strip_speed_effect_target_frame_get(Scene *scene,
     return 0.0f;
   }
 
-  effect_handle_load_get(strip_speed); /* Ensure, that data are initialized. */
+  strip_effect_handle_get(strip_speed); /* Ensure, that data are initialized. */
   int frame_index = round_fl_to_int(give_frame_index(scene, strip_speed, timeline_frame));
   SpeedControlVars *s = (SpeedControlVars *)strip_speed->effectdata;
   const Strip *source = strip_speed->input1;

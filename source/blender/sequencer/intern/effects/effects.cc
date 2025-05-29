@@ -246,7 +246,7 @@ EffectHandle effect_handle_get(int strip_type)
   return rval;
 }
 
-EffectHandle effect_handle_load_get(Strip *strip)
+EffectHandle strip_effect_handle_get(Strip *strip)
 {
   EffectHandle rval = {};
 

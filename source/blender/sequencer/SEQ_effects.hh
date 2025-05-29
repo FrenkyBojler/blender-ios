@@ -77,7 +77,7 @@ struct EffectHandle {
 
 /** Get the effect handle for a given strip, and load the strip if it has not been loaded already.
  * If `strip` is not an effect strip, returns empty `EffectHandle`. */
-EffectHandle effect_handle_load_get(Strip *strip);
+EffectHandle strip_effect_handle_get(Strip *strip);
 int effect_get_num_inputs(int strip_type);
 void effect_text_font_unload(TextVars *data, bool do_id_user);
 void effect_text_font_load(TextVars *data, bool do_id_user);
