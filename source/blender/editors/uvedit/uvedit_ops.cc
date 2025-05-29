@@ -374,17 +374,16 @@ static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
       if(type == DYNAMIC) {
         if (axis == X) {
-          luv[0] += (float)distance / SI_GRID_STEPS_LEN;
+          luv[0] += (float)distance / sima->tile_grid_shape[0];
         }
         else {
-          luv[1] += (float)distance / SI_GRID_STEPS_LEN;
+          luv[1] += (float)distance / sima->tile_grid_shape[0];
         }
         changed = true;
       }
       else if (type == PIXEL) {
         if (axis == X) {
           luv[0] += (float)distance / width;
-          
         }
         else {
           luv[1] += (float)distance / height;
