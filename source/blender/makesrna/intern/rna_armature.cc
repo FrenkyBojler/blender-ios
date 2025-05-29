@@ -732,6 +732,7 @@ static void rna_Bone_hide_update(Main *bmain, Scene * /* scene */, PointerRNA *p
       else {
         pose_bone->drawflag |= PCHAN_DRAW_HIDDEN;
       }
+      break;
     }
   }
   if (bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE)) {
