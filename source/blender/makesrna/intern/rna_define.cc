@@ -1476,6 +1476,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_,
   prop->type = PropertyType(type);
   prop->subtype = PropertySubType(subtype);
   prop->name = identifier;
+  prop->description = "";
   prop->deprecated = nullptr;
   prop->translation_context = BLT_I18NCONTEXT_DEFAULT_BPYRNA;
   /* a priori not raw editable */
