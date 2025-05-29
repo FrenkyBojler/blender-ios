@@ -52,13 +52,15 @@ GPU_TEST(preprocess_utilities);
 
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
-                                       shader::metadata::Source *r_metadata = nullptr)
+                                       shader::metadata::Source *r_metadata = nullptr,
+                                       shader::Preprocessor::SourceLanguage language =
+                                           shader::Preprocessor::SourceLanguage::BLENDER_GLSL)
 {
   using namespace shader;
   Preprocessor preprocessor;
   shader::metadata::Source metadata;
   std::string result = preprocessor.process(
-      Preprocessor::SourceLanguage::BLENDER_GLSL,
+      language,
       str,
       "test.glsl",
       true,
@@ -457,5 +459,295 @@ void func()
   }
 }
 GPU_TEST(preprocess_default_arguments);
+
+static void test_preprocess_namespace()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+namespace A {
+struct S {};
+int func(int a)
+{
+  S s;
+  return B::func(int a);
+}
+int func2(int a)
+{
+  T s;
+  s.S;
+  s.func;
+  return func(int a);
+}
+}
+)";
+    string expect = R"(
+
+struct A_S {};
+int A_func(int a)
+{
+  A_S s;
+  return B_func(int a);
+}
+int A_func2(int a)
+{
+  T s;
+  s.S;
+  s.func;
+  return A_func(int a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A::B {
+int func(int a)
+{
+  return a;
+}
+int func2(int a)
+{
+  return func(int a);
+}
+}
+)";
+    string expect = R"(
+
+int A_B_func(int a)
+{
+  return a;
+}
+int A_B_func2(int a)
+{
+  return A_B_func(int a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A {
+namespace B {
+int func(int a)
+{
+  return a;
+}
+}
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Nested namespaces are unsupported.");
+  }
+  {
+    string input = R"(
+namespace A {
+int test(int a) {}
+int func(int a)
+{
+  using B::test;
+  return test(a);
+}
+}
+)";
+    string expect = R"(
+
+int A_test(int a) {}
+int A_func(int a)
+{
+  
+  return B_test(a);
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+int func(int a)
+{
+  using B = A::S;
+  B b;
+  using C = A::F;
+  C f = A::B();
+  f = B();
+  B d;
+}
+)";
+    string expect = R"(
+int func(int a)
+{
+  
+  A_S b;
+  
+  A_F f = A_B();
+  f = B();
+  A_S d;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A::B {
+void func() {}
+struct S {};
+}
+namespace A::B {
+using A::B::func;
+using S = A::B::S;
+void test() {
+  S s;
+  func();
+}
+}
+)";
+    string expect = R"(
+
+void A_B_func() {}
+struct A_B_S {};
+
+
+
+
+void A_B_test() {
+  A_B_S s;
+  A_B_func();
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+using B = A::T;
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "The `using` keyword is not allowed in global scope.");
+  }
+  {
+    string input = R"(
+namespace A {
+using namespace B;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Unsupported `using namespace`. "
+              "Add individual `using` directives for each needed symbol.");
+  }
+  {
+    string input = R"(
+namespace A {
+using B::func;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+  }
+  {
+    string input = R"(
+namespace A {
+using C = B::func;
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+  }
+  {
+    /* Template on the same line as function signature inside a namespace.
+     * Template instantiation with other functions. */
+    string input = R"(
+namespace NS {
+template<typename T> T read(T a)
+{
+  return a;
+}
+template float read<float>(float);
+float write(float a){ return a; }
+}
+)";
+
+    string expect = R"(
+
+#define NS_read_TEMPLATE(T) T NS_read(T a) \
+{ \
+  return a; \
+}
+NS_read_TEMPLATE(float)/*float*/
+float NS_write(float a){ return a; }
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_namespace);
+
+static void test_preprocess_swizzle()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(a.xyzw().aaa().xxx().grba().yzww; aaaa();)";
+    string expect = R"(a.xyzw  .aaa  .xxx  .grba  .yzww; aaaa();)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_swizzle);
+
+#ifdef __APPLE__ /* This processing is only done for metal compatibility. */
+static void test_preprocess_matrix_constructors()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a); mat3x2(a);)";
+    string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a); mat3x2(a);)";
+    string error;
+    string output = process_test_string(input, error, nullptr, Preprocessor::SourceLanguage::GLSL);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_matrix_constructors);
+#endif
 
 }  // namespace blender::gpu::tests

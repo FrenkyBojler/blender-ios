@@ -36,19 +36,19 @@ static void node_declare(NodeDeclarationBuilder &b)
                      .min(0.0f)
                      .max(1.0f)
                      .subtype(PROP_FACTOR)
-                     .field_on_all()
+                     .supports_field()
                      .make_available([](bNode &node) {
                        node_storage(node).mode = GEO_NODE_CURVE_SAMPLE_FACTOR;
                      });
   auto &length = b.add_input<decl::Float>("Length")
                      .min(0.0f)
                      .subtype(PROP_DISTANCE)
-                     .field_on_all()
+                     .supports_field()
                      .make_available([](bNode &node) {
                        node_storage(node).mode = GEO_NODE_CURVE_SAMPLE_LENGTH;
                      });
   auto &index =
-      b.add_input<decl::Int>("Curve Index").field_on_all().make_available([](bNode &node) {
+      b.add_input<decl::Int>("Curve Index").supports_field().make_available([](bNode &node) {
         node_storage(node).use_all_curves = false;
       });
 
@@ -69,9 +69,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "use_all_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_all_curves", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

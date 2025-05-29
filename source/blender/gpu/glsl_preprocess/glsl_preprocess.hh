@@ -206,9 +206,11 @@ class Preprocessor {
         parse_library_functions(str);
       }
       if (language == BLENDER_GLSL) {
-        include_parse(str);
+        include_parse(str, report_error);
+        pragma_once_linting(str, filename, report_error);
       }
       str = preprocessor_directive_mutation(str);
+      str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
         str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
@@ -224,6 +226,11 @@ class Preprocessor {
         small_type_linting(str, report_error);
       }
       str = remove_quotes(str);
+      if (language == BLENDER_GLSL) {
+        str = using_mutation(str, report_error);
+        str = namespace_mutation(str, report_error);
+        str = namespace_separator_mutation(str);
+      }
       str = enum_macro_injection(str);
       str = default_argument_mutation(str);
       str = argument_reference_mutation(str);
@@ -231,6 +238,11 @@ class Preprocessor {
       str = template_definition_mutation(str, report_error);
       str = template_call_mutation(str);
     }
+#ifdef __APPLE__ /* Limiting to Apple hardware since GLSL compilers might have issues. */
+    if (language == GLSL) {
+      str = matrix_constructor_mutation(str);
+    }
+#endif
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
     r_metadata = metadata;
@@ -318,7 +330,7 @@ class Preprocessor {
     std::string out_str = str;
     {
       /* Transform template definition into macro declaration. */
-      std::regex regex(R"(template<([\w\d\n, ]+)>(\s\w+\s)(\w+)\()");
+      std::regex regex(R"(template<([\w\d\n\,\ ]+)>(\s\w+\s)(\w+)\()");
       out_str = std::regex_replace(out_str, regex, "#define $3_TEMPLATE($1)$2$3@(");
     }
     {
@@ -348,10 +360,11 @@ class Preprocessor {
         macro_body = std::regex_replace(macro_body, std::regex(R"(\n)"), " \\\n");
 
         std::string macro_args = get_content_between_balanced_pair(macro_body, '(', ')');
-        /* Find function arg list. Skip first 10 chars to skip "_TEMPLATE" and the arg list. */
+        /* Find function argument list.
+         * Skip first 10 chars to skip "_TEMPLATE" and the argument list. */
         std::string fn_args = get_content_between_balanced_pair(
             macro_body.substr(10 + macro_args.length() + 1), '(', ')');
-        /* Remove whitespaces. */
+        /* Remove white-spaces. */
         macro_args = std::regex_replace(macro_args, std::regex(R"(\s)"), "");
         std::vector<std::string> macro_args_split = split_string(macro_args, ',');
         /* Append arguments inside the function name. */
@@ -378,9 +391,9 @@ class Preprocessor {
     {
       /* Replace explicit instantiation by macro call. */
       /* Only `template ret_t fn<T>(args);` syntax is supported. */
-      std::regex regex_instance(R"(template \w+ (\w+)<([\w+, \n]+)>\(([\w+ ,\n]+)\);)");
+      std::regex regex_instance(R"(template \w+ (\w+)<([\w+\,\ \n]+)>\(([\w+\ \,\n]+)\);)");
       /* Notice the stupid way of keeping the number of lines the same by copying the argument list
-       * inside a multiline comment. */
+       * inside a multi-line comment. */
       out_str = std::regex_replace(out_str, regex_instance, "$1_TEMPLATE($2)/*$3*/");
     }
     {
@@ -425,13 +438,19 @@ class Preprocessor {
     return std::regex_replace(str, std::regex(R"(["'])"), " ");
   }
 
-  void include_parse(const std::string &str)
+  void include_parse(const std::string &str, report_callback report_error)
   {
     /* Parse include directive before removing them. */
-    std::regex regex(R"(#\s*include\s*\"(\w+\.\w+)\")");
+    std::regex regex(R"(#(\s*)include\s*\"(\w+\.\w+)\")");
 
     regex_global_search(str, regex, [&](const std::smatch &match) {
-      std::string dependency_name = match[1].str();
+      std::string indent = match[1].str();
+      /* Assert that includes are not nested in other preprocessor directives. */
+      if (!indent.empty()) {
+        report_error(match, "#include directives must not be inside #if clause");
+      }
+      std::string dependency_name = match[2].str();
+      /* Assert that includes are at the top of the file. */
       if (dependency_name == "gpu_glsl_cpp_stubs.hh") {
         /* Skip GLSL-C++ stubs. They are only for IDE linting. */
         return;
@@ -442,6 +461,19 @@ class Preprocessor {
       }
       metadata.dependencies.emplace_back(dependency_name);
     });
+  }
+
+  void pragma_once_linting(const std::string &str,
+                           const std::string &filename,
+                           report_callback report_error)
+  {
+    if (filename.find("_lib.") == std::string::npos) {
+      return;
+    }
+    if (str.find("\n#pragma once") == std::string::npos) {
+      std::smatch match;
+      report_error(match, "Library files must contain #pragma once directive.");
+    }
   }
 
   std::string loop_unroll(const std::string &str, report_callback report_error)
@@ -658,11 +690,166 @@ class Preprocessor {
     return out;
   }
 
+  std::string namespace_mutation(const std::string &str, report_callback report_error)
+  {
+    if (str.find("namespace") == std::string::npos) {
+      return str;
+    }
+
+    std::string out = str;
+
+    /* Parse each namespace declaration. */
+    std::regex regex(R"(namespace (\w+(?:\:\:\w+)*))");
+    regex_global_search(str, regex, [&](const std::smatch &match) {
+      std::string namespace_name = match[1].str();
+      std::string content = get_content_between_balanced_pair(match.suffix().str(), '{', '}');
+
+      if (content.find("namespace") != std::string::npos) {
+        report_error(match, "Nested namespaces are unsupported.");
+        return;
+      }
+
+      std::string out_content = content;
+
+      /* Parse all global symbols (struct / functions) inside the content. */
+      std::regex regex(R"([\n\>] ?(?:const )?(\w+) (\w+)\(?)");
+      regex_global_search(content, regex, [&](const std::smatch &match) {
+        std::string return_type = match[1].str();
+        if (return_type == "template") {
+          /* Matched a template instantiation. */
+          return;
+        }
+        std::string function = match[2].str();
+        /* Replace all occurrences of the non-namespace specified symbol.
+         * Reject symbols that contain the target symbol name. */
+        std::regex regex(R"(([^:\w]))" + function + R"(([\s\(\<]))");
+        out_content = std::regex_replace(
+            out_content, regex, "$1" + namespace_name + "::" + function + "$2");
+      });
+
+      replace_all(out, "namespace " + namespace_name + " {" + content + "}", out_content);
+    });
+
+    return out;
+  }
+
+  /* Needs to run before namespace mutation so that `using` have more precedence. */
+  std::string using_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    if (str.find("using ") == string::npos) {
+      return str;
+    }
+
+    if (str.find("using namespace ") != string::npos) {
+      regex_global_search(str, regex(R"(\busing namespace\b)"), [&](const smatch &match) {
+        report_error(match,
+                     "Unsupported `using namespace`. "
+                     "Add individual `using` directives for each needed symbol.");
+      });
+      return str;
+    }
+
+    string next_str = str;
+
+    string out_str;
+    /* Using namespace symbol. Example: `using A::B;` */
+    /* Using as type alias. Example: `using S = A::B;` */
+    regex regex_using(R"(\busing (?:(\w+) = )?(([\w\:\<\>]+)::(\w+));)");
+
+    smatch match;
+    while (regex_search(next_str, match, regex_using)) {
+      const string using_definition = match[0].str();
+      const string alias = match[1].str();
+      const string to = match[2].str();
+      const string namespace_prefix = match[3].str();
+      const string symbol = match[4].str();
+      const string prefix = match.prefix().str();
+      const string suffix = match.suffix().str();
+
+      out_str += prefix;
+      /* Assumes formatted input. */
+      if (prefix.back() == '\n') {
+        /* Using the keyword in global or at namespace scope. */
+        const string parent_scope = get_content_between_balanced_pair(
+            out_str + '}', '{', '}', true);
+        if (parent_scope.empty()) {
+          report_error(match, "The `using` keyword is not allowed in global scope.");
+          break;
+        }
+        /* Ensure we are bringing symbols from the same namespace.
+         * Otherwise we can have different shadowing outcome between shader and C++. */
+        const string ns_keyword = "namespace ";
+        size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
+        if (pos == string::npos) {
+          report_error(match, "Couldn't find `namespace` keyword at begining of scope.");
+          break;
+        }
+        size_t start = pos + ns_keyword.size();
+        size_t end = out_str.size() - parent_scope.size() - start - 2;
+        const string namespace_scope = out_str.substr(start, end);
+        if (namespace_scope != namespace_prefix) {
+          report_error(
+              match,
+              "The `using` keyword is only allowed in namespace scope to make visible symbols "
+              "from the same namespace declared in another scope, potentially from another "
+              "file.");
+          break;
+        }
+      }
+      /** IMPORTANT: `match` is invalid after the assignment. */
+      next_str = using_definition + suffix;
+      /* Assignments do not allow to alias functions symbols. */
+      const bool replace_fn = alias.empty();
+      /* Replace the alias (the left part of the assignment) or the last symbol. */
+      const string from = !alias.empty() ? alias : symbol;
+      /* Replace all occurrences of the non-namespace specified symbol.
+       * Reject symbols that contain the target symbol name. */
+      /** IMPORTANT: If replace_fn is true, this can replace any symbol type if there are functions
+       * and types with the same name. We could support being more explicit about the type of
+       * symbol to replace using an optional attribute [[gpu::using_function]]. */
+      const regex regex(R"(([^:\w]))" + from + R"(([\s)" + (replace_fn ? R"(\()" : "") + "])");
+      const string in_scope = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      const string out_scope = regex_replace(in_scope, regex, "$1" + to + "$2");
+      replace_all(next_str, using_definition + in_scope, out_scope);
+    }
+    out_str += next_str;
+
+    /* Verify all using were processed. */
+    if (out_str.find("using ") != string::npos) {
+      regex_global_search(out_str, regex(R"(\busing\b)"), [&](const smatch &match) {
+        report_error(match, "Unsupported `using` keyword usage.");
+      });
+    }
+    return out_str;
+  }
+
+  std::string namespace_separator_mutation(const std::string &str)
+  {
+    std::string out = str;
+
+    /* Global namespace reference. */
+    replace_all(out, " ::", "   ");
+    /* Specific namespace reference.
+     * Cannot use `__` because of some compilers complaining about reserved symbols. */
+    replace_all(out, "::", "_");
+    return out;
+  }
+
   std::string preprocessor_directive_mutation(const std::string &str)
   {
     /* Remove unsupported directives.` */
     std::regex regex(R"(#\s*(?:include|pragma once)[^\n]*)");
     return std::regex_replace(str, regex, "");
+  }
+
+  std::string swizzle_function_mutation(const std::string &str)
+  {
+    /* Change C++ swizzle functions into plain swizzle. */
+    std::regex regex(R"((\.[rgbaxyzw]{2,4})\(\))");
+    /* Keep character count the same. Replace parenthesis by spaces. */
+    return std::regex_replace(str, regex, "$1  ");
   }
 
   void threadgroup_variables_parsing(const std::string &str)
@@ -982,6 +1169,22 @@ class Preprocessor {
       replace_all(str, mutation.first, mutation.second);
     }
     return str;
+  }
+
+  /* Used to make GLSL matrix constructor compatible with MSL in pyGPU shaders.
+   * This syntax is not supported in blender's own shaders. */
+  std::string matrix_constructor_mutation(const std::string &str)
+  {
+    if (str.find("mat") == std::string::npos) {
+      return str;
+    }
+    /* Example: `mat2(x)` > `mat2x2(x)` */
+    std::regex regex_parenthesis(R"(\bmat([234])\()");
+    std::string out = std::regex_replace(str, regex_parenthesis, "mat$1x$1(");
+    /* Only process square matrices since this is the only types we overload the constructors. */
+    /* Example: `mat2x2(x)` > `__mat2x2(x)` */
+    std::regex regex(R"(\bmat(2x2|3x3|4x4)\()");
+    return std::regex_replace(out, regex, "__mat$1(");
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */

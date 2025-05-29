@@ -72,7 +72,6 @@ using blender::bke::GVolumeGrid;
 
 #ifdef WITH_OPENVDB
 #  include <list>
-#  include <mutex>
 
 #  include <openvdb/openvdb.h>
 #  include <openvdb/points/PointDataGrid.h>
@@ -110,7 +109,7 @@ struct VolumeGridVector : public std::list<GVolumeGrid> {
 
   /* Mutex for file loading of grids list. `const` write access to the fields after this must be
    * protected by locking with this mutex. */
-  mutable std::mutex mutex;
+  mutable blender::Mutex mutex;
   /* Absolute file path that grids have been loaded from. */
   char filepath[FILE_MAX];
   /* File loading error message. */
@@ -318,7 +317,7 @@ void BKE_volume_init_grids(Volume *volume)
 
 Volume *BKE_volume_add(Main *bmain, const char *name)
 {
-  Volume *volume = (Volume *)BKE_id_new(bmain, ID_VO, name);
+  Volume *volume = BKE_id_new<Volume>(bmain, name);
 
   return volume;
 }
@@ -480,7 +479,7 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   }
 
   /* Double-checked lock. */
-  std::lock_guard<std::mutex> lock(const_grids.mutex);
+  std::lock_guard lock(const_grids.mutex);
   if (BKE_volume_is_loaded(volume)) {
     return const_grids.error_msg.empty();
   }
@@ -1091,6 +1090,32 @@ openvdb::GridBase::ConstPtr BKE_volume_grid_shallow_transform(openvdb::GridBase:
 
   /* Create a transformed grid. The underlying tree is shared. */
   return grid->copyGridReplacingTransform(grid_transform);
+}
+
+blender::float4x4 BKE_volume_transform_to_blender(const openvdb::math::Transform &transform)
+{
+  /* Perspective not supported for now, getAffineMap() will leave out the
+   * perspective part of the transform. */
+  const openvdb::math::Mat4f matrix = transform.baseMap()->getAffineMap()->getMat4();
+  /* Blender column-major and OpenVDB right-multiplication conventions match. */
+  float4x4 result;
+  for (int col = 0; col < 4; col++) {
+    for (int row = 0; row < 4; row++) {
+      result[col][row] = matrix(col, row);
+    }
+  }
+  return result;
+}
+
+openvdb::math::Transform BKE_volume_transform_to_openvdb(const blender::float4x4 &transform)
+{
+  openvdb::math::Mat4f matrix_openvdb;
+  for (int col = 0; col < 4; col++) {
+    for (int row = 0; row < 4; row++) {
+      matrix_openvdb(col, row) = transform[col][row];
+    }
+  }
+  return openvdb::math::Transform(std::make_shared<openvdb::math::AffineMap>(matrix_openvdb));
 }
 
 /* Changing the resolution of a grid. */
