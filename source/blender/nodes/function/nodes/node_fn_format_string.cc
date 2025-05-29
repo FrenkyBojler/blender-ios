@@ -34,8 +34,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::String>("Format").hide_label().description(
-      "Format string using a Python compatible syntax. For example, \"Count: {}\" would replace "
-      "the {} with the first input value.");
+      "Format string using a Python and path template compatible syntax. For example, \"Count: "
+      "{}\" would replace the {} with the first input value.");
   b.add_output<decl::String>("String").align_with_previous();
 
   const bNodeTree *ntree = b.tree_or_null();
@@ -772,7 +772,8 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeFormatString");
   ntype.ui_name = "Format String";
-  ntype.ui_description = "Insert values into a string using a Python compatible formatting syntax";
+  ntype.ui_description =
+      "Insert values into a string using a Python and path template compatible formatting syntax";
   ntype.nclass = NODE_CLASS_CONVERTER;
   blender::bke::node_type_storage(
       ntype, "NodeFunctionFormatString", node_free_storage, node_copy_storage);
