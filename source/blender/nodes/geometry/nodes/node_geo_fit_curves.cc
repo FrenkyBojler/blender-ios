@@ -42,7 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -84,12 +84,13 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
       BLI_assert_unreachable();
   }
 
-  bke::CurvesGeometry curves = geometry::fit_curves(src_curves,
-                                                    curve_evaluator.get_evaluated_selection_as_mask(),
-                                                    curve_evaluator.get_evaluated<float>(0),
-                                                    point_evaluator.get_evaluated<bool>(0),
-                                                    method,
-                                                    attribute_filter);
+  bke::CurvesGeometry curves = geometry::fit_curves(
+      src_curves,
+      curve_evaluator.get_evaluated_selection_as_mask(),
+      curve_evaluator.get_evaluated<float>(0),
+      point_evaluator.get_evaluated<bool>(0),
+      method,
+      attribute_filter);
 
   geometry::debug_randomize_curve_order(&curves);
   return curves;
