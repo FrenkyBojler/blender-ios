@@ -71,7 +71,7 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
                                              reinterpret_cast<uint *>(src_corner_indices.data()) :
                                              nullptr;
 
-    const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | (use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0;
+    const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | ((use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0);
 
     float *r_cubic_array = nullptr;
     uint32_t *r_orig_index_map = nullptr;
