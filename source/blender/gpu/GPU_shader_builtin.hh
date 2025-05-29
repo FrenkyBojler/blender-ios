@@ -104,7 +104,7 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_FLAT_COLOR,
   GPU_SHADER_3D_POLYLINE_FLAT_COLOR,
-  GPU_SHADER_3D_POINTS_FLAT_COLOR,
+  GPU_SHADER_3D_POINT_FLAT_COLOR,
 
   /**
    * Take a 3D position and color for each vertex with perspective correct interpolation.
@@ -114,6 +114,7 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_SMOOTH_COLOR,
   GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR,
+
   /**
    * Take a single color for all the vertices and a 3D position for each vertex.
    *
@@ -122,7 +123,7 @@ enum eGPUBuiltinShader {
    */
   GPU_SHADER_3D_UNIFORM_COLOR,
   GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
-  GPU_SHADER_3D_POINTS_UNIFORM_COLOR,
+  GPU_SHADER_3D_POINT_UNIFORM_COLOR,
 
   /**
    * Draw a texture in 3D. Take a 3D position and a 2D texture coordinate for each vertex.
