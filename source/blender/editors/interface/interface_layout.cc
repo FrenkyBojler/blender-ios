@@ -1461,7 +1461,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                             wmOperatorCallContext context,
                             eUI_Item_Flag flag,
                             const EnumPropertyItem *item_array,
-                            int totitem,
+                            int /*totitem*/,
                             int active)
 {
   const StringRefNull propname = RNA_property_identifier(prop);
@@ -1503,31 +1503,6 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   bool last_iter = false;
   const EnumPropertyItem *item = item_array;
   for (int i = 1; item->identifier && !last_iter; i++, item++) {
-    /* Handle over-sized pies. */
-    if (radial && (totitem > PIE_MAX_ITEMS) && (i >= PIE_MAX_ITEMS)) {
-      if (item->name) { /* only visible items */
-        const EnumPropertyItem *tmp;
-
-        /* Check if there are more visible items for the next level. If not, we don't
-         * add a new level and add the remaining item instead of the 'more' button. */
-        for (tmp = item + 1; tmp->identifier; tmp++) {
-          if (tmp->name) {
-            break;
-          }
-        }
-
-        if (tmp->identifier) { /* only true if loop above found item and did early-exit */
-          ui_pie_menu_level_create(
-              block, ot, propname, properties, item_array, totitem, context, flag);
-          /* break since rest of items is handled in new pie level */
-          break;
-        }
-        last_iter = true;
-      }
-      else {
-        continue;
-      }
-    }
 
     if (item->identifier[0]) {
       PointerRNA tptr = target->op(
@@ -3865,11 +3840,7 @@ static void ui_litem_layout_column(uiLayout *litem, bool is_box, bool is_menu)
  * stores a float vector in unit circle */
 static RadialDirection ui_get_radialbut_vec(float vec[2], short itemnum)
 {
-  if (itemnum >= PIE_MAX_ITEMS) {
-    itemnum %= PIE_MAX_ITEMS;
-    printf("Warning: Pie menus with more than %i items are currently unsupported\n",
-           PIE_MAX_ITEMS);
-  }
+  BLI_assert(itemnum < PIE_PAGE_MAX_ITEMS);
 
   const RadialDirection dir = RadialDirection(ui_radial_dir_order[itemnum]);
   ui_but_pie_dir(dir, vec);
@@ -3924,7 +3895,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
     }
 
     float vec[2];
-    const RadialDirection dir = ui_get_radialbut_vec(vec, itemnum);
+    const RadialDirection dir = ui_get_radialbut_vec(vec, (itemnum % 8));
     const float factor[2] = {
         (vec[0] > 0.01f) ? 0.0f : ((vec[0] < -0.01f) ? -1.0f : -0.5f),
         (vec[1] > 0.99f) ? 0.0f : ((vec[1] < -0.99f) ? -1.0f : -0.5f),
@@ -5653,6 +5624,56 @@ static void ui_item_layout(uiItem *item)
   }
 }
 
+namespace blender::interface::internal {
+
+void pie_menu_refresh_active_page(uiBlock *block)
+{
+  for (int i : block->pie_data.but_groups.index_range()) {
+    for (uiBut *but : block->pie_data.but_groups[i]) {
+      if (i / PIE_PAGE_MAX_ITEMS == block->pie_data.page) {
+        but->flag &= ~UI_SCROLLED;
+      }
+      else {
+        but->flag |= UI_SCROLLED;
+      }
+    }
+  }
+}
+
+static void pie_menu_add_but_group_item(blender::Vector<uiBut *> &group, uiItem *item)
+{
+  if (item->type_ != uiItemType::Button) {
+    uiLayout *litem = static_cast<uiLayout *>(item);
+    for (uiItem *subitem : litem->items_) {
+      pie_menu_add_but_group_item(group, subitem);
+    }
+  }
+  else {
+    uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
+    group.append(bitem->but);
+  }
+}
+
+static void pie_menu_gather_but_groups(uiBlock *block, uiLayout *layout)
+{
+  BLI_assert(layout->root_->type == UI_LAYOUT_PIEMENU);
+  uiItem **pie_menu = std::find_if(layout->items_.begin(), layout->items_.end(), [](uiItem *item) {
+    return item->type_ == uiItemType::LayoutRadial;
+  });
+  if (pie_menu == layout->items_.end()) {
+    return;
+  }
+  for (uiItem *subitem : static_cast<uiLayout *>(*pie_menu)->items_) {
+    block->pie_data.but_groups.append({});
+    pie_menu_add_but_group_item(block->pie_data.but_groups.last(), subitem);
+  }
+  block->pie_data.but_groups.remove_if(
+      [](const blender::Vector<uiBut *> elem) { return elem.is_empty(); });
+
+  blender::interface::internal::pie_menu_refresh_active_page(block);
+}
+}  // namespace blender::interface::internal
+
 static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
 {
   if (layout->root_->handlefunc) {
@@ -5661,6 +5682,9 @@ static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
 
   ui_item_estimate(layout);
   ui_item_layout(layout);
+  if (layout->root_->type == UI_LAYOUT_PIEMENU) {
+    blender::interface::internal::pie_menu_gather_but_groups(block, layout);
+  }
 
   if (r_x) {
     *r_x = layout->x_;

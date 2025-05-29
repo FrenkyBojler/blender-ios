@@ -546,6 +546,7 @@ void ui_popup_block_scrolltest(uiBlock *block)
       }
     }
   }
+  blender::interface::internal::pie_menu_refresh_active_page(block);
 }
 
 static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)

@@ -171,8 +171,8 @@ enum {
 
 #define PIE_CLICK_THRESHOLD_SQ 50.0f
 
-/** The maximum number of items a radial menu (pie menu) can contain. */
-#define PIE_MAX_ITEMS 8
+/** The maximum number of items a radial menu (pie menu) can contain per page. */
+#define PIE_PAGE_MAX_ITEMS 8
 
 struct uiBut {
 
@@ -533,6 +533,8 @@ struct PieMenuData {
   /** Initial event used to fire the pie menu, store here so we can query for release */
   short event_type;
   float alphafac;
+  int page;
+  blender::Vector<blender::Vector<uiBut *>> but_groups;
 };
 
 /** #uiBlock.content_hints */
@@ -890,7 +892,7 @@ struct uiKeyNavLock {
   blender::int2 event_xy = blender::int2(0);
 };
 
-using uiBlockHandleCreateFunc = uiBlock *(*)(bContext *C, uiPopupBlockHandle *handle, void *arg1);
+using uiBlockHandleCreateFunc = uiBlock *(*)(bContext * C, uiPopupBlockHandle *handle, void *arg1);
 
 struct uiPopupBlockCreate {
   uiBlockCreateFunc create_func = nullptr;
@@ -1724,4 +1726,5 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
                            PointerRNA *dst_ptr,
                            PropertyRNA *dst_prop);
 
+void pie_menu_refresh_active_page(uiBlock *block);
 }  // namespace blender::interface::internal

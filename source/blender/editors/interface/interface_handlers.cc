@@ -11961,7 +11961,21 @@ static int ui_handle_menus_recursive(bContext *C,
   }
 
   /* now handle events for our own menu */
+  LISTBASE_FOREACH (uiBlock *, block, &menu->region->runtime->uiblocks) {
+    if ((block->flag & UI_BLOCK_PIE_MENU) && event->val == KM_PRESS &&
+        ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
+    {
 
+      block->pie_data.page += event->type == WHEELUPMOUSE ? -1 : 1;
+      block->pie_data.page = std::clamp(
+          block->pie_data.page,
+          0,
+          int(std::floor(float(block->pie_data.but_groups.size()) / 8.0)));
+      blender::interface::internal::pie_menu_refresh_active_page(block);
+      ED_region_tag_redraw(menu->region);
+      ED_region_tag_refresh_ui(menu->region);
+    }
+  }
   if (retval == WM_UI_HANDLER_CONTINUE) {
     retval = ui_handle_region_semi_modal_buttons(C, event, menu->region);
   }
