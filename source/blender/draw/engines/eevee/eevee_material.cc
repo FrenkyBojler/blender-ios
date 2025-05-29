@@ -170,11 +170,12 @@ void MaterialModule::begin_sync()
 
   material_map_.clear();
   shader_map_.clear();
+  texture_loading_queue_.clear();
 }
 
 bool MaterialModule::textures_loaded(GPUMaterial *material)
 {
-  /* Bind all textures needed by the material. */
+  bool loaded = true;
   ListBase textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
     if (tex->ima) {
@@ -183,18 +184,31 @@ bool MaterialModule::textures_loaded(GPUMaterial *material)
       ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
           tex->ima, iuser, use_tile_mapping);
       if (gputex.texture == nullptr) {
-        if (texture_loaded_ == 0) {
-          /* Actually load. */
-          BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
-          texture_loaded_++;
-        }
-        else if (texture_loaded_ > 0) {
-          return false;
-        }
+        texture_loading_queue_.append(tex);
+        loaded = false;
       }
     }
   }
-  return true;
+  return loaded;
+}
+
+void MaterialModule::end_sync()
+{
+  GPU_debug_group_begin("Texture Loading");
+
+  for (GPUMaterialTexture *tex : texture_loading_queue_) {
+    BLI_assert(tex->ima);
+    GPU_debug_group_begin(tex->ima->id.name);
+
+    const bool use_tile_mapping = tex->tiled_mapping_name[0];
+    ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
+    BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
+
+    GPU_debug_group_end();
+  }
+  texture_loading_queue_.clear();
+
+  GPU_debug_group_end();
 }
 
 MaterialPass MaterialModule::material_pass_get(Object *ob,

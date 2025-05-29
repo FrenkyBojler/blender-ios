@@ -447,6 +447,7 @@ void Instance::end_sync()
     loaded |= shaders.static_shaders_wait_ready(request_bits);
   }
 
+  materials.end_sync();
   velocity.end_sync();
   volume.end_sync();  /* Needs to be before shadows. */
   shadows.end_sync(); /* Needs to be before lights. */

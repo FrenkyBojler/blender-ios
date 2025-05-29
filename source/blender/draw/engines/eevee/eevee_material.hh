@@ -375,11 +375,14 @@ class MaterialModule {
 
   uint64_t texture_loaded_ = 0;
 
+  Vector<GPUMaterialTexture *> texture_loading_queue_;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
 
   void begin_sync();
+  void end_sync();
 
   /**
    * Returned Material references are valid until the next call to this function or material_get().
