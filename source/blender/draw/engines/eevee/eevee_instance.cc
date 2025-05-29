@@ -221,10 +221,10 @@ void Instance::init(const int2 &output_res,
   loaded |= shaders.static_shaders_load_async(request_bits);
   loaded |= materials.default_materials_load_async();
 
-  if (is_image_render) {
-    /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
-    loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
-  }
+  // if (is_image_render) { /* TODO: Fix assert. */
+  /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
+  loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
+  // }
 
   if (loaded & DEFERRED_LIGHTING_SHADERS) {
     bool ready = shaders.request_specializations(
@@ -237,15 +237,15 @@ void Instance::init(const int2 &output_res,
     SET_FLAG_FROM_TEST(loaded, ready, DEFERRED_LIGHTING_SHADERS);
   }
 
-  if (is_image_render) {
-    loaded |= shaders.static_shaders_wait_ready(request_bits);
-    loaded |= materials.default_materials_wait_ready();
-  }
+  // if (is_image_render) { /* TODO: Fix assert. */
+  loaded |= shaders.static_shaders_wait_ready(request_bits);
+  loaded |= materials.default_materials_wait_ready();
+  // }
 
   /* Needed bits to be able to display something to the screen. */
-  needed_bits = request_bits | DEFAULT_MATERIALS | WORLD_SHADERS;
+  needed_bits = request_bits | DEFAULT_MATERIALS;
 
-  skip_render_ = !film.is_valid_render_extent();
+  skip_render_ = !is_loaded(needed_bits) && !film.is_valid_render_extent();
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)
@@ -319,7 +319,9 @@ void Instance::begin_sync()
    * If engine shaders are not ready, will skip the pipeline sync. */
   world.sync();
 
-  SET_FLAG_FROM_TEST(loaded, world.is_ready(), WORLD_SHADERS);
+  if (skip_render_) {
+    return;
+  }
 
   materials.begin_sync();
   velocity.begin_sync(); /* NOTE: Also syncs camera. */
@@ -628,7 +630,8 @@ void Instance::render_read_result(RenderLayer *render_layer, const char *view_na
 
 void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, const char *view_name)
 {
-  skip_render_ = !is_loaded(needed_bits);
+  skip_render_ = skip_render_ || !is_loaded(needed_bits);
+
   if (skip_render_) {
     if (!info_.empty()) {
       RE_engine_set_error_message(engine, info_.c_str());

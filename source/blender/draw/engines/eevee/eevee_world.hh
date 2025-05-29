@@ -141,7 +141,7 @@ class World {
   }
 
  private:
-  void sync_volume(const WorldHandle &world_handle);
+  void sync_volume(const WorldHandle &world_handle, bool wait_ready);
 
   /* Returns a dummy black world for when a valid world isn't present or when we want to suppress
    * any light coming from the world. */
