@@ -105,7 +105,7 @@ struct CustomDataAndSize {
 static AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const Map<AttrDomain, CustomDataAndSize> &domains)
 {
-  AttributeStorage storage{};
+  AttributeStorage storage;
   struct AttributeToAdd {
     StringRef name;
     AttrDomain domain;
@@ -240,9 +240,9 @@ void mesh_convert_storage_to_customdata(Mesh &mesh)
                                  {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
                                  {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
 }
-AttributeStorage mesh_convert_customdata_to_storage(Mesh &mesh)
+void mesh_convert_customdata_to_storage(Mesh &mesh)
 {
-  return bke::attribute_legacy_convert_customdata_to_storage(
+  mesh.attribute_storage.wrap() = bke::attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
        {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},
        {AttrDomain::Face, {mesh.face_data, mesh.faces_num}},
@@ -255,23 +255,16 @@ void curves_convert_storage_to_customdata(CurvesGeometry &curves)
                                 {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
                                  {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
 }
-AttributeStorage curves_convert_customdata_to_storage(CurvesGeometry &curves)
+void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
-  return attribute_legacy_convert_customdata_to_storage(
+  curves.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
        {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
 }
 
-void pointcloud_convert_storage_to_customdata(PointCloud &pointcloud)
+void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 {
-  convert_storage_to_customdata(
-      pointcloud.attribute_storage.wrap(),
-      {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
-}
-
-AttributeStorage pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
-{
-  return attribute_legacy_convert_customdata_to_storage(
+  pointcloud.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
 }
 
@@ -281,9 +274,9 @@ void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
       grease_pencil.attribute_storage.wrap(),
       {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
 }
-AttributeStorage grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
+void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
-  return attribute_legacy_convert_customdata_to_storage(
+  grease_pencil.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
 }
 
