@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines the 'BPY_driver_exec' to execute python driver expressions,
+ * This file defines the #BPY_driver_exec to execute python driver expressions,
  * called by the animation system, there are also some utility functions
  * to deal with the name-space used for driver execution.
  */
@@ -265,7 +265,6 @@ void BPY_driver_reset()
 {
   PyGILState_STATE gilstate;
   const bool use_gil = true; /* !PyC_IsInterpreterActive(); */
-
   if (use_gil) {
     gilstate = PyGILState_Ensure();
   }

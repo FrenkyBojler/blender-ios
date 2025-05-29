@@ -6,6 +6,8 @@
  * \ingroup obj
  */
 
+#include <algorithm>
+
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -89,9 +91,9 @@ Object *MeshFromGeometry::create_mesh_object(
 
   this->create_materials(bmain, materials, created_materials, obj, import_params.relative_paths);
 
-  transform_object(obj, import_params);
-
   BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
+
+  transform_object(obj, import_params);
 
   /* NOTE: vertex groups have to be created after final mesh is assigned to the object. */
   this->create_vertex_groups(obj);
@@ -236,9 +238,7 @@ void MeshFromGeometry::create_faces(Mesh *mesh, bool use_vertex_groups)
     material_indices.span[face_idx] = curr_face.material_index;
     /* Importing obj files without any materials would result in negative indices, which is not
      * supported. */
-    if (material_indices.span[face_idx] < 0) {
-      material_indices.span[face_idx] = 0;
-    }
+    material_indices.span[face_idx] = std::max(material_indices.span[face_idx], 0);
 
     for (int idx = 0; idx < curr_face.corner_count_; ++idx) {
       const FaceCorner &curr_corner = mesh_geometry_.face_corners_[curr_face.start_index_ + idx];

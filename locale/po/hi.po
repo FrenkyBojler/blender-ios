@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Alpha (b'efff379ea583')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-01-27 10:58+0000\n"
-"PO-Revision-Date: 2015-03-03 16:21+0530\n"
-"Last-Translator: Roshan Lal Gumasta <roshan@anisecrets.com>\n"
-"Language-Team: Hindi <www.anisecrets.com>\n"
+"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"PO-Revision-Date: 2025-04-14 08:23+0000\n"
+"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
 "Language: hi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: \n"
-"X-Generator: Poedit 1.6.9"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Valid"
@@ -175,24 +175,12 @@ msgid "Expanded"
 msgstr "विस्तृत"
 
 
-msgid "Influence"
-msgstr "प्रभाव"
-
-
-msgid "Add"
-msgstr "जोड़ें"
-
-
 msgid "Off"
 msgstr "बंद"
 
 
 msgid "Full"
 msgstr "पूर्ण"
-
-
-msgid "Auto"
-msgstr "स्वत:"
 
 
 msgid "Never"
@@ -249,6 +237,10 @@ msgstr "अनुप्राणन सामग्री"
 
 msgid "Action"
 msgstr "कार्य"
+
+
+msgid "Add"
+msgstr "जोड़ें"
 
 
 msgid "Nothing"
@@ -575,10 +567,6 @@ msgid "Volume"
 msgstr "आयतन"
 
 
-msgid "Automatic"
-msgstr "स्वत:"
-
-
 msgid "Relative"
 msgstr "सापेक्ष"
 
@@ -589,6 +577,18 @@ msgstr "सीधे"
 
 msgid "Curved"
 msgstr "घुमावदार"
+
+
+msgid "Stick"
+msgstr "छड़ी"
+
+
+msgid "Envelope"
+msgstr "आवरण"
+
+
+msgid "Wire"
+msgstr "तार"
 
 
 msgid "Head"
@@ -745,10 +745,6 @@ msgid "Ratio"
 msgstr "अनुपात"
 
 
-msgid "Pivot"
-msgstr "धुरी:"
-
-
 msgid "Left"
 msgstr "बाईं ओर"
 
@@ -856,6 +852,10 @@ msgstr "निवेश"
 
 msgid "Error"
 msgstr "त्रुटि"
+
+
+msgid "Influence"
+msgstr "प्रभाव"
 
 
 msgid "Copy Location"
@@ -1559,16 +1559,16 @@ msgid "Grease Pencil Frame"
 msgstr "तैलीय पेंसिल गठन"
 
 
-msgid "Grease Pencil Layer"
-msgstr "तैलीय पेंसिल परत"
-
-
 msgid "Regular"
 msgstr "नियमित"
 
 
 msgid "Repeat"
 msgstr "दोहराएँ"
+
+
+msgid "Grease Pencil Layer"
+msgstr "तैलीय पेंसिल परत"
 
 
 msgid "Red Green Blue"
@@ -1607,18 +1607,6 @@ msgid "Layers"
 msgstr "परतें"
 
 
-msgid "Stick"
-msgstr "छड़ी"
-
-
-msgid "Envelope"
-msgstr "आवरण"
-
-
-msgid "Wire"
-msgstr "तार"
-
-
 msgid "Rest Position"
 msgstr "शेष स्थिति"
 
@@ -1637,14 +1625,6 @@ msgstr "सन्दूक"
 
 msgid "Loop"
 msgstr "कुण्डली"
-
-
-msgid "Clone Alpha"
-msgstr "प्रतिरूप पारदर्शिता"
-
-
-msgid "Clone Image"
-msgstr "प्रतिरूप छवि"
 
 
 msgid "Local"
@@ -2187,10 +2167,6 @@ msgid "Mass"
 msgstr "द्रव्यमान"
 
 
-msgid "Dummy"
-msgstr "प्रतिरूपी"
-
-
 msgid "Random Phase"
 msgstr "यादृच्छिक चरण"
 
@@ -2390,11 +2366,6 @@ msgstr "वृद्धि"
 
 msgid "fBM"
 msgstr "एफ़बीएम"
-
-
-msgctxt "Sequence"
-msgid "Clip"
-msgstr "छांटन"
 
 
 msgid "Window Manager"
@@ -2613,24 +2584,12 @@ msgid "Mask"
 msgstr "आवरण"
 
 
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Snap"
 msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
 
 
 msgid "Light"
@@ -2653,12 +2612,20 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2675,6 +2642,10 @@ msgstr "विलय करें"
 
 msgid "Text"
 msgstr "पाठ"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Basic"
@@ -3190,6 +3161,10 @@ msgid "Z Up"
 msgstr "Z ऊर्ध्व"
 
 
+msgid "Unknown"
+msgstr "अज्ञात"
+
+
 msgid "Warning"
 msgstr "चेतावनी"
 
@@ -3616,6 +3591,10 @@ msgstr "अनुकृति वक्र"
 
 msgid "Duplicate Curve"
 msgstr "अनुकृति वक्र"
+
+
+msgid "Dummy"
+msgstr "प्रतिरूपी"
 
 
 msgid "Bend"
@@ -4105,6 +4084,10 @@ msgid "Copy Pose"
 msgstr "मुद्रा की प्रतिलिपि बनाएँ"
 
 
+msgid "Parents"
+msgstr "कारण"
+
+
 msgctxt "Operator"
 msgid "Bake All Physics"
 msgstr "सभी भौतिकी भर्जन"
@@ -4541,6 +4524,14 @@ msgstr "खोज विकल्प-सूची"
 
 msgid "Canvas"
 msgstr "चित्रपटी"
+
+
+msgid "Clone Alpha"
+msgstr "प्रतिरूप पारदर्शिता"
+
+
+msgid "Clone Image"
+msgstr "प्रतिरूप छवि"
 
 
 msgid "Single Image"
@@ -4992,6 +4983,11 @@ msgstr "चलचित्र"
 
 
 msgctxt "Sequence"
+msgid "Clip"
+msgstr "छांटन"
+
+
+msgctxt "Sequence"
 msgid "Mask"
 msgstr "आवरण"
 
@@ -5292,10 +5288,6 @@ msgid "Rotation"
 msgstr "घूर्णन"
 
 
-msgid "Unknown"
-msgstr "अज्ञात"
-
-
 msgid "After"
 msgstr "के बाद"
 
@@ -5335,10 +5327,6 @@ msgid "Bold & Italic"
 msgstr "मोटा एवं तिर्यगक्षर"
 
 
-msgid "Endpoint"
-msgstr "समापन बिंदु"
-
-
 msgid "Priority"
 msgstr "प्राथमिकता"
 
@@ -5357,10 +5345,6 @@ msgid "Selection to Cursor"
 msgstr "प्रसंकेतक के लिए चयन"
 
 
-msgid "Parent:"
-msgstr "कारण"
-
-
 msgid "Transform:"
 msgstr "संचनांतरण:"
 
@@ -5376,6 +5360,10 @@ msgstr "दिनांक"
 
 msgid "Roughness End"
 msgstr "खुरदरापन समाप्त"
+
+
+msgid "Endpoint"
+msgstr "समापन बिंदु"
 
 
 msgid "Use Timing"
@@ -5813,10 +5801,6 @@ msgid "Remove from All"
 msgstr "सब से हटाएँ"
 
 
-msgid "Parents"
-msgstr "कारण"
-
-
 msgctxt "Operator"
 msgid "Quick Edit"
 msgstr "त्वरित संपादन"
@@ -5975,13 +5959,13 @@ msgid "Same bone selected..."
 msgstr "एक ही हड्डी का चयन किया..."
 
 
+msgid "Cancel"
+msgstr "रद्द करें"
+
+
 msgctxt "Curve"
 msgid "Surface"
 msgstr "सतह"
-
-
-msgid "Cancel"
-msgstr "रद्द करें"
 
 
 msgctxt "Operator"
@@ -6396,14 +6380,6 @@ msgid "Blender Render"
 msgstr "ब्लेंडर  प्रतिपादन"
 
 
-msgid "ON"
-msgstr "ऑन"
-
-
-msgid "OFF"
-msgstr "बंद"
-
-
 msgid "No active camera set"
 msgstr "कोई सक्रिय प्रतिबिंबक नहीं"
 
@@ -6426,14 +6402,6 @@ msgstr "Y अक्ष:"
 
 msgid "Offset:"
 msgstr "विचलन:"
-
-
-msgid "Width:"
-msgstr "चौड़ाई"
-
-
-msgid "Height:"
-msgstr "ऊँचाई"
 
 
 msgid "Y-position of search at frame relative to marker's position"
@@ -6518,10 +6486,6 @@ msgstr "डब्ल्यु:"
 
 msgid "Weight:"
 msgstr "भार:"
-
-
-msgid "Radius:"
-msgstr "त्रिज्या"
 
 
 msgid "Tilt:"
@@ -6714,6 +6678,14 @@ msgid "Blender File View"
 msgstr "ब्लेंडर संचिका दृश्य"
 
 
+msgid "ON"
+msgstr "ऑन"
+
+
+msgid "OFF"
+msgstr "बंद"
+
+
 msgctxt "Operator"
 msgid "Toggle System Console"
 msgstr "बंद/बुझ प्रणाली कंसोल"
@@ -6721,10 +6693,6 @@ msgstr "बंद/बुझ प्रणाली कंसोल"
 
 msgid "Import-Export"
 msgstr "आयात-निर्यात"
-
-
-msgid "English (English)"
-msgstr "अंग्रेजी (English)"
 
 
 msgid "Japanese (日本語)"

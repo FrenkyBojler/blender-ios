@@ -16,6 +16,7 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -95,9 +96,9 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
 
   wmWindow *win = CTX_wm_window(C);
 
-  uiPieMenu *pie = MEM_cnew<uiPieMenu>(__func__);
+  uiPieMenu *pie = MEM_callocN<uiPieMenu>(__func__);
 
-  pie->pie_block = UI_block_begin(C, nullptr, __func__, UI_EMBOSS);
+  pie->pie_block = UI_block_begin(C, nullptr, __func__, blender::ui::EmbossType::Emboss);
   /* may be useful later to allow spawning pies
    * from old positions */
   // pie->pie_block->flag |= UI_BLOCK_POPUP_MEMORY;
@@ -193,7 +194,7 @@ uiLayout *UI_pie_menu_layout(uiPieMenu *pie)
   return pie->layout;
 }
 
-int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
 {
   uiPieMenu *pie;
   uiLayout *layout;
@@ -219,11 +220,11 @@ int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
   return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                          const StringRefNull title,
-                                          const StringRefNull opname,
-                                          const StringRefNull propname,
-                                          const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
+                                                       const StringRefNull title,
+                                                       const StringRefNull opname,
+                                                       const StringRefNull propname,
+                                                       const wmEvent *event)
 {
   uiPieMenu *pie;
   uiLayout *layout;
@@ -231,7 +232,7 @@ int UI_pie_menu_invoke_from_operator_enum(bContext *C,
   pie = UI_pie_menu_begin(C, IFACE_(title.c_str()), ICON_NONE, event);
   layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
+  layout = &layout->menu_pie();
   uiItemsEnumO(layout, opname, propname);
 
   UI_pie_menu_end(C, pie);
@@ -239,10 +240,10 @@ int UI_pie_menu_invoke_from_operator_enum(bContext *C,
   return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                     const char *title,
-                                     const char *path,
-                                     const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
+                                                  const char *title,
+                                                  const char *path,
+                                                  const wmEvent *event)
 {
   PointerRNA r_ptr;
   PropertyRNA *r_prop;
@@ -265,8 +266,8 @@ int UI_pie_menu_invoke_from_rna_enum(bContext *C,
 
   layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
-  uiItemFullR(layout, &r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout = &layout->menu_pie();
+  layout->prop(&r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   UI_pie_menu_end(C, pie);
 
@@ -315,7 +316,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
   uiPieMenu *pie = UI_pie_menu_begin(C, IFACE_(lvl->title), lvl->icon, win->eventstate);
   uiLayout *layout = UI_pie_menu_layout(pie);
 
-  layout = uiLayoutRadial(layout);
+  layout = &layout->menu_pie();
 
   PointerRNA ptr;
 

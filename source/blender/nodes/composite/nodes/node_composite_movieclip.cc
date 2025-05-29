@@ -21,9 +21,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
-#include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
@@ -236,7 +234,7 @@ class MovieClipOperation : public NodeOperation {
     }
 
     /* Create a float buffer from the byte buffer if it exists, if not, return nullptr. */
-    IMB_float_from_rect(movie_clip_buffer);
+    IMB_float_from_byte(movie_clip_buffer);
     if (!movie_clip_buffer->float_buffer.data) {
       return nullptr;
     }
@@ -262,7 +260,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_movieclip_cc
 
-void register_node_type_cmp_movieclip()
+static void register_node_type_cmp_movieclip()
 {
   namespace file_ns = blender::nodes::node_composite_movieclip_cc;
 
@@ -281,7 +279,8 @@ void register_node_type_cmp_movieclip()
   ntype.initfunc_api = file_ns::init;
   ntype.flag |= NODE_PREVIEW;
   blender::bke::node_type_storage(
-      &ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "MovieClipUser", node_free_standard_storage, node_copy_standard_storage);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_movieclip)

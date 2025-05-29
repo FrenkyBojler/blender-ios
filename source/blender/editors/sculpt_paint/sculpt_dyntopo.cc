@@ -7,7 +7,6 @@
  */
 #include "sculpt_dyntopo.hh"
 
-#include <cmath>
 #include <cstdlib>
 
 #include "BLT_translation.hh"
@@ -124,13 +123,6 @@ static void disable(
   }
   else {
     BKE_sculptsession_bm_to_me(&ob, true);
-
-    /* Sync the visibility to vertices manually as `vert_to_face_map` is still not initialized. */
-    bool *hide_vert = (bool *)CustomData_get_layer_named_for_write(
-        &mesh->vert_data, CD_PROP_BOOL, ".hide_vert", mesh->verts_num);
-    if (hide_vert != nullptr) {
-      memset(hide_vert, 0, sizeof(bool) * mesh->verts_num);
-    }
   }
 
   /* Clear data. */
@@ -198,7 +190,7 @@ static void enable_with_undo(Main &bmain, Depsgraph &depsgraph, const Scene &sce
   }
 }
 
-static int sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
@@ -221,7 +213,7 @@ static int sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static int dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum WarnFlag flag)
+static wmOperatorStatus dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum WarnFlag flag)
 {
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Warning!"), ICON_ERROR);
   uiLayout *layout = UI_popup_menu_layout(pup);
@@ -229,9 +221,9 @@ static int dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum WarnFlag 
   if (flag & (VDATA | EDATA | LDATA)) {
     const char *msg_error = RPT_("Attribute Data Detected");
     const char *msg = RPT_("Dyntopo will not preserve colors, UVs, or other attributes");
-    uiItemL(layout, msg_error, ICON_INFO);
-    uiItemL(layout, msg, ICON_NONE);
-    uiItemS(layout);
+    layout->label(msg_error, ICON_INFO);
+    layout->label(msg, ICON_NONE);
+    layout->separator();
   }
 
   if (flag & MODIFIER) {
@@ -239,13 +231,12 @@ static int dyntopo_warning_popup(bContext *C, wmOperatorType *ot, enum WarnFlag 
     const char *msg = RPT_(
         "Keeping the modifiers will increase polycount when returning to object mode");
 
-    uiItemL(layout, msg_error, ICON_INFO);
-    uiItemL(layout, msg, ICON_NONE);
-    uiItemS(layout);
+    layout->label(msg_error, ICON_INFO);
+    layout->label(msg, ICON_NONE);
+    layout->separator();
   }
 
-  uiItemFullO_ptr(
-      layout, ot, IFACE_("OK"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE, nullptr);
+  layout->op(ot, IFACE_("OK"), ICON_NONE, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE);
 
   UI_popup_menu_end(C, pup);
 
@@ -315,9 +306,9 @@ WarnFlag check_attribute_warning(Scene &scene, Object &ob)
   return flag;
 }
 
-static int sculpt_dynamic_topology_toggle_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent * /*event*/)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;

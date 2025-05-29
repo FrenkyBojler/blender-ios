@@ -216,9 +216,7 @@ endif()
 
 if(WITH_OPENCOLLADA)
   find_package(OpenCOLLADA)
-  find_library(PCRE_LIBRARIES NAMES pcre HINTS ${LIBDIR}/opencollada/lib)
   find_library(XML2_LIBRARIES NAMES xml2 HINTS ${LIBDIR}/opencollada/lib)
-  print_found_status("PCRE" "${PCRE_LIBRARIES}")
   print_found_status("XML2" "${XML2_LIBRARIES}")
 endif()
 
@@ -249,6 +247,17 @@ find_package(TIFF REQUIRED)
 if(WITH_IMAGE_WEBP)
   set(WEBP_ROOT_DIR ${LIBDIR}/webp)
   find_package(WebP REQUIRED)
+endif()
+
+# With Blender 4.4 libraries there is no more Boost. This code is only
+# here until we can reasonably assume everyone has upgraded to them.
+if(WITH_BOOST)
+  if(DEFINED LIBDIR AND NOT EXISTS "${LIBDIR}/boost")
+    set(WITH_BOOST OFF)
+    set(BOOST_LIBRARIES)
+    set(BOOST_PYTHON_LIBRARIES)
+    set(BOOST_INCLUDE_DIR)
+  endif()
 endif()
 
 if(WITH_BOOST)
@@ -331,7 +340,7 @@ endif()
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -341,29 +350,18 @@ if(WITH_OPENIMAGEDENOISE)
 endif()
 
 if(WITH_TBB)
-  find_package(TBB REQUIRED)
+  find_package(TBB 2021.13.0 REQUIRED)
+  if(TBB_FOUND)
+    get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  endif()
+  set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
 endif()
 add_bundled_libraries(tbb/lib)
 
 if(WITH_POTRACE)
   find_package(Potrace REQUIRED)
 endif()
-
-# CMake FindOpenMP doesn't know about AppleClang before 3.12, so provide custom flags.
-if(WITH_OPENMP)
-  if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    # Use OpenMP from our precompiled libraries.
-    message(STATUS "Using ${LIBDIR}/openmp for OpenMP")
-    set(OPENMP_CUSTOM ON)
-    set(OPENMP_FOUND ON)
-    set(OpenMP_C_FLAGS "-Xclang -fopenmp -I'${LIBDIR}/openmp/include'")
-    set(OpenMP_CXX_FLAGS "-Xclang -fopenmp -I'${LIBDIR}/openmp/include'")
-    set(OpenMP_LIBRARY_DIR "${LIBDIR}/openmp/lib/")
-    set(OpenMP_LINKER_FLAGS "-L'${OpenMP_LIBRARY_DIR}' -lomp")
-    set(OpenMP_LIBRARY "${OpenMP_LIBRARY_DIR}/libomp.dylib")
-  endif()
-endif()
-add_bundled_libraries(openmp/lib)
 
 if(WITH_XR_OPENXR)
   find_package(XR_OpenXR_SDK REQUIRED)
@@ -375,6 +373,10 @@ endif()
 
 if(WITH_HARU)
   find_package(Haru REQUIRED)
+endif()
+
+if(WITH_MANIFOLD)
+  find_package(manifold REQUIRED)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -429,8 +431,10 @@ string(APPEND PLATFORM_LINKFLAGS
 )
 
 if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LEGACY_MACOS_X64_LINKER)
     # Silence "no platform load command found in <static library>, assuming: macOS".
+    #
+    # NOTE: Using ld_classic costs minutes of extra linking time.
     string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
   else()
     # Silence "ld: warning: ignoring duplicate libraries".
@@ -477,31 +481,6 @@ if(WITH_COMPILER_CCACHE)
   endif()
 endif()
 
-unset(_custom_LINKER_FUSE_FLAG)
-if(WITH_LINKER_LLD)
-  find_program(LLD_PROGRAM ld.lld)
-  if(LLD_PROGRAM)
-    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=lld")
-  else()
-    message(WARNING "LLD linker NOT found, disabling WITH_LINKER_LLD")
-    set(WITH_LINKER_LLD OFF)
-  endif()
-endif()
-if(WITH_LINKER_MOLD)
-  find_program(MOLD_PROGRAM mold)
-  if(MOLD_PROGRAM)
-    set(_custom_LINKER_FUSE_FLAG "-fuse-ld=mold")
-  else()
-    message(WARNING "Mold linker NOT found, disabling WITH_LINKER_MOLD")
-    set(WITH_LINKER_MOLD OFF)
-  endif()
-endif()
-
-if(_custom_LINKER_FUSE_FLAG)
-  add_link_options(${_custom_LINKER_FUSE_FLAG})
-endif()
-
-
 if(WITH_COMPILER_ASAN)
   list(APPEND PLATFORM_BUNDLED_LIBRARIES ${COMPILER_ASAN_LIBRARY})
 endif()
@@ -526,8 +505,8 @@ if(PLATFORM_BUNDLED_LIBRARIES)
   # Environment variables to run precompiled executables that needed libraries.
   list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ":" _library_paths)
   # Intentionally double "$$" which expands into "$" when instantiated.
-  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths};$$DYLD_LIBRARY_PATH\"")
-  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/;$$DYLD_LIBRARY_PATH")
+  set(PLATFORM_ENV_BUILD "DYLD_LIBRARY_PATH=\"${_library_paths}:$$DYLD_LIBRARY_PATH\"")
+  set(PLATFORM_ENV_INSTALL "DYLD_LIBRARY_PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/Blender.app/Contents/Resources/lib/:$$DYLD_LIBRARY_PATH")
   unset(_library_paths)
 endif()
 

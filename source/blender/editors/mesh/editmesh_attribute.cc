@@ -129,7 +129,7 @@ static void bmesh_loop_layer_selected_values_set(BMEditMesh &em,
   }
 }
 
-static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -137,10 +137,12 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  Mesh *mesh = ED_mesh_context(C);
-  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
+  Mesh *active_mesh = ED_mesh_context(C);
+  AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);
+  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  CustomDataLayer *active_layer = BKE_attribute_search_for_write(
+      active_owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+  const eCustomDataType active_type = eCustomDataType(active_layer->type);
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
@@ -155,14 +157,15 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
     Mesh *mesh = static_cast<Mesh *>(object->data);
     BMEditMesh *em = BKE_editmesh_from_object(object);
     BMesh *bm = em->bm;
-
-    CustomDataLayer *layer = BKE_attributes_active_get(owner);
+    AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+    CustomDataLayer *layer = BKE_attribute_search_for_write(
+        owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
     if (!layer) {
       continue;
     }
     /* Use implicit conversions to try to handle the case where the active attribute has a
      * different type on multiple objects. */
-    const eCustomDataType dst_data_type = eCustomDataType(active_attribute->type);
+    const eCustomDataType dst_data_type = eCustomDataType(layer->type);
     const CPPType &dst_type = *bke::custom_data_type_to_cpp_type(dst_data_type);
     if (&type != &dst_type && !conversions.is_convertible(type, dst_type)) {
       continue;
@@ -203,13 +206,17 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static int mesh_set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Mesh *mesh = ED_mesh_context(C);
   BMesh *bm = mesh->runtime->edit_mesh->bm;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
-  const CustomDataLayer *layer = BKE_attributes_active_get(owner);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
+  CustomDataLayer *layer = BKE_attribute_search_for_write(
+      owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
   const eCustomDataType data_type = eCustomDataType(layer->type);
   const bke::AttrDomain domain = BKE_attribute_domain(owner, layer);
   const BMElem *active_elem = BM_mesh_active_elem_get(bm);
@@ -236,17 +243,18 @@ static int mesh_set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent 
 
 static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = uiLayoutColumn(op->layout, true);
+  uiLayout *layout = &op->layout->column(true);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
   Mesh *mesh = ED_mesh_context(C);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
+  CustomDataLayer *layer = BKE_attribute_search_for_write(
+      owner, name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
+  const eCustomDataType active_type = eCustomDataType(layer->type);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(active_type);
-  const char *name = active_attribute->name;
-  uiItemR(layout, op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 }  // namespace set_attribute

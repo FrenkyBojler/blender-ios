@@ -60,28 +60,28 @@
 #include "eyedropper_intern.hh"
 
 struct Eyedropper {
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display = nullptr;
 
-  PointerRNA ptr;
-  PropertyRNA *prop;
-  int index;
-  bool is_undo;
+  PointerRNA ptr = {};
+  PropertyRNA *prop = nullptr;
+  int index = 0;
+  bool is_undo = false;
 
-  bool is_set;
-  float init_col[3]; /* for resetting on cancel */
+  bool is_set = false;
+  float init_col[3] = {}; /* for resetting on cancel */
 
-  bool accum_start; /* has mouse been pressed */
-  float accum_col[3];
-  int accum_tot;
+  bool accum_start = false; /* has mouse been pressed */
+  float accum_col[3] = {};
+  int accum_tot = 0;
 
-  wmWindow *cb_win;
-  int cb_win_event_xy[2];
-  void *draw_handle_sample_text;
-  char sample_text[MAX_NAME];
+  wmWindow *cb_win = nullptr;
+  int cb_win_event_xy[2] = {};
+  void *draw_handle_sample_text = nullptr;
+  char sample_text[MAX_NAME] = {};
 
-  bNode *crypto_node;
-  CryptomatteSession *cryptomatte_session;
-  ViewportColorSampleSession *viewport_session;
+  bNode *crypto_node = nullptr;
+  CryptomatteSession *cryptomatte_session = nullptr;
+  ViewportColorSampleSession *viewport_session = nullptr;
 };
 
 static void eyedropper_draw_cb(const wmWindow * /*window*/, void *arg)
@@ -94,20 +94,18 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 {
   Eyedropper *eye = MEM_new<Eyedropper>(__func__);
 
-  PropertyRNA *prop;
-  if ((prop = RNA_struct_find_property(op->ptr, "prop_data_path")) &&
-      RNA_property_is_set(op->ptr, prop))
-  {
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "prop_data_path");
+  if (prop && RNA_property_is_set(op->ptr, prop)) {
     char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
     BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
     if (!prop_data_path || prop_data_path[0] == '\0') {
-      MEM_freeN(eye);
+      MEM_delete(eye);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
     if (!RNA_path_resolve(&ctx_ptr, prop_data_path, &eye->ptr, &eye->prop)) {
       BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path);
-      MEM_freeN(eye);
+      MEM_delete(eye);
       return false;
     }
     eye->is_undo = true;
@@ -134,7 +132,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
   op->customdata = eye;
 
   float col[4];
-  RNA_property_float_get_array(&eye->ptr, eye->prop, col);
+  RNA_property_float_get_array_at_most(&eye->ptr, eye->prop, col, ARRAY_SIZE(col));
   if (eye->ptr.type == &RNA_CompositorNodeCryptomatteV2) {
     eye->crypto_node = (bNode *)eye->ptr.data;
     eye->cryptomatte_session = ntreeCompositCryptomatteSession(eye->crypto_node);
@@ -231,7 +229,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
     return false;
   }
 
-  const int render_layer_name_len = BLI_strnlen(render_layer->name, sizeof(render_layer->name));
+  const int render_layer_name_len = STRNLEN(render_layer->name);
   if (strncmp(prefix, render_layer->name, render_layer_name_len) != 0) {
     return false;
   }
@@ -495,13 +493,13 @@ bool eyedropper_color_sample_fl(bContext *C,
       WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
     }
     const char *display_device = CTX_data_scene(C)->display_settings.display_device;
-    ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+    const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
     return true;
   }
 
   /* Outside the Blender window if we support it. */
-  if ((WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE)) {
+  if (WM_capabilities_flag() & WM_CAPABILITY_DESKTOP_SAMPLE) {
     if (WM_desktop_cursor_sample_read(r_col)) {
       IMB_colormanagement_srgb_to_scene_linear_v3(r_col, r_col);
       return true;
@@ -518,7 +516,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
   float col_conv[4];
 
   /* to maintain alpha */
-  RNA_property_float_get_array(&eye->ptr, eye->prop, col_conv);
+  RNA_property_float_get_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
 
   /* convert from linear rgb space to display space */
   if (eye->display) {
@@ -529,7 +527,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
     copy_v3_v3(col_conv, col);
   }
 
-  RNA_property_float_set_array(&eye->ptr, eye->prop, col_conv);
+  RNA_property_float_set_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
   eye->is_set = true;
 
   RNA_property_update(C, &eye->ptr, eye->prop);
@@ -596,7 +594,7 @@ static void eyedropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Eyedropper *eye = (Eyedropper *)op->customdata;
 
@@ -636,8 +634,8 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
     }
     else {
       WorkspaceStatus status(C);
-      status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CANCEL);
       status.opmodal(IFACE_("Confirm"), op->type, EYE_MODAL_SAMPLE_CONFIRM);
+      status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CANCEL);
 #ifdef __APPLE__
       status.item(TIP_("Press 'Enter' to sample outside of a Blender window"), ICON_INFO);
 #endif
@@ -652,7 +650,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -670,7 +668,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*even
 }
 
 /* Repeat operator */
-static int eyedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -699,7 +697,7 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_color";
   ot->description = "Sample a color from the Blender window to store in a property";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_invoke;
   ot->modal = eyedropper_modal;
   ot->cancel = eyedropper_cancel;

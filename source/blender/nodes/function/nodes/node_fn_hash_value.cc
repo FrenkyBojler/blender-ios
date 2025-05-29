@@ -4,11 +4,9 @@
 
 #include "BLI_hash.h"
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_quaternion.hh"
 #include "BLI_noise.hh"
 
 #include "NOD_rna_define.hh"
-#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -35,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -45,7 +43,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  const eNodeSocketDatatype socket_type = static_cast<eNodeSocketDatatype>(bnode.custom1);
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(bnode.custom1);
 
   static auto exec_preset = mf::build::exec_presets::AllSpanOrSingle();
 
@@ -186,7 +184,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

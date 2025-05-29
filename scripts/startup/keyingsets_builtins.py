@@ -350,14 +350,10 @@ class BUILTIN_KSI_Available(KeyingSetInfo):
     bl_idname = ANIM_KS_AVAILABLE_ID
     bl_label = "Available"
 
-    # poll - selected objects or selected object with animation data
     def poll(self, context):
-        ob = context.active_object
-        if ob:
-            # TODO: this fails if one animation-less object is active, but many others are selected
-            return ob.animation_data and ob.animation_data.action
-        else:
-            return bool(context.selected_objects)
+        # Skip checking for available channels to prevent hotkeys from
+        # getting mixed up in the Insert Keyframe Menu (see #127175).
+        return bool(context.selected_objects)
 
     # iterator - use callback for selected bones/objects
     iterator = keyingsets_utils.RKS_ITER_selected_item

@@ -6,7 +6,6 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_math_color.h"
 #include "BLI_math_vector_types.hh"
 
 #include "FN_multi_function_builder.hh"
@@ -14,8 +13,6 @@
 #include "NOD_multi_function.hh"
 
 #include "GPU_material.hh"
-
-#include "COM_shader_node.hh"
 
 #include "node_composite_util.hh"
 
@@ -36,22 +33,13 @@ static void cmp_node_seprgba_declare(NodeDeclarationBuilder &b)
 
 using namespace blender::compositor;
 
-class SeparateRGBAShaderNode : public ShaderNode {
- public:
-  using ShaderNode::ShaderNode;
-
-  void compile(GPUMaterial *material) override
-  {
-    GPUNodeStack *inputs = get_inputs_array();
-    GPUNodeStack *outputs = get_outputs_array();
-
-    GPU_stack_link(material, &bnode(), "node_composite_separate_rgba", inputs, outputs);
-  }
-};
-
-static ShaderNode *get_compositor_shader_node(DNode node)
+static int node_gpu_material(GPUMaterial *material,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *inputs,
+                             GPUNodeStack *outputs)
 {
-  return new SeparateRGBAShaderNode(node);
+  return GPU_stack_link(material, node, "node_composite_separate_rgba", inputs, outputs);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -70,7 +58,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_separate_rgba_cc
 
-void register_node_type_cmp_seprgba()
+static void register_node_type_cmp_seprgba()
 {
   namespace file_ns = blender::nodes::node_composite_separate_rgba_cc;
 
@@ -83,11 +71,12 @@ void register_node_type_cmp_seprgba()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_seprgba_declare;
   ntype.gather_link_search_ops = nullptr;
-  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_seprgba)
 
 /* **************** COMBINE RGBA ******************** */
 
@@ -121,22 +110,13 @@ static void cmp_node_combrgba_declare(NodeDeclarationBuilder &b)
 
 using namespace blender::compositor;
 
-class CombineRGBAShaderNode : public ShaderNode {
- public:
-  using ShaderNode::ShaderNode;
-
-  void compile(GPUMaterial *material) override
-  {
-    GPUNodeStack *inputs = get_inputs_array();
-    GPUNodeStack *outputs = get_outputs_array();
-
-    GPU_stack_link(material, &bnode(), "node_composite_combine_rgba", inputs, outputs);
-  }
-};
-
-static ShaderNode *get_compositor_shader_node(DNode node)
+static int node_gpu_material(GPUMaterial *material,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *inputs,
+                             GPUNodeStack *outputs)
 {
-  return new CombineRGBAShaderNode(node);
+  return GPU_stack_link(material, node, "node_composite_combine_rgba", inputs, outputs);
 }
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
@@ -152,7 +132,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_combine_rgba_cc
 
-void register_node_type_cmp_combrgba()
+static void register_node_type_cmp_combrgba()
 {
   namespace file_ns = blender::nodes::node_composite_combine_rgba_cc;
 
@@ -165,8 +145,9 @@ void register_node_type_cmp_combrgba()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_combrgba_declare;
   ntype.gather_link_search_ops = nullptr;
-  ntype.get_compositor_shader_node = file_ns::get_compositor_shader_node;
+  ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_combrgba)

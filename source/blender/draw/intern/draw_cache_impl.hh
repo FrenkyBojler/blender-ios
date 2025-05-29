@@ -10,7 +10,9 @@
 
 #include <cstdint>
 
+#include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
+#include "BLI_string_ref.hh"
 
 struct GPUMaterial;
 namespace blender::gpu {
@@ -36,6 +38,8 @@ struct GreasePencil;
 enum eMeshBatchDirtyMode : int8_t;
 
 namespace blender::draw {
+
+struct ObjectRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Expose via BKE callbacks
@@ -68,9 +72,9 @@ void DRW_volume_batch_cache_dirty_tag(Volume *volume, int mode);
 void DRW_volume_batch_cache_validate(Volume *volume);
 void DRW_volume_batch_cache_free(Volume *volume);
 
-void DRW_grease_pencil_batch_cache_dirty_tag(GreasePencil *grase_pencil, int mode);
-void DRW_grease_pencil_batch_cache_validate(GreasePencil *grase_pencil);
-void DRW_grease_pencil_batch_cache_free(GreasePencil *grase_pencil);
+void DRW_grease_pencil_batch_cache_dirty_tag(GreasePencil *grease_pencil, int mode);
+void DRW_grease_pencil_batch_cache_validate(GreasePencil *grease_pencil);
+void DRW_grease_pencil_batch_cache_free(GreasePencil *grease_pencil);
 
 /** \} */
 
@@ -135,7 +139,7 @@ blender::gpu::Batch *DRW_lattice_batch_cache_get_edit_verts(Lattice *lt);
  * stored, which will be filled by #DRW_shgroup_curves_create_sub.
  */
 gpu::VertBuf **DRW_curves_texture_for_evaluated_attribute(Curves *curves,
-                                                          const char *name,
+                                                          StringRef name,
                                                           bool *r_is_point_domain);
 
 blender::gpu::Batch *DRW_curves_batch_cache_get_edit_points(Curves *curves);
@@ -153,8 +157,9 @@ void DRW_curves_batch_cache_create_requested(Object *ob);
 
 gpu::VertBuf *DRW_pointcloud_position_and_radius_buffer_get(Object *ob);
 
-gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const char *name);
+gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, StringRef name);
 blender::gpu::Batch *DRW_pointcloud_batch_cache_get_dots(Object *ob);
+blender::gpu::Batch *DRW_pointcloud_batch_cache_get_edit_dots(PointCloud *pointcloud);
 
 void DRW_pointcloud_batch_cache_create_requested(Object *ob);
 
@@ -188,7 +193,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edge_detection(Mesh &mesh, bool *r_is_manifold);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh);
-blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh);
 Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(Object &object,
                                                            Mesh &mesh,
                                                            Span<const GPUMaterial *> materials);
@@ -254,6 +259,7 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Object &
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces_stretch_angle(Object &object,
                                                                          Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_wireframe(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_edges(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_verts(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Mesh &mesh);
@@ -264,7 +270,8 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edituv_facedots(Object &object, Me
 /** \name For Image UV Editor
  * \{ */
 
-blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_edges(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_faces(Object &object, Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_uv_wireframe(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh);
 
 /** \} */
@@ -272,8 +279,6 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh);
 /* -------------------------------------------------------------------- */
 /** \name For Direct Data Access
  * \{ */
-
-gpu::VertBuf *DRW_mesh_batch_cache_pos_vertbuf_get(Mesh &mesh);
 
 /* Edit mesh bit-flags (is this the right place?). */
 enum {
@@ -322,6 +327,10 @@ blender::gpu::Batch *DRW_particles_batch_cache_get_edit_inner_points(Object *obj
 blender::gpu::Batch *DRW_particles_batch_cache_get_edit_tip_points(Object *object,
                                                                    ParticleSystem *psys,
                                                                    PTCacheEdit *edit);
+
+/* Particle data are stored in world space. If an object is instanced, the associated particle
+ * systems need to be offset appropriately. */
+float4x4 DRW_particles_dupli_matrix_get(const ObjectRef &ob_ref);
 
 /** \} */
 

@@ -11,7 +11,6 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -271,7 +270,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
   const bool use_dverts = data->use_dverts;
   const int armature_def_nr = data->armature_def_nr;
 
-  DualQuat sumdq, *dq = nullptr;
+  DualQuat sumdq = {}, *dq = nullptr;
   const bPoseChannel *pchan;
   float *co, dco[3];
   float sumvec[3], summat[3][3];
@@ -283,7 +282,6 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
   const bool full_deform = vert_deform_mats != nullptr;
 
   if (use_quaternion) {
-    memset(&sumdq, 0, sizeof(DualQuat));
     dq = &sumdq;
   }
   else {
@@ -339,19 +337,25 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
     uint j;
     for (j = dvert->totweight; j != 0; j--, dw++) {
       const uint index = dw->def_nr;
-      if (index < data->defbase_len && (pchan = data->pchan_from_defbase[index])) {
-        float weight = dw->weight;
-        const Bone *bone = pchan->bone;
-
-        deformed = 1;
-
-        if (bone && bone->flag & BONE_MULT_VG_ENV) {
-          weight *= distfactor_to_bone(
-              co, bone->arm_head, bone->arm_tail, bone->rad_head, bone->rad_tail, bone->dist);
-        }
-
-        pchan_bone_deform(pchan, weight, vec, dq, smat, co, full_deform, &contrib);
+      if (index >= data->defbase_len) {
+        continue;
       }
+      pchan = data->pchan_from_defbase[index];
+      if (pchan == nullptr) {
+        continue;
+      }
+
+      float weight = dw->weight;
+      const Bone *bone = pchan->bone;
+
+      deformed = 1;
+
+      if (bone && bone->flag & BONE_MULT_VG_ENV) {
+        weight *= distfactor_to_bone(
+            co, bone->arm_head, bone->arm_tail, bone->rad_head, bone->rad_tail, bone->dist);
+      }
+
+      pchan_bone_deform(pchan, weight, vec, dq, smat, co, full_deform, &contrib);
     }
     /* If there are vertex-groups but not groups with bones (like for soft-body groups). */
     if (deformed == 0 && use_envelope) {
@@ -529,8 +533,7 @@ static void armature_deform_coords_impl(const Object *ob_arm,
       }
 
       if (use_dverts) {
-        pchan_from_defbase = static_cast<bPoseChannel **>(
-            MEM_callocN(sizeof(*pchan_from_defbase) * defbase_len, "defnrToBone"));
+        pchan_from_defbase = MEM_calloc_arrayN<bPoseChannel *>(defbase_len, "defnrToBone");
         /* TODO(sergey): Some considerations here:
          *
          * - Check whether keeping this consistent across frames gives speedup.
@@ -616,8 +619,11 @@ void BKE_armature_deform_coords_with_curves(
    * used for Grease Pencil layers as well. */
   BLI_assert(dverts.size() == vert_coords.size());
 
-  /* const_cast for old positions for the C API, these are not actually written. */
-  blender::float3 *vert_coords_prev_data = const_cast<blender::float3 *>(vert_coords_prev->data());
+  blender::float3 *vert_coords_prev_data = nullptr;
+  if (vert_coords_prev.has_value()) {
+    /* const_cast for old positions for the C API, these are not actually written. */
+    vert_coords_prev_data = const_cast<blender::float3 *>(vert_coords_prev->data());
+  }
 
   armature_deform_coords_impl(
       &ob_arm,
@@ -627,7 +633,7 @@ void BKE_armature_deform_coords_with_curves(
       vert_deform_mats ? reinterpret_cast<float(*)[3][3]>(vert_deform_mats->data()) : nullptr,
       vert_coords.size(),
       deformflag,
-      vert_coords_prev ? reinterpret_cast<float(*)[3]>(vert_coords_prev_data) : nullptr,
+      reinterpret_cast<float(*)[3]>(vert_coords_prev_data),
       defgrp_name.c_str(),
       dverts,
       nullptr,

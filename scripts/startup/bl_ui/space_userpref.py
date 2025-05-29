@@ -281,6 +281,7 @@ class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
         col = layout.column()
         col.prop(system, "use_region_overlap")
         col.prop(view, "show_navigate_ui")
+        col.prop(view, "border_width")
         col.prop(view, "color_picker_type")
         col.row().prop(view, "header_align")
         col.prop(view, "factor_display_type")
@@ -686,23 +687,22 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
+        import gpu
 
         col = layout.column()
         col.prop(system, "gpu_backend", text="Backend")
+        if system.gpu_backend == 'VULKAN':
+            col = layout.column()
+            col.enabled = gpu.platform.backend_type_get() == 'VULKAN'
+            col.prop(system, "gpu_preferred_device")
 
-        import gpu
         if system.gpu_backend != gpu.platform.backend_type_get():
             layout.label(text="A restart of Blender is required", icon='INFO')
 
-        if system.gpu_backend == gpu.platform.backend_type_get() == 'VULKAN':
-            col = layout.column()
-            col.prop(system, "gpu_preferred_device")
-
         if system.gpu_backend == 'VULKAN':
             col = layout.column()
-            col.label(text="The Vulkan backend is experimental:", icon='INFO')
-            col.label(text="\u2022 OpenXR and GPU subdivision are not supported", icon='BLANK1')
-            col.label(text="\u2022 Expect reduced performance", icon='BLANK1')
+            col.label(text="Vulkan backend limitations:", icon='INFO')
+            col.label(text="\u2022 USD/Hydra is not supported", icon='BLANK1')
 
 
 class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
@@ -818,18 +818,8 @@ class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
-        # edit = prefs.edit
 
         layout.prop(system, "memory_cache_limit")
-
-        layout.separator()
-
-        layout.prop(system, "use_sequencer_disk_cache", text="Disk Cache")
-        col = layout.column()
-        col.active = system.use_sequencer_disk_cache
-        col.prop(system, "sequencer_disk_cache_dir", text="Directory")
-        col.prop(system, "sequencer_disk_cache_size_limit", text="Cache Limit")
-        col.prop(system, "sequencer_disk_cache_compression", text="Compression")
 
         layout.separator()
 
@@ -929,12 +919,6 @@ class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
     bl_label = "Subdivision"
     bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        import gpu
-        backend = gpu.platform.backend_type_get()
-        return backend == 'OPENGL'
-
     def draw_centered(self, context, layout):
         prefs = context.preferences
         system = prefs.system
@@ -952,7 +936,9 @@ class ThemePanel:
 
 
 class USERPREF_MT_interface_theme_presets(Menu):
+    # NOTE: this label is currently not used, see: !134844.
     bl_label = "Presets"
+
     preset_subdir = "interface_theme"
     preset_operator = "script.execute_preset"
     preset_type = 'XML'
@@ -1026,7 +1012,12 @@ class USERPREF_PT_theme(ThemePanel, Panel):
         if filepath := context.preferences.themes[0].filepath:
             preset_label = bpy.path.display_name(os.path.basename(filepath))
         else:
-            preset_label = USERPREF_MT_interface_theme_presets.bl_label
+            # If the `filepath` is empty, assume the theme was reset and use the default theme name as a label.
+            # This would typically be:
+            # `preset_label = USERPREF_MT_interface_theme_presets.bl_label`
+            # However the operator to reset the preferences doesn't clear the value,
+            # so it's simplest to hard-code "Presets" here.
+            preset_label = "Presets"
 
         row.menu("USERPREF_MT_interface_theme_presets", text=preset_label)
         del filepath, preset_label
@@ -1118,6 +1109,13 @@ class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
         ui_state = theme.user_interface.wcol_state
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+
+        col = flow.column(align=True)
+
+        col.prop(ui_state, "error")
+        col.prop(ui_state, "warning")
+        col.prop(ui_state, "info")
+        col.prop(ui_state, "success")
 
         col = flow.column(align=True)
         col.prop(ui_state, "inner_anim")
@@ -1713,7 +1711,7 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 
 
 class USERPREF_UL_asset_libraries(UIList):
-    def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
+    def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -2087,9 +2085,20 @@ class USERPREF_PT_ndof_settings(Panel):
 
             layout.separator()
 
-        col = layout.column()
         if show_3dview_settings:
-            col.prop(props, "ndof_show_guide")
+            col = layout.column(heading="Show Guides")
+            col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
+            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
+
+            col = layout.column(heading="Orbit Center")
+            col.prop(props, "ndof_orbit_center_auto")
+            colsub = col.column()
+            colsub.prop(props, "ndof_orbit_center_selected")
+            colsub.enabled = props.ndof_orbit_center_auto
+            del colsub
+            col.separator()
+
+        col = layout.column(heading="Zoom")
         col.prop(props, "ndof_zoom_invert")
         col.prop(props, "ndof_lock_camera_pan_zoom")
         row = col.row(heading="Pan")
@@ -2471,8 +2480,14 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                 box.separator()
                 sub_col = box.column(align=True)
                 sub_col.label(text=addon_name + ":")
-                sub_col.label(text="    " + addon_file)
-                sub_col.label(text="    " + addon_path)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_file)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
+
+                sub_row = sub_col.row()
+                sub_row.label(text="    " + addon_path)
+                sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
         if addon_utils.error_encoding:
             self.draw_error(
@@ -2828,12 +2843,12 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
     def draw(self, context):
         self._draw_items(
             context, (
-                ({"property": "use_sculpt_tools_tilt"}, ("blender/blender/issues/82877", "#82877")),
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
                 ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
-                ({"property": "use_new_file_import_nodes"}, ("blender/blender/issues/122846", "#122846")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
+                ({"property": "use_bundle_and_closure_nodes"}, ("blender/blender/issues/134029", "#134029")),
+                ({"property": "use_socket_structure_type"}, ("blender/blender/issues/127106", "#127106")),
             ),
         )
 
@@ -2845,8 +2860,9 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
         self._draw_items(
             context, (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
-                ({"property": "use_new_point_cloud_type"}, ("blender/blender/issues/75717", "#75717")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
+                ({"property": "write_large_blend_file_blocks"}, ("/blender/blender/issues/129309", "#129309")),
+                ({"property": "use_attribute_storage_write"}, ("/blender/blender/issues/122398", "#122398")),
             ),
         )
 

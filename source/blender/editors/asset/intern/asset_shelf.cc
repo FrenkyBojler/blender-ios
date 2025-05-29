@@ -14,6 +14,7 @@
 #include "AS_asset_library.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -512,7 +513,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -808,7 +809,7 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
     });
   }
 
-  uiItemS(&layout);
+  layout.separator();
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
@@ -840,11 +841,11 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(block, blender::ui::EmbossType::None);
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-  uiItemS(layout);
+  layout->separator();
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
@@ -854,15 +855,15 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   uiItemSpacer(layout);
 
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
-  uiLayout *sub = uiLayoutRow(layout, false);
+  uiLayout *sub = &layout->row(false);
   /* Same as file/asset browser header. */
   uiLayoutSetUnitsX(sub, 8);
-  uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+  sub->prop(&shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
-  HeaderType *ht = MEM_cnew<HeaderType>(__func__);
+  HeaderType *ht = MEM_callocN<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;

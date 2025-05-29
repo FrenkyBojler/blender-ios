@@ -128,32 +128,32 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
 {
   if (this->get_input().get_realization_options().interpolation == Interpolation::Bicubic) {
     switch (this->get_input().type()) {
-      case ResultType::Color:
-        return "compositor_realize_on_domain_bicubic_color";
-      case ResultType::Vector:
-        return "compositor_realize_on_domain_bicubic_vector";
       case ResultType::Float:
         return "compositor_realize_on_domain_bicubic_float";
+      case ResultType::Color:
+      case ResultType::Float3:
+      case ResultType::Float4:
+        return "compositor_realize_on_domain_bicubic_float4";
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
-      case ResultType::Float3:
+      case ResultType::Bool:
         /* Realization does not support internal image types. */
         break;
     }
   }
   else {
     switch (this->get_input().type()) {
-      case ResultType::Color:
-        return "compositor_realize_on_domain_color";
-      case ResultType::Vector:
-        return "compositor_realize_on_domain_vector";
       case ResultType::Float:
         return "compositor_realize_on_domain_float";
+      case ResultType::Color:
+      case ResultType::Float3:
+      case ResultType::Float4:
+        return "compositor_realize_on_domain_float4";
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Float2:
-      case ResultType::Float3:
+      case ResultType::Bool:
         /* Realization does not support internal image types. */
         break;
     }
@@ -214,13 +214,8 @@ Domain RealizeOnDomainOperation::compute_domain()
  * realization shouldn't be needed. */
 static constexpr float transformation_tolerance = 10e-6f;
 
-/* Given a potentially transformed domain, compute a domain such that its rotation and scale become
- * identity and the size of the domain is increased/reduced to adapt to the new transformation. For
- * instance, if the domain is rotated, the returned domain will have zero rotation but expanded
- * size to account for the bounding box of the domain after rotation. The size of the returned
- * domain is bound and clipped by the maximum possible size to avoid allocations that surpass
- * hardware limits. */
-static Domain compute_realized_transformation_domain(Context &context, const Domain &domain)
+Domain RealizeOnDomainOperation::compute_realized_transformation_domain(Context &context,
+                                                                        const Domain &domain)
 {
   const int2 size = domain.size;
 
@@ -286,7 +281,7 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
     const Domain &operation_domain)
 {
   /* This input doesn't need realization, the operation is not needed. */
-  if (!input_descriptor.realization_options.realize_on_operation_domain) {
+  if (input_descriptor.realization_mode == InputRealizationMode::None) {
     return nullptr;
   }
 
@@ -301,16 +296,23 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
     return nullptr;
   }
 
-  const Domain target_domain = compute_realized_transformation_domain(context, operation_domain);
+  /* If we are realizing on the operation domain, then our target domain is the operation domain,
+   * otherwise, we are only realizing the transforms, then our target domain is the input's one. */
+  const bool use_operation_domain = input_descriptor.realization_mode ==
+                                    InputRealizationMode::OperationDomain;
+  const Domain target_domain = use_operation_domain ? operation_domain : input_result.domain();
 
-  /* The input have an almost identical domain to the target domain, so no need to realize it and
-   * the operation is not needed. */
-  if (Domain::is_equal(input_result.domain(), target_domain, transformation_tolerance)) {
+  const Domain realized_target_domain =
+      RealizeOnDomainOperation::compute_realized_transformation_domain(context, target_domain);
+
+  /* The input have an almost identical domain to the realized target domain, so no need to realize
+   * it and the operation is not needed. */
+  if (Domain::is_equal(input_result.domain(), realized_target_domain, transformation_tolerance)) {
     return nullptr;
   }
 
   /* Otherwise, realization is needed. */
-  return new RealizeOnDomainOperation(context, target_domain, input_descriptor.type);
+  return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
 }
 
 }  // namespace blender::compositor

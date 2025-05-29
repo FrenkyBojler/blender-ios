@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdio>
@@ -38,7 +39,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* for timing... */
 #if 0
@@ -314,11 +315,8 @@ static void shrinkwrap_calc_nearest_vertex_cb_ex(void *__restrict userdata,
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -478,11 +476,8 @@ static void shrinkwrap_calc_normal_projection_cb_ex(void *__restrict userdata,
   const float proj_limit_squared = calc->smd->projLimit * calc->smd->projLimit;
   float *co = calc->vertexCos[i];
   const float *tmp_co, *tmp_no;
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -731,12 +726,8 @@ static void target_project_tri_jacobian(void *userdata, const float x[3], float 
 /* Clamp barycentric weights to the triangle. */
 static void target_project_tri_clamp(float x[3])
 {
-  if (x[0] < 0.0f) {
-    x[0] = 0.0f;
-  }
-  if (x[1] < 0.0f) {
-    x[1] = 0.0f;
-  }
+  x[0] = std::max(x[0], 0.0f);
+  x[1] = std::max(x[1], 0.0f);
   if (x[0] + x[1] > 1.0f) {
     x[0] = x[0] / (x[0] + x[1]);
     x[1] = 1.0f - x[0];
@@ -1089,11 +1080,8 @@ static void shrinkwrap_calc_nearest_surface_point_cb_ex(void *__restrict userdat
 
   float *co = calc->vertexCos[i];
   float tmp_co[3];
-  float weight = BKE_defvert_array_find_weight_safe(calc->dvert, i, calc->vgroup);
-
-  if (calc->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
+  float weight = BKE_defvert_array_find_weight_safe(
+      calc->dvert, i, calc->vgroup, calc->invert_vgroup);
 
   if (weight == 0.0f) {
     return;
@@ -1379,7 +1367,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
   calc.invert_vgroup = (smd->shrinkOpts & MOD_SHRINKWRAP_INVERT_VGROUP) != 0;
 
   if (smd->target != nullptr) {
-    Object *ob_target = DEG_get_evaluated_object(ctx->depsgraph, smd->target);
+    Object *ob_target = DEG_get_evaluated(ctx->depsgraph, smd->target);
     calc.target = BKE_modifier_get_evaluated_mesh_from_evaluated_object(ob_target);
 
     /* TODO: there might be several "bugs" with non-uniform scales matrices
@@ -1390,7 +1378,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd,
     /* TODO: smd->keepDist is in global units.. must change to local */
     calc.keepDist = smd->keepDist;
   }
-  calc.aux_target = DEG_get_evaluated_object(ctx->depsgraph, smd->auxTarget);
+  calc.aux_target = DEG_get_evaluated(ctx->depsgraph, smd->auxTarget);
 
   if (mesh != nullptr && smd->shrinkType == MOD_SHRINKWRAP_PROJECT) {
     /* Setup arrays to get vertex positions, normals and deform weights */

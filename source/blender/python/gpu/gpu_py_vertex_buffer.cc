@@ -51,7 +51,12 @@
       break; \
     } \
     case GPU_COMP_F32: { \
-      PY_AS_NATIVE(float, PyFloat_AsDouble); \
+      if (attr->python_int_to_float) { \
+        PY_AS_NATIVE(float, PyC_Long_AsI32); \
+      } \
+      else { \
+        PY_AS_NATIVE(float, PyFloat_AsDouble); \
+      } \
       break; \
     } \
     default: \
@@ -315,9 +320,14 @@ static PyObject *pygpu_vertbuf_attr_fill(BPyGPUVertBuf *self, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_vertbuf__tp_methods[] = {
@@ -328,8 +338,12 @@ static PyMethodDef pygpu_vertbuf__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static void pygpu_vertbuf__tp_dealloc(BPyGPUVertBuf *self)

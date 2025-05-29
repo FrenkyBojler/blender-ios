@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <cstdio> /* Include header using off_t before poisoning it below. */
+#include <cstdio> /* IWYU pragma: keep. Include header using off_t before poisoning it below. */
 #include <optional>
 
 #ifdef WIN32
@@ -21,8 +21,9 @@
 
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h" /* for eReportType */
 
+#include "BLO_core_bhead.hh"
+#include "BLO_core_blend_header.hh"
 #include "BLO_readfile.hh"
 
 struct BlendFileData;
@@ -70,6 +71,7 @@ struct FileData {
   ListBase bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
   bool is_eof = false;
+  BlenderHeader blender_header = {};
 
   FileReader *file = nullptr;
 
@@ -158,8 +160,6 @@ struct FileData {
   void *storage_handle = nullptr;
 };
 
-#define SIZEOFBLENDERHEADER 12
-
 /***/
 void blo_join_main(ListBase *mainlist);
 void blo_split_main(ListBase *mainlist, Main *main);
@@ -247,7 +247,11 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_290(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_300(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_400(FileData *fd, Library *lib, Main *bmain);
-void blo_do_versions_cycles(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_410(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_420(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_430(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_440(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_450(FileData *fd, Library *lib, Main *bmain);
 
 void do_versions_after_linking_250(Main *bmain);
 void do_versions_after_linking_260(Main *bmain);
@@ -256,7 +260,11 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain);
 void do_versions_after_linking_290(FileData *fd, Main *bmain);
 void do_versions_after_linking_300(FileData *fd, Main *bmain);
 void do_versions_after_linking_400(FileData *fd, Main *bmain);
-void do_versions_after_linking_cycles(Main *bmain);
+void do_versions_after_linking_410(FileData *fd, Main *bmain);
+void do_versions_after_linking_420(FileData *fd, Main *bmain);
+void do_versions_after_linking_430(FileData *fd, Main *bmain);
+void do_versions_after_linking_440(FileData *fd, Main *bmain);
+void do_versions_after_linking_450(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,
                              BlendfileLinkAppendContext *lapp_context,

@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -135,15 +136,12 @@ int uiTemplateRecentFiles(uiLayout *layout, int rows)
     }
 
     const char *filename = BLI_path_basename(recent->filepath);
-    PointerRNA ptr;
-    uiItemFullO(layout,
-                "WM_OT_open_mainfile",
-                filename,
-                BKE_blendfile_extension_check(filename) ? ICON_FILE_BLEND : ICON_FILE_BACKUP,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
+    PointerRNA ptr = layout->op("WM_OT_open_mainfile",
+                                filename,
+                                BKE_blendfile_extension_check(filename) ? ICON_FILE_BLEND :
+                                                                          ICON_FILE_BACKUP,
+                                WM_OP_INVOKE_DEFAULT,
+                                UI_ITEM_NONE);
     RNA_string_set(&ptr, "filepath", recent->filepath);
     RNA_boolean_set(&ptr, "display_file_selector", false);
 

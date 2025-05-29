@@ -9,12 +9,13 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
+#include <optional>
 
 #include "AS_asset_catalog.hh"
 
 #include "DNA_asset_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -81,7 +82,7 @@ class AssetLibrary {
    * within the catalog service may still happen without the mutex being locked. They should be
    * protected separately. */
   std::unique_ptr<AssetCatalogService> catalog_service_;
-  std::mutex catalog_service_mutex_;
+  Mutex catalog_service_mutex_;
 
   std::optional<eAssetImportMethod> import_method_;
   /** Assets owned by this library may be imported with a different method than set in
@@ -100,7 +101,6 @@ class AssetLibrary {
   friend class AssetLibraryService;
   friend class AssetRepresentation;
 
- public:
   /**
    * \param name: The name this asset library will be displayed in the UI as. Will also be used as
    *              a weak way to identify an asset library (e.g. by #AssetWeakReference). Make sure
@@ -121,7 +121,14 @@ class AssetLibrary {
    */
   static void foreach_loaded(FunctionRef<void(AssetLibrary &)> fn, bool include_all_library);
 
-  void load_catalogs();
+  /**
+   * Get the #AssetLibraryReference referencing this library. This can fail for custom libraries,
+   * which have too look up their #bUserAssetLibrary. It will not return a value for values that
+   * were loaded directly through a path.
+   */
+  virtual std::optional<AssetLibraryReference> library_reference() const = 0;
+
+  void load_or_reload_catalogs();
 
   AssetCatalogService &catalog_service() const;
 
@@ -190,6 +197,7 @@ class AssetLibrary {
 Vector<AssetLibraryReference> all_valid_asset_library_refs();
 
 AssetLibraryReference all_library_reference();
+AssetLibraryReference current_file_library_reference();
 void all_library_reload_catalogs_if_dirty();
 
 }  // namespace blender::asset_system

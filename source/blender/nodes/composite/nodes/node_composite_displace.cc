@@ -27,7 +27,8 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
   b.add_input<decl::Vector>("Vector")
-      .default_value({1.0f, 1.0f, 1.0f})
+      .dimensions(2)
+      .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_TRANSLATION)
@@ -53,8 +54,10 @@ class DisplaceOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    if (this->is_identity()) {
+      const Result &input = this->get_input("Image");
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -135,7 +138,7 @@ class DisplaceOperation : public NodeOperation {
          * transform it into the normalized sampler space. */
         float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
                               y_scale.load_pixel_extended<float, true>(texel));
-        float2 displacement = input_displacement.load_pixel_extended<float4, true>(texel).xy() *
+        float2 displacement = input_displacement.load_pixel_extended<float3, true>(texel).xy() *
                               scale / float2(size);
         return coordinates - displacement;
       };
@@ -189,7 +192,7 @@ class DisplaceOperation : public NodeOperation {
 
     const Result &input_displacement = get_input("Vector");
     if (input_displacement.is_single_value() &&
-        math::is_zero(input_displacement.get_single_value<float4>()))
+        math::is_zero(input_displacement.get_single_value<float3>().xy()))
     {
       return true;
     }
@@ -213,7 +216,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_displace_cc
 
-void register_node_type_cmp_displace()
+static void register_node_type_cmp_displace()
 {
   namespace file_ns = blender::nodes::node_composite_displace_cc;
 
@@ -227,5 +230,6 @@ void register_node_type_cmp_displace()
   ntype.declare = file_ns::cmp_node_displace_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_displace)

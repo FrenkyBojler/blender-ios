@@ -5,14 +5,11 @@
 /* Preferences Data File 'U_default'. */
 
 /* For constants. */
-#include "BLI_math_base.h"
+#include "BLI_math_constants.h"
 
-#include "DNA_anim_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-
-#include "BLI_math_rotation.h"
+#include "DNA_anim_enums.h"
+#include "DNA_curve_enums.h"
+#include "DNA_space_enums.h"
 
 #include "BKE_blender_version.h"
 
@@ -23,7 +20,8 @@
 const UserDef U_default = {
     .versionfile = BLENDER_FILE_VERSION,
     .subversionfile = BLENDER_FILE_SUBVERSION,
-    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM),
+    .flag = (USER_AUTOSAVE | USER_TOOLTIPS | USER_RELPATHS | USER_RELEASECONFIRM |
+             USER_SCRIPT_AUTOEXEC_DISABLE),
     .dupflag = USER_DUP_MESH | USER_DUP_CURVE | USER_DUP_SURF | USER_DUP_LATTICE | USER_DUP_FONT |
                USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM | USER_DUP_CAMERA | USER_DUP_SPEAKER |
                USER_DUP_ACT | USER_DUP_LIGHTPROBE | USER_DUP_GPENCIL | USER_DUP_CURVES |
@@ -68,6 +66,7 @@ const UserDef U_default = {
 
     .ui_scale = 1.0,
     .ui_line_width = 0,
+    .border_width = 2,
 
     /** Default so DPI is detected automatically. */
     .dpi = 0,
@@ -79,7 +78,7 @@ const UserDef U_default = {
     .scrollback = 256,
     .node_margin = 40,
     .node_preview_res = 120,
-    .transopts = USER_TR_TOOLTIPS,
+    .transopts = USER_TR_TOOLTIPS | USER_TR_IFACE | USER_TR_REPORTS | USER_TR_NEWDATANAME,
     .menuthreshold1 = 5,
     .menuthreshold2 = 2,
     .app_template = "",
@@ -158,8 +157,8 @@ const UserDef U_default = {
     .ndof_sensitivity = 4.0,
     .ndof_orbit_sensitivity = 4.0,
     .ndof_deadzone = 0.0,
-    .ndof_flag = (NDOF_MODE_ORBIT | NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM |
-                  NDOF_SHOULD_ROTATE |
+    .ndof_flag = (NDOF_SHOW_GUIDE_ORBIT_CENTER | NDOF_ORBIT_CENTER_AUTO | NDOF_MODE_ORBIT |
+                  NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM | NDOF_SHOULD_ROTATE |
                   /* Software from the driver authors follows this convention
                    * so invert this by default, see: #67579. */
                   NDOF_ROTX_INVERT_AXIS | NDOF_ROTY_INVERT_AXIS | NDOF_ROTZ_INVERT_AXIS |
@@ -230,10 +229,6 @@ const UserDef U_default = {
             .temp_win_sizey = 600,
         },
 
-    .sequencer_disk_cache_dir = "",
-    .sequencer_disk_cache_compression = 0,
-    .sequencer_disk_cache_size_limit = 100,
-    .sequencer_disk_cache_flag = 0,
     .sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC,
 
     .collection_instance_empty_size = 1.0f,

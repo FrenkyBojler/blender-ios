@@ -12,6 +12,9 @@
 
 #include "COM_node_operation.hh"
 
+#include "UI_interface.hh"
+#include "UI_resources.hh"
+
 #include "node_composite_util.hh"
 
 /* **************** RGB ******************** */
@@ -20,7 +23,15 @@ namespace blender::nodes::node_composite_rgb_cc {
 
 static void cmp_node_rgb_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Color>("RGBA").default_value({0.5f, 0.5f, 0.5f, 1.0f});
+  b.add_output<decl::Color>("RGBA")
+      .default_value({0.5f, 0.5f, 0.5f, 1.0f})
+      .custom_draw([](CustomSocketDrawParams &params) {
+        uiLayoutSetAlignment(&params.layout, UI_LAYOUT_ALIGN_EXPAND);
+        uiLayout &col = params.layout.column(true);
+        uiTemplateColorPicker(
+            &col, &params.socket_ptr, "default_value", true, false, false, false);
+        col.prop(&params.socket_ptr, "default_value", UI_ITEM_R_SLIDER, "", ICON_NONE);
+      });
 }
 
 using namespace blender::compositor;
@@ -48,7 +59,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_rgb_cc
 
-void register_node_type_cmp_rgb()
+static void register_node_type_cmp_rgb()
 {
   namespace file_ns = blender::nodes::node_composite_rgb_cc;
 
@@ -60,8 +71,9 @@ void register_node_type_cmp_rgb()
   ntype.enum_name_legacy = "RGB";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = file_ns::cmp_node_rgb_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Default);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rgb)

@@ -60,13 +60,12 @@
 #include <array>
 #include <vector>
 
+#include "BLI_hash_fwd.hh"
 #include "BLI_index_range.hh"
 #include "BLI_memory_utils.hh"
 #include "BLI_utildefines.h"
 
 namespace blender {
-
-template<typename T> uint64_t get_default_hash(const T &v);
 
 /**
  * References an array of type T that is owned by someone else. The data in the array cannot be
@@ -157,7 +156,7 @@ template<typename T> class Span {
     BLI_assert(start >= 0);
     BLI_assert(size >= 0);
     const int64_t new_size = std::max<int64_t>(0, std::min(size, size_ - start));
-    return Span(data_ + start, new_size);
+    return Span(data_ ? data_ + start : nullptr, new_size);
   }
 
   constexpr Span slice_safe(IndexRange range) const

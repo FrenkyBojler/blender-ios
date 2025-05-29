@@ -28,6 +28,7 @@
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
+#include "BKE_subdiv.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
@@ -156,7 +157,13 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
      * Skip edge domain because USD doesn't have a good conversion for them. */
     if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
         iter.domain == bke::AttrDomain::Edge ||
-        ELEM(iter.name, "position", "material_index", "velocity", "crease_vert"))
+        ELEM(iter.name,
+             "position",
+             "material_index",
+             "velocity",
+             "crease_vert",
+             "custom_normal",
+             "sharp_face"))
     {
       return;
     }
@@ -296,8 +303,8 @@ struct USDMeshData {
   pxr::VtIntArray crease_vertex_indices;
   /* The per-crease or per-edge sharpness for all creases (Usd.Mesh.SHARPNESS_INFINITE for a
    * perfectly sharp crease). Since 'creaseLengths' encodes the number of vertices in each crease,
-   * the number of elements in this array will be either 'len(creaseLengths)' or the sum over all X
-   * of '(creaseLengths[X] - 1)'. Note that while the RI spec allows each crease to have either a
+   * the number of elements in this array will be either `len(creaseLengths)` or the sum over all X
+   * of `(creaseLengths[X] - 1)`. Note that while the RI spec allows each crease to have either a
    * single sharpness or a value per-edge, USD will encode either a single sharpness per crease on
    * a mesh, or sharpness's for all edges making up the creases on a mesh. */
   pxr::VtFloatArray crease_sharpnesses;
@@ -529,17 +536,14 @@ static void get_edge_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
   const VArraySpan creases(*attribute);
   const Span<int2> edges = mesh->edges();
   for (const int i : edges.index_range()) {
-    const float crease = creases[i];
-    if (crease == 0.0f) {
-      continue;
+    const float crease = std::clamp(creases[i], 0.0f, 1.0f);
+
+    if (crease != 0.0f) {
+      usd_mesh_data.crease_vertex_indices.push_back(edges[i][0]);
+      usd_mesh_data.crease_vertex_indices.push_back(edges[i][1]);
+      usd_mesh_data.crease_lengths.push_back(2);
+      usd_mesh_data.crease_sharpnesses.push_back(bke::subdiv::crease_to_sharpness(crease));
     }
-
-    const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : crease;
-
-    usd_mesh_data.crease_vertex_indices.push_back(edges[i][0]);
-    usd_mesh_data.crease_vertex_indices.push_back(edges[i][1]);
-    usd_mesh_data.crease_lengths.push_back(2);
-    usd_mesh_data.crease_sharpnesses.push_back(sharpness);
   }
 }
 
@@ -553,12 +557,11 @@ static void get_vert_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
   }
   const VArraySpan creases(*attribute);
   for (const int i : creases.index_range()) {
-    const float crease = creases[i];
+    const float crease = std::clamp(creases[i], 0.0f, 1.0f);
 
-    if (crease > 0.0f) {
-      const float sharpness = crease >= 1.0f ? pxr::UsdGeomMesh::SHARPNESS_INFINITE : crease;
+    if (crease != 0.0f) {
       usd_mesh_data.corner_indices.push_back(i);
-      usd_mesh_data.corner_sharpnesses.push_back(sharpness);
+      usd_mesh_data.corner_sharpnesses.push_back(bke::subdiv::crease_to_sharpness(crease));
     }
   }
 }
@@ -759,7 +762,7 @@ void USDMeshWriter::init_skinned_mesh(const HierarchyContext &context)
     return;
   }
 
-  Vector<std::string> bone_names;
+  Vector<StringRef> bone_names;
   get_armature_bone_names(
       arm_obj, usd_export_context_.export_params.only_deform_bones, bone_names);
 

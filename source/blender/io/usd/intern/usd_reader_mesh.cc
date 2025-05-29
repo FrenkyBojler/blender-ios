@@ -22,6 +22,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
+#include "BKE_subdiv.hh"
 
 #include "BLI_array.hh"
 #include "BLI_map.hh"
@@ -105,7 +106,7 @@ static void assign_materials(Main *bmain,
     return;
   }
 
-  USDMaterialReader mat_reader(params, bmain);
+  USDMaterialReader mat_reader(params, *bmain);
 
   for (const auto item : mat_index_map.items()) {
     Material *assigned_mat = find_existing_material(
@@ -123,8 +124,7 @@ static void assign_materials(Main *bmain,
         continue;
       }
 
-      const bool have_import_hook = settings.mat_import_hook_sources.contains(
-          item.key.GetAsString());
+      const bool have_import_hook = settings.mat_import_hook_sources.contains(item.key);
 
       /* Add the Blender material. If we have an import hook which can handle this material
        * we don't import USD Preview Surface shaders. */
@@ -138,18 +138,17 @@ static void assign_materials(Main *bmain,
       }
 
       const std::string mat_name = make_safe_name(assigned_mat->id.name + 2, true);
-      settings.mat_name_to_mat.lookup_or_add_default(mat_name) = assigned_mat;
+      settings.mat_name_to_mat.add_new(mat_name, assigned_mat);
 
       if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
         /* Record the Blender material we created for the USD material with the given path. */
-        settings.usd_path_to_mat.lookup_or_add_default(item.key.GetAsString()) = assigned_mat;
+        settings.usd_path_to_mat.add_new(item.key, assigned_mat);
       }
 
       if (have_import_hook) {
         /* Defer invoking the hook to convert the material till we can do so from
          * the main thread. */
-        settings.usd_path_to_mat_for_hook.lookup_or_add_default(
-            item.key.GetAsString()) = assigned_mat;
+        settings.usd_path_to_mat_for_hook.add_new(item.key, assigned_mat);
       }
     }
 
@@ -168,7 +167,7 @@ static void assign_materials(Main *bmain,
 
 }  // namespace utils
 
-void USDMeshReader::create_object(Main *bmain, const double /*motionSampleTime*/)
+void USDMeshReader::create_object(Main *bmain)
 {
   Mesh *mesh = BKE_mesh_add(bmain, name_.c_str());
 
@@ -233,13 +232,13 @@ bool USDMeshReader::topology_changed(const Mesh *existing_mesh, const double mot
   mesh_prim_.GetFaceVertexCountsAttr().Get(&face_counts_, motionSampleTime);
   mesh_prim_.GetPointsAttr().Get(&positions_, motionSampleTime);
 
-  pxr::UsdGeomPrimvarsAPI primvarsAPI(mesh_prim_);
+  const pxr::UsdGeomPrimvarsAPI primvarsAPI(mesh_prim_);
 
   /* TODO(makowalski): Reading normals probably doesn't belong in this function,
    * as this is not required to determine if the topology has changed. */
 
   /* If 'normals' and 'primvars:normals' are both specified, the latter has precedence. */
-  pxr::UsdGeomPrimvar primvar = primvarsAPI.GetPrimvar(usdtokens::normalsPrimvar);
+  const pxr::UsdGeomPrimvar primvar = primvarsAPI.GetPrimvar(usdtokens::normalsPrimvar);
   if (primvar.HasValue()) {
     primvar.ComputeFlattened(&normals_, motionSampleTime);
     normal_interpolation_ = primvar.GetInterpolation();
@@ -292,7 +291,7 @@ void USDMeshReader::read_uv_data_primvar(Mesh *mesh,
   const StringRef primvar_name(
       pxr::UsdGeomPrimvar::StripPrimvarsName(primvar.GetName()).GetString());
 
-  pxr::VtArray<pxr::GfVec2f> usd_uvs = get_primvar_array<pxr::GfVec2f>(primvar, motionSampleTime);
+  const pxr::VtVec2fArray usd_uvs = get_primvar_array<pxr::GfVec2f>(primvar, motionSampleTime);
   if (usd_uvs.empty()) {
     return;
   }
@@ -398,29 +397,32 @@ void USDMeshReader::read_subdiv()
 
 void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTime)
 {
-  pxr::VtIntArray corner_indices;
-  if (!mesh_prim_.GetCornerIndicesAttr().Get(&corner_indices, motionSampleTime)) {
+  pxr::VtIntArray usd_corner_indices;
+  if (!mesh_prim_.GetCornerIndicesAttr().Get(&usd_corner_indices, motionSampleTime)) {
     return;
   }
 
-  pxr::VtFloatArray corner_sharpnesses;
-  if (!mesh_prim_.GetCornerSharpnessesAttr().Get(&corner_sharpnesses, motionSampleTime)) {
+  pxr::VtFloatArray usd_corner_sharpnesses;
+  if (!mesh_prim_.GetCornerSharpnessesAttr().Get(&usd_corner_sharpnesses, motionSampleTime)) {
     return;
   }
 
   /* Prevent the creation of the `crease_vert` attribute if we have no data. */
-  if (corner_indices.empty() || corner_sharpnesses.empty()) {
+  if (usd_corner_indices.empty() || usd_corner_sharpnesses.empty()) {
     return;
   }
 
   /* It is fine to have fewer indices than vertices, but never the other way other. */
-  if (corner_indices.size() > mesh->verts_num) {
-    CLOG_WARN(&LOG, "Too many vertex creases for mesh %s", prim_path_.c_str());
+  if (usd_corner_indices.size() > mesh->verts_num) {
+    CLOG_WARN(
+        &LOG, "Too many vertex creases for mesh %s", this->prim_path().GetAsString().c_str());
     return;
   }
 
-  if (corner_indices.size() != corner_sharpnesses.size()) {
-    CLOG_WARN(&LOG, "Vertex crease and sharpness count mismatch for mesh %s", prim_path_.c_str());
+  if (usd_corner_indices.size() != usd_corner_sharpnesses.size()) {
+    CLOG_WARN(&LOG,
+              "Vertex crease and sharpness count mismatch for mesh %s",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -429,34 +431,44 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
       "crease_vert", bke::AttrDomain::Point);
   creases.span.fill(0.0f);
 
+  Span<int> corner_indices = Span(usd_corner_indices.cdata(), usd_corner_indices.size());
+  Span<float> corner_sharpnesses = Span(usd_corner_sharpnesses.cdata(),
+                                        usd_corner_sharpnesses.size());
+
   for (size_t i = 0; i < corner_indices.size(); i++) {
-    creases.span[corner_indices[i]] = std::clamp(corner_sharpnesses[i], 0.0f, 1.0f);
+    const float crease = settings_->blender_stage_version_prior_44 ?
+                             corner_sharpnesses[i] :
+                             bke::subdiv::sharpness_to_crease(corner_sharpnesses[i]);
+    creases.span[corner_indices[i]] = std::clamp(crease, 0.0f, 1.0f);
   }
   creases.finish();
 }
 
 void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
 {
-  pxr::VtArray<int> crease_lengths;
-  pxr::VtArray<int> crease_indices;
-  pxr::VtArray<float> crease_sharpness;
-  mesh_prim_.GetCreaseLengthsAttr().Get(&crease_lengths, motionSampleTime);
-  mesh_prim_.GetCreaseIndicesAttr().Get(&crease_indices, motionSampleTime);
-  mesh_prim_.GetCreaseSharpnessesAttr().Get(&crease_sharpness, motionSampleTime);
+  pxr::VtArray<int> usd_crease_lengths;
+  pxr::VtArray<int> usd_crease_indices;
+  pxr::VtArray<float> usd_crease_sharpness;
+  mesh_prim_.GetCreaseLengthsAttr().Get(&usd_crease_lengths, motionSampleTime);
+  mesh_prim_.GetCreaseIndicesAttr().Get(&usd_crease_indices, motionSampleTime);
+  mesh_prim_.GetCreaseSharpnessesAttr().Get(&usd_crease_sharpness, motionSampleTime);
 
   /* Prevent the creation of the `crease_edge` attribute if we have no data. */
-  if (crease_lengths.empty() || crease_indices.empty() || crease_sharpness.empty()) {
+  if (usd_crease_lengths.empty() || usd_crease_indices.empty() || usd_crease_sharpness.empty()) {
     return;
   }
 
   /* There should be as many sharpness values as lengths. */
-  if (crease_lengths.size() != crease_sharpness.size()) {
-    CLOG_WARN(&LOG, "Edge crease and sharpness count mismatch for mesh %s", prim_path_.c_str());
+  if (usd_crease_lengths.size() != usd_crease_sharpness.size()) {
+    CLOG_WARN(&LOG,
+              "Edge crease and sharpness count mismatch for mesh %s",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
   /* Build mapping from vert pairs to edge index. */
   using EdgeMap = VectorSet<OrderedEdge,
+                            16,
                             DefaultProbingStrategy,
                             DefaultHash<OrderedEdge>,
                             DefaultEquality<OrderedEdge>,
@@ -475,22 +487,34 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
       "crease_edge", bke::AttrDomain::Edge);
   creases.span.fill(0.0f);
 
+  Span<int> crease_lengths = Span(usd_crease_lengths.cdata(), usd_crease_lengths.size());
+  Span<int> crease_indices = Span(usd_crease_indices.cdata(), usd_crease_indices.size());
+  Span<float> crease_sharpness = Span(usd_crease_sharpness.cdata(), usd_crease_sharpness.size());
+
   size_t index_start = 0;
   for (size_t i = 0; i < crease_lengths.size(); i++) {
     const int length = crease_lengths[i];
     if (length < 2) {
       /* Since each crease must be at least one edge long, each element of this array must be at
        * least two. If this is not the case it would not be safe to continue. */
-      CLOG_WARN(&LOG, "Edge crease length %d is invalid for mesh %s", length, prim_path_.c_str());
+      CLOG_WARN(&LOG,
+                "Edge crease length %d is invalid for mesh %s",
+                length,
+                this->prim_path().GetAsString().c_str());
       break;
     }
 
     if (index_start + length > crease_indices.size()) {
-      CLOG_WARN(&LOG, "Edge crease lengths are out of bounds for mesh %s", prim_path_.c_str());
+      CLOG_WARN(&LOG,
+                "Edge crease lengths are out of bounds for mesh %s",
+                this->prim_path().GetAsString().c_str());
       break;
     }
 
-    const float sharpness = std::clamp(crease_sharpness[i], 0.0f, 1.0f);
+    float crease = settings_->blender_stage_version_prior_44 ?
+                       crease_sharpness[i] :
+                       bke::subdiv::sharpness_to_crease(crease_sharpness[i]);
+    crease = std::clamp(crease, 0.0f, 1.0f);
     for (size_t j = 0; j < length - 1; j++) {
       const int v1 = crease_indices[index_start + j];
       const int v2 = crease_indices[index_start + j + 1];
@@ -499,7 +523,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
         continue;
       }
 
-      creases.span[edge_i] = sharpness;
+      creases.span[edge_i] = crease;
     }
 
     index_start += length;
@@ -518,7 +542,7 @@ void USDMeshReader::read_velocities(Mesh *mesh, const double motionSampleTime)
     bke::SpanAttributeWriter<float3> velocity =
         attributes.lookup_or_add_for_write_only_span<float3>("velocity", bke::AttrDomain::Point);
 
-    Span<pxr::GfVec3f> usd_data(velocities.data(), velocities.size());
+    Span<pxr::GfVec3f> usd_data(velocities.cdata(), velocities.size());
     velocity.span.copy_from(usd_data.cast<float3>());
     velocity.finish();
   }
@@ -531,7 +555,9 @@ void USDMeshReader::process_normals_vertex_varying(Mesh *mesh)
   }
 
   if (normals_.size() != mesh->verts_num) {
-    CLOG_WARN(&LOG, "Vertex varying normals count mismatch for mesh '%s'", prim_path_.c_str());
+    CLOG_WARN(&LOG,
+              "Vertex varying normals count mismatch for mesh '%s'",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -548,7 +574,8 @@ void USDMeshReader::process_normals_face_varying(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->corners_num) {
-    CLOG_WARN(&LOG, "Loop normal count mismatch for mesh '%s'", prim_path_.c_str());
+    CLOG_WARN(
+        &LOG, "Loop normal count mismatch for mesh '%s'", this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -583,7 +610,9 @@ void USDMeshReader::process_normals_uniform(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->faces_num) {
-    CLOG_WARN(&LOG, "Uniform normal count mismatch for mesh '%s'", prim_path_.c_str());
+    CLOG_WARN(&LOG,
+              "Uniform normal count mismatch for mesh '%s'",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -610,7 +639,7 @@ void USDMeshReader::read_mesh_sample(ImportSettings *settings,
 
   if (new_mesh || (settings->read_flag & MOD_MESHSEQ_READ_VERT) != 0) {
     MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
-    vert_positions.copy_from(Span(positions_.data(), positions_.size()).cast<float3>());
+    vert_positions.copy_from(Span(positions_.cdata(), positions_.size()).cast<float3>());
     mesh->tag_positions_changed();
 
     read_vertex_creases(mesh, motionSampleTime);
@@ -803,7 +832,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
       subset.GetIndicesAttr().Get(&indices, motionSampleTime);
 
       int bad_element_count = 0;
-      for (const int element_idx : indices) {
+      for (const int element_idx : indices.AsConst()) {
         const int safe_element_idx = std::clamp(element_idx, 0, max_element_idx);
         bad_element_count += (safe_element_idx != element_idx) ? 1 : 0;
         material_indices[safe_element_idx] = mat_idx - 1;
@@ -846,7 +875,7 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const double mot
   material_indices.finish();
   /* Build material name map if it's not built yet. */
   if (this->settings_->mat_name_to_mat.is_empty()) {
-    build_material_map(bmain, &this->settings_->mat_name_to_mat);
+    build_material_map(bmain, this->settings_->mat_name_to_mat);
   }
   utils::assign_materials(
       bmain, object_, mat_map, this->import_params_, this->prim_.GetStage(), *this->settings_);
@@ -915,22 +944,22 @@ void USDMeshReader::read_geometry(bke::GeometrySet &geometry_set,
   }
 }
 
-std::string USDMeshReader::get_skeleton_path() const
+pxr::SdfPath USDMeshReader::get_skeleton_path() const
 {
   /* Make sure we can apply UsdSkelBindingAPI to the prim.
    * Attempting to apply the API to instance proxies generates
    * a USD error. */
   if (!prim_ || prim_.IsInstanceProxy()) {
-    return "";
+    return {};
   }
 
   pxr::UsdSkelBindingAPI skel_api(prim_);
 
   if (pxr::UsdSkelSkeleton skel = skel_api.GetInheritedSkeleton()) {
-    return skel.GetPath().GetAsString();
+    return skel.GetPath();
   }
 
-  return "";
+  return {};
 }
 
 std::optional<XformResult> USDMeshReader::get_local_usd_xform(const float time) const
@@ -953,13 +982,12 @@ std::optional<XformResult> USDMeshReader::get_local_usd_xform(const float time) 
          * is constant over time. */
         return XformResult(pxr::GfMatrix4f(bind_xf), true);
       }
-      else {
-        BKE_reportf(reports(),
-                    RPT_WARNING,
-                    "%s: Couldn't compute geom bind transform for %s",
-                    __func__,
-                    prim_.GetPath().GetAsString().c_str());
-      }
+
+      BKE_reportf(reports(),
+                  RPT_WARNING,
+                  "%s: Couldn't compute geom bind transform for %s",
+                  __func__,
+                  prim_.GetPath().GetAsString().c_str());
     }
   }
 

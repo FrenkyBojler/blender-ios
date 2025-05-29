@@ -14,6 +14,7 @@
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
@@ -33,6 +34,11 @@ NODE_STORAGE_FUNCS(NodeMenuSwitch)
 
 static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
 {
+  if (!U.experimental.use_bundle_and_closure_nodes) {
+    if (ELEM(data_type, SOCK_BUNDLE, SOCK_CLOSURE)) {
+      return false;
+    }
+  }
   return ELEM(data_type,
               SOCK_FLOAT,
               SOCK_INT,
@@ -46,7 +52,10 @@ static bool is_supported_socket_type(const eNodeSocketDatatype data_type)
               SOCK_COLLECTION,
               SOCK_MATERIAL,
               SOCK_IMAGE,
-              SOCK_MATRIX);
+              SOCK_MATRIX,
+              SOCK_BUNDLE,
+              SOCK_CLOSURE,
+              SOCK_MENU);
 }
 
 static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
@@ -86,17 +95,17 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     output.propagate_all();
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeMenuSwitch *data = MEM_cnew<NodeMenuSwitch>(__func__);
+  NodeMenuSwitch *data = MEM_callocN<NodeMenuSwitch>(__func__);
   data->data_type = SOCK_GEOMETRY;
   data->enum_definition.next_identifier = 0;
   data->enum_definition.items_array = nullptr;
@@ -116,7 +125,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeMenuSwitch &src_storage = node_storage(*src_node);
-  NodeMenuSwitch *dst_storage = MEM_cnew<NodeMenuSwitch>(__func__, src_storage);
+  NodeMenuSwitch *dst_storage = MEM_dupallocN<NodeMenuSwitch>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<MenuSwitchItemsAccessor>(*src_node, *dst_node);
@@ -167,7 +176,7 @@ class MenuSwitchFn : public mf::MultiFunction {
     this->set_signature(&signature_);
   }
 
-  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const int value_inputs_start = 1;
     const int inputs_num = enum_def_.items_num;
@@ -232,8 +241,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     const NodeMenuSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     can_be_field_ = socket_type_supports_fields(data_type);
-    const bke::bNodeSocketType *socket_type = bke::node_socket_type_find(
-        *bke::node_static_socket_type(data_type, PROP_NONE));
+    const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(data_type);
     BLI_assert(socket_type != nullptr);
     cpp_type_ = socket_type->geometry_nodes_cpp_type;
     field_base_type_ = socket_type->base_cpp_type;
@@ -359,17 +367,16 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "menu_switch_items", false, IFACE_("Menu Items")))
-  {
+  if (uiLayout *panel = layout->panel(C, "menu_switch_items", false, IFACE_("Menu Items"))) {
     socket_items::ui::draw_items_list_with_operators<MenuSwitchItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<MenuSwitchItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
           uiLayoutSetPropSep(panel, true);
           uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
@@ -383,6 +390,28 @@ static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
 {
   return socket_items::try_add_item_via_any_extend_socket<MenuSwitchItemsAccessor>(
       *ntree, *node, *node, *link);
+}
+
+static void node_blend_write(const bNodeTree & /*ntree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<MenuSwitchItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*ntree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<MenuSwitchItemsAccessor>(&reader, node);
+}
+
+static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
+                                                       const bNode &node,
+                                                       const bNodeSocket & /*output_socket*/)
+{
+  const NodeMenuSwitch &storage = node_storage(node);
+  if (storage.enum_definition.items_num == 0) {
+    return nullptr;
+  }
+  /* Default to the first enum item input. */
+  return &node.input_socket(1);
 }
 
 static void node_rna(StructRNA *srna)
@@ -415,13 +444,17 @@ static void register_node()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype, "NodeMenuSwitch", node_free_storage, node_copy_storage);
+  blender::bke::node_type_storage(ntype, "NodeMenuSwitch", node_free_storage, node_copy_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
-  blender::bke::node_register_type(&ntype);
+  ntype.ignore_inferred_input_socket_visibility = true;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.internally_linked_input = node_internally_linked_input;
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
@@ -447,8 +480,6 @@ std::unique_ptr<LazyFunction> get_menu_switch_node_socket_usage_lazy_function(co
 }
 
 StructRNA *MenuSwitchItemsAccessor::item_srna = &RNA_NodeEnumItem;
-int MenuSwitchItemsAccessor::node_type = GEO_NODE_MENU_SWITCH;
-int MenuSwitchItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeEnumItem);
 
 void MenuSwitchItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

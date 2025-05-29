@@ -9,8 +9,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_dynstr.h"
-#include "BLI_string.h"
-#include "BLI_string_utils.hh"
 #include "BLI_vector.hh"
 
 #include "GPU_storage_buffer.hh"
@@ -258,7 +256,7 @@ void Shader::print_log(Span<StringRefNull> sources,
     }
     const char *_str = BLI_dynstr_get_cstring(dynstr);
     CLG_log_str(LOG.type, severity, this->name, stage, _str);
-    MEM_freeN((void *)_str);
+    MEM_freeN(_str);
   }
 
   BLI_dynstr_free(dynstr);

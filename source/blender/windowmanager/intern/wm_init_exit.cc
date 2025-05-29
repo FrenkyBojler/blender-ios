@@ -71,6 +71,7 @@
 #include "RNA_define.hh"
 
 #include "WM_api.hh"
+#include "WM_keymap.hh"
 #include "WM_message.hh"
 #include "WM_types.hh"
 
@@ -102,10 +103,9 @@
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 
-#include "GPU_compilation_subprocess.hh"
 #include "GPU_context.hh"
 #include "GPU_init_exit.hh"
-#include "GPU_material.hh"
+#include "GPU_shader.hh"
 
 #include "COM_compositor.hh"
 
@@ -161,8 +161,6 @@ void WM_init_gpu()
 
   GPU_init();
 
-  GPU_pass_cache_init();
-
   if (G.debug & G_DEBUG_GPU_COMPILE_SHADERS) {
     GPU_shader_compile_static();
   }
@@ -189,10 +187,8 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
     if (depsgraph == nullptr) {
       continue;
     }
-    BKE_sound_lock();
     Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     BKE_sound_jack_scene_update(scene_eval, mode, time);
-    BKE_sound_unlock();
   }
 }
 
@@ -466,8 +462,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       /* Save quit.blend. */
       Main *bmain = CTX_data_main(C);
       char filepath[FILE_MAX];
-      int fileflags = G.fileflags & ~G_FILE_COMPRESS;
-      fileflags |= G_FILE_RECOVER_WRITE;
+      const int fileflags = G.fileflags | G_FILE_COMPRESS | G_FILE_RECOVER_WRITE;
 
       BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
@@ -525,7 +520,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * Which can happen when the GPU backend fails to initialize.
    */
   if (C && CTX_py_init_get(C)) {
-    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules.  */
+    /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules. */
     const char *imports[] = {"bpy", "bpy.utils", nullptr};
     BPY_run_string_eval(C, imports, "bpy.utils._on_exit()");
   }
@@ -597,7 +592,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Free the GPU subdivision data after the database to ensure that subdivision structs used by
    * the modifiers were garbage collected. */
   if (gpu_is_init) {
-    blender::draw::DRW_subdiv_free();
+    blender::draw::DRW_cache_free_old_subdiv();
   }
 
   ANIM_fcurves_copybuf_free();
@@ -646,7 +641,6 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
     UI_exit();
-    GPU_pass_cache_free();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
@@ -673,7 +667,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   /* No need to call this early, rather do it late so that other
    * pieces of Blender using sound may exit cleanly, see also #50676. */
-  BKE_sound_exit();
+  BKE_sound_exit_once();
 
   BKE_appdir_exit();
 

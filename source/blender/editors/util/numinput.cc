@@ -19,7 +19,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_report.hh"
-#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "DNA_scene_types.h"
@@ -162,7 +161,7 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
       const char *cur = (i == n->idx) ? "|" : "";
       BLI_snprintf(&str[j * ln], ln, "%sNONE%s", cur, cur);
     }
-    /* We might have cut some multi-bytes utf8 chars
+    /* We might have cut some multi-bytes UTF8 chars
      * (e.g. trailing degrees symbol values can become only 'A'). */
     BLI_str_utf8_invalid_strip(&str[j * ln], strlen(&str[j * ln]));
   }
@@ -474,8 +473,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 #if 0
     /* Those keys are not directly accessible in all layouts,
      * preventing to generate matching events.
-     * So we use a hack (ascii value) instead, see below.
-     */
+     * So we use a hack (ASCII value) instead, see below. */
     case EQUALKEY:
     case PADASTERKEY:
       if (!(n->flag & NUM_EDIT_FULL)) {
@@ -556,7 +554,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
   if (utf8_buf && utf8_buf[0]) {
     if (!(n->flag & NUM_EDIT_FULL)) {
       /* In simple edit mode, we only keep a few chars as valid! */
-      /* no need to decode unicode, ascii is first char only */
+      /* no need to decode unicode, ASCII is first char only. */
       if (!editstr_is_simple_numinput(utf8_buf[0])) {
         return false;
       }

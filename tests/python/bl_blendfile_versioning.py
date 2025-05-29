@@ -55,7 +55,7 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
             "ram_glsl.blend",
         }
 
-        # Directories to exclude relative to `./tests/data/`.
+        # Directories to exclude relative to `./tests/files/`.
         self.excluded_dirs = ()
 
         assert all(p.endswith("/") for p in self.excluded_dirs)
@@ -83,11 +83,12 @@ class TestBlendFileOpenAllTestFiles(TestHelper):
         slice_stride_base = total_len // slice_range
         slice_stride_remain = total_len % slice_range
 
-        def gen_indices(i): return (
-            (i * (slice_stride_base + 1))
-            if i < slice_stride_remain else
-            (slice_stride_remain * (slice_stride_base + 1)) + ((i - slice_stride_remain) * slice_stride_base)
-        )
+        def gen_indices(i):
+            return (
+                (i * (slice_stride_base + 1))
+                if i < slice_stride_remain else
+                (slice_stride_remain * (slice_stride_base + 1)) + ((i - slice_stride_remain) * slice_stride_base)
+            )
         slice_indices = [(gen_indices(i), gen_indices(i + 1)) for i in range(slice_range)]
         return slice_indices[slice_index]
 
@@ -143,7 +144,7 @@ def argparse_create():
 
     # When --help or no args are given, print this help
     description = ("Test basic versioning code by opening all blend files "
-                   "in `tests/data` directory.")
+                   "in `tests/files` directory.")
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--src-test-dir",

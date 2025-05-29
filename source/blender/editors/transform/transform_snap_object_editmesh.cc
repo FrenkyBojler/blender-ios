@@ -18,7 +18,7 @@
 
 #include "transform_snap_object.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Snap Object Data
@@ -76,7 +76,7 @@ static Mesh *create_mesh(SnapObjectContext *sctx,
                          const Object *ob_eval,
                          eSnapEditType /*edit_mode_type*/)
 {
-  Mesh *mesh = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(ob_eval));
   BMesh *bm = em->bm;
   BM_mesh_bm_to_me_compact(*bm, *mesh, nullptr, false);
@@ -245,3 +245,5 @@ eSnapMode snap_object_editmesh(SnapObjectContext *sctx,
   }
   return SCE_SNAP_TO_NONE;
 }
+
+}  // namespace blender::ed::transform

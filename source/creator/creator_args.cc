@@ -48,8 +48,11 @@
 #  include "BKE_scene.hh"
 #  include "BKE_sound.h"
 
-#  include "GPU_capabilities.hh"
 #  include "GPU_context.hh"
+#  ifdef WITH_OPENGL_BACKEND
+#    include "GPU_capabilities.hh"
+#    include "GPU_compilation_subprocess.hh"
+#  endif
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern_python.hh"
@@ -90,7 +93,7 @@ struct BuildDefs {
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_ocio;
+  bool with_opencolorio;
   bool with_renderdoc;
   bool with_xr_openxr;
 };
@@ -125,8 +128,8 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  ifdef WITH_LIBMV
   build_defs->with_libmv = true;
 #  endif
-#  ifdef WITH_OCIO
-  build_defs->with_ocio = true;
+#  ifdef WITH_OPENCOLORIO
+  build_defs->with_opencolorio = true;
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
@@ -323,7 +326,7 @@ static int *parse_int_relative_clamp_n(
     }
   }
 
-  int *values = MEM_mallocN(sizeof(*values) * len, __func__);
+  int *values = MEM_malloc_arrayN<int>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end = strchr(str, sep);
@@ -379,7 +382,7 @@ static int (*parse_int_range_relative_clamp_n(const char *str,
     }
   }
 
-  int(*values)[2] = static_cast<int(*)[2]>(MEM_mallocN(sizeof(*values) * len, __func__));
+  int(*values)[2] = MEM_malloc_arrayN<int[2]>(size_t(len), __func__);
   int i = 0;
   while (true) {
     const char *str_end_range;
@@ -436,7 +439,7 @@ fail:
 #  ifdef WIN32
 static char **argv_duplicate(const char **argv, int argc)
 {
-  char **argv_copy = static_cast<char **>(MEM_mallocN(sizeof(*argv_copy) * argc, __func__));
+  char **argv_copy = MEM_malloc_arrayN<char *>(size_t(argc), __func__);
   for (int i = 0; i < argc; i++) {
     argv_copy[i] = BLI_strdup(argv[i]);
   }
@@ -469,8 +472,7 @@ static bool main_arg_deferred_is_set()
 static void main_arg_deferred_setup(BA_ArgCallback func, int argc, const char **argv, void *data)
 {
   BLI_assert(app_state.main_arg_deferred == nullptr);
-  BA_ArgCallback_Deferred *d = static_cast<BA_ArgCallback_Deferred *>(
-      MEM_callocN(sizeof(*d), __func__));
+  BA_ArgCallback_Deferred *d = MEM_callocN<BA_ArgCallback_Deferred>(__func__);
   d->func = func;
   d->argc = argc;
   d->argv = argv;
@@ -783,6 +785,7 @@ static void print_help(bArgs *ba, bool all)
 #  ifdef WITH_OPENGL_BACKEND
   BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
 #  endif
+  BLI_args_print_arg_doc(ba, "--profile-gpu");
 
   PRINT("\n");
   PRINT("Misc Options:\n");
@@ -867,7 +870,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_ocio) {
+  if (defs.with_opencolorio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
   }
   if (defs.win32 || all) {
@@ -1491,7 +1494,7 @@ static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
 static const char arg_handle_gpu_backend_set_doc_all[] =
     "\n"
     "\tForce to use a specific GPU backend. Valid options: "
-    "'vulkan' (experimental),  "
+    "'vulkan',  "
     "'metal',  "
     "'opengl'.";
 static const char arg_handle_gpu_backend_set_doc[] =
@@ -1507,7 +1510,7 @@ static const char arg_handle_gpu_backend_set_doc[] =
 #    if defined(WITH_OPENGL_BACKEND) || defined(WITH_METAL_BACKEND)
     " or "
 #    endif
-    "'vulkan' (experimental)"
+    "'vulkan'"
 #  endif
     ".";
 static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data*/)
@@ -1915,6 +1918,9 @@ static const char arg_handle_output_set_doc[] =
     "<path>\n"
     "\tSet the render path and file name.\n"
     "\tUse '//' at the start of the path to render relative to the blend-file.\n"
+    "\n"
+    "\tYou can use path templating features such as '{blend_name}' in the path.\n"
+    "\tSee Blender's documentation on path templates for more details.\n"
     "\n"
     "\tThe '#' characters are replaced by the frame number, and used to define zero padding.\n"
     "\n"
@@ -2325,11 +2331,11 @@ static const char arg_handle_python_file_run_doc[] =
     "\tRun the given Python script file.";
 static int arg_handle_python_file_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     /* Make the path absolute because its needed for relative linked blends to be found. */
     char filepath[FILE_MAX];
     STRNCPY(filepath, argv[1]);
@@ -2341,16 +2347,15 @@ static int arg_handle_python_file_run(int argc, const char **argv, void *data)
       fprintf(stderr, "\nError: script failed, file: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
+
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a filepath after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_text_run_doc[] =
@@ -2358,11 +2363,11 @@ static const char arg_handle_python_text_run_doc[] =
     "\tRun the given Python script text block.";
 static int arg_handle_python_text_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     Main *bmain = CTX_data_main(C);
     /* Make the path absolute because its needed for relative linked blends to be found. */
     Text *text = (Text *)BKE_libblock_find_name(bmain, ID_TXT, argv[1]);
@@ -2380,17 +2385,16 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
       fprintf(stderr, "\nError: script failed, text: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
 
     return 1;
   }
+
   fprintf(stderr, "\nError: you must specify a text block after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_expr_run_doc[] =
@@ -2398,27 +2402,26 @@ static const char arg_handle_python_expr_run_doc[] =
     "\tRun the given expression as a Python script.";
 static int arg_handle_python_expr_run(int argc, const char **argv, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
 
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
+#  ifdef WITH_PYTHON
     bool ok;
     BPY_CTX_SETUP(ok = BPY_run_string_exec(C, nullptr, argv[1]));
     if (!ok && app_state.exit_code_on_error.python) {
       fprintf(stderr, "\nError: script failed, expr: '%s', exiting.\n", argv[1]);
       WM_exit(C, app_state.exit_code_on_error.python);
     }
+#  else
+    UNUSED_VARS(C);
+    fprintf(stderr, "This Blender was built without Python support\n");
+#  endif /* WITH_PYTHON */
+
     return 1;
   }
   fprintf(stderr, "\nError: you must specify a Python expression after '%s'.\n", argv[0]);
   return 0;
-
-#  else
-  UNUSED_VARS(argc, argv, data);
-  fprintf(stderr, "This Blender was built without Python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_console_run_doc[] =
@@ -2426,18 +2429,16 @@ static const char arg_handle_python_console_run_doc[] =
     "Run Blender with an interactive console.";
 static int arg_handle_python_console_run(int /*argc*/, const char ** /*argv*/, void *data)
 {
-#  ifdef WITH_PYTHON
   bContext *C = static_cast<bContext *>(data);
-
+#  ifdef WITH_PYTHON
   const char *imports[] = {"code", nullptr};
   BPY_CTX_SETUP(BPY_run_string_eval(C, imports, "code.interact()"));
+#  else
+  UNUSED_VARS(C);
+  fprintf(stderr, "This Blender was built without python support\n");
+#  endif /* WITH_PYTHON */
 
   return 0;
-#  else
-  UNUSED_VARS(argv, data);
-  fprintf(stderr, "This Blender was built without python support\n");
-  return 0;
-#  endif /* WITH_PYTHON */
 }
 
 static const char arg_handle_python_exit_code_set_doc[] =
@@ -2511,6 +2512,16 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   return 0;
 }
 
+static const char arg_handle_profile_gpu_set_doc[] =
+    "\n"
+    "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
+    "\t(Outputs a profile.json file in the Trace Event Format to the current directory)";
+static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  G.profile_gpu = true;
+  return 0;
+}
+
 /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
  * \return true on success.
@@ -2525,8 +2536,11 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
   /* Load the file. */
   ReportList reports;
   BKE_reports_init(&reports, RPT_PRINT);
-  WM_file_autoexec_init(filepath);
-  const bool success = WM_file_read(C, filepath, &reports);
+  /* When activating from the command line there isn't an exact equivalent to operator properties.
+   * Instead, enabling auto-execution via `--enable-autoexec` causes the auto-execution
+   * check to be skipped (if it's set), so it's fine to always enable the check here. */
+  const bool use_scripts_autoexec_check = true;
+  const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, &reports);
   BKE_reports_free(&reports);
 
   if (success) {
@@ -2679,6 +2693,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB(arg_handle_gpu_compilation_subprocesses_set),
                nullptr);
 #  endif
+  BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
 
   /* Pass: Background Mode & Settings
    *

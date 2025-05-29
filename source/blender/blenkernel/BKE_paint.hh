@@ -207,7 +207,7 @@ bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint 
 
 Brush *BKE_paint_brush(Paint *paint);
 const Brush *BKE_paint_brush_for_read(const Paint *paint);
-Brush *BKE_paint_brush_from_essentials(Main *bmain, eObjectMode obmode, const char *name);
+Brush *BKE_paint_brush_from_essentials(Main *bmain, eObjectMode ob_mode, const char *name);
 
 /**
  * Check if brush \a brush may be set/activated for \a paint. Passing null for \a brush will return
@@ -238,6 +238,9 @@ bool BKE_paint_brush_set(Main *bmain,
                          const AssetWeakReference *brush_asset_reference);
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint);
 bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name);
+void BKE_paint_previous_asset_reference_set(Paint *paint,
+                                            AssetWeakReference &&asset_weak_reference);
+void BKE_paint_previous_asset_reference_clear(Paint *paint);
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
     eObjectMode ob_mode, std::optional<int> brush_type);
@@ -367,6 +370,13 @@ struct SculptTopologyIslandCache {
 
 using ActiveVert = std::variant<std::monostate, int, BMVert *>;
 
+/* Helper return struct for associated data. */
+struct PersistentMultiresData {
+  blender::Span<blender::float3> positions;
+  blender::Span<blender::float3> normals;
+  blender::MutableSpan<float> displacements;
+};
+
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
   struct { /* Special handling for multires meshes */
@@ -430,7 +440,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   float cursor_radius = 0.0f;
   blender::float3 cursor_location;
   blender::float3 cursor_normal;
-  blender::float3 cursor_sampled_normal;
+  std::optional<blender::float3> cursor_sampled_normal;
   blender::float3 cursor_view_normal;
 
   /* TODO(jbakker): Replace rv3d and v3d with ViewContext */
@@ -448,9 +458,17 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
 
   /* "Persistent" positions and normals for multires. (For mesh the
    * ".sculpt_persistent_co" attribute is used, etc.). */
-  blender::Array<blender::float3> sculpt_persistent_co;
-  blender::Array<blender::float3> sculpt_persistent_no;
-  blender::Array<float> sculpt_persistent_disp;
+  struct {
+    blender::Array<blender::float3> sculpt_persistent_co;
+    blender::Array<blender::float3> sculpt_persistent_no;
+    blender::Array<float> sculpt_persistent_disp;
+
+    /* The stored state for the SubdivCCG at the time of attribute population, used to roughly
+     * determine if the topology when accessed at a current point in time is equivalent to when
+     * it was originally stored. */
+    int grids_num = -1;
+    int grid_size = -1;
+  } persistent;
 
   SculptVertexInfo vertex_info = {};
   SculptFakeNeighbors fake_neighbors = {};
@@ -473,7 +491,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
       /* Keep track of how much each vertex has been painted (non-airbrush only). */
       float *alpha_weight;
 
-      /* Needed to continuously re-apply over the same weights (BRUSH_ACCUMULATE disabled).
+      /* Needed to continuously re-apply over the same weights (#BRUSH_ACCUMULATE disabled).
        * Lazy initialize as needed (flag is set to 1 to tag it as uninitialized). */
       blender::Array<MDeformVert> dvert_prev;
     } wpaint;
@@ -491,7 +509,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
    * ID data is older than sculpt-mode data.
    * Set #Main.is_memfile_undo_flush_needed when enabling.
    */
-  char needs_flush_to_id = false;
+  bool needs_flush_to_id = false;
 
   /**
    * Some tools follows the shading chosen by the last used tool canvas.
@@ -553,7 +571,16 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   blender::float3 active_vert_position(const Depsgraph &depsgraph, const Object &object) const;
 
   void set_active_vert(ActiveVert vert);
-  void clear_active_vert(bool persist_last_active);
+  void clear_active_elements(bool persist_last_active);
+
+  /**
+   * Retrieves the current persistent multires data.
+   *
+   * Potentially used for the layer and cloth brushes.
+   *
+   * \returns an empty optional if the current data cannot be used
+   */
+  std::optional<PersistentMultiresData> persistent_multires_data();
 };
 
 void BKE_sculptsession_free(Object *ob);

@@ -44,7 +44,7 @@
 
 #include "BLI_polyfill_2d.h" /* own include */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* avoid fan-fill topology */
 #define USE_CLIP_EVEN
@@ -64,6 +64,8 @@
 #ifdef DEBUG_TIME
 #  include "BLI_time_utildefines.h"
 #endif
+
+namespace {
 
 using eSign = int8_t;
 
@@ -146,6 +148,8 @@ struct PolyFill {
   KDTree2D kdtree;
 #endif
 };
+
+}  // namespace
 
 /* Based on LIBGDX 2013-11-28, APACHE 2.0 licensed. */
 

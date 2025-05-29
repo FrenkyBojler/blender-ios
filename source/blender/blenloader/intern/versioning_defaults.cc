@@ -38,7 +38,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 #include "DNA_world_types.h"
@@ -133,6 +132,11 @@ static void blo_update_defaults_screen(bScreen *screen,
         if (sima->mode == SI_MODE_VIEW) {
           sima->mode = SI_MODE_UV;
         }
+        sima->uv_face_opacity = 1.0f;
+      }
+      else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        sima->uv_face_opacity = 0.0f;
       }
     }
     else if (area->spacetype == SPACE_ACTION) {
@@ -193,6 +197,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->overlay.texture_paint_mode_opacity = 1.0f;
       v3d->overlay.weight_paint_mode_opacity = 1.0f;
       v3d->overlay.vertex_paint_mode_opacity = 1.0f;
+      /* Update default Z bias for retopology overlay. */
+      v3d->overlay.retopology_offset = 0.01f;
       /* Clear this deprecated bit for later reuse. */
       v3d->overlay.edit_flag &= ~V3D_OVERLAY_EDIT_EDGES_DEPRECATED;
       /* grease pencil settings */
@@ -339,6 +345,8 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
+  ToolSettings *ts = scene->toolsettings;
+
   STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
 
   scene->r.cfra = 1.0f;
@@ -374,14 +382,13 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
-  scene->toolsettings->snap_angle_increment_2d = default_snap_angle_increment;
-  scene->toolsettings->snap_angle_increment_3d = default_snap_angle_increment;
+  ts->snap_angle_increment_2d = default_snap_angle_increment;
+  ts->snap_angle_increment_3d = default_snap_angle_increment;
   const float default_snap_angle_increment_precision = DEG2RADF(1.0f);
-  scene->toolsettings->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
-  scene->toolsettings->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
 
   /* Be sure `curfalloff` and primitive are initialized. */
-  ToolSettings *ts = scene->toolsettings;
   if (ts->gp_sculpt.cur_falloff == nullptr) {
     ts->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
     CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
@@ -402,7 +409,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   }
 
   if (ts->sculpt) {
-    ts->sculpt->flags = static_cast<const Sculpt *>(DNA_struct_default_get(Sculpt))->flags;
+    ts->sculpt->flags = DNA_struct_default_get(Sculpt)->flags;
   }
 
   /* Correct default startup UVs. */
@@ -506,6 +513,17 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       }
     }
 
+    /* Add library weak references to avoid duplicating materials from essentials. */
+    const std::optional<std::string> assets_path = BKE_appdir_folder_id(BLENDER_SYSTEM_DATAFILES,
+                                                                        "assets/brushes");
+    if (assets_path.has_value()) {
+      const std::string assets_blend_path = *assets_path + "/essentials_brushes-gp_draw.blend";
+      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+        BKE_main_library_weak_reference_add(
+            &material->id, assets_blend_path.c_str(), material->id.name);
+      }
+    }
+
     /* Reset grease pencil paint modes. */
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       ToolSettings *ts = scene->toolsettings;
@@ -605,6 +623,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
   }
 
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    const Object *dob = DNA_struct_default_get(Object);
+    /* Set default for shadow terminator bias. */
+    object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
+    object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
+    object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
+  }
+
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     /* Match default for new meshes. */
     mesh->smoothresh_legacy = DEG2RADF(30);
@@ -618,8 +644,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
     else {
       /* Remove sculpt-mask data in default mesh objects for all non-sculpt templates. */
-      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK, mesh->verts_num);
-      CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK, mesh->corners_num);
+      CustomData_free_layers(&mesh->vert_data, CD_PAINT_MASK);
+      CustomData_free_layers(&mesh->corner_data, CD_GRID_PAINT_MASK);
     }
     mesh->attributes_for_write().remove(".sculpt_face_set");
   }
@@ -647,21 +673,28 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       for (bNode *node : ma->nodetree->all_nodes()) {
         if (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) {
           bNodeSocket *roughness_socket = blender::bke::node_find_socket(
-              node, SOCK_IN, "Roughness");
+              *node, SOCK_IN, "Roughness");
           *version_cycles_node_socket_float_value(roughness_socket) = 0.5f;
-          bNodeSocket *emission = blender::bke::node_find_socket(node, SOCK_IN, "Emission Color");
+          bNodeSocket *emission = blender::bke::node_find_socket(*node, SOCK_IN, "Emission Color");
           copy_v4_fl(version_cycles_node_socket_rgba_value(emission), 1.0f);
           bNodeSocket *emission_strength = blender::bke::node_find_socket(
-              node, SOCK_IN, "Emission Strength");
+              *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
+
+          node->location[0] = -200.0f;
+          node->location[1] = 100.0f;
           BKE_ntree_update_tag_node_property(ma->nodetree, node);
         }
         else if (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING) {
           node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
           BKE_ntree_update_tag_node_property(ma->nodetree, node);
+        }
+        else if (node->type_legacy == SH_NODE_OUTPUT_MATERIAL) {
+          node->location[0] = 200.0f;
+          node->location[1] = 100.0f;
         }
       }
     }
@@ -701,6 +734,18 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   {
     LISTBASE_FOREACH (World *, world, &bmain->worlds) {
       SET_FLAG_FROM_TEST(world->flag, true, WO_USE_SUN_SHADOW);
+      if (world->nodetree) {
+        for (bNode *node : world->nodetree->all_nodes()) {
+          if (node->type_legacy == SH_NODE_OUTPUT_WORLD) {
+            node->location[0] = 200.0f;
+            node->location[1] = 100.0f;
+          }
+          else if (node->type_legacy == SH_NODE_BACKGROUND) {
+            node->location[0] = -200.0f;
+            node->location[1] = 100.0f;
+          }
+        }
+      }
     }
   }
 }

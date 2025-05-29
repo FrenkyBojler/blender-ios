@@ -6,7 +6,6 @@
  * \ingroup bke
  */
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -36,6 +35,7 @@
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
 #include "BKE_vfont.hh"
@@ -49,7 +49,7 @@ static CLG_LogRef LOG = {"bke.vfont"};
 /** \name Prototypes
  * \{ */
 
-static PackedFile *packedfile_new_from_builtin(void);
+static PackedFile *packedfile_new_from_builtin();
 
 /** \} */
 
@@ -163,7 +163,7 @@ static void vfont_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_VF = {
-    /*id_code*/ ID_VF,
+    /*id_code*/ VFont::id_type,
     /*id_filter*/ FILTER_ID_VF,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_VF,
@@ -482,12 +482,12 @@ void BKE_vfont_clipboard_set(const char32_t *text_buf, const CharInfo *info_buf,
   /* Clean previous buffers. */
   BKE_vfont_clipboard_free();
 
-  text = static_cast<char32_t *>(MEM_malloc_arrayN((len + 1), sizeof(*text), __func__));
+  text = MEM_malloc_arrayN<char32_t>((len + 1), __func__);
   if (text == nullptr) {
     return;
   }
 
-  info = static_cast<CharInfo *>(MEM_malloc_arrayN(len, sizeof(CharInfo), __func__));
+  info = MEM_malloc_arrayN<CharInfo>(len, __func__);
   if (info == nullptr) {
     MEM_freeN(text);
     return;

@@ -102,6 +102,12 @@ class AbstractView {
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
 
   virtual bool supports_scrolling() const;
+
+  /**
+   * \return True when everything in this view is visible, i.e. no scrolling is needed.
+   */
+  virtual bool is_fully_visible() const;
+
   virtual void scroll(ViewScrollDirection direction);
 
   /**
@@ -198,6 +204,13 @@ class AbstractViewItem {
 
   /** Cache filtered state here to avoid having to re-query. */
   bool is_filtered_visible_ = true;
+
+  /**
+   * Typically, only items with children can be collapsed. However, in some cases it's important
+   * to draw collapsible items differently from non-collapsible ones, even if they don't have
+   * children currently.
+   */
+  bool is_always_collapsible_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
@@ -379,7 +392,7 @@ class AbstractViewItemDragController {
 
 template<class ViewType> ViewType &AbstractViewItemDragController::get_view() const
 {
-  static_assert(std::is_base_of<AbstractView, ViewType>::value,
+  static_assert(std::is_base_of_v<AbstractView, ViewType>,
                 "Type must derive from and implement the ui::AbstractView interface");
   return dynamic_cast<ViewType &>(view_);
 }

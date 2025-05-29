@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include "GPU_shader.hh"
-
 #include "COM_context.hh"
 #include "COM_domain.hh"
 #include "COM_input_descriptor.hh"
@@ -42,6 +40,14 @@ class RealizeOnDomainOperation : public SimpleOperation {
                                               const Result &input_result,
                                               const InputDescriptor &input_descriptor,
                                               const Domain &operation_domain);
+
+  /* Given a potentially transformed domain, compute a domain such that its rotation and scale
+   * become identity and the size of the domain is increased/reduced to adapt to the new
+   * transformation. For instance, if the domain is rotated, the returned domain will have zero
+   * rotation but expanded size to account for the bounding box of the domain after rotation. The
+   * size of the returned domain is bound and clipped by the maximum possible size to avoid
+   * allocations that surpass hardware limits. */
+  static Domain compute_realized_transformation_domain(Context &context, const Domain &domain);
 
  protected:
   /* The operation domain is just the target domain. */

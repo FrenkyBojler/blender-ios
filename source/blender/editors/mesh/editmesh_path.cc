@@ -678,7 +678,7 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
   return ok;
 }
 
-static int edbm_shortest_path_pick_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op);
 
 static BMElem *edbm_elem_find_nearest(ViewContext *vc, const char htype)
 {
@@ -709,7 +709,9 @@ static BMElem *edbm_elem_active_elem_or_face_get(BMesh *bm)
   return ele;
 }
 
-static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "index")) {
     return edbm_shortest_path_pick_exec(C, op);
@@ -727,7 +729,7 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
   Base *basact = BKE_view_layer_active_base_get(vc.view_layer);
   BMEditMesh *em = vc.em;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   {
     int base_index = -1;
@@ -745,9 +747,10 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
     /* TODO(dfelinto): right now we try to find the closest element twice.
      * The ideal is to refactor EDBM_select_pick so it doesn't
      * have to pick the nearest vert/edge/face again. */
-    SelectPick_Params params{};
-    params.sel_op = SEL_OP_ADD;
-    EDBM_select_pick(C, event->mval, &params);
+    const SelectPick_Params params = {
+        /*sel_op*/ SEL_OP_ADD,
+    };
+    EDBM_select_pick(C, event->mval, params);
     return OPERATOR_FINISHED;
   }
 
@@ -791,7 +794,7 @@ static int edbm_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmE
   return OPERATOR_FINISHED;
 }
 
-static int edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
@@ -830,7 +833,7 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
   ot->idname = "MESH_OT_shortest_path_pick";
   ot->description = "Select shortest path between two selections";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_shortest_path_pick_invoke;
   ot->exec = edbm_shortest_path_pick_exec;
   ot->poll = ED_operator_editmesh_region_view3d;
@@ -853,7 +856,7 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
 /** \name Select Path Between Existing Selection
  * \{ */
 
-static int edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   bool found_valid_elements = false;
@@ -958,7 +961,7 @@ void MESH_OT_shortest_path_select(wmOperatorType *ot)
   ot->idname = "MESH_OT_shortest_path_select";
   ot->description = "Selected shortest path between two vertices/edges/faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_shortest_path_select_exec;
   ot->poll = ED_operator_editmesh;
   ot->poll_property = path_select_poll_property;

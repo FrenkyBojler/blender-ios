@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include "BLI_array.hh"
@@ -702,6 +706,11 @@ void gather_to_groups(OffsetIndices<int> dst_offsets,
                       const IndexMask &src_selection,
                       GSpan src,
                       GMutableSpan dst);
+
+void gather_ranges_to_groups(Span<IndexRange> src_ranges,
+                             OffsetIndices<int> dst_offsets,
+                             GSpan src,
+                             GMutableSpan dst);
 
 /** \} */
 
