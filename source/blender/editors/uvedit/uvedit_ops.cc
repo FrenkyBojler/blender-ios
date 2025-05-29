@@ -342,6 +342,136 @@ bool ED_uvedit_center_from_pivot_ex(SpaceImage *sima,
   return changed;
 }
 
+enum eUVMoveType {
+  DYNAMIC,
+  PIXEL,
+  UDIM,
+};
+enum eUVMoveDirection {
+  X,
+  Y,
+};
+
+
+static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
+
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
+  eUVMoveType type = eUVMoveType(RNA_enum_get(op->ptr, "type"));
+  eUVMoveDirection axis = eUVMoveDirection(RNA_enum_get(op->ptr, "axis"));
+  int distance = RNA_int_get(op->ptr, "distance");
+
+  int width = 0, height = 0;
+  ED_space_image_get_size(sima, &width, &height);
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    bool changed = false;
+
+    ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
+      if(type == DYNAMIC) {
+        if (axis == X) {
+          luv[0] += (float)distance / SI_GRID_STEPS_LEN;
+        }
+        else {
+          luv[1] += (float)distance / SI_GRID_STEPS_LEN;
+        }
+        changed = true;
+      }
+      else if (type == PIXEL) {
+        if (axis == X) {
+          luv[0] += (float)distance / width;
+          
+        }
+        else {
+          luv[1] += (float)distance / height;
+        }
+        changed = true;
+      }
+      else if (type == UDIM) {
+        if (axis == X) {
+          luv[0] += distance;
+        }
+        else {
+          luv[1] += distance;
+        }
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      uvedit_live_unwrap_update(sima, scene, obedit);
+      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    }
+  }
+  return OPERATOR_FINISHED;
+}
+
+static void UV_OT_arrow_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem move_items[] = {
+      {DYNAMIC,
+       "DYNAMIC",
+       0,
+       "Dynamic",
+       "Align UV vertices along the line defined by the endpoints"},
+      {PIXEL,
+       "PIXEL",
+       0,
+       "Pixel",
+       "Align UV vertices, moving them horizontally to the line defined by the endpoints"},
+      {UDIM,
+       "UDIM",
+       0,
+       "UDIM",
+       "Align UV vertices, moving them vertically to the line defined by the endpoints"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+   static const EnumPropertyItem axis_items[] = {
+      {X,
+       "X",
+       0,
+       "X axis",
+       "Move vertices on the X axis"},
+      {Y,
+       "Y axis",
+       0,
+       "Y axis",
+       "Move vertices on the Y axis"},
+
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Arrow Move";
+  ot->description = "Move selected UV vertices on a line";
+  ot->idname = "UV_OT_arrow_move";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_arrow_move_exec;
+  ot->poll = ED_operator_uvedit;
+
+  /* properties */
+  RNA_def_enum(
+      ot->srna, "type", move_items, DYNAMIC, "Type", "Axis to align UV locations on");
+  RNA_def_enum(ot->srna, "axis", axis_items, X, "Axis", "Axis to move UV vertices on");
+  RNA_def_int(ot->srna,
+                "distance",
+                1,
+                INT_MIN,
+                INT_MAX,
+                "Distance",
+                "Distance to move UV vertices",
+                INT_MIN,
+                INT_MAX);
+
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -642,7 +772,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
 
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float threshold = RNA_float_get(op->ptr, "distance");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -755,7 +885,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float threshold = RNA_float_get(op->ptr, "distance");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -820,7 +950,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
       scene, view_layer, nullptr);
 
   /* Only use the squared distance, to avoid a square-root. */
-  const float threshold_sq = math::square(RNA_float_get(op->ptr, "threshold"));
+  const float threshold_sq = math::square(RNA_float_get(op->ptr, "distance"));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -943,7 +1073,7 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   RNA_def_float(ot->srna,
-                "threshold",
+                "distance",
                 0.02f,
                 0.0f,
                 10.0f,
@@ -2039,6 +2169,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_paste);
 
   WM_operatortype_append(UV_OT_cursor_set);
+  WM_operatortype_append(UV_OT_arrow_move);
 }
 
 void ED_operatormacros_uvedit()

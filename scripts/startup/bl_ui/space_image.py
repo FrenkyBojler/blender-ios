@@ -370,6 +370,14 @@ class IMAGE_MT_uvs_align(Menu):
         layout.operator_enum("uv.align", "axis")
 
 
+class IMAGE_MT_arrow_move(Menu):
+    bl_label = "Arrow Move"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator_enum("uv.arrow_move", "type")
+
 class IMAGE_MT_uvs_merge(Menu):
     bl_label = "Merge"
 
@@ -491,6 +499,7 @@ class IMAGE_MT_uvs(Menu):
         layout.separator()
 
         layout.operator("uv.reset")
+        layout.menu("IMAGE_MT_arrow_move")
 
         layout.separator()
 
@@ -1808,6 +1817,7 @@ classes = (
     IMAGE_MT_uvs_snap,
     IMAGE_MT_uvs_mirror,
     IMAGE_MT_uvs_align,
+    IMAGE_MT_arrow_move,
     IMAGE_MT_uvs_merge,
     IMAGE_MT_uvs_split,
     IMAGE_MT_uvs_unwrap,
