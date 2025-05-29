@@ -4146,16 +4146,33 @@ static rctf calc_node_frame_dimensions(const bContext &C,
 {
   if (!node.is_frame()) {
     rctf node_bounds = node.runtime->draw_bounds;
+
+    float zone_padding = 0;
+    float extra_row_padding = 0;
+
+    /* Pad if the node type is a zone input or output. */
     if (bke::zone_type_by_node_type(node.type_legacy) != nullptr) {
-      node_bounds.ymax += NODE_ZONE_PADDING;
-      node_bounds.ymin -= NODE_ZONE_PADDING;
+      zone_padding = NODE_ZONE_PADDING;
+    }
+
+    /* Otherwise pad if the node is contained inside a zone. */
+    else {
+      const blender::bke::bNodeTreeZones *zones_list = node.owner_tree().zones();
+      if (zones_list && zones_list->get_zone_by_node(node.identifier) != nullptr) {
+        zone_padding = NODE_ZONE_PADDING;
+      }
     }
 
     /* Compute the height of the info row for each node, which may vary per child node.
      * This has to get the full extra_rows information (including all the text strings), even
      * though all that's actually needed is the count of how many info_rows there are. */
-    Vector<NodeExtraInfoRow> extra_info_rows = node_get_extra_info(C, tree_draw_ctx, snode, node);
-    node_bounds.ymax += extra_info_rows.size() * EXTRA_INFO_ROW_HEIGHT;
+    if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS) {
+      extra_row_padding = node_get_extra_info(C, tree_draw_ctx, snode, node).size() *
+                          EXTRA_INFO_ROW_HEIGHT;
+    }
+
+    node_bounds.ymax += std::max(zone_padding, extra_row_padding);
+    node_bounds.ymin -= zone_padding;
 
     return node_bounds;
   }
