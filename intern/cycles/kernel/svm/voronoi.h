@@ -422,22 +422,22 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
 
   float2 closestPoint = make_float2(0.0f, 0.0f);
   float2 closestPointOffset = make_float2(0.0f, 0.0f);
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
       const float2 cellOffset = make_float2(i, j);
       const float2 pointPosition = cellOffset + hash_float2_to_float2(cellPosition + cellOffset) *
                                                     params.randomness;
-      const float distanceToPoint = len_squared(pointPosition - localPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      const float distanceToPointSq = len_squared(pointPosition - localPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPoint = pointPosition;
         closestPointOffset = cellOffset;
       }
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float2 closestPointToClosestPoint = make_float2(0.0f, 0.0f);
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
@@ -447,9 +447,9 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
       const float2 cellOffset = make_float2(i, j) + closestPointOffset;
       const float2 pointPosition = cellOffset + hash_float2_to_float2(cellPosition + cellOffset) *
                                                     params.randomness;
-      const float distanceToPoint = len_squared(closestPoint - pointPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      const float distanceToPointSq = len_squared(closestPoint - pointPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPointToClosestPoint = pointPosition;
       }
     }
@@ -635,7 +635,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
 
   float3 closestPoint = make_float3(0.0f, 0.0f, 0.0f);
   float3 closestPointOffset = make_float3(0.0f, 0.0f, 0.0f);
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
       for (int i = -1; i <= 1; i++) {
@@ -643,9 +643,9 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
         const float3 pointPosition = cellOffset +
                                      hash_float3_to_float3(cellPosition + cellOffset) *
                                          params.randomness;
-        const float distanceToPoint = len_squared(pointPosition - localPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        const float distanceToPointSq = len_squared(pointPosition - localPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPoint = pointPosition;
           closestPointOffset = cellOffset;
         }
@@ -653,7 +653,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float3 closestPointToClosestPoint = make_float3(0.0f, 0.0f, 0.0f);
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
@@ -665,9 +665,9 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
         const float3 pointPosition = cellOffset +
                                      hash_float3_to_float3(cellPosition + cellOffset) *
                                          params.randomness;
-        const float distanceToPoint = len_squared(closestPoint - pointPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        const float distanceToPointSq = len_squared(closestPoint - pointPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPointToClosestPoint = pointPosition;
         }
       }
@@ -865,7 +865,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
 
   float4 closestPoint = zero_float4();
   float4 closestPointOffset = zero_float4();
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       for (int j = -1; j <= 1; j++) {
@@ -874,9 +874,9 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
           const float4 pointPosition = cellOffset +
                                        hash_float4_to_float4(cellPosition + cellOffset) *
                                            params.randomness;
-          const float distanceToPoint = len_squared(pointPosition - localPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          const float distanceToPointSq = len_squared(pointPosition - localPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPoint = pointPosition;
             closestPointOffset = cellOffset;
           }
@@ -885,7 +885,7 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float4 closestPointToClosestPoint = zero_float4();
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
@@ -898,9 +898,9 @@ ccl_device float voronoi_n_sphere_radius(const ccl_private VoronoiParams &params
           const float4 pointPosition = cellOffset +
                                        hash_float4_to_float4(cellPosition + cellOffset) *
                                            params.randomness;
-          const float distanceToPoint = len_squared(closestPoint - pointPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          const float distanceToPointSq = len_squared(closestPoint - pointPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPointToClosestPoint = pointPosition;
           }
         }
