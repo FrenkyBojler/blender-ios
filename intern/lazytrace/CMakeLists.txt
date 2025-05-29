@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache License 2.0 */
+
 add_library(tracing 
   tracing.cc
   tracing.hh

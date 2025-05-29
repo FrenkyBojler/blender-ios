@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache License 2.0 */
+
+
 #include "tracing_internal.hh"
 #include <atomic>
 #include <map>
