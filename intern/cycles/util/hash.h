@@ -26,7 +26,7 @@ ccl_device_forceinline float uint_to_float_incl(const uint n)
   return (float)n * (1.0f / (float)0xFFFFFFFFu);
 }
 
-/* PCG 3D and 4D hash functions,
+/* PCG 2D, 3D and 4D hash functions,
  * from "Hash Functions for GPU Rendering" JCGT 2020
  * https://jcgt.org/published/0009/03/02/ */
 

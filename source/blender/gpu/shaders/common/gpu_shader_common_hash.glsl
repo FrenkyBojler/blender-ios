@@ -128,6 +128,49 @@ uint hash_int4(int kx, int ky, int kz, int kw)
   return hash_uint4(uint(kx), uint(ky), uint(kz), uint(kw));
 }
 
+/* PCG 2D, 3D and 4D hash functions,
+ * from "Hash Functions for GPU Rendering" JCGT 2020
+ * https://jcgt.org/published/0009/03/02/ */
+
+uint2 hash_pcg2d(uint2 v)
+{
+  v = v * 1664525u + 1013904223u;
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  v = v ^ (v >> 16);
+  v.x += v.y * 1664525u;
+  v.y += v.x * 1664525u;
+  return v;
+}
+
+uint3 hash_pcg3d(uint3 v)
+{
+  v = v * 1664525u + 1013904223u;
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.z;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  return v;
+}
+
+uint4 hash_pcg4d(uint4 v)
+{
+  v = v * 1664525u + 1013904223u;
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  v = v ^ (v >> 16);
+  v.x += v.y * v.w;
+  v.y += v.z * v.x;
+  v.z += v.x * v.y;
+  v.w += v.y * v.z;
+  return v;
+}
+
 /* Hashing uint or uint[234] into a float in the range [0, 1]. */
 
 float hash_uint_to_float(uint kx)
@@ -177,22 +220,23 @@ float hash_vec4_to_float(float4 k)
 
 float2 hash_vec2_to_vec2(float2 k)
 {
-  return float2(hash_vec2_to_float(k), hash_vec3_to_float(float3(k, 1.0f)));
+  /* Reinterpret float bits as uint, use PCG2D, return [0..1] float result. */
+  uint2 u = floatBitsToUint(k);
+  return float2(hash_pcg2d(u)) / float(0xffffffffU);
 }
 
 float3 hash_vec3_to_vec3(float3 k)
 {
-  return float3(hash_vec3_to_float(k),
-                hash_vec4_to_float(float4(k, 1.0f)),
-                hash_vec4_to_float(float4(k, 2.0f)));
+  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
+  uint3 u = floatBitsToUint(k);
+  return float3(hash_pcg3d(u)) / float(0xffffffffU);
 }
 
 float4 hash_vec4_to_vec4(float4 k)
 {
-  return float4(hash_vec4_to_float(k.xyzw),
-                hash_vec4_to_float(k.wxyz),
-                hash_vec4_to_float(k.zwxy),
-                hash_vec4_to_float(k.yzwx));
+  /* Reinterpret float bits as uint, use PCG4D, return [0..1] float result. */
+  uint4 u = floatBitsToUint(k);
+  return float4(hash_pcg4d(u)) / float(0xffffffffU);
 }
 
 /* Hashing float or vec[234] into vec3 of components in range [0, 1]. */
@@ -213,8 +257,7 @@ float3 hash_vec2_to_vec3(float2 k)
 
 float3 hash_vec4_to_vec3(float4 k)
 {
-  return float3(
-      hash_vec4_to_float(k.xyzw), hash_vec4_to_float(k.zxwy), hash_vec4_to_float(k.wzyx));
+  return hash_vec4_to_vec4(k).xyz;
 }
 
 /* Hashing float or vec[234] into vec2 of components in range [0, 1]. */
