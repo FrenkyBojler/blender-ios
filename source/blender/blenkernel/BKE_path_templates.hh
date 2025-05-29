@@ -90,24 +90,24 @@ class VariableMap {
   /**
    * Fetch the value of the string variable with the given name.
    *
-   * \return The value if a string variable with that name exists, nullopt
-   * otherwise.
+   * \return The value if a string variable with that name exists,
+   * #std::nullopt otherwise.
    */
   std::optional<blender::StringRefNull> get_string(blender::StringRef name) const;
 
   /**
    * Fetch the value of the integer variable with the given name.
    *
-   * \return The value if a integer variable with that name exists, nullopt
-   * otherwise.
+   * \return The value if a integer variable with that name exists,
+   * #std::nullopt otherwise.
    */
   std::optional<int64_t> get_integer(blender::StringRef name) const;
 
   /**
    * Fetch the value of the float variable with the given name.
    *
-   * \return The value if a float variable with that name exists, nullopt
-   * otherwise.
+   * \return The value if a float variable with that name exists,
+   * #std::nullopt otherwise.
    */
   std::optional<double> get_float(blender::StringRef name) const;
 };
@@ -227,3 +227,16 @@ void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
                                      blender::Span<blender::bke::path_templates::Error> errors);
+
+/**
+ * Format the given floating point value with the provided format specifier. The format specifier
+ * is e.g. the "##.###" in "{name:##.###}".
+ *
+ * \return Nullopt if the format specifier is invalid.
+ */
+std::optional<std::string> BKE_path_template_format_float(blender::StringRef format_specifier,
+                                                          double value);
+
+/** Same as #BKE_path_template_format_float but for formatting an integer value.  */
+std::optional<std::string> BKE_path_template_format_int(blender::StringRef format_specifier,
+                                                        int64_t value);

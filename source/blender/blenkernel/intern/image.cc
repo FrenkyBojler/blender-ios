@@ -2010,7 +2010,7 @@ void BKE_image_stamp_buf(Scene *scene,
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
   const char *display_device;
 
   /* vars for calculating wordwrap */
@@ -3172,7 +3172,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
     return;
   }
 
-  std::scoped_lock lock(ima->runtime->cache_mutex);
+  ima->runtime->cache_mutex.lock();
 
   switch (signal) {
     case IMA_SIGNAL_FREE:
@@ -3355,6 +3355,10 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       BKE_image_free_buffers(ima);
       break;
   }
+
+  /* NOTE: It is important that the image is unlocked before calling the node tree updates since
+   * its update functions might need to acquire image buffers from this image. */
+  ima->runtime->cache_mutex.unlock();
 
   BKE_ntree_update_tag_id_changed(bmain, &ima->id);
   BKE_ntree_update(*bmain);
@@ -4986,19 +4990,20 @@ ImagePool *BKE_image_pool_new()
 void BKE_image_pool_free(ImagePool *pool)
 {
   /* Use single lock to dereference all the image buffers. */
-  std::scoped_lock lock(pool->mutex);
-  for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
-       item != nullptr;
-       item = item->next)
   {
-    if (item->ibuf != nullptr) {
-      std::scoped_lock lock(item->image->runtime->cache_mutex);
-      IMB_freeImBuf(item->ibuf);
+    std::scoped_lock lock(pool->mutex);
+    for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
+         item != nullptr;
+         item = item->next)
+    {
+      if (item->ibuf != nullptr) {
+        std::scoped_lock lock(item->image->runtime->cache_mutex);
+        IMB_freeImBuf(item->ibuf);
+      }
     }
+
+    BLI_mempool_destroy(pool->memory_pool);
   }
-
-  BLI_mempool_destroy(pool->memory_pool);
-
   MEM_delete(pool);
 }
 

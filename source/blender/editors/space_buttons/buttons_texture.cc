@@ -266,7 +266,7 @@ static void buttons_texture_users_from_context(ListBase *users,
       ob = (Object *)pinid;
     }
     else if (GS(pinid->name) == ID_BR) {
-      brush = (Brush *)pinid;
+      brush = reinterpret_cast<Brush *>(pinid);
     }
     else if (GS(pinid->name) == ID_LS) {
       linestyle = (FreestyleLineStyle *)pinid;
@@ -500,7 +500,7 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
 
     /* add label per category */
     if (!last_category || !STREQ(last_category, user->category)) {
-      uiItemL(layout, IFACE_(user->category), ICON_NONE);
+      layout->label(IFACE_(user->category), ICON_NONE);
       but = block->buttons.last().get();
       but->drawflag = UI_BUT_TEXT_LEFT;
     }
@@ -565,7 +565,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   user = ct->user;
 
   if (!user) {
-    uiItemL(layout, TIP_("No textures in context"), ICON_NONE);
+    layout->label(TIP_("No textures in context"), ICON_NONE);
     return;
   }
 

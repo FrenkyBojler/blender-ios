@@ -32,7 +32,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid").hide_value();
+  b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid")
+      .hide_value()
+      .structure_type(StructureType::Grid);
 }
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
@@ -69,7 +71,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
