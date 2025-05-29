@@ -293,37 +293,37 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   uiItemPointerR(
       col, ptr, "vertex_group", &ob_ptr, "vertex_groups", std::nullopt, ICON_GROUP_VERTEX);
 
-  uiItemR(layout, ptr, "default_weight", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "default_weight", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumnWithHeading(layout, false, IFACE_("Group Add"));
-  row = uiLayoutRow(col, true);
+  col = &layout->column(false, IFACE_("Group Add"));
+  row = &col->row(true);
   uiLayoutSetPropDecorate(row, false);
-  sub = uiLayoutRow(row, true);
-  uiItemR(sub, ptr, "use_add", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(sub, true);
+  sub = &row->row(true);
+  sub->prop(ptr, "use_add", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &sub->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_add"));
   uiLayoutSetPropSep(sub, false);
-  uiItemR(sub, ptr, "add_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
+  sub->prop(ptr, "add_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
   uiItemDecoratorR(row, ptr, "add_threshold", 0);
 
-  col = uiLayoutColumnWithHeading(layout, false, IFACE_("Group Remove"));
-  row = uiLayoutRow(col, true);
+  col = &layout->column(false, IFACE_("Group Remove"));
+  row = &col->row(true);
   uiLayoutSetPropDecorate(row, false);
-  sub = uiLayoutRow(row, true);
-  uiItemR(sub, ptr, "use_remove", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(sub, true);
+  sub = &row->row(true);
+  sub->prop(ptr, "use_remove", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &sub->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_remove"));
   uiLayoutSetPropSep(sub, false);
-  uiItemR(sub, ptr, "remove_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
+  sub->prop(ptr, "remove_threshold", UI_ITEM_R_SLIDER, IFACE_("Threshold"), ICON_NONE);
   uiItemDecoratorR(row, ptr, "remove_threshold", 0);
 
-  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -336,11 +336,11 @@ static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  row = uiLayoutRow(layout, true);
-  uiItemR(row, ptr, "falloff_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  row = &layout->row(true);
+  row->prop(ptr, "falloff_type", UI_ITEM_NONE, IFACE_("Type"), ICON_NONE);
+  sub = &row->row(true);
   uiLayoutSetPropSep(sub, false);
-  uiItemR(row, ptr, "invert_falloff", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
+  row->prop(ptr, "invert_falloff", UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   if (RNA_enum_get(ptr, "falloff_type") == MOD_WVG_MAPPING_CURVE) {
     uiTemplateCurveMapping(layout, ptr, "map_curve", 0, false, false, false, false);
   }

@@ -8,6 +8,7 @@
  * \brief Particle API for render engines
  */
 
+#include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
 #include "DRW_render.hh"
 
@@ -769,7 +770,7 @@ static int particle_batch_cache_fill_strands_data(ParticleSystem *psys,
     }
 
     *(uint *)GPU_vertbuf_raw_step(data_step) = curr_point;
-    *(ushort *)GPU_vertbuf_raw_step(seg_step) = path->segments;
+    *(uint *)GPU_vertbuf_raw_step(seg_step) = path->segments;
     curr_point += path->segments + 1;
 
     if (psmd != nullptr) {
@@ -883,7 +884,7 @@ static void particle_batch_cache_ensure_procedural_strand_data(PTCacheEdit *edit
   uint data_id = GPU_vertformat_attr_add(&format_data, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
   GPUVertFormat format_seg = {0};
-  uint seg_id = GPU_vertformat_attr_add(&format_seg, "data", GPU_COMP_U16, 1, GPU_FETCH_INT);
+  uint seg_id = GPU_vertformat_attr_add(&format_seg, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
   GPUVertFormat format_uv = {0};
   uint uv_id = GPU_vertformat_attr_add(&format_uv, "uv", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -1085,7 +1086,7 @@ static void particle_batch_cache_ensure_procedural_indices(PTCacheEdit *edit,
   GPUPrimType prim_type = (thickness_res == 1) ? GPU_PRIM_LINE_STRIP : GPU_PRIM_TRI_STRIP;
 
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "dummy", GPU_COMP_U32, 1, GPU_FETCH_INT);
 
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 1);
@@ -1700,6 +1701,26 @@ gpu::Batch *DRW_particles_batch_cache_get_edit_tip_points(Object *object,
   particle_batch_cache_ensure_edit_tip_pos(edit, cache);
   cache->edit_tip_points = GPU_batch_create(GPU_PRIM_POINTS, cache->edit_tip_pos, nullptr);
   return cache->edit_tip_points;
+}
+
+float4x4 DRW_particles_dupli_matrix_get(const ObjectRef &ob_ref)
+{
+  float4x4 dupli_mat = float4x4::identity();
+
+  if ((ob_ref.dupli_parent != nullptr) && (ob_ref.dupli_object != nullptr)) {
+    if (ob_ref.dupli_object->type & OB_DUPLICOLLECTION) {
+      Collection *collection = ob_ref.dupli_parent->instance_collection;
+      if (collection != nullptr) {
+        dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
+      }
+      dupli_mat = ob_ref.dupli_parent->object_to_world() * dupli_mat;
+    }
+    else {
+      dupli_mat = ob_ref.object->object_to_world() *
+                  math::invert(ob_ref.dupli_object->ob->object_to_world());
+    }
+  }
+  return dupli_mat;
 }
 
 bool particles_ensure_procedural_data(Object *object,

@@ -7,7 +7,7 @@ from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bl_ui.utils import PresetPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class CameraButtonsPanel:
@@ -136,6 +136,19 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                 elif cam.lens_unit == 'FOV':
                     col.prop(cam, "angle")
                 col.prop(cam, "lens_unit")
+
+        elif cam.type == 'CUSTOM':
+            engine = context.engine
+            if engine == 'CYCLES':
+                sub = col.row()
+                sub.prop(cam, "custom_mode", text=" ", expand=True)
+
+                sub = col.row(align=True)
+                if cam.custom_mode == 'EXTERNAL':
+                    sub.prop(cam, "custom_filepath", text=" ")
+                else:
+                    sub.prop(cam, "custom_shader", text=" ")
+                sub.operator("object.camera_custom_update", icon='FILE_REFRESH', text="")
 
         col = layout.column()
         col.separator()

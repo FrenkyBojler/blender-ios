@@ -45,7 +45,8 @@ class VKBuffer : public NonCopyable {
               VkBufferUsageFlags buffer_usage,
               VkMemoryPropertyFlags required_flags,
               VkMemoryPropertyFlags preferred_flags,
-              VmaAllocationCreateFlags vma_allocation_flags);
+              VmaAllocationCreateFlags vma_allocation_flags,
+              bool export_memory = false);
   void clear(VKContext &context, uint32_t clear_value);
   void update_immediately(const void *data) const;
   void update_sub_immediately(size_t start_offset, size_t data_size, const void *data) const;
@@ -110,11 +111,32 @@ class VKBuffer : public NonCopyable {
    */
   bool is_mapped() const;
 
+  /**
+   * Get allocated device memory.
+   */
+  VkDeviceMemory export_memory_get(size_t &memory_size);
+
  private:
   /** Check if this buffer is mapped. */
   bool map();
   void unmap();
 };
+
+inline void *VKBuffer::mapped_memory_get() const
+{
+  BLI_assert_msg(this->is_mapped(), "Cannot access a non-mapped buffer.");
+  return mapped_memory_;
+}
+
+inline bool VKBuffer::is_mapped() const
+{
+  return mapped_memory_ != nullptr;
+}
+
+inline bool VKBuffer::is_allocated() const
+{
+  return allocation_ != VK_NULL_HANDLE;
+}
 
 /**
  * Helper struct to enable buffers to be bound with an offset.

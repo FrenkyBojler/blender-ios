@@ -93,7 +93,7 @@ struct BuildDefs {
   bool with_ffmpeg;
   bool with_freestyle;
   bool with_libmv;
-  bool with_ocio;
+  bool with_opencolorio;
   bool with_renderdoc;
   bool with_xr_openxr;
 };
@@ -128,8 +128,8 @@ static void build_defs_init(BuildDefs *build_defs, bool force_all)
 #  ifdef WITH_LIBMV
   build_defs->with_libmv = true;
 #  endif
-#  ifdef WITH_OCIO
-  build_defs->with_ocio = true;
+#  ifdef WITH_OPENCOLORIO
+  build_defs->with_opencolorio = true;
 #  endif
 #  ifdef WITH_RENDERDOC
   build_defs->with_renderdoc = true;
@@ -784,8 +784,8 @@ static void print_help(bArgs *ba, bool all)
   BLI_args_print_arg_doc(ba, "--gpu-backend");
 #  ifdef WITH_OPENGL_BACKEND
   BLI_args_print_arg_doc(ba, "--gpu-compilation-subprocesses");
-  BLI_args_print_arg_doc(ba, "--profile-gpu");
 #  endif
+  BLI_args_print_arg_doc(ba, "--profile-gpu");
 
   PRINT("\n");
   PRINT("Misc Options:\n");
@@ -870,7 +870,7 @@ static void print_help(bArgs *ba, bool all)
   PRINT(
       "  $BLENDER_CUSTOM_SPLASH_BANNER Full path to an image to overlay on the splash screen.\n");
 
-  if (defs.with_ocio) {
+  if (defs.with_opencolorio) {
     PRINT("  $OCIO                      Path to override the OpenColorIO configuration file.\n");
   }
   if (defs.win32 || all) {
@@ -1494,7 +1494,7 @@ static int arg_handle_debug_gpu_renderdoc_set(int /*argc*/,
 static const char arg_handle_gpu_backend_set_doc_all[] =
     "\n"
     "\tForce to use a specific GPU backend. Valid options: "
-    "'vulkan' (experimental),  "
+    "'vulkan',  "
     "'metal',  "
     "'opengl'.";
 static const char arg_handle_gpu_backend_set_doc[] =
@@ -1510,7 +1510,7 @@ static const char arg_handle_gpu_backend_set_doc[] =
 #    if defined(WITH_OPENGL_BACKEND) || defined(WITH_METAL_BACKEND)
     " or "
 #    endif
-    "'vulkan' (experimental)"
+    "'vulkan'"
 #  endif
     ".";
 static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data*/)
@@ -1918,6 +1918,9 @@ static const char arg_handle_output_set_doc[] =
     "<path>\n"
     "\tSet the render path and file name.\n"
     "\tUse '//' at the start of the path to render relative to the blend-file.\n"
+    "\n"
+    "\tYou can use path templating features such as '{blend_name}' in the path.\n"
+    "\tSee Blender's documentation on path templates for more details.\n"
     "\n"
     "\tThe '#' characters are replaced by the frame number, and used to define zero padding.\n"
     "\n"
@@ -2509,7 +2512,6 @@ static int arg_handle_addons_set(int argc, const char **argv, void *data)
   return 0;
 }
 
-#  ifdef WITH_OPENGL_BACKEND
 static const char arg_handle_profile_gpu_set_doc[] =
     "\n"
     "\tEnable CPU & GPU performance profiling for GPU debug groups\n"
@@ -2519,7 +2521,6 @@ static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void
   G.profile_gpu = true;
   return 0;
 }
-#  endif
 
 /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
@@ -2691,8 +2692,8 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--gpu-compilation-subprocesses",
                CB(arg_handle_gpu_compilation_subprocesses_set),
                nullptr);
-  BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
 #  endif
+  BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
 
   /* Pass: Background Mode & Settings
    *
