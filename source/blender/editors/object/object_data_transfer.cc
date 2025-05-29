@@ -486,7 +486,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
 
   data_transfer_exec_preprocess_objects(C, op, ob_src, &ctx_objects, reverse_transfer);
 
-  int invalid_count=0;
+  int invalid_count = 0;
 
   for (const PointerRNA &ptr : ctx_objects) {
     Object *ob_dst = static_cast<Object *>(ptr.data);
@@ -528,7 +528,8 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
         DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
         changed = true;
       }
-    }else{
+    }
+    else {
       invalid_count++;
     }
 
@@ -542,8 +543,9 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
-  if(invalid_count>0){
-    BKE_reportf(op->reports,RPT_WARNING,"Failed to transfer mesh data to %d objects", invalid_count);
+  if (invalid_count > 0) {
+    BKE_reportf(
+        op->reports, RPT_WARNING, "Failed to transfer mesh data to %d objects", invalid_count);
   }
 
 #if 0 /* TODO */
