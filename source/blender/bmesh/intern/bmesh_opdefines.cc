@@ -1126,7 +1126,7 @@ static BMOpDefine bmo_dissolve_edges_def = {
   {{"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* input edges */
    {"use_verts", BMO_OP_SLOT_BOOL},  /* dissolve verts left between only 2 edges. */
    {"use_face_split", BMO_OP_SLOT_BOOL}, /* split off face corners to maintain surrounding geometry */
-   {"angle_threshold", BMO_OP_SLOT_FLT}, /* do not dissolve verts between 2 edges if they make a greater angle than the threshold */
+   {"angle_threshold", BMO_OP_SLOT_FLT}, /* do not dissolve verts between 2 edges if they make a greater angle than the threshold. */
    {{'\0'}},
   },
   /*slot_types_out*/
