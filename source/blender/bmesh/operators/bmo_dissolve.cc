@@ -377,11 +377,11 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
          * side" angle back into the computation, making the algorithm behave more intuitively.
          *
          * `raw_factor` is computed as follows:
-         * - When not a face pair, `raw_factor` is 0.0.
+         * - When not a face pair, `raw_factor` is 1.0.  Wire edges use the raw angle.
          * - When a face pair is co-planar, or has an angle up to 90 degrees, `raw_factor` is 0.0.
          * - As angle increases from 90 to 180 degrees, `raw_factor` increases from 0.0 to 1.0.
          */
-        float raw_factor = 0.0f;
+        float raw_factor = 1.0f;
         BMFace *f_pair[2];
         if (BM_edge_face_pair(v->e, &f_pair[0], &f_pair[1])) {
           /* Due to merges, the normals are not currently trustworthy. Recompute them. */
@@ -389,14 +389,20 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
           BM_face_normal_update(f_pair[1]);
           /* Now determine the raw factor based on how folded the faces are.*/
           raw_factor = std::max(-dot_v3v3(f_pair[0]->no, f_pair[1]->no), 0.0f);
+          /* prevent floating point error from pushing the factor past 1.0f. */
+          raw_factor = std::min(raw_factor, 1.0f);
         }
 
-        /* Compute the angle between the edges. Blend the two ways of computing the angle. */
+        /* Compute the angle between the edges. */
         BMVert *v_a = BM_edge_other_vert(e_pair[0], v);
         BMVert *v_b = BM_edge_other_vert(e_pair[1], v);
-        float angle = interpf(M_PI - angle_v3v3v3(v_a->co, v->co, v_b->co),
-                              M_PI - angle_on_axis_v3v3v3_v3(v_a->co, v->co, v_b->co, v->no),
-                              raw_factor);
+        float angle = M_PI - angle_v3v3v3(v_a->co, v->co, v_b->co);
+
+        /* Blend the two ways of computing the angle, if the second angle will have any effect. */
+        if (raw_factor != 1.0f) {
+          float normal_angle = M_PI - angle_on_axis_v3v3v3_v3(v_a->co, v->co, v_b->co, v->no);
+          angle = interpf(angle, normal_angle, raw_factor);
+        }
 
         /* If the angle at the vert is larger than the threshold, it cannot be merged. */
         if (angle > angle_threshold - angle_epsilon) {
