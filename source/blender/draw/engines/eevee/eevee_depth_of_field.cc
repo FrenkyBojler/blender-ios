@@ -74,6 +74,10 @@ void DepthOfField::sync()
                                     reinterpret_cast<const ::Camera *>(camera_object_eval->data) :
                                     nullptr;
 
+  if (!inst_.is_loaded(DEPTH_OF_FIELD_SHADERS)) {
+    return;
+  }
+
   if (inst_.debug_mode == DEBUG_DOF_PLANES) {
     /* Set debug message even if DOF is not enabled. */
     inst_.info_append(

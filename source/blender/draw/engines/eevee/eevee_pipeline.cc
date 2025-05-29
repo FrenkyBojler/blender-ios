@@ -214,7 +214,7 @@ void ShadowPipeline::sync()
    * the shadow atlas during a final storage pass. This takes advantage of TBDR architecture,
    * reducing overdraw and additional per-fragment calculations. */
   bool shadow_update_tbdr = (ShadowModule::shadow_technique == ShadowTechnique::TILE_COPY);
-  if (shadow_update_tbdr) {
+  if (shadow_update_tbdr && inst_.is_loaded(SHADOW_SHADERS)) {
     draw::PassMain::Sub &pass = render_ps_.sub("Shadow.TilePageClear");
     pass.subpass_transition(GPU_ATTACHMENT_WRITE, {GPU_ATTACHMENT_WRITE});
     pass.shader_set(inst_.shaders.static_shader_get(SHADOW_PAGE_TILE_CLEAR));
@@ -248,7 +248,7 @@ void ShadowPipeline::sync()
     surface_single_sided_ps_->state_set(state | DRW_STATE_CULL_BACK);
   }
 
-  if (shadow_update_tbdr) {
+  if (shadow_update_tbdr && inst_.is_loaded(SHADOW_SHADERS)) {
     draw::PassMain::Sub &pass = render_ps_.sub("Shadow.TilePageStore");
     pass.shader_set(inst_.shaders.static_shader_get(SHADOW_PAGE_TILE_STORE));
     /* The most optimal way would be to only store pixels that have been rendered to (depth > 0).
@@ -1284,6 +1284,10 @@ void DeferredProbePipeline::begin_sync()
 
 void DeferredProbePipeline::end_sync()
 {
+  if (!inst_.is_loaded(DEFERRED_CAPTURE_SHADERS)) {
+    return;
+  }
+
   if (!opaque_layer_.prepass_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();
@@ -1403,6 +1407,10 @@ void PlanarProbePipeline::begin_sync()
 
 void PlanarProbePipeline::end_sync()
 {
+  if (!inst_.is_loaded(DEFERRED_PLANAR_SHADERS)) {
+    return;
+  }
+
   if (!prepass_ps_.is_empty()) {
     PassSimple &pass = eval_light_ps_;
     pass.init();

@@ -51,6 +51,11 @@ void RayTraceModule::sync()
     return;
   }
 
+  if (!inst_.is_loaded(RAYTRACING_SHADERS | HORIZON_SCAN_SHADERS)) {
+    /* Do not request if they are async compiling. */
+    return;
+  }
+
 #define PASS_VARIATION(_pass_name, _index, _suffix) \
   ((_index == 0) ? _pass_name##reflect##_suffix : \
    (_index == 1) ? _pass_name##refract##_suffix : \

@@ -133,6 +133,10 @@ bool SphereProbeModule::ensure_atlas()
 
 void SphereProbeModule::end_sync()
 {
+  if (!instance_.is_loaded(SPHERE_PROBE_SHADERS)) {
+    return;
+  }
+
   const bool atlas_resized = ensure_atlas();
   if (atlas_resized) {
     instance_.light_probes.world_sphere_.do_render = true;
@@ -256,6 +260,7 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
 
 void SphereProbeModule::set_view(View & /*view*/)
 {
+
   Vector<SphereProbe *> probe_active;
   for (auto &probe : instance_.light_probes.sphere_map_.values()) {
     /* Last slot is reserved for the world probe. */
