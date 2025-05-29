@@ -6059,6 +6059,23 @@ static wmOperatorStatus edbm_dissolve_mode_exec(bContext *C, wmOperator *op)
   return edbm_dissolve_faces_exec(C, op);
 }
 
+static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+{
+  UNUSED_VARS(op);
+
+  const char *prop_id = RNA_property_identifier(prop);
+
+  Object *obedit = CTX_data_edit_object(C);
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  const bool is_edge_select_mode = em->selectmode & SCE_SELECT_EDGE;
+
+  /* Angle Threshold is only used in edge select mode. */
+  if (STREQ(prop_id, "angle_threshold") && !is_edge_select_mode) {
+    return false;
+  }
+
+  return true;
+}
 void MESH_OT_dissolve_mode(wmOperatorType *ot)
 {
   /* identifiers */
@@ -6069,6 +6086,7 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = edbm_dissolve_mode_exec;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = dissolve_mode_poll_property;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -6076,6 +6094,7 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
+  edbm_dissolve_prop__use_angle_threshold(ot);
 }
 
 /** \} */
