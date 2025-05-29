@@ -7,10 +7,18 @@
  */
 
 #include "BLI_timer.h"
+#include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_time.h"
 
 #include "MEM_guardedalloc.h"
+
+#ifdef WITH_TBB
+#  include <tbb/concurrent_queue.h>
+#else
+#  include <mutex>
+#  include <vector>
+#endif
 
 #define GET_TIME() BLI_time_now_seconds()
 
@@ -29,6 +37,14 @@ struct TimerContainer {
   ListBase funcs;
 };
 
+/* The #registration_queue contains #TimedFunction pointers which have been
+ * #BLI_timer_register()ed, but haven't yet been added to #GlobalTimer by the main thread. */
+#ifdef WITH_TBB
+tbb::concurrent_queue<TimedFunction *> registration_queue;
+#else
+static std::mutex registration_queue_mutex;
+static std::vector<TimedFunction *> registration_queue;
+#endif
 static TimerContainer GlobalTimer = {{nullptr}};
 
 void BLI_timer_register(uintptr_t uuid,
@@ -47,7 +63,32 @@ void BLI_timer_register(uintptr_t uuid,
   timed_func->persistent = persistent;
   timed_func->uuid = uuid;
 
-  BLI_addtail(&GlobalTimer.funcs, timed_func);
+#ifdef WITH_TBB
+  registration_queue.push(timed_func);
+#else
+  const std::lock_guard<std::mutex> guard(registration_queue_mutex);
+  registration_queue.push_back(timed_func);
+#endif
+}
+
+/**
+ * Populate the #GlobalTimer list with #TimedFunction pointers from the thread-safe
+ * #registration_queue.
+ */
+static void synchronize_registrations()
+{
+#ifdef WITH_TBB
+  TimedFunction *timed_func;
+  while (registration_queue.try_pop(timed_func)) {
+    BLI_addtail(&GlobalTimer.funcs, timed_func);
+  }
+#else
+  const std::lock_guard<std::mutex> guard(registration_queue_mutex);
+  for (auto timed_func : registration_queue) {
+    BLI_addtail(&GlobalTimer.funcs, timed_func);
+  }
+  registration_queue.clear();
+#endif
 }
 
 static void clear_user_data(TimedFunction *timed_func)
@@ -60,6 +101,7 @@ static void clear_user_data(TimedFunction *timed_func)
 
 bool BLI_timer_unregister(uintptr_t uuid)
 {
+  synchronize_registrations();
   LISTBASE_FOREACH (TimedFunction *, timed_func, &GlobalTimer.funcs) {
     if (timed_func->uuid == uuid && !timed_func->tag_removal) {
       timed_func->tag_removal = true;
@@ -72,6 +114,7 @@ bool BLI_timer_unregister(uintptr_t uuid)
 
 bool BLI_timer_is_registered(uintptr_t uuid)
 {
+  synchronize_registrations();
   LISTBASE_FOREACH (TimedFunction *, timed_func, &GlobalTimer.funcs) {
     if (timed_func->uuid == uuid && !timed_func->tag_removal) {
       return true;
@@ -119,12 +162,14 @@ static void remove_tagged_functions()
 
 void BLI_timer_execute()
 {
+  synchronize_registrations();
   execute_functions_if_necessary();
   remove_tagged_functions();
 }
 
 void BLI_timer_free()
 {
+  synchronize_registrations();
   LISTBASE_FOREACH (TimedFunction *, timed_func, &GlobalTimer.funcs) {
     timed_func->tag_removal = true;
   }
@@ -143,5 +188,6 @@ static void remove_non_persistent_functions()
 
 void BLI_timer_on_file_load()
 {
+  synchronize_registrations();
   remove_non_persistent_functions();
 }

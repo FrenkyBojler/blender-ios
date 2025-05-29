@@ -4,25 +4,24 @@ Use a Timer to react to events in another thread
 
 You should never modify Blender data at arbitrary points in time in separate threads.
 However you can use a queue to collect all the actions that should be executed when Blender is in the right state again.
-Pythons `queue.Queue` can be used here, because it implements the required locking semantics.
+
+`bpy.app.timers.register()` is thread-safe so it can be used to trigger a callback from the main thread.
 """
 import bpy
-import queue
-
-execution_queue = queue.Queue()
+import threading
 
 
-# This function can safely be called in another thread.
-# The function will be executed when the timer runs the next time.
-def run_in_main_thread(function):
-    execution_queue.put(function)
+def on_main_thread():
+    bpy.context.object.show_name = True
+    return None
 
 
-def execute_queued_functions():
-    while not execution_queue.empty():
-        function = execution_queue.get()
-        function()
-    return 1.0
+def background_thread():
+    # We can't access (or modify) blender data from this background thread.
+    # So instead, we register a timer (which only gets invoked once) to
+    # arrange for some code to be executed on the main thread (at a later point,
+    # where it _is_ safe to access scene data).
+    bpy.app.timers.register(on_main_thread)
 
 
-bpy.app.timers.register(execute_queued_functions)
+threading.Thread(target=background_thread).start()
