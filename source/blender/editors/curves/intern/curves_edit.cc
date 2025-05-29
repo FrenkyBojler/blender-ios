@@ -699,6 +699,10 @@ void resize_curves(bke::CurvesGeometry &curves,
   });
 
   dst_curves.update_curve_types();
+  if (dst_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
 
   /* Move the result into `curves`. */
   curves = std::move(dst_curves);
