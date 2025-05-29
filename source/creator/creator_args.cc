@@ -78,6 +78,8 @@
 
 #  include "creator_intern.h" /* Own include. */
 
+#include "tracing.hh"
+
 /* -------------------------------------------------------------------- */
 /** \name Build Defines
  * \{ */
@@ -2522,7 +2524,54 @@ static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void
   return 0;
 }
 
-/**
+static const char arg_handle_profile_method_set_doc[] =
+    "<method>\n"
+    "\tSet profiling method, can be one of: \n"
+    "\tdisabled - Do not perform any profiling [Default]\n"
+    "\tdirect - Write profiling data to disk as they occur.\n"
+    "\tchunked - Write profiling data to disk in chunks.\n"
+    "\texit - Write profiling data to disk as blender closes.\n";
+  static int arg_handle_profile_method_set(int argc, const char ** argv, void * /*data*/)
+{
+    if (argc == 0) {
+      fprintf(stderr, "\nError: method must follow '--profile-method'.\n");
+      return 0;
+    }
+  if (STREQ(argv[1], "disabled")) {
+      lazytrace::SetStorageStrategy(lazytrace::TraceStorageStrategy::Disabled);
+  } 
+  else if(STREQ(argv[1], "direct"))
+  {
+    lazytrace::SetStorageStrategy(lazytrace::TraceStorageStrategy::DirectSave);
+  }
+  else if (STREQ(argv[1], "chunked")) {
+    lazytrace::SetStorageStrategy(lazytrace::TraceStorageStrategy::Chunked);
+  }
+  else if (STREQ(argv[1], "exit")) {
+    lazytrace::SetStorageStrategy(lazytrace::TraceStorageStrategy::SaveOnExit);
+  }
+  else
+  {
+    fprintf(stderr, "\nError: method must be one of ['disabled','direct','chuncked','exit']\n");
+    return 0;
+  }
+  return 1;
+}
+
+  static const char arg_handle_profile_filename_set_doc[] =
+    "<filename>\n"
+    "\tSet profiling file name\n";
+static int arg_handle_profile_filename_set(int argc, const char ** argv, void * /*data*/)
+{
+  if (argc == 0) {
+    fprintf(stderr, "\nError: filename must follow '--profile-filename'.\n");
+    return 0;
+  }
+  lazytrace::SetTraceFileName(argv[1]);
+  return 1;
+}
+
+    /**
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
  * \return true on success.
  */
@@ -2693,6 +2742,10 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                CB(arg_handle_gpu_compilation_subprocesses_set),
                nullptr);
 #  endif
+
+  BLI_args_add(ba, nullptr, "--profile-method", CB(arg_handle_profile_method_set), nullptr);
+  BLI_args_add(ba, nullptr, "--profile-filename", CB(arg_handle_profile_filename_set), nullptr);
+
   BLI_args_add(ba, nullptr, "--profile-gpu", CB(arg_handle_profile_gpu_set), nullptr);
 
   /* Pass: Background Mode & Settings

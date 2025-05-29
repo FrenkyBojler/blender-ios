@@ -87,6 +87,8 @@
 
 #include "UI_resources.hh"
 
+#include "tracing.hh"
+
 /* For assert. */
 #ifndef NDEBUG
 #  include "BLI_threads.h"
@@ -973,6 +975,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 
 void wm_window_ghostwindows_ensure(wmWindowManager *wm)
 {
+  SCOPED_TRACE_FUNCTION();
   BLI_assert(G.background == false);
 
   /* No command-line prefsize? then we set this.
@@ -1921,6 +1924,7 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
@@ -1970,6 +1974,7 @@ void wm_window_events_process(const bContext *C)
 
 void wm_ghost_init(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   if (g_system) {
     return;
   }

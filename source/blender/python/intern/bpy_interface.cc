@@ -65,6 +65,8 @@
 #include "../gpu/gpu_py_api.hh"
 #include "../mathutils/mathutils.hh"
 
+#include "tracing.hh"
+
 /* Logging types to use anywhere in the Python modules. */
 
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_CONTEXT, "bpy.context");
@@ -321,6 +323,7 @@ static void pystatus_exit_on_error(const PyStatus &status)
 
 void BPY_python_start(bContext *C, int argc, const char **argv)
 {
+  SCOPED_TRACE_FUNCTION();
 #ifndef WITH_PYTHON_MODULE
   BLI_assert_msg(Py_IsInitialized() == 0, "Python has already been initialized");
 

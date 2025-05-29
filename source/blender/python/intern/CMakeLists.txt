@@ -134,6 +134,7 @@ set(LIB
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
   PRIVATE bf::windowmanager
+  PRIVATE bf::intern::lazytrace
 )
 
 # Only to check if `buildinfo` is available.

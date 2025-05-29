@@ -400,6 +400,7 @@ set(LIB
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::nodes
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::intern::lazytrace
 )
 
 # Select Backend source based on availability

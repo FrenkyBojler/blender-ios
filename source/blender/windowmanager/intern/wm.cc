@@ -59,6 +59,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "tracing.hh"
+
 /* ****************************************************** */
 
 static void window_manager_free_data(ID *id)
@@ -274,7 +276,6 @@ IDTypeInfo IDType_ID_WM = {
 
 void WM_operator_free(wmOperator *op)
 {
-
 #ifdef WITH_PYTHON
   if (op->py_instance) {
     /* Do this first in case there are any __del__ functions or similar that use properties. */
@@ -309,6 +310,7 @@ void WM_operator_free(wmOperator *op)
 
 void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op)
 {
+  SCOPED_TRACE_FUNCTION();
   op = op->next;
   while (op != nullptr) {
     wmOperator *op_next = op->next;
@@ -320,6 +322,7 @@ void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op)
 
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot)
 {
+  SCOPED_TRACE_FUNCTION();
   /* Not supported for Python. */
   BLI_assert(op->py_instance == nullptr);
 
@@ -373,6 +376,7 @@ void wm_operator_register(bContext *C, wmOperator *op)
 
 void WM_operator_stack_clear(wmWindowManager *wm)
 {
+  SCOPED_TRACE_FUNCTION();
   while (wmOperator *op = static_cast<wmOperator *>(BLI_pophead(&wm->operators))) {
     WM_operator_free(op);
   }
@@ -382,6 +386,7 @@ void WM_operator_stack_clear(wmWindowManager *wm)
 
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
 {
+  SCOPED_TRACE_FUNCTION();
   LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
     bScreen *screen = WM_window_get_active_screen(win);
     LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
@@ -421,6 +426,7 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
 
 void WM_keyconfig_reload(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   if (CTX_py_init_get(C) && !G.background) {
 #ifdef WITH_PYTHON
     const char *imports[] = {"bpy", nullptr};
@@ -431,6 +437,7 @@ void WM_keyconfig_reload(bContext *C)
 
 void WM_keyconfig_init(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* Create standard key configuration. */
@@ -470,6 +477,7 @@ void WM_keyconfig_init(bContext *C)
 
 void WM_check(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
 
@@ -509,6 +517,7 @@ void WM_check(bContext *C)
 
 void wm_clear_default_size(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   wmWindowManager *wm = CTX_wm_manager(C);
 
   /* WM context. */

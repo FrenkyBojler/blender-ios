@@ -98,6 +98,8 @@
 
 #include "creator_intern.h" /* Own include. */
 
+#include "tracing.hh"
+
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
  * \{ */
@@ -283,7 +285,10 @@ int main(int argc,
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
 #endif
-
+  lazytrace::SetTraceFileName("blender.json");
+  lazytrace::NameProcess("blender");
+  lazytrace::NameThread("main");
+  lazytrace::EmitBegin("main");
   /* Ensure we free data on early-exit. */
   CreatorAtExitData app_init_data = {nullptr};
   BKE_blender_atexit_register(callback_main_atexit, &app_init_data);

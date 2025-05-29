@@ -70,6 +70,7 @@
 #include "BLO_writefile.hh"
 
 #include "RE_pipeline.h"
+#include "tracing.hh"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.hh"
@@ -1321,6 +1322,7 @@ void BKE_blendfile_read_setup_readfile(bContext *C,
                                        const bool startup_update_defaults,
                                        const char *startup_app_template)
 {
+  SCOPED_TRACE_FUNCTION();
   if (bfd->main->is_read_invalid) {
     BKE_reports_prepend(reports->reports,
                         "File could not be read, critical data corruption detected");
@@ -1375,6 +1377,7 @@ BlendFileData *BKE_blendfile_read_from_memory(const void *file_buf,
                                               const BlendFileReadParams *params,
                                               ReportList *reports)
 {
+  SCOPED_TRACE_FUNCTION();
   BlendFileData *bfd = BLO_read_from_memory(
       file_buf, file_buf_size, eBLOReadSkip(params->skip_flags), reports);
   if (bfd && bfd->main->is_read_invalid) {
@@ -1478,6 +1481,7 @@ UserDef *BKE_blendfile_userdef_read_from_memory(const void *file_buf,
                                                 int file_buf_size,
                                                 ReportList *reports)
 {
+  SCOPED_TRACE_FUNCTION();
   BlendFileData *bfd;
   UserDef *userdef = nullptr;
 

@@ -116,6 +116,8 @@
 
 #include "DRW_engine.hh"
 
+#include "tracing.hh"
+
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "wm.operator");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_HANDLERS, "wm.handler");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_EVENTS, "wm.event");
@@ -144,6 +146,7 @@ static bool gpu_is_init = false;
 
 void WM_init_gpu()
 {
+  SCOPED_TRACE_FUNCTION();
   /* Must be called only once. */
   BLI_assert(gpu_is_init == false);
 
@@ -194,7 +197,7 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
 
 void WM_init(bContext *C, int argc, const char **argv)
 {
-
+  SCOPED_TRACE_FUNCTION();
   if (!G.background) {
     wm_ghost_init(C); /* NOTE: it assigns C to ghost! */
     wm_init_cursor_data();
@@ -680,6 +683,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   /* Logging cannot be called after exiting (#CLOG_INFO, #CLOG_WARN etc will crash).
    * So postpone exiting until other sub-systems that may use logging have shut down. */
   CLG_exit();
+
+  lazytrace::EmitEnd("main");
+  lazytrace::ShutDown();
 }
 
 void WM_exit(bContext *C, const int exit_code)

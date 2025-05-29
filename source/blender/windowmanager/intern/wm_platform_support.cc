@@ -24,6 +24,8 @@
 #include "GPU_context.hh"
 #include "GPU_platform.hh"
 
+#include "tracing.hh"
+
 #define WM_PLATFORM_SUPPORT_TEXT_SIZE 1024
 
 /**
@@ -96,6 +98,7 @@ static void wm_platform_support_create_link(char *link)
 
 bool WM_platform_support_perform_checks()
 {
+  SCOPED_TRACE_FUNCTION();
   char title[WM_PLATFORM_SUPPORT_TEXT_SIZE];
   char message[WM_PLATFORM_SUPPORT_TEXT_SIZE];
   char link[WM_PLATFORM_SUPPORT_TEXT_SIZE];

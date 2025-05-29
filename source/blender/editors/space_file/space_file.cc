@@ -49,6 +49,7 @@
 #include "filelist.hh"
 #include "fsmenu.h"
 
+#include "tracing.hh"
 /* ******************** default callbacks for file space ***************** */
 
 static SpaceLink *file_create(const ScrArea * /*area*/, const Scene * /*scene*/)
@@ -1036,6 +1037,7 @@ void ED_spacetype_file()
 
 void ED_file_init()
 {
+  SCOPED_TRACE_FUNCTION();
   ED_file_read_bookmarks();
   IMB_thumb_makedirs();
 }

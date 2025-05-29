@@ -51,6 +51,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::intern::lazytrace
 )
 
 if(WIN32)

@@ -109,6 +109,7 @@ set(LIB
   PRIVATE bf::sequencer
   bf_intern_ghost
   bf_compositor
+  PRIVATE bf::intern::lazytrace
 )
 
 if(WIN32)

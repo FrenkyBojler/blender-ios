@@ -88,6 +88,8 @@
 
 #include "RE_pipeline.h"
 
+#include "tracing.hh"
+
 using blender::StringRef;
 
 /**
@@ -567,6 +569,7 @@ static void wm_event_timers_execute(bContext *C)
 
 void wm_event_do_notifiers(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   /* Ensure inside render boundary. */
   GPU_render_begin();
 
@@ -4072,6 +4075,7 @@ static eHandlerActionFlag wm_event_do_handlers_area_regions(bContext *C,
 
 void wm_event_do_handlers(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 

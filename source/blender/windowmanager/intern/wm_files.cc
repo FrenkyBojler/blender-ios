@@ -146,6 +146,8 @@
 
 #include "CLG_log.h"
 
+#include "tracing.hh"
+
 static RecentFile *wm_file_history_find(const char *filepath);
 static void wm_history_file_free(RecentFile *recent);
 static void wm_history_files_free();
@@ -1048,6 +1050,9 @@ bool WM_file_read(bContext *C,
                   const bool use_scripts_autoexec_check,
                   ReportList *reports)
 {
+  SCOPED_TRACE_FUNCTION();
+  SCOPED_TRACE_DATA("filepath", filepath);
+
   /* Assume automated tasks with background, don't write recent file list. */
   const bool do_history_file_update = (G.background == false) &&
                                       (CTX_wm_manager(C)->op_undo_depth == 0);
@@ -1212,6 +1217,7 @@ void wm_homefile_read_ex(bContext *C,
                          ReportList *reports,
                          wmFileReadPost_Params **r_params_file_read_post)
 {
+  SCOPED_TRACE_FUNCTION();
   /* NOTE: unlike #WM_file_read, don't set the wait cursor when reading the home-file.
    * While technically both are reading a file and could use the wait cursor,
    * avoid doing so for the following reasons.
@@ -1589,6 +1595,7 @@ void wm_homefile_read(bContext *C,
 
 void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file_read_post)
 {
+  SCOPED_TRACE_FUNCTION();
   const char *filepath = "";
   wm_file_read_post(C, filepath, params_file_read_post);
 

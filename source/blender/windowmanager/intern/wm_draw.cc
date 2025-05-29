@@ -64,6 +64,8 @@
 
 #include "UI_resources.hh"
 
+#include "tracing.hh"
+
 #ifdef WITH_OPENSUBDIV
 #  include "BKE_subsurf.hh"
 #endif
@@ -1564,6 +1566,7 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
 
 void wm_draw_update(bContext *C)
 {
+  SCOPED_TRACE_FUNCTION();
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
 

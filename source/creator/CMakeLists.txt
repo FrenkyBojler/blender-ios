@@ -22,6 +22,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::windowmanager
   PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::intern::lazytrace
 )
 
 if(HAVE_FEENABLEEXCEPT)

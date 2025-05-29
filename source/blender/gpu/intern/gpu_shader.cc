@@ -26,6 +26,8 @@
 
 #include <string>
 
+#include "tracing.hh"
+
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 
 namespace blender::gpu {
@@ -804,6 +806,7 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 
 Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
+  SCOPED_TRACE("compile_shader(" + info.name_ + ")");
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
 
