@@ -106,6 +106,36 @@ class MaskedMaximumOperation : public NodeOperation {
     output_image.unbind_as_image();
   }
 
+  void execute_cpu(const Result &input_image, Result &output_image)
+  {
+    Domain domain = this->compute_domain();
+    output_image.allocate_texture(domain);
+
+    parallel_for(domain.size, [&](const int2 texel) {
+      float3 size = math::max(get_input("Size").load_pixel_zero<float3, true>(texel),
+                              float3(0.0f, 0.0f, 0.0f));
+      float roundness = math::clamp(
+          get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
+      float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
+
+      float masked_maximum = -FLT_MAX;
+      int2 computation_window = int2(
+          int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
+          int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
+      for (int y = -computation_window.y; y <= computation_window.y; y++) {
+        for (int x = -computation_window.x; x <= computation_window.x; x++) {
+          masked_maximum = math::max(
+              masked_maximum,
+              compute_rounded_square_mask(
+                  float2(x, y), float2(size.x, size.y), roundness, falloff) *
+                  input_image.load_pixel_zero<float, true>(texel + int2(x, y)));
+        }
+      }
+
+      output_image.store_pixel(texel, masked_maximum);
+    });
+  }
+
   bool is_in_unit_rounded_square(float2 coord, const float roundness)
   {
     if (roundness == 1.0f) {
@@ -231,36 +261,6 @@ class MaskedMaximumOperation : public NodeOperation {
             compute_rounded_square_radius(float2(coord.x, coord.y * size.x / size.y), roundness));
       }
     }
-  }
-
-  void execute_cpu(const Result &input_image, Result &output_image)
-  {
-    Domain domain = this->compute_domain();
-    output_image.allocate_texture(domain);
-
-    parallel_for(domain.size, [&](const int2 texel) {
-      float3 size = math::max(get_input("Size").load_pixel_zero<float3, true>(texel),
-                              float3(0.0f, 0.0f, 0.0f));
-      float roundness = math::clamp(
-          get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
-      float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
-
-      float masked_maximum = -FLT_MAX;
-      int2 computation_window = int2(
-          int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
-          int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
-      for (int y = -computation_window.y; y <= computation_window.y; y++) {
-        for (int x = -computation_window.x; x <= computation_window.x; x++) {
-          masked_maximum = math::max(
-              masked_maximum,
-              compute_rounded_square_mask(
-                  float2(x, y), float2(size.x, size.y), roundness, falloff) *
-                  input_image.load_pixel_zero<float, true>(texel + int2(x, y)));
-        }
-      }
-
-      output_image.store_pixel(texel, masked_maximum);
-    });
   }
 };
 
