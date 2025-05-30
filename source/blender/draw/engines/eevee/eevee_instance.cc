@@ -677,18 +677,19 @@ void Instance::draw_viewport()
     DRW_viewport_request_redraw();
   }
 
-  if (materials.queued_textures_count > 0) {
-    info_append_i18n("Loading textures ({} remaining)", materials.queued_textures_count);
-  }
-  if (materials.queued_shaders_count > 0) {
-    info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
-
-    if (!GPU_use_parallel_compilation() &&
-        GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
-    {
-      info_append_i18n(
-          "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
-          "compilation time.");
+  if (materials.queued_shaders_count > 0 || materials.queued_textures_count > 0) {
+    if (materials.queued_textures_count > 0) {
+      info_append_i18n("Loading textures ({} remaining)", materials.queued_textures_count);
+    }
+    if (materials.queued_shaders_count > 0) {
+      info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
+      if (!GPU_use_parallel_compilation() &&
+          GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
+      {
+        info_append_i18n(
+            "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
+            "compilation time.");
+      }
     }
     DRW_viewport_request_redraw();
   }
