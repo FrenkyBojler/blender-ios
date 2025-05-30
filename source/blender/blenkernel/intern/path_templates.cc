@@ -691,6 +691,11 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
   return std::nullopt;
 }
 
+bool BKE_path_contains_template_syntax(blender::StringRef path)
+{
+  return path.find_first_of("{}") != std::string_view::npos;
+}
+
 /**
  * Evaluates the path template in `in_path` and writes the result to `out_path`
  * if provided.

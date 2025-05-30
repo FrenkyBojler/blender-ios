@@ -177,6 +177,18 @@ blender::bke::path_templates::VariableMap BKE_build_template_variables_for_rende
     const char *blend_file_path, const RenderData *render_data);
 
 /**
+ * Check if a path contains any templating syntax at all.
+ *
+ * This is primarily intended to be used as a pre-check in performance-sensitive
+ * code to skip path template processing when it's not needed.
+ *
+ * \return False if the path contains no templating syntax (no template
+ * processing is needed). True if the path does contain templating syntax
+ * (template processing *is* needed).
+ */
+bool BKE_path_contains_template_syntax(blender::StringRef path);
+
+/**
  * Validate the templating in the given path.
  *
  * This produces identical errors as `BKE_path_apply_template()`, but
