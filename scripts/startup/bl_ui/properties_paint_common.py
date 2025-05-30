@@ -1179,11 +1179,11 @@ def color_jitter_panel(layout, context, brush):
     is_sculpt_paint_mode = mode == 'SCULPT' and brush.sculpt_capabilities.has_color
     if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX'} or is_sculpt_paint_mode:
         prop_owner = ups if ups.use_unified_color else brush
-        header, panel = layout.panel("color_jitter_panel", default_closed=True)
+        layout.use_property_split = False
 
-        header.label(text="Randomize Color")
+        header, panel = layout.panel("color_jitter_panel", default_closed=True)
+        header.prop(prop_owner, "use_color_jitter", text="Randomize Color")
         if panel:
-            panel.prop(prop_owner, "use_color_jitter", text="Use Color Jitter")
             panel.use_property_split = True
             panel.use_property_decorate = False
 
@@ -1388,6 +1388,9 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
     if use_frontface:
         layout.prop(brush, "use_frontface", text="Front Faces Only")
 
+    if popover:
+        color_jitter_panel(layout, context, brush)
+
     # Brush modes
     header, panel = layout.panel("modes", default_closed=True)
     header.label(text="Modes")
@@ -1410,10 +1413,6 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
             panel.label(text="Brush icons have moved to the asset preview image", icon='ERROR')
             panel.prop(brush, "use_custom_icon")
             panel.prop(brush, "icon_filepath")
-
-    if popover:
-        color_jitter_panel(layout, context, brush)
-
 
 
 def draw_color_settings(context, layout, brush, color_type=False):
