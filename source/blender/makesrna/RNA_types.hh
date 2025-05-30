@@ -431,6 +431,14 @@ enum PropertyFlag {
 
   /**
    * Paths that are evaluated with templating.
+   *
+   * Note that this doesn't cause the property to support templating, but rather
+   * *indicates* to other parts of Blender whether it supports templating.
+   * Support for templating needs to be manually implemented.
+   *
+   * When this is set, the property's `path_template_type` field should also be
+   * set to something other than `PROP_VARIABLES_NONE`, to indicate which
+   * template variables it supports.
    */
   PROP_PATH_SUPPORTS_TEMPLATES = (1 << 14),
 

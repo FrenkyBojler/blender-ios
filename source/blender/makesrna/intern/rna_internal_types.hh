@@ -351,9 +351,10 @@ struct PropertyRNA {
   short tags;
 
   /**
-   * The Path Templating use case this property is for. Must be set for path
-   * properties that are marked as supporting path templates
-   * (`PROP_PATH_SUPPORTS_TEMPLATES` in `flag`). Is ignored for other
+   * Indicates which set of template variables this property supports.
+   *
+   * Must be set for path properties that are marked as supporting path
+   * templates (`PROP_PATH_SUPPORTS_TEMPLATES` in `flag`). Is ignored for other
    * properties.
    */
   PropertyPathTemplateType path_template_type;
