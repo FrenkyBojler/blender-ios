@@ -97,7 +97,7 @@ class VKThreadData : public NonCopyable, NonMovable {
    * in flight used by GHOST. Therefore, this constant *must* always
    * match GHOST_ContextVK's GHOST_FRAMES_IN_FLIGHT.
    */
-  static constexpr uint32_t resource_pools_count = 3;
+  static constexpr uint32_t resource_pools_count = 4;
 
  public:
   /** Thread ID this instance belongs to. */
@@ -391,6 +391,7 @@ class VKDevice : public NonCopyable {
                                     VkSemaphore signal_semaphore,
                                     VkFence signal_fence);
   void wait_for_timeline(TimelineValue timeline);
+  void wait_queue_idle();
 
   /**
    * Retrieve the last finished submission timeline.
