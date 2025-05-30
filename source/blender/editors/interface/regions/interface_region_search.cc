@@ -228,6 +228,9 @@ int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn updat
   /* Gather the items shown in the search box. */
   update_fn(C, arg, "", &items, true);
 
+  /* This is lazy-initialized in #UI_search_item_add. */
+  MEM_SAFE_FREE(items.name_prefix_offsets);
+
   return ui_searchbox_size_x_from_items(items);
 }
 
