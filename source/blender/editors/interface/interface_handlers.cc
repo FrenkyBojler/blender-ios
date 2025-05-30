@@ -11647,8 +11647,8 @@ static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cyc
   return current_page != block->pie_data.active_page;
 };
 
-static void ui_pie_menu_page_scroll(
-    bContext *C, uiBlock *block, uiPopupBlockHandle *menu, int direction, bool cycle = false)
+static void ui_pie_menu_page_scroll_apply(
+    bContext *C, uiBlock *block, const uiPopupBlockHandle *menu, int direction, bool cycle = false)
 {
   if (ui_pie_menu_page_scroll_step(block, direction, cycle)) {
     uiBut *but = ui_region_find_active_but(menu->region);
@@ -11658,7 +11658,7 @@ static void ui_pie_menu_page_scroll(
     }
     WM_event_add_mousemove(CTX_wm_window(C));
   }
-  blender::interface::internal::pie_menu_refresh_active_page(block);
+  blender::interface::internal::pie_menu_apply_paging_scroll(block);
   blender::interface::internal::pie_menu_workspace_status(C, block);
   ED_region_tag_redraw(menu->region);
 };
@@ -11854,14 +11854,15 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
         case EVT_RIGHTARROWKEY: {
           if (event->val == KM_PRESS) {
             const int scroll_dir = ELEM(event->type, WHEELUPMOUSE, EVT_LEFTARROWKEY) ? -1 : 1;
-            ui_pie_menu_page_scroll(C, block, menu, scroll_dir);
+            ui_pie_menu_page_scroll_apply(C, block, menu, scroll_dir);
           }
           break;
         }
         case EVT_TABKEY: {
+          /* Tab menu pie page scroll, allows cycling between first and last page. */
           if (event->val == KM_PRESS) {
             const int scroll_dir = (event->modifier == KM_SHIFT) ? -1 : 1;
-            ui_pie_menu_page_scroll(C, block, menu, scroll_dir, true);
+            ui_pie_menu_page_scroll_apply(C, block, menu, scroll_dir, true);
           }
           break;
         }

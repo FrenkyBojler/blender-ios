@@ -517,6 +517,11 @@ struct ColorPickerData {
   ListBase list;
 };
 
+/**
+ * Group of buttons in pie menu layouts, every #PIE_PAGE_MAX_ITEMS layout sub-items makes a page.
+ */
+using PieMenuPage = blender::Vector<uiBut *>;
+
 struct PieMenuData {
   /** store title and icon to allow access when pie levels are created */
   const char *title;
@@ -533,8 +538,10 @@ struct PieMenuData {
   /** Initial event used to fire the pie menu, store here so we can query for release */
   short event_type;
   float alphafac;
+
+  blender::Vector<PieMenuPage> pages;
+  /** Visible pie menu page. */
   int active_page;
-  blender::Vector<blender::Vector<uiBut *>> pages;
 };
 
 /** #uiBlock.content_hints */
@@ -1711,8 +1718,8 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
                            bool is_array_prop,
                            PointerRNA *dst_ptr,
                            PropertyRNA *dst_prop);
+void pie_menu_apply_paging_scroll(const uiBlock *block);
 
-void pie_menu_refresh_active_page(uiBlock *block);
-void pie_menu_workspace_status(bContext *C, uiBlock *block);
+void pie_menu_workspace_status(bContext *C, const uiBlock *block);
 
 }  // namespace blender::interface::internal

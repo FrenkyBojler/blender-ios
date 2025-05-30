@@ -5627,7 +5627,7 @@ static void ui_item_layout(uiItem *item)
 
 namespace blender::interface::internal {
 
-void pie_menu_workspace_status(bContext *C, uiBlock *block)
+void pie_menu_workspace_status(bContext *C, const uiBlock *block)
 {
   if (block->pie_data.pages.size() < 2) {
     return;
@@ -5648,7 +5648,7 @@ void pie_menu_workspace_status(bContext *C, uiBlock *block)
                 ICON_EVENT_RIGHT_ARROW);
   }
 }
-void pie_menu_refresh_active_page(uiBlock *block)
+void pie_menu_apply_paging_scroll(const uiBlock *block)
 {
   for (int i : block->pie_data.pages.index_range()) {
     for (uiBut *but : block->pie_data.pages[i]) {
@@ -5662,16 +5662,16 @@ void pie_menu_refresh_active_page(uiBlock *block)
   }
 }
 
-static void pie_menu_add_buts_to_page(blender::Vector<uiBut *> &page, uiItem *item)
+static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
 {
   if (item->type_ != uiItemType::Button) {
-    uiLayout *litem = static_cast<uiLayout *>(item);
-    for (uiItem *subitem : litem->items_) {
+    const uiLayout *litem = static_cast<const uiLayout *>(item);
+    for (const uiItem *subitem : litem->items_) {
       pie_menu_add_buts_to_page(page, subitem);
     }
   }
   else {
-    uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
+    const uiButtonItem *bitem = static_cast<const uiButtonItem *>(item);
     page.append(bitem->but);
   }
 }
@@ -5687,7 +5687,8 @@ static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
   }
   int current_page = -1;
   int i = 0;
-  for (uiItem *subitem : static_cast<uiLayout *>(*pie_menu)->items_) {
+  /* Adds every #PIE_PAGE_MAX_ITEMS sub-items as a pie menu page. */
+  for (const uiItem *subitem : static_cast<uiLayout *>(*pie_menu)->items_) {
     if (current_page != (i / PIE_PAGE_MAX_ITEMS)) {
       current_page++;
       block->pie_data.pages.append({});
@@ -5695,9 +5696,10 @@ static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
     pie_menu_add_buts_to_page(block->pie_data.pages.last(), subitem);
     i++;
   }
+  /* Remove empty pie menu pages. */
   block->pie_data.pages.remove_if(
       [](const blender::Vector<uiBut *> &page) { return page.is_empty(); });
-  blender::interface::internal::pie_menu_refresh_active_page(block);
+  blender::interface::internal::pie_menu_apply_paging_scroll(block);
 }
 }  // namespace blender::interface::internal
 
