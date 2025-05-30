@@ -1430,7 +1430,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
     /* Remove strokes that were created using the fill tool as boundary strokes. */
-    if (auto_remove_fill_guides) {
+    if (auto_remove_fill_guides && !fill_curves.is_empty()) {
       ed::greasepencil::remove_fill_guides(dst_curves);
     }
 
