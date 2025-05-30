@@ -64,11 +64,8 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   curve_evaluator.add(threshold_field);
   curve_evaluator.evaluate();
 
-  IndexMaskMemory memory;
-  const IndexMask poly_points = IndexMask::from_ranges(
-      src_curves.points_by_curve(), poly_curves, memory);
   const bke::CurvesFieldContext point_field_context{src_curves, AttrDomain::Point};
-  fn::FieldEvaluator point_evaluator{point_field_context, &poly_points};
+  fn::FieldEvaluator point_evaluator{point_field_context, src_curves.points_num()};
   point_evaluator.add(corners_field);
   point_evaluator.evaluate();
 
