@@ -1,1 +1,2 @@
 Referenced by issue #139642, 对集合实例进行实例化后再镜像时的异常旋转问题
+Referenced by issue #139646, gpu.state.scissor_test_set does not work properly
