@@ -1,2 +1,3 @@
 Referenced by issue #139555, Broken selection drawing for flat objects in ortho view
 Referenced by issue #139594, Color picker triggers unnecessary Cycles viewport update call
+Referenced by issue #139651, Duplicating many Collections in the Outliner is broken
