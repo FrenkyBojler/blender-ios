@@ -707,11 +707,22 @@ def _download_queued_items(
             )
         except DownloadCancelled:
             # Can be logged at a lower level, because the caller did the
-            # cancelling, and can log/report things more loudly if
-            # necessary.
+            # cancelling, and can log/report things more loudly if necessary.
             log.debug("download got cancelled: %s", http_req_descr)
+        except HTTPRequestDownloadError as ex:
+            # HTTP errors that were not an explicit cancellation. These are
+            # communicated to the main process via the messaging system, so they
+            # do not need much logging here.
+            log.debug("could not download: %s: %s", http_req_descr, ex)
+        except OSError as ex:
+            # Things like "disk full", "permission denied", shouldn't need a
+            # full stack trace. These are communicated to the main process via
+            # the messaging system, so they do not need much logging here.
+            log.debug("could not download: %s: %s", http_req_descr, ex)
         except Exception as ex:
-            log.exception("could not download %s: %s", http_req_descr, ex)
+            # Unexpected errors should really be logged here, as they may
+            # indicate bugs (typos, dependencies not found, etc).
+            log.exception("unexpected error downloading %s: %s", http_req_descr, ex)
 
     log.debug("download process shutting down")
 
