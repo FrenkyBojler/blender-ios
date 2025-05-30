@@ -160,14 +160,52 @@ MaterialModule::~MaterialModule()
 void MaterialModule::begin_sync()
 {
   queued_shaders_count = 0;
+  queued_textures_count = 0;
   queued_optimize_shaders_count = 0;
 
   uint64_t next_update = GPU_pass_global_compilation_count();
   gpu_pass_last_update_ = gpu_pass_next_update_;
   gpu_pass_next_update_ = next_update;
 
+  texture_loading_queue_.clear();
   material_map_.clear();
   shader_map_.clear();
+}
+
+bool MaterialModule::queue_texture_loading(GPUMaterial *material)
+{
+  bool loaded = true;
+  ListBase textures = GPU_material_textures(material);
+  for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
+    if (tex->ima) {
+      const bool use_tile_mapping = tex->tiled_mapping_name[0];
+      ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
+      ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
+          tex->ima, iuser, use_tile_mapping);
+      if (gputex.texture == nullptr) {
+        texture_loading_queue_.append(tex);
+        loaded = false;
+      }
+    }
+  }
+  return loaded;
+}
+
+void MaterialModule::end_sync()
+{
+  GPU_debug_group_begin("Texture Loading");
+  for (GPUMaterialTexture *tex : texture_loading_queue_) {
+    BLI_assert(tex->ima);
+    GPU_debug_group_begin(tex->ima->id.name);
+
+    const bool use_tile_mapping = tex->tiled_mapping_name[0];
+    ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
+    BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
+
+    GPU_debug_group_end();
+  }
+  GPU_debug_group_end();
+  texture_loading_queue_.clear();
 }
 
 MaterialPass MaterialModule::material_pass_get(Object *ob,
@@ -201,6 +239,11 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   switch (GPU_material_status(matpass.gpumat)) {
     case GPU_MAT_SUCCESS: {
+      if (!queue_texture_loading(matpass.gpumat)) {
+        queued_textures_count++;
+        matpass.gpumat = inst_.shaders.material_shader_get(
+            default_mat, default_mat->nodetree, pipeline_type, geometry_type, false, nullptr);
+      }
       /* Determine optimization status for remaining compilations counter. */
       int optimization_status = GPU_material_optimization_status(matpass.gpumat);
       if (optimization_status == GPU_MAT_OPTIMIZATION_QUEUED) {
