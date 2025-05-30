@@ -6,6 +6,7 @@
  * \ingroup eevee
  */
 
+#include "BLI_time.h"
 #include "DNA_material_types.h"
 
 #include "BKE_lib_id.hh"
@@ -197,6 +198,15 @@ bool MaterialModule::queue_texture_loading(GPUMaterial *material)
 
 void MaterialModule::end_sync()
 {
+  if (texture_loading_queue_.is_empty()) {
+    return;
+  }
+
+  /* To avoid freezing the UI too much, we only allow 100ms of texture loading per frame. */
+  double loading_time_per_sync = inst_.is_image_render ? DBL_MAX : 0.100;
+
+  double start_time = BLI_time_now_seconds();
+
   GPU_debug_group_begin("Texture Loading");
   for (GPUMaterialTexture *tex : texture_loading_queue_) {
     BLI_assert(tex->ima);
@@ -207,6 +217,10 @@ void MaterialModule::end_sync()
     BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
 
     GPU_debug_group_end();
+
+    if (BLI_time_now_seconds() - start_time > loading_time_per_sync) {
+      break;
+    }
   }
   GPU_debug_group_end();
   texture_loading_queue_.clear();
