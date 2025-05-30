@@ -28,6 +28,8 @@
 #include "BLI_math_bits.h"
 #include "BLI_string.h"
 
+#include "BKE_blender_version.h" /* For #BLENDER_VERSION deprecation warnings. */
+
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh" /* For things like UI_PRECISION_FLOAT_MAX... */
@@ -1761,10 +1763,23 @@ void RNA_def_property_deprecated(PropertyRNA *prop,
   }
 
 #ifndef RNA_RUNTIME
+  StructRNA *srna = DefRNA.laststruct;
   BLI_assert(prop->deprecated == nullptr);
   BLI_assert(note != nullptr);
   BLI_assert(version > 0);
   BLI_assert(removal_version > version);
+
+  /* This message is to alert developers of deprecation
+   * without breaking the build after a version bump. */
+  if (removal_version <= BLENDER_VERSION) {
+    fprintf(stderr,
+            "\nWARNING: \"%s.%s\" deprecation starting at %d.%d marks this property to be removed "
+            "in the current Blender version!\n\n",
+            srna->identifier,
+            prop->identifier,
+            version / 100,
+            version % 100);
+  }
 
   DeprecatedRNA *deprecated = static_cast<DeprecatedRNA *>(rna_calloc(sizeof(DeprecatedRNA)));
   deprecated->note = note;
