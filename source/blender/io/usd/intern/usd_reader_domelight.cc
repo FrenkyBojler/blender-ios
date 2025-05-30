@@ -30,11 +30,11 @@ namespace blender::io::usd {
  * doesn't exist or doesn't have an authored value.
  */
 template<typename T>
-bool get_authored_value(const pxr::UsdAttribute &attr,
-                        const double motionSampleTime,
-                        const pxr::UsdPrim &prim,
-                        const pxr::TfToken fallback_attr_name,
-                        T *r_value)
+static bool get_authored_value(const pxr::UsdAttribute &attr,
+                               const double motionSampleTime,
+                               const pxr::UsdPrim &prim,
+                               const pxr::TfToken fallback_attr_name,
+                               T *r_value)
 {
   if (attr && attr.HasAuthoredValue()) {
     return attr.Get<T>(r_value, motionSampleTime);
@@ -52,7 +52,7 @@ bool get_authored_value(const pxr::UsdAttribute &attr,
   return false;
 }
 
-template<typename T> float get_domeligth_intensity(const T &dome_light, float motionSampleTime)
+template<typename T> static float get_intensity(const T &dome_light, float motionSampleTime)
 {
   float intensity = 1.0f;
   get_authored_value(dome_light.GetIntensityAttr(),
@@ -64,9 +64,7 @@ template<typename T> float get_domeligth_intensity(const T &dome_light, float mo
 }
 
 template<typename T>
-bool get_domeligth_tex_path(const T &dome_light,
-                            float motionSampleTime,
-                            pxr::SdfAssetPath *tex_path)
+static bool get_tex_path(const T &dome_light, float motionSampleTime, pxr::SdfAssetPath *tex_path)
 {
   bool has_tex = get_authored_value(dome_light.GetTextureFileAttr(),
                                     motionSampleTime,
@@ -77,7 +75,7 @@ bool get_domeligth_tex_path(const T &dome_light,
 }
 
 template<typename T>
-bool get_domeligth_color(const T &dome_light, float motionSampleTime, pxr::GfVec3f *color)
+static bool get_color(const T &dome_light, float motionSampleTime, pxr::GfVec3f *color)
 {
   bool has_color = get_authored_value(
       dome_light.GetColorAttr(), motionSampleTime, dome_light.GetPrim(), usdtokens::color, color);
@@ -92,20 +90,18 @@ void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
 
   if (prim_.IsA<pxr::UsdLuxDomeLight>()) {
     pxr::UsdLuxDomeLight dome_light = pxr::UsdLuxDomeLight(prim_);
-    dome_light_data.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
-    dome_light_data.has_tex = get_domeligth_tex_path(
+    dome_light_data.intensity = get_intensity(dome_light, motionSampleTime);
+    dome_light_data.has_tex = get_tex_path(
         dome_light, motionSampleTime, &dome_light_data.tex_path);
-    dome_light_data.has_color = get_domeligth_color(
-        dome_light, motionSampleTime, &dome_light_data.color);
+    dome_light_data.has_color = get_color(dome_light, motionSampleTime, &dome_light_data.color);
     dome_light_data.pole_axis = usdtokens::pole_axis_scene;
   }
   else if (prim_.IsA<pxr::UsdLuxDomeLight_1>()) {
     pxr::UsdLuxDomeLight_1 dome_light = pxr::UsdLuxDomeLight_1(prim_);
-    dome_light_data.intensity = get_domeligth_intensity(dome_light, motionSampleTime);
-    dome_light_data.has_tex = get_domeligth_tex_path(
+    dome_light_data.intensity = get_intensity(dome_light, motionSampleTime);
+    dome_light_data.has_tex = get_tex_path(
         dome_light, motionSampleTime, &dome_light_data.tex_path);
-    dome_light_data.has_color = get_domeligth_color(
-        dome_light, motionSampleTime, &dome_light_data.color);
+    dome_light_data.has_color = get_color(dome_light, motionSampleTime, &dome_light_data.color);
     get_authored_value(dome_light.GetPoleAxisAttr(),
                        motionSampleTime,
                        dome_light.GetPrim(),
