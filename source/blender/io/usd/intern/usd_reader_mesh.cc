@@ -310,12 +310,12 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
     if (is_initial_load_) {
-      const std::string message = fmt::format(
-          "Invalid face data detected for mesh '{}'. Automatic correction will be used, but some "
-          "data will most likely be lost",
-          this->prim_path().GetAsString().c_str());
-      BKE_report(this->reports(), RPT_WARNING, message.c_str());
-      CLOG_WARN(&LOG, message.c_str());
+      const char *message =
+          "Invalid face data detected for mesh '%s'. Automatic correction will be used, but some "
+          "data will most likely be lost";
+      const std::string prim_path = this->prim_path().GetAsString();
+      BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
+      CLOG_WARN(&LOG, message, prim_path.c_str());
     }
     BKE_mesh_validate(mesh, false, false);
   }
