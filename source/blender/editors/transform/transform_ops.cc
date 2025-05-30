@@ -974,10 +974,7 @@ static void TRANSFORM_OT_trackball(wmOperatorType *ot)
 
 static void transform_set_orient_axis(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  PropertyRNA *prop;
-  if (prop = RNA_struct_find_property(ptr, "constraint_axis")) {
-    RNA_property_unset(ptr, prop);
-  }
+  RNA_struct_property_unset(ptr, "constraint_axis");
 }
 
 static void TRANSFORM_OT_rotate(wmOperatorType *ot)
@@ -1005,8 +1002,7 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
                       P_ORIENT_AXIS | P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR |
                           P_GEO_SNAP | P_GPENCIL_EDIT | P_CENTER);
 
-  PropertyRNA *prop;
-  if (prop = RNA_struct_type_find_property(ot->srna, "orient_axis")) {
+  if (PropertyRNA *prop = RNA_struct_type_find_property(ot->srna, "orient_axis")) {
     RNA_def_property_update_runtime(prop, transform_set_orient_axis);
   }
 }
