@@ -202,6 +202,11 @@ void MaterialModule::end_sync()
     return;
   }
 
+  if (inst_.is_viewport()) {
+    /* Avoid ghosting of textures. */
+    inst_.sampling.reset();
+  }
+
   /* To avoid freezing the UI too much, we only allow 100ms of texture loading per frame. */
   double loading_time_per_sync = inst_.is_image_render ? DBL_MAX : 0.100;
 
