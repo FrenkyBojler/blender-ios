@@ -102,6 +102,10 @@ struct CustomDataAndSize {
   int size;
 };
 
+/**
+ * Move generic attributes from #CustomData to #AttributeStorage. All other non-generic layers are
+ * left in #CustomData.
+ */
 static AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const Map<AttrDomain, CustomDataAndSize> &domains)
 {
@@ -121,14 +125,16 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
     const CustomData &custom_data = item.value.data;
     const int domain_size = item.value.size;
     for (const CustomDataLayer &layer : MutableSpan(custom_data.layers, custom_data.totlayer)) {
-      const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
-          eCustomDataType(layer.type));
-      if (!attr_type) {
-        layers_to_keep.lookup_or_add_default(domain).append(layer);
-        continue;
+      if (const std::optional<AttrType> attr_type = custom_data_type_to_attr_type(
+              eCustomDataType(layer.type)))
+      {
+        /* Skip adding a user. This #CustomDataLayer is just freed below. */
+        attributes_to_add.append(
+            {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
       }
-      attributes_to_add.append(
-          {layer.name, domain, *attr_type, layer.data, domain_size, layer.sharing_info});
+      else {
+        layers_to_keep.lookup_or_add_default(domain).append(layer);
+      }
     }
   }
 
@@ -143,7 +149,7 @@ static AttributeStorage attribute_legacy_convert_customdata_to_storage(
                 std::move(array_data));
   }
 
-  for (auto [domain, custom_data] : domains.items()) {
+  for (const auto &[domain, custom_data] : domains.items()) {
     Vector layers_vector = layers_to_keep.pop_default(domain, {});
     MEM_SAFE_FREE(custom_data.data.layers);
     custom_data.data.totlayer = 0;

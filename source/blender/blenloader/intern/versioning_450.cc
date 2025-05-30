@@ -15,6 +15,7 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_pointcloud_types.h"
 #include "DNA_sequence_types.h"
 
@@ -6096,6 +6097,13 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 83)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = std::max<int>(1, ob->soft->fuzzyness);
+      }
+    }
+  }
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
