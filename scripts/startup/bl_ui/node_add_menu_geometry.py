@@ -172,6 +172,7 @@ class NODE_MT_geometry_node_grease_pencil_write(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilColor")
         node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilDepth")
+        node_add_menu.add_node_type(layout, "GeometryNodeSetGreasePencilSoftness")
         node_add_menu.draw_assets_for_catalog(layout, "Grease Pencil/Write")
 
 
@@ -339,18 +340,33 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         if context.space_data.geometry_nodes_type != 'MODIFIER':
             node_add_menu.add_node_type(layout, "GeometryNodeTool3DCursor")
         node_add_menu.add_node_type(layout, "GeometryNodeInputActiveCamera")
-        node_add_menu.add_node_type(layout, "GeometryNodeCameraInfo")
+        node_add_menu.add_node_type_with_outputs(context,
+                                                 layout,
+                                                 "GeometryNodeCameraInfo",
+                                                 ["Projection Matrix",
+                                                  "Focal Length",
+                                                  "Sensor",
+                                                  "Shift",
+                                                  "Clip Start",
+                                                  "Clip End",
+                                                  "Focus Distance",
+                                                  "Is Orthographic",
+                                                  "Orthographic Scale"])
         node_add_menu.add_node_type(layout, "GeometryNodeCollectionInfo")
         node_add_menu.add_node_type(layout, "GeometryNodeImageInfo")
         if context.space_data.geometry_nodes_type != 'BRUSH':
             node_add_menu.add_node_type(layout, "GeometryNodeIsViewport")
         if context.space_data.geometry_nodes_type != 'MODIFIER':
-            node_add_menu.add_node_type(layout, "GeometryNodeToolMousePosition")
+            node_add_menu.add_node_type_with_outputs(
+                context, layout, "GeometryNodeToolMousePosition", [
+                    "Mouse X", "Mouse Y", "Region Width", "Region Height"])
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
-        node_add_menu.add_node_type_with_subnames(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
+        node_add_menu.add_node_type_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         node_add_menu.add_node_type(layout, "GeometryNodeSelfObject")
         if context.space_data.geometry_nodes_type != 'MODIFIER':
-            node_add_menu.add_node_type(layout, "GeometryNodeViewportTransform")
+            node_add_menu.add_node_type_with_outputs(
+                context, layout, "GeometryNodeViewportTransform", [
+                    "Projection", "View", "Is Orthographic"])
         node_add_menu.draw_assets_for_catalog(layout, "Input/Scene")
 
 
@@ -554,7 +570,7 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
         node_add_menu.add_node_type(layout, "NodeGroupOutput")
         if context.space_data.geometry_nodes_type != 'BRUSH':
             node_add_menu.add_node_type(layout, "GeometryNodeViewer")
-            node_add_menu.add_node_type(layout, "GeometryNodeWarning")
+            node_add_menu.add_node_type_with_searchable_enum(context, layout, "GeometryNodeWarning", "warning_type")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
@@ -596,6 +612,7 @@ class NODE_MT_category_GEO_TEXT(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeFormatString")
         node_add_menu.add_node_type(layout, "GeometryNodeStringJoin")
         node_add_menu.add_node_type(layout, "FunctionNodeMatchString")
         node_add_menu.add_node_type(layout, "FunctionNodeReplaceString")
@@ -732,6 +749,8 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
 
     def draw(self, context):
         layout = self.layout
+        node_add_menu.add_node_type_with_searchable_enum(
+            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0)
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
         node_add_menu.add_node_type_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
         node_add_menu.add_node_type(layout, "ShaderNodeClamp")

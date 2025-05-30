@@ -314,7 +314,7 @@ static void WORKSPACE_OT_duplicate(wmOperatorType *ot)
   ot->description = "Add a new workspace";
   ot->idname = "WORKSPACE_OT_duplicate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_new_exec;
 }
@@ -335,7 +335,7 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
   ot->description = "Delete the active workspace";
   ot->idname = "WORKSPACE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_delete_exec;
 }
@@ -392,7 +392,7 @@ static void WORKSPACE_OT_append_activate(wmOperatorType *ot)
   ot->description = "Append a workspace and make it the active one in the current window";
   ot->idname = "WORKSPACE_OT_append_activate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = workspace_append_activate_exec;
 
   PropertyRNA *prop;
@@ -459,14 +459,11 @@ static void workspace_append_button(uiLayout *layout,
   BLI_assert(STREQ(ot_append->idname, "WORKSPACE_OT_append_activate"));
 
   PointerRNA opptr;
-  uiItemFullO_ptr(layout,
-                  ot_append,
-                  CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2),
-                  ICON_NONE,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_NONE,
-                  &opptr);
+  opptr = layout->op(ot_append,
+                     CTX_DATA_(BLT_I18NCONTEXT_ID_WORKSPACE, workspace->id.name + 2),
+                     ICON_NONE,
+                     WM_OP_EXEC_DEFAULT,
+                     UI_ITEM_NONE);
   RNA_string_set(&opptr, "idname", id->name + 2);
   RNA_string_set(&opptr, "filepath", filepath);
 }
@@ -562,7 +559,7 @@ static void WORKSPACE_OT_add(wmOperatorType *ot)
       "from the user configuration";
   ot->idname = "WORKSPACE_OT_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = workspace_add_invoke;
 }
 
@@ -584,7 +581,7 @@ static void WORKSPACE_OT_reorder_to_back(wmOperatorType *ot)
   ot->description = "Reorder workspace to be last in the list";
   ot->idname = "WORKSPACE_OT_reorder_to_back";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_reorder_to_back_exec;
 }
@@ -607,7 +604,7 @@ static void WORKSPACE_OT_reorder_to_front(wmOperatorType *ot)
   ot->description = "Reorder workspace to be first in the list";
   ot->idname = "WORKSPACE_OT_reorder_to_front";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_reorder_to_front_exec;
 }
@@ -634,7 +631,7 @@ static void WORKSPACE_OT_scene_pin_toggle(wmOperatorType *ot)
       "workspace is activated again";
   ot->idname = "WORKSPACE_OT_scene_pin_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = workspace_context_poll;
   ot->exec = workspace_scene_pin_toggle_exec;
 
