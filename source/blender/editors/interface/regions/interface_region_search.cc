@@ -547,6 +547,30 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
   /* callback */
   if (search_but->items_update_fn) {
     ui_searchbox_update_fn(C, search_but, but->editstr, &data->items);
+    /* Track cursor to prevent unwanted deselection after item updates */
+    wmWindow *win = CTX_wm_window(C);
+    if (win) {
+      int cursor_x = -1, cursor_y = -1;
+      /* Access last processed event state (contains most recent cursor position) */
+      wmEvent *event = win->eventstate;
+      if (event) {
+        cursor_x = event->xy[0];
+        cursor_y = event->xy[1];
+        if (BLI_rcti_isect_pt(&region->winrct, cursor_x, cursor_y)) {
+          rcti rect;
+          for (int a = 0; a < data->items.totitem; a++) {
+            ui_searchbox_butrect(&rect, data, a);
+            if (BLI_rcti_isect_pt(
+                    &rect, cursor_x - region->winrct.xmin, cursor_y - region->winrct.ymin))
+            {
+              data->active = a;
+              ui_searchbox_select(C, region, but, 0);
+              break;
+            }
+          }
+        }
+      }
+    }
   }
 
   /* handle case where editstr is equal to one of items */
