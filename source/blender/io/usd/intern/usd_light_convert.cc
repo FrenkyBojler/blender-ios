@@ -526,7 +526,9 @@ void dome_light_to_world_material(const USDImportParams &params,
     return;
   }
 
-  /* This logic will produce identical views as seen in `usdview` as of USD 25.05. */
+  /* Note: This logic tries to produce identical results to `usdview` as of USD 25.05.
+   * However, `usdview` seems to handle Y-Up stages differently; some scenes match while others
+   * do not unless we keep the second conditional below (+90 on x-axis).  */
   const pxr::TfToken stage_up = pxr::UsdGeomGetStageUpAxis(stage);
   const bool needs_stage_z_adjust = stage_up == pxr::UsdGeomTokens->z &&
                                     ELEM(dome_light_data.pole_axis,
@@ -536,6 +538,10 @@ void dome_light_to_world_material(const USDImportParams &params,
                                     ELEM(dome_light_data.pole_axis, pxr::UsdLuxTokens->Z);
   if (needs_stage_z_adjust || needs_stage_y_adjust) {
     xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), 90.0));
+  }
+  else if (stage_up == pxr::UsdGeomTokens->y) {
+    /* Convert from Y-up to Z-up with a 90 degree rotation about the X-axis. */
+    xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0));
   }
 
   /* Rotate into Blender's frame of reference. */

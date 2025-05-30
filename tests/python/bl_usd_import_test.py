@@ -1211,7 +1211,7 @@ class USDImportTest(AbstractUSDTest):
         tests = [
             ("usd_dome_light_1_stageZ_poleY.usda", [0.0, 0.0, 0.0]),
             ("usd_dome_light_1_stageZ_poleZ.usda", [0.0, -1.5708, 0.0]),
-            ("usd_dome_light_1_stageY_poleDefault.usda", [0.0, 0.0, 0.0])
+            ("usd_dome_light_1_stageY_poleDefault.usda", [-1.5708, 0.0, 0.0])
         ]
 
         for test_name, expected_rot in tests:
