@@ -4155,14 +4155,6 @@ static rctf calc_node_frame_dimensions(const bContext &C,
       zone_padding = NODE_ZONE_PADDING;
     }
 
-    /* Otherwise pad if the node is contained inside a zone. */
-    else {
-      const blender::bke::bNodeTreeZones *zones_list = node.owner_tree().zones();
-      if (zones_list && zones_list->get_zone_by_node(node.identifier) != nullptr) {
-        zone_padding = NODE_ZONE_PADDING;
-      }
-    }
-
     /* Compute the height of the info row for each node, which may vary per child node.
      * This has to get the full extra_rows information (including all the text strings), even
      * though all that's actually needed is the count of how many info_rows there are. */
