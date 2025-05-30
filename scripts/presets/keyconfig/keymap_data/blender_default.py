@@ -1414,7 +1414,6 @@ def km_uv_editor(params):
          {"properties": [("axis", 'X'), ("type", 'DYNAMIC'), ("distance", 1)]}),
         ("uv.arrow_move", {"type": 'LEFT_ARROW', "value": 'PRESS'},
          {"properties": [("axis", 'X'), ("type", 'DYNAMIC'), ("distance", -1)]}),
-
         ("uv.arrow_move", {"type": 'UP_ARROW', "value": 'PRESS', "shift": True},
          {"properties": [("axis", 'Y'), ("type", 'PIXEL'), ("distance", 1)]}),
         ("uv.arrow_move", {"type": 'DOWN_ARROW', "value": 'PRESS', "shift": True},
@@ -1423,7 +1422,6 @@ def km_uv_editor(params):
          {"properties": [("axis", 'X'), ("type", 'PIXEL'), ("distance", 1)]}),
         ("uv.arrow_move", {"type": 'LEFT_ARROW', "value": 'PRESS', "shift": True},
          {"properties": [("axis", 'X'), ("type", 'PIXEL'), ("distance", -1)]}),
-
         ("uv.arrow_move", {"type": 'UP_ARROW', "value": 'PRESS', "ctrl": True},
          {"properties": [("axis", 'Y'), ("type", 'UDIM'), ("distance", 1)]}),
         ("uv.arrow_move", {"type": 'DOWN_ARROW', "value": 'PRESS', "ctrl": True},
@@ -1432,7 +1430,6 @@ def km_uv_editor(params):
          {"properties": [("axis", 'X'), ("type", 'UDIM'), ("distance", 1)]}),
         ("uv.arrow_move", {"type": 'LEFT_ARROW', "value": 'PRESS', "ctrl": True},
          {"properties": [("axis", 'X'), ("type", 'UDIM'), ("distance", -1)]}),
-
         ("uv.stitch", {"type": 'V', "value": 'PRESS', "alt": True}, None),
         ("uv.rip_move", {"type": 'V', "value": 'PRESS'}, None),
         ("uv.pin", {"type": 'P', "value": 'PRESS'},
