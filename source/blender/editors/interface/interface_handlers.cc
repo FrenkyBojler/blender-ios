@@ -10811,38 +10811,6 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle)
-{
-  const int pages = block->pie_data.pages.size();
-  if (pages < 2) {
-    return false;
-  }
-  if (cycle) {
-    block->pie_data.active_page = blender::math::mod_periodic(
-        block->pie_data.active_page + direction, pages);
-    return true;
-  }
-  const int current_page = block->pie_data.active_page;
-  block->pie_data.active_page = std::clamp(current_page + direction, 0, pages - 1);
-  return current_page != block->pie_data.active_page;
-};
-
-static void ui_pie_menu_page_scroll(
-    bContext *C, uiBlock *block, uiPopupBlockHandle *menu, int direction, bool cycle = false)
-{
-  if (ui_pie_menu_page_scroll_step(block, direction, cycle)) {
-    uiBut *but = ui_region_find_active_but(menu->region);
-    if (but) {
-      but->active->cancel = true;
-      button_activate_exit(C, but, but->active, false, false);
-    }
-    WM_event_add_mousemove(CTX_wm_window(C));
-  }
-  blender::interface::internal::pie_menu_refresh_active_page(block);
-  blender::interface::internal::pie_menu_workspace_status(C, block);
-  ED_region_tag_redraw(menu->region);
-};
-
 static int ui_handle_menu_event(bContext *C,
                                 const wmEvent *event,
                                 uiPopupBlockHandle *menu,
@@ -11662,6 +11630,38 @@ static int ui_but_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandl
   button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OVER);
   return ui_but_pie_menu_apply(C, menu, but, false);
 }
+
+static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle)
+{
+  const int pages = block->pie_data.pages.size();
+  if (pages < 2) {
+    return false;
+  }
+  if (cycle) {
+    block->pie_data.active_page = blender::math::mod_periodic(
+        block->pie_data.active_page + direction, pages);
+    return true;
+  }
+  const int current_page = block->pie_data.active_page;
+  block->pie_data.active_page = std::clamp(current_page + direction, 0, pages - 1);
+  return current_page != block->pie_data.active_page;
+};
+
+static void ui_pie_menu_page_scroll(
+    bContext *C, uiBlock *block, uiPopupBlockHandle *menu, int direction, bool cycle = false)
+{
+  if (ui_pie_menu_page_scroll_step(block, direction, cycle)) {
+    uiBut *but = ui_region_find_active_but(menu->region);
+    if (but) {
+      but->active->cancel = true;
+      button_activate_exit(C, but, but->active, false, false);
+    }
+    WM_event_add_mousemove(CTX_wm_window(C));
+  }
+  blender::interface::internal::pie_menu_refresh_active_page(block);
+  blender::interface::internal::pie_menu_workspace_status(C, block);
+  ED_region_tag_redraw(menu->region);
+};
 
 static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu)
 {
