@@ -939,7 +939,10 @@ struct ExtensionRNA {
 };
 
 /**
- * Deprecation meta-data.
+ * Information about deprecated properties.
+ *
+ * Used by the API documentation and Python API to print warnings
+ * when accessing a deprecated property.
  */
 struct DeprecatedRNA {
   /** Single line deprecation message, suggest alternatives where possible. */

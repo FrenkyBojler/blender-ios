@@ -1459,7 +1459,7 @@ def pyrna_deprecated_directive(ident, deprecated):
     removal_version_str = "{:d}.{:d}.{:d}".format(*removal_version).removesuffix(".0")
 
     return (
-        "{:s}.. deprecated:: {:s} will be removed in version {:s}\n"
+        "{:s}.. deprecated:: {:s} removal planned in version {:s}\n"
         "\n"
         "{:s}   {:s}\n"
     ).format(

@@ -1750,13 +1750,31 @@ void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *d
   prop->description = description;
 }
 
-void RNA_def_property_deprecated(PropertyRNA *prop, const DeprecatedRNA *deprecated)
+void RNA_def_property_deprecated(PropertyRNA *prop,
+                                 const char *note,
+                                 const short version,
+                                 const short removal_version)
 {
-  BLI_assert(deprecated->note != nullptr);
-  BLI_assert(deprecated->version > 0);
-  BLI_assert(deprecated->removal_version > deprecated->version);
+  if (!DefRNA.preprocess) {
+    fprintf(stderr, "%s: \"%s\": only during preprocessing.", __func__, prop->identifier);
+    return;
+  }
 
+#ifndef RNA_RUNTIME
+  DeprecatedRNA *deprecated = static_cast<DeprecatedRNA *>(rna_calloc(sizeof(DeprecatedRNA)));
+  BLI_assert(note != nullptr);
+  BLI_assert(version > 0);
+  BLI_assert(removal_version > deprecated->version);
+
+  deprecated->note = note;
+  deprecated->version = version;
+  deprecated->removal_version = removal_version;
   prop->deprecated = deprecated;
+#else
+  (void)note;
+  (void)version;
+  (void)removal_version;
+#endif
 }
 
 void RNA_def_property_ui_icon(PropertyRNA *prop, int icon, int consecutive)
