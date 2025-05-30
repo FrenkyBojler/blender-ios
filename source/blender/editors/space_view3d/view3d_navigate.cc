@@ -754,7 +754,7 @@ static void view3d_orbit_apply_dyn_ofs_ortho_correction(float ofs[3],
    * (`ofs` + `dist` along the view Z-axis) unlike orthographic views which center around `ofs`.
    * Nevertheless there will be cases when having `ofs` and a large `dist` pointing nowhere doesn't
    * give ideal behavior (zooming may jump in larger than expected steps and panning the view may
-   * move too much in relation to nearby objects - for e.g.). So it's worth investigating but
+   * move too much in relation to nearby objects - for example). So it's worth investigating but
    * should be done with extra care as changing `ofs` in perspective view also requires changing
    * the `dist` which could cause unexpected results if the calculated `dist` happens to be small.
    * So disable this workaround in perspective view unless there are clear benefits to enabling. */
@@ -981,8 +981,7 @@ void axis_set_view(bContext *C,
     dist = rv3d->dist;
 
     /* so we animate _from_ the camera location */
-    Object *camera_eval = DEG_get_evaluated_object(CTX_data_ensure_evaluated_depsgraph(C),
-                                                   v3d->camera);
+    Object *camera_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), v3d->camera);
     ED_view3d_from_object(camera_eval, rv3d->ofs, nullptr, &rv3d->dist, nullptr);
 
     V3D_SmoothParams sview = {nullptr};

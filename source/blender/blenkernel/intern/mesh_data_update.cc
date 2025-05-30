@@ -1018,7 +1018,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated_id(&mesh->key->id));
+  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   mesh_eval->key = mesh->key;
 
   if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.sculpt) {
@@ -1060,7 +1060,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated_id(&mesh->key->id));
+  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   me_final->key = mesh->key;
 
   obedit.runtime->editmesh_eval_cage = me_cage;
@@ -1171,7 +1171,7 @@ Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
     /* There is no such a concept as deformed mesh in edit mode.
      * Explicitly disallow this request so that the evaluated result is not modified with evaluated
      * result from the wrong mode. */
-    BLI_assert_msg(0, "Request of derformed mesh of object which is in edit mode");
+    BLI_assert_msg(0, "Request of deformed mesh of object which is in edit mode");
     return nullptr;
   }
 

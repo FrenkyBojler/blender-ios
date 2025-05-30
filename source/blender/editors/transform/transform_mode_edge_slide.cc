@@ -254,7 +254,7 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   Array<float3> bmbvh_coord_storage;
   if (use_occlude_geometry) {
     Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);
-    Object *obedit_eval = DEG_get_evaluated_object(t->depsgraph, tc->obedit);
+    Object *obedit_eval = DEG_get_evaluated(t->depsgraph, tc->obedit);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
 
     const Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
@@ -501,7 +501,9 @@ static void drawEdgeSlide(TransInfo *t)
       immVertex3fv(pos, curr_sv_co_orig);
     }
     immEnd();
+    immUnbindProgram();
 
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
     {
       float *co_test = nullptr;
       if (slp->flipped) {
