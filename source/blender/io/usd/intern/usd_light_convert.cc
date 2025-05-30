@@ -517,12 +517,12 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   /* Set the transform. */
   pxr::UsdGeomXformCache xf_cache(motionSampleTime);
-  pxr::GfMatrix4d xf = xf_cache.GetLocalToWorldTransform(prim.GetPrim());
+  pxr::GfMatrix4d xf = xf_cache.GetLocalToWorldTransform(prim);
 
-  pxr::UsdStageRefPtr stage = prim.GetPrim().GetStage();
+  pxr::UsdStageRefPtr stage = prim.GetStage();
 
   if (!stage) {
-    CLOG_WARN(&LOG, "Couldn't get stage for dome light %s", prim.GetPrim().GetPath().GetText());
+    CLOG_WARN(&LOG, "Couldn't get stage for dome light %s", prim.GetPath().GetText());
     return;
   }
 
