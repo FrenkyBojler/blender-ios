@@ -1761,11 +1761,12 @@ void RNA_def_property_deprecated(PropertyRNA *prop,
   }
 
 #ifndef RNA_RUNTIME
-  DeprecatedRNA *deprecated = static_cast<DeprecatedRNA *>(rna_calloc(sizeof(DeprecatedRNA)));
+  BLI_assert(prop->deprecated == nullptr);
   BLI_assert(note != nullptr);
   BLI_assert(version > 0);
-  BLI_assert(removal_version > deprecated->version);
+  BLI_assert(removal_version > version);
 
+  DeprecatedRNA *deprecated = static_cast<DeprecatedRNA *>(rna_calloc(sizeof(DeprecatedRNA)));
   deprecated->note = note;
   deprecated->version = version;
   deprecated->removal_version = removal_version;
