@@ -182,6 +182,10 @@ bool MaterialModule::queue_texture_loading(GPUMaterial *material)
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
       ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
           tex->ima, iuser, use_tile_mapping);
+      if (ELEM(tex->ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+        /* Do not defer the loading of animated textures as they would appear always loading. */
+        continue;
+      }
       if (gputex.texture == nullptr) {
         texture_loading_queue_.append(tex);
         loaded = false;
