@@ -41,6 +41,7 @@
 #include "UI_interface.hh"
 
 #include "ED_id_management.hh"
+#include "ED_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -5626,6 +5627,27 @@ static void ui_item_layout(uiItem *item)
 
 namespace blender::interface::internal {
 
+void pie_menu_workspace_status(bContext *C, uiBlock *block)
+{
+  if (block->pie_data.pages.size() < 2) {
+    return;
+  }
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Cycle previous/next pie menu page"), ICON_EVENT_SHIFT, ICON_EVENT_TAB);
+  status.item("", ICON_MOUSE_MMB_SCROLL);
+
+  if (block->pie_data.active_page == 0) {
+    status.item(IFACE_("Scroll to next pie menu page"), ICON_EVENT_RIGHT_ARROW);
+  }
+  else if (block->pie_data.active_page == block->pie_data.pages.size() - 1) {
+    status.item(IFACE_("Scroll to previous pie menu page"), ICON_EVENT_LEFT_ARROW);
+  }
+  else {
+    status.item(IFACE_("Scroll to previous/next pie menu page"),
+                ICON_EVENT_LEFT_ARROW,
+                ICON_EVENT_RIGHT_ARROW);
+  }
+}
 void pie_menu_refresh_active_page(uiBlock *block)
 {
   for (int i : block->pie_data.pages.index_range()) {
@@ -5654,7 +5676,7 @@ static void pie_menu_add_buts_to_page(blender::Vector<uiBut *> &page, uiItem *it
   }
 }
 
-static void pie_menu_create_buts_pages(uiBlock *block, uiLayout *layout)
+static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
 {
   BLI_assert(layout->root_->type == UI_LAYOUT_PIEMENU);
   uiItem **pie_menu = std::find_if(layout->items_.begin(), layout->items_.end(), [](uiItem *item) {
@@ -5673,6 +5695,8 @@ static void pie_menu_create_buts_pages(uiBlock *block, uiLayout *layout)
     pie_menu_add_buts_to_page(block->pie_data.pages.last(), subitem);
     i++;
   }
+  block->pie_data.pages.remove_if(
+      [](const blender::Vector<uiBut *> &page) { return page.is_empty(); });
   blender::interface::internal::pie_menu_refresh_active_page(block);
 }
 }  // namespace blender::interface::internal
@@ -5686,7 +5710,7 @@ static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
   ui_item_estimate(layout);
   ui_item_layout(layout);
   if (layout->root_->type == UI_LAYOUT_PIEMENU) {
-    blender::interface::internal::pie_menu_create_buts_pages(block, layout);
+    blender::interface::internal::pie_menu_create_scroll_pages(block, layout);
   }
 
   if (r_x) {

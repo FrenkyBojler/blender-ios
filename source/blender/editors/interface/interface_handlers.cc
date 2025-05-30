@@ -11982,6 +11982,7 @@ static int ui_handle_menus_recursive(bContext *C,
       }
 
       blender::interface::internal::pie_menu_refresh_active_page(block);
+      blender::interface::internal::pie_menu_workspace_status(C, block);
       ED_region_tag_redraw(menu->region);
       ED_region_tag_refresh_ui(menu->region);
     }

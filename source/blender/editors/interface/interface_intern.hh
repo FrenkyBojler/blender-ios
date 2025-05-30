@@ -1713,4 +1713,6 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
                            PropertyRNA *dst_prop);
 
 void pie_menu_refresh_active_page(uiBlock *block);
+void pie_menu_workspace_status(bContext *C, uiBlock *block);
+
 }  // namespace blender::interface::internal
