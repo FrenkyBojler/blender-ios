@@ -9,15 +9,13 @@
  * the topology of existing mesh data. (split, join, flip etc).
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "intern/bmesh_private.h"
+#include "bmesh.hh"
+#include "intern/bmesh_private.hh"
 
 using blender::Vector;
 
@@ -92,9 +90,16 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
       return false;
     }
 #else
-    if (UNLIKELY(!BM_faces_join_pair(bm, e->l, e->l->radial_next, true))) {
+    BMFace *f_double;
+
+    if (UNLIKELY(!BM_faces_join_pair(bm, e->l, e->l->radial_next, true, &f_double))) {
       return false;
     }
+
+    /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+    BLI_assert_msg(f_double == nullptr,
+                   "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
     if (UNLIKELY(!BM_vert_collapse_faces(bm, v->e, v, 1.0, true, false, true, true))) {
       return false;
     }
@@ -111,9 +116,15 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
 
     /* handle two-valence */
     if (e->l != e->l->radial_next) {
-      if (!BM_faces_join_pair(bm, e->l, e->l->radial_next, true)) {
+      BMFace *f_double;
+
+      if (!BM_faces_join_pair(bm, e->l, e->l->radial_next, true, &f_double)) {
         return false;
       }
+
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
     }
 
     return true;
@@ -128,13 +139,19 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
       do {
         BMFace *f = nullptr;
         if (BM_edge_is_manifold(e) && (e != baseedge) && (e != keepedge)) {
-          f = BM_faces_join_pair(bm, e->l, e->l->radial_next, true);
+          BMFace *f_double;
+
+          f = BM_faces_join_pair(bm, e->l, e->l->radial_next, true, &f_double);
           /* return if couldn't join faces in manifold
            * conditions */
           /* !disabled for testing why bad things happen */
           if (!f) {
             return false;
           }
+
+          /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
         }
 
         if (f) {
@@ -156,10 +173,16 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
     if (e->l) {
       /* get remaining two faces */
       if (e->l != e->l->radial_next) {
+        BMFace *f_double;
+
         /* join two remaining faces */
-        if (!BM_faces_join_pair(bm, e->l, e->l->radial_next, true)) {
+        if (!BM_faces_join_pair(bm, e->l, e->l->radial_next, true, &f_double)) {
           return false;
         }
+
+        /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+        BLI_assert_msg(f_double == nullptr,
+                       "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
       }
     }
   }
@@ -167,7 +190,8 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
   return true;
 }
 
-BMFace *BM_faces_join_pair(BMesh *bm, BMLoop *l_a, BMLoop *l_b, const bool do_del)
+BMFace *BM_faces_join_pair(
+    BMesh *bm, BMLoop *l_a, BMLoop *l_b, const bool do_del, BMFace **r_double)
 {
   BLI_assert((l_a != l_b) && (l_a->e == l_b->e));
 
@@ -177,7 +201,7 @@ BMFace *BM_faces_join_pair(BMesh *bm, BMLoop *l_a, BMLoop *l_b, const bool do_de
   }
 
   BMFace *faces[2] = {l_a->f, l_b->f};
-  return BM_faces_join(bm, faces, 2, do_del);
+  return BM_faces_join(bm, faces, 2, do_del, r_double);
 }
 
 BMFace *BM_face_split(BMesh *bm,
@@ -205,7 +229,7 @@ BMFace *BM_face_split(BMesh *bm,
 
   /* do we have a multires layer? */
   if (cd_loop_mdisp_offset != -1) {
-    f_tmp = BM_face_copy(bm, bm, f, false, false);
+    f_tmp = BM_face_copy(bm, f, false, false);
   }
 
 #ifdef USE_BMESH_HOLES
@@ -273,7 +297,7 @@ BMFace *BM_face_split_n(BMesh *bm,
     return nullptr;
   }
 
-  f_tmp = BM_face_copy(bm, bm, f, true, true);
+  f_tmp = BM_face_copy(bm, f, true, true);
 
 #ifdef USE_BMESH_HOLES
   f_new = bmesh_kernel_split_face_make_edge(bm, f, l_a, l_b, &l_new, nullptr, example, false);
@@ -371,7 +395,14 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm,
     }
 
     if (faces.size() >= 2) {
-      BMFace *f2 = BM_faces_join(bm, faces.data(), faces.size(), true);
+      BMFace *f_double;
+
+      BMFace *f2 = BM_faces_join(bm, faces.data(), faces.size(), true, &f_double);
+
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (f2) {
         BMLoop *l_a, *l_b;
 
@@ -467,7 +498,7 @@ BMVert *BM_edge_split(BMesh *bm, BMEdge *e, BMVert *v, BMEdge **r_e, float fac)
     /* flag existing faces so we can differentiate oldfaces from new faces */
     for (int64_t i = 0; i < oldfaces.size(); i++) {
       BM_ELEM_API_FLAG_ENABLE(oldfaces[i], _FLAG_OVERLAP);
-      oldfaces[i] = BM_face_copy(bm, bm, oldfaces[i], true, true);
+      oldfaces[i] = BM_face_copy(bm, oldfaces[i], true, true);
       BM_ELEM_API_FLAG_DISABLE(oldfaces[i], _FLAG_OVERLAP);
     }
   }
@@ -486,7 +517,7 @@ BMVert *BM_edge_split(BMesh *bm, BMEdge *e, BMVert *v, BMEdge **r_e, float fac)
   madd_v3_v3v3fl(v_new->co, v->co, v_new->co, fac);
 
   e_new->head.hflag = e->head.hflag;
-  BM_elem_attrs_copy(bm, bm, e, e_new);
+  BM_elem_attrs_copy(bm, e, e_new);
 
   /* v->v_new->v2 */
   BM_data_interp_face_vert_edge(bm, v_other, v, v_new, e, fac);
@@ -569,8 +600,8 @@ BMVert *BM_edge_split_n(BMesh *bm, BMEdge *e, int numcuts, BMVert **r_varr)
 
 void BM_edge_verts_swap(BMEdge *e)
 {
-  SWAP(BMVert *, e->v1, e->v2);
-  SWAP(BMDiskLink, e->v1_disk_link, e->v2_disk_link);
+  std::swap(e->v1, e->v2);
+  std::swap(e->v1_disk_link, e->v2_disk_link);
 }
 
 void BM_edge_calc_rotate(BMEdge *e, const bool ccw, BMLoop **r_l1, BMLoop **r_l2)
@@ -592,7 +623,7 @@ void BM_edge_calc_rotate(BMEdge *e, const bool ccw, BMLoop **r_l1, BMLoop **r_l2
    * gives more predictable results since that way the next vert
    * just stitches from face fa / fb */
   if (!ccw) {
-    SWAP(BMFace *, fa, fb);
+    std::swap(fa, fb);
   }
 
   *r_l1 = BM_face_other_vert_loop(fb, v2, v1);
@@ -790,9 +821,15 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 
   const bool is_flipped = !BM_edge_is_contiguous(e);
 
+  BMFace *f_double;
+
   /* don't delete the edge, manually remove the edge after so we can copy its attributes */
   f = BM_faces_join_pair(
-      bm, BM_face_edge_share_loop(l1->f, e), BM_face_edge_share_loop(l2->f, e), true);
+      bm, BM_face_edge_share_loop(l1->f, e), BM_face_edge_share_loop(l2->f, e), true, &f_double);
+
+  /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+  BLI_assert_msg(f_double == nullptr,
+                 "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
 
   if (f == nullptr) {
     return nullptr;

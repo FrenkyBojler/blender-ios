@@ -8,83 +8,65 @@
 
 #define DNA_DEPRECATED_ALLOW
 
-#include <algorithm>
-#include <cmath>
-
-#include "CLG_log.h"
+#include "ANIM_armature_iter.hh"
+#include "ANIM_bone_collections.hh"
 
 /* Define macros in `DNA_genfile.h`. */
 #define DNA_GENFILE_VERSIONING_MACROS
 
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_defaults.h"
+#include "DNA_genfile.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
-#include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_movieclip_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_world_types.h"
-
-#include "DNA_defaults.h"
-#include "DNA_defs.h"
-#include "DNA_genfile.h"
+#include "DNA_node_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_sequence_types.h"
+#include "DNA_world_types.h"
 
 #undef DNA_GENFILE_VERSIONING_MACROS
 
-#include "BLI_assert.h"
 #include "BLI_listbase.h"
-#include "BLI_map.hh"
 #include "BLI_math_vector.h"
-#include "BLI_set.hh"
 #include "BLI_string.h"
-#include "BLI_string_ref.hh"
 
-#include "BKE_anim_data.h"
+#include "BLT_translation.hh"
+
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
-#include "BKE_attribute.h"
-#include "BKE_collection.h"
-#include "BKE_curve.h"
+#include "BKE_attribute.hh"
+#include "BKE_curve.hh"
 #include "BKE_effect.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
-#include "BKE_main.h"
-#include "BKE_material.h"
+#include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
+#include "BKE_texture.h"
 #include "BKE_tracking.h"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
-
-#include "ANIM_armature_iter.hh"
-#include "ANIM_bone_collections.h"
-
-#include "ED_armature.hh"
-
-#include "BLT_translation.h"
+#include "SEQ_time.hh"
 
 #include "BLO_read_write.hh"
-#include "BLO_readfile.h"
 
 #include "readfile.hh"
 
 #include "versioning_common.hh"
 
-// static CLG_LogRef LOG = {"blo.readfile.doversion"};
-
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 {
   for (bNode *node : ntree->all_nodes()) {
-    if (node->id == nullptr &&
-        ((node->type == CMP_NODE_R_LAYERS) ||
-         (node->type == CMP_NODE_CRYPTOMATTE && node->custom1 == CMP_CRYPTOMATTE_SRC_RENDER)))
+    if (node->id == nullptr && ((node->type_legacy == CMP_NODE_R_LAYERS) ||
+                                (node->type_legacy == CMP_NODE_CRYPTOMATTE &&
+                                 node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)))
     {
       node->id = &scene->id;
     }
@@ -182,7 +164,7 @@ static void version_bonelayers_to_bonecollections(Main *bmain)
       layermask_collection.append(std::make_pair(layer_mask, bcoll));
 
       if ((arm->layer & layer_mask) == 0) {
-        ANIM_bonecoll_hide(bcoll);
+        ANIM_bonecoll_hide(arm, bcoll);
       }
     }
 
@@ -222,7 +204,7 @@ static void version_bonegroups_to_bonecollections(Main *bmain)
        * groups did not have any impact on this. To retain the behavior, that
        * hiding all layers a bone is on hides the bone, the
        * bone-group-collections should be created hidden. */
-      ANIM_bonecoll_hide(bcoll);
+      ANIM_bonecoll_hide(arm, bcoll);
     }
 
     /* Assign the bones to their bone group based collection. */
@@ -252,7 +234,7 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
   AnimData *adt = BKE_animdata_from_id(id);
 
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
       continue;
     }
 
@@ -300,28 +282,29 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
   }
 }
 
-static void versioning_eevee_shadow_settings(Object *object)
+static bool versioning_convert_strip_speed_factor(Strip *strip, void *user_data)
 {
-  /** EEVEE no longer uses the Material::blend_shadow property.
-   * Instead, it uses Object::visibility_flag for disabling shadow casting
-   */
+  const Scene *scene = static_cast<Scene *>(user_data);
+  const float speed_factor = strip->speed_factor;
 
-  short *material_len = BKE_object_material_len_p(object);
-  if (!material_len) {
-    return;
+  if (speed_factor == 1.0f || !blender::seq::retiming_is_allowed(strip) ||
+      blender::seq::retiming_keys_count(strip) > 0)
+  {
+    return true;
   }
 
-  using namespace blender;
-  bool hide_shadows = *material_len > 0;
-  for (int i : IndexRange(*material_len)) {
-    Material *material = BKE_object_material_get(object, i + 1);
-    if (!material || material->blend_shadow != MA_BS_NONE) {
-      hide_shadows = false;
-    }
+  blender::seq::retiming_data_ensure(strip);
+  SeqRetimingKey *last_key = &blender::seq::retiming_keys_get(strip)[1];
+
+  last_key->strip_frame_index = (strip->len) / speed_factor;
+
+  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+    const int prev_length = strip->len - strip->startofs - strip->endofs;
+    const float left_handle = blender::seq::time_left_handle_frame_get(scene, strip);
+    blender::seq::time_right_handle_frame_set(scene, strip, left_handle + prev_length);
   }
 
-  /* Enable the hide_shadow flag only if there's not any shadow casting material. */
-  SET_FLAG_FROM_TEST(object->visibility_flag, hide_shadows, OB_HIDE_SHADOW);
+  return true;
 }
 
 void do_versions_after_linking_400(FileData *fd, Main *bmain)
@@ -363,14 +346,14 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
           if (ob->id.lib) {
             BLO_reportf_wrap(fd->reports,
                              RPT_INFO,
-                             TIP_("Proxy lost from object %s lib %s\n"),
+                             RPT_("Proxy lost from object %s lib %s\n"),
                              ob->id.name + 2,
                              ob->id.lib->filepath);
           }
           else {
             BLO_reportf_wrap(fd->reports,
                              RPT_INFO,
-                             TIP_("Proxy lost from object %s lib <NONE>\n"),
+                             RPT_("Proxy lost from object %s lib <NONE>\n"),
                              ob->id.name + 2);
           }
           fd->reports->count.missing_obproxies++;
@@ -404,32 +387,18 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
-    BKE_mesh_legacy_face_map_to_generic(bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 5)) {
-    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
-    bool is_cycles = scene && STREQ(scene->r.engine, RE_engine_id_CYCLES);
-    if (!is_cycles) {
-      LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-        versioning_eevee_shadow_settings(object);
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 27)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = blender::seq::editing_get(scene);
+      if (ed != nullptr) {
+        blender::seq::for_each_callback(
+            &ed->seqbase, versioning_convert_strip_speed_factor, scene);
       }
     }
   }
 
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - #blo_do_versions_400 in this file.
-   * - `versioning_userdef.cc`, #blo_do_versions_userdef
-   * - `versioning_userdef.cc`, #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
+    BKE_mesh_legacy_face_map_to_generic(bmain);
   }
 }
 
@@ -481,7 +450,7 @@ static void version_motion_tracking_legacy_camera_object(MovieClip &movieclip)
   BLI_listbase_clear(&tracking.plane_tracks_legacy);
   tracking.act_track_legacy = nullptr;
   tracking.act_plane_track_legacy = nullptr;
-  memset(&tracking.reconstruction_legacy, 0, sizeof(tracking.reconstruction_legacy));
+  tracking.reconstruction_legacy = MovieTrackingReconstruction{};
 }
 
 static void version_movieclips_legacy_camera_object(Main *bmain)
@@ -491,20 +460,43 @@ static void version_movieclips_legacy_camera_object(Main *bmain)
   }
 }
 
-/* Version VertexWeightEdit modifier to make existing weights exclusive of the threshold. */
-static void version_vertex_weight_edit_preserve_threshold_exclusivity(Main *bmain)
+static void versioning_replace_legacy_glossy_node(bNodeTree *ntree)
 {
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (ob->type != OB_MESH) {
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type_legacy == SH_NODE_BSDF_GLOSSY_LEGACY) {
+      STRNCPY(node->idname, "ShaderNodeBsdfAnisotropic");
+      node->type_legacy = SH_NODE_BSDF_GLOSSY;
+    }
+  }
+}
+
+static void versioning_remove_microfacet_sharp_distribution(bNodeTree *ntree)
+{
+  /* Find all glossy, glass and refraction BSDF nodes that have their distribution
+   * set to SHARP and set them to GGX, disconnect any link to the Roughness input
+   * and set its value to zero. */
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (!ELEM(node->type_legacy, SH_NODE_BSDF_GLOSSY, SH_NODE_BSDF_GLASS, SH_NODE_BSDF_REFRACTION))
+    {
+      continue;
+    }
+    if (node->custom1 != SHD_GLOSSY_SHARP_DEPRECATED) {
       continue;
     }
 
-    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-      if (md->type == eModifierType_WeightVGEdit) {
-        WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
-        wmd->add_threshold = nexttoward(wmd->add_threshold, 2.0);
-        wmd->rem_threshold = nexttoward(wmd->rem_threshold, -1.0);
+    node->custom1 = SHD_GLOSSY_GGX;
+    LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+      if (!STREQ(socket->identifier, "Roughness")) {
+        continue;
       }
+
+      if (socket->link != nullptr) {
+        blender::bke::node_remove_link(ntree, *socket->link);
+      }
+      bNodeSocketValueFloat *socket_value = (bNodeSocketValueFloat *)socket->default_value;
+      socket_value->value = 0.0f;
+
+      break;
     }
   }
 }
@@ -520,8 +512,9 @@ static void version_mesh_crease_generic(Main &bmain)
       LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
         if (STR_ELEM(node->idname,
                      "GeometryNodeStoreNamedAttribute",
-                     "GeometryNodeInputNamedAttribute")) {
-          bNodeSocket *socket = nodeFindSocket(node, SOCK_IN, "Name");
+                     "GeometryNodeInputNamedAttribute"))
+        {
+          bNodeSocket *socket = blender::bke::node_find_socket(*node, SOCK_IN, "Name");
           if (STREQ(socket->default_value_typed<bNodeSocketValueString>()->value, "crease")) {
             STRNCPY(socket->default_value_typed<bNodeSocketValueString>()->value, "crease_edge");
           }
@@ -548,46 +541,6 @@ static void version_mesh_crease_generic(Main &bmain)
   }
 }
 
-static void versioning_replace_legacy_glossy_node(bNodeTree *ntree)
-{
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == SH_NODE_BSDF_GLOSSY_LEGACY) {
-      STRNCPY(node->idname, "ShaderNodeBsdfAnisotropic");
-      node->type = SH_NODE_BSDF_GLOSSY;
-    }
-  }
-}
-
-static void versioning_remove_microfacet_sharp_distribution(bNodeTree *ntree)
-{
-  /* Find all glossy, glass and refraction BSDF nodes that have their distribution
-   * set to SHARP and set them to GGX, disconnect any link to the Roughness input
-   * and set its value to zero. */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (!ELEM(node->type, SH_NODE_BSDF_GLOSSY, SH_NODE_BSDF_GLASS, SH_NODE_BSDF_REFRACTION)) {
-      continue;
-    }
-    if (node->custom1 != SHD_GLOSSY_SHARP_DEPRECATED) {
-      continue;
-    }
-
-    node->custom1 = SHD_GLOSSY_GGX;
-    LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
-      if (!STREQ(socket->identifier, "Roughness")) {
-        continue;
-      }
-
-      if (socket->link != nullptr) {
-        nodeRemLink(ntree, socket->link);
-      }
-      bNodeSocketValueFloat *socket_value = (bNodeSocketValueFloat *)socket->default_value;
-      socket_value->value = 0.0f;
-
-      break;
-    }
-  }
-}
-
 static void version_replace_texcoord_normal_socket(bNodeTree *ntree)
 {
   /* The normal of a spot light was set to the incoming light direction, replace with the
@@ -599,22 +552,45 @@ static void version_replace_texcoord_normal_socket(bNodeTree *ntree)
   bNodeSocket *vec_out_socket = nullptr;
 
   LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-    if (link->fromnode->type == SH_NODE_TEX_COORD && STREQ(link->fromsock->identifier, "Normal")) {
+    if (link->fromnode->type_legacy == SH_NODE_TEX_COORD &&
+        STREQ(link->fromsock->identifier, "Normal"))
+    {
       if (geometry_node == nullptr) {
-        geometry_node = nodeAddStaticNode(nullptr, ntree, SH_NODE_NEW_GEOMETRY);
-        incoming_socket = nodeFindSocket(geometry_node, SOCK_OUT, "Incoming");
+        geometry_node = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_NEW_GEOMETRY);
+        incoming_socket = blender::bke::node_find_socket(*geometry_node, SOCK_OUT, "Incoming");
 
-        transform_node = nodeAddStaticNode(nullptr, ntree, SH_NODE_VECT_TRANSFORM);
-        vec_in_socket = nodeFindSocket(transform_node, SOCK_IN, "Vector");
-        vec_out_socket = nodeFindSocket(transform_node, SOCK_OUT, "Vector");
+        transform_node = blender::bke::node_add_static_node(
+            nullptr, *ntree, SH_NODE_VECT_TRANSFORM);
+        vec_in_socket = blender::bke::node_find_socket(*transform_node, SOCK_IN, "Vector");
+        vec_out_socket = blender::bke::node_find_socket(*transform_node, SOCK_OUT, "Vector");
 
         NodeShaderVectTransform *nodeprop = (NodeShaderVectTransform *)transform_node->storage;
         nodeprop->type = SHD_VECT_TRANSFORM_TYPE_NORMAL;
 
-        nodeAddLink(ntree, geometry_node, incoming_socket, transform_node, vec_in_socket);
+        blender::bke::node_add_link(
+            *ntree, *geometry_node, *incoming_socket, *transform_node, *vec_in_socket);
       }
-      nodeAddLink(ntree, transform_node, vec_out_socket, link->tonode, link->tosock);
-      nodeRemLink(ntree, link);
+      blender::bke::node_add_link(
+          *ntree, *transform_node, *vec_out_socket, *link->tonode, *link->tosock);
+      blender::bke::node_remove_link(ntree, *link);
+    }
+  }
+}
+
+/* Version VertexWeightEdit modifier to make existing weights exclusive of the threshold. */
+static void version_vertex_weight_edit_preserve_threshold_exclusivity(Main *bmain)
+{
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (ob->type != OB_MESH) {
+      continue;
+    }
+
+    LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
+      if (md->type == eModifierType_WeightVGEdit) {
+        WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
+        wmd->add_threshold = nexttoward(wmd->add_threshold, 2.0);
+        wmd->rem_threshold = nexttoward(wmd->rem_threshold, -1.0);
+      }
     }
   }
 }
@@ -622,12 +598,12 @@ static void version_replace_texcoord_normal_socket(bNodeTree *ntree)
 static void version_principled_transmission_roughness(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
       continue;
     }
-    bNodeSocket *sock = nodeFindSocket(node, SOCK_IN, "Transmission Roughness");
+    bNodeSocket *sock = blender::bke::node_find_socket(*node, SOCK_IN, "Transmission Roughness");
     if (sock != nullptr) {
-      nodeRemoveSocket(ntree, node, sock);
+      blender::bke::node_remove_socket(*ntree, *node, *sock);
     }
   }
 }
@@ -636,10 +612,10 @@ static void version_principled_transmission_roughness(bNodeTree *ntree)
 static void version_replace_velvet_sheen_node(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type == SH_NODE_BSDF_SHEEN) {
+    if (node->type_legacy == SH_NODE_BSDF_SHEEN) {
       STRNCPY(node->idname, "ShaderNodeBsdfSheen");
 
-      bNodeSocket *sigmaInput = nodeFindSocket(node, SOCK_IN, "Sigma");
+      bNodeSocket *sigmaInput = blender::bke::node_find_socket(*node, SOCK_IN, "Sigma");
       if (sigmaInput != nullptr) {
         node->custom1 = SHD_SHEEN_ASHIKHMIN;
         STRNCPY(sigmaInput->identifier, "Roughness");
@@ -653,17 +629,17 @@ static void version_replace_velvet_sheen_node(bNodeTree *ntree)
 static void version_principled_bsdf_sheen(bNodeTree *ntree)
 {
   auto check_node = [](const bNode *node) {
-    return (node->type == SH_NODE_BSDF_PRINCIPLED) &&
-           (nodeFindSocket(node, SOCK_IN, "Sheen Roughness") == nullptr);
+    return (node->type_legacy == SH_NODE_BSDF_PRINCIPLED) &&
+           (blender::bke::node_find_socket(*node, SOCK_IN, "Sheen Roughness") == nullptr);
   };
   auto update_input = [ntree](bNode *node, bNodeSocket *input) {
     /* Change socket type to Color. */
-    nodeModifySocketTypeStatic(ntree, node, input, SOCK_RGBA, 0);
+    blender::bke::node_modify_socket_type_static(ntree, node, input, SOCK_RGBA, 0);
 
     /* Account for the change in intensity between the old and new model.
      * If the Sheen input is set to a fixed value, adjust it and set the tint to white.
      * Otherwise, if it's connected, keep it as-is but set the tint to 0.2 instead. */
-    bNodeSocket *sheen = nodeFindSocket(node, SOCK_IN, "Sheen");
+    bNodeSocket *sheen = blender::bke::node_find_socket(*node, SOCK_IN, "Sheen");
     if (sheen != nullptr && sheen->link == nullptr) {
       *version_cycles_node_socket_float_value(sheen) *= 0.2f;
 
@@ -681,150 +657,16 @@ static void version_principled_bsdf_sheen(bNodeTree *ntree)
   };
 
   version_update_node_input(ntree, check_node, "Sheen Tint", update_input, update_input_link);
-
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (check_node(node)) {
-      bNodeSocket *input = nodeAddStaticSocket(
-          ntree, node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Sheen Roughness", "Sheen Roughness");
-      *version_cycles_node_socket_float_value(input) = 0.5f;
-    }
-  }
-}
-
-/* Convert subsurface inputs on the Principled BSDF. */
-static void version_principled_bsdf_subsurface(bNodeTree *ntree)
-{
-  /* - Create Subsurface Scale input
-   * - If a node's Subsurface input was connected or nonzero:
-   *   - Make the Base Color a mix of old Base Color and Subsurface Color,
-   *     using Subsurface as the mix factor
-   *   - Move Subsurface link and default value to the new Subsurface Scale input
-   *   - Set the Subsurface input to 1.0
-   * - Remove Subsurface Color input
-   */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
-      continue;
-    }
-    if (nodeFindSocket(node, SOCK_IN, "Subsurface Scale")) {
-      /* Node is already updated. */
-      continue;
-    }
-
-    /* Add Scale input */
-    bNodeSocket *scale_in = nodeAddStaticSocket(
-        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_DISTANCE, "Subsurface Scale", "Subsurface Scale");
-
-    bNodeSocket *subsurf = nodeFindSocket(node, SOCK_IN, "Subsurface");
-    float *subsurf_val = version_cycles_node_socket_float_value(subsurf);
-
-    if (!subsurf->link && *subsurf_val == 0.0f) {
-      *version_cycles_node_socket_float_value(scale_in) = 0.05f;
-    }
-    else {
-      *version_cycles_node_socket_float_value(scale_in) = *subsurf_val;
-    }
-
-    if (subsurf->link == nullptr && *subsurf_val == 0.0f) {
-      /* Node doesn't use Subsurf, we're done here. */
-      continue;
-    }
-
-    /* Fix up Subsurface Color input */
-    bNodeSocket *base_col = nodeFindSocket(node, SOCK_IN, "Base Color");
-    bNodeSocket *subsurf_col = nodeFindSocket(node, SOCK_IN, "Subsurface Color");
-    float *base_col_val = version_cycles_node_socket_rgba_value(base_col);
-    float *subsurf_col_val = version_cycles_node_socket_rgba_value(subsurf_col);
-    /* If any of the three inputs is dynamic, we need a Mix node. */
-    if (subsurf->link || subsurf_col->link || base_col->link) {
-      bNode *mix = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX);
-      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
-      mix->locx = node->locx - 170;
-      mix->locy = node->locy - 120;
-
-      bNodeSocket *a_in = nodeFindSocket(mix, SOCK_IN, "A_Color");
-      bNodeSocket *b_in = nodeFindSocket(mix, SOCK_IN, "B_Color");
-      bNodeSocket *fac_in = nodeFindSocket(mix, SOCK_IN, "Factor_Float");
-      bNodeSocket *result_out = nodeFindSocket(mix, SOCK_OUT, "Result_Color");
-
-      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_col_val);
-      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), subsurf_col_val);
-      *version_cycles_node_socket_float_value(fac_in) = *subsurf_val;
-
-      if (base_col->link) {
-        nodeAddLink(ntree, base_col->link->fromnode, base_col->link->fromsock, mix, a_in);
-        nodeRemLink(ntree, base_col->link);
-      }
-      if (subsurf_col->link) {
-        nodeAddLink(ntree, subsurf_col->link->fromnode, subsurf_col->link->fromsock, mix, b_in);
-        nodeRemLink(ntree, subsurf_col->link);
-      }
-      if (subsurf->link) {
-        nodeAddLink(ntree, subsurf->link->fromnode, subsurf->link->fromsock, mix, fac_in);
-        nodeAddLink(ntree, subsurf->link->fromnode, subsurf->link->fromsock, node, scale_in);
-        nodeRemLink(ntree, subsurf->link);
-      }
-      nodeAddLink(ntree, mix, result_out, node, base_col);
-    }
-    /* Mix the fixed values. */
-    interp_v4_v4v4(base_col_val, base_col_val, subsurf_col_val, *subsurf_val);
-
-    /* Set node to 100% subsurface, 0% diffuse. */
-    *subsurf_val = 1.0f;
-
-    /* Delete Subsurface Color input */
-    nodeRemoveSocket(ntree, node, subsurf_col);
-  }
-}
-
-/* Convert emission inputs on the Principled BSDF. */
-static void version_principled_bsdf_emission(bNodeTree *ntree)
-{
-  /* Blender 3.x and before would default to Emission = 0.0, Emission Strength = 1.0.
-   * Now we default the other way around (1.0 and 0.0), but because the Strength input was added
-   * a bit later, a file that only has the Emission socket would now end up as (1.0, 0.0) instead
-   * of (1.0, 1.0).
-   * Therefore, set strength to 1.0 for those files.
-   */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
-      continue;
-    }
-    if (!nodeFindSocket(node, SOCK_IN, "Emission")) {
-      /* Old enough to have neither, new defaults are fine. */
-      continue;
-    }
-    if (nodeFindSocket(node, SOCK_IN, "Emission Strength")) {
-      /* New enough to have both, no need to do anything. */
-      continue;
-    }
-    bNodeSocket *sock = nodeAddStaticSocket(
-        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Emission Strength", "Emission Strength");
-    *version_cycles_node_socket_float_value(sock) = 1.0f;
-  }
-}
-
-/* Rename various Principled BSDF sockets. */
-static void version_principled_bsdf_rename_sockets(bNodeTree *ntree)
-{
-  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Emission", "Emission Color");
-  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Specular", "Specular IOR Level");
-  version_node_input_socket_name(
-      ntree, SH_NODE_BSDF_PRINCIPLED, "Subsurface", "Subsurface Weight");
-  version_node_input_socket_name(
-      ntree, SH_NODE_BSDF_PRINCIPLED, "Transmission", "Transmission Weight");
-  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Coat", "Coat Weight");
-  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Sheen", "Sheen Weight");
 }
 
 /* Replace old Principled Hair BSDF as a variant in the new Principled Hair BSDF. */
 static void version_replace_principled_hair_model(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_HAIR_PRINCIPLED) {
+    if (node->type_legacy != SH_NODE_BSDF_HAIR_PRINCIPLED) {
       continue;
     }
-    NodeShaderHairPrincipled *data = MEM_cnew<NodeShaderHairPrincipled>(__func__);
+    NodeShaderHairPrincipled *data = MEM_callocN<NodeShaderHairPrincipled>(__func__);
     data->model = SHD_PRINCIPLED_HAIR_CHIANG;
     data->parametrization = node->custom1;
 
@@ -835,39 +677,40 @@ static void version_replace_principled_hair_model(bNodeTree *ntree)
 static bNodeTreeInterfaceItem *legacy_socket_move_to_interface(bNodeSocket &legacy_socket,
                                                                const eNodeSocketInOut in_out)
 {
-  bNodeTreeInterfaceItem *new_item = static_cast<bNodeTreeInterfaceItem *>(
-      MEM_mallocN(sizeof(bNodeTreeInterfaceSocket), __func__));
-  new_item->item_type = NODE_INTERFACE_SOCKET;
-  bNodeTreeInterfaceSocket &new_socket = *reinterpret_cast<bNodeTreeInterfaceSocket *>(new_item);
+  bNodeTreeInterfaceSocket *new_socket = MEM_callocN<bNodeTreeInterfaceSocket>(__func__);
+  new_socket->item.item_type = NODE_INTERFACE_SOCKET;
 
   /* Move reusable data. */
-  new_socket.name = BLI_strdup(legacy_socket.name);
-  new_socket.identifier = BLI_strdup(legacy_socket.identifier);
-  new_socket.description = BLI_strdup(legacy_socket.description);
-  new_socket.socket_type = BLI_strdup(legacy_socket.idname);
-  new_socket.flag = (in_out == SOCK_IN ? NODE_INTERFACE_SOCKET_INPUT :
-                                         NODE_INTERFACE_SOCKET_OUTPUT);
+  new_socket->name = BLI_strdup(legacy_socket.name);
+  new_socket->identifier = BLI_strdup(legacy_socket.identifier);
+  new_socket->description = BLI_strdup(legacy_socket.description);
+  /* If the socket idname includes a subtype (e.g. "NodeSocketFloatFactor") this will convert it to
+   * the base type name ("NodeSocketFloat"). */
+  new_socket->socket_type = BLI_strdup(
+      legacy_socket_idname_to_socket_type(legacy_socket.idname).data());
+  new_socket->flag = (in_out == SOCK_IN ? NODE_INTERFACE_SOCKET_INPUT :
+                                          NODE_INTERFACE_SOCKET_OUTPUT);
   SET_FLAG_FROM_TEST(
-      new_socket.flag, legacy_socket.flag & SOCK_HIDE_VALUE, NODE_INTERFACE_SOCKET_HIDE_VALUE);
-  SET_FLAG_FROM_TEST(new_socket.flag,
+      new_socket->flag, legacy_socket.flag & SOCK_HIDE_VALUE, NODE_INTERFACE_SOCKET_HIDE_VALUE);
+  SET_FLAG_FROM_TEST(new_socket->flag,
                      legacy_socket.flag & SOCK_HIDE_IN_MODIFIER,
                      NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER);
-  new_socket.attribute_domain = legacy_socket.attribute_domain;
+  new_socket->attribute_domain = legacy_socket.attribute_domain;
 
   /* The following data are stolen from the old data, the ownership of their memory is directly
    * transferred to the new data. */
-  new_socket.default_attribute_name = legacy_socket.default_attribute_name;
+  new_socket->default_attribute_name = legacy_socket.default_attribute_name;
   legacy_socket.default_attribute_name = nullptr;
-  new_socket.socket_data = legacy_socket.default_value;
+  new_socket->socket_data = legacy_socket.default_value;
   legacy_socket.default_value = nullptr;
-  new_socket.properties = legacy_socket.prop;
+  new_socket->properties = legacy_socket.prop;
   legacy_socket.prop = nullptr;
 
   /* Unused data. */
   MEM_delete(legacy_socket.runtime);
   legacy_socket.runtime = nullptr;
 
-  return new_item;
+  return &new_socket->item;
 }
 
 static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *ntree)
@@ -877,8 +720,8 @@ static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *nt
   const int num_inputs = BLI_listbase_count(&ntree->inputs_legacy);
   const int num_outputs = BLI_listbase_count(&ntree->outputs_legacy);
   tree_interface.root_panel.items_num = num_inputs + num_outputs;
-  tree_interface.root_panel.items_array = static_cast<bNodeTreeInterfaceItem **>(MEM_malloc_arrayN(
-      tree_interface.root_panel.items_num, sizeof(bNodeTreeInterfaceItem *), __func__));
+  tree_interface.root_panel.items_array = MEM_malloc_arrayN<bNodeTreeInterfaceItem *>(
+      size_t(tree_interface.root_panel.items_num), __func__);
 
   /* Convert outputs first to retain old outputs/inputs ordering. */
   int index;
@@ -896,17 +739,17 @@ static void versioning_convert_node_tree_socket_lists_to_interface(bNodeTree *nt
 static void version_principled_bsdf_coat(bNodeTree *ntree)
 {
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
       continue;
     }
-    if (nodeFindSocket(node, SOCK_IN, "Coat IOR") != nullptr) {
+    if (blender::bke::node_find_socket(*node, SOCK_IN, "Coat IOR") != nullptr) {
       continue;
     }
-    bNodeSocket *coat_ior_input = nodeAddStaticSocket(
-        ntree, node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Coat IOR", "Coat IOR");
+    bNodeSocket *coat_ior_input = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Coat IOR", "Coat IOR");
 
     /* Adjust for 4x change in intensity. */
-    bNodeSocket *coat_input = nodeFindSocket(node, SOCK_IN, "Clearcoat");
+    bNodeSocket *coat_input = blender::bke::node_find_socket(*node, SOCK_IN, "Clearcoat");
     *version_cycles_node_socket_float_value(coat_input) *= 0.25f;
     /* When the coat input is dynamic, instead of inserting a *0.25 math node, set the Coat IOR
      * to 1.2 instead - this also roughly quarters reflectivity compared to the 1.5 default. */
@@ -921,62 +764,120 @@ static void version_principled_bsdf_coat(bNodeTree *ntree)
       ntree, SH_NODE_BSDF_PRINCIPLED, "Clearcoat Normal", "Coat Normal");
 }
 
-/* Convert specular tint in Principled BSDF. */
-static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
+/* Convert subsurface inputs on the Principled BSDF. */
+static void version_principled_bsdf_subsurface(bNodeTree *ntree)
 {
+  /* - Create Subsurface Scale input
+   * - If a node's Subsurface input was connected or nonzero:
+   *   - Make the Base Color a mix of old Base Color and Subsurface Color,
+   *     using Subsurface as the mix factor
+   *   - Move Subsurface link and default value to the new Subsurface Scale input
+   *   - Set the Subsurface input to 1.0
+   * - Remove Subsurface Color input
+   */
   LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type != SH_NODE_BSDF_PRINCIPLED) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
       continue;
     }
-    bNodeSocket *specular_tint_sock = nodeFindSocket(node, SOCK_IN, "Specular Tint");
-    if (specular_tint_sock->type == SOCK_RGBA) {
+    if (blender::bke::node_find_socket(*node, SOCK_IN, "Subsurface Scale")) {
       /* Node is already updated. */
       continue;
     }
 
-    bNodeSocket *base_color_sock = nodeFindSocket(node, SOCK_IN, "Base Color");
-    float specular_tint_old = *version_cycles_node_socket_float_value(specular_tint_sock);
-    float *base_color = version_cycles_node_socket_rgba_value(base_color_sock);
+    /* Add Scale input */
+    bNodeSocket *scale_in = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_DISTANCE, "Subsurface Scale", "Subsurface Scale");
 
-    /* Change socket type to Color. */
-    nodeModifySocketTypeStatic(ntree, node, specular_tint_sock, SOCK_RGBA, 0);
+    bNodeSocket *subsurf = blender::bke::node_find_socket(*node, SOCK_IN, "Subsurface");
+    float *subsurf_val = version_cycles_node_socket_float_value(subsurf);
 
-    static float one[] = {1.0f, 1.0f, 1.0f, 1.0f};
-
-    /* Add a mix node when working with dynamic inputs. */
-    if (specular_tint_sock->link || (base_color_sock->link && specular_tint_old != 0)) {
-      bNode *mix = nodeAddStaticNode(nullptr, ntree, SH_NODE_MIX);
-      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
-      mix->locx = node->locx - 170;
-      mix->locy = node->locy - 120;
-
-      bNodeSocket *a_in = nodeFindSocket(mix, SOCK_IN, "A_Color");
-      bNodeSocket *b_in = nodeFindSocket(mix, SOCK_IN, "B_Color");
-      bNodeSocket *fac_in = nodeFindSocket(mix, SOCK_IN, "Factor_Float");
-      bNodeSocket *result_out = nodeFindSocket(mix, SOCK_OUT, "Result_Color");
-
-      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), one);
-      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), base_color);
-      *version_cycles_node_socket_float_value(fac_in) = specular_tint_old;
-
-      if (base_color_sock->link) {
-        nodeAddLink(
-            ntree, base_color_sock->link->fromnode, base_color_sock->link->fromsock, mix, b_in);
-      }
-      if (specular_tint_sock->link) {
-        nodeAddLink(ntree,
-                    specular_tint_sock->link->fromnode,
-                    specular_tint_sock->link->fromsock,
-                    mix,
-                    fac_in);
-        nodeRemLink(ntree, specular_tint_sock->link);
-      }
-      nodeAddLink(ntree, mix, result_out, node, specular_tint_sock);
+    if (!subsurf->link && *subsurf_val == 0.0f) {
+      *version_cycles_node_socket_float_value(scale_in) = 0.05f;
+    }
+    else {
+      *version_cycles_node_socket_float_value(scale_in) = *subsurf_val;
     }
 
-    float *specular_tint = version_cycles_node_socket_rgba_value(specular_tint_sock);
+    if (subsurf->link == nullptr && *subsurf_val == 0.0f) {
+      /* Node doesn't use Subsurf, we're done here. */
+      continue;
+    }
+
+    /* Fix up Subsurface Color input */
+    bNodeSocket *base_col = blender::bke::node_find_socket(*node, SOCK_IN, "Base Color");
+    bNodeSocket *subsurf_col = blender::bke::node_find_socket(*node, SOCK_IN, "Subsurface Color");
+    float *base_col_val = version_cycles_node_socket_rgba_value(base_col);
+    float *subsurf_col_val = version_cycles_node_socket_rgba_value(subsurf_col);
+    /* If any of the three inputs is dynamic, we need a Mix node. */
+    if (subsurf->link || subsurf_col->link || base_col->link) {
+      bNode *mix = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_MIX);
+      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
+      mix->locx_legacy = node->locx_legacy - 170;
+      mix->locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket *a_in = blender::bke::node_find_socket(*mix, SOCK_IN, "A_Color");
+      bNodeSocket *b_in = blender::bke::node_find_socket(*mix, SOCK_IN, "B_Color");
+      bNodeSocket *fac_in = blender::bke::node_find_socket(*mix, SOCK_IN, "Factor_Float");
+      bNodeSocket *result_out = blender::bke::node_find_socket(*mix, SOCK_OUT, "Result_Color");
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_col_val);
+      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), subsurf_col_val);
+      *version_cycles_node_socket_float_value(fac_in) = *subsurf_val;
+
+      if (base_col->link) {
+        blender::bke::node_add_link(
+            *ntree, *base_col->link->fromnode, *base_col->link->fromsock, *mix, *a_in);
+        blender::bke::node_remove_link(ntree, *base_col->link);
+      }
+      if (subsurf_col->link) {
+        blender::bke::node_add_link(
+            *ntree, *subsurf_col->link->fromnode, *subsurf_col->link->fromsock, *mix, *b_in);
+        blender::bke::node_remove_link(ntree, *subsurf_col->link);
+      }
+      if (subsurf->link) {
+        blender::bke::node_add_link(
+            *ntree, *subsurf->link->fromnode, *subsurf->link->fromsock, *mix, *fac_in);
+        blender::bke::node_add_link(
+            *ntree, *subsurf->link->fromnode, *subsurf->link->fromsock, *node, *scale_in);
+        blender::bke::node_remove_link(ntree, *subsurf->link);
+      }
+      blender::bke::node_add_link(*ntree, *mix, *result_out, *node, *base_col);
+    }
     /* Mix the fixed values. */
-    interp_v4_v4v4(specular_tint, one, base_color, specular_tint_old);
+    interp_v4_v4v4(base_col_val, base_col_val, subsurf_col_val, *subsurf_val);
+
+    /* Set node to 100% subsurface, 0% diffuse. */
+    *subsurf_val = 1.0f;
+
+    /* Delete Subsurface Color input */
+    blender::bke::node_remove_socket(*ntree, *node, *subsurf_col);
+  }
+}
+
+/* Convert emission inputs on the Principled BSDF. */
+static void version_principled_bsdf_emission(bNodeTree *ntree)
+{
+  /* Blender 3.x and before would default to Emission = 0.0, Emission Strength = 1.0.
+   * Now we default the other way around (1.0 and 0.0), but because the Strength input was added
+   * a bit later, a file that only has the Emission socket would now end up as (1.0, 0.0) instead
+   * of (1.0, 1.0).
+   * Therefore, set strength to 1.0 for those files.
+   */
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
+      continue;
+    }
+    if (!blender::bke::node_find_socket(*node, SOCK_IN, "Emission")) {
+      /* Old enough to have neither, new defaults are fine. */
+      continue;
+    }
+    if (blender::bke::node_find_socket(*node, SOCK_IN, "Emission Strength")) {
+      /* New enough to have both, no need to do anything. */
+      continue;
+    }
+    bNodeSocket *sock = blender::bke::node_add_static_socket(
+        *ntree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Emission Strength", "Emission Strength");
+    *version_cycles_node_socket_float_value(sock) = 1.0f;
   }
 }
 
@@ -1054,7 +955,7 @@ static void version_nodes_insert_item(bNodeTreeInterfacePanel &parent,
   blender::MutableSpan<bNodeTreeInterfaceItem *> old_items = {parent.items_array,
                                                               parent.items_num};
   parent.items_num++;
-  parent.items_array = MEM_cnew_array<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
+  parent.items_array = MEM_calloc_arrayN<bNodeTreeInterfaceItem *>(parent.items_num, __func__);
   parent.items().take_front(position).copy_from(old_items.take_front(position));
   parent.items().drop_front(position + 1).copy_from(old_items.drop_front(position));
   parent.items()[position] = &socket.item;
@@ -1098,18 +999,17 @@ static void versioning_node_group_sort_sockets_recursive(bNodeTreeInterfacePanel
       /* Keep sockets above panels. */
       return a->item_type == NODE_INTERFACE_SOCKET;
     }
-    else {
-      /* Keep outputs above inputs. */
-      if (a->item_type == NODE_INTERFACE_SOCKET) {
-        const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
-        const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
-        const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
-        if (is_output_a != is_output_b) {
-          return is_output_a;
-        }
+    /* Keep outputs above inputs. */
+    if (a->item_type == NODE_INTERFACE_SOCKET) {
+      const bNodeTreeInterfaceSocket *sa = reinterpret_cast<const bNodeTreeInterfaceSocket *>(a);
+      const bNodeTreeInterfaceSocket *sb = reinterpret_cast<const bNodeTreeInterfaceSocket *>(b);
+      const bool is_output_a = sa->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      const bool is_output_b = sb->flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      if (is_output_a != is_output_b) {
+        return is_output_a;
       }
     }
+
     return false;
   };
 
@@ -1123,6 +1023,132 @@ static void versioning_node_group_sort_sockets_recursive(bNodeTreeInterfacePanel
           *reinterpret_cast<bNodeTreeInterfacePanel *>(item));
     }
   }
+}
+
+/* Convert specular tint in Principled BSDF. */
+static void version_principled_bsdf_specular_tint(bNodeTree *ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (node->type_legacy != SH_NODE_BSDF_PRINCIPLED) {
+      continue;
+    }
+    bNodeSocket *specular_tint_sock = blender::bke::node_find_socket(
+        *node, SOCK_IN, "Specular Tint");
+    if (specular_tint_sock->type == SOCK_RGBA) {
+      /* Node is already updated. */
+      continue;
+    }
+
+    bNodeSocket *base_color_sock = blender::bke::node_find_socket(*node, SOCK_IN, "Base Color");
+    bNodeSocket *metallic_sock = blender::bke::node_find_socket(*node, SOCK_IN, "Metallic");
+    float specular_tint_old = *version_cycles_node_socket_float_value(specular_tint_sock);
+    float *base_color = version_cycles_node_socket_rgba_value(base_color_sock);
+    float metallic = *version_cycles_node_socket_float_value(metallic_sock);
+
+    /* Change socket type to Color. */
+    blender::bke::node_modify_socket_type_static(ntree, node, specular_tint_sock, SOCK_RGBA, 0);
+    float *specular_tint = version_cycles_node_socket_rgba_value(specular_tint_sock);
+
+    /* The conversion logic here is that the new Specular Tint should be
+     * mix(one, mix(base_color, one, metallic), old_specular_tint).
+     * This needs to be handled both for the fixed values, as well as for any potential connected
+     * inputs. */
+
+    static float one[] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    /* Mix the fixed values. */
+    float metallic_mix[4];
+    interp_v4_v4v4(metallic_mix, base_color, one, metallic);
+    interp_v4_v4v4(specular_tint, one, metallic_mix, specular_tint_old);
+
+    if (specular_tint_sock->link == nullptr && specular_tint_old <= 0.0f) {
+      /* Specular Tint was fixed at zero, we don't need any conversion node setup. */
+      continue;
+    }
+
+    /* If the Metallic input is dynamic, or fixed > 0 and base color is dynamic,
+     * we need to insert a node to compute the metallic_mix.
+     * Otherwise, use whatever is connected to the base color, or the static value
+     * if it's unconnected. */
+    bNodeSocket *metallic_mix_out = nullptr;
+    bNode *metallic_mix_node = nullptr;
+    if (metallic_sock->link || (base_color_sock->link && metallic > 0.0f)) {
+      /* Metallic Mix needs to be dynamically mixed. */
+      bNode *mix = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_MIX);
+      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
+      mix->locx_legacy = node->locx_legacy - 270;
+      mix->locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket *a_in = blender::bke::node_find_socket(*mix, SOCK_IN, "A_Color");
+      bNodeSocket *b_in = blender::bke::node_find_socket(*mix, SOCK_IN, "B_Color");
+      bNodeSocket *fac_in = blender::bke::node_find_socket(*mix, SOCK_IN, "Factor_Float");
+      metallic_mix_out = blender::bke::node_find_socket(*mix, SOCK_OUT, "Result_Color");
+      metallic_mix_node = mix;
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), base_color);
+      if (base_color_sock->link) {
+        blender::bke::node_add_link(*ntree,
+                                    *base_color_sock->link->fromnode,
+                                    *base_color_sock->link->fromsock,
+                                    *mix,
+                                    *a_in);
+      }
+      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), one);
+      *version_cycles_node_socket_float_value(fac_in) = metallic;
+      if (metallic_sock->link) {
+        blender::bke::node_add_link(
+            *ntree, *metallic_sock->link->fromnode, *metallic_sock->link->fromsock, *mix, *fac_in);
+      }
+    }
+    else if (base_color_sock->link) {
+      /* Metallic Mix is a no-op and equivalent to Base Color. */
+      metallic_mix_out = base_color_sock->link->fromsock;
+      metallic_mix_node = base_color_sock->link->fromnode;
+    }
+
+    /* Similar to above, if the Specular Tint input is dynamic, or fixed > 0 and metallic mix
+     * is dynamic, we need to insert a node to compute the new specular tint. */
+    if (specular_tint_sock->link || (metallic_mix_out && specular_tint_old > 0.0f)) {
+      bNode *mix = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_MIX);
+      static_cast<NodeShaderMix *>(mix->storage)->data_type = SOCK_RGBA;
+      mix->locx_legacy = node->locx_legacy - 170;
+      mix->locy_legacy = node->locy_legacy - 120;
+
+      bNodeSocket *a_in = blender::bke::node_find_socket(*mix, SOCK_IN, "A_Color");
+      bNodeSocket *b_in = blender::bke::node_find_socket(*mix, SOCK_IN, "B_Color");
+      bNodeSocket *fac_in = blender::bke::node_find_socket(*mix, SOCK_IN, "Factor_Float");
+      bNodeSocket *result_out = blender::bke::node_find_socket(*mix, SOCK_OUT, "Result_Color");
+
+      copy_v4_v4(version_cycles_node_socket_rgba_value(a_in), one);
+      copy_v4_v4(version_cycles_node_socket_rgba_value(b_in), metallic_mix);
+      if (metallic_mix_out) {
+        blender::bke::node_add_link(*ntree, *metallic_mix_node, *metallic_mix_out, *mix, *b_in);
+      }
+      *version_cycles_node_socket_float_value(fac_in) = specular_tint_old;
+      if (specular_tint_sock->link) {
+        blender::bke::node_add_link(*ntree,
+                                    *specular_tint_sock->link->fromnode,
+                                    *specular_tint_sock->link->fromsock,
+                                    *mix,
+                                    *fac_in);
+        blender::bke::node_remove_link(ntree, *specular_tint_sock->link);
+      }
+      blender::bke::node_add_link(*ntree, *mix, *result_out, *node, *specular_tint_sock);
+    }
+  }
+}
+
+/* Rename various Principled BSDF sockets. */
+static void version_principled_bsdf_rename_sockets(bNodeTree *ntree)
+{
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Emission", "Emission Color");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Specular", "Specular IOR Level");
+  version_node_input_socket_name(
+      ntree, SH_NODE_BSDF_PRINCIPLED, "Subsurface", "Subsurface Weight");
+  version_node_input_socket_name(
+      ntree, SH_NODE_BSDF_PRINCIPLED, "Transmission", "Transmission Weight");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Coat", "Coat Weight");
+  version_node_input_socket_name(ntree, SH_NODE_BSDF_PRINCIPLED, "Sheen", "Sheen Weight");
 }
 
 static void enable_geometry_nodes_is_modifier(Main &bmain)
@@ -1145,34 +1171,10 @@ static void enable_geometry_nodes_is_modifier(Main &bmain)
         return true;
       }
       if (!group->geometry_node_asset_traits) {
-        group->geometry_node_asset_traits = MEM_new<GeometryNodeAssetTraits>(__func__);
+        group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
       }
       group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
       return false;
-    });
-  }
-}
-
-static void versioning_grease_pencil_stroke_radii_scaling(GreasePencil *grease_pencil)
-{
-  using namespace blender;
-  /* Previously, Grease Pencil used a radius convention where 1 `px` = 0.001 units. This `px` was
-   * the brush size which would be stored in the stroke thickness and then scaled by the point
-   * pressure factor. Finally, the render engine would divide this thickness value by 2000 (we're
-   * going from a thickness to a radius, hence the factor of two) to convert back into blender
-   * units.
-   * Store the radius now directly in blender units. This makes it consistent with how hair curves
-   * handle the radius. */
-  for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
-    if (base->type != GP_DRAWING) {
-      continue;
-    }
-    bke::greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-    MutableSpan<float> radii = drawing.radii_for_write();
-    threading::parallel_for(radii.index_range(), 8192, [&](const IndexRange range) {
-      for (const int i : range) {
-        radii[i] /= 2000.0f;
-      }
     });
   }
 }
@@ -1191,8 +1193,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       BKE_mesh_legacy_bevel_weight_to_generic(mesh);
     }
   }
-
-  /* 400 4 did not require any do_version here. */
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -1219,9 +1219,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 7)) {
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      version_mesh_crease_generic(*bmain);
-    }
+    version_mesh_crease_generic(*bmain);
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 8)) {
@@ -1236,13 +1234,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       if (light->type == LA_SPOT && light->nodetree) {
         version_replace_texcoord_normal_socket(light->nodetree);
       }
-    }
-  }
-
-  /* Fix brush->tip_scale_x which should never be zero. */
-  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-    if (brush->tip_scale_x == 0.0f) {
-      brush->tip_scale_x = 1.0f;
     }
   }
 
@@ -1267,7 +1258,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "int", "grid_bake_samples")) {
       LISTBASE_FOREACH (LightProbe *, lightprobe, &bmain->lightprobes) {
         lightprobe->grid_bake_samples = 2048;
-        lightprobe->surfel_density = 1.0f;
         lightprobe->grid_normal_bias = 0.3f;
         lightprobe->grid_view_bias = 0.0f;
         lightprobe->grid_facing_bias = 0.5f;
@@ -1351,21 +1341,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 14)) {
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "reflection_options")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "ray_tracing_method")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.reflection_options.flag = RAYTRACE_EEVEE_USE_DENOISE;
-        scene->eevee.reflection_options.denoise_stages = RAYTRACE_EEVEE_DENOISE_SPATIAL |
-                                                         RAYTRACE_EEVEE_DENOISE_TEMPORAL |
-                                                         RAYTRACE_EEVEE_DENOISE_BILATERAL;
-        scene->eevee.reflection_options.screen_trace_quality = 0.25f;
-        scene->eevee.reflection_options.screen_trace_thickness = 0.2f;
-        scene->eevee.reflection_options.sample_clamp = 10.0f;
-        scene->eevee.reflection_options.resolution_scale = 2;
-
-        scene->eevee.refraction_options = scene->eevee.reflection_options;
-
-        scene->eevee.ray_split_settings = 0;
         scene->eevee.ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
       }
     }
@@ -1408,7 +1385,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_CUSTOM) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == SH_NODE_TEX_NOISE) {
+          if (node->type_legacy == SH_NODE_TEX_NOISE) {
+            if (!node->storage) {
+              NodeTexNoise *tex = MEM_callocN<NodeTexNoise>(__func__);
+              BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
+              BKE_texture_colormapping_default(&tex->base.color_mapping);
+              tex->dimensions = 3;
+              tex->type = SHD_NOISE_FBM;
+              node->storage = tex;
+            }
             ((NodeTexNoise *)node->storage)->normalize = true;
           }
         }
@@ -1539,7 +1524,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 22)) {
     /* Initialize root panel flags in files created before these flags were added. */
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      ntree->tree_interface.root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS;
+      ntree->tree_interface.root_panel.flag |= NODE_INTERFACE_PANEL_ALLOW_CHILD_PANELS_LEGACY;
     }
     FOREACH_NODETREE_END;
   }
@@ -1548,8 +1533,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       if (ntree->type == NTREE_GEOMETRY) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type == GEO_NODE_SET_SHADE_SMOOTH) {
-            node->custom1 = ATTR_DOMAIN_FACE;
+          if (node->type_legacy == GEO_NODE_SET_SHADE_SMOOTH) {
+            node->custom1 = int8_t(blender::bke::AttrDomain::Face);
           }
         }
       }
@@ -1582,7 +1567,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
               RegionAssetShelf *shelf_data = static_cast<RegionAssetShelf *>(region->regiondata);
               if (shelf_data && shelf_data->active_shelf &&
-                  (shelf_data->active_shelf->preferred_row_count == 0)) {
+                  (shelf_data->active_shelf->preferred_row_count == 0))
+              {
                 shelf_data->active_shelf->preferred_row_count = 1;
               }
             }
@@ -1598,7 +1584,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         if (item.item_type == NODE_INTERFACE_SOCKET) {
           bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
           if ((socket.flag & NODE_INTERFACE_SOCKET_INPUT) &&
-              (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT)) {
+              (socket.flag & NODE_INTERFACE_SOCKET_OUTPUT))
+          {
             sockets_to_split.append(&socket);
           }
         }
@@ -1647,27 +1634,11 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "shadow_normal_bias")) {
+    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "shadow_step_count")) {
       SceneEEVEE default_scene_eevee = *DNA_struct_default_get(SceneEEVEE);
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         scene->eevee.shadow_ray_count = default_scene_eevee.shadow_ray_count;
         scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;
-        scene->eevee.shadow_normal_bias = default_scene_eevee.shadow_normal_bias;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "Light", "float", "shadow_softness_factor")) {
-      Light default_light = blender::dna::shallow_copy(*DNA_struct_default_get(Light));
-      LISTBASE_FOREACH (Light *, light, &bmain->lights) {
-        light->shadow_softness_factor = default_light.shadow_softness_factor;
-        light->shadow_trace_distance = default_light.shadow_trace_distance;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "RaytraceEEVEE", "diffuse_options"))
-    {
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.diffuse_options = scene->eevee.reflection_options;
       }
     }
   }
@@ -1717,12 +1688,12 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       auto versioning_snap_to = [](short snap_to_old, int type) {
         eSnapMode snap_to_new = SCE_SNAP_TO_NONE;
         if (snap_to_old & (1 << 0)) {
-          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NODE_X :
+          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
                          type == IS_ANIM ? SCE_SNAP_TO_FRAME :
                                            SCE_SNAP_TO_VERTEX;
         }
         if (snap_to_old & (1 << 1)) {
-          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NODE_Y :
+          snap_to_new |= type == IS_NODE ? SCE_SNAP_TO_NONE :
                          type == IS_ANIM ? SCE_SNAP_TO_SECOND :
                                            SCE_SNAP_TO_EDGE;
         }
@@ -1776,9 +1747,8 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 31)) {
     LISTBASE_FOREACH (Curve *, curve, &bmain->curves) {
-      const int curvetype = BKE_curve_type_get(curve);
-      if (curvetype == OB_FONT) {
-        CharInfo *info = curve->strinfo;
+      /* No need to check the curves type, this will be null for non text curves. */
+      if (CharInfo *info = curve->strinfo) {
         for (int i = curve->len_char32 - 1; i >= 0; i--, info++) {
           if (info->mat_nr > 0) {
             /** CharInfo mat_nr used to start at 1, unlike mesh & nurbs, now zero-based. */
@@ -1793,97 +1763,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Fix node group socket order by sorting outputs and inputs. */
     LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
       versioning_node_group_sort_sockets_recursive(ntree->tree_interface.root_panel);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 1)) {
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      versioning_grease_pencil_stroke_radii_scaling(grease_pencil);
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 5)) {
-    /* Unify Material::blend_shadow and Cycles.use_transparent_shadows into the
-     * Material::blend_flag. */
-    Scene *scene = static_cast<Scene *>(bmain->scenes.first);
-    bool is_cycles = scene && STREQ(scene->r.engine, RE_engine_id_CYCLES);
-    if (is_cycles) {
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        bool transparent_shadows = true;
-        if (IDProperty *cmat = version_cycles_properties_from_ID(&material->id)) {
-          transparent_shadows = version_cycles_property_boolean(
-              cmat, "use_transparent_shadow", true);
-        }
-        SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadows, MA_BL_TRANSPARENT_SHADOW);
-      }
-    }
-    else {
-      LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-        bool transparent_shadow = material->blend_shadow != MA_BS_SOLID;
-        SET_FLAG_FROM_TEST(material->blend_flag, transparent_shadow, MA_BL_TRANSPARENT_SHADOW);
-      }
-    }
-  }
-
-  /* 401 6 did not require any do_version here. */
-
-  /**
-   * Versioning code until next subversion bump goes here.
-   *
-   * \note Be sure to check when bumping the version:
-   * - #do_versions_after_linking_400 in this file.
-   * - `versioning_userdef.cc`, #blo_do_versions_userdef
-   * - `versioning_userdef.cc`, #do_versions_theme
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-  {
-    /* Keep this block, even when empty. */
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "int", "volumetric_ray_depth")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.volumetric_ray_depth = default_eevee.volumetric_ray_depth;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "Material", "char", "surface_render_method")) {
-      LISTBASE_FOREACH (Material *, mat, &bmain->materials) {
-        mat->surface_render_method = (mat->blend_method == MA_BM_BLEND) ?
-                                         MA_SURFACE_METHOD_FORWARD :
-                                         MA_SURFACE_METHOD_DEFERRED;
-      }
-    }
-
-    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-          const ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
-                                                                       &sl->regionbase;
-          LISTBASE_FOREACH (ARegion *, region, regionbase) {
-            if (region->regiontype != RGN_TYPE_ASSET_SHELF_HEADER) {
-              continue;
-            }
-            region->alignment &= ~RGN_SPLIT_PREV;
-            region->alignment |= RGN_ALIGN_HIDE_WITH_PREV;
-          }
-        }
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
-        scene->eevee.gtao_focus = default_eevee.gtao_focus;
-      }
-    }
-
-    if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
-      LightProbe default_probe = *DNA_struct_default_get(LightProbe);
-      LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
-        probe->data_display_size = default_probe.data_display_size;
-      }
     }
   }
 }

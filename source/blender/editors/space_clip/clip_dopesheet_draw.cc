@@ -9,12 +9,15 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_movieclip.h"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
 #include "ED_screen.hh"
 
@@ -24,15 +27,15 @@
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 static void track_channel_color(MovieTrackingTrack *track,
                                 const float default_color[3],
@@ -97,8 +100,10 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
 
-  /* frame range */
-  clip_draw_sfra_efra(v2d, scene);
+  /* Frame and preview range. */
+  UI_view2d_view_ortho(v2d);
+  ANIM_draw_framerange(scene, v2d);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   if (clip) {
     MovieTracking *tracking = &clip->tracking;
@@ -115,9 +120,9 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     /* don't use totrect set, as the width stays the same
      * (NOTE: this is ok here, the configuration is pretty straightforward)
      */
-    v2d->tot.ymin = float(-height);
+    v2d->tot.ymin = (-height);
 
-    float y = float(CHANNEL_FIRST);
+    float y = (CHANNEL_FIRST);
 
     /* setup colors for regular and selected strips */
     UI_GetThemeColor3fv(TH_STRIP, strip);
@@ -131,12 +136,13 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
     clip_draw_dopesheet_background(region, clip, pos_id);
 
     LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-      float yminc = float(y - CHANNEL_HEIGHT_HALF);
-      float ymaxc = float(y + CHANNEL_HEIGHT_HALF);
+      float yminc = (y - CHANNEL_HEIGHT_HALF);
+      float ymaxc = (y + CHANNEL_HEIGHT_HALF);
 
       /* check if visible */
       if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-          IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+          IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+      {
         MovieTrackingTrack *track = channel->track;
         int i;
         bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
@@ -151,9 +157,9 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
 
           immRectf(pos_id,
                    v2d->cur.xmin,
-                   float(y) - CHANNEL_HEIGHT_HALF,
+                   y - CHANNEL_HEIGHT_HALF,
                    v2d->cur.xmax + EXTRA_SCROLL_PAD,
-                   float(y) + CHANNEL_HEIGHT_HALF);
+                   y + CHANNEL_HEIGHT_HALF);
         }
 
         /* tracked segments */
@@ -166,11 +172,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
           immUniformColor4fv(sel ? selected_strip : strip);
 
           if (start_frame != end_frame) {
-            immRectf(pos_id,
-                     start_frame,
-                     float(y) - STRIP_HEIGHT_HALF,
-                     end_frame,
-                     float(y) + STRIP_HEIGHT_HALF);
+            immRectf(pos_id, start_frame, y - STRIP_HEIGHT_HALF, end_frame, y + STRIP_HEIGHT_HALF);
             keyframe_len += 2;
           }
           else {
@@ -219,14 +221,15 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
       immAttr4ub(outline_color_id, 0, 0, 0, 255);
       immAttr1u(flags_id, 0);
 
-      y = float(CHANNEL_FIRST); /* start again at the top */
+      y = (CHANNEL_FIRST); /* start again at the top */
       LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-        float yminc = float(y - CHANNEL_HEIGHT_HALF);
-        float ymaxc = float(y + CHANNEL_HEIGHT_HALF);
+        float yminc = (y - CHANNEL_HEIGHT_HALF);
+        float ymaxc = (y + CHANNEL_HEIGHT_HALF);
 
         /* check if visible */
         if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-            IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+            IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+        {
           MovieTrackingTrack *track = channel->track;
           int i;
           bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
@@ -307,7 +310,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   /* loop through channels, and set up drawing depending on their type
    * first pass: just the standard GL-drawing for backdrop + text
    */
-  float y = float(CHANNEL_FIRST);
+  float y = (CHANNEL_FIRST);
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -315,12 +318,13 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-    float yminc = float(y - CHANNEL_HEIGHT_HALF);
-    float ymaxc = float(y + CHANNEL_HEIGHT_HALF);
+    float yminc = (y - CHANNEL_HEIGHT_HALF);
+    float ymaxc = (y + CHANNEL_HEIGHT_HALF);
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       float color[3];
       track_channel_color(track, nullptr, color);
@@ -328,9 +332,9 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
       immRectf(pos,
                v2d->cur.xmin,
-               float(y) - CHANNEL_HEIGHT_HALF,
+               y - CHANNEL_HEIGHT_HALF,
                v2d->cur.xmax + EXTRA_SCROLL_PAD,
-               float(y) + CHANNEL_HEIGHT_HALF);
+               y + CHANNEL_HEIGHT_HALF);
     }
 
     /* adjust y-position for next one */
@@ -339,17 +343,18 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   immUnbindProgram();
 
   /* second pass: text */
-  y = float(CHANNEL_FIRST);
+  y = (CHANNEL_FIRST);
 
   BLF_size(fontid, 11.0f * UI_SCALE_FAC);
 
   LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-    float yminc = float(y - CHANNEL_HEIGHT_HALF);
-    float ymaxc = float(y + CHANNEL_HEIGHT_HALF);
+    float yminc = (y - CHANNEL_HEIGHT_HALF);
+    float ymaxc = (y + CHANNEL_HEIGHT_HALF);
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       bool sel = (track->flag & TRACK_DOPE_SEL) != 0;
 
@@ -365,8 +370,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
 
   /* third pass: widgets */
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
-  y = float(CHANNEL_FIRST);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
   PropertyRNA *chan_prop_lock = RNA_struct_type_find_property(&RNA_MovieTrackingTrack, "lock");
@@ -374,17 +379,18 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 
   GPU_blend(GPU_BLEND_ALPHA);
   LISTBASE_FOREACH (MovieTrackingDopesheetChannel *, channel, &dopesheet->channels) {
-    float yminc = float(y - CHANNEL_HEIGHT_HALF);
-    float ymaxc = float(y + CHANNEL_HEIGHT_HALF);
+    float yminc = (y - CHANNEL_HEIGHT_HALF);
+    float ymaxc = (y + CHANNEL_HEIGHT_HALF);
 
     /* check if visible */
     if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
-        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax)) {
+        IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax))
+    {
       MovieTrackingTrack *track = channel->track;
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
-      PointerRNA ptr = RNA_pointer_create(&clip->id, &RNA_MovieTrackingTrack, track);
+      PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
 
-      UI_block_emboss_set(block, UI_EMBOSS_NONE);
+      UI_block_emboss_set(block, blender::ui::EmbossType::None);
       uiDefIconButR_prop(block,
                          UI_BTYPE_ICON_TOGGLE,
                          1,
@@ -398,10 +404,8 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
                          0,
                          0,
                          0,
-                         0,
-                         0,
-                         nullptr);
-      UI_block_emboss_set(block, UI_EMBOSS);
+                         std::nullopt);
+      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
     /* adjust y-position for next one */

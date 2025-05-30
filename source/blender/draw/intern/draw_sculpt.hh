@@ -8,14 +8,21 @@
 
 #pragma once
 
-#include "draw_manager.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_vector.hh"
+
+struct GPUMaterial;
+struct Object;
+namespace blender::gpu {
+class Batch;
+}
 
 namespace blender::draw {
 
 #define SCULPT_DEBUG_DRAW (G.debug_value == 889)
 
 struct SculptBatch {
-  GPUBatch *batch;
+  gpu::Batch *batch;
   int material_slot;
   int debug_index;
   float3 debug_color();
@@ -32,10 +39,10 @@ enum SculptBatchFeature {
 ENUM_OPERATORS(SculptBatchFeature, SCULPT_BATCH_UV);
 
 /** Used by engines that don't use GPUMaterials, like the Workbench and Overlay engines. */
-Vector<SculptBatch> sculpt_batches_get(Object *ob, bool per_material, SculptBatchFeature features);
+Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features);
 
 /** Used by EEVEE. */
-Vector<SculptBatch> sculpt_batches_per_material_get(Object *ob,
-                                                    MutableSpan<GPUMaterial *> materials);
+Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
+                                                    Span<const GPUMaterial *> materials);
 
 }  // namespace blender::draw

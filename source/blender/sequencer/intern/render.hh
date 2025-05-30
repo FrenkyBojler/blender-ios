@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2004 Blender Authors
+/* SPDX-FileCopyrightText: 2024 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -8,59 +8,53 @@
  * \ingroup sequencer
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BLI_math_vector_types.hh"
+#include "BLI_vector.hh"
 
 struct ImBuf;
+struct LinkNode;
 struct ListBase;
+struct Mask;
 struct Scene;
-struct SeqEffectHandle;
-struct SeqRenderData;
-struct Sequence;
+struct RenderData;
+struct Strip;
 
-#define EARLY_NO_INPUT -1
-#define EARLY_DO_EFFECT 0
-#define EARLY_USE_INPUT_1 1
-#define EARLY_USE_INPUT_2 2
+namespace blender::seq {
 
-/* mutable state for sequencer */
-typedef struct SeqRenderState {
-  struct LinkNode *scene_parents;
-} SeqRenderState;
+/* Mutable state while rendering one sequencer frame. */
+struct SeqRenderState {
+  LinkNode *scene_parents = nullptr;
+};
 
-void seq_render_state_init(SeqRenderState *state);
+/* Strip corner coordinates in screen pixel space. Note that they might not be
+ * axis aligned when rotation is present. */
+struct StripScreenQuad {
+  float2 v0, v1, v2, v3;
 
-struct ImBuf *seq_render_give_ibuf_seqbase(const struct SeqRenderData *context,
-                                           float timeline_frame,
-                                           int chan_shown,
-                                           struct ListBase *channels,
-                                           struct ListBase *seqbasep);
-struct ImBuf *seq_render_effect_execute_threaded(struct SeqEffectHandle *sh,
-                                                 const struct SeqRenderData *context,
-                                                 struct Sequence *seq,
-                                                 float timeline_frame,
-                                                 float fac,
-                                                 struct ImBuf *ibuf1,
-                                                 struct ImBuf *ibuf2,
-                                                 struct ImBuf *ibuf3);
-void seq_imbuf_to_sequencer_space(struct Scene *scene, struct ImBuf *ibuf, bool make_float);
-int seq_get_shown_sequences(const struct Scene *scene,
-                            struct ListBase *channels,
-                            struct ListBase *seqbase,
-                            int timeline_frame,
-                            int chanshown,
-                            struct Sequence **r_seq_arr);
-struct ImBuf *seq_render_strip(const struct SeqRenderData *context,
-                               struct SeqRenderState *state,
-                               struct Sequence *seq,
-                               float timeline_frame);
-struct ImBuf *seq_render_mask(const struct SeqRenderData *context,
-                              struct Mask *mask,
-                              float frame_index,
-                              bool make_float);
-void seq_imbuf_assign_spaces(struct Scene *scene, struct ImBuf *ibuf);
+  bool is_empty() const
+  {
+    return v0 == v1 && v2 == v3 && v0 == v2;
+  }
+};
 
-#ifdef __cplusplus
-}
-#endif
+ImBuf *seq_render_give_ibuf_seqbase(const RenderData *context,
+                                    float timeline_frame,
+                                    int chan_shown,
+                                    ListBase *channels,
+                                    ListBase *seqbasep);
+void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_float);
+blender::Vector<Strip *> seq_shown_strips_get(
+    const Scene *scene, ListBase *channels, ListBase *seqbase, int timeline_frame, int chanshown);
+ImBuf *seq_render_strip(const RenderData *context,
+                        SeqRenderState *state,
+                        Strip *strip,
+                        float timeline_frame);
+
+/* Renders Mask into an image suitable for sequencer:
+ * RGB channels contain mask intensity; alpha channel is opaque. */
+ImBuf *seq_render_mask(const RenderData *context, Mask *mask, float frame_index, bool make_float);
+void seq_imbuf_assign_spaces(const Scene *scene, ImBuf *ibuf);
+
+StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *strip);
+
+}  // namespace blender::seq

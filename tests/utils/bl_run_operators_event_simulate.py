@@ -33,7 +33,7 @@ While the current set of commands is fairly limited more can be added as needed.
 
 To see a list of actions as well as their arguments run:
 
-    ./blender.bin --python tests/python/bl_run_operators_event_simulate.py -- --help
+    ./blender.bin --python tests/utils/bl_run_operators_event_simulate.py -- --help
 
 
 Examples
@@ -44,7 +44,7 @@ Rotate in edit-mode examples:
     ./blender.bin \
         --factory-startup \
         --enable-event-simulate \
-        --python tests/python/bl_run_operators_event_simulate.py \
+        --python tests/utils/bl_run_operators_event_simulate.py \
         -- \
         --actions \
         'area_maximize(ui_type="VIEW_3D")' \
@@ -59,7 +59,7 @@ Sculpt stroke:
     ./blender.bin \
         --factory-startup \
         --enable-event-simulate \
-        --python tests/python/bl_run_operators_event_simulate.py \
+        --python tests/utils/bl_run_operators_event_simulate.py \
         -- \
         --actions \
         'area_maximize(ui_type="VIEW_3D")' \
@@ -82,7 +82,9 @@ or the context for executing the actions is not properly set (the case for timer
 
 This utility executes actions as if the user initiated them from a key shortcut.
 """
-
+__all__ = (
+    "main",
+)
 
 import os
 import sys
@@ -131,7 +133,7 @@ def find_main_area(ui_type=None):
 
 def gen_events_type_text(text):
     """
-    Generate events to type in `text`.
+    Generate events to type in ``text``.
     """
     for ch in text:
         kw_extra = {}

@@ -9,9 +9,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_context.h"
-
-#include "DNA_object_types.h"
+#include "BKE_context.hh"
 
 #include "ED_gizmo_library.hh"
 #include "ED_screen.hh"
@@ -26,7 +24,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name View3D Navigation Gizmo Group
@@ -44,6 +42,8 @@
 /* Margin around the smaller buttons. */
 #define GIZMO_MINI_OFFSET 2.0f
 
+namespace {
+
 enum {
   GZ_INDEX_MOVE = 0,
   GZ_INDEX_ROTATE = 1,
@@ -53,48 +53,21 @@ enum {
   /* overlaps GZ_INDEX_ORTHO (switch between) */
   GZ_INDEX_PERSP = 3,
   GZ_INDEX_ORTHO = 4,
-  GZ_INDEX_CAMERA = 5,
 
-  GZ_INDEX_TOTAL = 6,
+  GZ_INDEX_CAMERA_OFF = 5,
+  GZ_INDEX_CAMERA_ON = 6,
+
+  GZ_INDEX_CAMERA_LOCK = 7,
+  GZ_INDEX_CAMERA_UNLOCK = 8,
+
+  GZ_INDEX_TOTAL = 9,
 };
 
 struct NavigateGizmoInfo {
   const char *opname;
   const char *gizmo;
   uint icon;
-};
-
-static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
-    {
-        "VIEW3D_OT_move",
-        "GIZMO_GT_button_2d",
-        ICON_VIEW_PAN,
-    },
-    {
-        "VIEW3D_OT_rotate",
-        "VIEW3D_GT_navigate_rotate",
-        ICON_NONE,
-    },
-    {
-        "VIEW3D_OT_zoom",
-        "GIZMO_GT_button_2d",
-        ICON_VIEW_ZOOM,
-    },
-    {
-        "VIEW3D_OT_view_persportho",
-        "GIZMO_GT_button_2d",
-        ICON_VIEW_PERSPECTIVE,
-    },
-    {
-        "VIEW3D_OT_view_persportho",
-        "GIZMO_GT_button_2d",
-        ICON_VIEW_ORTHO,
-    },
-    {
-        "VIEW3D_OT_view_camera",
-        "GIZMO_GT_button_2d",
-        ICON_VIEW_CAMERA,
-    },
+  void (*op_prop_fn)(PointerRNA *ptr);
 };
 
 struct NavigateWidgetGroup {
@@ -106,8 +79,73 @@ struct NavigateWidgetGroup {
       char is_persp;
       bool is_camera;
       char viewlock;
+      char cameralock;
     } rv3d;
   } state;
+};
+
+}  // namespace
+
+static void navigate_context_toggle_camera_lock_init(PointerRNA *ptr)
+{
+  RNA_string_set(ptr, "data_path", "space_data.lock_camera");
+}
+
+static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
+    {
+        "VIEW3D_OT_move",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_PAN,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_rotate",
+        "VIEW3D_GT_navigate_rotate",
+        ICON_NONE,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_zoom",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_ZOOM,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_view_persportho",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_PERSPECTIVE,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_view_persportho",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_ORTHO,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_view_camera",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_CAMERA_UNSELECTED,
+        nullptr,
+    },
+    {
+        "VIEW3D_OT_view_camera",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_CAMERA,
+        nullptr,
+    },
+    {
+        "WM_OT_context_toggle",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_LOCKED,
+        navigate_context_toggle_camera_lock_init,
+    },
+    {
+        "WM_OT_context_toggle",
+        "GIZMO_GT_button_2d",
+        ICON_VIEW_UNLOCKED,
+        navigate_context_toggle_camera_lock_init,
+    },
 };
 
 static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
@@ -124,8 +162,7 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
 
 static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  NavigateWidgetGroup *navgroup = static_cast<NavigateWidgetGroup *>(
-      MEM_callocN(sizeof(NavigateWidgetGroup), __func__));
+  NavigateWidgetGroup *navgroup = MEM_callocN<NavigateWidgetGroup>(__func__);
 
   wmOperatorType *ot_view_axis = WM_operatortype_find("VIEW3D_OT_view_axis", true);
   wmOperatorType *ot_view_camera = WM_operatortype_find("VIEW3D_OT_view_camera", true);
@@ -171,17 +208,34 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     }
 
     wmOperatorType *ot = WM_operatortype_find(info->opname, true);
-    WM_gizmo_operator_set(gz, 0, ot, nullptr);
+#ifndef WITH_PYTHON
+    if (ot != nullptr)
+#endif
+    {
+      PointerRNA *ptr = WM_gizmo_operator_set(gz, 0, ot, nullptr);
+      if (info->op_prop_fn != nullptr) {
+        info->op_prop_fn(ptr);
+      }
+    }
   }
 
   {
-    wmGizmo *gz = navgroup->gz_array[GZ_INDEX_CAMERA];
+    wmGizmo *gz = navgroup->gz_array[GZ_INDEX_CAMERA_OFF];
+    WM_gizmo_operator_set(gz, 0, ot_view_camera, nullptr);
+  }
+  {
+    wmGizmo *gz = navgroup->gz_array[GZ_INDEX_CAMERA_ON];
     WM_gizmo_operator_set(gz, 0, ot_view_camera, nullptr);
   }
 
   /* Click only buttons (not modal). */
   {
-    int gz_ids[] = {GZ_INDEX_PERSP, GZ_INDEX_ORTHO, GZ_INDEX_CAMERA};
+    int gz_ids[] = {GZ_INDEX_PERSP,
+                    GZ_INDEX_ORTHO,
+                    GZ_INDEX_CAMERA_OFF,
+                    GZ_INDEX_CAMERA_ON,
+                    GZ_INDEX_CAMERA_LOCK,
+                    GZ_INDEX_CAMERA_UNLOCK};
     for (int i = 0; i < ARRAY_SIZE(gz_ids); i++) {
       wmGizmo *gz = navgroup->gz_array[gz_ids[i]];
       RNA_boolean_set(gz->ptr, "show_drag", false);
@@ -229,6 +283,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   NavigateWidgetGroup *navgroup = static_cast<NavigateWidgetGroup *>(gzgroup->customdata);
   ARegion *region = CTX_wm_region(C);
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
+  const View3D *v3d = CTX_wm_view3d(C);
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);
@@ -243,6 +298,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
       (navgroup->state.rect_visible.ymax == rect_visible->ymax) &&
       (navgroup->state.rv3d.is_persp == rv3d->is_persp) &&
       (navgroup->state.rv3d.is_camera == (rv3d->persp == RV3D_CAMOB)) &&
+      (navgroup->state.rv3d.cameralock == (v3d->flag2 & V3D_LOCK_CAMERA)) &&
       (navgroup->state.rv3d.viewlock == RV3D_LOCK_FLAGS(rv3d)))
   {
     return;
@@ -252,6 +308,7 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
   navgroup->state.rv3d.is_persp = rv3d->is_persp;
   navgroup->state.rv3d.is_camera = (rv3d->persp == RV3D_CAMOB);
   navgroup->state.rv3d.viewlock = RV3D_LOCK_FLAGS(rv3d);
+  navgroup->state.rv3d.cameralock = v3d->flag2 & V3D_LOCK_CAMERA;
 
   const bool show_navigate = (U.uiflag & USER_SHOW_GIZMO_NAVIGATE) != 0;
   const bool show_rotate_gizmo = (U.mini_axis_type == USER_MINI_AXIS_TYPE_GIZMO);
@@ -311,7 +368,8 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
     }
 
     if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION) == 0) {
-      gz = navgroup->gz_array[GZ_INDEX_CAMERA];
+      gz = navgroup
+               ->gz_array[(rv3d->persp == RV3D_CAMOB) ? GZ_INDEX_CAMERA_ON : GZ_INDEX_CAMERA_OFF];
       gz->matrix_basis[3][0] = roundf(co[0]);
       gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
       WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
@@ -322,6 +380,14 @@ static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *g
         gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
         WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
       }
+    }
+
+    if (navgroup->state.rv3d.is_camera == true) {
+      gz = navgroup->gz_array[(v3d->flag2 & V3D_LOCK_CAMERA) ? GZ_INDEX_CAMERA_LOCK :
+                                                               GZ_INDEX_CAMERA_UNLOCK];
+      gz->matrix_basis[3][0] = roundf(co[0]);
+      gz->matrix_basis[3][1] = roundf(co[1] - (icon_offset_mini * icon_mini_slot++));
+      WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
     }
   }
 }

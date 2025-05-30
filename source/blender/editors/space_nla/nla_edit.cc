@@ -16,38 +16,40 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
-#include "BKE_context.h"
-#include "BKE_fcurve.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_nla.h"
-#include "BKE_report.h"
-#include "BKE_screen.hh"
+#include "BKE_context.hh"
+#include "BKE_fcurve.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
+#include "BKE_main.hh"
+#include "BKE_nla.hh"
+#include "BKE_report.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
-#include "ED_transform.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
+
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
 #include "DEG_depsgraph_build.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
+
+#include "ANIM_action.hh"
+#include "ANIM_action_legacy.hh"
 
 #include "nla_intern.hh"
 #include "nla_private.h"
@@ -66,6 +68,12 @@ void ED_nla_postop_refresh(bAnimContext *ac)
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    if (!ale->adt) {
+      continue;
+    }
+    if (ale->type != ANIMTYPE_ANIMDATA) {
+      continue;
+    }
     /* performing auto-blending, extend-mode validation, etc. */
     BKE_nla_validate_state(static_cast<AnimData *>(ale->data));
 
@@ -89,7 +97,7 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 /** \name Enable Tweak-Mode Operator
  * \{ */
 
-static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -117,7 +125,11 @@ static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 
   /* for each AnimData block with NLA-data, try setting it in tweak-mode */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    if (ale->type != ANIMTYPE_ANIMDATA) {
+      continue;
+    }
     AnimData *adt = static_cast<AnimData *>(ale->data);
+    BLI_assert(adt);
 
     if (use_upper_stack_evaluation) {
       adt->flag |= ADT_NLA_EVAL_UPPER_TRACKS;
@@ -127,7 +139,7 @@ static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
     }
 
     /* Try entering tweak-mode if valid. */
-    ok |= BKE_nla_tweakmode_enter(adt);
+    ok |= BKE_nla_tweakmode_enter({*ale->id, *adt});
 
     /* mark the active track as being "solo"? */
     if (do_solo && adt->actstrip) {
@@ -173,7 +185,7 @@ void NLA_OT_tweakmode_enter(wmOperatorType *ot)
   ot->description =
       "Enter tweaking mode for the action referenced by the active strip to edit its keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_enable_tweakmode_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -223,12 +235,12 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac, bool do_solo)
     AnimData *adt = static_cast<AnimData *>(ale->data);
 
     /* clear solo flags */
-    if ((do_solo) & (adt->flag & ADT_NLA_SOLO_TRACK) && (adt->flag & ADT_NLA_EDIT_ON)) {
+    if (do_solo && (adt->flag & ADT_NLA_SOLO_TRACK) && (adt->flag & ADT_NLA_EDIT_ON)) {
       BKE_nlatrack_solo_toggle(adt, nullptr);
     }
 
     /* To be sure that we're doing everything right, just exit tweak-mode. */
-    BKE_nla_tweakmode_exit(adt);
+    BKE_nla_tweakmode_exit({*ale->id, *adt});
 
     ale->update |= ANIM_UPDATE_DEPS;
   }
@@ -251,7 +263,7 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac, bool do_solo)
 }
 
 /* Exit tweak-mode operator callback. */
-static int nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -282,7 +294,7 @@ void NLA_OT_tweakmode_exit(wmOperatorType *ot)
   ot->idname = "NLA_OT_tweakmode_exit";
   ot->description = "Exit tweaking mode for the action referenced by the active strip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_disable_tweakmode_exec;
   ot->poll = nlaop_poll_tweakmode_on;
 
@@ -322,9 +334,9 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
   *min = 999999999.0f;
   *max = -999999999.0f;
 
-  /* check if any channels to set range with */
+  /* check if any tracks to set range with */
   if (anim_data.first) {
-    /* go through channels, finding max extents */
+    /* go through tracks, finding max extents */
     LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
       NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
@@ -363,7 +375,7 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
 /** \name Automatic Preview-Range Operator
  * \{ */
 
-static int nlaedit_previewrange_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_previewrange_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   Scene *scene;
@@ -400,7 +412,7 @@ void NLA_OT_previewrange_set(wmOperatorType *ot)
   ot->idname = "NLA_OT_previewrange_set";
   ot->description = "Set Preview Range based on extends of selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_previewrange_exec;
   ot->poll = ED_operator_nla_active;
 
@@ -415,18 +427,18 @@ void NLA_OT_previewrange_set(wmOperatorType *ot)
  * \{ */
 
 /**
- * Find the extents of the active channel
+ * Find the extents of the active track
  *
- * \param r_min: Bottom y-extent of channel.
- * \param r_max: Top y-extent of channel.
- * \return Success of finding a selected channel.
+ * \param r_min: Bottom y-extent of track.
+ * \param r_max: Top y-extent of track.
+ * \return Success of finding a selected track.
  */
-static bool nla_channels_get_selected_extents(bAnimContext *ac, float *r_min, float *r_max)
+static bool nla_tracks_get_selected_extents(bAnimContext *ac, float *r_min, float *r_max)
 {
   ListBase anim_data = {nullptr, nullptr};
 
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac->sl);
-  /* NOTE: not bool, since we want prioritize individual channels over expanders. */
+  /* NOTE: not bool, since we want prioritize individual tracks over expanders. */
   short found = 0;
 
   /* get all items - we need to do it this way */
@@ -434,11 +446,11 @@ static bool nla_channels_get_selected_extents(bAnimContext *ac, float *r_min, fl
                               ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
-  /* loop through all channels, finding the first one that's selected */
-  float ymax = NLACHANNEL_FIRST_TOP(ac);
+  /* loop through all tracks, finding the first one that's selected */
+  float ymax = NLATRACK_FIRST_TOP(ac);
 
   for (bAnimListElem *ale = static_cast<bAnimListElem *>(anim_data.first); ale;
-       ale = ale->next, ymax -= NLACHANNEL_STEP(snla))
+       ale = ale->next, ymax -= NLATRACK_STEP(snla))
   {
     const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
 
@@ -447,13 +459,13 @@ static bool nla_channels_get_selected_extents(bAnimContext *ac, float *r_min, fl
         ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_SELECT))
     {
       /* update best estimate */
-      *r_min = ymax - NLACHANNEL_HEIGHT(snla);
+      *r_min = ymax - NLATRACK_HEIGHT(snla);
       *r_max = ymax;
 
       /* is this high enough priority yet? */
       found = acf->channel_role;
 
-      /* only stop our search when we've found an actual channel
+      /* only stop our search when we've found an actual track
        * - data-block expanders get less priority so that we don't abort prematurely
        */
       if (found == ACHANNEL_ROLE_CHANNEL) {
@@ -468,7 +480,7 @@ static bool nla_channels_get_selected_extents(bAnimContext *ac, float *r_min, fl
   return (found != 0);
 }
 
-static int nlaedit_viewall(bContext *C, const bool only_sel)
+static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
 {
   bAnimContext ac;
   View2D *v2d;
@@ -489,17 +501,17 @@ static int nlaedit_viewall(bContext *C, const bool only_sel)
 
   /* set vertical range */
   if (only_sel == false) {
-    /* view all -> the summary channel is usually the shows everything,
+    /* view all -> the summary track is usually the shows everything,
      * and resides right at the top... */
     v2d->cur.ymax = 0.0f;
     v2d->cur.ymin = float(-BLI_rcti_size_y(&v2d->mask));
   }
   else {
-    /* locate first selected channel (or the active one), and frame those */
+    /* locate first selected track (or the active one), and frame those */
     float ymin = v2d->cur.ymin;
     float ymax = v2d->cur.ymax;
 
-    if (nla_channels_get_selected_extents(&ac, &ymin, &ymax)) {
+    if (nla_tracks_get_selected_extents(&ac, &ymin, &ymax)) {
       /* recenter the view so that this range is in the middle */
       float ymid = (ymax - ymin) / 2.0f + ymin;
       float x_center;
@@ -520,13 +532,13 @@ static int nlaedit_viewall(bContext *C, const bool only_sel)
 
 /* ......... */
 
-static int nlaedit_viewall_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewall_exec(bContext *C, wmOperator * /*op*/)
 {
   /* whole range */
   return nlaedit_viewall(C, false);
 }
 
-static int nlaedit_viewsel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewsel_exec(bContext *C, wmOperator * /*op*/)
 {
   /* only selected */
   return nlaedit_viewall(C, true);
@@ -539,7 +551,7 @@ void NLA_OT_view_all(wmOperatorType *ot)
   ot->idname = "NLA_OT_view_all";
   ot->description = "Reset viewable area to show full strips range";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_viewall_exec;
   ot->poll = ED_operator_nla_active;
 
@@ -554,7 +566,7 @@ void NLA_OT_view_selected(wmOperatorType *ot)
   ot->idname = "NLA_OT_view_selected";
   ot->description = "Reset viewable area to show selected strips range";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_viewsel_exec;
   ot->poll = ED_operator_nla_active;
 
@@ -568,7 +580,7 @@ void NLA_OT_view_selected(wmOperatorType *ot)
 /** \name View-Frame Operator
  * \{ */
 
-static int nlaedit_viewframe_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_viewframe_exec(bContext *C, wmOperator *op)
 {
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
   ANIM_center_frame(C, smooth_viewtx);
@@ -582,7 +594,7 @@ void NLA_OT_view_frame(wmOperatorType *ot)
   ot->idname = "NLA_OT_view_frame";
   ot->description = "Move the view to the current frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_viewframe_exec;
   ot->poll = ED_operator_nla_active;
 
@@ -609,7 +621,9 @@ static int nlaedit_get_editable_tracks(bAnimContext *ac, ListBase *anim_data)
   return ANIM_animdata_filter(ac, anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 }
 
-static int nlaedit_add_actionclip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
 {
   /* Get editor data. */
   bAnimContext ac;
@@ -632,7 +646,7 @@ static int nlaedit_add_actionclip_invoke(bContext *C, wmOperator *op, const wmEv
 }
 
 /* add the specified action as new strip */
-static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -656,7 +670,7 @@ static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
     // printf("Add strip - actname = '%s'\n", actname);
     return OPERATOR_CANCELLED;
   }
-  if (act->idroot == 0) {
+  if (act->idroot == 0 && blender::animrig::legacy::action_treat_as_legacy(*act)) {
     /* hopefully in this case (i.e. library of userless actions),
      * the user knows what they're doing... */
     BKE_reportf(op->reports,
@@ -698,7 +712,11 @@ static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
     }
 
     /* create a new strip, and offset it to start on the current frame */
-    strip = BKE_nlastrip_new(act);
+    BLI_assert(ale->id);
+    BLI_assert_msg(GS(ale->id->name) != ID_AC,
+                   "Expecting the owner of an ALE to be the animated ID, not the Action");
+    ID &animated_id = *ale->id;
+    strip = BKE_nlastrip_new(act, animated_id);
 
     strip->end += (cfra - strip->start);
     strip->start = cfra;
@@ -742,7 +760,7 @@ void NLA_OT_actionclip_add(wmOperatorType *ot)
   ot->description =
       "Add an Action-Clip strip (i.e. an NLA Strip referencing an Action) to the active track";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = nlaedit_add_actionclip_invoke;
   ot->exec = nlaedit_add_actionclip_exec;
   ot->poll = nlaop_poll_tweakmode_off;
@@ -766,7 +784,7 @@ void NLA_OT_actionclip_add(wmOperatorType *ot)
  * Add a new transition strip between selected strips.
  * \{ */
 
-static int nlaedit_add_transition_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -822,7 +840,7 @@ static int nlaedit_add_transition_exec(bContext *C, wmOperator *op)
       }
 
       /* allocate new strip */
-      strip = MEM_cnew<NlaStrip>("NlaStrip");
+      strip = MEM_callocN<NlaStrip>("NlaStrip");
       BLI_insertlinkafter(&nlt->strips, s1, strip);
 
       /* set the type */
@@ -879,7 +897,7 @@ void NLA_OT_transition_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_transition_add";
   ot->description = "Add a transition strip between two adjacent selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_add_transition_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -893,7 +911,7 @@ void NLA_OT_transition_add(wmOperatorType *ot)
 /** \name Add Sound Clip Operator
  * \{ */
 
-static int nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -969,7 +987,7 @@ void NLA_OT_soundclip_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_soundclip_add";
   ot->description = "Add a strip for controlling when speaker plays its sound clip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_add_sound_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -986,7 +1004,7 @@ void NLA_OT_soundclip_add(wmOperatorType *ot)
  * \{ */
 
 /* add the specified action as new strip */
-static int nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1044,7 +1062,7 @@ void NLA_OT_meta_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_meta_add";
   ot->description = "Add new meta-strips incorporating the selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_add_meta_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1060,7 +1078,7 @@ void NLA_OT_meta_add(wmOperatorType *ot)
  * Separate out the strips held by the selected meta-strips.
  * \{ */
 
-static int nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1109,7 +1127,7 @@ void NLA_OT_meta_remove(wmOperatorType *ot)
   ot->idname = "NLA_OT_meta_remove";
   ot->description = "Separate out the strips held by the selected meta-strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_remove_meta_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1126,7 +1144,7 @@ void NLA_OT_meta_remove(wmOperatorType *ot)
  * putting them on new tracks above the one the originals were housed in.
  * \{ */
 
-static int nlaedit_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1207,7 +1225,9 @@ static int nlaedit_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static int nlaedit_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus nlaedit_duplicate_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   nlaedit_duplicate_exec(C, op);
 
@@ -1221,7 +1241,7 @@ void NLA_OT_duplicate(wmOperatorType *ot)
   ot->idname = "NLA_OT_duplicate";
   ot->description = "Duplicate selected NLA-Strips, adding the new strips to new track(s)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = nlaedit_duplicate_invoke;
   ot->exec = nlaedit_duplicate_exec;
   ot->poll = nlaop_poll_tweakmode_off;
@@ -1245,7 +1265,7 @@ void NLA_OT_duplicate(wmOperatorType *ot)
  * Deletes the selected NLA-Strips.
  * \{ */
 
-static int nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1279,7 +1299,7 @@ static int nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
         /* Fix for #109430. Defensively exit tweak mode before deleting
          * the active strip. */
         if (ale->adt && ale->adt->actstrip == strip) {
-          BKE_nla_tweakmode_exit(ale->adt);
+          BKE_nla_tweakmode_exit({*ale->id, *ale->adt});
         }
 
         /* if a strip either side of this was a transition, delete those too */
@@ -1319,7 +1339,7 @@ void NLA_OT_delete(wmOperatorType *ot)
   ot->idname = "NLA_OT_delete";
   ot->description = "Delete selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_delete_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1413,7 +1433,7 @@ static void nlaedit_split_strip_meta(NlaTrack *nlt, NlaStrip *strip)
 
 /* ----- */
 
-static int nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1482,7 +1502,7 @@ void NLA_OT_split(wmOperatorType *ot)
   ot->idname = "NLA_OT_split";
   ot->description = "Split selected strips at their midpoints";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_split_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1500,7 +1520,7 @@ void NLA_OT_split(wmOperatorType *ot)
  * Toggles whether strips are muted or not.
  * \{ */
 
-static int nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1551,7 +1571,7 @@ void NLA_OT_mute_toggle(wmOperatorType *ot)
   ot->idname = "NLA_OT_mute_toggle";
   ot->description = "Mute or un-mute selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_toggle_mute_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1567,7 +1587,7 @@ void NLA_OT_mute_toggle(wmOperatorType *ot)
  * Tries to exchange strips within their owner tracks.
  * \{ */
 
-static int nlaedit_swap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -1607,7 +1627,7 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
       NlaStrip *mstrip = static_cast<NlaStrip *>(nlt->strips.first);
 
       if ((mstrip->flag & NLASTRIP_FLAG_TEMP_META) &&
-          (BLI_listbase_count_at_most(&mstrip->strips, 3) == 2))
+          BLI_listbase_count_is_equal_to(&mstrip->strips, 2))
       {
         /* remove this temp meta, so that we can see the strips inside */
         BKE_nlastrips_clear_metas(&nlt->strips, false, true);
@@ -1740,7 +1760,7 @@ void NLA_OT_swap(wmOperatorType *ot)
   ot->idname = "NLA_OT_swap";
   ot->description = "Swap order of selected strips within tracks";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_swap_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1756,7 +1776,7 @@ void NLA_OT_swap(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static int nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1831,7 +1851,7 @@ void NLA_OT_move_up(wmOperatorType *ot)
   ot->idname = "NLA_OT_move_up";
   ot->description = "Move selected strips up a track if there's room";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_move_up_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1847,7 +1867,7 @@ void NLA_OT_move_up(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static int nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -1922,7 +1942,7 @@ void NLA_OT_move_down(wmOperatorType *ot)
   ot->idname = "NLA_OT_move_down";
   ot->description = "Move selected strips down a track if there's room";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_move_down_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -1938,7 +1958,7 @@ void NLA_OT_move_down(wmOperatorType *ot)
  * Recalculate the extents of the action ranges used for the selected strips.
  * \{ */
 
-static int nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2007,7 +2027,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
   ot->description =
       "Synchronize the length of the referenced Action with the length used in the strip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_sync_actlen_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -2030,7 +2050,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
  * Ensure that each strip has its own action.
  * \{ */
 
-static int nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -2095,15 +2115,32 @@ static int nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(
+        C,
+        op,
+        IFACE_("Make Selected Strips Single-User"),
+        IFACE_("Linked actions will be duplicated for each selected strip."),
+        IFACE_("Make Single"),
+        ALERT_ICON_WARNING,
+        false);
+  }
+  return nlaedit_make_single_user_exec(C, op);
+}
+
 void NLA_OT_make_single_user(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Make Single User";
   ot->idname = "NLA_OT_make_single_user";
-  ot->description = "Ensure that each action is only used once in the set of strips selected";
+  ot->description = "Make linked action local to each strip";
 
-  /* api callbacks */
-  ot->invoke = WM_operator_confirm_or_exec;
+  /* API callbacks. */
+  ot->invoke = nlaedit_make_single_user_invoke;
   ot->exec = nlaedit_make_single_user_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -2135,7 +2172,7 @@ static short bezt_apply_nlamapping(KeyframeEditData *ked, BezTriple *bezt)
   return 0;
 }
 
-static int nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   bAnimContext ac;
@@ -2164,7 +2201,8 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
        * (transitions don't have scale) */
       if ((strip->flag & NLASTRIP_FLAG_SELECT) && (strip->type == NLASTRIP_TYPE_CLIP)) {
         if (strip->act == nullptr || ID_IS_OVERRIDE_LIBRARY(strip->act) ||
-            ID_IS_LINKED(strip->act)) {
+            !ID_IS_EDITABLE(strip->act))
+        {
           continue;
         }
         /* if the referenced action is used by other strips,
@@ -2237,7 +2275,7 @@ void NLA_OT_apply_scale(wmOperatorType *ot)
   ot->idname = "NLA_OT_apply_scale";
   ot->description = "Apply scaling of selected strips to their referenced Actions";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_apply_scale_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -2253,7 +2291,7 @@ void NLA_OT_apply_scale(wmOperatorType *ot)
  * Reset the scaling of the selected strips to 1.0f.
  * \{ */
 
-static int nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2277,7 +2315,7 @@ static int nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
       /* strip must be selected, and must be action-clip only
        * (transitions don't have scale) */
       if ((strip->flag & NLASTRIP_FLAG_SELECT) && (strip->type == NLASTRIP_TYPE_CLIP)) {
-        PointerRNA strip_ptr = RNA_pointer_create(nullptr, &RNA_NlaStrip, strip);
+        PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, strip);
         RNA_float_set(&strip_ptr, "scale", 1.0f);
       }
     }
@@ -2303,7 +2341,7 @@ void NLA_OT_clear_scale(wmOperatorType *ot)
   ot->idname = "NLA_OT_clear_scale";
   ot->description = "Reset scaling of selected strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nlaedit_clear_scale_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -2330,7 +2368,7 @@ static const EnumPropertyItem prop_nlaedit_snap_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int nlaedit_snap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_snap_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2466,7 +2504,7 @@ void NLA_OT_snap(wmOperatorType *ot)
   ot->idname = "NLA_OT_snap";
   ot->description = "Move start of strips to specified time";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = nlaedit_snap_exec;
   ot->poll = nlaop_poll_tweakmode_off;
@@ -2524,7 +2562,7 @@ static const EnumPropertyItem *nla_fmodifier_itemf(bContext *C,
   return item;
 }
 
-static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -2610,7 +2648,7 @@ void NLA_OT_fmodifier_add(wmOperatorType *ot)
   ot->idname = "NLA_OT_fmodifier_add";
   ot->description = "Add F-Modifier to the active/selected NLA-Strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = nla_fmodifier_add_exec;
   ot->poll = nlaop_poll_tweakmode_off;
@@ -2637,7 +2675,7 @@ void NLA_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Copy F-Modifiers Operator
  * \{ */
 
-static int nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -2691,7 +2729,7 @@ void NLA_OT_fmodifier_copy(wmOperatorType *ot)
   ot->idname = "NLA_OT_fmodifier_copy";
   ot->description = "Copy the F-Modifier(s) of the active NLA-Strip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nla_fmodifier_copy_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 
@@ -2714,7 +2752,7 @@ void NLA_OT_fmodifier_copy(wmOperatorType *ot)
 /** \name Paste F-Modifiers Operator
  * \{ */
 
-static int nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -2784,7 +2822,7 @@ void NLA_OT_fmodifier_paste(wmOperatorType *ot)
   ot->idname = "NLA_OT_fmodifier_paste";
   ot->description = "Add copied F-Modifiers to the selected NLA-Strips";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = nla_fmodifier_paste_exec;
   ot->poll = nlaop_poll_tweakmode_off;
 

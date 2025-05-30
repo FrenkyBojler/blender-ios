@@ -8,39 +8,45 @@
 
 #pragma once
 
-#include "BKE_node.h"
+#include "BKE_node.hh"
 
+#include "NOD_derived_node_tree.hh"
+
+namespace blender::compositor {
+class RenderContext;
+class Profiler;
+class Context;
+class NodeOperation;
+}  // namespace blender::compositor
+namespace blender::bke {
+struct bNodeTreeType;
+}  // namespace blender::bke
+
+struct CryptomatteSession;
 struct Scene;
 struct RenderData;
 struct Render;
 struct ViewLayer;
 
-extern struct bNodeTreeType *ntreeType_Composite;
+extern blender::bke::bNodeTreeType *ntreeType_Composite;
 
-void node_cmp_rlayers_outputs(struct bNodeTree *ntree, struct bNode *node);
-void node_cmp_rlayers_register_pass(struct bNodeTree *ntree,
-                                    struct bNode *node,
-                                    struct Scene *scene,
-                                    struct ViewLayer *view_layer,
+void register_node_tree_type_cmp();
+void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
+
+void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
+void node_cmp_rlayers_register_pass(bNodeTree *ntree,
+                                    bNode *node,
+                                    Scene *scene,
+                                    ViewLayer *view_layer,
                                     const char *name,
                                     eNodeSocketDatatype type);
 const char *node_cmp_rlayers_sock_to_pass(int sock_index);
-
-void register_node_type_cmp_custom_group(bNodeType *ntype);
-
-void ntreeCompositExecTree(struct Render *render,
-                           struct Scene *scene,
-                           struct bNodeTree *ntree,
-                           struct RenderData *rd,
-                           bool rendering,
-                           int do_previews,
-                           const char *view_name);
 
 /**
  * Called from render pipeline, to tag render input and output.
  * need to do all scenes, to prevent errors when you re-render 1 scene.
  */
-void ntreeCompositTagRender(struct Scene *scene);
+void ntreeCompositTagRender(Scene *scene);
 
 void ntreeCompositTagNeedExec(bNode *node);
 
@@ -53,47 +59,44 @@ void ntreeCompositTagNeedExec(bNode *node);
  * - The render engine calls RE_engine_register_pass for each pass.
  * - #RE_engine_register_pass calls #node_cmp_rlayers_register_pass.
  */
-void ntreeCompositUpdateRLayers(struct bNodeTree *ntree);
+void ntreeCompositUpdateRLayers(bNodeTree *ntree);
 
-void ntreeCompositClearTags(struct bNodeTree *ntree);
+void ntreeCompositClearTags(bNodeTree *ntree);
 
-struct bNodeSocket *ntreeCompositOutputFileAddSocket(struct bNodeTree *ntree,
-                                                     struct bNode *node,
-                                                     const char *name,
-                                                     const struct ImageFormatData *im_format);
+bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
+                                              bNode *node,
+                                              const char *name,
+                                              const ImageFormatData *im_format);
 
-int ntreeCompositOutputFileRemoveActiveSocket(struct bNodeTree *ntree, struct bNode *node);
-void ntreeCompositOutputFileSetPath(struct bNode *node,
-                                    struct bNodeSocket *sock,
-                                    const char *name);
-void ntreeCompositOutputFileSetLayer(struct bNode *node,
-                                     struct bNodeSocket *sock,
-                                     const char *name);
+int ntreeCompositOutputFileRemoveActiveSocket(bNodeTree *ntree, bNode *node);
+void ntreeCompositOutputFileSetPath(bNode *node, bNodeSocket *sock, const char *name);
+void ntreeCompositOutputFileSetLayer(bNode *node, bNodeSocket *sock, const char *name);
 /* needed in do_versions */
-void ntreeCompositOutputFileUniquePath(struct ListBase *list,
-                                       struct bNodeSocket *sock,
+void ntreeCompositOutputFileUniquePath(ListBase *list,
+                                       bNodeSocket *sock,
                                        const char defname[],
                                        char delim);
-void ntreeCompositOutputFileUniqueLayer(struct ListBase *list,
-                                        struct bNodeSocket *sock,
+void ntreeCompositOutputFileUniqueLayer(ListBase *list,
+                                        bNodeSocket *sock,
                                         const char defname[],
                                         char delim);
 
-void ntreeCompositColorBalanceSyncFromLGG(bNodeTree *ntree, bNode *node);
-void ntreeCompositColorBalanceSyncFromCDL(bNodeTree *ntree, bNode *node);
-
-void ntreeCompositCryptomatteSyncFromAdd(const Scene *scene, bNode *node);
+void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
 int ntreeCompositCryptomatteRemoveSocket(bNodeTree *ntree, bNode *node);
-void ntreeCompositCryptomatteLayerPrefix(const Scene *scene,
-                                         const bNode *node,
-                                         char *r_prefix,
-                                         size_t prefix_maxncpy);
+void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size_t prefix_maxncpy);
 
 /**
  * Update the runtime layer names with the crypto-matte layer names of the references render layer
  * or image.
  */
-void ntreeCompositCryptomatteUpdateLayerNames(const Scene *scene, bNode *node);
-struct CryptomatteSession *ntreeCompositCryptomatteSession(const Scene *scene, bNode *node);
+void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
+CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
+
+namespace blender::nodes {
+
+compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
+                                                                DNode node);
+
+}

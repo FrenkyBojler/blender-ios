@@ -2,16 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __BLENDER_ATTRIBUTE_CONVERT_H__
-#define __BLENDER_ATTRIBUTE_CONVERT_H__
+#pragma once
 
-#include "util/array.h"
 #include "util/color.h"
 #include "util/param.h"
 #include "util/types.h"
 
-#include "BKE_attribute.hh"
-#include "BLI_math_color.hh"
+#include "BLI_color.hh"
 #include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -66,10 +63,10 @@ template<> struct AttributeConverter<blender::ColorGeometry4b> {
   static constexpr auto type_desc = TypeRGBA;
   static CyclesT convert(const blender::ColorGeometry4b &value)
   {
-    return color_srgb_to_linear(make_float4(byte_to_float(value[0]),
-                                            byte_to_float(value[1]),
-                                            byte_to_float(value[2]),
-                                            byte_to_float(value[3])));
+    return color_srgb_to_linear_v4(make_float4(byte_to_float(value[0]),
+                                               byte_to_float(value[1]),
+                                               byte_to_float(value[2]),
+                                               byte_to_float(value[3])));
   }
 };
 template<> struct AttributeConverter<bool> {
@@ -98,5 +95,3 @@ template<> struct AttributeConverter<blender::math::Quaternion> {
 };
 
 CCL_NAMESPACE_END
-
-#endif /* __BLENDER_ATTRIBUTE_CONVERT_H__ */

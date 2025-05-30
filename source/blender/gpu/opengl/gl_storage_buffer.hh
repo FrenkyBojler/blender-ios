@@ -26,6 +26,11 @@ class GLStorageBuf : public StorageBuf {
   GLuint ssbo_id_ = 0;
   /** Usage type. */
   GPUUsageType usage_;
+  /* Read */
+  GLuint read_ssbo_id_ = 0;
+  GLsync read_fence_ = 0;
+  void *persistent_ptr_ = nullptr;
+  size_t alloc_size_in_bytes_ = 0;
 
  public:
   GLStorageBuf(size_t size, GPUUsageType usage, const char *name);
@@ -38,6 +43,7 @@ class GLStorageBuf : public StorageBuf {
   void copy_sub(VertBuf *src, uint dst_offset, uint src_offset, uint copy_size) override;
   void read(void *data) override;
   void async_flush_to_host() override;
+  void sync_as_indirect_buffer() override;
 
   /* Special internal function to bind SSBOs to indirect argument targets. */
   void bind_as(GLenum target);

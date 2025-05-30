@@ -46,7 +46,7 @@ GHOST_IWindow *GHOST_SystemSDL::createWindow(const char *title,
                                              GHOST_TWindowState state,
                                              GHOST_GPUSettings gpuSettings,
                                              const bool exclusive,
-                                             const bool /* is_dialog */,
+                                             const bool /*is_dialog*/,
                                              const GHOST_IWindow *parentWindow)
 {
   GHOST_WindowSDL *window = nullptr;
@@ -68,7 +68,7 @@ GHOST_IWindow *GHOST_SystemSDL::createWindow(const char *title,
       SDL_Window *sdl_win = window->getSDLWindow();
       SDL_DisplayMode mode;
 
-      static_cast<GHOST_DisplayManagerSDL *>(m_displayManager)->getCurrentDisplayModeSDL(mode);
+      memset(&mode, 0, sizeof(mode));
 
       SDL_SetWindowDisplayMode(sdl_win, &mode);
       SDL_ShowWindow(sdl_win);
@@ -92,11 +92,7 @@ GHOST_TSuccess GHOST_SystemSDL::init()
   GHOST_TSuccess success = GHOST_System::init();
 
   if (success) {
-    m_displayManager = new GHOST_DisplayManagerSDL(this);
-
-    if (m_displayManager) {
-      return GHOST_kSuccess;
-    }
+    return GHOST_kSuccess;
   }
 
   return GHOST_kFailure;
@@ -210,8 +206,6 @@ static GHOST_TKey convertSDLKey(SDL_Scancode key)
   }
   else {
     switch (key) {
-      /* TODO SDL_SCANCODE_NONUSBACKSLASH */
-
       GXMAP(type, SDL_SCANCODE_BACKSPACE, GHOST_kKeyBackSpace);
       GXMAP(type, SDL_SCANCODE_TAB, GHOST_kKeyTab);
       GXMAP(type, SDL_SCANCODE_RETURN, GHOST_kKeyEnter);
@@ -288,6 +282,12 @@ static GHOST_TKey convertSDLKey(SDL_Scancode key)
       GXMAP(type, SDL_SCANCODE_AUDIOPREV, GHOST_kKeyMediaFirst);
       // GXMAP(type, XF86XK_AudioRewind, GHOST_kKeyMediaFirst);
       GXMAP(type, SDL_SCANCODE_AUDIONEXT, GHOST_kKeyMediaLast);
+
+      /* International Keys. */
+
+      /* This key has multiple purposes,
+       * however the only GHOST key that uses the scan-code is GrLess. */
+      GXMAP(type, SDL_SCANCODE_NONUSBACKSLASH, GHOST_kKeyGrLess);
 
       default:
         printf("Unknown\n");
@@ -454,7 +454,8 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
 
   switch (sdl_event->type) {
     case SDL_WINDOWEVENT: {
-      SDL_WindowEvent &sdl_sub_evt = sdl_event->window;
+      const SDL_WindowEvent &sdl_sub_evt = sdl_event->window;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       GHOST_WindowSDL *window = findGhostWindow(
           SDL_GetWindowFromID_fallback(sdl_sub_evt.windowID));
       /* Can be nullptr on close window. */
@@ -464,22 +465,22 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
 
       switch (sdl_sub_evt.event) {
         case SDL_WINDOWEVENT_EXPOSED:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowUpdate, window);
           break;
         case SDL_WINDOWEVENT_RESIZED:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowSize, window);
           break;
         case SDL_WINDOWEVENT_MOVED:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowMove, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowMove, window);
           break;
         case SDL_WINDOWEVENT_FOCUS_GAINED:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowActivate, window);
           break;
         case SDL_WINDOWEVENT_FOCUS_LOST:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowDeactivate, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowDeactivate, window);
           break;
         case SDL_WINDOWEVENT_CLOSE:
-          g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowClose, window);
+          g_event = new GHOST_Event(event_ms, GHOST_kEventWindowClose, window);
           break;
       }
 
@@ -487,13 +488,16 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
     }
 
     case SDL_QUIT: {
+      const SDL_QuitEvent &sdl_sub_evt = sdl_event->quit;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       GHOST_IWindow *window = m_windowManager->getActiveWindow();
-      g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventQuitRequest, window);
+      g_event = new GHOST_Event(event_ms, GHOST_kEventQuitRequest, window);
       break;
     }
 
     case SDL_MOUSEMOTION: {
-      SDL_MouseMotionEvent &sdl_sub_evt = sdl_event->motion;
+      const SDL_MouseMotionEvent &sdl_sub_evt = sdl_event->motion;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       SDL_Window *sdl_win = SDL_GetWindowFromID_fallback(sdl_sub_evt.windowID);
       GHOST_WindowSDL *window = findGhostWindow(sdl_win);
       assert(window != nullptr);
@@ -535,7 +539,7 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
             SDL_WarpMouseInWindow(sdl_win, x_new - x_win, y_new - y_win);
           }
 
-          g_event = new GHOST_EventCursor(getMilliSeconds(),
+          g_event = new GHOST_EventCursor(event_ms,
                                           GHOST_kEventCursorMove,
                                           window,
                                           x_new,
@@ -543,7 +547,7 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
                                           GHOST_TABLET_DATA_NONE);
         }
         else {
-          g_event = new GHOST_EventCursor(getMilliSeconds(),
+          g_event = new GHOST_EventCursor(event_ms,
                                           GHOST_kEventCursorMove,
                                           window,
                                           x_root + x_accum,
@@ -554,18 +558,15 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
       else
 #endif
       {
-        g_event = new GHOST_EventCursor(getMilliSeconds(),
-                                        GHOST_kEventCursorMove,
-                                        window,
-                                        x_root,
-                                        y_root,
-                                        GHOST_TABLET_DATA_NONE);
+        g_event = new GHOST_EventCursor(
+            event_ms, GHOST_kEventCursorMove, window, x_root, y_root, GHOST_TABLET_DATA_NONE);
       }
       break;
     }
     case SDL_MOUSEBUTTONUP:
     case SDL_MOUSEBUTTONDOWN: {
-      SDL_MouseButtonEvent &sdl_sub_evt = sdl_event->button;
+      const SDL_MouseButtonEvent &sdl_sub_evt = sdl_event->button;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       GHOST_TButton gbmask = GHOST_kButtonMaskLeft;
       GHOST_TEventType type = (sdl_sub_evt.state == SDL_PRESSED) ? GHOST_kEventButtonDown :
                                                                    GHOST_kEventButtonUp;
@@ -595,21 +596,29 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
         break;
       }
 
-      g_event = new GHOST_EventButton(
-          getMilliSeconds(), type, window, gbmask, GHOST_TABLET_DATA_NONE);
+      g_event = new GHOST_EventButton(event_ms, type, window, gbmask, GHOST_TABLET_DATA_NONE);
       break;
     }
     case SDL_MOUSEWHEEL: {
-      SDL_MouseWheelEvent &sdl_sub_evt = sdl_event->wheel;
+      const SDL_MouseWheelEvent &sdl_sub_evt = sdl_event->wheel;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       GHOST_WindowSDL *window = findGhostWindow(
           SDL_GetWindowFromID_fallback(sdl_sub_evt.windowID));
       assert(window != nullptr);
-      g_event = new GHOST_EventWheel(getMilliSeconds(), window, sdl_sub_evt.y);
+      if (sdl_sub_evt.x != 0) {
+        g_event = new GHOST_EventWheel(
+            event_ms, window, GHOST_kEventWheelAxisHorizontal, sdl_sub_evt.x);
+      }
+      else if (sdl_sub_evt.y != 0) {
+        g_event = new GHOST_EventWheel(
+            event_ms, window, GHOST_kEventWheelAxisVertical, sdl_sub_evt.y);
+      }
       break;
     }
     case SDL_KEYDOWN:
     case SDL_KEYUP: {
-      SDL_KeyboardEvent &sdl_sub_evt = sdl_event->key;
+      const SDL_KeyboardEvent &sdl_sub_evt = sdl_event->key;
+      const uint64_t event_ms = sdl_sub_evt.timestamp;
       GHOST_TEventType type = (sdl_sub_evt.state == SDL_PRESSED) ? GHOST_kEventKeyDown :
                                                                    GHOST_kEventKeyUp;
       const bool is_repeat = sdl_sub_evt.repeat != 0;
@@ -629,7 +638,7 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
         utf8_buf[0] = convert_keyboard_event_to_ascii(sdl_sub_evt);
       }
 
-      g_event = new GHOST_EventKey(getMilliSeconds(), type, window, gkey, is_repeat, utf8_buf);
+      g_event = new GHOST_EventKey(event_ms, type, window, gkey, is_repeat, utf8_buf);
       break;
     }
   }
@@ -670,7 +679,9 @@ bool GHOST_SystemSDL::generateWindowExposeEvents()
   bool anyProcessed = false;
 
   for (; w_start != w_end; ++w_start) {
-    GHOST_Event *g_event = new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowUpdate, *w_start);
+    /* The caller doesn't have a time-stamp. */
+    const uint64_t event_ms = getMilliSeconds();
+    GHOST_Event *g_event = new GHOST_Event(event_ms, GHOST_kEventWindowUpdate, *w_start);
 
     (*w_start)->validate();
 
@@ -783,7 +794,11 @@ GHOST_TCapabilityFlag GHOST_SystemSDL::getCapabilities() const
           /* This SDL back-end has not yet implemented image copy/paste. */
           GHOST_kCapabilityClipboardImages |
           /* No support yet for IME input methods. */
-          GHOST_kCapabilityInputIME));
+          GHOST_kCapabilityInputIME |
+          /* No support for window decoration styles. */
+          GHOST_kCapabilityWindowDecorationStyles |
+          /* No support for a Hyper modifier key. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 char *GHOST_SystemSDL::getClipboard(bool /*selection*/) const
@@ -798,5 +813,5 @@ void GHOST_SystemSDL::putClipboard(const char *buffer, bool /*selection*/) const
 
 uint64_t GHOST_SystemSDL::getMilliSeconds() const
 {
-  return uint64_t(SDL_GetTicks()); /* NOTE: 32 -> 64bits. */
+  return SDL_GetTicks64();
 }

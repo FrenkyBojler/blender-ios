@@ -29,11 +29,11 @@
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_stack.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 #define VERT_SHARED (1 << 0)
 
@@ -247,7 +247,7 @@ static GSet *bm_edgering_pair_calc(BMesh *bm, ListBase *eloops_rim)
           pair_test.second = el_store_other;
 
           if (pair_test.first > pair_test.second) {
-            SWAP(const void *, pair_test.first, pair_test.second);
+            std::swap(pair_test.first, pair_test.second);
           }
 
           void **pair_key_p;
@@ -446,7 +446,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
                                                     BMEdgeLoopStore *el_store_b,
                                                     const int interp_mode)
 {
-  LoopPairStore *lpair = static_cast<LoopPairStore *>(MEM_mallocN(sizeof(*lpair), __func__));
+  LoopPairStore *lpair = MEM_mallocN<LoopPairStore>(__func__);
 
   if (interp_mode == SUBD_RING_INTERP_SURF) {
     const uint len_a = BM_edgeloop_length_get(el_store_a);
@@ -641,7 +641,8 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
           LinkData *v_iter;
 
           for (v_iter = static_cast<LinkData *>(lb_ring->first), i = 0; v_iter;
-               v_iter = v_iter->next, i++) {
+               v_iter = v_iter->next, i++)
+          {
             if (i > 0 && i < resolu - 1) {
               /* shape */
               if (falloff_cache) {

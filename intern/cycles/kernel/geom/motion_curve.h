@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include "kernel/globals.h"
+
+#include "kernel/bvh/util.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Motion Curve Primitive
@@ -19,11 +23,11 @@ CCL_NAMESPACE_BEGIN
 
 ccl_device_inline void motion_curve_keys_for_step_linear(KernelGlobals kg,
                                                          int offset,
-                                                         int numkeys,
-                                                         int numsteps,
+                                                         const int numverts,
+                                                         const int numsteps,
                                                          int step,
-                                                         int k0,
-                                                         int k1,
+                                                         const int k0,
+                                                         const int k1,
                                                          float4 keys[2])
 {
   if (step == numsteps) {
@@ -33,10 +37,11 @@ ccl_device_inline void motion_curve_keys_for_step_linear(KernelGlobals kg,
   }
   else {
     /* center step is not stored in this array */
-    if (step > numsteps)
+    if (step > numsteps) {
       step--;
+    }
 
-    offset += step * numkeys;
+    offset += step * numverts;
 
     keys[0] = kernel_data_fetch(attributes_float4, offset + k0);
     keys[1] = kernel_data_fetch(attributes_float4, offset + k1);
@@ -44,12 +49,16 @@ ccl_device_inline void motion_curve_keys_for_step_linear(KernelGlobals kg,
 }
 
 /* return 2 curve key locations */
-ccl_device_inline void motion_curve_keys_linear(
-    KernelGlobals kg, int object, int prim, float time, int k0, int k1, float4 keys[2])
+ccl_device_inline void motion_curve_keys_linear(KernelGlobals kg,
+                                                const int object,
+                                                const float time,
+                                                const int k0,
+                                                const int k1,
+                                                float4 keys[2])
 {
   /* get motion info */
-  int numsteps, numkeys;
-  object_motion_info(kg, object, &numsteps, NULL, &numkeys);
+  const int numsteps = kernel_data_fetch(objects, object).num_geom_steps;
+  const int numverts = kernel_data_fetch(objects, object).numverts;
 
   /* figure out which steps we need to fetch and their interpolation factor */
   const int maxstep = numsteps * 2;
@@ -63,8 +72,8 @@ ccl_device_inline void motion_curve_keys_linear(
   /* fetch key coordinates */
   float4 next_keys[2];
 
-  motion_curve_keys_for_step_linear(kg, offset, numkeys, numsteps, step, k0, k1, keys);
-  motion_curve_keys_for_step_linear(kg, offset, numkeys, numsteps, step + 1, k0, k1, next_keys);
+  motion_curve_keys_for_step_linear(kg, offset, numverts, numsteps, step, k0, k1, keys);
+  motion_curve_keys_for_step_linear(kg, offset, numverts, numsteps, step + 1, k0, k1, next_keys);
 
   /* interpolate between steps */
   keys[0] = (1.0f - t) * keys[0] + t * next_keys[0];
@@ -73,13 +82,13 @@ ccl_device_inline void motion_curve_keys_linear(
 
 ccl_device_inline void motion_curve_keys_for_step(KernelGlobals kg,
                                                   int offset,
-                                                  int numkeys,
-                                                  int numsteps,
+                                                  const int numverts,
+                                                  const int numsteps,
                                                   int step,
-                                                  int k0,
-                                                  int k1,
-                                                  int k2,
-                                                  int k3,
+                                                  const int k0,
+                                                  const int k1,
+                                                  const int k2,
+                                                  const int k3,
                                                   float4 keys[4])
 {
   if (step == numsteps) {
@@ -91,10 +100,11 @@ ccl_device_inline void motion_curve_keys_for_step(KernelGlobals kg,
   }
   else {
     /* center step is not stored in this array */
-    if (step > numsteps)
+    if (step > numsteps) {
       step--;
+    }
 
-    offset += step * numkeys;
+    offset += step * numverts;
 
     keys[0] = kernel_data_fetch(attributes_float4, offset + k0);
     keys[1] = kernel_data_fetch(attributes_float4, offset + k1);
@@ -105,18 +115,17 @@ ccl_device_inline void motion_curve_keys_for_step(KernelGlobals kg,
 
 /* return 2 curve key locations */
 ccl_device_inline void motion_curve_keys(KernelGlobals kg,
-                                         int object,
-                                         int prim,
-                                         float time,
-                                         int k0,
-                                         int k1,
-                                         int k2,
-                                         int k3,
+                                         const int object,
+                                         const float time,
+                                         const int k0,
+                                         const int k1,
+                                         const int k2,
+                                         const int k3,
                                          float4 keys[4])
 {
   /* get motion info */
-  int numsteps, numkeys;
-  object_motion_info(kg, object, &numsteps, NULL, &numkeys);
+  const int numsteps = kernel_data_fetch(objects, object).num_geom_steps;
+  const int numverts = kernel_data_fetch(objects, object).numverts;
 
   /* figure out which steps we need to fetch and their interpolation factor */
   const int maxstep = numsteps * 2;
@@ -130,8 +139,8 @@ ccl_device_inline void motion_curve_keys(KernelGlobals kg,
   /* fetch key coordinates */
   float4 next_keys[4];
 
-  motion_curve_keys_for_step(kg, offset, numkeys, numsteps, step, k0, k1, k2, k3, keys);
-  motion_curve_keys_for_step(kg, offset, numkeys, numsteps, step + 1, k0, k1, k2, k3, next_keys);
+  motion_curve_keys_for_step(kg, offset, numverts, numsteps, step, k0, k1, k2, k3, keys);
+  motion_curve_keys_for_step(kg, offset, numverts, numsteps, step + 1, k0, k1, k2, k3, next_keys);
 
   /* interpolate between steps */
   keys[0] = (1.0f - t) * keys[0] + t * next_keys[0];

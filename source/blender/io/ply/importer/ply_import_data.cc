@@ -15,8 +15,10 @@
 
 #include "fast_float.h"
 
-#include <algorithm>
 #include <charconv>
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.ply"};
 
 static bool is_whitespace(char c)
 {
@@ -131,6 +133,9 @@ static int get_index(const PlyElement &element, StringRef property)
 static const char *parse_row_ascii(PlyReadBuffer &file, Vector<float> &r_values)
 {
   Span<char> line = file.read_line();
+  if (line.is_empty()) {
+    return "Could not read row of ASCII property";
+  }
 
   /* Parse whole line as floats. */
   const char *p = line.data();
@@ -256,8 +261,9 @@ static const char *load_vertex_element(PlyReadBuffer &file,
     const PlyProperty &prop = element.properties[prop_idx];
     bool is_standard = ELEM(
         prop.name, "x", "y", "z", "nx", "ny", "nz", "red", "green", "blue", "alpha", "s", "t");
-    if (is_standard)
+    if (is_standard) {
       continue;
+    }
 
     custom_attr_indices.append(prop_idx);
     PlyCustomAttribute attr(prop.name, element.count);
@@ -435,6 +441,12 @@ static const char *load_face_element(PlyReadBuffer &file,
       if (count < 1 || count > 255) {
         return "Invalid face size, must be between 1 and 255";
       }
+      /* Previous python based importer was accepting faces with fewer
+       * than 3 vertices, and silently dropping them. */
+      if (count < 3) {
+        CLOG_WARN(&LOG, "PLY Importer: ignoring face %i (%i vertices)", i, count);
+        continue;
+      }
 
       for (int j = 0; j < count; j++) {
         int index;
@@ -465,15 +477,22 @@ static const char *load_face_element(PlyReadBuffer &file,
 
       scratch.resize(count * data_type_size[prop.type]);
       file.read_bytes(scratch.data(), scratch.size());
-      ptr = scratch.data();
-      if (header.type == PlyFormatType::BINARY_BE) {
-        endian_switch_array((uint8_t *)ptr, data_type_size[prop.type], count);
+      /* Previous python based importer was accepting faces with fewer
+       * than 3 vertices, and silently dropping them. */
+      if (count < 3) {
+        CLOG_WARN(&LOG, "PLY Importer: ignoring face %i (%u vertices)", i, count);
       }
-      for (int j = 0; j < count; ++j) {
-        uint32_t index = get_binary_value<uint32_t>(prop.type, ptr);
-        data->face_vertices.append(index);
+      else {
+        ptr = scratch.data();
+        if (header.type == PlyFormatType::BINARY_BE) {
+          endian_switch_array((uint8_t *)ptr, data_type_size[prop.type], count);
+        }
+        for (int j = 0; j < count; ++j) {
+          uint32_t index = get_binary_value<uint32_t>(prop.type, ptr);
+          data->face_vertices.append(index);
+        }
+        data->face_sizes.append(count);
       }
-      data->face_sizes.append(count);
 
       /* Skip any properties after vertex indices. */
       for (int j = prop_index + 1; j < element.properties.size(); j++) {
@@ -550,7 +569,7 @@ static const char *load_tristrips_element(PlyReadBuffer &file,
       int a = strip[i - 2], b = strip[i - 1], c = strip[i];
       /* Flip odd triangles. */
       if ((i - start) & 1) {
-        SWAP(int, a, b);
+        std::swap(a, b);
       }
       /* Add triangle if it's not degenerate. */
       if (a != b && a != c && b != c) {

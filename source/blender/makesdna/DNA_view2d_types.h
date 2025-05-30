@@ -47,7 +47,7 @@ typedef struct View2D {
   short winx, winy;
   /**
    * Storage of previous winx/winy values encountered by #UI_view2d_curRect_validate(),
-   * for keep-aspect.
+   * for V2D_KEEPZOOM and V2D_KEEPASPECT.
    */
   short oldwinx, oldwiny;
 
@@ -110,8 +110,6 @@ enum {
 /** General refresh settings (#View2D.flag). */
 enum {
   /* global view2d horizontal locking (for showing same time interval) */
-  /* TODO: this flag may be set in old files but is not accessible currently,
-   * should be exposed from RNA - Campbell */
   V2D_VIEWSYNC_SCREEN_TIME = (1 << 0),
   /* within area (i.e. between regions) view2d vertical locking */
   V2D_VIEWSYNC_AREA_VERTICAL = (1 << 1),
@@ -126,6 +124,9 @@ enum {
   /* Ensure scrolling always snaps to multiples of #View2D.page_size_y or the #View2D.mask height
    * if this is 0. Zooming doesn't respect this. */
   V2D_SNAP_TO_PAGESIZE_Y = (1 << 11),
+  /* Ignore keepofs flags only during zoom.
+   * Allows for different behavior between zooming and area resize. */
+  V2D_ZOOM_IGNORE_KEEPOFS = (1 << 12),
 };
 
 /** Scroller flags for View2D (#View2D.scroll). */

@@ -6,21 +6,19 @@
  * \ingroup sptopbar
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_blendfile.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
+#include "BKE_context.hh"
 #include "BKE_screen.hh"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -44,21 +42,21 @@ static SpaceLink *topbar_create(const ScrArea * /*area*/, const Scene * /*scene*
   ARegion *region;
   SpaceTopBar *stopbar;
 
-  stopbar = static_cast<SpaceTopBar *>(MEM_callocN(sizeof(*stopbar), "init topbar"));
+  stopbar = MEM_callocN<SpaceTopBar>("init topbar");
   stopbar->spacetype = SPACE_TOPBAR;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "left aligned header for topbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&stopbar->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_TOP;
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "right aligned header for topbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&stopbar->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = RGN_ALIGN_RIGHT | RGN_SPLIT_PREV;
 
   /* main regions */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region of topbar"));
+  region = BKE_area_region_new();
   BLI_addtail(&stopbar->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
@@ -92,7 +90,7 @@ static void topbar_main_region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_HEADER, region->winx, region->winy);
 
   keymap = WM_keymap_ensure(wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void topbar_operatortypes() {}
@@ -190,25 +188,12 @@ static void recent_files_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   uiLayout *layout = menu->layout;
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-  if (!BLI_listbase_is_empty(&G.recent_files)) {
-    LISTBASE_FOREACH (RecentFile *, recent, &G.recent_files) {
-      const char *file = BLI_path_basename(recent->filepath);
-      const int icon = BKE_blendfile_extension_check(file) ? ICON_FILE_BLEND : ICON_FILE_BACKUP;
-      PointerRNA ptr;
-      uiItemFullO(layout,
-                  "WM_OT_open_mainfile",
-                  file,
-                  icon,
-                  nullptr,
-                  WM_OP_INVOKE_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
-      RNA_string_set(&ptr, "filepath", recent->filepath);
-      RNA_boolean_set(&ptr, "display_file_selector", false);
-    }
+  if (uiTemplateRecentFiles(layout, U.recent_files) != 0) {
+    layout->separator();
+    layout->op("WM_OT_clear_recent_files", IFACE_("Clear Recent Files List..."), ICON_TRASH);
   }
   else {
-    uiItemL(layout, IFACE_("No Recent Files"), ICON_NONE);
+    layout->label(IFACE_("No Recent Files"), ICON_NONE);
   }
 }
 
@@ -216,7 +201,7 @@ static void recent_files_menu_register()
 {
   MenuType *mt;
 
-  mt = static_cast<MenuType *>(MEM_callocN(sizeof(MenuType), "spacetype info menu recent files"));
+  mt = MEM_callocN<MenuType>("spacetype info menu recent files");
   STRNCPY(mt->idname, "TOPBAR_MT_file_open_recent");
   STRNCPY(mt->label, N_("Open Recent"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -241,7 +226,7 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
     undo_step_count += 1;
   }
 
-  uiLayout *split = uiLayoutSplit(menu->layout, 0.0f, false);
+  uiLayout *split = &menu->layout->split(0.0f, false);
   uiLayout *column = nullptr;
 
   const int col_size = 20 + (undo_step_count / 12);
@@ -256,17 +241,15 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
       continue;
     }
     if (!(undo_step_count % col_size)) {
-      column = uiLayoutColumn(split, false);
+      column = &split->column(false);
     }
     const bool is_active = (us == wm->undo_stack->step_active);
-    uiLayout *row = uiLayoutRow(column, false);
+    uiLayout *row = &column->row(false);
     uiLayoutSetEnabled(row, !is_active);
-    uiItemIntO(row,
-               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, us->name),
-               is_active ? ICON_LAYER_ACTIVE : ICON_NONE,
-               "ED_OT_undo_history",
-               "item",
-               i);
+    PointerRNA op_ptr = row->op("ED_OT_undo_history",
+                                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, us->name),
+                                is_active ? ICON_LAYER_ACTIVE : ICON_NONE);
+    RNA_int_set(&op_ptr, "item", i);
     undo_step_count += 1;
   }
 }
@@ -275,7 +258,7 @@ static void undo_history_menu_register()
 {
   MenuType *mt;
 
-  mt = static_cast<MenuType *>(MEM_callocN(sizeof(MenuType), __func__));
+  mt = MEM_callocN<MenuType>(__func__);
   STRNCPY(mt->idname, "TOPBAR_MT_undo_history");
   STRNCPY(mt->label, N_("Undo History"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -290,7 +273,7 @@ static void topbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_topbar()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype topbar"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_TOPBAR;
@@ -305,8 +288,7 @@ void ED_spacetype_topbar()
   st->blend_write = topbar_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(ARegionType), "spacetype topbar main region"));
+  art = MEM_callocN<ARegionType>("spacetype topbar main region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = topbar_main_region_init;
   art->layout = ED_region_header_layout;
@@ -318,8 +300,7 @@ void ED_spacetype_topbar()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(
-      MEM_callocN(sizeof(ARegionType), "spacetype topbar header region"));
+  art = MEM_callocN<ARegionType>("spacetype topbar header region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->prefsizex = UI_UNIT_X * 5; /* Mainly to avoid glitches */
@@ -335,5 +316,5 @@ void ED_spacetype_topbar()
   recent_files_menu_register();
   undo_history_menu_register();
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

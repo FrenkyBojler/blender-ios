@@ -10,14 +10,11 @@
 
 #include "intern/depsgraph_physics.hh"
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_compiler_compat.h"
 #include "BLI_listbase.h"
 
 #include "BKE_collision.h"
 #include "BKE_effect.h"
-#include "BKE_modifier.h"
+#include "BKE_modifier.hh"
 
 #include "DNA_collection_types.h"
 #include "DNA_object_force_types.h"
@@ -67,7 +64,7 @@ ListBase *DEG_get_effector_relations(const Depsgraph *graph, Collection *collect
   }
   /* NOTE: nullptr is a valid lookup key here as it means that the relation is not bound to a
    * specific collection. */
-  ID *collection_orig = DEG_get_original_id(object_id_safe(collection));
+  ID *collection_orig = DEG_get_original(object_id_safe(collection));
   return hash->lookup_default(collection_orig, nullptr);
 }
 
@@ -83,7 +80,7 @@ ListBase *DEG_get_collision_relations(const Depsgraph *graph,
   }
   /* NOTE: nullptr is a valid lookup key here as it means that the relation is not bound to a
    * specific collection. */
-  ID *collection_orig = DEG_get_original_id(object_id_safe(collection));
+  ID *collection_orig = DEG_get_original(object_id_safe(collection));
   return hash->lookup_default(collection_orig, nullptr);
 }
 

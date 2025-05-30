@@ -74,7 +74,7 @@ typedef struct MaterialGPencilStyle {
   /** Radius for radial gradients. */
   float gradient_radius DNA_DEPRECATED;
   char _pad2[4];
-  /** Uv coordinates scale. */
+  /** UV coordinates scale. */
   float gradient_scale[2] DNA_DEPRECATED;
   /** Factor to shift filling in 2d space. */
   float gradient_shift[2] DNA_DEPRECATED;
@@ -162,7 +162,11 @@ typedef enum eMaterialLineArtFlags {
 } eMaterialLineArtFlags;
 
 typedef struct Material {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Material)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_MA;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
@@ -209,7 +213,12 @@ typedef struct Material {
   short paint_active_slot;
   short paint_clone_slot;
   short tot_slots;
-  char _pad2[2];
+
+  /* Displacement. */
+  char displacement_method;
+
+  /* Thickness. */
+  char thickness_mode;
 
   /* Transparency. */
   float alpha_threshold;
@@ -221,14 +230,14 @@ typedef struct Material {
   /* Volume. */
   char volume_intersection_method;
 
-  /* Displacement*/
+  /* Displacement. */
   float inflate_bounds;
 
   char _pad3[4];
 
   /**
-   * Cached slots for texture painting, must be refreshed in
-   * refresh_texpaint_image_cache before using.
+   * Cached slots for texture painting, must be refreshed via
+   * BKE_texpaint_slot_refresh_cache before using.
    */
   struct TexPaintSlot *texpaintslot;
 
@@ -366,6 +375,7 @@ enum {
   MA_BL_LIGHTPROBE_VOLUME_DOUBLE_SIDED = (1 << 4),
   MA_BL_CULL_BACKFACE_SHADOW = (1 << 5),
   MA_BL_TRANSPARENT_SHADOW = (1 << 6),
+  MA_BL_THICKNESS_FROM_SHADOW = (1 << 7),
 };
 
 /** #Material::blend_shadow */
@@ -374,6 +384,19 @@ enum {
   MA_BS_SOLID = 1,
   MA_BS_CLIP = 2,
   MA_BS_HASHED = 3,
+};
+
+/** #Material::displacement_method */
+enum {
+  MA_DISPLACEMENT_BUMP = 0,
+  MA_DISPLACEMENT_DISPLACE = 1,
+  MA_DISPLACEMENT_BOTH = 2,
+};
+
+/** #Material::thickness_mode */
+enum {
+  MA_THICKNESS_SPHERE = 0,
+  MA_THICKNESS_SLAB = 1,
 };
 
 /* Grease Pencil Stroke styles */

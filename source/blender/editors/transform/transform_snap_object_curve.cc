@@ -6,23 +6,20 @@
  * \ingroup edtransform
  */
 
-#include "BLI_math_matrix.hh"
-
 #include "DNA_curve_types.h"
 
-#include "BKE_bvhutils.h"
-#include "BKE_curve.h"
-#include "BKE_mesh.hh"
+#include "BLI_listbase.h"
+
+#include "BKE_curve.hh"
 #include "BKE_object.hh"
 
 #include "ED_transform_snap_object_context.hh"
 
 #include "transform_snap_object.hh"
 
-using blender::float4x4;
-using blender::IndexRange;
+namespace blender::ed::transform {
 
-eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &obmat)
+eSnapMode snapCurve(SnapObjectContext *sctx, const Object *ob_eval, const float4x4 &obmat)
 {
   bool has_snap = false;
 
@@ -38,9 +35,9 @@ eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &ob
   const bool use_obedit = BKE_object_is_in_editmode(ob_eval);
 
   if (use_obedit == false) {
-    /* Test BoundBox */
-    BoundBox *bb = BKE_curve_boundbox_get(ob_eval);
-    if (bb && !nearest2d.snap_boundbox(bb->vec[0], bb->vec[6])) {
+    /* Test BoundBox. */
+    std::optional<Bounds<float3>> bounds = BKE_curve_minmax(cu, true);
+    if (bounds && !nearest2d.snap_boundbox(bounds->min, bounds->max)) {
       return SCE_SNAP_TO_NONE;
     }
   }
@@ -52,7 +49,7 @@ eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &ob
 
   LISTBASE_FOREACH (Nurb *, nu, (use_obedit ? &cu->editnurb->nurbs : &cu->nurb)) {
     if (nu->bezt) {
-      for (int u : blender::IndexRange(nu->pntsu)) {
+      for (int u : IndexRange(nu->pntsu)) {
         if (use_obedit) {
           if (nu->bezt[u].hide) {
             /* Skip hidden. */
@@ -82,7 +79,7 @@ eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &ob
       }
     }
     else if (nu->bp) {
-      for (int u : blender::IndexRange(nu->pntsu * nu->pntsv)) {
+      for (int u : IndexRange(nu->pntsu * nu->pntsv)) {
         if (use_obedit) {
           if (nu->bp[u].hide) {
             /* Skip hidden. */
@@ -104,3 +101,5 @@ eSnapMode snapCurve(SnapObjectContext *sctx, Object *ob_eval, const float4x4 &ob
   }
   return SCE_SNAP_TO_NONE;
 }
+
+}  // namespace blender::ed::transform

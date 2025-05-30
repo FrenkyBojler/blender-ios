@@ -12,9 +12,9 @@
 #include <cctype>
 #include <cfloat>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "MEM_guardedalloc.h"
 
@@ -28,36 +28,34 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_main.h"
+#include "BKE_main.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_curve.h"
-#include "BKE_displist.h"
 #include "BKE_geometry_set.hh"
-#include "BKE_idtype.h"
-#include "BKE_lattice.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_material.h"
-#include "BKE_mball.h"
-#include "BKE_mball_tessellate.h"
-#include "BKE_mesh.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lattice.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_library.hh"
+#include "BKE_mball.hh"
+#include "BKE_mball_tessellate.hh"
 #include "BKE_object.hh"
-#include "BKE_scene.h"
+#include "BKE_object_types.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "BLO_read_write.hh"
+
+using blender::Span;
 
 static void metaball_init_data(ID *id)
 {
@@ -68,7 +66,11 @@ static void metaball_init_data(ID *id)
   MEMCPY_STRUCT_AFTER(metaball, DNA_struct_default_get(MetaBall), id);
 }
 
-static void metaball_copy_data(Main * /*bmain*/, ID *id_dst, const ID *id_src, const int /*flag*/)
+static void metaball_copy_data(Main * /*bmain*/,
+                               std::optional<Library *> /*owner_library*/,
+                               ID *id_dst,
+                               const ID *id_src,
+                               const int /*flag*/)
 {
   MetaBall *metaball_dst = (MetaBall *)id_dst;
   const MetaBall *metaball_src = (const MetaBall *)id_src;
@@ -130,9 +132,9 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 {
   MetaBall *mb = (MetaBall *)id;
 
-  BLO_read_pointer_array(reader, (void **)&mb->mat);
+  BLO_read_pointer_array(reader, mb->totcol, (void **)&mb->mat);
 
-  BLO_read_list(reader, &(mb->elems));
+  BLO_read_struct_list(reader, MetaElem, &(mb->elems));
 
   mb->editelems = nullptr;
   /* Must always be cleared (meta's don't have their own edit-data). */
@@ -142,8 +144,9 @@ static void metaball_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MB = {
-    /*id_code*/ ID_MB,
+    /*id_code*/ MetaBall::id_type,
     /*id_filter*/ FILTER_ID_MB,
+    /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_MB,
     /*struct_size*/ sizeof(MetaBall),
     /*name*/ "Metaball",
@@ -174,13 +177,13 @@ IDTypeInfo IDType_ID_MB = {
 
 MetaBall *BKE_mball_add(Main *bmain, const char *name)
 {
-  MetaBall *mb = static_cast<MetaBall *>(BKE_id_new(bmain, ID_MB, name));
+  MetaBall *mb = BKE_id_new<MetaBall>(bmain, name);
   return mb;
 }
 
 MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
 {
-  MetaElem *ml = MEM_cnew<MetaElem>(__func__);
+  MetaElem *ml = MEM_callocN<MetaElem>(__func__);
 
   unit_qt(ml->quat);
 
@@ -223,13 +226,6 @@ MetaElem *BKE_mball_element_add(MetaBall *mb, const int type)
   BLI_addtail(&mb->elems, ml);
 
   return ml;
-}
-
-BoundBox *BKE_mball_boundbox_get(Object *ob)
-{
-  BLI_assert(ob->type == OB_MBALL);
-  BKE_object_boundbox_calc_from_evaluated_geometry(ob);
-  return ob->runtime.bb;
 }
 
 bool BKE_mball_is_basis(const Object *ob)
@@ -286,10 +282,10 @@ bool BKE_mball_is_any_selected(const MetaBall *mb)
   return false;
 }
 
-bool BKE_mball_is_any_selected_multi(Base **bases, int bases_len)
+bool BKE_mball_is_any_selected_multi(const Span<Base *> bases)
 {
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Object *obedit = bases[base_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     MetaBall *mb = (MetaBall *)obedit->data;
     if (BKE_mball_is_any_selected(mb)) {
       return true;
@@ -337,7 +333,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
    * think it would be worth it.
    */
   for (Object *ob_src = static_cast<Object *>(bmain->objects.first);
-       ob_src != nullptr && !ID_IS_LINKED(ob_src);)
+       ob_src != nullptr && ID_IS_EDITABLE(ob_src);)
   {
     if (ob_src->data != metaball_src) {
       ob_src = static_cast<Object *>(ob_src->id.next);
@@ -378,7 +374,7 @@ void BKE_mball_properties_copy(Main *bmain, MetaBall *metaball_src)
     for (ob_iter = static_cast<Object *>(ob_src->id.next); ob_iter != nullptr;
          ob_iter = static_cast<Object *>(ob_iter->id.next))
     {
-      if (ob_iter->id.name[2] != obactive_name[0] || ID_IS_LINKED(ob_iter)) {
+      if (ob_iter->id.name[2] != obactive_name[0] || !ID_IS_EDITABLE(ob_iter)) {
         break;
       }
       if (ob_iter->type != OB_MBALL || ob_iter->data == metaball_src) {
@@ -546,11 +542,11 @@ int BKE_mball_select_count(const MetaBall *mb)
   return sel;
 }
 
-int BKE_mball_select_count_multi(Base **bases, int bases_len)
+int BKE_mball_select_count_multi(const Span<Base *> bases)
 {
   int sel = 0;
-  for (uint ob_index = 0; ob_index < bases_len; ob_index++) {
-    const Object *obedit = bases[ob_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     const MetaBall *mb = (MetaBall *)obedit->data;
     sel += BKE_mball_select_count(mb);
   }
@@ -569,11 +565,11 @@ bool BKE_mball_select_all(MetaBall *mb)
   return changed;
 }
 
-bool BKE_mball_select_all_multi_ex(Base **bases, int bases_len)
+bool BKE_mball_select_all_multi_ex(const Span<Base *> bases)
 {
   bool changed_multi = false;
-  for (uint ob_index = 0; ob_index < bases_len; ob_index++) {
-    Object *obedit = bases[ob_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     MetaBall *mb = static_cast<MetaBall *>(obedit->data);
     changed_multi |= BKE_mball_select_all(mb);
   }
@@ -592,11 +588,11 @@ bool BKE_mball_deselect_all(MetaBall *mb)
   return changed;
 }
 
-bool BKE_mball_deselect_all_multi_ex(Base **bases, int bases_len)
+bool BKE_mball_deselect_all_multi_ex(const Span<Base *> bases)
 {
   bool changed_multi = false;
-  for (uint ob_index = 0; ob_index < bases_len; ob_index++) {
-    Object *obedit = bases[ob_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     MetaBall *mb = static_cast<MetaBall *>(obedit->data);
     changed_multi |= BKE_mball_deselect_all(mb);
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
@@ -614,11 +610,11 @@ bool BKE_mball_select_swap(MetaBall *mb)
   return changed;
 }
 
-bool BKE_mball_select_swap_multi_ex(Base **bases, int bases_len)
+bool BKE_mball_select_swap_multi_ex(const Span<Base *> bases)
 {
   bool changed_multi = false;
-  for (uint ob_index = 0; ob_index < bases_len; ob_index++) {
-    Object *obedit = bases[ob_index]->object;
+  for (Base *base : bases) {
+    Object *obedit = base->object;
     MetaBall *mb = (MetaBall *)obedit->data;
     changed_multi |= BKE_mball_select_swap(mb);
   }
@@ -654,14 +650,12 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
         ob->parent,
         ob,
         reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
-        mesh->totvert,
+        mesh->verts_num,
         0,
         nullptr,
         1.0f);
-    BKE_mesh_tag_positions_changed(mesh);
+    mesh->tag_positions_changed();
   }
 
-  ob->runtime.geometry_set_eval = new GeometrySet(GeometrySet::from_mesh(mesh));
-
-  BKE_object_boundbox_calc_from_evaluated_geometry(ob);
+  ob->runtime->geometry_set_eval = new GeometrySet(GeometrySet::from_mesh(mesh));
 };

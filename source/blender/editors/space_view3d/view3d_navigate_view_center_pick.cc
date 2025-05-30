@@ -6,42 +6,13 @@
  * \ingroup spview3d
  */
 
-#include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
-
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_vector.h"
-#include "BLI_rect.h"
 
-#include "BLT_translation.h"
-
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.hh"
-#include "BKE_paint.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
-#include "BKE_vfont.h"
-
-#include "DEG_depsgraph_query.hh"
-
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
-#include "ED_screen.hh"
-#include "ED_transform.hh"
+#include "BKE_context.hh"
 
 #include "WM_api.hh"
-#include "WM_message.hh"
 
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-
-#include "UI_resources.hh"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -49,7 +20,7 @@
 /** \name View Center Pick Operator
  * \{ */
 
-static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -57,25 +28,28 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
   if (rv3d) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    float new_ofs[3];
+    float ofs_new[3];
     const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
     ED_view3d_smooth_view_force_finish(C, v3d, region);
 
-    view3d_operator_needs_opengl(C);
+    view3d_operator_needs_gpu(C);
 
-    if (ED_view3d_autodist(depsgraph, region, v3d, event->mval, new_ofs, false, nullptr)) {
+    /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
+    ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);
+
+    if (ED_view3d_autodist(region, v3d, event->mval, ofs_new, nullptr)) {
       /* pass */
     }
     else {
       /* fallback to simple pan */
-      negate_v3_v3(new_ofs, rv3d->ofs);
-      ED_view3d_win_to_3d_int(v3d, region, new_ofs, event->mval, new_ofs);
+      negate_v3_v3(ofs_new, rv3d->ofs);
+      ED_view3d_win_to_3d_int(v3d, region, ofs_new, event->mval, ofs_new);
     }
-    negate_v3(new_ofs);
+    negate_v3(ofs_new);
 
     V3D_SmoothParams sview = {nullptr};
-    sview.ofs = new_ofs;
+    sview.ofs = ofs_new;
     sview.undo_str = op->type->name;
 
     ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
@@ -91,7 +65,7 @@ void VIEW3D_OT_view_center_pick(wmOperatorType *ot)
   ot->description = "Center the view to the Z-depth position under the mouse cursor";
   ot->idname = "VIEW3D_OT_view_center_pick";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewcenter_pick_invoke;
   ot->poll = view3d_location_poll;
 

@@ -10,10 +10,7 @@
 
 #include "GHOST_ContextSDL.hh"
 
-#include <vector>
-
 #include <cassert>
-#include <cstdio>
 #include <cstring>
 
 SDL_GLContext GHOST_ContextSDL::s_sharedContext = nullptr;
@@ -76,6 +73,7 @@ GHOST_TSuccess GHOST_ContextSDL::activateDrawingContext()
   if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = this;
   return SDL_GL_MakeCurrent(m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -84,17 +82,14 @@ GHOST_TSuccess GHOST_ContextSDL::releaseDrawingContext()
   if (m_context == nullptr) {
     return GHOST_kFailure;
   }
+  active_context_ = nullptr;
   /* Untested, may not work. */
   return SDL_GL_MakeCurrent(nullptr, nullptr) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
 {
-#ifdef GHOST_OPENGL_ALPHA
-  const bool needAlpha = true;
-#else
   const bool needAlpha = false;
-#endif
 
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, m_contextProfileMask);
   SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, m_contextMajorVersion);
@@ -142,6 +137,7 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
     initClearGL();
     SDL_GL_SwapWindow(m_window);
 
+    active_context_ = this;
     success = GHOST_kSuccess;
   }
   else {

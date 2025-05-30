@@ -12,13 +12,13 @@
 
 #include "utf_winfunc.hh"
 #include "utfconv.hh"
+#include <cwchar>
 #include <io.h>
-#include <wchar.h>
 #include <windows.h>
 
 FILE *ufopen(const char *filename, const char *mode)
 {
-  FILE *f = NULL;
+  FILE *f = nullptr;
   UTF16_ENCODE(filename);
   UTF16_ENCODE(mode);
 
@@ -72,14 +72,18 @@ int uaccess(const char *filename, int mode)
   return r;
 }
 
-int urename(const char *oldname, const char *newname)
+int urename(const char *oldname, const char *newname, const bool do_replace)
 {
   int r = -1;
   UTF16_ENCODE(oldname);
   UTF16_ENCODE(newname);
 
   if (oldname_16 && newname_16) {
-    r = _wrename(oldname_16, newname_16);
+    /* Closer to UNIX `rename` behavior, as it at least allows to replace an existing file.
+     * Return value logic is inverted however (returns non-zero on sucess, 0 on failure).
+     * Note that the operation will still fail if the 'newname' existing file is opened anywhere.
+     */
+    r = (MoveFileExW(oldname_16, newname_16, do_replace ? MOVEFILE_REPLACE_EXISTING : 0) == 0);
   }
 
   UTF16_UN_ENCODE(newname);
@@ -104,7 +108,7 @@ int umkdir(const char *pathname)
 
 char *u_alloc_getenv(const char *varname)
 {
-  char *r = 0;
+  char *r = nullptr;
   wchar_t *str;
   UTF16_ENCODE(varname);
   if (varname_16) {

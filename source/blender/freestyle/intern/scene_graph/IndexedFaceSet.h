@@ -88,9 +88,9 @@ class IndexedFaceSet : public Rep {
    *    iTIndices
    *      The Texture coordinates indices (per vertex). The integers contained in this array must
    * be multiple of 2. iTISize The size of iMIndices iCopy 0 : the arrays are not copied. The
-   * pointers passed as arguments are used. IndexedFaceSet takes these arrays desallocation in
+   * pointers passed as arguments are used. IndexedFaceSet takes these arrays deallocation in
    * charge. 1 : the arrays are copied. The caller is in charge of the arrays, passed as arguments
-   * desallocation.
+   * deallocation.
    */
   IndexedFaceSet(float *iVertices,
                  uint iVSize,
@@ -186,27 +186,27 @@ class IndexedFaceSet : public Rep {
     return _TexCoords;
   }
 
-  virtual const uint vsize() const
+  virtual uint vsize() const
   {
     return _VSize;
   }
 
-  virtual const uint nsize() const
+  virtual uint nsize() const
   {
     return _NSize;
   }
 
-  virtual const uint msize() const
+  virtual uint msize() const
   {
     return _MSize;
   }
 
-  virtual const uint tsize() const
+  virtual uint tsize() const
   {
     return _TSize;
   }
 
-  virtual const uint numFaces() const
+  virtual uint numFaces() const
   {
     return _NumFaces;
   }
@@ -246,22 +246,22 @@ class IndexedFaceSet : public Rep {
     return _TIndices;
   }
 
-  virtual const uint visize() const
+  virtual uint visize() const
   {
     return _VISize;
   }
 
-  virtual const uint nisize() const
+  virtual uint nisize() const
   {
     return _NISize;
   }
 
-  virtual const uint misize() const
+  virtual uint misize() const
   {
     return _MISize;
   }
 
-  virtual const uint tisize() const
+  virtual uint tisize() const
   {
     return _TISize;
   }
@@ -292,9 +292,7 @@ class IndexedFaceSet : public Rep {
   uint _MISize;
   uint _TISize;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:IndexedFaceSet")
-#endif
 };
 
 } /* namespace Freestyle */

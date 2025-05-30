@@ -8,14 +8,24 @@
 
 #include "draw_sculpt.hh"
 
+#include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 #include "draw_attributes.hh"
-#include "draw_pbvh.h"
+#include "draw_context_private.hh"
+#include "draw_view.hh"
 
-#include "BKE_mesh_types.hh"
+#include "BKE_attribute.hh"
+#include "BKE_customdata.hh"
+#include "BKE_material.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+
+#include "BLI_math_matrix.hh"
+
+#include "bmesh_class.hh"
 
 #include "DRW_pbvh.hh"
+#include "DRW_render.hh"
 
 namespace blender::draw {
 
@@ -36,53 +46,19 @@ float3 SculptBatch::debug_color()
   return colors[debug_index % 9];
 }
 
-struct SculptCallbackData {
-  bool use_wire;
-  bool fast_mode;
-
-  PBVHAttrReq *attrs;
-  int attrs_len;
-
-  Vector<SculptBatch> batches;
-};
-
-static void sculpt_draw_cb(SculptCallbackData *data,
-                           PBVHBatches *batches,
-                           const PBVH_GPU_Args &pbvh_draw_args)
+static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
+                                                 const bool use_wire,
+                                                 const Span<pbvh::AttributeRequest> attrs)
 {
-  if (!batches) {
-    return;
-  }
-
-  SculptBatch batch = {};
-
-  int primcount;
-  if (data->use_wire) {
-    batch.batch = DRW_pbvh_lines_get(
-        batches, data->attrs, data->attrs_len, pbvh_draw_args, &primcount, data->fast_mode);
-  }
-  else {
-    batch.batch = DRW_pbvh_tris_get(
-        batches, data->attrs, data->attrs_len, pbvh_draw_args, &primcount, data->fast_mode);
-  }
-
-  batch.material_slot = drw_pbvh_material_index_get(batches);
-  batch.debug_index = data->batches.size();
-
-  data->batches.append(batch);
-}
-
-static Vector<SculptBatch> sculpt_batches_get_ex(
-    Object *ob, bool use_wire, bool use_materials, PBVHAttrReq *attrs, int attrs_len)
-{
-  /* PBVH should always exist for non-empty meshes, created by depsgraph eval. */
-  PBVH *pbvh = ob->sculpt ? ob->sculpt->pbvh : nullptr;
+  /* pbvh::Tree should always exist for non-empty meshes, created by depsgraph eval. */
+  bke::pbvh::Tree *pbvh = ob->sculpt ? const_cast<bke::pbvh::Tree *>(bke::object::pbvh_get(*ob)) :
+                                       nullptr;
   if (!pbvh) {
     return {};
   }
 
   /* TODO(Miguel Pozo): Don't use global context. */
-  const DRWContextState *drwctx = DRW_context_state_get();
+  const DRWContext *drwctx = DRW_context_get();
   RegionView3D *rv3d = drwctx->rv3d;
   const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 
@@ -91,30 +67,15 @@ static Vector<SculptBatch> sculpt_batches_get_ex(
     paint = BKE_paint_get_active_from_context(drwctx->evil_C);
   }
 
-  /* Frustum planes to show only visible PBVH nodes. */
-  float4 draw_planes[6];
-  PBVHFrustumPlanes draw_frustum = {reinterpret_cast<float(*)[4]>(draw_planes), 6};
-  float4 update_planes[6];
-  PBVHFrustumPlanes update_frustum = {reinterpret_cast<float(*)[4]>(update_planes), 6};
-
   /* TODO: take into account partial redraw for clipping planes. */
-  DRW_view_frustum_planes_get(DRW_view_default_get(), draw_frustum.planes);
+  /* Frustum planes to show only visible pbvh::Tree nodes. */
+  std::array<float4, 6> draw_frustum_planes = View::default_get().frustum_planes_get();
   /* Transform clipping planes to object space. Transforming a plane with a
    * 4x4 matrix is done by multiplying with the transpose inverse.
    * The inverse cancels out here since we transform by inverse(obmat). */
-  float4x4 tmat = math::transpose(float4x4(ob->object_to_world));
-  for (int i : IndexRange(6)) {
-    draw_planes[i] = tmat * draw_planes[i];
-    update_planes[i] = draw_planes[i];
-  }
-
-  if (paint && (paint->flags & PAINT_SCULPT_DELAY_UPDATES)) {
-    if (navigating) {
-      BKE_pbvh_get_frustum_planes(pbvh, &update_frustum);
-    }
-    else {
-      BKE_pbvh_set_frustum_planes(pbvh, &update_frustum);
-    }
+  float4x4 tmat = math::transpose(ob->object_to_world());
+  for (int i : IndexRange(draw_frustum_planes.size())) {
+    draw_frustum_planes[i] = tmat * draw_frustum_planes[i];
   }
 
   /* Fast mode to show low poly multires while navigating. */
@@ -130,115 +91,143 @@ static Vector<SculptBatch> sculpt_batches_get_ex(
     update_only_visible = true;
   }
 
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
-  BKE_pbvh_update_normals(pbvh, mesh->runtime->subdiv_ccg);
+  bke::pbvh::update_normals_from_eval(*const_cast<Object *>(ob), *pbvh);
 
-  SculptCallbackData data;
-  data.use_wire = use_wire;
-  data.fast_mode = fast_mode;
-  data.attrs = attrs;
-  data.attrs_len = attrs_len;
+  pbvh::DrawCache &draw_data = pbvh::ensure_draw_data(pbvh->draw_data);
 
-  BKE_pbvh_draw_cb(*mesh,
-                   pbvh,
-                   update_only_visible,
-                   &update_frustum,
-                   &draw_frustum,
-                   (void (*)(void *, PBVHBatches *, const PBVH_GPU_Args &))sculpt_draw_cb,
-                   &data,
-                   use_materials,
-                   attrs,
-                   attrs_len);
+  IndexMaskMemory memory;
+  const IndexMask visible_nodes = bke::pbvh::search_nodes(
+      *pbvh, memory, [&](const bke::pbvh::Node &node) {
+        return !BKE_pbvh_node_fully_hidden_get(node) &&
+               bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
+      });
 
-  return data.batches;
+  const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
+                                                          bke::pbvh::all_leaf_nodes(*pbvh, memory);
+
+  Span<gpu::Batch *> batches;
+  if (use_wire) {
+    batches = draw_data.ensure_lines_batches(*ob, {{}, fast_mode}, nodes_to_update);
+  }
+  else {
+    batches = draw_data.ensure_tris_batches(*ob, {attrs, fast_mode}, nodes_to_update);
+  }
+
+  const Span<int> material_indices = draw_data.ensure_material_indices(*ob);
+
+  const int max_material = BKE_object_material_count_eval(ob);
+  Vector<SculptBatch> result_batches(visible_nodes.size());
+  visible_nodes.foreach_index([&](const int i, const int pos) {
+    result_batches[pos] = {};
+    result_batches[pos].batch = batches[i];
+    result_batches[pos].material_slot = material_indices.is_empty() ?
+                                            0 :
+                                            std::min(material_indices[i], max_material);
+    result_batches[pos].debug_index = pos;
+  });
+
+  return result_batches;
 }
 
-Vector<SculptBatch> sculpt_batches_get(Object *ob, bool per_material, SculptBatchFeature features)
+static const CustomData *get_cdata(const BMesh &bm, const bke::AttrDomain domain)
 {
-  PBVHAttrReq attrs[16] = {};
-  int attrs_len = 0;
+  switch (domain) {
+    case bke::AttrDomain::Point:
+      return &bm.vdata;
+    case bke::AttrDomain::Corner:
+      return &bm.ldata;
+    case bke::AttrDomain::Face:
+      return &bm.pdata;
+    default:
+      return nullptr;
+  }
+}
 
-  /* NOTE: these are NOT #eCustomDataType, they are extended values, ASAN may warn about this. */
-  attrs[attrs_len++].type = eCustomDataType(CD_PBVH_CO_TYPE);
-  attrs[attrs_len++].type = eCustomDataType(CD_PBVH_NO_TYPE);
+static bool bmesh_attribute_exists(const BMesh &bm,
+                                   const bke::AttributeMetaData &meta_data,
+                                   const StringRef name)
+{
+  const CustomData *cdata = get_cdata(bm, meta_data.domain);
+  return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
+}
 
+Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features)
+{
+  Vector<pbvh::AttributeRequest, 16> attrs;
+
+  attrs.append(pbvh::CustomRequest::Position);
+  attrs.append(pbvh::CustomRequest::Normal);
   if (features & SCULPT_BATCH_MASK) {
-    attrs[attrs_len++].type = eCustomDataType(CD_PBVH_MASK_TYPE);
+    attrs.append(pbvh::CustomRequest::Mask);
   }
-
   if (features & SCULPT_BATCH_FACE_SET) {
-    attrs[attrs_len++].type = eCustomDataType(CD_PBVH_FSET_TYPE);
+    attrs.append(pbvh::CustomRequest::FaceSet);
   }
 
-  Mesh *mesh = BKE_object_get_original_mesh(ob);
+  const Mesh *mesh = BKE_object_get_original_mesh(ob);
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  const SculptSession &ss = *ob->sculpt;
 
+  /* If Dyntopo is enabled, the source of truth for an attribute existing or not is the BMesh, not
+   * the Mesh. */
   if (features & SCULPT_BATCH_VERTEX_COLOR) {
-    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
-                                                                mesh->active_color_attribute);
-    if (layer) {
-      attrs[attrs_len].type = eCustomDataType(layer->type);
-      attrs[attrs_len].domain = BKE_id_attribute_domain(&mesh->id, layer);
-      attrs[attrs_len].name = layer->name;
-      attrs_len++;
+    if (const char *name = mesh->active_color_attribute) {
+      if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+              name))
+      {
+        if (ss.bm) {
+          if (bmesh_attribute_exists(*ss.bm, *meta_data, name)) {
+            attrs.append(pbvh::GenericRequest(name));
+          }
+        }
+        else {
+          attrs.append(pbvh::GenericRequest(name));
+        }
+      }
     }
   }
 
   if (features & SCULPT_BATCH_UV) {
-    int layer_i = CustomData_get_active_layer_index(&mesh->loop_data, CD_PROP_FLOAT2);
-    if (layer_i != -1) {
-      CustomDataLayer *layer = mesh->loop_data.layers + layer_i;
-      attrs[attrs_len].type = CD_PROP_FLOAT2;
-      attrs[attrs_len].domain = ATTR_DOMAIN_CORNER;
-      attrs[attrs_len].name = layer->name;
-      attrs_len++;
+    const CustomData *corner_data = ss.bm ? &ss.bm->ldata : &mesh->corner_data;
+    if (const char *name = CustomData_get_active_layer_name(corner_data, CD_PROP_FLOAT2)) {
+      attrs.append(pbvh::GenericRequest(name));
     }
   }
 
-  return sculpt_batches_get_ex(
-      ob, features & SCULPT_BATCH_WIREFRAME, per_material, attrs, attrs_len);
+  return sculpt_batches_get_ex(ob, features & SCULPT_BATCH_WIREFRAME, attrs);
 }
 
-Vector<SculptBatch> sculpt_batches_per_material_get(Object *ob,
-                                                    MutableSpan<GPUMaterial *> materials)
+Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
+                                                    Span<const GPUMaterial *> materials)
 {
   BLI_assert(ob->type == OB_MESH);
-  Mesh *mesh = (Mesh *)ob->data;
+  const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
-  DRW_Attributes draw_attrs;
+  VectorSet<std::string> draw_attrs;
   DRW_MeshCDMask cd_needed;
+  DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
 
-  DRW_mesh_get_attributes(ob, mesh, materials.data(), materials.size(), &draw_attrs, &cd_needed);
+  Vector<pbvh::AttributeRequest, 16> attrs;
 
-  PBVHAttrReq attrs[16] = {};
-  int attrs_len = 0;
+  attrs.append(pbvh::CustomRequest::Position);
+  attrs.append(pbvh::CustomRequest::Normal);
 
-  /* NOTE: these are NOT #eCustomDataType, they are extended values, ASAN may warn about this. */
-  attrs[attrs_len++].type = eCustomDataType(CD_PBVH_CO_TYPE);
-  attrs[attrs_len++].type = eCustomDataType(CD_PBVH_NO_TYPE);
-
-  for (int i = 0; i < draw_attrs.num_requests; i++) {
-    DRW_AttributeRequest *req = draw_attrs.requests + i;
-    attrs[attrs_len].type = req->cd_type;
-    attrs[attrs_len].domain = req->domain;
-    attrs[attrs_len].name = req->attribute_name;
-    attrs_len++;
+  for (const StringRef name : draw_attrs) {
+    attrs.append(pbvh::GenericRequest(name));
   }
 
   /* UV maps are not in attribute requests. */
   for (uint i = 0; i < 32; i++) {
     if (cd_needed.uv & (1 << i)) {
-      int layer_i = CustomData_get_layer_index_n(&mesh->loop_data, CD_PROP_FLOAT2, i);
-      CustomDataLayer *layer = layer_i != -1 ? mesh->loop_data.layers + layer_i : nullptr;
+      int layer_i = CustomData_get_layer_index_n(&mesh.corner_data, CD_PROP_FLOAT2, i);
+      CustomDataLayer *layer = layer_i != -1 ? mesh.corner_data.layers + layer_i : nullptr;
       if (layer) {
-        attrs[attrs_len].type = CD_PROP_FLOAT2;
-        attrs[attrs_len].domain = ATTR_DOMAIN_CORNER;
-        attrs[attrs_len].name = layer->name;
-        attrs_len++;
+        attrs.append(pbvh::GenericRequest(layer->name));
       }
     }
   }
 
-  return sculpt_batches_get_ex(ob, false, true, attrs, attrs_len);
+  return sculpt_batches_get_ex(ob, false, attrs);
 }
 
 }  // namespace blender::draw

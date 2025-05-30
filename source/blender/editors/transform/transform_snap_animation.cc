@@ -6,21 +6,19 @@
  * \ingroup edtransform
  */
 
-#include "DNA_anim_types.h"
-
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.h"
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
+
+#include "DNA_space_types.h"
 
 #include "ED_markers.hh"
-#include "ED_screen.hh"
 
 #include "transform.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Snapping in Anim Editors
@@ -79,10 +77,15 @@ static void transform_snap_anim_flush_data_ex(
   BLI_assert(t->tsnap.flag);
 
   float ival = td->iloc[0];
-  AnimData *adt = static_cast<AnimData *>(!ELEM(t->spacetype, SPACE_NLA, SPACE_SEQ) ? td->extra :
-                                                                                      nullptr);
 
-  /* Convert frame to nla-action time (if needed) */
+  AnimData *adt = nullptr;
+  if (!ELEM(t->spacetype, SPACE_NLA, SPACE_SEQ) && !(td->flag & TD_GREASE_PENCIL_FRAME)) {
+    /* #TD_GREASE_PENCIL_FRAME stores #bke::greasepencil::Layer* in
+     * `td->extra`, and not the #AnimData. */
+    adt = static_cast<AnimData *>(td->extra);
+  }
+
+  /* Convert frame to nla-action time (if needed). */
   if (adt) {
     val = BKE_nla_tweakedit_remap(adt, val, NLATIME_CONVERT_MAP);
     ival = BKE_nla_tweakedit_remap(adt, ival, NLATIME_CONVERT_MAP);
@@ -121,7 +124,7 @@ static void invert_snap(eSnapMode &snap_mode)
 /* WORKAROUND: The source position is based on the transformed elements.
  * However, at this stage, the transformation has not yet been applied.
  * So apply the transformation here. */
-static float2 nla_transform_apply(TransInfo *t, float *vec, float2 &ival)
+static float2 nla_transform_apply(TransInfo *t, const float *vec, const float2 &ival)
 {
   float4x4 mat = float4x4::identity();
 
@@ -180,3 +183,5 @@ bool transform_snap_nla_calc(TransInfo *t, float *vec)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

@@ -8,9 +8,12 @@
  * \ingroup sequencer
  */
 
-struct ListBase;
 struct Scene;
+struct Strip;
 
-bool sequencer_seq_generates_image(struct Sequence *seq);
-void seq_open_anim_file(struct Scene *scene, struct Sequence *seq, bool openfile);
-Sequence *SEQ_get_meta_by_seqbase(struct ListBase *seqbase_main, struct ListBase *meta_seqbase);
+namespace blender::seq {
+
+bool sequencer_strip_generates_image(Strip *strip);
+void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile);
+
+}  // namespace blender::seq

@@ -18,17 +18,20 @@
 
 #include "BLI_math_color.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 
-#include "BKE_context.h"
+#include "DNA_userdef_types.h"
 
-#include "GPU_batch.h"
-#include "GPU_batch_utils.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_select.h"
-#include "GPU_state.h"
+#include "BKE_context.hh"
+
+#include "GPU_batch.hh"
+#include "GPU_batch_utils.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_select.hh"
+#include "GPU_state.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -38,16 +41,13 @@
 #include "WM_types.hh"
 
 #include "ED_gizmo_library.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
-#include "UI_resources.hh"
+#include "interface_intern.hh"
 
 /* own includes */
-#include "../gizmo_geometry.h"
-#include "../gizmo_library_intern.h"
+#include "../gizmo_library_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Types
@@ -58,7 +58,7 @@ struct ButtonGizmo2D {
   bool is_init;
   /* Use an icon or shape */
   int icon;
-  GPUBatch *shape_batch[2];
+  blender::gpu::Batch *shape_batch[2];
 };
 
 /** \} */
@@ -94,7 +94,7 @@ static void button2d_geom_draw_backdrop(const wmGizmo *gz,
 
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+    immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     immUniformColor4fv(color);
     imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, 1.0f, nsegments);
     immUnbindProgram();
@@ -113,7 +113,7 @@ static void button2d_geom_draw_backdrop(const wmGizmo *gz,
     if ((fill_alpha != 1.0f) && (select == false)) {
       immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
       immUniform2fv("viewportSize", &viewport[2]);
-      immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+      immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
       immUniformColor4fv(color);
       imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, 1.0f, nsegments);
       immUnbindProgram();
@@ -135,17 +135,25 @@ static void button2d_draw_intern(const bContext *C,
   const int draw_options = RNA_enum_get(gz->ptr, "draw_options");
   if (button->is_init == false) {
     button->is_init = true;
-    PropertyRNA *prop = RNA_struct_find_property(gz->ptr, "icon");
     button->icon = -1;
-    if (RNA_property_is_set(gz->ptr, prop)) {
-      button->icon = RNA_property_enum_get(gz->ptr, prop);
+
+    PropertyRNA *icon_prop = RNA_struct_find_property(gz->ptr, "icon");
+    PropertyRNA *icon_value_prop = RNA_struct_find_property(gz->ptr, "icon_value");
+    PropertyRNA *shape_prop = RNA_struct_find_property(gz->ptr, "shape");
+
+    /* Same logic as in the RNA UI API, use icon_value only if icon is not defined. */
+    if (RNA_property_is_set(gz->ptr, icon_prop)) {
+      button->icon = RNA_property_enum_get(gz->ptr, icon_prop);
     }
-    else {
-      prop = RNA_struct_find_property(gz->ptr, "shape");
-      const uint polys_len = RNA_property_string_length(gz->ptr, prop);
-      /* We shouldn't need the +1, but a nullptr char is set. */
-      char *polys = static_cast<char *>(MEM_mallocN(polys_len + 1, __func__));
-      RNA_property_string_get(gz->ptr, prop, polys);
+    else if (RNA_property_is_set(gz->ptr, icon_value_prop)) {
+      button->icon = RNA_property_int_get(gz->ptr, icon_value_prop);
+      ui_icon_ensure_deferred(C, button->icon, false);
+    }
+    else if (RNA_property_is_set(gz->ptr, shape_prop)) {
+      const uint polys_len = RNA_property_string_length(gz->ptr, shape_prop);
+      /* We shouldn't need the +1, but a null char is set. */
+      char *polys = MEM_malloc_arrayN<char>(polys_len + 1, __func__);
+      RNA_property_string_get(gz->ptr, shape_prop, polys);
       button->shape_batch[0] = GPU_batch_tris_from_poly_2d_encoded(
           (uchar *)polys, polys_len, nullptr);
       button->shape_batch[1] = GPU_batch_wire_from_poly_2d_encoded(
@@ -168,7 +176,7 @@ static void button2d_draw_intern(const bContext *C,
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+    immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     immUniformColor4fv(color);
     immBegin(GPU_PRIM_LINE_STRIP, 2);
     immVertex3fv(pos, matrix_final[3]);
@@ -231,7 +239,7 @@ static void button2d_draw_intern(const bContext *C,
            * Use a low value instead of 50% so some darker primary colors
            * aren't considered being close to black. */
           float color_contrast[4];
-          copy_v3_fl(color_contrast, rgb_to_grayscale(color) < 0.2f ? 1 : 0);
+          copy_v3_fl(color_contrast, srgb_to_grayscale(color) < 0.2f ? 1 : 0);
           color_contrast[3] = color[3];
           GPU_shader_uniform_4f(button->shape_batch[i]->shader, "color", UNPACK4(color_contrast));
         }
@@ -391,7 +399,7 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_button_2d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_button2d_draw;
   gzt->draw_select = gizmo_button2d_draw_select;
   gzt->test_select = gizmo_button2d_test_select;
@@ -402,7 +410,7 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
   gzt->struct_size = sizeof(ButtonGizmo2D);
 
   /* rna */
-  static EnumPropertyItem rna_enum_draw_options[] = {
+  static const EnumPropertyItem rna_enum_draw_options[] = {
       {ED_GIZMO_BUTTON_SHOW_OUTLINE, "OUTLINE", 0, "Outline", ""},
       {ED_GIZMO_BUTTON_SHOW_BACKDROP, "BACKDROP", 0, "Backdrop", ""},
       {ED_GIZMO_BUTTON_SHOW_HELPLINE, "HELPLINE", 0, "Help Line", ""},
@@ -414,6 +422,8 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
 
   prop = RNA_def_property(gzt->srna, "icon", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_icon_items);
+
+  RNA_def_property(gzt->srna, "icon_value", PROP_INT, PROP_UNSIGNED);
 
   /* Passed to 'GPU_batch_tris_from_poly_2d_encoded' */
   RNA_def_property(gzt->srna, "shape", PROP_STRING, PROP_BYTESTRING);
