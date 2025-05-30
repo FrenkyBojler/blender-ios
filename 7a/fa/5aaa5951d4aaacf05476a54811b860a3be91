@@ -1,1 +1,2 @@
 Referenced by commit 7654898c187, Fix compile error on GCC
+Referenced by pull request #139639, Cleanup: correct documentation of BLI_uniquename_cb for dynamic strings
