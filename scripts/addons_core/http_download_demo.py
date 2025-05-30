@@ -52,6 +52,9 @@ class HTTP_OT_demo_download_foreground(bpy.types.Operator):
         except http_dl.HTTPRequestDownloadError as ex:
             self.report({'ERROR'}, "Could not download {!s}: {!s}".format(url, ex))
             return {'CANCELLED'}
+        except Exception as ex:
+            self.report({'ERROR'}, "Unexpected error downloading {!s}: {!s}".format(url, ex))
+            return {'CANCELLED'}
 
         self.report({'INFO'}, "File downloaded to {!s}".format(download_to_path))
         return {'FINISHED'}
