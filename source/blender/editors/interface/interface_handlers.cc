@@ -10811,6 +10811,38 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
   return WM_UI_HANDLER_CONTINUE;
 }
 
+static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle = false)
+{
+  const int pages = block->pie_data.pages.size();
+  if (pages < 2) {
+    return false;
+  }
+  if (cycle) {
+    block->pie_data.active_page = blender::math::mod_periodic(
+        block->pie_data.active_page + direction, pages);
+    return true;
+  }
+  const int current_page = block->pie_data.active_page;
+  block->pie_data.active_page = std::clamp(current_page + direction, 0, pages - 1);
+  return current_page != block->pie_data.active_page;
+};
+
+static void ui_pie_menu_page_scroll(
+    bContext *C, uiBlock *block, uiPopupBlockHandle *menu, int direction, bool cycle = false)
+{
+  if (ui_pie_menu_page_scroll_step(block, direction, cycle)) {
+    uiBut *but = ui_region_find_active_but(menu->region);
+    if (but) {
+      but->active->cancel = true;
+      button_activate_exit(C, but, but->active, false, false);
+    }
+    WM_event_add_mousemove(CTX_wm_window(C));
+  }
+  blender::interface::internal::pie_menu_refresh_active_page(block);
+  blender::interface::internal::pie_menu_workspace_status(C, block);
+  ED_region_tag_redraw(menu->region);
+};
+
 static int ui_handle_menu_event(bContext *C,
                                 const wmEvent *event,
                                 uiPopupBlockHandle *menu,
@@ -11816,7 +11848,23 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           menu->menuretval = UI_RETURN_CANCEL;
           break;
         }
-
+        case WHEELUPMOUSE:
+        case WHEELDOWNMOUSE:
+        case EVT_LEFTARROWKEY:
+        case EVT_RIGHTARROWKEY: {
+          if (event->val == KM_PRESS) {
+            const int scroll_dir = ELEM(event->type, WHEELUPMOUSE, EVT_LEFTARROWKEY) ? -1 : 1;
+            ui_pie_menu_page_scroll(C, block, menu, scroll_dir);
+          }
+          break;
+        }
+        case EVT_TABKEY: {
+          if (event->val == KM_PRESS) {
+            const int scroll_dir = (event->modifier == KM_SHIFT) ? -1 : 1;
+            ui_pie_menu_page_scroll(C, block, menu, scroll_dir, true);
+          }
+          break;
+        }
         case EVT_ESCKEY:
         case RIGHTMOUSE:
           menu->menuretval = UI_RETURN_CANCEL;
@@ -11960,33 +12008,6 @@ static int ui_handle_menus_recursive(bContext *C,
     }
   }
 
-  /* now handle events for our own menu */
-  LISTBASE_FOREACH (uiBlock *, block, &menu->region->runtime->uiblocks) {
-    if ((block->flag & UI_BLOCK_PIE_MENU) && event->val == KM_PRESS &&
-        ELEM(event->type,
-             WHEELUPMOUSE,
-             WHEELDOWNMOUSE,
-             EVT_LEFTARROWKEY,
-             EVT_RIGHTARROWKEY,
-             EVT_TABKEY))
-    {
-      if (event->type == EVT_TABKEY) {
-        block->pie_data.active_page += (event->modifier & KM_SHIFT ? -1 : 1);
-        block->pie_data.active_page = blender::math::mod_periodic(
-            block->pie_data.active_page, int(block->pie_data.pages.size()));
-      }
-      else {
-        block->pie_data.active_page += ELEM(event->type, WHEELUPMOUSE, EVT_LEFTARROWKEY) ? -1 : 1;
-        block->pie_data.active_page = std::clamp(
-            block->pie_data.active_page, 0, std::max<int>(block->pie_data.pages.size() - 1, 0));
-      }
-
-      blender::interface::internal::pie_menu_refresh_active_page(block);
-      blender::interface::internal::pie_menu_workspace_status(C, block);
-      ED_region_tag_redraw(menu->region);
-      ED_region_tag_refresh_ui(menu->region);
-    }
-  }
   if (retval == WM_UI_HANDLER_CONTINUE) {
     retval = ui_handle_region_semi_modal_buttons(C, event, menu->region);
   }
