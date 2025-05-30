@@ -148,13 +148,14 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   mem_allocator_ = handles.vma_allocator;
   queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
 
+  volkLoadDeviceTable(&functions, vk_device_);
+
   init_physical_device_extensions();
   init_physical_device_properties();
   init_physical_device_memory_properties();
   init_physical_device_features();
   VKBackend::platform_init(*this);
   VKBackend::capabilities_init(*this);
-  init_functions();
   init_debug_callbacks();
   vma_pools.init(*this);
   pipelines.init();
@@ -171,57 +172,6 @@ void VKDevice::init(GHOST_IContext *ghost_context)
 
   init_submission_thread();
   is_initialized_ = true;
-}
-
-void VKDevice::init_functions()
-{
-#define LOAD_FUNCTION(name) (PFN_##name) vkGetInstanceProcAddr(vk_instance_, STRINGIFY(name))
-  /* VK_KHR_dynamic_rendering */
-  functions.vkCmdBeginRendering = LOAD_FUNCTION(vkCmdBeginRenderingKHR);
-  functions.vkCmdEndRendering = LOAD_FUNCTION(vkCmdEndRenderingKHR);
-
-  /* VK_EXT_debug_utils */
-  functions.vkCmdBeginDebugUtilsLabel = LOAD_FUNCTION(vkCmdBeginDebugUtilsLabelEXT);
-  functions.vkCmdEndDebugUtilsLabel = LOAD_FUNCTION(vkCmdEndDebugUtilsLabelEXT);
-  functions.vkSetDebugUtilsObjectName = LOAD_FUNCTION(vkSetDebugUtilsObjectNameEXT);
-  functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
-  functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
-
-  /* VK_EXT_extended_dynamic_state */
-  if (extensions_.extended_dynamic_state) {
-    functions.vkCmdSetFrontFace = LOAD_FUNCTION(vkCmdSetFrontFaceEXT);
-  }
-
-  /* VK_EXT_vertex_input_dynamic_state */
-  if (extensions_.vertex_input_dynamic_state) {
-    functions.vkCmdSetVertexInput = LOAD_FUNCTION(vkCmdSetVertexInputEXT);
-  }
-
-  /* VK_EXT_host_image_copy */
-  if (extensions_.host_image_copy) {
-    functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
-    functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
-  }
-
-  /* VK_KHR_maintenance4 */
-  if (extensions_.maintenance4) {
-    functions.vkGetDeviceImageMemoryRequirements = LOAD_FUNCTION(
-        vkGetDeviceImageMemoryRequirementsKHR);
-    functions.vkGetDeviceBufferMemoryRequirements = LOAD_FUNCTION(
-        vkGetDeviceBufferMemoryRequirementsKHR);
-  }
-
-  if (extensions_.external_memory) {
-#ifdef _WIN32
-    /* VK_KHR_external_memory_win32 */
-    functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
-#elif not defined(__APPLE__)
-    /* VK_KHR_external_memory_fd */
-    functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
-#endif
-  }
-
-#undef LOAD_FUNCTION
 }
 
 void VKDevice::init_debug_callbacks()
@@ -298,6 +248,76 @@ bool VKDevice::supports_extension(const char *extension_name) const
     }
   }
   return false;
+}
+
+void VKDevice::init_memory_allocator()
+{
+  VmaAllocatorCreateInfo info = {};
+  info.vulkanApiVersion = VK_API_VERSION_1_2;
+  info.physicalDevice = vk_physical_device_;
+  info.device = vk_device_;
+  info.instance = vk_instance_;
+  if (extensions_.descriptor_buffer) {
+    info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
+  if (extensions_.memory_priority) {
+    info.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_PRIORITY_BIT;
+  }
+  if (extensions_.maintenance4) {
+    info.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE4_BIT;
+  }
+  CLOG_DEBUG(&LOG, "initializing VMA functions from volk");
+  VmaVulkanFunctions vma_vulkan_functions = {};
+  vmaImportVulkanFunctionsFromVolk(&info, &vma_vulkan_functions);
+  info.pVulkanFunctions = &vma_vulkan_functions;
+  vmaCreateAllocator(&info, &mem_allocator_);
+
+  if (!extensions_.external_memory) {
+    return;
+  }
+  /* External memory pool */
+  /* Initialize a dummy image create info to find the memory type index that will be used for
+   * allocating. */
+  VkExternalMemoryHandleTypeFlags vk_external_memory_handle_type = 0;
+#ifdef _WIN32
+  vk_external_memory_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+  vk_external_memory_handle_type = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
+#endif
+  VkExternalMemoryImageCreateInfo external_image_create_info = {
+      VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
+      nullptr,
+      vk_external_memory_handle_type};
+  VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                                         &external_image_create_info,
+                                         0,
+                                         VK_IMAGE_TYPE_2D,
+                                         VK_FORMAT_R8G8B8A8_UNORM,
+                                         {1024, 1024, 1},
+                                         1,
+                                         1,
+                                         VK_SAMPLE_COUNT_1_BIT,
+                                         VK_IMAGE_TILING_OPTIMAL,
+                                         VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                                             VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                                             VK_IMAGE_USAGE_SAMPLED_BIT,
+                                         VK_SHARING_MODE_EXCLUSIVE,
+                                         0,
+                                         nullptr,
+                                         VK_IMAGE_LAYOUT_UNDEFINED};
+  VmaAllocationCreateInfo allocation_create_info = {};
+  allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+  uint32_t memory_type_index;
+  vmaFindMemoryTypeIndexForImageInfo(
+      mem_allocator_, &image_create_info, &allocation_create_info, &memory_type_index);
+
+  vma_pools.external_memory_info.handleTypes = vk_external_memory_handle_type;
+  VmaPoolCreateInfo pool_create_info = {};
+  pool_create_info.memoryTypeIndex = memory_type_index;
+  pool_create_info.pMemoryAllocateNext = &vma_pools.external_memory_info;
+  pool_create_info.priority = 1.0f;
+  vmaCreatePool(mem_allocator_, &pool_create_info, &vma_pools.external_memory);
 }
 
 void VKDevice::init_dummy_buffer()

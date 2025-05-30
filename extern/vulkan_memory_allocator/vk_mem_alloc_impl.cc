@@ -4,7 +4,9 @@
 
 #include <cstdio>
 
-#include <vulkan/vulkan.h>
+#include "volk.h"
+
+using namespace volk;
 
 #define VMA_IMPLEMENTATION
 
@@ -12,5 +14,10 @@
   do { \
     fprintf(stderr, "VMA: " format "\n", __VA_ARGS__); \
   } while (false)
+
+/*
+ * Disabling internal asserts of VMA.
+ */
+#define VMA_ASSERT(test)
 
 #include "vk_mem_alloc.h"

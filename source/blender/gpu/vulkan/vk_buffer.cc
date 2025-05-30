@@ -111,6 +111,12 @@ bool VKBuffer::create(size_t size_in_bytes,
   if (debug_name) {
     debug::object_label(resource_.vk_handle, debug_name);
   }
+  if (use_descriptor_buffer) {
+    VkBufferDeviceAddressInfo vk_buffer_device_address_info = {
+        VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, vk_buffer_};
+    vk_device_address = device.functions.vkGetBufferDeviceAddress(device.vk_handle(),
+                                                                  &vk_buffer_device_address_info);
+  }
 
   /* Check if the memory is mappable. Although the Vulkan specs allow to map any memory that is
    * host visible, VMA checks for specific host access flags.

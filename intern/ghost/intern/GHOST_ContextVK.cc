@@ -6,22 +6,18 @@
  * \ingroup GHOST
  */
 
-#include "GHOST_ContextVK.hh"
-#include "GHOST_Types.hh"
 #include <vulkan/vulkan_core.h>
 
+#define VK_NO_PROTOTYPES
 #ifdef _WIN32
-#  include <vulkan/vulkan_win32.h>
+#  define VK_USE_PLATFORM_WIN32_KHR
 #elif defined(__APPLE__)
-#  include <vulkan/vulkan_metal.h>
-#else /* X11/WAYLAND. */
-#  ifdef WITH_GHOST_X11
-#    include <vulkan/vulkan_xlib.h>
-#  endif
-#  ifdef WITH_GHOST_WAYLAND
-#    include <vulkan/vulkan_wayland.h>
-#  endif
+/* On macOS we do not need specific platform headers for volk. */
 #endif
+#include "volk.h"
+
+#include "GHOST_Types.hh"
+#include "GHOST_ContextVK.hh"
 
 #include "vulkan/vk_ghost_api.hh"
 
@@ -70,35 +66,34 @@ static CLG_LogRef LOG = {"ghost.context"};
 /* -------------------------------------------------------------------- */
 /** \name Swap-chain resources
  * \{ */
-
-void GHOST_SwapchainImage::destroy(VkDevice vk_device)
+void GHOST_SwapchainImage::destroy(VkDevice vk_device, const VolkDeviceTable &functions)
 {
-  vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+  functions.vkDestroySemaphore(vk_device, present_semaphore, nullptr);
   present_semaphore = VK_NULL_HANDLE;
   vk_image = VK_NULL_HANDLE;
 }
 
-void GHOST_FrameDiscard::destroy(VkDevice vk_device)
+void GHOST_FrameDiscard::destroy(VkDevice vk_device, const VolkDeviceTable &functions)
 {
   while (!swapchains.empty()) {
     VkSwapchainKHR vk_swapchain = swapchains.back();
     swapchains.pop_back();
-    vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+    functions.vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
   }
   while (!semaphores.empty()) {
     VkSemaphore vk_semaphore = semaphores.back();
     semaphores.pop_back();
-    vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
+    functions.vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
   }
 }
 
-void GHOST_Frame::destroy(VkDevice vk_device)
+void GHOST_Frame::destroy(VkDevice vk_device, const VolkDeviceTable &functions)
 {
-  vkDestroyFence(vk_device, submission_fence, nullptr);
+  functions.vkDestroyFence(vk_device, submission_fence, nullptr);
   submission_fence = VK_NULL_HANDLE;
-  vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
+  functions.vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
   acquire_semaphore = VK_NULL_HANDLE;
-  discard_pile.destroy(vk_device);
+  discard_pile.destroy(vk_device, functions);
 }
 
 /** \} */
@@ -197,6 +192,7 @@ class GHOST_DeviceVK {
   GHOST_ExtensionsVK extensions;
 
   VkDevice vk_device = VK_NULL_HANDLE;
+  VolkDeviceTable functions = {};
 
   uint32_t generic_queue_family = 0;
   VkQueue generic_queue = VK_NULL_HANDLE;
@@ -248,7 +244,7 @@ class GHOST_DeviceVK {
       vma_allocator = VK_NULL_HANDLE;
     }
     if (vk_device != VK_NULL_HANDLE) {
-      vkDestroyDevice(vk_device, nullptr);
+      functions.vkDestroyDevice(vk_device, nullptr);
       vk_device = VK_NULL_HANDLE;
     }
   }
@@ -270,7 +266,7 @@ class GHOST_DeviceVK {
   {
     if (vk_device) {
       std::scoped_lock lock(queue_mutex);
-      vkDeviceWaitIdle(vk_device);
+      functions.vkDeviceWaitIdle(vk_device);
     }
   }
 
@@ -299,7 +295,7 @@ class GHOST_DeviceVK {
 
   void init_generic_queue()
   {
-    vkGetDeviceQueue(vk_device, generic_queue_family, 0, &generic_queue);
+    functions.vkGetDeviceQueue(vk_device, generic_queue_family, 0, &generic_queue);
   }
 
   void init_memory_allocator(VkInstance vk_instance)
@@ -757,6 +753,7 @@ struct GHOST_InstanceVK {
     device_create_info.pNext = feature_struct_ptr[0];
     VK_CHECK(vkCreateDevice(vk_physical_device, &device_create_info, nullptr, &device.vk_device),
              GHOST_kFailure);
+    volkLoadDeviceTable(&device.functions, device.vk_device);
     device.init_generic_queue();
     device.init_memory_allocator(vk_instance);
     return true;
@@ -910,12 +907,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * still happen in parallel, but acquiring needs can only happen when the frame acquire semaphore
    * has been signaled and waited for. */
   if (submission_frame_data.submission_fence) {
-    vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+    device_vk.functions.vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
   }
-  for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
-    this->destroySwapchainPresentFences(swapchain);
-  }
-  submission_frame_data.discard_pile.destroy(vk_device);
+  submission_frame_data.discard_pile.destroy(vk_device, device_vk.functions);
 
   const bool use_hdr_swapchain = hdr_info_ &&
                                  (hdr_info_->wide_gamut_enabled || hdr_info_->hdr_enabled) &&
@@ -958,7 +952,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
     while (swapchain_ != VK_NULL_HANDLE &&
            (ELEM(acquire_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)))
     {
-      acquire_result = vkAcquireNextImageKHR(vk_device,
+      acquire_result = device_vk.functions.vkAcquireNextImageKHR(vk_device,
                                              swapchain_,
                                              UINT64_MAX,
                                              submission_frame_data.acquire_semaphore,
@@ -1069,9 +1063,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   swap_chain_data.present_semaphore = swapchain_image.present_semaphore;
   swap_chain_data.sdr_scale = (hdr_info_) ? hdr_info_->sdr_white_level : 1.0f;
 
-  vkResetFences(vk_device, 1, &submission_frame_data.submission_fence);
-  if (swap_buffer_draw_callback_) {
-    swap_buffer_draw_callback_(&swap_chain_data, true);
+  device_vk.functions.vkResetFences(vk_device, 1, &submission_frame_data.submission_fence);
+  if (swap_buffers_pre_callback_) {
+    swap_buffers_pre_callback_(&swap_chain_data);
   }
 
   VkPresentInfoKHR present_info = {};
@@ -1086,19 +1080,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(device_vk.queue_mutex);
-    VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
-    VkFence present_fence = VK_NULL_HANDLE;
-    if (device_vk.use_vk_ext_swapchain_maintenance_1) {
-      present_fence = this->getFence();
-
-      fence_info.swapchainCount = 1;
-      fence_info.pFences = &present_fence;
-
-      present_info.pNext = &fence_info;
-    }
-    present_result = vkQueuePresentKHR(device_vk.generic_queue, &present_info);
-    this->setPresentFence(swapchain_, present_fence);
+    present_result = device_vk.functions.vkQueuePresentKHR(device_vk.generic_queue, &present_info);
   }
+
   acquired_swapchain_image_index_.reset();
 
   if (ELEM(present_result, VK_ERROR_OUT_OF_DATE_KHR, VK_SUBOPTIMAL_KHR)) {
@@ -1324,7 +1308,8 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
 
 GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
 {
-  VkDevice device = vulkan_instance.value().device.value().vk_device;
+  GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
+  VkDevice device = device_vk.vk_device;
 
   const VkSemaphoreCreateInfo vk_semaphore_create_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
@@ -1333,7 +1318,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
   for (GHOST_SwapchainImage &swapchain_image : swapchain_images_) {
     /* VK_EXT_swapchain_maintenance1 reuses present semaphores. */
     if (swapchain_image.present_semaphore == VK_NULL_HANDLE) {
-      VK_CHECK(vkCreateSemaphore(
+      VK_CHECK(device_vk.functions.vkCreateSemaphore(
                    device, &vk_semaphore_create_info, nullptr, &swapchain_image.present_semaphore),
                GHOST_kFailure);
     }
@@ -1343,12 +1328,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
     GHOST_Frame &frame_data = frame_data_[index];
     /* VK_EXT_swapchain_maintenance1 reuses acquire semaphores. */
     if (frame_data.acquire_semaphore == VK_NULL_HANDLE) {
-      VK_CHECK(vkCreateSemaphore(
+      VK_CHECK(device_vk.functions.vkCreateSemaphore(
                    device, &vk_semaphore_create_info, nullptr, &frame_data.acquire_semaphore),
                GHOST_kFailure);
     }
     if (frame_data.submission_fence == VK_NULL_HANDLE) {
-      VK_CHECK(vkCreateFence(device, &vk_fence_create_info, nullptr, &frame_data.submission_fence),
+      VK_CHECK(device_vk.functions.vkCreateFence(
+                   device, &vk_fence_create_info, nullptr, &frame_data.submission_fence),
                GHOST_kFailure);
     }
   }
@@ -1523,12 +1509,14 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   create_info.queueFamilyIndexCount = 0;
   create_info.pQueueFamilyIndices = nullptr;
 
-  VK_CHECK(vkCreateSwapchainKHR(device_vk.vk_device, &create_info, nullptr, &swapchain_),
+  VK_CHECK(device_vk.functions.vkCreateSwapchainKHR(
+               device_vk.vk_device, &create_info, nullptr, &swapchain_),
            GHOST_kFailure);
 
   /* image_count may not be what we requested! Getter for final value. */
   uint32_t actual_image_count = 0;
-  vkGetSwapchainImagesKHR(device_vk.vk_device, swapchain_, &actual_image_count, nullptr);
+  device_vk.functions.vkGetSwapchainImagesKHR(
+      device_vk.vk_device, swapchain_, &actual_image_count, nullptr);
   /* Some platforms require a minimum amount of render frames that is larger than we expect. When
    * that happens we should increase the number of frames in flight. We could also consider
    * splitting the frame in flight and image specific data. */
@@ -1539,7 +1527,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   }
   swapchain_images_.resize(actual_image_count);
   std::vector<VkImage> swapchain_images(actual_image_count);
-  vkGetSwapchainImagesKHR(
+  device_vk.functions.vkGetSwapchainImagesKHR(
       device_vk.vk_device, swapchain_, &actual_image_count, swapchain_images.data());
   for (int index = 0; index < actual_image_count; index++) {
     swapchain_images_[index].vk_image = swapchain_images[index];
@@ -1595,18 +1583,18 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 
   if (swapchain_ != VK_NULL_HANDLE) {
     this->destroySwapchainPresentFences(swapchain_);
-    vkDestroySwapchainKHR(device_vk.vk_device, swapchain_, nullptr);
+    device_vk.functions.vkDestroySwapchainKHR(device_vk.vk_device, swapchain_, nullptr);
   }
   device_vk.wait_idle();
   for (GHOST_SwapchainImage &swapchain_image : swapchain_images_) {
-    swapchain_image.destroy(device_vk.vk_device);
+    swapchain_image.destroy(device_vk.vk_device, device_vk.functions);
   }
   swapchain_images_.clear();
   for (GHOST_Frame &frame_data : frame_data_) {
     for (VkSwapchainKHR swapchain : frame_data.discard_pile.swapchains) {
       this->destroySwapchainPresentFences(swapchain);
     }
-    frame_data.destroy(device_vk.vk_device);
+    frame_data.destroy(device_vk.vk_device, device_vk.functions);
   }
   frame_data_.clear();
 
@@ -1722,6 +1710,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       vulkan_instance.reset();
       return GHOST_kFailure;
     }
+    volkLoadInstanceOnly(instance_vk.vk_instance);
   }
   GHOST_InstanceVK &instance_vk = vulkan_instance.value();
 
@@ -1734,6 +1723,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     surface_create_info.hwnd = hwnd_;
     VK_CHECK(
         vkCreateWin32SurfaceKHR(instance_vk.vk_instance, &surface_create_info, nullptr, &surface_),
+
         GHOST_kFailure);
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT info = {};

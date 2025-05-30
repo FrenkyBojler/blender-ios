@@ -11,13 +11,11 @@
 #include <typeinfo>
 
 #ifdef _WIN32
-#  include "BLI_winstuff.hh"
+#  include "BLI_winstuff.h"
+#  define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
-#include <vulkan/vulkan.h>
-#ifdef _WIN32
-#  include <vulkan/vulkan_win32.h>
-#endif
+#include "volk.h"
 
 #define VMA_VULKAN_VERSION 1002000  // Vulkan 1.2
 #if !defined(_WIN32) or defined(_M_ARM64)

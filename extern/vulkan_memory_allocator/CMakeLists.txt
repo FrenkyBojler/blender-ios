@@ -4,6 +4,7 @@
 
 set(INC
   PUBLIC .
+  ../volk
 )
 
 set(INC_SYS

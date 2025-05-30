@@ -35,9 +35,11 @@ void VKPipelinePool::init()
   VKDevice &device = VKBackend::get().device;
   VkPipelineCacheCreateInfo create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-  vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_static_);
+  device.functions.vkCreatePipelineCache(
+      device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_static_);
   debug::object_label(vk_pipeline_cache_static_, "VkPipelineCache.Static");
-  vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_non_static_);
+  device.functions.vkCreatePipelineCache(
+      device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache_non_static_);
   debug::object_label(vk_pipeline_cache_non_static_, "VkPipelineCache.Dynamic");
 }
 
@@ -50,10 +52,6 @@ VkPipeline VKPipelinePool::get_or_create_compute_pipeline(const VKComputeInfo &c
                                                           VkPipeline vk_pipeline_base,
                                                           StringRefNull name)
 {
-  bool created = false;
-  VkPipelineCache vk_pipeline_cache = is_static_shader ? vk_pipeline_cache_static_ :
-                                                         vk_pipeline_cache_non_static_;
-  return compute_.get_or_create(compute_info, vk_pipeline_cache, vk_pipeline_base, name, created);
 }
 
 template<>
@@ -101,18 +99,6 @@ VkPipeline VKPipelineMap<VKComputeInfo>::create(const VKComputeInfo &compute_inf
 
   double start_time = BLI_time_now_seconds();
   VkPipeline pipeline = VK_NULL_HANDLE;
-  vkCreateComputePipelines(device.vk_handle(),
-                           vk_pipeline_cache,
-                           1,
-                           &vk_compute_pipeline_create_info,
-                           nullptr,
-                           &pipeline);
-  double end_time = BLI_time_now_seconds();
-  debug::object_label(pipeline, name);
-  CLOG_DEBUG(&LOG,
-             "Compiled compute pipeline %s in %fms ",
-             name.c_str(),
-             (end_time - start_time) * 1000.0);
 
   return pipeline;
 }
@@ -611,17 +597,10 @@ void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pi
 
 void VKPipelinePool::free_data()
 {
-  const VKDevice &device = VKBackend::get().device;
-  const VkDevice vk_device = device.vk_handle();
 
-  graphics_.free_data(vk_device);
-  compute_.free_data(vk_device);
-  vertex_input_libs_.free_data(vk_device);
-  shaders_libs_.free_data(vk_device);
-  fragment_output_libs_.free_data(vk_device);
-
-  vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_static_, nullptr);
-  vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_non_static_, nullptr);
+  device.functions.vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache_static_, nullptr);
+  device.functions.vkDestroyPipelineCache(
+      device.vk_handle(), vk_pipeline_cache_non_static_, nullptr);
 }
 
 /* -------------------------------------------------------------------- */
@@ -715,10 +694,14 @@ void VKPipelinePool::read_from_disk()
   create_info.initialDataSize = read_prefix.data_size;
   create_info.pInitialData = buffer.data() + sizeof(VKPipelineCachePrefixHeader);
   VkPipelineCache vk_pipeline_cache = VK_NULL_HANDLE;
-  vkCreatePipelineCache(device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache);
+  device.functions.vkCreatePipelineCache(
+      device.vk_handle(), &create_info, nullptr, &vk_pipeline_cache);
+  MEM_freeN(buffer);
 
-  vkMergePipelineCaches(device.vk_handle(), vk_pipeline_cache_static_, 1, &vk_pipeline_cache);
-  vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache, nullptr);
+
+  device.functions.vkMergePipelineCaches(
+      device.vk_handle(), vk_pipeline_cache_static_, 1, &vk_pipeline_cache);
+  device.functions.vkDestroyPipelineCache(device.vk_handle(), vk_pipeline_cache, nullptr);
 #endif
 }
 
@@ -733,9 +716,12 @@ void VKPipelinePool::write_to_disk()
 
   VKDevice &device = VKBackend::get().device;
   size_t data_size;
-  vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, nullptr);
-  Vector<char> buffer(data_size);
-  vkGetPipelineCacheData(device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer.data());
+  device.functions.vkGetPipelineCacheData(
+      device.vk_handle(), vk_pipeline_cache_static_, &data_size, nullptr);
+  void *buffer = MEM_mallocN(data_size, __func__);
+  device.functions.vkGetPipelineCacheData(
+      device.vk_handle(), vk_pipeline_cache_static_, &data_size, buffer);
+
 
   std::string cache_file = pipeline_cache_filepath_get();
   CLOG_INFO(&LOG, "Writing static pipeline cache to disk [%s].", cache_file.c_str());
