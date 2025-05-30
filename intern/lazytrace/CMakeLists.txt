@@ -1,6 +1,6 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
- *
- * SPDX-License-Identifier: Apache License 2.0 */
+# SPDX-FileCopyrightText: 2025 Blender Authors
+#
+# SPDX-License-Identifier: Apache License 2.0 */
 
 add_library(tracing 
   tracing.cc
@@ -14,8 +14,6 @@ target_include_directories(tracing
   PRIVATE internal
 )
 
-if(WITH_LAZY_TRACE)
-  target_compile_definitions(tracing PUBLIC WITH_LAZY_TRACE)
-endif()
+target_compile_definitions(tracing PUBLIC WITH_LAZY_TRACE)
 
 add_library(bf::intern::lazytrace ALIAS tracing)
