@@ -148,8 +148,7 @@ typedef struct IDProperty {
   char subtype;
   /** #IDP_FLAG_GHOST and others. */
   short flag;
-  /** Size matches #MAX_IDPROP_NAME. */
-  char name[64];
+  char name[/*MAX_IDPROP_NAME*/ 64];
 
   char _pad0[4];
 
@@ -410,8 +409,7 @@ typedef struct ID {
   /** If the ID is an asset, this pointer is set. Owning pointer. */
   struct AssetMetaData *asset_data;
 
-  /** MAX_ID_NAME. */
-  char name[66];
+  char name[/*MAX_ID_NAME*/ 66];
   /**
    * ID_FLAG_... flags report on status of the data-block this ID belongs to
    * (persistent, saved to and read from .blend).
@@ -466,7 +464,8 @@ typedef struct ID {
    *   so accessing it from Python raises an exception instead of crashing.
    *
    *   This is of limited benefit though, as it doesn't apply to non #ID data
-   *   that references this ID (the bones of an armature or the modifiers of an object for e.g.).
+   *   that references this ID (the bones of an armature or the modifiers of an object for
+   *   example).
    */
   void *py_instance;
 
@@ -485,9 +484,14 @@ typedef struct ID {
  * For each library file used, a Library struct is added to Main.
  */
 typedef struct Library {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_LI;
+#endif
+
   ID id;
   /** Path name used for reading, can be relative and edited in the outliner. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   struct PackedFile *packedfile;
 
@@ -511,10 +515,10 @@ typedef struct Library {
  */
 typedef struct LibraryWeakReference {
   /**  Expected to match a `Library.filepath`. */
-  char library_filepath[1024];
+  char library_filepath[/*FILE_MAX*/ 1024];
 
-  /** MAX_ID_NAME. May be different from the current local ID name. */
-  char library_id_name[66];
+  /** May be different from the current local ID name. */
+  char library_id_name[/*MAX_ID_NAME*/ 66];
 
   char _pad[2];
 } LibraryWeakReference;
@@ -702,12 +706,12 @@ enum {
  * code:
  *
  * - RESET_BEFORE_USE: piece of code that wants to use such flag has to ensure they are properly
- *   'reset' first.
+ *   "reset" first.
  * - RESET_AFTER_USE: piece of code that wants to use such flag has to ensure they are properly
- *   'reset' after usage (though 'lifetime' of those flags is a bit fuzzy, e.g. _RECALC ones are
+ *   "reset" after usage (though "lifetime" of those flags is a bit fuzzy, e.g. _RECALC ones are
  *   reset on depsgraph evaluation...).
  * - RESET_NEVER: these flags are 'status' ones, and never actually need any reset (except on
- *   initialization during .blend file reading).
+ *   initialization during `.blend` file reading).
  *
  * \note These tags are purely runtime, so changing there value is not an issue. When adding new
  * tags, please put them in the relevant category and always keep their values strictly increasing.

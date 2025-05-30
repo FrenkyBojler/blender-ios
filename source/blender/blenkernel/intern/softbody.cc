@@ -2749,7 +2749,7 @@ static void mesh_to_softbody(Object *ob)
         /* yes we need to do it again. */
         build_bps_springlist(ob);
       }
-      springs_from_mesh(ob); /* write the 'rest'-length of the springs */
+      springs_from_mesh(ob); /* write the *rest*-length of the springs */
       if (ob->softflag & OB_SB_SELF) {
         calculate_collision_balls(ob);
       }
@@ -3140,6 +3140,7 @@ SoftBody *sbNew()
   sb->maxloops = 300;
 
   sb->choke = 3;
+  sb->fuzzyness = 1;
   sb_new_scratch(sb);
   /* TODO: backward file compatibility should set `sb->shearstiff = 1.0f` while reading old files.
    */

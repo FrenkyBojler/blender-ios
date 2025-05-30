@@ -678,8 +678,8 @@ struct Resources : public select::SelectMap {
   detail::SubPassVector<GreasePencilDepthPlane, 16> depth_planes;
   int64_t depth_planes_count = 0;
 
-  draw::UniformBuffer<GlobalsUboStorage> globals_buf;
-  GlobalsUboStorage &theme_settings = globals_buf;
+  draw::UniformBuffer<UniformData> globals_buf;
+  UniformData &theme = globals_buf;
   draw::UniformArrayBuffer<float4, 6> clip_planes_buf;
   /* Wrappers around #DefaultTextureList members. */
   TextureRef depth_in_front_tx;
@@ -725,6 +725,77 @@ struct Resources : public select::SelectMap {
   void init(bool clipping_enabled)
   {
     shaders = &overlay::ShaderModule::module_get(selection_type, clipping_enabled);
+    shaders->anti_aliasing.ensure_compile_async();
+    shaders->armature_degrees_of_freedom.ensure_compile_async();
+    shaders->armature_envelope_fill.ensure_compile_async();
+    shaders->armature_envelope_outline.ensure_compile_async();
+    shaders->armature_shape_fill.ensure_compile_async();
+    shaders->armature_shape_outline.ensure_compile_async();
+    shaders->armature_shape_wire_strip.ensure_compile_async();
+    shaders->armature_shape_wire.ensure_compile_async();
+    shaders->armature_sphere_fill.ensure_compile_async();
+    shaders->armature_sphere_outline.ensure_compile_async();
+    shaders->armature_stick.ensure_compile_async();
+    shaders->armature_wire.ensure_compile_async();
+    shaders->attribute_viewer_curve.ensure_compile_async();
+    shaders->attribute_viewer_curves.ensure_compile_async();
+    shaders->attribute_viewer_mesh.ensure_compile_async();
+    shaders->attribute_viewer_pointcloud.ensure_compile_async();
+    shaders->background_fill.ensure_compile_async();
+    shaders->curve_edit_handles.ensure_compile_async();
+    shaders->curve_edit_line.ensure_compile_async();
+    shaders->curve_edit_points.ensure_compile_async();
+    shaders->depth_curves.ensure_compile_async();
+    shaders->depth_grease_pencil.ensure_compile_async();
+    shaders->depth_mesh.ensure_compile_async();
+    shaders->depth_pointcloud.ensure_compile_async();
+    shaders->extra_grid.ensure_compile_async();
+    shaders->extra_ground_line.ensure_compile_async();
+    shaders->extra_loose_points.ensure_compile_async();
+    shaders->extra_point.ensure_compile_async();
+    shaders->extra_shape.ensure_compile_async();
+    shaders->extra_wire_object.ensure_compile_async();
+    shaders->extra_wire.ensure_compile_async();
+    shaders->fluid_grid_lines_flags.ensure_compile_async();
+    shaders->fluid_grid_lines_flat.ensure_compile_async();
+    shaders->fluid_grid_lines_range.ensure_compile_async();
+    shaders->fluid_velocity_mac.ensure_compile_async();
+    shaders->fluid_velocity_needle.ensure_compile_async();
+    shaders->fluid_velocity_streamline.ensure_compile_async();
+    shaders->grid.ensure_compile_async();
+    shaders->image_plane_depth_bias.ensure_compile_async();
+    shaders->lattice_points.ensure_compile_async();
+    shaders->lattice_wire.ensure_compile_async();
+    shaders->legacy_curve_edit_handles.ensure_compile_async();
+    shaders->legacy_curve_edit_points.ensure_compile_async();
+    shaders->legacy_curve_edit_wires.ensure_compile_async();
+    shaders->light_spot_cone.ensure_compile_async();
+    shaders->mesh_analysis.ensure_compile_async();
+    shaders->mesh_edit_depth.ensure_compile_async();
+    shaders->mesh_edit_edge.ensure_compile_async();
+    shaders->mesh_edit_face.ensure_compile_async();
+    shaders->mesh_edit_facedot.ensure_compile_async();
+    shaders->mesh_edit_skin_root.ensure_compile_async();
+    shaders->mesh_edit_vert.ensure_compile_async();
+    shaders->motion_path_line.ensure_compile_async();
+    shaders->motion_path_vert.ensure_compile_async();
+    shaders->outline_detect.ensure_compile_async();
+    shaders->outline_prepass_curves.ensure_compile_async();
+    shaders->outline_prepass_gpencil.ensure_compile_async();
+    shaders->outline_prepass_mesh.ensure_compile_async();
+    shaders->outline_prepass_pointcloud.ensure_compile_async();
+    shaders->outline_prepass_wire.ensure_compile_async();
+    shaders->paint_weight_fake_shading.ensure_compile_async();
+    shaders->particle_dot.ensure_compile_async();
+    shaders->particle_edit_edge.ensure_compile_async();
+    shaders->particle_edit_vert.ensure_compile_async();
+    shaders->particle_hair.ensure_compile_async();
+    shaders->particle_shape.ensure_compile_async();
+    shaders->pointcloud_points.ensure_compile_async();
+    shaders->uniform_color.ensure_compile_async();
+    shaders->wireframe_curve.ensure_compile_async();
+    shaders->wireframe_mesh.ensure_compile_async();
+    shaders->wireframe_points.ensure_compile_async();
   }
 
   void begin_sync(int clipping_plane_count)
@@ -864,27 +935,27 @@ struct Resources : public select::SelectMap {
   const float4 &object_wire_color(const ObjectRef &ob_ref, ThemeColorID theme_id) const
   {
     if (UNLIKELY(ob_ref.object->base_flag & BASE_FROM_SET)) {
-      return theme_settings.color_wire;
+      return theme.colors.wire;
     }
     switch (theme_id) {
       case TH_WIRE_EDIT:
-        return theme_settings.color_wire_edit;
+        return theme.colors.wire_edit;
       case TH_ACTIVE:
-        return theme_settings.color_active;
+        return theme.colors.active_object;
       case TH_SELECT:
-        return theme_settings.color_select;
+        return theme.colors.object_select;
       case TH_TRANSFORM:
-        return theme_settings.color_transform;
+        return theme.colors.transform;
       case TH_SPEAKER:
-        return theme_settings.color_speaker;
+        return theme.colors.speaker;
       case TH_CAMERA:
-        return theme_settings.color_camera;
+        return theme.colors.camera;
       case TH_EMPTY:
-        return theme_settings.color_empty;
+        return theme.colors.empty;
       case TH_LIGHT:
-        return theme_settings.color_light;
+        return theme.colors.light;
       default:
-        return theme_settings.color_wire;
+        return theme.colors.wire;
     }
   }
 
@@ -933,7 +1004,7 @@ struct Resources : public select::SelectMap {
   static float vertex_size_get()
   {
     /* M_SQRT2 to be at least the same size of the old square */
-    return U.pixelsize * max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
+    return max_ff(1.0f, UI_GetThemeValuef(TH_VERTEX_SIZE) * float(M_SQRT2) / 2.0f);
   }
 
   /** Convenience functions. */

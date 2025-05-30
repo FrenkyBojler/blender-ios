@@ -11,6 +11,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 
+#include "DNA_key_types.h"
+
 /** \file
  * \ingroup bke
  */
@@ -33,15 +35,15 @@ Key *BKE_key_add(Main *bmain, ID *id);
  */
 void BKE_key_sort(Key *key);
 
-void key_curve_position_weights(float t, float data[4], int type);
+void key_curve_position_weights(float t, float data[4], KeyInterpolationType type);
 /**
  * First derivative.
  */
-void key_curve_tangent_weights(float t, float data[4], int type);
+void key_curve_tangent_weights(float t, float data[4], KeyInterpolationType type);
 /**
  * Second derivative.
  */
-void key_curve_normal_weights(float t, float data[4], int type);
+void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type);
 
 /**
  * Returns key coordinates (+ tilt) when key applied, NULL otherwise.
@@ -79,7 +81,7 @@ KeyBlock *BKE_keyblock_from_object_reference(Object *ob);
 KeyBlock *BKE_keyblock_add(Key *key, const char *name);
 
 /** Add a copy of the source key-block with a copy of its data array. */
-KeyBlock *BKE_keyblock_duplicate(Key *key, const KeyBlock *kb_src);
+KeyBlock *BKE_keyblock_duplicate(Key *key, KeyBlock *kb_src);
 
 /**
  * \note sorting is a problematic side effect in some cases,
