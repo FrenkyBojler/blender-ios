@@ -5,6 +5,9 @@
 set(INC
   PUBLIC .
   intern
+  ../compositor
+  ../compositor/cached_resources
+  ../compositor/derived_resources
   ../animrig
   ../makesrna
 
@@ -99,13 +102,16 @@ set(LIB
   PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  bf_compositor
 )
 
 if(WITH_AUDASPACE)

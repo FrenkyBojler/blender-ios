@@ -48,6 +48,7 @@ struct EffectInfo {
   {seqModifierType_HueCorrect, "HUE_CORRECT", ICON_NONE, "Hue Correct", ""}, \
   {seqModifierType_Mask, "MASK", ICON_NONE, "Mask", ""}, \
   {seqModifierType_Tonemap, "TONEMAP", ICON_NONE, "Tone Map", ""}, \
+  {seqModifierType_Compositor, "COMPOSITOR", ICON_NONE, "Compositor", ""}, \
   {seqModifierType_WhiteBalance, "WHITE_BALANCE", ICON_NONE, "White Balance", ""}
 
 #define RNA_ENUM_SEQUENCER_AUDIO_MODIFIER_TYPE_ITEMS \
@@ -1343,6 +1344,8 @@ static StructRNA *rna_StripModifier_refine(PointerRNA *ptr)
       return &RNA_SequencerTonemapModifierData;
     case seqModifierType_SoundEqualizer:
       return &RNA_SoundEqualizerModifier;
+    case seqModifierType_Compositor:
+      return &RNA_SequencerCompositorModifierData;
     default:
       return &RNA_StripModifier;
   }
@@ -3901,6 +3904,13 @@ static void rna_def_tonemap_modifier(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 }
 
+static void rna_def_compositor_modifier(BlenderRNA *brna)
+{
+  StructRNA *srna = RNA_def_struct(brna, "SequencerCompositorModifierData", "StripModifier");
+  RNA_def_struct_sdna(srna, "SequencerCompositorModifierData");
+  RNA_def_struct_ui_text(srna, "SequencerCompositorModifierData", "Compositor Modifier");
+}
+
 static void rna_def_modifiers(BlenderRNA *brna)
 {
   rna_def_modifier(brna);
@@ -3911,6 +3921,7 @@ static void rna_def_modifiers(BlenderRNA *brna)
   rna_def_brightcontrast_modifier(brna);
   rna_def_whitebalance_modifier(brna);
   rna_def_tonemap_modifier(brna);
+  rna_def_compositor_modifier(brna);
 }
 
 static void rna_def_graphical_sound_equalizer(BlenderRNA *brna)

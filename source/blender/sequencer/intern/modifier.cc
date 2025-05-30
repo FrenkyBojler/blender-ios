@@ -14,6 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
+#include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
@@ -28,6 +29,11 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "COM_context.hh"
+#include "COM_domain.hh"
+#include "COM_evaluator.hh"
+#include "COM_render_context.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_render.hh"
@@ -430,7 +436,8 @@ static void colorBalance_init_data(StripModifierData *smd)
   }
 }
 
-static void colorBalance_apply(const StripScreenQuad & /*quad*/,
+static void colorBalance_apply(const RenderData * /*render_data*/,
+                               const StripScreenQuad & /*quad*/,
                                StripModifierData *smd,
                                ImBuf *ibuf,
                                ImBuf *mask)
@@ -485,7 +492,8 @@ struct WhiteBalanceApplyOp {
   }
 };
 
-static void whiteBalance_apply(const StripScreenQuad & /*quad*/,
+static void whiteBalance_apply(const RenderData * /*render_data*/,
+                               const StripScreenQuad & /*quad*/,
                                StripModifierData *smd,
                                ImBuf *ibuf,
                                ImBuf *mask)
@@ -547,7 +555,8 @@ struct CurvesApplyOp {
   }
 };
 
-static void curves_apply(const StripScreenQuad & /*quad*/,
+static void curves_apply(const RenderData * /*render_data*/,
+                         const StripScreenQuad & /*quad*/,
                          StripModifierData *smd,
                          ImBuf *ibuf,
                          ImBuf *mask)
@@ -651,7 +660,8 @@ struct HueCorrectApplyOp {
   }
 };
 
-static void hue_correct_apply(const StripScreenQuad & /*quad*/,
+static void hue_correct_apply(const RenderData * /*render_data*/,
+                              const StripScreenQuad & /*quad*/,
                               StripModifierData *smd,
                               ImBuf *ibuf,
                               ImBuf *mask)
@@ -694,7 +704,8 @@ struct BrightContrastApplyOp {
   }
 };
 
-static void brightcontrast_apply(const StripScreenQuad & /*quad*/,
+static void brightcontrast_apply(const RenderData * /*render_data*/,
+                                 const StripScreenQuad & /*quad*/,
                                  StripModifierData *smd,
                                  ImBuf *ibuf,
                                  ImBuf *mask)
@@ -771,7 +782,8 @@ struct MaskApplyOp {
   }
 };
 
-static void maskmodifier_apply(const StripScreenQuad & /*quad*/,
+static void maskmodifier_apply(const RenderData * /*render_data*/,
+                               const StripScreenQuad & /*quad*/,
                                StripModifierData * /*smd*/,
                                ImBuf *ibuf,
                                ImBuf *mask)
@@ -1047,7 +1059,8 @@ static AreaLuminance tonemap_calc_input_luminance(const StripScreenQuad &quad, c
   return lum;
 }
 
-static void tonemapmodifier_apply(const StripScreenQuad &quad,
+static void tonemapmodifier_apply(const RenderData * /*render_data*/,
+                                  const StripScreenQuad &quad,
                                   StripModifierData *smd,
                                   ImBuf *ibuf,
                                   ImBuf *mask)
@@ -1105,6 +1118,149 @@ static void tonemapmodifier_apply(const StripScreenQuad &quad,
           scene_linear_to_image_chunk_byte(scene_linear.data(), ibuf, range);
         }
       });
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Compositor Modifier
+ * \{ */
+
+class CompositorContext : public compositor::Context {
+ private:
+  const RenderData &render_data_;
+
+  ImBuf *image_buffer_;
+
+ public:
+  CompositorContext(const RenderData &render_data, ImBuf *image_buffer)
+      : compositor::Context(), render_data_(render_data), image_buffer_(image_buffer)
+  {
+  }
+
+  const Scene &get_scene() const override
+  {
+    return *render_data_.scene;
+  }
+
+  const bNodeTree &get_node_tree() const override
+  {
+    return *render_data_.scene->nodetree;
+  }
+
+  bool use_gpu() const override
+  {
+    return false;
+  }
+
+  eCompositorDenoiseQaulity get_denoise_quality() const override
+  {
+    return static_cast<eCompositorDenoiseQaulity>(
+        this->get_render_data().compositor_denoise_preview_quality);
+  }
+
+  compositor::OutputTypes needed_outputs() const override
+  {
+    return compositor::OutputTypes::Composite | compositor::OutputTypes::Viewer;
+  }
+
+  bool treat_viewer_as_composite_output() const override
+  {
+    return true;
+  }
+
+  const ::RenderData &get_render_data() const override
+  {
+    return this->get_scene().r;
+  }
+
+  int2 get_render_size() const override
+  {
+    return int2(image_buffer_->x, image_buffer_->y);
+  }
+
+  rcti get_compositing_region() const override
+  {
+    const int2 render_size = get_render_size();
+    const rcti render_region = rcti{0, render_size.x, 0, render_size.y};
+
+    return render_region;
+  }
+
+  compositor::Result get_output_result() override
+  {
+    compositor::Result result = this->create_result(compositor::ResultType::Color);
+    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    return result;
+  }
+
+  compositor::Result get_viewer_output_result(compositor::Domain /*domain*/,
+                                              bool /*is_data*/,
+                                              compositor::ResultPrecision /*precision*/) override
+  {
+    compositor::Result result = this->create_result(compositor::ResultType::Color);
+    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    return result;
+  }
+
+  compositor::Result get_pass(const Scene * /*scene*/,
+                              int /*view_layer_id*/,
+                              const char * /*pass_name*/) override
+  {
+    compositor::Result result = this->create_result(compositor::ResultType::Color);
+    result.wrap_external(image_buffer_->float_buffer.data, this->get_render_size());
+    return result;
+  }
+
+  StringRef get_view_name() const override
+  {
+    return "";
+  }
+
+  compositor::ResultPrecision get_precision() const override
+  {
+    return compositor::ResultPrecision::Full;
+  }
+
+  void set_info_message(StringRef /*message*/) const override {}
+};
+
+static void compositor_modifier_init_data(StripModifierData * /*strip_modifier_data*/) {}
+
+static void compositor_modifier_apply(const RenderData *render_data,
+                                      const StripScreenQuad & /*quad*/,
+                                      StripModifierData * /*strip_modifier_data*/,
+                                      ImBuf *image_buffer,
+                                      ImBuf * /*mask*/)
+{
+  ImBuf *float_buffer = image_buffer;
+  const bool need_float_conversion = image_buffer->float_buffer.data == nullptr;
+  if (need_float_conversion) {
+    float_buffer = IMB_allocImBuf(
+        image_buffer->x, image_buffer->y, 32, IB_float_data | IB_uninitialized_pixels);
+    rcti buffer_region;
+    BLI_rcti_init(&buffer_region, 0, image_buffer->x, 0, image_buffer->y);
+    IMB_float_from_byte_ex(float_buffer, image_buffer, &buffer_region);
+  }
+
+  CompositorContext context(*render_data, float_buffer);
+  compositor::Evaluator evaluator(context);
+  evaluator.evaluate();
+
+  if (need_float_conversion) {
+    IMB_buffer_byte_from_float(image_buffer->byte_buffer.data,
+                               float_buffer->float_buffer.data,
+                               float_buffer->channels,
+                               float_buffer->dither,
+                               IB_PROFILE_SRGB,
+                               IB_PROFILE_LINEAR_RGB,
+                               false,
+                               image_buffer->x,
+                               image_buffer->y,
+                               image_buffer->x,
+                               image_buffer->x);
+    IMB_freeImBuf(float_buffer);
+  }
 }
 
 /** \} */
@@ -1186,6 +1342,15 @@ static StripModifierTypeInfo modifiersTypes[NUM_SEQUENCE_MODIFIER_TYPES] = {
         /*free_data*/ sound_equalizermodifier_free,
         /*copy_data*/ sound_equalizermodifier_copy_data,
         /*apply*/ nullptr,
+    },
+    {
+        /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor"),
+        /*struct_name*/ "SequencerCompositorModifierData",
+        /*struct_size*/ sizeof(SequencerCompositorModifierData),
+        /*init_data*/ compositor_modifier_init_data,
+        /*free_data*/ nullptr,
+        /*copy_data*/ nullptr,
+        /*apply*/ compositor_modifier_apply,
     },
 };
 
@@ -1329,7 +1494,7 @@ void modifier_apply_stack(const RenderData *context,
       }
 
       ImBuf *mask = modifier_mask_get(smd, context, timeline_frame, frame_offset);
-      smti->apply(quad, smd, ibuf, mask);
+      smti->apply(context, quad, smd, ibuf, mask);
       if (mask) {
         IMB_freeImBuf(mask);
       }

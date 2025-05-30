@@ -49,6 +49,7 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_offscreen.hh"
+#include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
@@ -901,8 +902,19 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       }
       break;
     case NC_NODE: /* To handle changes in 3D viewport. */
+    {
+      Editing *editing = blender::seq::editing_get(params->scene);
+      LISTBASE_FOREACH (Strip *, strip, &editing->seqbase) {
+        LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
+          if (modifier->type == seqModifierType_Compositor) {
+            blender::seq::relations_invalidate_cache(const_cast<Scene *>(params->scene), strip);
+            break;
+          }
+        }
+      }
       ED_region_tag_redraw(region);
       break;
+    }
     case NC_WORLD: /* To handle changes in 3D viewport. */
       switch (wmn->data) {
         case ND_WORLD_DRAW:

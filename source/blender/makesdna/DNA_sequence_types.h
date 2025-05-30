@@ -574,6 +574,10 @@ enum {
   SEQ_TONEMAP_RD_PHOTORECEPTOR = 1,
 };
 
+typedef struct SequencerCompositorModifierData {
+  StripModifierData modifier;
+} SequencerCompositorModifierData;
+
 /** \} */
 
 /** \name Sound Modifiers
@@ -815,6 +819,7 @@ enum {
   seqModifierType_WhiteBalance = 6,
   seqModifierType_Tonemap = 7,
   seqModifierType_SoundEqualizer = 8,
+  seqModifierType_Compositor = 9,
   /* Keep last. */
   NUM_SEQUENCE_MODIFIER_TYPES,
 };

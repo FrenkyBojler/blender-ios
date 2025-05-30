@@ -44,7 +44,11 @@ struct StripModifierTypeInfo {
 
   /* Apply modifier on an image buffer.
    * quad contains four corners of the (pre-transform) strip rectangle in pixel space. */
-  void (*apply)(const StripScreenQuad &quad, StripModifierData *smd, ImBuf *ibuf, ImBuf *mask);
+  void (*apply)(const RenderData *render_data,
+                const StripScreenQuad &quad,
+                StripModifierData *smd,
+                ImBuf *ibuf,
+                ImBuf *mask);
 };
 
 const StripModifierTypeInfo *modifier_type_info_get(int type);
