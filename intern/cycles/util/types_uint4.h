@@ -27,15 +27,15 @@ struct uint4 {
 #  endif
 };
 
-ccl_device_inline uint4 make_uint4(const uint a)
-{
-  return {a, a, a, a};
-}
-
 ccl_device_inline uint4 make_uint4(const uint x, const uint y, uint z, const uint w)
 {
   return {x, y, z, w};
 }
 #endif /* __KERNEL_NATIVE_VECTOR_TYPES__ */
+
+ccl_device_inline uint4 make_uint4(const uint a)
+{
+  return make_uint4(a, a, a, a);
+}
 
 CCL_NAMESPACE_END

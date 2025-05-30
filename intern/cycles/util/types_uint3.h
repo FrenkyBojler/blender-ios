@@ -27,17 +27,17 @@ struct uint3 {
 #  endif
 };
 
-ccl_device_inline uint3 make_uint3(const uint a)
-{
-  return {a, a, a};
-}
-
 ccl_device_inline uint3 make_uint3(const uint x, const uint y, uint z)
 {
   uint3 a = {x, y, z};
   return a;
 }
 #endif /* __KERNEL_NATIVE_VECTOR_TYPES__ */
+
+ccl_device_inline uint3 make_uint3(const uint a)
+{
+  return make_uint3(a, a, a);
+}
 
 #if defined(__KERNEL_METAL__)
 /* Metal has native packed_float3. */
