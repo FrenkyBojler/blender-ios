@@ -5480,6 +5480,7 @@ static wmOperatorStatus edbm_tris_convert_to_quads_exec(bContext *C, wmOperator 
         EDBM_selectmode_flush_ex(em, em->selectmode);
       }
     }
+    EDBM_uvselect_clear(em);
 
     BM_custom_loop_normals_from_vector_layer(em->bm, false);
 
@@ -5710,6 +5711,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
         selectmode |= SCE_SELECT_EDGE;
       }
       EDBM_selectmode_flush_ex(em, selectmode);
+      EDBM_uvselect_clear(em);
     }
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -6308,6 +6310,7 @@ static wmOperatorStatus edbm_delete_edgeloop_exec(bContext *C, wmOperator *op)
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
     EDBM_selectmode_flush_ex(em, SCE_SELECT_VERTEX);
+    EDBM_uvselect_clear(em);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -7615,7 +7618,9 @@ static wmOperatorStatus edbm_convex_hull_exec(bContext *C, wmOperator *op)
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;
@@ -7705,7 +7710,9 @@ static wmOperatorStatus mesh_symmetrize_exec(bContext *C, wmOperator *op)
     params.calc_normals = false;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
     EDBM_selectmode_flush(em);
+    EDBM_uvselect_clear(em);
   }
 
   return OPERATOR_FINISHED;

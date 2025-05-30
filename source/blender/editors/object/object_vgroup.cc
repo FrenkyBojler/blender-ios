@@ -1125,6 +1125,7 @@ static void vgroup_select_verts(const ToolSettings &tool_settings,
         else {
           EDBM_deselect_flush(em);
         }
+        EDBM_uvselect_clear(em);
       }
     }
     else {

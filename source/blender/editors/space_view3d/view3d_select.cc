@@ -85,6 +85,7 @@
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_select_utils.hh"
+#include "ED_uvedit.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -254,6 +255,7 @@ static bool edbm_backbuf_check_and_select_verts(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
+                                                UVSelectContext *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMVert *eve;
@@ -274,6 +276,10 @@ static bool edbm_backbuf_check_and_select_verts(EditSelectBuf_Cache *esel,
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
         BM_vert_select_set(em->bm, eve, sel_op_result);
+        if (uv_selctx) {
+          ED_uvedit_select_context_vert_select_set(uv_selctx, eve, sel_op_result);
+        }
+
         changed = true;
       }
     }
@@ -286,6 +292,7 @@ static bool edbm_backbuf_check_and_select_edges(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
+                                                UVSelectContext *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMEdge *eed;
@@ -307,6 +314,10 @@ static bool edbm_backbuf_check_and_select_edges(EditSelectBuf_Cache *esel,
       if (sel_op_result != -1) {
         BM_edge_select_set(em->bm, eed, sel_op_result);
         changed = true;
+
+        if (uv_selctx) {
+          ED_uvedit_select_context_edge_select_set(uv_selctx, eed, sel_op_result);
+        }
       }
     }
     index++;
@@ -318,6 +329,7 @@ static bool edbm_backbuf_check_and_select_faces(EditSelectBuf_Cache *esel,
                                                 Depsgraph *depsgraph,
                                                 Object *ob,
                                                 BMEditMesh *em,
+                                                UVSelectContext *uv_selctx,
                                                 const eSelectOp sel_op)
 {
   BMFace *efa;
@@ -338,6 +350,10 @@ static bool edbm_backbuf_check_and_select_faces(EditSelectBuf_Cache *esel,
       const int sel_op_result = ED_select_op_action_deselected(sel_op, is_select, is_inside);
       if (sel_op_result != -1) {
         BM_face_select_set(em->bm, efa, sel_op_result);
+        if (uv_selctx) {
+          ED_uvedit_select_context_face_select_set(uv_selctx, efa, sel_op_result);
+        }
+
         changed = true;
       }
     }
@@ -422,6 +438,9 @@ struct LassoSelectUserData {
   Span<int2> mcoords;
   eSelectOp sel_op;
   eBezTriple_Flag select_flag;
+
+  /** Only for edit-mesh selection. */
+  UVSelectContext *uv_selctx;
 
   /* runtime */
   int pass;
@@ -726,6 +745,10 @@ static void do_lasso_select_mesh__doSelectVert(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_vert_select_set(data->vc->em->bm, eve, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_vert_select_set(data->uv_selctx, eve, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
@@ -757,6 +780,10 @@ static void do_lasso_select_mesh__doSelectEdge_pass0(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_edge_select_set(data->vc->em->bm, eed, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_edge_select_set(data->uv_selctx, eed, sel_op_result);
+    }
+
     data->is_done = true;
     data->is_changed = true;
   }
@@ -784,16 +811,29 @@ static void do_lasso_select_mesh__doSelectEdge_pass1(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_edge_select_set(data->vc->em->bm, eed, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_edge_select_set(data->uv_selctx, eed, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
+
+struct LassoSelectUserData_ForEditMeshFace {
+  LassoSelectUserData *data;
+
+  /** Only for edit-mesh selection. */
+  UVSelectContext *uv_selctx;
+};
 
 static void do_lasso_select_mesh__doSelectFace(void *user_data,
                                                BMFace *efa,
                                                const float screen_co[2],
                                                int /*index*/)
 {
-  LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
+  LassoSelectUserData_ForEditMeshFace *data_for_face =
+      static_cast<LassoSelectUserData_ForEditMeshFace *>(user_data);
+  LassoSelectUserData *data = data_for_face->data;
   const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
   const bool is_inside = (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
                           BLI_lasso_is_point_inside(
@@ -801,6 +841,10 @@ static void do_lasso_select_mesh__doSelectFace(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_face_select_set(data->vc->em->bm, efa, sel_op_result);
+    if (data_for_face->uv_selctx) {
+      ED_uvedit_select_context_face_select_set(data_for_face->uv_selctx, efa, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
@@ -827,6 +871,9 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
     }
   }
 
+  UVSelectContext *uv_selctx = ED_uvedit_select_context_create_if_needed(ts, vc->em->bm);
+  data.uv_selctx = uv_selctx;
+
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 
@@ -847,7 +894,7 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
   if (ts->selectmode & SCE_SELECT_VERTEX) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_verts(
-          esel, vc->depsgraph, vc->obedit, vc->em, sel_op);
+          esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, sel_op);
     }
     else {
       mesh_foreachScreenVert(
@@ -881,7 +928,7 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
   if (ts->selectmode & SCE_SELECT_FACE) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_faces(
-          esel, vc->depsgraph, vc->obedit, vc->em, sel_op);
+          esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, sel_op);
     }
     else {
       mesh_foreachScreenFace(
@@ -892,6 +939,12 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
   if (data.is_changed) {
     EDBM_selectmode_flush(vc->em);
   }
+
+  if (uv_selctx) {
+    ED_uvedit_select_context_apply(uv_selctx);
+    ED_uvedit_select_context_free(uv_selctx);
+  }
+
   return data.is_changed;
 }
 
@@ -3672,6 +3725,9 @@ struct BoxSelectUserData {
   eSelectOp sel_op;
   eBezTriple_Flag select_flag;
 
+  /** Only for edit-mesh selection. */
+  UVSelectContext *uv_selctx;
+
   /* runtime */
   bool is_done;
   bool is_changed;
@@ -3935,6 +3991,10 @@ static void do_mesh_box_select__doSelectVert(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_vert_select_set(data->vc->em->bm, eve, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_vert_select_set(data->uv_selctx, eve, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
@@ -3967,6 +4027,10 @@ static void do_mesh_box_select__doSelectEdge_pass0(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_edge_select_set(data->vc->em->bm, eed, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_edge_select_set(data->uv_selctx, eed, sel_op_result);
+    }
+
     data->is_done = true;
     data->is_changed = true;
   }
@@ -3994,6 +4058,10 @@ static void do_mesh_box_select__doSelectEdge_pass1(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_edge_select_set(data->vc->em->bm, eed, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_edge_select_set(data->uv_selctx, eed, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
@@ -4008,6 +4076,10 @@ static void do_mesh_box_select__doSelectFace(void *user_data,
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
   if (sel_op_result != -1) {
     BM_face_select_set(data->vc->em->bm, efa, sel_op_result);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_face_select_set(data->uv_selctx, efa, sel_op_result);
+    }
+
     data->is_changed = true;
   }
 }
@@ -4027,6 +4099,9 @@ static bool do_mesh_box_select(const ViewContext *vc,
       data.is_changed = true;
     }
   }
+
+  UVSelectContext *uv_selctx = ED_uvedit_select_context_create_if_needed(ts, vc->em->bm);
+  data.uv_selctx = uv_selctx;
 
   /* for non zbuf projections, don't change the GL state */
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
@@ -4048,7 +4123,7 @@ static bool do_mesh_box_select(const ViewContext *vc,
   if (ts->selectmode & SCE_SELECT_VERTEX) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_verts(
-          esel, vc->depsgraph, vc->obedit, vc->em, sel_op);
+          esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, sel_op);
     }
     else {
       mesh_foreachScreenVert(
@@ -4082,7 +4157,7 @@ static bool do_mesh_box_select(const ViewContext *vc,
   if (ts->selectmode & SCE_SELECT_FACE) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_faces(
-          esel, vc->depsgraph, vc->obedit, vc->em, sel_op);
+          esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, sel_op);
     }
     else {
       mesh_foreachScreenFace(
@@ -4093,6 +4168,12 @@ static bool do_mesh_box_select(const ViewContext *vc,
   if (data.is_changed) {
     EDBM_selectmode_flush(vc->em);
   }
+
+  if (uv_selctx) {
+    ED_uvedit_select_context_apply(uv_selctx);
+    ED_uvedit_select_context_free(uv_selctx);
+  }
+
   return data.is_changed;
 }
 
@@ -4629,6 +4710,9 @@ struct CircleSelectUserData {
   float radius_squared;
   eBezTriple_Flag select_flag;
 
+  /** Only for edit-mesh selection. */
+  UVSelectContext *uv_selctx;
+
   /* runtime */
   bool is_changed;
 };
@@ -4664,6 +4748,10 @@ static void mesh_circle_doSelectVert(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     BM_vert_select_set(data->vc->em->bm, eve, data->select);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_vert_select_set(data->uv_selctx, eve, data->select);
+    }
+
     data->is_changed = true;
   }
 }
@@ -4677,6 +4765,10 @@ static void mesh_circle_doSelectEdge(void *user_data,
 
   if (edge_inside_circle(data->mval_fl, data->radius, screen_co_a, screen_co_b)) {
     BM_edge_select_set(data->vc->em->bm, eed, data->select);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_edge_select_set(data->uv_selctx, eed, data->select);
+    }
+
     data->is_changed = true;
   }
 }
@@ -4689,6 +4781,10 @@ static void mesh_circle_doSelectFace(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     BM_face_select_set(data->vc->em->bm, efa, data->select);
+    if (data->uv_selctx) {
+      ED_uvedit_select_context_face_select_set(data->uv_selctx, efa, data->select);
+    }
+
     data->is_changed = true;
   }
 }
@@ -4713,6 +4809,10 @@ static bool mesh_circle_select(const ViewContext *vc,
       changed = true;
     }
   }
+
+  UVSelectContext *uv_selctx = ED_uvedit_select_context_create_if_needed(ts, vc->em->bm);
+  data.uv_selctx = uv_selctx;
+
   const bool select = (sel_op != SEL_OP_SUB);
 
   ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
@@ -4739,7 +4839,7 @@ static bool mesh_circle_select(const ViewContext *vc,
     if (use_zbuf) {
       if (esel->select_bitmap != nullptr) {
         changed |= edbm_backbuf_check_and_select_verts(
-            esel, vc->depsgraph, vc->obedit, vc->em, select ? SEL_OP_ADD : SEL_OP_SUB);
+            esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, select ? SEL_OP_ADD : SEL_OP_SUB);
       }
     }
     else {
@@ -4751,7 +4851,7 @@ static bool mesh_circle_select(const ViewContext *vc,
     if (use_zbuf) {
       if (esel->select_bitmap != nullptr) {
         changed |= edbm_backbuf_check_and_select_edges(
-            esel, vc->depsgraph, vc->obedit, vc->em, select ? SEL_OP_ADD : SEL_OP_SUB);
+            esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, select ? SEL_OP_ADD : SEL_OP_SUB);
       }
     }
     else {
@@ -4767,7 +4867,7 @@ static bool mesh_circle_select(const ViewContext *vc,
     if (use_zbuf) {
       if (esel->select_bitmap != nullptr) {
         changed |= edbm_backbuf_check_and_select_faces(
-            esel, vc->depsgraph, vc->obedit, vc->em, select ? SEL_OP_ADD : SEL_OP_SUB);
+            esel, vc->depsgraph, vc->obedit, vc->em, uv_selctx, select ? SEL_OP_ADD : SEL_OP_SUB);
       }
     }
     else {
@@ -4781,6 +4881,12 @@ static bool mesh_circle_select(const ViewContext *vc,
     BM_mesh_select_mode_flush_ex(
         vc->em->bm, vc->em->selectmode, BM_SELECT_LEN_FLUSH_RECALC_NOTHING);
   }
+
+  if (uv_selctx) {
+    ED_uvedit_select_context_apply(uv_selctx);
+    ED_uvedit_select_context_free(uv_selctx);
+  }
+
   return changed;
 }
 

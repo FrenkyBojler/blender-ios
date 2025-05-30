@@ -221,7 +221,7 @@ void ED_uvedit_foreach_uv(const Scene *scene,
     }
 
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      if (uvedit_uv_select_test(scene, l, offsets) == selected) {
+      if (uvedit_uv_select_test(scene, bm, l, offsets) == selected) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv);
         user_fn(luv);
       }
@@ -838,7 +838,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
 
       BLI_assert(uvs.size() == 0);
       BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
-        if (uvedit_uv_select_test(scene, l, offsets)) {
+        if (uvedit_uv_select_test(scene, em->bm, l, offsets)) {
           uvs.append(BM_ELEM_CD_GET_FLOAT_P(l, offsets.uv));
         }
       }
@@ -1128,7 +1128,7 @@ static bool uv_snap_uvs_to_adjacent_unselected(Scene *scene, Object *obedit)
     if (uvedit_face_visible_test(scene, f)) {
       BM_elem_flag_enable(f, BM_ELEM_TAG);
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-        BM_elem_flag_set(l, BM_ELEM_TAG, uvedit_uv_select_test(scene, l, offsets));
+        BM_elem_flag_set(l, BM_ELEM_TAG, uvedit_uv_select_test(scene, bm, l, offsets));
       }
     }
     else {
@@ -1317,7 +1317,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 
-        if (uvedit_uv_select_test(scene, l, offsets)) {
+        if (uvedit_uv_select_test(scene, em->bm, l, offsets)) {
           changed = true;
           if (invert) {
             BM_ELEM_CD_SET_BOOL(l, offsets.pin, !BM_ELEM_CD_GET_BOOL(l, offsets.pin));
@@ -1825,7 +1825,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
         if (l_iter == l_iter->radial_next) {
           continue;
         }
-        if (!uvedit_edge_select_test(scene, l_iter, offsets)) {
+        if (!uvedit_edge_select_test(scene, em->bm, l_iter, offsets)) {
           continue;
         }
 
@@ -1916,7 +1916,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
     BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
       if (uvedit_face_visible_test(scene, efa)) {
         BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
-          if (uvedit_edge_select_test(scene, loop, offsets)) {
+          if (uvedit_edge_select_test(scene, bm, loop, offsets)) {
             BM_elem_flag_set(loop->e, BM_ELEM_SEAM, flag_set);
             changed = true;
           }

@@ -863,12 +863,7 @@ class IMAGE_HT_header(Header):
 
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
-
-                # Currently this only works for edge-select & face-select modes.
-                row = layout.row()
-                if tool_settings.mesh_select_mode[0]:
-                    row.active = False
-                row.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
+                layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
             else:
                 row = layout.row(align=True)
                 uv_select_mode = tool_settings.uv_select_mode[:]

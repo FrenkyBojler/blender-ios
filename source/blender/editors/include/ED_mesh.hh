@@ -176,6 +176,21 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
 
+/**
+ * Mark the UV selection data as invalid,
+ * using the mesh selection as the "source-of-truth".
+ *
+ * By convention call this immediately after flushing.
+ *
+ * \note In many cases the UV selection can be maintained and this function removed,
+ * although it adds some complexity & overhead.
+ * See #UVSelectContext.
+ *
+ * \note If this call should *not* be removed in favor of supporting UV selection,
+ * this should be mentioned in a code-comment, making it clear this is not a limitation to *fix*.
+ */
+bool EDBM_uvselect_clear(BMEditMesh *em);
+
 bool BMBVH_EdgeVisible(const BMBVHTree *tree,
                        const BMEdge *e,
                        const Depsgraph *depsgraph,
@@ -306,9 +321,14 @@ bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
  * User facing function, handles notification.
  *
  * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
+ * \param use_uv_select_ensure: TODO.
  */
-bool EDBM_selectmode_toggle_multi(
-    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
+bool EDBM_selectmode_toggle_multi(bContext *C,
+                                  short selectmode_toggle,
+                                  int action,
+                                  bool use_extend,
+                                  bool use_expand,
+                                  bool use_uv_select_ensure);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback

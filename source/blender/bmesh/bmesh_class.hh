@@ -317,6 +317,10 @@ struct BMesh {
   int totvert, totedge, totloop, totface;
   int totvertsel, totedgesel, totfacesel;
 
+  /* Loop selection counts are only valid when `uv_sync_select_valid` is true. */
+
+  int totloopsel_vert, totloopsel_edge, totloopsel_face;
+
   /**
    * Flag index arrays as being dirty so we can check if they are clean and
    * avoid looping over the entire vert/edge/face/loop array in those cases.
@@ -355,6 +359,10 @@ struct BMesh {
   struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
 
   uint use_toolflags : 1;
+
+  /** When set ignore, don't use the UV Loop selection flags. */
+  // uint uv_sync_select_valid : 1;
+  bool uv_sync_select_valid;
 
   int toolflag_index;
 
@@ -505,7 +513,11 @@ enum {
    */
   BM_ELEM_TAG = (1 << 4),
 
-  BM_ELEM_DRAW = (1 << 5), /* edge display */
+  /**
+   * Used for Loop, Edge & Face (but not Vertices),
+   * since there is never a reason to a UV select.
+   */
+  BM_ELEM_SELECT_UV = (1 << 5),
 
   /** Spare tag, assumed dirty, use define in each function to name based on use. */
   BM_ELEM_TAG_ALT = (1 << 6),
@@ -517,6 +529,9 @@ enum {
    */
   BM_ELEM_INTERNAL_TAG = (1 << 7),
 };
+
+/* Only for #BMLoop to select an edge. */
+#define BM_ELEM_SELECT_UV_EDGE BM_ELEM_SEAM
 
 struct BPy_BMGeneric;
 extern void bpy_bm_generic_invalidate(struct BPy_BMGeneric *self);
