@@ -175,6 +175,11 @@ void MaterialModule::begin_sync()
 
 bool MaterialModule::queue_texture_loading(GPUMaterial *material)
 {
+  if (inst_.is_viewport_image_render) {
+    /* Do not delay image loading for viewport render as it would produce invalid frames. */
+    return true;
+  }
+
   bool loaded = true;
   ListBase textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
