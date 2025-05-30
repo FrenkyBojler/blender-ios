@@ -600,7 +600,7 @@ static void rna_Strip_channel_set(PointerRNA *ptr, int value)
   ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   /* check channel increment or decrement */
-  const int channel_delta = (value >= strip->machine) ? 1 : -1;
+  const int channel_delta = (value >= strip->channel) ? 1 : -1;
   blender::seq::strip_channel_set(strip, value);
 
   if (blender::seq::transform_test_overlap(scene, seqbase, strip)) {
@@ -1001,10 +1001,10 @@ static void rna_Strip_input_set(PointerRNA *ptr,
 
   switch (input_num) {
     case 1:
-      strip->seq1 = input;
+      strip->input1 = input;
       break;
     case 2:
-      strip->seq2 = input;
+      strip->input2 = input;
       break;
   }
 }
@@ -2256,7 +2256,7 @@ static void rna_def_strip(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_frame_change_update");
 
   prop = RNA_def_property(srna, "channel", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "machine");
+  RNA_def_property_int_sdna(prop, nullptr, "channel");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_range(prop, 1, blender::seq::MAX_CHANNELS);
   RNA_def_property_ui_text(prop, "Channel", "Y position of the sequence strip");
@@ -2694,7 +2694,7 @@ static void rna_def_effect_inputs(StructRNA *srna, int count)
 
   if (count >= 1) {
     prop = RNA_def_property(srna, "input_1", PROP_POINTER, PROP_NONE);
-    RNA_def_property_pointer_sdna(prop, nullptr, "seq1");
+    RNA_def_property_pointer_sdna(prop, nullptr, "input1");
     RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
     RNA_def_property_pointer_funcs(prop, nullptr, "rna_Strip_input_1_set", nullptr, nullptr);
     RNA_def_property_ui_text(prop, "Input 1", "First input for the effect strip");
@@ -2702,7 +2702,7 @@ static void rna_def_effect_inputs(StructRNA *srna, int count)
 
   if (count >= 2) {
     prop = RNA_def_property(srna, "input_2", PROP_POINTER, PROP_NONE);
-    RNA_def_property_pointer_sdna(prop, nullptr, "seq2");
+    RNA_def_property_pointer_sdna(prop, nullptr, "input2");
     RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_NULL);
     RNA_def_property_pointer_funcs(prop, nullptr, "rna_Strip_input_2_set", nullptr, nullptr);
     RNA_def_property_ui_text(prop, "Input 2", "Second input for the effect strip");

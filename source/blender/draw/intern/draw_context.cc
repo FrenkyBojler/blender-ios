@@ -382,6 +382,21 @@ template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
   return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
 }
 
+const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object)
+{
+  /* Same as DRW_object_get_data_for_drawing, but for the cage mesh. */
+  BLI_assert(object.type == OB_MESH);
+  const Mesh *cage_mesh = BKE_object_get_editmesh_eval_cage(&object);
+  if (cage_mesh == nullptr) {
+    return nullptr;
+  }
+
+  if (BKE_subsurf_modifier_has_gpu_subdiv(cage_mesh)) {
+    return cage_mesh;
+  }
+  return BKE_mesh_wrapper_ensure_subdivision(cage_mesh);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -406,7 +421,13 @@ void DRWData::modules_init()
   DRW_pointcloud_init(this);
   DRW_curves_init(this);
   DRW_volume_init(this);
-  DRW_smoke_init(this);
+}
+
+void DRWData::modules_begin_sync()
+{
+  using namespace blender::draw;
+  DRW_curves_begin_sync(this);
+  DRW_smoke_begin_sync(this);
 }
 
 void DRWData::modules_exit()
@@ -492,6 +513,9 @@ void DRWContext::acquire_data()
       BLI_assert(this->is_image_render() || this->mode == DRWContext::CUSTOM);
     }
   }
+
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  this->data->modules_init();
 }
 
 void DRWContext::release_data()
@@ -737,7 +761,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, Extraction
 void DRWContext::sync(iter_callback_t iter_callback)
 {
   /* Enable modules and init for next sync. */
-  data->modules_init();
+  data->modules_begin_sync();
 
   DupliCacheManager dupli_handler;
   ExtractionGraph extraction;
@@ -1347,8 +1371,6 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   DRWContext draw_ctx(mode, depsgraph, render_viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = draw_background;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
 
@@ -1428,8 +1450,6 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   /* Main rendering. */
   rctf view_rect;
@@ -1482,8 +1502,6 @@ void DRW_render_to_image(
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   /* Main rendering. */
   rctf view_rect;
@@ -1567,7 +1585,7 @@ void DRW_render_object_iter(
 void DRW_custom_pipeline_begin(DRWContext &draw_ctx, Depsgraph * /*depsgraph*/)
 {
   draw_ctx.acquire_data();
-  draw_ctx.data->modules_init();
+  draw_ctx.data->modules_begin_sync();
 }
 
 void DRW_custom_pipeline_end(DRWContext &draw_ctx)
@@ -1593,7 +1611,7 @@ void DRW_cache_restart()
   DRWContext &draw_ctx = drw_get();
   draw_ctx.data->modules_exit();
   draw_ctx.acquire_data();
-  draw_ctx.data->modules_init();
+  draw_ctx.data->modules_begin_sync();
 }
 
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)

@@ -52,13 +52,15 @@ GPU_TEST(preprocess_utilities);
 
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
-                                       shader::metadata::Source *r_metadata = nullptr)
+                                       shader::metadata::Source *r_metadata = nullptr,
+                                       shader::Preprocessor::SourceLanguage language =
+                                           shader::Preprocessor::SourceLanguage::BLENDER_GLSL)
 {
   using namespace shader;
   Preprocessor preprocessor;
   shader::metadata::Source metadata;
   std::string result = preprocessor.process(
-      Preprocessor::SourceLanguage::BLENDER_GLSL,
+      language,
       str,
       "test.glsl",
       true,
@@ -682,6 +684,35 @@ using C = B::func;
               "from the same namespace declared in another scope, potentially from another "
               "file.");
   }
+  {
+    /* Template on the same line as function signature inside a namespace.
+     * Template instantiation with other functions. */
+    string input = R"(
+namespace NS {
+template<typename T> T read(T a)
+{
+  return a;
+}
+template float read<float>(float);
+float write(float a){ return a; }
+}
+)";
+
+    string expect = R"(
+
+#define NS_read_TEMPLATE(T) T NS_read(T a) \
+{ \
+  return a; \
+}
+NS_read_TEMPLATE(float)/*float*/
+float NS_write(float a){ return a; }
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_namespace);
 
@@ -700,5 +731,23 @@ static void test_preprocess_swizzle()
   }
 }
 GPU_TEST(preprocess_swizzle);
+
+#ifdef __APPLE__ /* This processing is only done for metal compatibility. */
+static void test_preprocess_matrix_constructors()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(mat3(a); mat3 a; my_mat4x4(a); mat2x2(a); mat3x2(a);)";
+    string expect = R"(__mat3x3(a); mat3 a; my_mat4x4(a); __mat2x2(a); mat3x2(a);)";
+    string error;
+    string output = process_test_string(input, error, nullptr, Preprocessor::SourceLanguage::GLSL);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_matrix_constructors);
+#endif
 
 }  // namespace blender::gpu::tests
