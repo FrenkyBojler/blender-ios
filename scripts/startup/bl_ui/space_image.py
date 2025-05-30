@@ -378,6 +378,7 @@ class IMAGE_MT_arrow_move(Menu):
 
         layout.operator_enum("uv.arrow_move", "type")
 
+
 class IMAGE_MT_uvs_merge(Menu):
     bl_label = "Merge"
 
@@ -487,7 +488,6 @@ class IMAGE_MT_uvs(Menu):
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
         layout.menu("IMAGE_MT_arrow_move")
-
 
         layout.separator()
 

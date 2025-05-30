@@ -352,7 +352,6 @@ enum eUVMoveDirection {
   Y,
 };
 
-
 static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
 
 {
@@ -372,7 +371,7 @@ static wmOperatorStatus uv_arrow_move_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      if(type == DYNAMIC) {
+      if (type == DYNAMIC) {
         if (axis == X) {
           luv[0] += (float)distance / sima->tile_grid_shape[0];
         }
@@ -431,17 +430,9 @@ static void UV_OT_arrow_move(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-   static const EnumPropertyItem axis_items[] = {
-      {X,
-       "X",
-       0,
-       "X axis",
-       "Move vertices on the X axis"},
-      {Y,
-       "Y axis",
-       0,
-       "Y axis",
-       "Move vertices on the Y axis"},
+  static const EnumPropertyItem axis_items[] = {
+      {X, "X", 0, "X axis", "Move vertices on the X axis"},
+      {Y, "Y", 0, "Y axis", "Move vertices on the Y axis"},
 
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -457,19 +448,17 @@ static void UV_OT_arrow_move(wmOperatorType *ot)
   ot->poll = ED_operator_uvedit;
 
   /* properties */
-  RNA_def_enum(
-      ot->srna, "type", move_items, DYNAMIC, "Type", "Axis to align UV locations on");
+  RNA_def_enum(ot->srna, "type", move_items, DYNAMIC, "Type", "Axis to align UV locations on");
   RNA_def_enum(ot->srna, "axis", axis_items, X, "Axis", "Axis to move UV vertices on");
   RNA_def_int(ot->srna,
-                "distance",
-                1,
-                INT_MIN,
-                INT_MAX,
-                "Distance",
-                "Distance to move UV vertices",
-                INT_MIN,
-                INT_MAX);
-
+              "distance",
+              1,
+              INT_MIN,
+              INT_MAX,
+              "Distance",
+              "Distance to move UV vertices",
+              INT_MIN,
+              INT_MAX);
 }
 /** \} */
 
