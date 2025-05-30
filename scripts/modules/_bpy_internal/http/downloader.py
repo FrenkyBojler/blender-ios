@@ -652,23 +652,23 @@ def _download_queued_items(
             except IndexError:
                 # Not having anything to do is fine.
                 break
-            msg = PipeMessage(
+            queued_msg = PipeMessage(
                 msgtype=PipeMsgType.REPORT,
                 payload=queued_call,
             )
-            log.info("sending message %s", msg)
-            connection.send(msg)
+            log.info("sending message %s", queued_msg)
+            connection.send(queued_msg)
 
         # Process incoming messages.
         can_keep_running = True
         while connection.poll():
-            msg: PipeMessage = connection.recv()
-            log.info("received message: %s", msg)
-            match msg.msgtype:
+            received_msg: PipeMessage = connection.recv()
+            log.info("received message: %s", received_msg)
+            match received_msg.msgtype:
                 case PipeMsgType.CANCEL:
                     can_keep_running = False
                 case PipeMsgType.QUEUE_DOWNLOAD:
-                    download_queue.append(msg.payload)
+                    download_queue.append(received_msg.payload)
 
         if shutdown_event.is_set():
             return False
