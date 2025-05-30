@@ -245,11 +245,11 @@ classes = (
 _register, _unregister = bpy.utils.register_classes_factory(classes)
 
 
-def register():
+def register() -> None:
     _register()
     bpy.types.TOPBAR_MT_blender.append(topbar_blender_menu_draw)
 
 
-def unregister():
+def unregister() -> None:
     bpy.types.TOPBAR_MT_blender.remove(topbar_blender_menu_draw)
     _unregister()
