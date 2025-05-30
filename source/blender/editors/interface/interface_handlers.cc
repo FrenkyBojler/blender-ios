@@ -10811,7 +10811,7 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle = false)
+static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle)
 {
   const int pages = block->pie_data.pages.size();
   if (pages < 2) {
