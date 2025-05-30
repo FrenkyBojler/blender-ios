@@ -41,6 +41,7 @@ set(SRC
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -238,6 +239,7 @@ set(SRC
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
+  intern/node_tree_structure_type_inferencing.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
