@@ -7,6 +7,7 @@
 
 #include <pxr/usd/usdLux/domeLight.h>
 #include <pxr/usd/usdLux/domeLight_1.h>
+#include <pxr/usd/usdLux/tokens.h>
 
 namespace usdtokens {
 // Attribute names.
@@ -14,7 +15,6 @@ static const pxr::TfToken color("color", pxr::TfToken::Immortal);
 static const pxr::TfToken intensity("intensity", pxr::TfToken::Immortal);
 static const pxr::TfToken texture_file("texture:file", pxr::TfToken::Immortal);
 static const pxr::TfToken pole_axis("poleAxis", pxr::TfToken::Immortal);
-static const pxr::TfToken pole_axis_scene("scene", pxr::TfToken::Immortal);
 }  // namespace usdtokens
 
 namespace blender::io::usd {
@@ -82,10 +82,19 @@ static bool get_color(const T &dome_light, float motionSampleTime, pxr::GfVec3f 
   return has_color;
 }
 
+static pxr::TfToken get_pole_axis(const pxr::UsdLuxDomeLight_1 &dome_light, float motionSampleTime)
+{
+  pxr::TfToken pole_axis = pxr::UsdLuxTokens->scene;
+  get_authored_value(
+      dome_light.GetPoleAxisAttr(), motionSampleTime, dome_light.GetPrim(), {}, &pole_axis);
+  return pole_axis;
+}
+
 void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
 {
   USDImportDomeLightData dome_light_data;
 
+  /* Time varying dome lights are not currently supported. */
   const double motionSampleTime = 0.0;
 
   if (prim_.IsA<pxr::UsdLuxDomeLight>()) {
@@ -94,7 +103,7 @@ void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
     dome_light_data.has_tex = get_tex_path(
         dome_light, motionSampleTime, &dome_light_data.tex_path);
     dome_light_data.has_color = get_color(dome_light, motionSampleTime, &dome_light_data.color);
-    dome_light_data.pole_axis = usdtokens::pole_axis_scene;
+    dome_light_data.pole_axis = pxr::UsdLuxTokens->Y;
   }
   else if (prim_.IsA<pxr::UsdLuxDomeLight_1>()) {
     pxr::UsdLuxDomeLight_1 dome_light = pxr::UsdLuxDomeLight_1(prim_);
@@ -102,11 +111,7 @@ void USDDomeLightReader::create_object(Scene *scene, Main *bmain)
     dome_light_data.has_tex = get_tex_path(
         dome_light, motionSampleTime, &dome_light_data.tex_path);
     dome_light_data.has_color = get_color(dome_light, motionSampleTime, &dome_light_data.color);
-    get_authored_value(dome_light.GetPoleAxisAttr(),
-                       motionSampleTime,
-                       dome_light.GetPrim(),
-                       usdtokens::pole_axis,
-                       &dome_light_data.pole_axis);
+    dome_light_data.pole_axis = get_pole_axis(dome_light, motionSampleTime);
   }
 
   dome_light_to_world_material(import_params_, scene, bmain, dome_light_data, prim_);

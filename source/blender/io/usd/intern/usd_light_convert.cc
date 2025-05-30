@@ -18,6 +18,7 @@
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
 #include <pxr/usd/usdLux/domeLight.h>
 #include <pxr/usd/usdLux/domeLight_1.h>
+#include <pxr/usd/usdLux/tokens.h>
 
 #include "BKE_image.hh"
 #include "BKE_library.hh"
@@ -525,13 +526,19 @@ void dome_light_to_world_material(const USDImportParams &params,
     return;
   }
 
-  if (pxr::UsdGeomGetStageUpAxis(stage) == pxr::UsdGeomTokens->y ||
-      dome_light_data.pole_axis == usdtokens::pole_axis_z)
-  {
-    /* Convert from Y-up to Z-up with a 90 degree rotation about the X-axis. */
-    xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0));
+  /* This logic will produce identical views as seen in `usdview` as of USD 25.05. */
+  const pxr::TfToken stage_up = pxr::UsdGeomGetStageUpAxis(stage);
+  const bool needs_stage_z_adjust = stage_up == pxr::UsdGeomTokens->z &&
+                                    ELEM(dome_light_data.pole_axis,
+                                         pxr::UsdLuxTokens->Z,
+                                         pxr::UsdLuxTokens->scene);
+  const bool needs_stage_y_adjust = stage_up == pxr::UsdGeomTokens->y &&
+                                    ELEM(dome_light_data.pole_axis, pxr::UsdLuxTokens->Z);
+  if (needs_stage_z_adjust || needs_stage_y_adjust) {
+    xf *= pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), 90.0));
   }
 
+  /* Rotate into Blender's frame of reference. */
   xf = pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -90.0)) *
        pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -90.0)) * xf;
 
