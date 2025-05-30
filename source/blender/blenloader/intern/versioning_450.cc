@@ -6104,6 +6104,13 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 84)) {
+    LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
+      blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
+    }
+  }
+
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
@@ -6111,10 +6118,6 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
-  }
-
-  LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
-    blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
   }
 
   /**
