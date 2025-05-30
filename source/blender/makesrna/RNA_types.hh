@@ -282,7 +282,7 @@ enum PropertySubType {
 
 /* Make sure enums are updated with these */
 /* HIGHEST FLAG IN USE: 1u << 31
- * FREE FLAGS: 13, 14. */
+ * FREE FLAGS: 13. */
 enum PropertyFlag {
   /**
    * Editable means the property is editable in the user
@@ -428,6 +428,11 @@ enum PropertyFlag {
    * paths which don't support the relative suffix show a warning if the suffix is used.
    */
   PROP_PATH_SUPPORTS_BLEND_RELATIVE = (1 << 15),
+
+  /**
+   * Paths that are evaluated with templating.
+   */
+  PROP_PATH_SUPPORTS_TEMPLATES = (1 << 14),
 
   /** Do not write in presets (#PROP_HIDDEN and #PROP_SKIP_SAVE won't either). */
   PROP_SKIP_PRESET = (1 << 11),
@@ -684,7 +689,7 @@ ENUM_OPERATORS(eStringPropertySearchFlag, PROP_STRING_SEARCH_SUGGESTION)
  * \param prop: RNA property. This must have its #StringPropertyRNA.search callback set,
  * to check this use `RNA_property_string_search_flag(prop) & PROP_STRING_SEARCH_SUPPORTED`.
  * \param edit_text: Optionally use the string being edited by the user as a basis
- * for the search results (auto-complete Python attributes for e.g.).
+ * for the search results (auto-complete Python attributes for example).
  * \param visit_fn: This function is called with every search candidate and is typically
  * responsible for storing the search results.
  */

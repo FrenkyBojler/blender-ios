@@ -63,7 +63,7 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  finalColor = geom_out.color;
+  final_color = geom_out.color;
   gl_Position = geom_out.gpu_position;
   gl_Position.xy += geom_out.offset * geom_out.gpu_position.w;
   view_clipping_distances(geom_out.ws_P);
@@ -108,15 +108,15 @@ float4 get_bezier_handle_color(uint color_id, float sel)
 {
   switch (color_id) {
     case 0u: /* BEZIER_HANDLE_FREE */
-      return mix(globalsBlock.color_handle_free, globalsBlock.color_handle_sel_free, sel);
+      return mix(theme.colors.handle_free, theme.colors.handle_sel_free, sel);
     case 1u: /* BEZIER_HANDLE_AUTO */
-      return mix(globalsBlock.color_handle_auto, globalsBlock.color_handle_sel_auto, sel);
+      return mix(theme.colors.handle_auto, theme.colors.handle_sel_auto, sel);
     case 2u: /* BEZIER_HANDLE_VECTOR */
-      return mix(globalsBlock.color_handle_vect, globalsBlock.color_handle_sel_vect, sel);
+      return mix(theme.colors.handle_vect, theme.colors.handle_sel_vect, sel);
     case 3u: /* BEZIER_HANDLE_ALIGN */
-      return mix(globalsBlock.color_handle_align, globalsBlock.color_handle_sel_align, sel);
+      return mix(theme.colors.handle_align, theme.colors.handle_sel_align, sel);
   }
-  return mix(globalsBlock.color_handle_autoclamp, globalsBlock.color_handle_sel_autoclamp, sel);
+  return mix(theme.colors.handle_autoclamp, theme.colors.handle_sel_autoclamp, sel);
 }
 
 void geometry_main(VertOut geom_in[2],
@@ -132,13 +132,13 @@ void geometry_main(VertOut geom_in[2],
 
   bool is_bezier_handle = (geom_in[0].flag & EDIT_CURVES_BEZIER_HANDLE) != 0;
   /* Don't output any edges if we don't show handles */
-  if ((uint(curveHandleDisplay) == CURVE_HANDLE_NONE) && is_bezier_handle) {
+  if ((uint(curve_handle_display) == CURVE_HANDLE_NONE) && is_bezier_handle) {
     return;
   }
 
   /* If handle type is only selected and the edge is not selected, don't show.
    * Nurbs and other curves must show the handles always. */
-  if ((uint(curveHandleDisplay) == CURVE_HANDLE_SELECTED) && is_bezier_handle && !is_active) {
+  if ((uint(curve_handle_display) == CURVE_HANDLE_SELECTED) && is_bezier_handle && !is_active) {
     return;
   }
 
@@ -154,21 +154,19 @@ void geometry_main(VertOut geom_in[2],
     inner_color = get_bezier_handle_color(color_id, geom_in[line_end_point].sel);
   }
   else if ((geom_in[line_end_point].flag & EDIT_CURVES_NURBS_CONTROL_POINT) != 0u) {
-    inner_color = mix(globalsBlock.color_nurb_uline,
-                      globalsBlock.color_nurb_sel_uline,
-                      geom_in[line_end_point].sel);
+    inner_color = mix(
+        theme.colors.nurb_uline, theme.colors.nurb_sel_uline, geom_in[line_end_point].sel);
   }
   else {
-    inner_color = mix(
-        globalsBlock.color_wire, globalsBlock.color_vertex_select, geom_in[line_end_point].sel);
+    inner_color = mix(theme.colors.wire, theme.colors.vert_select, geom_in[line_end_point].sel);
   }
 
   /* Minimize active color bleeding on inner_color. */
-  float4 active_color = mix(colorActiveSpline, inner_color, 0.25f);
+  float4 active_color = mix(theme.colors.active_spline, inner_color, 0.25f);
   float4 outer_color = is_active ? active_color : float4(inner_color.rgb, 0.0f);
 
   float2 v1_2 = (v2.xy / v2.w - v1.xy / v1.w);
-  float2 offset = sizeEdge * 4.0f * sizeViewportInv; /* 4.0f is eyeballed */
+  float2 offset = theme.sizes.edge * 4.0f * uniform_buf.size_viewport_inv; /* 4.0f is eyeballed */
 
   if (abs(v1_2.x) <= M_TAN_PI_BY_8 * abs(v1_2.y)) {
     offset.y = 0.0f;
@@ -180,7 +178,7 @@ void geometry_main(VertOut geom_in[2],
     offset.x = 0.0f;
   }
 
-  float4 border_color = float4(colorActiveSpline.rgb, 0.0f);
+  float4 border_color = float4(theme.colors.active_spline.rgb, 0.0f);
   /* Draw the transparent border (AA). */
   if (is_active) {
     offset *= 0.75f; /* Don't make the active "halo" appear very thick. */

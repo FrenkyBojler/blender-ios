@@ -891,21 +891,20 @@ static void object_preview_render(IconPreview *preview, IconPreviewSize *preview
   /* Enable shadows, makes it a bit easier to see the shape. */
   shading.flag |= V3D_SHADING_SHADOW;
 
-  ImBuf *ibuf = ED_view3d_draw_offscreen_imbuf_simple(
-      depsgraph,
-      DEG_get_evaluated_scene(depsgraph),
-      &shading,
-      OB_TEXTURE,
-      DEG_get_evaluated_object(depsgraph, scene->camera),
-      preview_sized->sizex,
-      preview_sized->sizey,
-      IB_byte_data,
-      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
-      R_ALPHAPREMUL,
-      nullptr,
-      nullptr,
-      nullptr,
-      err_out);
+  ImBuf *ibuf = ED_view3d_draw_offscreen_imbuf_simple(depsgraph,
+                                                      DEG_get_evaluated_scene(depsgraph),
+                                                      &shading,
+                                                      OB_TEXTURE,
+                                                      DEG_get_evaluated(depsgraph, scene->camera),
+                                                      preview_sized->sizex,
+                                                      preview_sized->sizey,
+                                                      IB_byte_data,
+                                                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS,
+                                                      R_ALPHAPREMUL,
+                                                      nullptr,
+                                                      nullptr,
+                                                      nullptr,
+                                                      err_out);
   /* TODO: color-management? */
 
   if (ibuf) {
@@ -1106,8 +1105,7 @@ static void shader_preview_texture(ShaderPreview *sp, Tex *tex, Scene *sce, Rend
   RenderView *rv = (RenderView *)rr->views.first;
   ImBuf *rv_ibuf = RE_RenderViewEnsureImBuf(rr, rv);
   IMB_assign_float_buffer(rv_ibuf,
-                          static_cast<float *>(MEM_callocN(sizeof(float[4]) * width * height,
-                                                           "texture render result")),
+                          MEM_calloc_arrayN<float>(4 * width * height, "texture render result"),
                           IB_TAKE_OWNERSHIP);
   RE_ReleaseResult(re);
 
@@ -1468,7 +1466,7 @@ static void icon_preview_startjob(void *customdata, bool *stop, bool *do_update)
     BKE_image_release_ibuf(ima, ibuf, nullptr);
   }
   else if (idtype == ID_BR) {
-    Brush *br = (Brush *)id;
+    Brush *br = reinterpret_cast<Brush *>(id);
 
     br->icon_imbuf = icon_preview_imbuf_from_brush(br);
 

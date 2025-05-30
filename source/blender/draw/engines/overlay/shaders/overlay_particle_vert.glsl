@@ -22,15 +22,15 @@ void main()
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
   /* World sized points. */
-  gl_PointSize = sizePixel * draw_size * drw_view().winmat[1][1] * globalsBlock.size_viewport.y /
-                 gl_Position.w;
+  gl_PointSize = theme.sizes.pixel * draw_size * drw_view().winmat[1][1] *
+                 uniform_buf.size_viewport.y / gl_Position.w;
 
   /* Coloring */
   if (part_val < 0.0f) {
-    finalColor = float4(ucolor.rgb, 1.0f);
+    final_color = float4(ucolor.rgb, 1.0f);
   }
   else {
-    finalColor = float4(texture(weightTex, part_val).rgb, 1.0f);
+    final_color = float4(texture(weight_tx, part_val).rgb, 1.0f);
   }
 
   view_clipping_distances(world_pos);

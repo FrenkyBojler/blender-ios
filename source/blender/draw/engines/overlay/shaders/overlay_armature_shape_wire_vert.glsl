@@ -31,7 +31,7 @@ VertIn input_assembly(uint in_vertex_id, float4x4 inst_matrix)
 
 struct VertOut {
   float4 gpu_position;
-  float4 finalColor;
+  float4 final_color;
   float3 world_pos;
   float wire_width;
 };
@@ -68,8 +68,8 @@ VertOut vertex_main(VertIn v_in)
   }
   v_out.gpu_position = drw_point_world_to_homogenous(v_out.world_pos);
 
-  v_out.finalColor.rgb = mix(state_color.rgb, bone_color.rgb, 0.5f);
-  v_out.finalColor.a = 1.0f;
+  v_out.final_color.rgb = mix(state_color.rgb, bone_color.rgb, 0.5f);
+  v_out.final_color.a = 1.0f;
   /* Because the packing clamps the value, the wire width is passed in compressed. */
   v_out.wire_width = bone_color.a * WIRE_WIDTH_COMPRESSION;
 
@@ -94,8 +94,8 @@ void do_vertex(const uint strip_index,
     return;
   }
 
-  finalColor = color;
-  edgeCoord = coord;
+  final_color = color;
+  edge_coord = coord;
   gl_Position = hs_P;
   /* Multiply offset by 2 because gl_Position range is [-1..1]. */
   gl_Position.xy += offset * 2.0f * hs_P.w;
@@ -131,9 +131,9 @@ void geometry_main(VertOut geom_in[2],
   screen_space_pos[0] = pos0.xy / pos0.w;
   screen_space_pos[1] = pos1.xy / pos1.w;
 
-  /* `sizeEdge` is defined as the distance from the center to the outer edge. As such to get the
-   total width it needs to be doubled. */
-  wire_width = geom_in[0].wire_width * (sizeEdge * 2);
+  /* `theme.sizes.edge` is defined as the distance from the center to the outer edge.
+   * As such to get the total width it needs to be doubled. */
+  wire_width = geom_in[0].wire_width * (theme.sizes.edge * 2);
   float half_size = max(wire_width / 2.0f, 0.5f);
 
   if (do_smooth_wire) {
@@ -141,11 +141,11 @@ void geometry_main(VertOut geom_in[2],
     half_size += 0.5f;
   }
 
-  float2 line = (screen_space_pos[0] - screen_space_pos[1]) * sizeViewport;
+  float2 line = (screen_space_pos[0] - screen_space_pos[1]) * uniform_buf.size_viewport;
   float2 line_norm = normalize(float2(line[1], -line[0]));
-  float2 edge_ofs = (half_size * line_norm) * sizeViewportInv;
+  float2 edge_ofs = (half_size * line_norm) * uniform_buf.size_viewport_inv;
 
-  float4 final_color = geom_in[0].finalColor;
+  float4 final_color = geom_in[0].final_color;
   do_vertex(0,
             out_vertex_id,
             out_primitive_id,

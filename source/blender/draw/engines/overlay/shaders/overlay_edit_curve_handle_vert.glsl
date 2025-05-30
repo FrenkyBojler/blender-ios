@@ -54,7 +54,7 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  finalColor = geom_out.color;
+  final_color = geom_out.color;
   gl_Position = geom_out.gpu_position;
   gl_Position.xy += geom_out.offset * geom_out.gpu_position.w;
   view_clipping_distances(geom_out.ws_P);
@@ -108,18 +108,18 @@ void geometry_main(VertOut geom_in[2],
   uint color_id = (geom_in[1].flag >> COLOR_SHIFT);
 
   /* Don't output any edges if we don't show handles */
-  if (!showCurveHandles && (color_id < 5u)) {
+  if (!show_curve_handles && (color_id < 5u)) {
     return;
   }
 
   bool edge_selected = (((geom_in[1].flag | geom_in[0].flag) & VERT_SELECTED) != 0u);
-  bool handle_selected = (showCurveHandles && (((geom_in[1].flag | geom_in[0].flag) &
-                                                VERT_SELECTED_BEZT_HANDLE) != 0u));
+  bool handle_selected = (show_curve_handles && (((geom_in[1].flag | geom_in[0].flag) &
+                                                  VERT_SELECTED_BEZT_HANDLE) != 0u));
 
   bool is_gpencil = ((geom_in[1].flag & VERT_GPENCIL_BEZT_HANDLE) != 0u);
 
   /* If handle type is only selected and the edge is not selected, don't show. */
-  if ((uint(curveHandleDisplay) != CURVE_HANDLE_ALL) && (!handle_selected)) {
+  if ((uint(curve_handle_display) != CURVE_HANDLE_ALL) && (!handle_selected)) {
     /* Nurbs must show the handles always. */
     bool is_u_segment = (((geom_in[1].flag ^ geom_in[0].flag) & EVEN_U_BIT) != 0u);
     if ((!is_u_segment) && (color_id <= 4u)) {
@@ -132,46 +132,47 @@ void geometry_main(VertOut geom_in[2],
 
   float4 inner_color;
   if (color_id == 0u) {
-    inner_color = (edge_selected) ? colorHandleSelFree : colorHandleFree;
+    inner_color = (edge_selected) ? theme.colors.handle_sel_free : theme.colors.handle_free;
   }
   else if (color_id == 1u) {
-    inner_color = (edge_selected) ? colorHandleSelAuto : colorHandleAuto;
+    inner_color = (edge_selected) ? theme.colors.handle_sel_auto : theme.colors.handle_auto;
   }
   else if (color_id == 2u) {
-    inner_color = (edge_selected) ? colorHandleSelVect : colorHandleVect;
+    inner_color = (edge_selected) ? theme.colors.handle_sel_vect : theme.colors.handle_vect;
   }
   else if (color_id == 3u) {
-    inner_color = (edge_selected) ? colorHandleSelAlign : colorHandleAlign;
+    inner_color = (edge_selected) ? theme.colors.handle_sel_align : theme.colors.handle_align;
   }
   else if (color_id == 4u) {
-    inner_color = (edge_selected) ? colorHandleSelAutoclamp : colorHandleAutoclamp;
+    inner_color = (edge_selected) ? theme.colors.handle_sel_autoclamp :
+                                    theme.colors.handle_autoclamp;
   }
   else {
     bool is_selected = (((geom_in[1].flag & geom_in[0].flag) & VERT_SELECTED) != 0u);
     bool is_u_segment = (((geom_in[1].flag ^ geom_in[0].flag) & EVEN_U_BIT) != 0u);
     if (is_u_segment) {
-      inner_color = (is_selected) ? colorNurbSelUline : colorNurbUline;
+      inner_color = (is_selected) ? theme.colors.nurb_sel_uline : theme.colors.nurb_uline;
     }
     else {
-      inner_color = (is_selected) ? colorNurbSelVline : colorNurbVline;
+      inner_color = (is_selected) ? theme.colors.nurb_sel_vline : theme.colors.nurb_vline;
     }
   }
 
   /* Minimize active color bleeding on inner_color. */
-  float4 active_color = mix(colorActiveSpline, inner_color, 0.25f);
+  float4 active_color = mix(theme.colors.active_spline, inner_color, 0.25f);
   float4 outer_color = (is_active_nurb != 0u) ? active_color : float4(inner_color.rgb, 0.0f);
 
   float2 v1_2 = (v2.xy / v2.w - v1.xy / v1.w);
-  float2 offset = sizeEdge * 4.0f * sizeViewportInv; /* 4.0f is eyeballed */
+  float2 offset = theme.sizes.edge * 4.0f * uniform_buf.size_viewport_inv; /* 4.0f is eyeballed */
 
-  if (abs(v1_2.x * sizeViewport.x) < abs(v1_2.y * sizeViewport.y)) {
+  if (abs(v1_2.x * uniform_buf.size_viewport.x) < abs(v1_2.y * uniform_buf.size_viewport.y)) {
     offset.y = 0.0f;
   }
   else {
     offset.x = 0.0f;
   }
 
-  float4 border_color = float4(colorActiveSpline.rgb, 0.0f);
+  float4 border_color = float4(theme.colors.active_spline.rgb, 0.0f);
   /* Draw the transparent border (AA). */
   if (is_active_nurb != 0u) {
     offset *= 0.75f; /* Don't make the active "halo" appear very thick. */

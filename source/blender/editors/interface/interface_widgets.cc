@@ -10,6 +10,7 @@
 #include <climits>
 #include <cstdlib>
 #include <cstring>
+#include <list>
 
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
@@ -1466,7 +1467,7 @@ static void ui_text_clip_right_ex(const uiFontStyle *fstyle,
 {
   BLI_assert(str[0]);
 
-  /* How many BYTES (not characters) of this utf-8 string can fit, along with appended ellipsis. */
+  /* How many BYTES (not characters) of this UTF8 string can fit, along with appended ellipsis. */
   int l_end = BLF_width_to_strlen(
       fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, nullptr);
 
@@ -1492,7 +1493,8 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
                              float okwidth,
                              const float minwidth,
                              const size_t max_len,
-                             const char rpart_sep)
+                             const char rpart_sep,
+                             const bool clip_right_if_tight)
 {
   BLI_assert(str[0]);
 
@@ -1541,7 +1543,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 
     const size_t l_end = BLF_width_to_strlen(
         fstyle->uifont_id, str, max_len, parts_strwidth, nullptr);
-    if (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth) {
+    if (clip_right_if_tight &&
+        (l_end < 10 || min_ff(parts_strwidth, strwidth - okwidth) < minwidth))
+    {
       /* If we really have no place, or we would clip a very small piece of string in the middle,
        * only show start of string.
        */
@@ -1651,6 +1655,96 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
   const size_t max_len = sizeof(new_drawstr);
   but->strwidth = UI_text_clip_middle_ex(fstyle, new_drawstr, okwidth, minwidth, max_len, rsep);
   but->drawstr = new_drawstr;
+}
+
+blender::Vector<blender::StringRef> UI_text_clip_multiline_middle(
+    const uiFontStyle *fstyle,
+    const char *str,
+    char *clipped_str_buf,
+    const size_t max_len_clipped_str_buf,
+    const float max_line_width,
+    const int max_lines)
+{
+  using namespace blender;
+  BLI_assert(max_lines > 0);
+
+  const Vector<StringRef> lines = BLF_string_wrap(
+      fstyle->uifont_id,
+      str,
+      max_line_width,
+      BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
+
+  if (lines.size() <= max_lines) {
+    return lines;
+  }
+
+  Vector<StringRef> clipped_lines;
+  clipped_lines.reserve(max_lines);
+
+  if (max_lines == 1) {
+    BLI_strncpy(clipped_str_buf, str, max_len_clipped_str_buf);
+
+    UI_text_clip_middle_ex(
+        fstyle, clipped_str_buf, max_line_width, UI_ICON_SIZE, max_len_clipped_str_buf, '\0');
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+  if (max_lines == 2) {
+    clipped_lines.append(lines[0]);
+    BLI_strncpy(clipped_str_buf, str + lines[0].size(), max_len_clipped_str_buf);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
+    clipped_lines.append(clipped_str_buf);
+    return clipped_lines;
+  }
+
+  /* The line in the middle that will get the "..." (rounded upwards, so will use the first line of
+   * the second half if the number of lines is even) */
+  const int middle_index = max_lines / 2;
+
+  /* Take the lines until the middle line with the "..." as is. */
+  for (int i = 0; i < middle_index; i++) {
+    clipped_lines.append(lines[i]);
+  }
+
+  /* Clip the middle of the middle line. */
+  {
+    BLI_strncpy(clipped_str_buf, lines[middle_index].data(), max_len_clipped_str_buf);
+    UI_text_clip_middle_ex(fstyle,
+                           clipped_str_buf,
+                           max_line_width,
+                           UI_ICON_SIZE,
+                           max_len_clipped_str_buf,
+                           '\0',
+                           false);
+    clipped_lines.append(clipped_str_buf);
+  }
+
+  /* All remaining lines should be completely filled, including the last one. So fill lines
+   * backwards, and append them to #clipped_lines in the correct order afterwards. */
+  if ((middle_index + 1) < max_lines) {
+    const char *remaining = lines[middle_index + 1].data();
+    size_t remaining_len = strlen(remaining);
+    std::list<StringRef> last_lines;
+    for (int i = 0; i < max_lines - (middle_index + 1) && remaining_len; i++) {
+      size_t offset = BLF_width_to_rstrlen(
+          fstyle->uifont_id, remaining, remaining_len, max_line_width, nullptr);
+      size_t line_len = remaining_len - offset;
+      last_lines.emplace_front(remaining + offset, int64_t(line_len));
+      remaining_len = offset;
+    }
+
+    for (StringRef line : last_lines) {
+      clipped_lines.append(line);
+    }
+  }
+
+  return clipped_lines;
 }
 
 /**
@@ -1834,7 +1928,7 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
     }
 
     width = BLF_width(
-        fstyle->uifont_id, drawstr + but->ofs, ime_data->composite_len + but->pos - but->ofs);
+        fstyle->uifont_id, drawstr + but->ofs, ime_data->composite.size() + but->pos - but->ofs);
 
     rgba_uchar_to_float(fcol, wcol->text);
     UI_draw_text_underline(rect->xmin + ofs_x,
@@ -1914,7 +2008,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       /* FIXME: IME is modifying `const char *drawstr`! */
       ime_data = ui_but_ime_data_get(but);
 
-      if (ime_data && ime_data->composite_len) {
+      if (ime_data && ime_data->composite.size()) {
         /* insert composite string into cursor pos */
         char tmp_drawstr[UI_MAX_DRAW_STR];
         STRNCPY(tmp_drawstr, drawstr);
@@ -1923,7 +2017,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                      "%.*s%s%s",
                      but->pos,
                      but->editstr,
-                     ime_data->str_composite,
+                     ime_data->composite.c_str(),
                      but->editstr + but->pos);
         but->drawstr = tmp_drawstr;
         drawstr = but->drawstr.c_str();
@@ -1965,7 +2059,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       GPU_blend(GPU_BLEND_ALPHA);
       UI_widgetbase_draw_cache_flush();
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+          immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(wcol->item);
       const auto boxes = BLF_str_selection_boxes(
@@ -1975,7 +2069,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
           (but->selsta >= but->ofs) ? but->selsta - but->ofs : 0,
           but->selend - std::max(but->ofs, but->selsta));
       for (auto bounds : boxes) {
-        immRecti(pos,
+        immRectf(pos,
                  rect->xmin + bounds.min,
                  rect->ymin + U.pixelsize,
                  std::min(rect->xmin + bounds.max, rect->xmax - 2),
@@ -1999,7 +2093,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef WITH_INPUT_IME
     /* If is IME compositing, move the cursor. */
-    if (ime_data && ime_data->composite_len && ime_data->cursor_pos != -1) {
+    if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
       but_pos_ofs += ime_data->cursor_pos;
     }
 #endif
@@ -2019,13 +2113,13 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       GPU_blend(GPU_BLEND_NONE);
 
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+          immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
 
       /* draw cursor */
-      immRecti(pos,
+      immRectf(pos,
                rect->xmin + t,
                rect->ymin + U.pixelsize,
                rect->xmin + t + int(2.0f * U.pixelsize),
@@ -2048,7 +2142,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (ime_reposition_window) {
       ui_but_ime_reposition(but, ime_win_x, ime_win_y, false);
     }
-    if (ime_data && ime_data->composite_len) {
+    if (ime_data && ime_data->composite.size()) {
       /* Composite underline. */
       widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
@@ -5550,13 +5644,16 @@ void ui_draw_tooltip_background(const uiStyle * /*style*/, uiBlock * /*block*/, 
 
 void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
+                       rcti *back_rect,
+                       const float zoom,
+                       const bool use_unpadded,
                        const char *name,
                        int iconid,
                        int but_flag,
                        uiMenuItemSeparatorType separator_type,
                        int *r_xmax)
 {
-  uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
+  uiWidgetType *wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
   const rcti _rect = *rect;
   const int row_height = BLI_rcti_size_y(rect);
   int max_hint_width = INT_MAX;
@@ -5567,7 +5664,10 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   state.but_flag = but_flag;
 
   wt->state(wt, &state, blender::ui::EmbossType::Undefined);
-  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
+
+  if (back_rect) {
+    wt->draw(&wt->wcol, back_rect, &STATE_INFO_NULL, 0, zoom);
+  }
 
   UI_fontstyle_set(fstyle);
 
@@ -5639,15 +5739,12 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   *rect = _rect;
 
   if (iconid) {
-    float height, aspect;
-    const int xs = rect->xmin + 0.2f * UI_UNIT_X;
-    const int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
+    const int xs = rect->xmin + 0.2f * UI_UNIT_X * zoom;
+    const int ys = rect->ymin + 0.5f * (BLI_rcti_size_y(rect) - UI_ICON_SIZE * zoom);
 
-    height = ICON_SIZE_FROM_BUTRECT(rect);
-    aspect = ICON_DEFAULT_HEIGHT / height;
+    const float aspect = U.inv_scale_factor / zoom;
 
     GPU_blend(GPU_BLEND_ALPHA);
-    /* XXX scale weak get from fstyle? */
     UI_icon_draw_ex(
         xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
@@ -5674,7 +5771,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         }
       }
 
-      rect->xmax = _rect.xmax - 5;
+      rect->xmax = _rect.xmax - padding;
       uiFontStyleDraw_Params params{};
       params.align = UI_STYLE_TEXT_RIGHT;
       UI_fontstyle_draw(fstyle, rect, hint_drawstr, sizeof(hint_drawstr), wt->wcol.text, &params);
@@ -5735,6 +5832,7 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
 
 void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
+                          const float zoom,
                           const char *name,
                           int iconid,
                           int but_flag,
@@ -5747,7 +5845,7 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
 
   /* drawing button background */
   wt->state(wt, &state, blender::ui::EmbossType::Undefined);
-  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
+  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, zoom);
 
   ui_draw_preview_item_stateless(fstyle, rect, name, iconid, wt->wcol.text, text_align, true);
 }

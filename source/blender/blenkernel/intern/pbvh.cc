@@ -243,7 +243,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
     return pbvh;
   }
 
-  constexpr int leaf_limit = 10000;
+  constexpr int leaf_limit = 2500;
   static_assert(leaf_limit < std::numeric_limits<MeshNode::LocalVertMapIndexT>::max());
 
   Array<float3> face_centers(faces.size());
@@ -633,7 +633,7 @@ static void pbvh_iter_begin(PBVHIter *iter, Tree &pbvh, FunctionRef<bool(Node &)
 static Node *pbvh_iter_next(PBVHIter *iter, Node::Flags leaf_flag)
 {
   /* purpose here is to traverse tree, visiting child nodes before their
-   * parents, this order is necessary for e.g. computing bounding boxes */
+   * parents, this order is necessary for example computing bounding boxes */
 
   while (!iter->stack.is_empty()) {
     StackItem item = iter->stack.pop();
@@ -1060,8 +1060,8 @@ void Tree::update_normals(Object &object_orig, Object &object_eval)
 
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
-  BLI_assert(DEG_is_original_object(&object_orig));
-  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  BLI_assert(DEG_is_original(&object_orig));
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   pbvh.update_normals(object_orig, object_eval);
 }
 
@@ -2403,40 +2403,39 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
 
 Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
-                                                        &const_cast<Object &>(object_orig));
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &const_cast<Object &>(object_orig));
   return vert_positions_eval(object_orig, object_eval);
 }
 
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_positions_eval(object_orig, object_eval);
 }
 
 MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Object &object_orig)
 {
-  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   return vert_positions_eval_for_write(object_orig, object_eval);
 }
 
 Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return face_normals_cache_eval(object_orig, object_eval).data();
 }

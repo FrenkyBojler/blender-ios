@@ -53,15 +53,15 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
 void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
 {
-  uiLayout *row = uiLayoutRow(&layout, true);
+  uiLayout *row = &layout.row(true);
   uiLayoutSetAlignment(&layout, UI_LAYOUT_ALIGN_LEFT);
 
   for (const int i : context_path.index_range()) {
-    uiLayout *sub_row = uiLayoutRow(row, true);
+    uiLayout *sub_row = &row->row(true);
     uiLayoutSetAlignment(sub_row, UI_LAYOUT_ALIGN_LEFT);
 
     if (i > 0) {
-      uiItemL(sub_row, "", ICON_RIGHTARROW_THIN);
+      sub_row->label("", ICON_RIGHTARROW_THIN);
     }
     uiBut *but = uiItemL_ex(
         sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);

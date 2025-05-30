@@ -13,6 +13,7 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_listBase.h"
+#include "DNA_userdef_enums.h"
 
 /* Structs */
 
@@ -89,17 +90,28 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy);
 /**
  * Make a deep copy (aka duplicate) of the given collection and all of its children, recursively.
  *
- * \warning This functions will clear all \a bmain #ID.idnew pointers, unless \a
- * #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on, in which case caller is
- * responsible to reconstruct collection dependencies information's
- * (i.e. call #BKE_main_collection_sync).
+ * \param dupflag: Controls which sub-data are also duplicated
+ * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param duplicate_options: Additional context information about current duplicate call (e.g. if
+ * it's part of a higher-level duplication or not, etc.). (see #eLibIDDuplicateFlags in
+ * BKE_lib_id.hh).
+ *
+ * \warning By default, this functions will clear all \a bmain #ID.idnew pointers
+ * (#BKE_main_id_newptr_and_tag_clear), and take care of post-duplication updates like remapping to
+ * new IDs (#BKE_libblock_relink_to_newid) and rebuilding of the collection hierarchy information
+ * (#BKE_main_collection_sync).
+ * If \a #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on (typically when duplication
+ * is called recursively from another parent duplication operation), the caller is responsible to
+ * handle all of these operations.
+ *
+ * \note Caller MUST handle updates of the depsgraph (#DAG_relations_tag_update).
  */
 Collection *BKE_collection_duplicate(Main *bmain,
                                      Collection *parent,
                                      CollectionChild *child_old,
                                      Collection *collection,
-                                     uint duplicate_flags,
-                                     uint duplicate_options);
+                                     eDupli_ID_Flags duplicate_flags,
+                                     /*eLibIDDuplicateFlags*/ uint duplicate_options);
 
 /* Master Collection for Scene */
 
@@ -216,13 +228,15 @@ bool BKE_collection_object_cyclic_check(Main *bmain, Object *object, Collection 
 
 ListBase BKE_collection_object_cache_get(Collection *collection);
 ListBase BKE_collection_object_cache_instanced_get(Collection *collection);
-/** Free the object cache of given `collection` and all of its ancestors (recursively).
+/**
+ * Free the object cache of given `collection` and all of its ancestors (recursively).
  *
  * \param bmain: The Main database owning the collection. May be `nullptr`, only used if doing
  * depsgraph tagging.
  * \param id_create_flag: Flags controlling ID creation, used here to enable or
- * not depsgraph tagging of affected IDs (e.g. #LIB_ID_CREATE_NO_DEG_TAG would prevent depsgraph
- * tagging). */
+ * not depsgraph tagging of affected IDs
+ * (e.g. #LIB_ID_CREATE_NO_DEG_TAG would prevent depsgraph tagging).
+ */
 void BKE_collection_object_cache_free(const Main *bmain,
                                       Collection *collection,
                                       const int id_create_flag);

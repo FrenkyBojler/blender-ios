@@ -47,8 +47,8 @@ struct GeomOut {
 
 void export_vertex(GeomOut geom_out)
 {
-  geometry_out.finalColor = geom_out.final_color;
-  geometry_noperspective_out.edgeCoord = geom_out.edge_coord;
+  geometry_out.final_color = geom_out.final_color;
+  geometry_noperspective_out.edge_coord = geom_out.edge_coord;
   view_clipping_distances(geom_out.world_pos);
   gl_Position = geom_out.gpu_position;
 }
@@ -114,19 +114,19 @@ void geometry_main(VertOut geom_in[2], uint out_vert_id, uint out_prim_id, uint 
   ss_pos[1] = pos1.xy / pos1.w;
 
   float2 line = ss_pos[0] - ss_pos[1];
-  line = abs(line) * sizeViewport;
+  line = abs(line) * uniform_buf.size_viewport;
 
-  geometry_flat_out.finalColorOuter = geom_in[0].final_color_outer;
-  float half_size = sizeEdge;
+  geometry_flat_out.final_color_outer = geom_in[0].final_color_outer;
+  float half_size = theme.sizes.edge;
   /* Enlarge edge for flag display. */
-  half_size += (geometry_flat_out.finalColorOuter.a > 0.0f) ? max(sizeEdge, 1.0f) : 0.0f;
+  half_size += (geometry_flat_out.final_color_outer.a > 0.0f) ? max(theme.sizes.edge, 1.0f) : 0.0f;
 
   if (do_smooth_wire) {
     /* Add 1px for AA */
     half_size += 0.5f;
   }
 
-  float3 edge_ofs = float3(half_size * sizeViewportInv, 0.0f);
+  float3 edge_ofs = float3(half_size * uniform_buf.size_viewport_inv, 0.0f);
 
   bool horizontal = line.x > line.y;
   edge_ofs = (horizontal) ? edge_ofs.zyz : edge_ofs.xzz;
