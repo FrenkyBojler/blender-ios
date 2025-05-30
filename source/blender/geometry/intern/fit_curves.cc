@@ -135,8 +135,8 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
     left_handles_per_curve[curve_i].resize(dst_points_num);
     control_points_per_curve[curve_i].resize(dst_points_num);
     right_handles_per_curve[curve_i].resize(dst_points_num);
-    left_handle_type_per_curve[curve_i].resize(dst_points_num);
-    right_handle_type_per_curve[curve_i].resize(dst_points_num);
+    left_handle_type_per_curve[curve_i].resize(dst_points_num, BEZIER_HANDLE_ALIGN);
+    right_handle_type_per_curve[curve_i].resize(dst_points_num, BEZIER_HANDLE_ALIGN);
     old_to_new_per_curve[curve_i].resize(dst_points_num);
 
     MutableSpan<float3> left_handles = left_handles_per_curve[curve_i].as_mutable_span();
@@ -158,10 +158,6 @@ bke::CurvesGeometry fit_curves(const Span<float3> positions,
       const IndexMask dst_corner_mask = IndexMask::from_indices(dst_corner_indices, memory);
       index_mask::masked_fill(left_handle_types, int8_t(BEZIER_HANDLE_FREE), dst_corner_mask);
       index_mask::masked_fill(right_handle_types, int8_t(BEZIER_HANDLE_FREE), dst_corner_mask);
-    }
-    else {
-      left_handle_types.fill(BEZIER_HANDLE_ALIGN);
-      right_handle_types.fill(BEZIER_HANDLE_ALIGN);
     }
 
     old_to_new_per_curve[curve_i].as_mutable_span().copy_from(orig_indices_map);
