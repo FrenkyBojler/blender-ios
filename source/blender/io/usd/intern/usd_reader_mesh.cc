@@ -33,6 +33,8 @@
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
 
+#include "BLT_translation.hh"
+
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
@@ -310,9 +312,9 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
     if (is_initial_load_) {
-      const char *message =
+      const char *message = N_(
           "Invalid face data detected for mesh '%s'. Automatic correction will be used, but some "
-          "data will most likely be lost";
+          "data will most likely be lost");
       const std::string prim_path = this->prim_path().GetAsString();
       BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
       CLOG_WARN(&LOG, message, prim_path.c_str());
