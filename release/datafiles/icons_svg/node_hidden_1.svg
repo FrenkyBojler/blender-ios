@@ -24,13 +24,13 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="0.266875"
-     inkscape:cx="1416.3934"
-     inkscape:cy="936.76815"
-     inkscape:window-width="2560"
+     inkscape:cx="878.68852"
+     inkscape:cy="1082.904"
+     inkscape:window-width="1280"
      inkscape:window-height="1011"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
+     inkscape:window-x="20"
+     inkscape:window-y="20"
+     inkscape:window-maximized="0"
      inkscape:current-layer="svg1">
     <inkscape:grid
        id="grid5"
@@ -43,20 +43,8 @@
        originx="0"
        originy="0" />
   </sodipodi:namedview>
-  <rect
-     style="fill:#808080;stroke:none;stroke-width:80;stroke-linecap:round;stroke-linejoin:bevel;paint-order:markers stroke fill;fill-opacity:1"
-     id="rect3"
-     width="970.02344"
-     height="733.72363"
-     x="329.97659"
-     y="266.27634"
-     ry="0" />
-  <rect
-     style="mix-blend-mode:normal;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:150;stroke-linecap:round;stroke-linejoin:bevel;stroke-dasharray:none;paint-order:normal"
-     id="rect2"
-     width="1000"
-     height="1200"
-     x="300"
-     y="200"
-     ry="200" />
+  <path
+     d="M 407.24434,0 C 222.56217,0 72.72726,149.91709 72.72726,334.51708 v 930.96582 c 0,184.5999 149.83491,334.5171 334.51708,334.5171 h 785.51136 c 184.6821,0 334.5177,-149.9172 334.5177,-334.5171 V 334.51708 C 1527.2734,149.91709 1377.4378,0 1192.7557,0 Z m 0,227.98255 h 785.51136 c 104.3599,0 189.0626,84.67054 189.0626,189.06327 v 848.43708 c 0,104.3105 -84.7027,189.0618 -189.0626,189.0618 H 407.24434 c -104.35999,0 -189.06254,-84.7513 -189.06254,-189.0618 V 417.04582 c 0,-104.39273 84.70255,-189.06327 189.06254,-189.06327 z m 101.70473,541.47781 c -40.13018,0 -72.58545,32.58108 -72.58545,72.7272 0,40.14551 32.45527,72.7266 72.58545,72.7266 h 581.81753 c 40.1715,0 72.7273,-32.58109 72.7273,-72.7266 0,-40.14612 -32.5558,-72.7272 -72.7273,-72.7272 z"
+     style="fill:#ffffff;stroke-width:77.2509"
+     id="path1" />
 </svg>
