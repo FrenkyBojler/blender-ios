@@ -956,7 +956,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   "");
 
-
     if (!tree_view.is_filtering_collapsed()) {
       uiLayout *filter_layout = &col->row(false);
       uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
