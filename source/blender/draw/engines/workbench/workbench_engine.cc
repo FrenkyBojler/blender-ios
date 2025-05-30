@@ -182,7 +182,7 @@ class Instance : public DrawEngine {
 
     if (is_object_data_visible) {
       if (object_state.sculpt_pbvh) {
-        ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
+        ResourceHandle handle = manager.unique_handle_for_sculpt(ob_ref);
         this->sculpt_sync(ob_ref, handle, object_state);
         emitter_handle = handle;
       }

@@ -80,8 +80,10 @@ struct ResourceHandleRange {
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
 class ObjectRef {
   friend class Manager;
+
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {0, 0};
+  ResourceHandleRange sculpt_handle_ = {0, 0};
 
  public:
   Object *const object = nullptr;
