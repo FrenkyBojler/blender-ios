@@ -31,12 +31,13 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Image").default_value(0.5f).compositor_domain_priority(0);
   b.add_input<decl::Vector>("Size")
+      .dimensions(2)
       .default_value({1.0f, 1.0f, 0.0f})
       .min(0.0f)
       .compositor_domain_priority(1)
       .description(
           "Size from the center of the constant part of the rounded square mask to its X and Y "
-          "boundaries. The Z component is ignored");
+          "boundaries");
   b.add_input<decl::Float>("Roundness")
       .default_value(1.0f)
       .min(0.0f)
