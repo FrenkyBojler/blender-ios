@@ -1402,6 +1402,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   const VArray<bool> boundary_layers = get_fill_boundary_layers(
       grease_pencil, eGP_FillLayerModes(brush.gpencil_settings->fill_layer_mode));
 
+  bool did_create_fill = false;
   for (const FillToolTargetInfo &info : target_drawings) {
     const Layer &layer = *grease_pencil.layers()[info.target.layer_index];
 
@@ -1421,6 +1422,9 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
                                                    fit_method,
                                                    op_data.material_index,
                                                    keep_images);
+    if (fill_curves.is_empty()) {
+      continue;
+    }
 
     smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
@@ -1429,8 +1433,8 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     }
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
-    /* Remove strokes that were created using the fill tool as boundary strokes. */
-    if (auto_remove_fill_guides && !fill_curves.is_empty()) {
+    if (auto_remove_fill_guides) {
+      /* Remove strokes that were created using the fill tool as boundary strokes. */
       ed::greasepencil::remove_fill_guides(dst_curves);
     }
 
@@ -1470,6 +1474,12 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
       Array<float4x2> texture_matrices(num_new_curves, texture_space);
       info.target.drawing.set_texture_matrices(texture_matrices, new_curves_range);
     }
+
+    did_create_fill = true;
+  }
+
+  if (!did_create_fill) {
+    BKE_reportf(op.reports, RPT_ERROR, "Unable to fill unclosed areas");
   }
 
   WM_cursor_modal_restore(&win);
