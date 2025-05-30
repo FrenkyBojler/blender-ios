@@ -594,7 +594,7 @@ class BackgroundDownloader:
         self._logger.debug("download done, calling %s", callback.__name__)
         try:
             callback(http_req_descr, local_file)
-        except Exception as ex:
+        except Exception:
             # Catch & log exceptions here, so that a callback causing trouble
             # doesn't break the downloader itself.
             self._logger.exception(
