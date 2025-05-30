@@ -321,14 +321,9 @@ bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
  * User facing function, handles notification.
  *
  * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
- * \param use_uv_select_ensure: TODO.
  */
-bool EDBM_selectmode_toggle_multi(bContext *C,
-                                  short selectmode_toggle,
-                                  int action,
-                                  bool use_extend,
-                                  bool use_expand,
-                                  bool use_uv_select_ensure);
+bool EDBM_selectmode_toggle_multi(
+    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback

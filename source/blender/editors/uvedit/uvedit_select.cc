@@ -277,6 +277,13 @@ void ED_uvedit_sync_uvselect_ensure_if_needed(const ToolSettings *ts, BMesh *bm)
     return;
   }
 
+  /* In most cases the caller will ensure this,
+   * check here to allow for this to be called outside of the UV editor. */
+  if (!CustomData_has_layer(&bm->ldata, CD_PROP_FLOAT2)) {
+    bm->uv_sync_select_valid = false;
+    return;
+  }
+
   /* Select sync already calculated. */
   if (bm->uv_sync_select_valid) {
     return;
@@ -1778,6 +1785,9 @@ struct UVSelectContext {
 UVSelectContext *ED_uvedit_select_context_create_if_needed(const ToolSettings *ts, BMesh *bm)
 
 {
+  if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+    return nullptr;
+  }
   if (ED_uvedit_sync_uvselect_ignore(ts)) {
     return nullptr;
   }

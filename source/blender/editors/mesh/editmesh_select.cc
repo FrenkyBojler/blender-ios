@@ -1450,10 +1450,8 @@ static wmOperatorStatus edbm_select_mode_exec(bContext *C, wmOperator *op)
   const int action = RNA_enum_get(op->ptr, "action");
   const bool use_extend = RNA_boolean_get(op->ptr, "use_extend");
   const bool use_expand = RNA_boolean_get(op->ptr, "use_expand");
-  const bool use_uv_select_ensure = RNA_boolean_get(op->ptr, "use_uv_select");
 
-  if (EDBM_selectmode_toggle_multi(C, type, action, use_extend, use_expand, use_uv_select_ensure))
-  {
+  if (EDBM_selectmode_toggle_multi(C, type, action, use_extend, use_expand)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -1462,7 +1460,6 @@ static wmOperatorStatus edbm_select_mode_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* Bypass when in UV non sync-select mode, fall through to keymap that edits. */
-  bool is_uv_editor = false;
   if (CTX_wm_space_image(C)) {
     ToolSettings *ts = CTX_data_tool_settings(C);
     if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
@@ -1472,7 +1469,6 @@ static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, con
     if (!RNA_struct_property_is_set(op->ptr, "type")) {
       return OPERATOR_CANCELLED;
     }
-    is_uv_editor = true;
   }
 
   /* Detecting these options based on shift/control here is weak, but it's done
@@ -1482,10 +1478,6 @@ static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, con
   }
   if (!RNA_struct_property_is_set(op->ptr, "use_expand")) {
     RNA_boolean_set(op->ptr, "use_expand", event->modifier & KM_CTRL);
-  }
-  /* When changing modes from the UV editor, ensure correct UV selection. */
-  if (!RNA_struct_property_is_set(op->ptr, "use_uv_select")) {
-    RNA_boolean_set(op->ptr, "use_uv_select", is_uv_editor);
   }
 
   return edbm_select_mode_exec(C, op);
@@ -1551,9 +1543,6 @@ void MESH_OT_select_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna, "use_expand", false, "Expand", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(ot->srna, "use_uv_select", false, "Ensure UV Select", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
   ot->prop = prop = RNA_def_enum(ot->srna, "type", rna_enum_mesh_select_mode_items, 0, "Type", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
@@ -2596,8 +2585,7 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
                                   const short selectmode_toggle,
                                   const int action,
                                   const bool use_extend,
-                                  const bool use_expand,
-                                  const bool use_uv_select_ensure)
+                                  const bool use_expand)
 {
   BLI_assert(ELEM(selectmode_toggle, SCE_SELECT_VERTEX, SCE_SELECT_EDGE, SCE_SELECT_FACE));
   Scene *scene = CTX_data_scene(C);
@@ -2670,13 +2658,39 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
     return false;
   }
 
+  /* WARNING: unfortunately failing to ensure this causes problems in *some* cases.
+   * Adding UV data has negative performance impacts, but failing to do this means
+   * switching to the UV editor *might* should strange selection.
+   * Since we can't know if users will proceed to do UV editing after switching modes,
+   * ensure the UV data.
+   *
+   * Even though the data is added, it's only added if it's needed,
+   * so selecting all/none or when there are no UV's.
+   *
+   * Failing to do this means switching from face to vertex selection modes
+   * will leave vertices on adjacent islands selected - which seems like a bug. */
+  bool use_uv_select_ensure = false;
+
+  /* Only do this when sync-select is enabled so users can have better
+   * performance when editing high poly meshes. */
+  if (ts->uv_flag & UV_SYNC_SELECTION) {
+    /* Only when flushing down. */
+    if ((bitscan_forward_i(selectmode_new) < bitscan_forward_i(selectmode_old))) {
+      use_uv_select_ensure = true;
+    }
+  }
+
   if (use_extend == false || selectmode_new == 0) {
     if (use_expand) {
       const short selectmode_max = highest_order_bit_s(selectmode_old);
       for (Object *ob_iter : objects) {
         BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
         EDBM_selectmode_convert(em_iter, selectmode_max, selectmode_toggle);
+        /* NOTE: This could be supported, but converting UV's too is reasonably complicated.
+         * This can be considered a low priority TODO. */
+        EDBM_uvselect_clear(em_iter);
       }
+      use_uv_select_ensure = false;
     }
   }
 
@@ -2710,7 +2724,12 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
       BMEditMesh *em_iter = BKE_editmesh_from_object(ob_iter);
 
       if (use_uv_select_ensure) {
-        ED_uvedit_sync_uvselect_ensure_if_needed(ts, em_iter->bm);
+        if (BM_mesh_select_is_mixed(em_iter->bm)) {
+          ED_uvedit_sync_uvselect_ensure_if_needed(ts, em_iter->bm);
+        }
+        else {
+          EDBM_uvselect_clear(em_iter);
+        }
       }
 
       EDBM_selectmode_set(em_iter, selectmode_new);

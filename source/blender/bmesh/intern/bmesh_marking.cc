@@ -241,6 +241,17 @@ static bool bm_edge_is_face_visible_any(const BMEdge *e)
 
 /** \} */
 
+bool BM_mesh_select_is_mixed(const BMesh *bm)
+{
+  if (bm->selectmode & SCE_SELECT_VERTEX) {
+    return !ELEM(bm->totvertsel, 0, bm->totvert);
+  }
+  if (bm->selectmode & SCE_SELECT_EDGE) {
+    return !ELEM(bm->totedgesel, 0, bm->totedge);
+  }
+  return !ELEM(bm->totfacesel, 0, bm->totface);
+}
+
 void BM_mesh_select_mode_clean_ex(BMesh *bm, const short selectmode)
 {
   if (selectmode & SCE_SELECT_VERTEX) {
