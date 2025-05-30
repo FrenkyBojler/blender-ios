@@ -46,8 +46,7 @@ void main()
   }
 
   uint coarse_quad_index = coarse_face_index_from_subdiv_quad_index(quad_index,
-                                                                  shader_data.coarse_face_count);
-
+                                                                    shader_data.coarse_face_count);
 
   uint start_loop_index = quad_index * 4;
 
