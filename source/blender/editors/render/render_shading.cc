@@ -232,6 +232,18 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 /** \name Material Slot Remove Operator
  * \{ */
 
+static bool material_slot_remove_poll(bContext *C)
+{
+  Object *ob = blender::ed::object::context_object(C);
+
+  if (ob == CTX_data_edit_object(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
+    return false;
+  }
+
+  return object_materials_supported_poll_ex(C, ob);
+}
+
 static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = blender::ed::object::context_object(C);
@@ -271,7 +283,7 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_exec;
-  ot->poll = object_materials_supported_poll;
+  ot->poll = material_slot_remove_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
