@@ -6103,7 +6103,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 84)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 84)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {

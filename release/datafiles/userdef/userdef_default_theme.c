@@ -841,6 +841,10 @@ const bTheme U_theme_default = {
     .row_alternate = RGBA(0xffffff04),
   },
   .space_node = {
+    .asset_shelf = {
+      .header_back = RGBA(0x1d1d1dff),
+      .back = RGBA(0x303030ff),
+    },
     .back = RGBA(0x1d1d1d00),
     .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),
@@ -998,6 +1002,7 @@ const bTheme U_theme_default = {
     .strip = RGBA(0xffffff80),
     .strip_select = RGBA(0xff8c00ff),
     .cframe = RGBA(0x4772b3ff),
+    .anim_preview_range = RGBA(0xa14d0066),
     .time_scrub_background = RGBA(0x181818ff),
     .time_marker_line = RGBA(0xffffff4d),
     .time_marker_line_selected = RGBA(0xffffffb3),
