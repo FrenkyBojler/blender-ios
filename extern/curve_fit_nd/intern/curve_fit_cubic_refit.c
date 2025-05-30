@@ -1155,7 +1155,7 @@ int curve_fit_cubic_to_points_refit_db(
 	}
 
 	/* Initialize corners and corner tangents. */
-	if (corners != NULL && corners_len > 0 && knots_len > 2) {
+	if (corners != NULL && corners_len > 0) {
 		const uint start_corner = is_cyclic ? 0 : 1;
 		const uint end_corner = is_cyclic ? corners_len : corners_len - 1;
 
@@ -1387,7 +1387,7 @@ int curve_fit_cubic_to_points_refit_db(
 			}
 		}
 
-		if (is_cyclic == false) {
+		if (is_cyclic == false && knots_len > 1) {
 			corner_index_array[c_index++] = k_index;
 			k_index++;
 		}
