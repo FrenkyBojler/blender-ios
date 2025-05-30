@@ -893,6 +893,7 @@ class RequestDescription(pydantic.BaseModel):
     to find the HTTPMetadata file that stores data of previous calls to this
     HTTP requests.
     """
+    # Freeze instances of this class, so they can be used as map key.
     model_config = pydantic.ConfigDict(frozen=True)
 
     http_method: str
