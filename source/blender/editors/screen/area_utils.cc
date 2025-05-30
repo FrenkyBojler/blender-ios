@@ -44,7 +44,7 @@ int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, in
     const float column = UI_TOOLBAR_COLUMN / aspect;
     const float margin = UI_TOOLBAR_MARGIN / aspect;
     blender::Vector<float> snap_units = {column + margin};
-    /* Two column only if we have aligned items. */
+    /* Two icon columns only if there are aligned items. */
     if (UI_region_has_aligned_buttons(region)) {
       snap_units.append((2.0f * column) + margin);
     }

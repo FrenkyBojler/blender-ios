@@ -964,6 +964,9 @@ void UI_region_button_sections_draw(const ARegion *region,
                                     uiButtonSectionsAlign align);
 bool UI_region_button_sections_is_inside_x(const ARegion *region, const int mval_x);
 
+/**
+ * True if any of the region's buttons has a UI_BUT_ALIGN_* dragflag.
+ */
 bool UI_region_has_aligned_buttons(const ARegion *region);
 
 /**
