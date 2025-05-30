@@ -850,14 +850,14 @@ static AbstractView *get_abstractview(bContext *C, const int pad = 0)
 
 static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
 {
-  if (AbstractView *view = get_abstractview(C)) {
+  if (AbstractView *view = get_abstractview(C, UI_UNIT_Y * 0.5)) {
     view->set_sort_order();
   }
 }
 
 static void set_filtering_collapsed_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
 {
-  if (AbstractView *view = get_abstractview(C, UI_UNIT_Y * 0.5)) {
+  if (AbstractView *view = get_abstractview(C)) {
     view->set_filtering_collapsed();
   }
 }
@@ -876,37 +876,6 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     col = &parent_layout.column(true);
   }
 
-  /* Header */
-  uiLayout *header = uiLayoutRow(col, false);
-  uiLayoutSetAlignment(header, UI_LAYOUT_ALIGN_LEFT);
-  UI_block_emboss_set(block, ui::EmbossType::None);
-  int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
-                                                  ICON_DISCLOSURE_TRI_DOWN;
-  uiBut *but = uiDefIconBut(
-      block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.5, nullptr, 0, 0, "");
-  UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
-  UI_block_emboss_set(block, ui::EmbossType::Emboss);
-
-  if (!tree_view.is_filtering_collapsed()) {
-    uiLayout *filter_layout = uiLayoutRow(col, false);
-    uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
-    icon = ICON_SORT_DESC;
-
-    switch (AbstractTreeView::SortOrder(tree_view.get_sort_order())) {
-      case AbstractTreeView::SortOrder::Invert:
-        icon = ICON_DOWNARROW_HLT;
-        break;
-      case AbstractTreeView::SortOrder::InvertNested:
-        icon = ICON_SORT_ASC;
-       break;
-    default:
-        break;
-    }
-
-    but = uiDefIconBut(
-        block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
-    UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);
-  }
   /* Row for the tree-view and the scroll bar. */
   uiLayout *row = &col->row(false);
 
@@ -962,6 +931,18 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     }
 
     UI_block_layout_set_current(block, col);
+
+    /* Bottom */
+    uiLayout *bottom = &col->row(false);
+    UI_block_emboss_set(block, ui::EmbossType::None);
+    int icon = tree_view.is_filtering_collapsed() ? ICON_DISCLOSURE_TRI_RIGHT :
+                                                    ICON_DISCLOSURE_TRI_DOWN;
+    uiBut *but = uiDefIconBut(
+        block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.5, nullptr, 0, 0, "");
+    UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
+    UI_block_emboss_set(block, ui::EmbossType::Emboss);
+
+    bottom->column(false);
     uiDefIconButI(block,
                   UI_BTYPE_GRIP,
                   0,
@@ -974,6 +955,28 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   0,
                   0,
                   "");
+
+
+    if (!tree_view.is_filtering_collapsed()) {
+      uiLayout *filter_layout = &col->row(false);
+      uiLayoutSetAlignment(filter_layout, UI_LAYOUT_ALIGN_RIGHT);
+      icon = ICON_SORT_DESC;
+
+      switch (AbstractTreeView::SortOrder(tree_view.get_sort_order())) {
+        case AbstractTreeView::SortOrder::Invert:
+          icon = ICON_DOWNARROW_HLT;
+          break;
+        case AbstractTreeView::SortOrder::InvertNested:
+          icon = ICON_SORT_ASC;
+          break;
+        default:
+          break;
+      }
+
+      but = uiDefIconBut(
+          block, UI_BTYPE_ICON_TOGGLE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+      UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);
+    }
   }
 
   UI_block_layout_set_current(block, &parent_layout);
