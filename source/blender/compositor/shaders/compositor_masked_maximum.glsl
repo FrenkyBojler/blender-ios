@@ -5,6 +5,7 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 bool is_in_unit_rounded_square(float2 coord, const float roundness)
 {
@@ -65,13 +66,6 @@ float compute_rounded_square_radius(float2 coord, const float roundness)
 float inverse_mix(const float from_min, const float from_max, const float value)
 {
   return (value - from_min) / (from_max - from_min);
-}
-
-void swap(inout float a, inout float b)
-{
-  float temp = a;
-  a = b;
-  b = temp;
 }
 
 float compute_rounded_square_mask(float2 coord,

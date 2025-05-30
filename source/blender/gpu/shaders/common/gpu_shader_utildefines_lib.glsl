@@ -163,4 +163,13 @@ float3 offset_ray(float3 P, float3 Ng)
                 (abs(P.z) < origin) ? uf.z : P_i.z);
 }
 
+template<typename T> void swap(inout T a, inout T b)
+{
+  T tmp = a;
+  a = b;
+  b = tmp;
+}
+
+template void swap<float>(float, float);
+
 #endif /* GPU_SHADER_UTILDEFINES_GLSL */
