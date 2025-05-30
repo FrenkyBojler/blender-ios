@@ -84,15 +84,21 @@ class MaskedMaximumOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_masked_maximum");
     GPU_shader_bind(shader);
 
+    const Domain domain = compute_domain();
+
+    GPU_shader_uniform_2iv(shader, "domain_size", domain.size);
+
     input_image.bind_as_texture(shader, "input_image_tx");
+
     const Result &input_size = get_input("Size");
     input_size.bind_as_texture(shader, "input_size_tx");
+
     const Result &input_roundness = get_input("Roundness");
     input_roundness.bind_as_texture(shader, "input_roundness_tx");
+
     const Result &input_falloff = get_input("Falloff");
     input_falloff.bind_as_texture(shader, "input_falloff_tx");
 
-    Domain domain = compute_domain();
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
@@ -119,11 +125,26 @@ class MaskedMaximumOperation : public NodeOperation {
       float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
 
       float masked_maximum = -FLT_MAX;
-      int2 computation_window = int2(
+      int2 computation_window_upper_right_corner = int2(
           int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
           int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
-      for (int y = -computation_window.y; y <= computation_window.y; y++) {
-        for (int x = -computation_window.x; x <= computation_window.x; x++) {
+      int2 computation_window_lower_left_corner = -computation_window_upper_right_corner;
+      computation_window_upper_right_corner += texel;
+      computation_window_lower_left_corner += texel;
+      computation_window_upper_right_corner = math::min(computation_window_upper_right_corner,
+                                                        domain.size - int2(1, 1));
+      computation_window_lower_left_corner = math::max(computation_window_lower_left_corner,
+                                                       int2(0, 0));
+      computation_window_upper_right_corner -= texel;
+      computation_window_lower_left_corner -= texel;
+      for (int y = computation_window_lower_left_corner.y;
+           y <= computation_window_upper_right_corner.y;
+           y++)
+      {
+        for (int x = computation_window_lower_left_corner.x;
+             x <= computation_window_upper_right_corner.x;
+             x++)
+        {
           masked_maximum = math::max(
               masked_maximum,
               compute_rounded_square_mask(

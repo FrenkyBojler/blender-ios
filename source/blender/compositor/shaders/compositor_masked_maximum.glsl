@@ -147,10 +147,25 @@ void main()
   float falloff = max(texture_load(input_falloff_tx, texel).x, 0.0f);
 
   float masked_maximum = -FLT_MAX;
-  int2 computation_window = int2(int(ceil(size.x + (falloff * min(size.x / size.y, 1.0f)))),
-                                 int(ceil(size.y + (falloff * min(size.y / size.x, 1.0f)))));
-  for (int y = -computation_window.y; y <= computation_window.y; y++) {
-    for (int x = -computation_window.x; x <= computation_window.x; x++) {
+  int2 computation_window_upper_right_corner = int2(
+      int(ceil(size.x + (falloff * min(size.x / size.y, 1.0f)))),
+      int(ceil(size.y + (falloff * min(size.y / size.x, 1.0f)))));
+  int2 computation_window_lower_left_corner = -computation_window_upper_right_corner;
+  computation_window_upper_right_corner += texel;
+  computation_window_lower_left_corner += texel;
+  computation_window_upper_right_corner = min(computation_window_upper_right_corner,
+                                              domain_size - int2(1, 1));
+  computation_window_lower_left_corner = max(computation_window_lower_left_corner, int2(0, 0));
+  computation_window_upper_right_corner -= texel;
+  computation_window_lower_left_corner -= texel;
+  for (int y = computation_window_lower_left_corner.y;
+       y <= computation_window_upper_right_corner.y;
+       y++)
+  {
+    for (int x = computation_window_lower_left_corner.x;
+         x <= computation_window_upper_right_corner.x;
+         x++)
+    {
       masked_maximum = max(
           masked_maximum,
           compute_rounded_square_mask(float2(x, y), float2(size.x, size.y), roundness, falloff) *
