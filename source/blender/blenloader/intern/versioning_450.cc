@@ -15,6 +15,7 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -472,24 +473,23 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
   }
 }
 
-/* A new suppress boolean input was added that either enables suppression or disabled it.
- * Previously, suppression was disabled when the maximum was zero. So we enable suppression for non
- * zero or linked maximum input. */
-static void do_version_new_glare_suppress_input(bNodeTree *node_tree)
+/* A new Clamp boolean input was added that either enables clamping or disables it. Previously,
+ * Clamp was disabled when the maximum was zero. So we enable Clamp for non zero or linked maximum
+ * input. */
+static void do_version_new_glare_clamp_input(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
     if (node->type_legacy != CMP_NODE_GLARE) {
       continue;
     }
 
-    bNodeSocket *suppress_input = blender::bke::node_find_socket(
-        *node, SOCK_IN, "Suppress Highlights");
+    bNodeSocket *clamp_input = blender::bke::node_find_socket(*node, SOCK_IN, "Clamp Highlights");
     bNodeSocket *maximum_input = blender::bke::node_find_socket(
         *node, SOCK_IN, "Maximum Highlights");
 
     const float maximum = maximum_input->default_value_typed<bNodeSocketValueFloat>()->value;
     if (version_node_socket_is_used(maximum_input) || maximum != 0.0) {
-      suppress_input->default_value_typed<bNodeSocketValueBoolean>()->value = true;
+      clamp_input->default_value_typed<bNodeSocketValueBoolean>()->value = true;
     }
   }
 }
@@ -4280,7 +4280,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 3, 1, 14);
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
-        do_version_new_glare_suppress_input(ntree);
+        do_version_new_glare_clamp_input(ntree);
       }
     }
     FOREACH_NODETREE_END;
@@ -5146,6 +5146,25 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
       brush->flag &= ~BRUSH_ORIGINAL_PLANE;
 
       brush->sculpt_brush_type = SCULPT_BRUSH_TYPE_PLANE;
+    }
+  }
+}
+
+static void node_interface_single_value_to_structure_type(bNodeTreeInterfaceItem &item)
+{
+  if (item.item_type == eNodeTreeInterfaceItemType::NODE_INTERFACE_SOCKET) {
+    auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+    if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY) {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
+    }
+    else {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+    }
+  }
+  else {
+    auto &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+    for (bNodeTreeInterfaceItem *item : blender::Span(panel.items_array, panel.items_num)) {
+      node_interface_single_value_to_structure_type(*item);
     }
   }
 }
@@ -6068,6 +6087,21 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 81)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 83)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = std::max<int>(1, ob->soft->fuzzyness);
+      }
+    }
+  }
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
    * legacy format which always needs to be converted to the new format on file load. To be moved
    * to a subversion check in 5.0. */
