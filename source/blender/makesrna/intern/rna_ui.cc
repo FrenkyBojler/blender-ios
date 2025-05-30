@@ -464,6 +464,11 @@ static int rna_UIList_filter_const_FILTER_ITEM_get(PointerRNA * /*ptr*/)
   return UILST_FLT_ITEM;
 }
 
+static int rna_UIList_item_never_show(PointerRNA * /*ptr*/)
+{
+  return UILST_FLT_ITEM_NEVER_SHOW;
+}
+
 static IDProperty **rna_UIList_idprops(PointerRNA *ptr)
 {
   uiList *ui_list = (uiList *)ptr->data;
@@ -1672,8 +1677,8 @@ static void rna_def_ui_layout(BlenderRNA *brna)
       {int(blender::ui::EmbossType::Pulldown),
        "PULLDOWN_MENU",
        0,
-       "Pulldown Menu",
-       "Draw pulldown menu style"},
+       "Pull-down Menu",
+       "Draw pull-down menu style"},
       {int(blender::ui::EmbossType::PieMenu),
        "RADIAL_MENU",
        0,
@@ -2119,7 +2124,7 @@ static void rna_def_uilist(BlenderRNA *brna)
       func, "property", nullptr, 0, "", "Identifier of property in data, for the collection");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   prop = RNA_def_property(func, "filter_flags", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_flag(prop, PropertyFlag(PARM_REQUIRED | PROP_DYNAMIC));
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
   RNA_def_property_array(prop, 1); /* XXX Dummy value, default 0 does not work */
   RNA_def_property_ui_text(prop,
                            "",
@@ -2128,7 +2133,7 @@ static void rna_def_uilist(BlenderRNA *brna)
                            "lower 16 bits for custom usages)");
   RNA_def_function_output(func, prop);
   prop = RNA_def_property(func, "filter_neworder", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_flag(prop, PropertyFlag(PARM_REQUIRED | PROP_DYNAMIC));
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
   RNA_def_property_array(prop, 1); /* XXX Dummy value, default 0 does not work */
   RNA_def_property_ui_text(
       prop,
@@ -2146,6 +2151,11 @@ static void rna_def_uilist(BlenderRNA *brna)
       "FILTER_ITEM",
       "The value of the reserved bitflag 'FILTER_ITEM' (in filter_flags values)");
   RNA_def_property_int_funcs(prop, "rna_UIList_filter_const_FILTER_ITEM_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "bitflag_item_never_show", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_ui_text(prop, "ITEM_NEVER_SHOW", "Skip the item from displaying in the list");
+  RNA_def_property_int_funcs(prop, "rna_UIList_item_never_show", nullptr, nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 

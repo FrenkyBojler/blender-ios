@@ -236,7 +236,7 @@ class IFileStream : public Imf::IStream {
  public:
   IFileStream(const char *filepath) : IStream(filepath)
   {
-    /* utf-8 file path support on windows */
+    /* UTF8 file path support on windows. */
 #if defined(WIN32)
     wchar_t *wfilepath = alloc_utf16_from_8(filepath, 0);
     ifs.open(wfilepath, std::ios_base::binary);
@@ -340,7 +340,7 @@ class OFileStream : public OStream {
  public:
   OFileStream(const char *filepath) : OStream(filepath)
   {
-    /* utf-8 file path support on windows */
+    /* UTF8 file path support on windows. */
 #if defined(WIN32)
     wchar_t *wfilepath = alloc_utf16_from_8(filepath, 0);
     ofs.open(wfilepath, std::ios_base::binary);
@@ -506,15 +506,16 @@ static void openexr_header_metadata(Header *header, ImBuf *ibuf)
     }
   }
 
-  if (ibuf->ppm[0] > 0.0) {
+  if (ibuf->ppm[0] > 0.0 && ibuf->ppm[1] > 0.0) {
     /* Convert meters to inches. */
     addXDensity(*header, ibuf->ppm[0] * 0.0254);
+    header->pixelAspectRatio() = blender::math::safe_divide(ibuf->ppm[1], ibuf->ppm[0]);
   }
 
   /* Write chromaticities for ACES-2065-1, as required by ACES container format. */
-  ColorSpace *colorspace = (ibuf->float_buffer.data) ? ibuf->float_buffer.colorspace :
-                           (ibuf->byte_buffer.data)  ? ibuf->byte_buffer.colorspace :
-                                                       nullptr;
+  const ColorSpace *colorspace = (ibuf->float_buffer.data) ? ibuf->float_buffer.colorspace :
+                                 (ibuf->byte_buffer.data)  ? ibuf->byte_buffer.colorspace :
+                                                             nullptr;
   if (colorspace) {
     const char *aces_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_ACES_INTERCHANGE);
@@ -561,7 +562,7 @@ static bool imb_save_openexr_half(ImBuf *ibuf, const char *filepath, const int f
 
     FrameBuffer frameBuffer;
 
-    /* manually create ofstream, so we can handle utf-8 filepaths on windows */
+    /* Manually create `ofstream`, so we can handle UTF8 file-paths on windows. */
     if (flags & IB_mem) {
       file_stream = new OMemStream(ibuf);
     }
@@ -663,7 +664,7 @@ static bool imb_save_openexr_float(ImBuf *ibuf, const char *filepath, const int 
 
     FrameBuffer frameBuffer;
 
-    /* manually create ofstream, so we can handle utf-8 filepaths on windows */
+    /* Manually create `ofstream`, so we can handle UTF8 file-paths on windows. */
     if (flags & IB_mem) {
       file_stream = new OMemStream(ibuf);
     }
@@ -961,6 +962,7 @@ bool IMB_exr_begin_write(void *handle,
                          const char *filepath,
                          int width,
                          int height,
+                         const double ppm[2],
                          int compress,
                          int quality,
                          const StampData *stamp)
@@ -993,8 +995,13 @@ bool IMB_exr_begin_write(void *handle,
     addMultiView(header, *data->multiView);
   }
 
-  /* avoid crash/abort when we don't have permission to write here */
-  /* manually create ofstream, so we can handle utf-8 filepaths on windows */
+  if (ppm[0] != 0.0 && ppm[1] != 0.0) {
+    addXDensity(header, ppm[0] * 0.0254);
+    header.pixelAspectRatio() = blender::math::safe_divide(ppm[1], ppm[0]);
+  }
+
+  /* Avoid crash/abort when we don't have permission to write here. */
+  /* Manually create `ofstream`, so we can handle UTF8 file-paths on windows. */
   try {
     data->ofile_stream = new OFileStream(filepath);
     data->ofile = new OutputFile(*(data->ofile_stream), header);
@@ -2036,6 +2043,23 @@ static void imb_exr_set_known_colorspace(const Header &header, ImFileColorSpace 
   }
 }
 
+static bool exr_get_ppm(MultiPartInputFile &file, double ppm[2])
+{
+  const Header &header = file.header(0);
+  if (!hasXDensity(header)) {
+    return false;
+  }
+  ppm[0] = double(xDensity(header)) / 0.0254;
+  ppm[1] = ppm[0] * double(header.pixelAspectRatio());
+  return true;
+}
+
+bool IMB_exr_get_ppm(void *handle, double ppm[2])
+{
+  ExrHandle *data = (ExrHandle *)handle;
+  return exr_get_ppm(*data->ifile, ppm);
+}
+
 ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpace &r_colorspace)
 {
   ImBuf *ibuf = nullptr;
@@ -2077,11 +2101,7 @@ ImBuf *imb_load_openexr(const uchar *mem, size_t size, int flags, ImFileColorSpa
       ibuf->foptions.flag |= exr_is_half_float(*file) ? OPENEXR_HALF : 0;
       ibuf->foptions.flag |= openexr_header_get_compression(file_header);
 
-      if (hasXDensity(file_header)) {
-        /* Convert inches to meters. */
-        ibuf->ppm[0] = double(xDensity(file_header)) / 0.0254;
-        ibuf->ppm[1] = ibuf->ppm[0] * double(file_header.pixelAspectRatio());
-      }
+      exr_get_ppm(*file, ibuf->ppm);
 
       imb_exr_set_known_colorspace(file_header, r_colorspace);
 

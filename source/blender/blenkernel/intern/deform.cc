@@ -18,6 +18,7 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_enums.h"
 #include "DNA_object_types.h"
 
 #include "BLI_listbase.h"
@@ -29,7 +30,6 @@
 #include "BLT_translation.hh"
 
 #include "BKE_customdata.hh"
-#include "BKE_data_transfer.h"
 #include "BKE_deform.hh" /* own include */
 #include "BKE_grease_pencil.hh"
 #include "BKE_grease_pencil_vertex_groups.hh"
@@ -738,16 +738,14 @@ static bool defgroup_find_name_dupe(const StringRef name, bDeformGroup *dg, Obje
   return false;
 }
 
-static bool defgroup_unique_check(void *arg, const char *name)
-{
-  DeformGroupUniqueNameData *data = static_cast<DeformGroupUniqueNameData *>(arg);
-  return defgroup_find_name_dupe(name, data->dg, data->ob);
-}
-
 void BKE_object_defgroup_unique_name(bDeformGroup *dg, Object *ob)
 {
-  DeformGroupUniqueNameData data{ob, dg};
-  BLI_uniquename_cb(defgroup_unique_check, &data, DATA_("Group"), '.', dg->name, sizeof(dg->name));
+  BLI_uniquename_cb(
+      [&](const blender::StringRef name) { return defgroup_find_name_dupe(name, dg, ob); },
+      DATA_("Group"),
+      '.',
+      dg->name,
+      sizeof(dg->name));
 }
 
 void BKE_object_defgroup_set_name(bDeformGroup *dg, Object *ob, const char *new_name)

@@ -64,31 +64,6 @@ static ColorGeometry4f get_average(const Span<ColorGeometry4f> values)
   return ColorGeometry4f(avg_rgba);
 }
 
-static std::optional<float> try_get_constant_value(const VArray<float> values,
-                                                   const float epsilon = 1e-5f)
-{
-  if (values.is_empty()) {
-    return std::nullopt;
-  }
-  const float first_value = values.first();
-  const std::optional<float> first_value_opt = std::make_optional(first_value);
-  return threading::parallel_reduce(
-      values.index_range().drop_front(1),
-      4096,
-      first_value_opt,
-      [&](const IndexRange range, const std::optional<float> /*value*/) -> std::optional<float> {
-        for (const int i : range) {
-          if (math::abs(values[i] - first_value) > epsilon) {
-            return std::nullopt;
-          }
-        }
-        return first_value_opt;
-      },
-      [&](const std::optional<float> a, const std::optional<float> b) {
-        return (a && b) ? first_value_opt : std::nullopt;
-      });
-}
-
 IOContext::IOContext(bContext &C,
                      const ARegion *region,
                      const View3D *v3d,
@@ -167,8 +142,8 @@ static IndexMask get_visible_strokes(const Object &object,
 {
   const bke::CurvesGeometry &strokes = drawing.strokes();
   const bke::AttributeAccessor attributes = strokes.attributes();
-  const VArray<int> materials = *attributes.lookup<int>(attr_material_index,
-                                                        bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      attr_material_index, bke::AttrDomain::Curve, 0);
 
   auto is_visible_curve = [&](const int curve_i) {
     /* Check if stroke can be drawn. */
@@ -267,7 +242,7 @@ static std::optional<Bounds<float2>> compute_objects_bounds(
   std::optional<Bounds<float2>> full_bounds = std::nullopt;
 
   for (const ObjectInfo &info : objects) {
-    const Object *object_eval = DEG_get_evaluated_object(&depsgraph, info.object);
+    const Object *object_eval = DEG_get_evaluated(&depsgraph, info.object);
     const GreasePencil &grease_pencil_eval = *static_cast<GreasePencil *>(object_eval->data);
 
     for (const int layer_index : grease_pencil_eval.layers().index_range()) {
@@ -278,7 +253,7 @@ static std::optional<Bounds<float2>> compute_objects_bounds(
       }
 
       std::optional<Bounds<float2>> layer_bounds = compute_screen_space_drawing_bounds(
-          region, rv3d, *info.object, layer_index, *drawing);
+          region, rv3d, *object_eval, layer_index, *drawing);
 
       full_bounds = bounds::merge(full_bounds, layer_bounds);
     }
@@ -370,12 +345,20 @@ float GreasePencilExporter::compute_average_stroke_opacity(const Span<float> opa
 std::optional<float> GreasePencilExporter::try_get_uniform_point_width(
     const RegionView3D &rv3d, const Span<float3> world_positions, const Span<float> radii)
 {
-  VArray<float> widths = VArray<float>::ForFunc(world_positions.size(), [&](const int index) {
-    const float3 &pos = world_positions[index];
-    const float radius = radii[index];
-    return 2.0f * radius * ED_view3d_pixel_size(&rv3d, pos);
+  if (world_positions.is_empty()) {
+    return std::nullopt;
+  }
+  BLI_assert(world_positions.size() == radii.size());
+  Array<float> widths(world_positions.size());
+  threading::parallel_for(widths.index_range(), 4096, [&](const IndexRange range) {
+    for (const int index : range) {
+      const float3 &pos = world_positions[index];
+      const float radius = radii[index];
+      /* Compute the width in screen space by dividing by the pixel size at the point position. */
+      widths[index] = 2.0f * radius / ED_view3d_pixel_size(&rv3d, pos);
+    }
   });
-  return try_get_constant_value(widths);
+  return get_average(widths);
 }
 
 Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects() const

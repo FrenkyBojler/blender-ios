@@ -6,6 +6,8 @@
  * \ingroup gpu
  */
 
+#include <cstring>
+
 #include "BKE_global.hh"
 
 #include "gpu_backend.hh"
@@ -38,6 +40,21 @@ thread_local int g_autoreleasepool_depth = 0;
 /* -------------------------------------------------------------------- */
 /** \name Metal Backend
  * \{ */
+
+void MTLBackend::init_resources()
+{
+  if (GPU_use_parallel_compilation()) {
+    compiler_ = MEM_new<MTLShaderCompiler>(__func__);
+  }
+  else {
+    compiler_ = MEM_new<ShaderCompiler>(__func__);
+  }
+}
+
+void MTLBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void MTLBackend::samplers_update(){
     /* Placeholder -- Handled in MTLContext. */
@@ -243,6 +260,17 @@ void MTLBackend::platform_init(MTLContext *ctx)
            renderer,
            version,
            architecture_type);
+
+  /* UUID is not supported on Metal. */
+  GPG.device_uuid.reinitialize(0);
+
+  /* LUID is registryID on Metal, or at least this is what libraries like OIDN expects. */
+  const uint64_t luid = mtl_device.registryID;
+  GPG.device_luid.reinitialize(sizeof(luid));
+  std::memcpy(GPG.device_luid.data(), &luid, sizeof(luid));
+
+  /* Metal only has one device per LUID, so only the first bit will always be active.. */
+  GPG.device_luid_node_mask = 1;
 }
 
 void MTLBackend::platform_exit()
@@ -524,6 +552,7 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
   GCaps.stencil_export_support = true;
+  GCaps.clip_control_support = true;
 
   /* OPENGL Related workarounds -- none needed for Metal. */
   GCaps.extensions_len = 0;

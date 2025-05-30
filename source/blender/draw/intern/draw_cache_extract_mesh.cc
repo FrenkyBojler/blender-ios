@@ -12,6 +12,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_task.hh"
 
 #include "GPU_capabilities.hh"
@@ -158,11 +159,14 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case IBOType::LinesAdjacency:
         created_ibos[i] = extract_lines_adjacency(mr, cache.is_manifold);
         break;
+      case IBOType::UVLines:
+        created_ibos[i] = extract_edituv_lines(mr, false);
+        break;
       case IBOType::EditUVTris:
         created_ibos[i] = extract_edituv_tris(mr);
         break;
       case IBOType::EditUVLines:
-        created_ibos[i] = extract_edituv_lines(mr);
+        created_ibos[i] = extract_edituv_lines(mr, true);
         break;
       case IBOType::EditUVPoints:
         created_ibos[i] = extract_edituv_points(mr);
@@ -262,7 +266,7 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case VBOType::Attr14:
       case VBOType::Attr15: {
         const int8_t attr_index = int8_t(vbos_to_create[i]) - int8_t(VBOType::Attr0);
-        created_vbos[i] = extract_attribute(mr, cache.attr_used.requests[attr_index]);
+        created_vbos[i] = extract_attribute(mr, cache.attr_used[attr_index]);
         break;
       }
       case VBOType::AttrViewer:
@@ -418,6 +422,9 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     /* Make sure UVs are computed before edituv stuffs. */
     buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(subdiv_cache, cache));
   }
+  if (ibos_to_create.contains(IBOType::UVLines)) {
+    buffers.ibos.add_new(IBOType::UVLines, extract_edituv_lines_subdiv(mr, subdiv_cache, false));
+  }
   if (vbos_to_create.contains(VBOType::EditUVStretchArea)) {
     buffers.vbos.add_new(
         VBOType::EditUVStretchArea,
@@ -434,7 +441,8 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
     buffers.ibos.add_new(IBOType::EditUVTris, extract_edituv_tris_subdiv(mr, subdiv_cache));
   }
   if (ibos_to_create.contains(IBOType::EditUVLines)) {
-    buffers.ibos.add_new(IBOType::EditUVLines, extract_edituv_lines_subdiv(mr, subdiv_cache));
+    buffers.ibos.add_new(IBOType::EditUVLines,
+                         extract_edituv_lines_subdiv(mr, subdiv_cache, true));
   }
   if (ibos_to_create.contains(IBOType::EditUVPoints)) {
     buffers.ibos.add_new(IBOType::EditUVPoints, extract_edituv_points_subdiv(mr, subdiv_cache));
@@ -442,8 +450,8 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   for (const int8_t i : IndexRange(GPU_MAX_ATTR)) {
     const VBOType request = VBOType(int8_t(VBOType::Attr0) + i);
     if (vbos_to_create.contains(request)) {
-      buffers.vbos.add_new(
-          request, extract_attribute_subdiv(mr, subdiv_cache, cache.attr_used.requests[i]));
+      buffers.vbos.add_new(request,
+                           extract_attribute_subdiv(mr, subdiv_cache, cache.attr_used[i]));
     }
   }
 }

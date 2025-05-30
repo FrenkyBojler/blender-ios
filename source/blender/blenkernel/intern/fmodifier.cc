@@ -839,7 +839,7 @@ static void fcm_noise_evaluate(const FCurve * /*fcu*/,
     /* Using float2 to generate a phase offset. Offsetting the evaltime by `offset` to ensure that
      * the noise at full frames isn't always at 0. */
     noise = blender::noise::perlin_fbm<blender::float2>(
-        blender::float2(evaltime * scale - data->offset + offset, data->phase),
+        blender::float2((evaltime - data->offset) * scale + offset, data->phase),
         data->depth,
         data->roughness,
         data->lacunarity,
@@ -1000,7 +1000,7 @@ static FModifierTypeInfo FMI_STEPPED = {
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Type API
  *
- * all of the f-curve modifier api functions use #fmodifiertypeinfo structs to carry out
+ * all of the f-curve modifier API functions use #fmodifiertypeinfo structs to carry out
  * and operations that involve f-curve modifier specific code.
  * \{ */
 

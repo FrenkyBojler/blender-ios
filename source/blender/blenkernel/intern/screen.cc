@@ -167,7 +167,7 @@ static void screen_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_SCR = {
-    /*id_code*/ ID_SCR,
+    /*id_code*/ bScreen::id_type,
     /*id_filter*/ FILTER_ID_SCR,
     /* NOTE: Can actually link to any ID type through UI (e.g. Outliner Editor).
      * This is handled separately though. */
@@ -882,6 +882,16 @@ ARegion *BKE_area_find_region_xy(const ScrArea *area, const int regiontype, cons
   return nullptr;
 }
 
+ARegion *BKE_screen_find_region_type(const bScreen *screen, const int region_type)
+{
+  LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
+    if (region_type == region->regiontype) {
+      return region;
+    }
+  }
+  return nullptr;
+}
+
 ARegion *BKE_screen_find_region_xy(const bScreen *screen, const int regiontype, const int xy[2])
 {
   LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
@@ -1335,7 +1345,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   BLI_listbase_clear(&area->handlers);
   area->type = nullptr; /* spacetype callbacks */
 
-  memset(&area->runtime, 0x0, sizeof(area->runtime));
+  area->runtime = ScrArea_Runtime{};
 
   /* Should always be unset so that rna_Area_type_get works correctly. */
   area->butspacetype = SPACE_EMPTY;

@@ -389,7 +389,7 @@ void BKE_nlatrack_insert_after(ListBase *nla_tracks,
   BLI_assert(nla_tracks);
   BLI_assert(new_track);
 
-  /** If nullptr, then caller intends to insert a new head. But, tracks are not allowed to be
+  /* If nullptr, then caller intends to insert a new head. But, tracks are not allowed to be
    * placed before library overrides. So it must inserted after the last override. */
   if (prev == nullptr) {
     NlaTrack *first_track = (NlaTrack *)nla_tracks->first;
@@ -743,8 +743,8 @@ static float nlastrip_get_frame_actionclip(NlaStrip *strip, float cframe, short 
     return strip->actend;
   }
 
-  /* - the 'fmod(..., actlength * scale)' is needed to get the repeats working
-   * - the '/ scale' is needed to ensure that scaling influences the timing within the repeat
+  /* - The `fmod(..., actlength * scale)` is needed to get the repeats working.
+   * - The `/ scale` is needed to ensure that scaling influences the timing within the repeat.
    */
   return strip->actstart + fmodf(cframe - strip->start, actlength * scale) / scale;
 }
@@ -1895,11 +1895,6 @@ bool BKE_nlastrip_has_curves_for_property(const PointerRNA *ptr, const PropertyR
 
 /* Sanity Validation ------------------------------------ */
 
-static bool nla_editbone_name_check(void *arg, const char *name)
-{
-  return BLI_ghash_haskey((GHash *)arg, (const void *)name);
-}
-
 void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
 {
   GHash *gh;
@@ -1950,12 +1945,14 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
    * - In an extreme case, it might not be able to find a name,
    *   but then everything else in Blender would fail too :).
    */
-  BLI_uniquename_cb(nla_editbone_name_check,
-                    (void *)gh,
-                    DATA_("NlaStrip"),
-                    '.',
-                    strip->name,
-                    sizeof(strip->name));
+  BLI_uniquename_cb(
+      [&](const blender::StringRefNull check_name) {
+        return BLI_ghash_haskey(gh, check_name.c_str());
+      },
+      DATA_("NlaStrip"),
+      '.',
+      strip->name,
+      sizeof(strip->name));
 
   /* free the hash... */
   BLI_ghash_free(gh, nullptr, nullptr);
@@ -2402,7 +2399,7 @@ bool BKE_nla_tweakmode_enter(const OwnedAnimData owned_adt)
     }
   }
   else {
-    /* This is a strange situation to be in, as every 'tweakable' NLA strip should have an Action.
+    /* This is a strange situation to be in, as every *tweak-able* NLA strip should have an Action.
      */
     BLI_assert_unreachable();
     const bool unassign_ok = animrig::unassign_action(owned_adt);

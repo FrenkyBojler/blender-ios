@@ -437,8 +437,14 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   }
   winx = std::max<float>(winx, 1);
   winy = std::max<float>(winy, 1);
+  if (v2d->oldwinx == 0) {
+    v2d->oldwinx = winx;
+  }
+  if (v2d->oldwiny == 0) {
+    v2d->oldwiny = winy;
+  }
 
-  /* V2D_LIMITZOOM indicates that zoom level should be preserved when the window size changes */
+  /* V2D_KEEPZOOM indicates that zoom level should be preserved when the window size changes. */
   if (resize && (v2d->keepzoom & V2D_KEEPZOOM)) {
     float zoom, oldzoom;
 
@@ -581,11 +587,11 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
         height = width * winRatio;
       }
     }
-
-    /* store region size for next time */
-    v2d->oldwinx = short(winx);
-    v2d->oldwiny = short(winy);
   }
+
+  /* Store region size for next time. */
+  v2d->oldwinx = short(winx);
+  v2d->oldwiny = short(winy);
 
   /* Step 2: apply new sizes to cur rect,
    * but need to take into account alignment settings here... */
@@ -1097,7 +1103,7 @@ void UI_view2d_view_ortho(const View2D *v2d)
    * correspondence with pixels for smooth UI drawing,
    * but only applied where requested.
    */
-  /* XXX brecht: instead of zero at least use a tiny offset, otherwise
+  /* XXX(@brecht): instead of zero at least use a tiny offset, otherwise
    * pixel rounding is effectively random due to float inaccuracy */
   if (sizex > 0) {
     xofs = eps * BLI_rctf_size_x(&v2d->cur) / sizex;
@@ -1190,7 +1196,7 @@ void UI_view2d_multi_grid_draw(
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   uint color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
 
   GPU_line_width(1.0f);
 
@@ -1215,7 +1221,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, start, v2d->cur.ymin);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, start, v2d->cur.ymax);
     }
 
@@ -1232,7 +1238,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, v2d->cur.xmin, start);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, v2d->cur.xmax, start);
     }
 
@@ -1246,12 +1252,12 @@ void UI_view2d_multi_grid_draw(
 
   immAttrSkip(color);
   immVertex2f(pos, 0.0f, v2d->cur.ymin);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, 0.0f, v2d->cur.ymax);
 
   immAttrSkip(color);
   immVertex2f(pos, v2d->cur.xmin, 0.0f);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, v2d->cur.xmax, 0.0f);
 
   immEnd();
@@ -1493,7 +1499,7 @@ void view2d_scrollers_calc(View2D *v2d, const rcti *mask_custom, View2DScrollers
   }
 }
 
-void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_full_hide)
+void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
 {
   View2DScrollers scrollers;
   view2d_scrollers_calc(v2d, mask_custom, &scrollers);
@@ -1501,7 +1507,7 @@ void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_
   rcti vert, hor;
   const int scroll = view2d_scroll_mapped(v2d->scroll);
   const char emboss_alpha = btheme->tui.widget_emboss[3];
-  const float alpha_min = use_full_hide ? 0.0f : V2D_SCROLL_MIN_ALPHA;
+  const float alpha_min = V2D_SCROLL_MIN_ALPHA;
 
   uchar scrollers_back_color[4];
 
@@ -1602,11 +1608,6 @@ void UI_view2d_scrollers_draw_ex(View2D *v2d, const rcti *mask_custom, bool use_
 
   /* Was changed above, so reset. */
   btheme->tui.widget_emboss[3] = emboss_alpha;
-}
-
-void UI_view2d_scrollers_draw(View2D *v2d, const rcti *mask_custom)
-{
-  UI_view2d_scrollers_draw_ex(v2d, mask_custom, false);
 }
 
 /** \} */
@@ -2097,7 +2098,7 @@ void UI_view2d_text_cache_add(
 
     v2s->col.pack = *((const int *)col);
 
-    memset(&v2s->rect, 0, sizeof(v2s->rect));
+    v2s->rect = rcti{};
 
     v2s->mval[0] = mval[0];
     v2s->mval[1] = mval[1];

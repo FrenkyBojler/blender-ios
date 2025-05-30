@@ -19,6 +19,9 @@ namespace blender::bke {
 
 static int segments_num_no_duplicate_edge(const int points_num, const bool cyclic)
 {
+  if (points_num == 0) {
+    return 0;
+  }
   if (points_num <= 2) {
     return curves::segments_num(points_num, false);
   }
@@ -299,6 +302,9 @@ static ResultOffsets calculate_result_offsets(const CurvesInfo &info, const bool
 
             const bool profile_cyclic = info.profile_cyclic[i_profile];
             const int profile_point_num = profile_offsets[i_profile].size();
+            if (profile_point_num == 0) {
+              continue;
+            }
             const int profile_segment_num = curves::segments_num(profile_point_num,
                                                                  profile_cyclic);
 
@@ -402,20 +408,20 @@ static GSpan evaluate_attribute(const GVArray &src,
     if (src.is_span()) {
       return src.get_internal_span();
     }
-    buffer.reinitialize(curves.points_num() * src.type().size());
+    buffer.reinitialize(curves.points_num() * src.type().size);
     src.materialize(buffer.data());
     GMutableSpan eval{src.type(), buffer.data(), curves.points_num()};
     return eval;
   }
 
   if (src.is_span()) {
-    buffer.reinitialize(curves.evaluated_points_num() * src.type().size());
+    buffer.reinitialize(curves.evaluated_points_num() * src.type().size);
     GMutableSpan eval{src.type(), buffer.data(), curves.evaluated_points_num()};
     curves.interpolate_to_evaluated(src.get_internal_span(), eval);
     return eval;
   }
   GVArraySpan src_buffer(src);
-  buffer.reinitialize(curves.evaluated_points_num() * src.type().size());
+  buffer.reinitialize(curves.evaluated_points_num() * src.type().size);
   GMutableSpan eval{src.type(), buffer.data(), curves.evaluated_points_num()};
   curves.interpolate_to_evaluated(src_buffer, eval);
   return eval;
@@ -458,6 +464,9 @@ static void foreach_curve_combination(const CurvesInfo &info,
 
       const IndexRange main_points = main_offsets[i_main];
       const IndexRange profile_points = profile_offsets[i_profile];
+      if (main_points.is_empty() || profile_points.is_empty()) {
+        continue;
+      }
 
       const bool main_cyclic = info.main_cyclic[i_main];
       const bool profile_cyclic = info.profile_cyclic[i_profile];

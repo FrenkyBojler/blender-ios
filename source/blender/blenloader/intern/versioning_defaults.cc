@@ -132,6 +132,11 @@ static void blo_update_defaults_screen(bScreen *screen,
         if (sima->mode == SI_MODE_VIEW) {
           sima->mode = SI_MODE_UV;
         }
+        sima->uv_face_opacity = 1.0f;
+      }
+      else if (STR_ELEM(workspace_name, "Texture Paint", "Shading")) {
+        SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        sima->uv_face_opacity = 0.0f;
       }
     }
     else if (area->spacetype == SPACE_ACTION) {
@@ -192,6 +197,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->overlay.texture_paint_mode_opacity = 1.0f;
       v3d->overlay.weight_paint_mode_opacity = 1.0f;
       v3d->overlay.vertex_paint_mode_opacity = 1.0f;
+      /* Update default Z bias for retopology overlay. */
+      v3d->overlay.retopology_offset = 0.01f;
       /* Clear this deprecated bit for later reuse. */
       v3d->overlay.edit_flag &= ~V3D_OVERLAY_EDIT_EDGES_DEPRECATED;
       /* grease pencil settings */
@@ -338,6 +345,8 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
+  ToolSettings *ts = scene->toolsettings;
+
   STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
 
   scene->r.cfra = 1.0f;
@@ -373,14 +382,13 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
-  scene->toolsettings->snap_angle_increment_2d = default_snap_angle_increment;
-  scene->toolsettings->snap_angle_increment_3d = default_snap_angle_increment;
+  ts->snap_angle_increment_2d = default_snap_angle_increment;
+  ts->snap_angle_increment_3d = default_snap_angle_increment;
   const float default_snap_angle_increment_precision = DEG2RADF(1.0f);
-  scene->toolsettings->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
-  scene->toolsettings->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
 
   /* Be sure `curfalloff` and primitive are initialized. */
-  ToolSettings *ts = scene->toolsettings;
   if (ts->gp_sculpt.cur_falloff == nullptr) {
     ts->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
     CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
@@ -615,6 +623,14 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
     }
   }
 
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    const Object *dob = DNA_struct_default_get(Object);
+    /* Set default for shadow terminator bias. */
+    object->shadow_terminator_normal_offset = dob->shadow_terminator_normal_offset;
+    object->shadow_terminator_geometry_offset = dob->shadow_terminator_geometry_offset;
+    object->shadow_terminator_shading_offset = dob->shadow_terminator_shading_offset;
+  }
+
   LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
     /* Match default for new meshes. */
     mesh->smoothresh_legacy = DEG2RADF(30);
@@ -667,11 +683,18 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
+
+          node->location[0] = -200.0f;
+          node->location[1] = 100.0f;
           BKE_ntree_update_tag_node_property(ma->nodetree, node);
         }
         else if (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING) {
           node->custom1 = SHD_SUBSURFACE_RANDOM_WALK;
           BKE_ntree_update_tag_node_property(ma->nodetree, node);
+        }
+        else if (node->type_legacy == SH_NODE_OUTPUT_MATERIAL) {
+          node->location[0] = 200.0f;
+          node->location[1] = 100.0f;
         }
       }
     }
@@ -711,6 +734,18 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
   {
     LISTBASE_FOREACH (World *, world, &bmain->worlds) {
       SET_FLAG_FROM_TEST(world->flag, true, WO_USE_SUN_SHADOW);
+      if (world->nodetree) {
+        for (bNode *node : world->nodetree->all_nodes()) {
+          if (node->type_legacy == SH_NODE_OUTPUT_WORLD) {
+            node->location[0] = 200.0f;
+            node->location[1] = 100.0f;
+          }
+          else if (node->type_legacy == SH_NODE_BACKGROUND) {
+            node->location[0] = -200.0f;
+            node->location[1] = 100.0f;
+          }
+        }
+      }
     }
   }
 }

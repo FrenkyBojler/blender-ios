@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "GPU_capabilities.hh"
 #include "gpu_backend.hh"
 
 #include "BLI_vector.hh"
@@ -39,8 +40,6 @@ class GLBackend : public GPUBackend {
   renderdoc::api::Renderdoc renderdoc_;
 #endif
 
-  GLShaderCompiler compiler_;
-
  public:
   GLBackend()
   {
@@ -55,20 +54,26 @@ class GLBackend : public GPUBackend {
     GLBackend::platform_exit();
   }
 
+  void init_resources() override
+  {
+    if (GPU_use_parallel_compilation()) {
+      compiler_ = MEM_new<GLShaderCompiler>(__func__);
+    }
+    else {
+      compiler_ = MEM_new<ShaderCompiler>(__func__);
+    }
+  };
+
   void delete_resources() override
   {
     /* Delete any resources with context active. */
     GLTexture::samplers_free();
+    MEM_delete(compiler_);
   }
 
   static GLBackend *get()
   {
     return static_cast<GLBackend *>(GPUBackend::get());
-  }
-
-  GLShaderCompiler *get_compiler()
-  {
-    return &compiler_;
   }
 
   void samplers_update() override

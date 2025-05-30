@@ -44,6 +44,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -205,8 +206,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = 2;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = radius;
   }
   else {
@@ -218,8 +218,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = radius * 2 + 1;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = br->blur_kernel_radius;
   }
 
@@ -374,7 +373,7 @@ void paint_brush_color_get(Scene *scene,
                            bool invert,
                            float distance,
                            float pressure,
-                           ColorManagedDisplay *display,
+                           const ColorManagedDisplay *display,
                            float r_color[3])
 {
   if (invert) {
@@ -568,7 +567,7 @@ static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEv
     case LEFTMOUSE:
     case MIDDLEMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
-      MEM_freeN(op->customdata);
+      MEM_freeN(cmv);
       return OPERATOR_FINISHED;
     case MOUSEMOVE:
       /* mouse moved, so move the clone image */
@@ -605,7 +604,7 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
   ot->idname = "PAINT_OT_grab_clone";
   ot->description = "Move the clone source image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = grab_clone_exec;
   ot->invoke = grab_clone_invoke;
   ot->modal = grab_clone_modal;
@@ -740,6 +739,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     if (data->sample_palette) {
       BKE_brush_color_set(scene, paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
+      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
     }
     WM_cursor_modal_restore(CTX_wm_window(C));
     MEM_delete(data);
@@ -769,6 +769,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
+          BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
@@ -794,7 +795,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
   ot->idname = "PAINT_OT_sample_color";
   ot->description = "Use the mouse to sample a color in the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sample_color_exec;
   ot->invoke = sample_color_invoke;
   ot->modal = sample_color_modal;
@@ -938,7 +939,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
   BKE_scene_graph_evaluated_ensure(&depsgraph, &bmain);
 
   /* Set pivot to bounding box center. */
-  Object *ob_eval = DEG_get_evaluated_object(&depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
   paint_init_pivot(ob_eval ? ob_eval : &ob, &scene);
 
   WM_main_add_notifier(NC_SCENE | ND_MODE, &scene);
@@ -1029,7 +1030,7 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
   ot->idname = "PAINT_OT_texture_paint_toggle";
   ot->description = "Toggle texture paint mode in 3D view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = texture_paint_toggle_exec;
   ot->poll = texture_paint_toggle_poll;
 
@@ -1098,7 +1099,7 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
   ot->idname = "PAINT_OT_brush_colors_flip";
   ot->description = "Swap primary and secondary brush colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_colors_flip_exec;
   ot->poll = brush_colors_flip_poll;
 

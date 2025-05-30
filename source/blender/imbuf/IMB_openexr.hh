@@ -8,10 +8,10 @@
 
 #pragma once
 
-/* API for reading and writing multilayer EXR files. */
+/* API for reading and writing multi-layer EXR files. */
 
 /* XXX layer+pass name max 64? */
-/* This api also supports max 8 channels per pass now. easy to fix! */
+/* This API also supports max 8 channels per pass now. easy to fix! */
 #define EXR_LAY_MAXNAME 64
 #define EXR_PASS_MAXNAME 64
 #define EXR_VIEW_MAXNAME 64
@@ -49,6 +49,7 @@ bool IMB_exr_begin_write(void *handle,
                          const char *filepath,
                          int width,
                          int height,
+                         const double ppm[2],
                          int compress,
                          int quality,
                          const StampData *stamp);
@@ -85,3 +86,5 @@ void IMB_exr_close(void *handle);
 void IMB_exr_add_view(void *handle, const char *name);
 
 bool IMB_exr_has_multilayer(void *handle);
+
+bool IMB_exr_get_ppm(void *handle, double ppm[2]);

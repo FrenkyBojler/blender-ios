@@ -24,11 +24,14 @@ enum class MergeLayerMode {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Grease Pencil")
       .supported_type(GeometryComponent::Type::GreasePencil);
+  b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   auto &group_id = b.add_input<decl::Int>("Group ID").hide_value().field_on_all();
-  b.add_output<decl::Geometry>("Grease Pencil").propagate_all();
 
   const bNode *node = b.node_or_null();
   if (node) {
@@ -47,7 +50,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static Vector<Vector<int>> get_layers_map_by_name(const GreasePencil &src_grease_pencil,

@@ -553,13 +553,9 @@ const EnumPropertyItem rna_enum_shrinkwrap_face_cull_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_warning_type_items[] = {
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Warning),
-     "WARNING",
-     ICON_ERROR,
-     "Warning",
-     ""},
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
+    {int(blender::nodes::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
+    {int(blender::nodes::NodeWarningType::Warning), "WARNING", ICON_ERROR, "Warning", ""},
+    {int(blender::nodes::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1603,7 +1599,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
       int num_data, i;
 
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+      const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_src);
       if (!ob_eval) {
         RNA_enum_item_end(&item, &totitem);
         *r_free = true;
@@ -1640,7 +1636,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
                                    bke::AttrDomain::Corner;
 
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-      const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_src);
+      const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_src);
       if (!ob_eval) {
         RNA_enum_item_end(&item, &totitem);
         *r_free = true;
@@ -1959,7 +1955,7 @@ static blender::nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(NodesMod
   if (!nmd.runtime->eval_log) {
     return nullptr;
   }
-  blender::bke::ModifierComputeContext compute_context{nullptr, nmd.modifier.name};
+  blender::bke::ModifierComputeContext compute_context{nullptr, nmd};
   return &nmd.runtime->eval_log->get_tree_log(compute_context.hash());
 }
 
@@ -1967,7 +1963,7 @@ static blender::Span<blender::nodes::geo_eval_log::NodeWarning> get_node_modifie
     NodesModifierData &nmd)
 {
   if (auto *log = get_nodes_modifier_log(nmd)) {
-    log->ensure_node_warnings(nmd.node_group);
+    log->ensure_node_warnings(nmd);
     return log->all_warnings;
   }
   return {};
@@ -2736,6 +2732,7 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
                                 "rna_MultiresModifier_filepath_length",
                                 "rna_MultiresModifier_filepath_set");
   RNA_def_property_ui_text(prop, "File Path", "Path to external displacements file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "show_only_control_edges", PROP_BOOLEAN, PROP_NONE);
@@ -3036,7 +3033,7 @@ static void rna_def_modifier_decimate(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  /* NOTE: keep in sync with operator 'MESH_OT_decimate'. */
+  /* NOTE: keep in sync with operator `MESH_OT_decimate`. */
 
   StructRNA *srna;
   PropertyRNA *prop;
@@ -3523,13 +3520,18 @@ static void rna_def_modifier_boolean(BlenderRNA *brna)
       {eBooleanModifierSolver_Float,
        "FAST",
        0,
-       "Fast",
-       "Simple solver for the best performance, without support for overlapping geometry"},
+       "Float",
+       "Simple solver with good performance, without support for overlapping geometry"},
       {eBooleanModifierSolver_Mesh_Arr,
        "EXACT",
        0,
        "Exact",
-       "Advanced solver for the best result"},
+       "Slower solver with the best results for coplanar faces"},
+      {eBooleanModifierSolver_Manifold,
+       "MANIFOLD",
+       0,
+       "Manifold",
+       "Fastest solver that works only on manifold meshes but gives better results"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -6668,8 +6670,10 @@ static void rna_def_modifier_ocean(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Ocean is Cached", "Whether the ocean is using cached data or simulating");
 
+  /* TODO: rename to `dirpath`. */
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "cachepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Cache Path", "Path to a folder to store external baked images");
   // RNA_def_property_update(prop, 0, "rna_Modifier_update");
   /* XXX how to update? */
@@ -6862,6 +6866,7 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Path to external displacements file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
@@ -6972,6 +6977,7 @@ static void rna_def_modifier_meshseqcache(BlenderRNA *brna)
       {MOD_MESHSEQ_READ_POLY, "POLY", 0, "Faces", ""},
       {MOD_MESHSEQ_READ_UV, "UV", 0, "UV", ""},
       {MOD_MESHSEQ_READ_COLOR, "COLOR", 0, "Color", ""},
+      {MOD_MESHSEQ_READ_ATTRIBUTES, "ATTRIBUTES", 0, "Attributes", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7937,6 +7943,7 @@ static void rna_def_modifier_nodes_bake(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Nodes Modifier Bake", "");
 
   prop = RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "Directory", "Location on disk where the bake data is stored");
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
 
@@ -8087,6 +8094,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_NodesModifier_node_group_update");
 
   prop = RNA_def_property(srna, "bake_directory", PROP_STRING, PROP_DIRPATH);
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Simulation Bake Directory", "Location on disk where the bake data is stored");
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
@@ -8362,7 +8370,7 @@ static void rna_def_modifier_grease_pencil_layer_filter(StructRNA *srna)
 {
   PropertyRNA *prop;
 
-  prop = RNA_def_property(srna, "layer_filter", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "tree_node_filter", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "influence.layer_name");
   RNA_def_property_ui_text(prop, "Layer", "Layer name");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -8389,6 +8397,12 @@ static void rna_def_modifier_grease_pencil_layer_filter(StructRNA *srna)
   RNA_def_property_boolean_sdna(
       prop, nullptr, "influence.flag", GREASE_PENCIL_INFLUENCE_INVERT_LAYER_PASS_FILTER);
   RNA_def_property_ui_text(prop, "Invert Layer Pass", "Invert layer pass filter");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "use_layer_group_filter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "influence.flag", GREASE_PENCIL_INFLUENCE_USE_LAYER_GROUP_FILTER);
+  RNA_def_property_ui_text(prop, "Layer Group", "Filter by layer group name");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 

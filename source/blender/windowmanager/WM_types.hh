@@ -31,7 +31,7 @@
  *       Global screen level regions, e.g. popups, popovers, menus.
  *
  *   - #wmWindow.global_areas -> #ScrAreaMap <br>
- *     Global screen via 'areabase', e.g. top-bar & status-bar.
+ *     Global screen via `areabase`, e.g. top-bar & status-bar.
  *
  *
  * Window Layout
@@ -700,10 +700,11 @@ struct wmTabletData {
   int active;
   /** Range 0.0 (not touching) to 1.0 (full pressure). */
   float pressure;
-  /** Range 0.0 (upright) to 1.0 (tilted fully against the tablet surface). */
-  float x_tilt;
-  /** As above. */
-  float y_tilt;
+  /**
+   * X axis range: -1.0 (left) to +1.0 (right).
+   * Y axis range: -1.0 (away from user) to +1.0 (toward user).
+   */
+  blender::float2 tilt;
   /** Interpret mouse motion as absolute as typical for tablets. */
   char is_motion_absolute;
 };
@@ -1170,12 +1171,10 @@ struct wmOperatorCallParams {
  * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
-  size_t result_len, composite_len;
-
   /** UTF8 encoding. */
-  char *str_result;
+  std::string result;
   /** UTF8 encoding. */
-  char *str_composite;
+  std::string composite;
 
   /** Cursor position in the IME composition. */
   int cursor_pos;
@@ -1188,7 +1187,10 @@ struct wmIMEData {
 
 /* **************** Paint Cursor ******************* */
 
-using wmPaintCursorDraw = void (*)(bContext *C, int, int, void *customdata);
+using wmPaintCursorDraw = void (*)(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 &tilt,
+                                   void *customdata);
 
 /* *************** Drag and drop *************** */
 
