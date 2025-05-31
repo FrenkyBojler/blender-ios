@@ -221,7 +221,7 @@ enum NodeVectorMathType {
   NODE_VECTOR_MATH_MULTIPLY_ADD,
   NODE_VECTOR_MATH_POWER,
   NODE_VECTOR_MATH_SIGN,
-} ;
+};
 
 enum NodeClampType {
   NODE_CLAMP_MINMAX,

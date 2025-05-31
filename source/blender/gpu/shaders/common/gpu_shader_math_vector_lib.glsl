@@ -533,16 +533,14 @@ float2 compatible_pow(float2 a, float2 b)
 
 float3 compatible_pow(float3 a, float3 b)
 {
-  return float3(compatible_pow(a.x, b.x), 
-                compatible_pow(a.y, b.y), 
-                compatible_pow(a.z, b.z));
+  return float3(compatible_pow(a.x, b.x), compatible_pow(a.y, b.y), compatible_pow(a.z, b.z));
 }
 
 float4 compatible_pow(float4 a, float4 b)
 {
-  return float4(compatible_pow(a.x, b.x), 
-                compatible_pow(a.y, b.y), 
-                compatible_pow(a.z, b.z), 
+  return float4(compatible_pow(a.x, b.x),
+                compatible_pow(a.y, b.y),
+                compatible_pow(a.z, b.z),
                 compatible_pow(a.w, b.w));
 }
 
