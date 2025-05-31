@@ -29,7 +29,7 @@ namespace blender::nodes::node_composite_masked_maximum_cc {
 
 static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Image").default_value(0.5f).compositor_domain_priority(0);
+  b.add_input<decl::Float>("Mask").default_value(0.5f).min(0.0f).compositor_domain_priority(0);
   b.add_input<decl::Vector>("Size")
       .dimensions(2)
       .default_value({1.0f, 1.0f, 0.0f})
@@ -52,7 +52,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .description(
           "Maximal range of the linear falloff starting at the boundaries of the constant part of "
           "the rounded square mask");
-  b.add_output<decl::Float>("Image");
+  b.add_output<decl::Float>("Mask");
 }
 
 using namespace blender::compositor;
@@ -63,24 +63,28 @@ class MaskedMaximumOperation : public NodeOperation {
 
   void execute() override
   {
-    const Result &input_image = this->get_input("Image");
-    Result &output_image = this->get_result("Image");
+    const Result &input_mask = this->get_input("Mask");
+    Result &output_mask = this->get_result("Mask");
 
-    if (input_image.is_single_value()) {
+    if (input_mask.is_single_value() ||
+        ((get_input("Size").get_single_value_default(float3(0.0f, 0.0f, 0.0f)) <=
+          float3(0.0f, 0.0f, 0.0f)) &&
+         (get_input("Falloff").get_single_value_default(1.0f) <= 0.0f)))
+    {
       /* Operation does nothing and the input can be passed through. */
-      output_image.share_data(input_image);
+      output_mask.share_data(input_mask);
       return;
     }
 
     if (this->context().use_gpu()) {
-      this->execute_gpu(input_image, output_image);
+      this->execute_gpu(input_mask, output_mask);
     }
     else {
-      this->execute_cpu(input_image, output_image);
+      this->execute_cpu(input_mask, output_mask);
     }
   }
 
-  void execute_gpu(const Result &input_image, Result &output_image)
+  void execute_gpu(const Result &input_mask, Result &output_mask)
   {
     GPUShader *shader = context().get_shader("compositor_masked_maximum");
     GPU_shader_bind(shader);
@@ -89,7 +93,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
     GPU_shader_uniform_2iv(shader, "domain_size", domain.size);
 
-    input_image.bind_as_texture(shader, "input_image_tx");
+    input_mask.bind_as_texture(shader, "input_mask_tx");
 
     const Result &input_size = get_input("Size");
     input_size.bind_as_texture(shader, "input_size_tx");
@@ -100,23 +104,23 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_falloff = get_input("Falloff");
     input_falloff.bind_as_texture(shader, "input_falloff_tx");
 
-    output_image.allocate_texture(domain);
-    output_image.bind_as_image(shader, "output_img");
+    output_mask.allocate_texture(domain);
+    output_mask.bind_as_image(shader, "output_mask_img");
 
     compute_dispatch_threads_at_least(shader, domain.size);
 
     GPU_shader_unbind();
-    input_image.unbind_as_texture();
+    input_mask.unbind_as_texture();
     input_size.unbind_as_texture();
     input_roundness.unbind_as_texture();
     input_falloff.unbind_as_texture();
-    output_image.unbind_as_image();
+    output_mask.unbind_as_image();
   }
 
-  void execute_cpu(const Result &input_image, Result &output_image)
+  void execute_cpu(const Result &input_mask, Result &output_mask)
   {
     Domain domain = this->compute_domain();
-    output_image.allocate_texture(domain);
+    output_mask.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
       float3 size = math::max(get_input("Size").load_pixel_zero<float3, true>(texel),
@@ -126,35 +130,35 @@ class MaskedMaximumOperation : public NodeOperation {
       float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
 
       float masked_maximum = -FLT_MAX;
-      int2 computation_window_upper_right_corner = int2(
+      int2 computation_window_top_right_corner = int2(
           int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
           int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
-      int2 computation_window_lower_left_corner = -computation_window_upper_right_corner;
-      computation_window_upper_right_corner += texel;
-      computation_window_lower_left_corner += texel;
-      computation_window_upper_right_corner = math::min(computation_window_upper_right_corner,
-                                                        domain.size - int2(1, 1));
-      computation_window_lower_left_corner = math::max(computation_window_lower_left_corner,
-                                                       int2(0, 0));
-      computation_window_upper_right_corner -= texel;
-      computation_window_lower_left_corner -= texel;
-      for (int y = computation_window_lower_left_corner.y;
-           y <= computation_window_upper_right_corner.y;
+      int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
+      computation_window_top_right_corner += texel;
+      computation_window_bottom_left_corner += texel;
+      computation_window_top_right_corner = math::min(computation_window_top_right_corner,
+                                                      domain.size - int2(1, 1));
+      computation_window_bottom_left_corner = math::max(computation_window_bottom_left_corner,
+                                                        int2(0, 0));
+      computation_window_top_right_corner -= texel;
+      computation_window_bottom_left_corner -= texel;
+      for (int y = computation_window_bottom_left_corner.y;
+           y <= computation_window_top_right_corner.y;
            y++)
       {
-        for (int x = computation_window_lower_left_corner.x;
-             x <= computation_window_upper_right_corner.x;
+        for (int x = computation_window_bottom_left_corner.x;
+             x <= computation_window_top_right_corner.x;
              x++)
         {
           masked_maximum = math::max(
               masked_maximum,
               compute_rounded_square_mask(
                   float2(x, y), float2(size.x, size.y), roundness, falloff) *
-                  input_image.load_pixel_zero<float, true>(texel + int2(x, y)));
+                  math::max(input_mask.load_pixel_zero<float, true>(texel + int2(x, y)), 0.0f));
         }
       }
 
-      output_image.store_pixel(texel, masked_maximum);
+      output_mask.store_pixel(texel, masked_maximum);
     });
   }
 

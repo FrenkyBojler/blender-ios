@@ -141,31 +141,30 @@ void main()
   float falloff = max(texture_load(input_falloff_tx, texel).x, 0.0f);
 
   float masked_maximum = -FLT_MAX;
-  int2 computation_window_upper_right_corner = int2(
+  int2 computation_window_top_right_corner = int2(
       int(ceil(size.x + (falloff * min(size.x / size.y, 1.0f)))),
       int(ceil(size.y + (falloff * min(size.y / size.x, 1.0f)))));
-  int2 computation_window_lower_left_corner = -computation_window_upper_right_corner;
-  computation_window_upper_right_corner += texel;
-  computation_window_lower_left_corner += texel;
-  computation_window_upper_right_corner = min(computation_window_upper_right_corner,
-                                              domain_size - int2(1, 1));
-  computation_window_lower_left_corner = max(computation_window_lower_left_corner, int2(0, 0));
-  computation_window_upper_right_corner -= texel;
-  computation_window_lower_left_corner -= texel;
-  for (int y = computation_window_lower_left_corner.y;
-       y <= computation_window_upper_right_corner.y;
+  int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
+  computation_window_top_right_corner += texel;
+  computation_window_bottom_left_corner += texel;
+  computation_window_top_right_corner = min(computation_window_top_right_corner,
+                                            domain_size - int2(1, 1));
+  computation_window_bottom_left_corner = max(computation_window_bottom_left_corner, int2(0, 0));
+  computation_window_top_right_corner -= texel;
+  computation_window_bottom_left_corner -= texel;
+  for (int y = computation_window_bottom_left_corner.y; y <= computation_window_top_right_corner.y;
        y++)
   {
-    for (int x = computation_window_lower_left_corner.x;
-         x <= computation_window_upper_right_corner.x;
+    for (int x = computation_window_bottom_left_corner.x;
+         x <= computation_window_top_right_corner.x;
          x++)
     {
       masked_maximum = max(
           masked_maximum,
           compute_rounded_square_mask(float2(x, y), float2(size.x, size.y), roundness, falloff) *
-              texture_load(input_image_tx, texel + int2(x, y)).x);
+              max(texture_load(input_mask_tx, texel + int2(x, y)).x, 0.0f));
     }
   }
 
-  imageStore(output_img, texel, float4(masked_maximum));
+  imageStore(output_mask_img, texel, float4(masked_maximum));
 }
