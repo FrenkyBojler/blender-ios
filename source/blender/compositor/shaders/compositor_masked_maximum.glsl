@@ -141,9 +141,22 @@ void main()
   float falloff = max(texture_load(input_falloff_tx, texel).x, 0.0f);
 
   float masked_maximum = -FLT_MAX;
-  int2 computation_window_top_right_corner = int2(
-      int(ceil(size.x + (falloff * min(size.x / size.y, 1.0f)))),
-      int(ceil(size.y + (falloff * min(size.y / size.x, 1.0f)))));
+  int2 computation_window_top_right_corner;
+  if (size.x == size.y) {
+    computation_window_top_right_corner = int2(int(ceil(size.x + falloff)),
+                                               int(ceil(size.y + falloff)));
+  }
+  else if (size.x == 0.0f) {
+    computation_window_top_right_corner = int2(0, int(ceil(size.y + falloff)));
+  }
+  else if (size.y == 0.0f) {
+    computation_window_top_right_corner = int2(int(ceil(size.x + falloff)), 0);
+  }
+  else {
+    computation_window_top_right_corner = int2(
+        int(ceil(size.x + (falloff * min(size.x / size.y, 1.0f)))),
+        int(ceil(size.y + (falloff * min(size.y / size.x, 1.0f)))));
+  }
   int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
   computation_window_top_right_corner += texel;
   computation_window_bottom_left_corner += texel;

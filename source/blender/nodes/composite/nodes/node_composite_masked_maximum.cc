@@ -65,10 +65,11 @@ class MaskedMaximumOperation : public NodeOperation {
   {
     const Result &input_mask = this->get_input("Mask");
     Result &output_mask = this->get_result("Mask");
+    float3 size_single_value = get_input("Size").get_single_value_default(
+        float3(0.0f, 0.0f, 0.0f));
 
     if (input_mask.is_single_value() ||
-        ((get_input("Size").get_single_value_default(float3(0.0f, 0.0f, 0.0f)) <=
-          float3(0.0f, 0.0f, 0.0f)) &&
+        ((size_single_value.x <= 0.0f) && (size_single_value.y <= 0.0f) &&
          (get_input("Falloff").get_single_value_default(1.0f) <= 0.0f)))
     {
       /* Operation does nothing and the input can be passed through. */
@@ -130,9 +131,22 @@ class MaskedMaximumOperation : public NodeOperation {
       float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
 
       float masked_maximum = -FLT_MAX;
-      int2 computation_window_top_right_corner = int2(
-          int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
-          int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
+      int2 computation_window_top_right_corner;
+      if (size.x == size.y) {
+        computation_window_top_right_corner = int2(int(math::ceil(size.x + falloff)),
+                                                   int(math::ceil(size.y + falloff)));
+      }
+      else if (size.x == 0.0f) {
+        computation_window_top_right_corner = int2(0, int(math::ceil(size.y + falloff)));
+      }
+      else if (size.y == 0.0f) {
+        computation_window_top_right_corner = int2(int(math::ceil(size.x + falloff)), 0);
+      }
+      else {
+        computation_window_top_right_corner = int2(
+            int(math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f)))),
+            int(math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f)))));
+      }
       int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
       computation_window_top_right_corner += texel;
       computation_window_bottom_left_corner += texel;
