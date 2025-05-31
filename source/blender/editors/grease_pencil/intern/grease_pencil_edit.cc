@@ -4376,7 +4376,7 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
   ot->exec = grease_pencil_outline_exec;
   ot->poll = editable_grease_pencil_poll;
 
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO; 
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties */
   ot->prop = RNA_def_enum(
