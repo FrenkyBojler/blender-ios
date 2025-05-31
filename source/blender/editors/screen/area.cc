@@ -2626,6 +2626,10 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
   wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
+  if (area->spacedata.first && !G.background) {
+    screen_area_animate_out(C, area, 0.3f);
+  }
+
   if (area->spacetype != type) {
     SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
     /* store area->type->exit callback */

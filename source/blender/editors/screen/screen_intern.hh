@@ -112,6 +112,8 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
 
 void screen_draw_region_scale_highlight(ARegion *region);
 
+void screen_area_animate_out(bContext *C, ScrArea *area, float duration);
+
 /* `screen_edit.cc` */
 
 /**
