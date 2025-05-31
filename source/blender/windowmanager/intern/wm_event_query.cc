@@ -511,7 +511,7 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 
 #ifdef WITH_INPUT_NDOF
 
-bool WM_event_is_ndof(const wmEvent *event)
+bool WM_event_is_ndof_motion(const wmEvent *event)
 {
   return (event->custom == EVT_DATA_NDOF_MOTION);
 }

@@ -12,6 +12,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_string_utf8_symbols.h"
+#include "BLI_math_vector.h"
 
 #include "BLT_translation.hh"
 
@@ -797,10 +798,10 @@ static void rna_Event_tilt_get(PointerRNA *ptr, float *values)
   WM_event_tablet_data(event, nullptr, values);
 }
 
-static bool rna_Event_is_ndof_get(PointerRNA* ptr)
+static bool rna_Event_is_ndof_motion_get(PointerRNA* ptr)
 {
   const wmEvent *event = static_cast<wmEvent *>(ptr->data);
-  return WM_event_is_ndof(event);
+  return WM_event_is_ndof_motion(event);
 }
 
 static void rna_Event_ndof_translation_get(PointerRNA *ptr, float *values)
@@ -810,9 +811,7 @@ static void rna_Event_ndof_translation_get(PointerRNA *ptr, float *values)
   
   if (ndof == nullptr)
   {
-    values[0] = 0.0f;
-    values[1] = 0.0f;
-    values[2] = 0.0f;
+    zero_v3(values);
     return;
   }
   WM_event_ndof_pan_get(ndof, values, false);
@@ -822,13 +821,23 @@ static void rna_Event_ndof_rotation_get(PointerRNA *ptd, float *values)
 {
   wmEvent *event = static_cast<wmEvent *>(ptd->data);
   const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
-  if (ndof == nullptr) {
-    values[0] = 0.0f;
-    values[1] = 0.0f;
-    values[2] = 0.0f;
+  if (ndof == nullptr)
+  {
+    zero_v3(values);
     return;
   }
   WM_event_ndof_rotate_get(ndof, values);
+}
+
+static float rna_Event_ndof_delta_time_get(PointerRNA* ptd)
+{
+  wmEvent *event = static_cast<wmEvent *>(ptd->data);
+  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+  if (ndof == nullptr)
+  {
+    return 0.0f;
+  }
+  return ndof->dt;
 }
 
 static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
@@ -2490,25 +2499,31 @@ static void rna_def_event(BlenderRNA *brna)
   /*
    * NDOF motion data
   */
-  prop = RNA_def_property(srna, "is_ndof", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_ndof_motion", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_boolean_funcs(prop, "rna_Event_is_ndof_get", nullptr);
-  RNA_def_property_ui_text(prop, "Is NDOF", "The event has ndof motion data");
+  RNA_def_property_boolean_funcs(prop, "rna_Event_is_ndof_motion_get", nullptr);
+  RNA_def_property_ui_text(prop, "Is NDOF motion", "The event has ndof motion data");
 
-  prop = RNA_def_property(srna, "ndof_translation", PROP_FLOAT, PROP_XYZ_LENGTH);
+  prop = RNA_def_property(srna, "ndof_translation", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 3);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_float_funcs(prop, "rna_Event_ndof_translation_get", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop, "NDOF Translation", "The translation of the ndof motion event or zeroes if not an ndof motion event");
 
-  prop = RNA_def_property(srna, "ndof_rotation", PROP_FLOAT, PROP_XYZ_LENGTH);
+  prop = RNA_def_property(srna, "ndof_rotation", PROP_FLOAT, PROP_AXISANGLE);
   RNA_def_property_array(prop, 3);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_float_funcs(prop, "rna_Event_ndof_rotation_get", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
-      "NDOF Rotation", "The rotation of the ndof motion event or zeroes if not an ndof motion event");
+      "NDOF Rotation", "Axis-angle rotation of the NDOF motion event, where vector magnitude is the angle and 1.0 equals 360 degrees; zero if not an NDOF motion event");
+
+  prop = RNA_def_property(srna, "ndof_delta_time", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_float_funcs(prop, "rna_Event_ndof_delta_time_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "NDOF delta time", "Time since previous NDOF Motion event (in seconds)");
 
   RNA_define_verify_sdna(true); /* not in sdna */
 }
