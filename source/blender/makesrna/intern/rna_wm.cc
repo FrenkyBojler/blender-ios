@@ -499,6 +499,15 @@ const EnumPropertyItem rna_enum_event_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+const EnumPropertyItem rna_enum_ndof_motion_progress_items[] = {
+    {P_NOT_STARTED, "NOT_STARTED", 0, "Not started", ""},
+    {P_STARTING, "STARTING", 0, "Starting", ""},
+    {P_IN_PROGRESS, "IN_PROGRESS", 0, "In progress", ""},
+    {P_FINISHING, "FINISHING", 0, "Finishing", ""},
+    {P_FINISHED, "FINISHED", 0, "Finished", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_keymap_propvalue_items[] = {
     {0, "NONE", 0, "", ""},
     {0, nullptr, 0, nullptr, nullptr},
@@ -838,6 +847,16 @@ static float rna_Event_ndof_delta_time_get(PointerRNA* ptd)
     return 0.0f;
   }
   return ndof->dt;
+}
+
+static int rna_Event_ndof_motion_progress_get(PointerRNA *ptd)
+{
+  wmEvent *event = static_cast<wmEvent *>(ptd->data);
+  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+  if (ndof == nullptr) {
+    return P_NOT_STARTED;
+  }
+  return static_cast<int>(ndof->progress);
 }
 
 static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
@@ -2524,6 +2543,12 @@ static void rna_def_event(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_float_funcs(prop, "rna_Event_ndof_delta_time_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "NDOF delta time", "Time since previous NDOF Motion event (in seconds)");
+  
+  prop = RNA_def_property(srna, "ndof_motion_progress", PROP_ENUM, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_enum_items(prop, rna_enum_ndof_motion_progress_items);
+  RNA_def_property_enum_funcs(prop, "rna_Event_ndof_motion_progress_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "NDOF motion progress", "");
 
   RNA_define_verify_sdna(true); /* not in sdna */
 }
