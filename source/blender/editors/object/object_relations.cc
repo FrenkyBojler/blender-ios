@@ -975,14 +975,14 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
                  ICON_NONE,
                  "OBJECT_OT_parent_no_inverse_set",
                  "keep_transform",
-                 0);
+                 1);
 
   uiItemBooleanO(layout,
-                 IFACE_("Object (Keep Transform Without Inverse)"),
+                 IFACE_("Object (Discard Transform Without Inverse)"),
                  ICON_NONE,
                  "OBJECT_OT_parent_no_inverse_set",
                  "keep_transform",
-                 1);
+                 0);
 
   struct {
     bool armature_deform, empty_groups, envelope_weights, automatic_weights, attach_surface;
