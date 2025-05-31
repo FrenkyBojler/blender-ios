@@ -5563,7 +5563,19 @@ void ui_draw_pie_center(uiBlock *block)
 
   imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, pie_radius_internal, subd);
   imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, pie_radius_external, subd);
-
+  /* When the pie menu contains more than one page, add a visual feedback of wich page is active.
+   */
+  if (block->pie_data.pages.size() > 1) {
+    int x = -UI_SCALE_FAC * std::ceil(5.0f * float(block->pie_data.pages.size() - 1) / 2.0f);
+    uchar page_dot_color[] = {255, 255, 255, 0};
+    for (int i : block->pie_data.pages.index_range()) {
+      page_dot_color[3] = i == block->pie_data.active_page ? 175 : 60;
+      immUniformColor4ubv(page_dot_color);
+      imm_draw_circle_fill_2d(
+          pos, x, -(pie_radius_external + UI_SCALE_FAC * 8), 2 * UI_SCALE_FAC, 16);
+      x += UI_SCALE_FAC * 5;
+    }
+  }
   immUnbindProgram();
 
   if (U.pie_menu_confirm > 0 &&
