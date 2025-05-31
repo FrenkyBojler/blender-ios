@@ -956,18 +956,18 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   uiItemFullO_ptr(
       layout, ot, IFACE_("Object"), ICON_NONE, nullptr, WM_OP_EXEC_DEFAULT, UI_ITEM_NONE, &opptr);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
-  RNA_boolean_set(&opptr, "keep_transform", false);
+  RNA_boolean_set(&opptr, "keep_transform", true);
 
   uiItemFullO_ptr(layout,
                   ot,
-                  IFACE_("Object (Keep Transform)"),
+                  IFACE_("Object (Discard Transform)"),
                   ICON_NONE,
                   nullptr,
                   WM_OP_EXEC_DEFAULT,
                   UI_ITEM_NONE,
                   &opptr);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
-  RNA_boolean_set(&opptr, "keep_transform", true);
+  RNA_boolean_set(&opptr, "keep_transform", false);
 #endif
 
   uiItemBooleanO(layout,
