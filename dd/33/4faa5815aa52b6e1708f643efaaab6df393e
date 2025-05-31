@@ -1,2 +1,3 @@
 Referenced by issue #129586, Fix #125024: Bevel offset - eliminate divide by 0.
 Referenced by issue #126309, Fix #125024: Bevel offset - eliminate divide by 0
+Referenced by issue #139664, Bevel modifier in Blender 4.4: drastic change in Clap Overlap behaviour comparing to the previous versions
