@@ -1123,6 +1123,7 @@ void Tree::flush_bounds_to_parents()
 
         node_mask.foreach_index([&](int i) {
           if (std::optional<int> parent = nodes[i].parent()) {
+            printf("%d's parent is %d\n", i, *parent);
             nodes_to_update.add(*parent);
           }
         });

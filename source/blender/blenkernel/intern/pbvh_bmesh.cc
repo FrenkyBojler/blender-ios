@@ -2237,6 +2237,132 @@ Tree Tree::from_bmesh(BMesh &bm)
   return pbvh;
 }
 
+static void merge_empty_nodes_recursive(MutableSpan<BMeshNode> nodes,
+                                        const int cd_vert_node_offset,
+                                        const int cd_face_node_offset,
+                                        const int index,
+                                        MutableSpan<bool> nodes_to_remove,
+                                        MutableSpan<bool> nodes_to_mark_as_changed)
+{
+  BMeshNode &node = nodes[index];
+  if (node.flag_ & Node::Leaf) {
+    if (node.bm_faces_.is_empty()) {
+      printf("Removing %d because it is empty\n", index);
+      nodes_to_remove[index] = true;
+    }
+    return;
+  }
+
+  const int child_a = node.children_offset_;
+  const int child_b = node.children_offset_ + 1;
+  merge_empty_nodes_recursive(
+      nodes, cd_vert_node_offset, cd_face_node_offset, child_a, nodes_to_remove, nodes_to_mark_as_changed);
+  merge_empty_nodes_recursive(
+      nodes, cd_vert_node_offset, cd_face_node_offset, child_b, nodes_to_remove, nodes_to_mark_as_changed);
+  const bool a_empty = nodes[child_a].bm_faces_.is_empty();
+  const bool b_empty = nodes[child_b].bm_faces_.is_empty();
+  if (!a_empty && !b_empty) {
+    node.flag_ |= ~Node::Leaf;
+    return;
+  }
+  if (a_empty && b_empty) {
+    printf("Removing %d because it has no children\n", index);
+    nodes_to_remove[index] = true;
+    return;
+  }
+  node.flag_ |= Node::Leaf;
+  nodes_to_mark_as_changed[index] = true;
+  const int node_to_take = a_empty ? child_b : child_a;
+  nodes_to_remove[node_to_take] = true;
+  printf("Removing %d as it is now merged into %d\n", node_to_take, index);
+  BLI_assert(!nodes[node_to_take].bm_faces_.is_empty());
+  node.bm_unique_verts_ = std::move(nodes[node_to_take].bm_unique_verts_);
+  node.bm_other_verts_ = std::move(nodes[node_to_take].bm_other_verts_);
+  node.bm_faces_ = std::move(nodes[node_to_take].bm_faces_);
+  for (BMVert *vert : node.bm_unique_verts_) {
+    BM_ELEM_CD_SET_INT(vert, cd_vert_node_offset, index);
+  }
+  for (BMFace *face : node.bm_faces_) {
+    BM_ELEM_CD_SET_INT(face, cd_face_node_offset, index);
+  }
+}
+
+static void remove_empty_bvh_nodes(Tree &pbvh,
+                                   const int cd_vert_node_offset,
+                                   const int cd_face_node_offset)
+{
+  MutableSpan<BMeshNode> nodes = pbvh.nodes<BMeshNode>();
+
+  Array<bool> nodes_to_remove(nodes.size(), false);
+  Array<bool> nodes_to_mark_as_changed(nodes.size(), false);
+  merge_empty_nodes_recursive(nodes, cd_vert_node_offset, cd_face_node_offset, 0, nodes_to_remove, nodes_to_mark_as_changed);
+
+  VectorSet<int> node_index_map;
+  node_index_map.reserve(nodes.size());
+  for (const int i : nodes.index_range()) {
+    if (nodes_to_remove[i]) {
+      continue;
+    }
+    node_index_map.add_new(i);
+  }
+
+  for (const int i : nodes.index_range()) {
+    BMeshNode &node = nodes[i];
+    const int new_index = node_index_map.index_of_try(i);
+    if (new_index == -1) {
+      continue;
+    }
+    node.children_offset_ = node_index_map.index_of_try(node.children_offset_);
+    if (!(node.flag_ & Node::Leaf)) {
+      BLI_assert(node.children_offset_ != -1);
+    }
+    node.parent_ = node_index_map.index_of_try(node.parent_);
+    for (BMVert *vert : node.bm_unique_verts_) {
+      BM_ELEM_CD_SET_INT(vert, cd_vert_node_offset, new_index);
+    }
+    for (BMFace *face : node.bm_faces_) {
+      BM_ELEM_CD_SET_INT(face, cd_face_node_offset, new_index);
+    }
+  }
+
+  Vector<BMeshNode> kept_nodes(node_index_map.size());
+  BitVector<> kept_bounds(node_index_map.size());
+  BitVector<> kept_normals(node_index_map.size());
+  pbvh.bounds_dirty_.resize(std::max(pbvh.bounds_dirty_.size(), nodes.size()), false);
+  pbvh.normals_dirty_.resize(std::max(pbvh.normals_dirty_.size(), nodes.size()), false);
+  for (const int i : node_index_map.index_range()) {
+    kept_nodes[i] = std::move(nodes[node_index_map[i]]);
+    if (kept_nodes[i].flag_ & Node::Leaf) {
+      BLI_assert(!kept_nodes[i].bm_faces_.is_empty());
+    }
+    if (pbvh.bounds_dirty_[node_index_map[i]] || nodes_to_mark_as_changed[node_index_map[i]]) {
+      kept_bounds[i].set();
+    }
+    if (pbvh.normals_dirty_[node_index_map[i]] || nodes_to_mark_as_changed[node_index_map[i]]) {
+      kept_normals[i].set();
+    }
+  }
+
+  std::optional<BitVector<>> converted_visibility;
+  if (!pbvh.visibility_dirty_.is_empty()) {
+    pbvh.visibility_dirty_.resize(std::max(pbvh.visibility_dirty_.size(), nodes.size()), false);
+    BitVector<> kept_visibility(node_index_map.size());
+    for (const int i : node_index_map.index_range()) {
+      if (pbvh.visibility_dirty_[node_index_map[i]] || nodes_to_mark_as_changed[node_index_map[i]]) {
+        kept_visibility[i].set();
+      }
+    }
+    converted_visibility = kept_visibility;
+  }
+
+  pbvh.nodes_ = std::move(kept_nodes);
+  pbvh.bounds_dirty_ = std::move(kept_bounds);
+  pbvh.normals_dirty_ = std::move(kept_normals);
+  if (converted_visibility) {
+    pbvh.visibility_dirty_ = std::move(converted_visibility.value());
+  }
+}
+
 bool bmesh_update_topology(BMesh &bm,
                            Tree &pbvh,
                            BMLog &bm_log,
@@ -2334,6 +2460,8 @@ bool bmesh_update_topology(BMesh &bm,
       }
     }
   }
+
+  remove_empty_bvh_nodes(pbvh, cd_vert_node_offset, cd_face_node_offset);
 
 #ifdef USE_VERIFY
   pbvh_bmesh_verify(pbvh);

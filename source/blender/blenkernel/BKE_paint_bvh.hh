@@ -234,6 +234,8 @@ class Tree {
   /** Memory backing for #Node::prim_indices. Without an inline buffer to make #Tree movable. */
   Array<int, 0> prim_indices_;
 
+  /* TODO: Testing only, should replace with proper api */
+public:
   /**
    * If true, the bounds for the corresponding node index is out of date.
    * \note Values are only meaningful for leaf nodes.
