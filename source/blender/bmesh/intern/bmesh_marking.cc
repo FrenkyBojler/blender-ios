@@ -1879,6 +1879,55 @@ void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm)
   /* NOTE: caller may need to run #BM_mesh_uvselect_flush_shared. */
 }
 
+void BM_mesh_uvselect_flush_from_loop_verts_only_select(BMesh *bm)
+{
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BMLoop *l_iter, *l_first;
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    bool all_select = true;
+    do {
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV) &&
+          BM_elem_flag_test(l_iter->next, BM_ELEM_SELECT_UV))
+      {
+        BM_loop_edge_uvselect_set_noflush(bm, l_iter, true);
+      }
+      else {
+        all_select = false;
+      }
+    } while ((l_iter = l_iter->next) != l_first);
+    if (all_select) {
+      BM_face_uvselect_set_noflush(bm, f, true);
+    }
+  }
+}
+
+void BM_mesh_uvselect_flush_from_loop_verts_only_deselect(BMesh *bm)
+{
+  BMIter iter;
+  BMFace *f;
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    BMLoop *l_iter, *l_first;
+    l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+    bool all_select = true;
+    do {
+      if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV) &&
+          BM_elem_flag_test(l_iter->next, BM_ELEM_SELECT_UV))
+      {
+        /* Pass. */
+      }
+      else {
+        BM_loop_edge_uvselect_set_noflush(bm, l_iter, false);
+        all_select = false;
+      }
+    } while ((l_iter = l_iter->next) != l_first);
+    if (all_select == false) {
+      BM_face_uvselect_set_noflush(bm, f, false);
+    }
+  }
+}
+
 void BM_mesh_uvselect_flush_from_loop_edges(BMesh *bm, bool flush_down)
 {
   BMIter iter;
