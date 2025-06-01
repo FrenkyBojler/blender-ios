@@ -2072,7 +2072,8 @@ void BM_mesh_uvselect_flush_shared(BMesh *bm, const int cd_loop_uv_offset)
 
 void BM_mesh_uvselect_selectmode_update(BMesh *bm,
                                         const short selectmode_old,
-                                        const short selectmode_new)
+                                        const short selectmode_new,
+                                        const int cd_loop_uv_offset)
 {
 
   if (highest_order_bit_s(selectmode_old) >= highest_order_bit_s(selectmode_new)) {
@@ -2116,6 +2117,7 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
       BMLoop *l_iter, *l_first;
       l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+      bool select_face = true;
       do {
         if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
           if (!BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
@@ -2125,9 +2127,83 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
         if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
           if (!BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
             BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
+            select_face = false;
           }
         }
+        else {
+          select_face = false;
+        }
       } while ((l_iter = l_iter->next) != l_first);
+
+      if (select_face == false) {
+        BM_elem_flag_disable(f, BM_ELEM_SELECT_UV);
+      }
+    }
+
+    /* Ensure isolated elements are not selected (can happen with disconnected islands).
+     * Note that it's quite unlikely UV's are unset with a UV selection,
+     * check all the same as this pass is mainly a cleanup operation that isn't essential. */
+    if (cd_loop_uv_offset != -1) {
+      if (selectmode_new & SCE_SELECT_EDGE) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
+            /* When faces are selected, no need to search for isolated vertices. */
+            continue;
+          }
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          bool e_prev_select = BM_elem_flag_test(l_iter->prev, BM_ELEM_SELECT_UV_EDGE);
+          do {
+            const bool e_iter_select = BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE);
+            /* Avoid unnecessary checks by first looking at the underlying mesh. */
+            if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
+              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+                if (!(e_prev_select || e_iter_select)) {
+                  if (!BM_loop_vert_uvselect_check_other_edge(
+                          l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
+                  {
+                    BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
+                  }
+                }
+              }
+            }
+            e_prev_select = e_iter_select;
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
+      else if (selectmode_new & SCE_SELECT_FACE) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_SELECT_UV)) {
+            /* When faces are selected, no need to search for isolated edges. */
+            continue;
+          }
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          do {
+            /* Avoid unnecessary checks by first looking at the underlying mesh. */
+            if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
+              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
+                if (!BM_loop_vert_uvselect_check_other_face(
+                        l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+                {
+                  BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
+                }
+              }
+            }
+
+            /* Avoid unnecessary checks by first looking at the underlying mesh. */
+            if (BM_elem_flag_test(l_iter->e, BM_ELEM_SELECT)) {
+              if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
+                if (!BM_loop_edge_uvselect_check_other_face(
+                        l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+                {
+                  BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV_EDGE);
+                }
+              }
+            }
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
     }
   }
 }

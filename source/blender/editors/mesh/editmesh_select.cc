@@ -2466,7 +2466,8 @@ void EDBM_selectmode_set(BMEditMesh *em, const short selectmode)
   }
 
   if (em->bm->uv_sync_select_valid) {
-    BM_mesh_uvselect_selectmode_update(em->bm, selectmode_prev, selectmode);
+    const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_PROP_FLOAT2);
+    BM_mesh_uvselect_selectmode_update(em->bm, selectmode_prev, selectmode, cd_loop_uv_offset);
   }
 }
 

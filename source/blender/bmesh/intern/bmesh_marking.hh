@@ -222,7 +222,8 @@ void BM_mesh_uvselect_flush_shared(BMesh *bm, int cd_loop_uv_offset);
  */
 void BM_mesh_uvselect_selectmode_update(BMesh *bm,
                                         const short selectmode_old,
-                                        const short selectmode_new);
+                                        const short selectmode_new,
+                                        const int cd_loop_uv_offset);
 
 bool BM_vert_uvselect_loop_any(BMVert *v, char hflag);
 
