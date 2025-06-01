@@ -1290,7 +1290,7 @@ static void tempdir_session_create(char *tempdir_session,
   BLI_temp_directory_path_get(os_tempdir, sizeof(os_tempdir));
 
   CLOG_WARN(&LOG,
-            "Could not generate a unique session temp directory name from '%s', falling back to '%s'",
+            "Could not generate a temp file name for '%s', falling to '%s'",
             tempdir,
             os_tempdir);
 
