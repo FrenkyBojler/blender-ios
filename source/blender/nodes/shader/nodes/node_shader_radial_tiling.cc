@@ -42,8 +42,9 @@ static void sh_node_radial_tiling_declare(NodeDeclarationBuilder &b)
           "global X-axis");
 
   b.add_input<decl::Vector>("Vector")
+      .dimensions(2)
       .default_value(float3{0.0f, 0.0f, 0.0f})
-      .description("(X, Y) components of the input vector. The Z component is ignored");
+      .description("Input vector");
   b.add_input<decl::Float>("R_gon Sides")
       .min(2.0f)
       .max(1000.0f)

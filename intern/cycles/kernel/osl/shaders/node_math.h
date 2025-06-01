@@ -14,11 +14,6 @@
 #  define M_TAU 6.28318530717958647692 /* `tau = 2*pi` */
 #endif
 
-float inverse_mix(float from_min, float from_max, float value)
-{
-  return (value - from_min) / (from_max - from_min);
-}
-
 float safe_divide(float a, float b)
 {
   return (b != 0.0) ? a / b : 0.0;

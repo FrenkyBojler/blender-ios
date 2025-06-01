@@ -117,6 +117,16 @@ float safe_mod(float a, float b)
   return (b != 0.0f) ? mod(a, b) : 0.0f;
 }
 
+float floored_modulo(float a, float b)
+{
+  return a - floor(a / b) * b;
+}
+
+float safe_floored_modulo(float a, float b)
+{
+  return (b != 0.0) ? a - floor(a / b) * b : 0.0;
+}
+
 /**
  * A version of mod that behaves similar to C++ `std::modf`, and is safe such that it returns 0
  * when b is also 0.
@@ -274,11 +284,6 @@ float wrap(float a, float b, float c)
   /* Avoid discrepancy on some hardware due to floating point accuracy and fast math. */
   float s = (a != b) ? floor((a - c) / range) : 1.0f;
   return (range != 0.0f) ? a - range * s : c;
-}
-
-float inverse_mix(float from_min, float from_max, float value)
-{
-  return (value - from_min) / (from_max - from_min);
 }
 
 /** \} */
