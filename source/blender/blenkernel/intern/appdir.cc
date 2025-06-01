@@ -1130,6 +1130,82 @@ void BKE_appdir_app_templates(ListBase *templates)
 /** \name Temporary Directories
  * \{ */
 
+static bool path_is_network_win32(const char *path)
+{
+  return (path && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') &&
+          path[2] != '\0' && path[2] != '\\' && path[2] != '/');
+}
+
+/**
+ * Checks if path is root
+
+ * \param path: The dir to check
+ */
+
+static bool path_is_root(const char *path){
+  if (!path || path[0] == '\0') {
+    return false;
+  }
+#ifdef WIN32
+  if (((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) &&
+      path[1] == ':' && (path[2] == '\\' || path[2] == '/') && path[3] == '\0')
+{
+return true;
+      }
+
+  if (path_is_network_win32(path)) {
+    const char *p = path;
+    p += 2;
+    bool server = false;
+
+    while (*p != '\0' && *p != '\\' && *p != '/') {
+      p++;
+      server = true;
+    }
+
+    if (server && (*p == '\\' || *p == '/')) {
+      p++;
+      bool server = false;
+
+      while (*p != '\0' && *p != '\\' && *p != '/') {
+        p++;
+        server = true;
+      }
+
+      if (server) {
+        if (*p == '\0' || ((path[0] == '\\' || path[0] == '/') && *(p + 1) == '\0')) {
+          return true;
+        }
+      }
+    }
+  }
+return false;
+#else
+return (path[0] == '/' && path[1] == '\0');
+#endif
+}
+
+static bool path_is_usable(const char *dirpath)
+{
+  if (!dirpath || dirpath[0] == '\0') {
+    return false;
+  }
+  if (!BLI_is_dir(dirpath)) {
+    return false;
+  }
+
+  char filepath[FILE_MAX];
+  BLI_path_join(filepath, sizeof(filepath), dirpath, ".blender_dir_test");
+
+  FILE *file = BLI_fopen(filepath, "wb");
+  if (file) {
+    fclose(file);
+    BLI_delete(filepath, false, false);
+    return true;
+  }
+  return false;
+}
+
 /**
  * Gets the temp directory when blender first runs.
  * If the default path is not found, use try $TEMP
@@ -1141,12 +1217,39 @@ void BKE_appdir_app_templates(ListBase *templates)
  * \param userdir: Directory specified in user preferences (may be nullptr).
  * note that by default this is an empty string, only use when non-empty.
  */
+
 static void where_is_temp(char *tempdir, const size_t tempdir_maxncpy, const char *userdir)
 {
   if (userdir && BLI_temp_directory_path_copy_if_valid(tempdir, tempdir_maxncpy, userdir)) {
-    return;
+
+    /* Dont use the root directory */
+    if (path_is_root(tempdir)) {
+      CLOG_WARN(&LOG,
+                "'%s' is a root directory, please change it in"
+                "Preferences > File Paths > Temporary Files",
+                tempdir);
+
+      tempdir[0] = '\0';
+    }
+    /* Neither a directory blender cant use */
+    else if (!path_is_usable(tempdir)) {
+      CLOG_WARN(&LOG,
+                "Not enough permissions to use '%s', please change it in"
+                "Preferences > File Paths > Temporary Files",
+                tempdir);
+
+      tempdir[0] = '\0';
+    }
+    else {
+      return;
+    }
   }
-  BLI_temp_directory_path_get(tempdir, tempdir_maxncpy);
+
+  /* if userdir is empty or was was made empty above, tempdir will be used */
+  if (tempdir[0] == '\0')
+  {
+    BLI_temp_directory_path_get(tempdir, tempdir_maxncpy);
+  }
 }
 
 static void tempdir_session_create(char *tempdir_session,
@@ -1182,11 +1285,17 @@ static void tempdir_session_create(char *tempdir_session,
     }
   }
 
+   // if it gets here, it failed, so just use the tempdir
+  char os_tempdir[FILE_MAX];
+  BLI_temp_directory_path_get(os_tempdir, sizeof(os_tempdir));
+
   CLOG_WARN(&LOG,
-            "Could not generate a temp file name for '%s', falling back to '%s'",
-            tempdir_session,
-            tempdir);
-  BLI_strncpy(tempdir_session, tempdir, tempdir_session_maxncpy);
+            "Could not generate a unique session temp directory name from '%s', falling back to '%s'",
+            tempdir,
+            os_tempdir);
+
+  BLI_strncpy(tempdir_session, os_tempdir, tempdir_session_maxncpy);
+  BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
 }
 
 void BKE_tempdir_init(const char *userdir)
@@ -1217,8 +1326,16 @@ const char *BKE_tempdir_base()
 
 void BKE_tempdir_session_purge()
 {
-  if (g_app.temp_dirname_session[0] && BLI_is_dir(g_app.temp_dirname_session)) {
-    BLI_delete(g_app.temp_dirname_session, true, true);
+  /* One last check just to be sure */
+  if (path_is_root(g_app.temp_dirname_session))
+    {
+    CLOG_WARN(&LOG,
+              "Could not clear '%s' because it's root directory",
+              g_app.temp_dirname_session);
+    } else {
+    if (g_app.temp_dirname_session[0] && BLI_is_dir(g_app.temp_dirname_session)) {
+      BLI_delete(g_app.temp_dirname_session, true, true);
+    }
   }
 }
 
