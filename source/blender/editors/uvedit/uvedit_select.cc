@@ -5020,7 +5020,7 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
     if (ts->uv_flag & UV_SYNC_SELECTION) {
-      /* Pass. */
+      uvedit_select_prepare_sync_select(scene, bm);
     }
     else {
       uvedit_select_prepare_custom_data(scene, bm);
@@ -5040,7 +5040,10 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
         }
       }
     }
-    if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+    if (ts->uv_flag & UV_SYNC_SELECTION) {
+      ED_uvedit_select_sync_flush(ts, bm, true);
+    }
+    else {
       ED_uvedit_selectmode_flush(scene, bm);
     }
 
