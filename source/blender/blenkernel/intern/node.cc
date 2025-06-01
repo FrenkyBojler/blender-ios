@@ -203,6 +203,10 @@ static void ntree_copy_data(Main * /*bmain*/,
     dst_runtime.field_inferencing_interface = std::make_unique<FieldInferencingInterface>(
         *ntree_src->runtime->field_inferencing_interface);
   }
+  if (ntree_src->runtime->structure_type_interface) {
+    dst_runtime.structure_type_interface = std::make_unique<nodes::StructureTypeInterface>(
+        *ntree_src->runtime->structure_type_interface);
+  }
   if (ntree_src->runtime->reference_lifetimes_info) {
     using namespace node_tree_reference_lifetimes;
     dst_runtime.reference_lifetimes_info = std::make_unique<ReferenceLifetimesInfo>(
@@ -680,10 +684,16 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
   }
 
   for (bNode *node : node_tree.all_nodes()) {
-    auto write_input_to_property_bool_char = [&](const char *identifier, char &property) {
-      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
-      property = input->default_value_typed<bNodeSocketValueBoolean>()->value;
-    };
+    auto write_input_to_property_bool_char =
+        [&](const char *identifier, char &property, const bool invert = false) {
+          const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
+          if (invert) {
+            property = !input->default_value_typed<bNodeSocketValueBoolean>()->value;
+          }
+          else {
+            property = input->default_value_typed<bNodeSocketValueBoolean>()->value;
+          }
+        };
 
     auto write_input_to_property_bool_short = [&](const char *identifier, short &property) {
       const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, identifier);
@@ -1049,6 +1059,93 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       storage->y1 = y_input->default_value_typed<bNodeSocketValueInt>()->value +
                     height_input->default_value_typed<bNodeSocketValueInt>()->value;
     }
+
+    if (node->type_legacy == CMP_NODE_COLORBALANCE) {
+      NodeColorBalance *storage = static_cast<NodeColorBalance *>(node->storage);
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Lift");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Lift");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value +
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->lift, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gamma");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gamma");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gamma, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Gain");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Gain");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->gain, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Power");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Power");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->power, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Slope");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Slope");
+        const float3 value = base_input->default_value_typed<bNodeSocketValueFloat>()->value *
+                             float3(
+                                 color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+        copy_v3_v3(storage->slope, value);
+      }
+
+      {
+        const bNodeSocket *base_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Base Offset");
+        const bNodeSocket *color_input = blender::bke::node_find_socket(
+            *node, SOCK_IN, "Color Offset");
+        storage->offset_basis = base_input->default_value_typed<bNodeSocketValueFloat>()->value;
+        copy_v3_v3(storage->offset,
+                   color_input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      }
+
+      write_input_to_property_float("Input Temperature", storage->input_temperature);
+      write_input_to_property_float("Input Tint", storage->input_tint);
+      write_input_to_property_float("Output Temperature", storage->output_temperature);
+      write_input_to_property_float("Output Tint", storage->output_tint);
+    }
+
+    if (node->type_legacy == CMP_NODE_BLUR) {
+      write_input_to_property_bool_int16_flag("Extend Bounds", node->custom1, (1 << 1));
+
+      NodeBlurData *storage = static_cast<NodeBlurData *>(node->storage);
+      write_input_to_property_bool_char("Separable", storage->bokeh, true);
+
+      const bNodeSocket *size_input = blender::bke::node_find_socket(*node, SOCK_IN, "Size");
+      storage->sizex = int(
+          math::ceil(size_input->default_value_typed<bNodeSocketValueVector>()->value[0]));
+      storage->sizey = int(
+          math::ceil(size_input->default_value_typed<bNodeSocketValueVector>()->value[1]));
+    }
   }
 }
 
@@ -1344,40 +1441,40 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
 
 namespace versioning_internal {
 
-/* Specific code required to properly handle older blendfiles (pre-2.83), where some node data
+/* Specific code required to properly handle older blend-files (pre-2.83), where some node data
  * (like the sockets default values) were written as raw bytes buffer, without any DNA type
  * information. */
 
-/* Node socket default values were historicaly written and read as raw bytes buffers, without any
+/* Node socket default values were historically written and read as raw bytes buffers, without any
  * DNA typing information.
  *
- * The writing code was fixed in commit 50d5050e9c, which is included in the 2.83 release. However
- * the matching reading code was only fixed in the 4.5 release.
+ * The writing code was fixed in commit `50d5050e9c`, which is included in the 2.83 release.
+ * However the matching reading code was only fixed in the 4.5 release.
  *
- * So currently, reading code assumes that any blendfile >= 3.0 has correct DNA info for these
+ * So currently, reading code assumes that any blend-file >= 3.0 has correct DNA info for these
  * default values, and it keeps previous 'raw buffer' reading code for older ones.
  *
  * This means that special care must be taken when the various DNA types used for these default
  * values are modified, as a 'manual' version of DNA internal versioning must be performed on data
- * from older blendfiles (see also #direct_link_node_socket_default_value).
+ * from older blend-files (see also #direct_link_node_socket_default_value).
  */
 constexpr int MIN_BLENDFILE_VERSION_FOR_MODERN_NODE_SOCKET_DEFAULT_VALUE_READING = 300;
 
 /* The `_404` structs below are copies of DNA structs as they were in Blender 4.4 and before. Their
  * data layout should never have to be modified in any way, as it matches the expected data layout
- * in the raw bytes buffers read from older blendfiles.
+ * in the raw bytes buffers read from older blend-files.
  *
  * NOTE: There is _no_ need to protect DNA structs definition in any way to ensure forward
  * compatibility, for the following reasons:
- *   - The DNA struct info _is_ properly written in blendfiles since 2.83.
- *   - When there is DNA info for a BHead in the blendfile, even if that BHead is ultimately
+ *   - The DNA struct info _is_ properly written in blend-files since 2.83.
+ *   - When there is DNA info for a #BHead in the blend-file, even if that #BHead is ultimately
  *     'read'/used as raw bytes buffer through a call to `BLO_read_data_address`, the actual
- *     reading of that BHead from the blendfile will have already gone through the lower-level 'DNA
- *     versioning' process, which means that DNA struct changes (like adding new properties,
+ *     reading of that #BHead from the blend-file will have already gone through the lower-level
+ *     'DNA versioning' process, which means that DNA struct changes (like adding new properties,
  *     increasing an array size, etc.) will be handled properly.
- *   - Blender versions prior to 3.6 will not be able to load any 4.0+ blendfiles without immediate
- *     crash, so trying to preserve forward compatibility for versions older than 2.83 would be
- *     totally pointless.
+ *   - Blender versions prior to 3.6 will not be able to load any 4.0+ blend-files without
+ *     immediate crash, so trying to preserve forward compatibility for versions older than
+ *     2.83 would be totally pointless.
  */
 
 typedef struct bNodeSocketValueInt_404 {
@@ -1416,28 +1513,27 @@ typedef struct bNodeSocketValueRGBA_404 {
 typedef struct bNodeSocketValueString_404 {
   int subtype;
   char _pad[4];
-  /** 1024 = FILEMAX. */
-  char value[1024];
+  char value[/*FILE_MAX*/ 1024];
 } bNodeSocketValueString_404;
 
 typedef struct bNodeSocketValueObject_404 {
-  struct Object *value;
+  Object *value;
 } bNodeSocketValueObject_404;
 
 typedef struct bNodeSocketValueImage_404 {
-  struct Image *value;
+  Image *value;
 } bNodeSocketValueImage_404;
 
 typedef struct bNodeSocketValueCollection_404 {
-  struct Collection *value;
+  Collection *value;
 } bNodeSocketValueCollection_404;
 
 typedef struct bNodeSocketValueTexture_404 {
-  struct Tex *value;
+  Tex *value;
 } bNodeSocketValueTexture_404;
 
 typedef struct bNodeSocketValueMaterial_404 {
-  struct Material *value;
+  Material *value;
 } bNodeSocketValueMaterial_404;
 
 typedef struct bNodeSocketValueMenu_404 {
@@ -1460,7 +1556,7 @@ static void direct_link_node_socket_legacy_data_version_do(
   T_404 *orig_data = static_cast<T_404 *>(*raw_data);
   *raw_data = nullptr;
   T *final_data = MEM_callocN<T>(__func__);
-  /* Could use memcpy here, since we also require historic members of these DNA structs to
+  /* Could use `memcpy` here, since we also require historic members of these DNA structs to
    * never be moved or re-ordered. But better be verbose and explicit here. */
   copy_fn(*final_data, *orig_data);
   *dest_data = final_data;
@@ -1609,7 +1705,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
             [](bNodeSocketValueString &dest,
                versioning_internal::bNodeSocketValueString_404 &src) {
               dest.subtype = src.subtype;
-              BLI_strncpy(dest.value, src.value, sizeof(dest.value));
+              STRNCPY(dest.value, src.value);
             });
         break;
       case SOCK_OBJECT:
@@ -1712,7 +1808,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
   }
 }
 
-void direct_link_node_socket_storage(BlendDataReader *reader, const bNode *node, bNodeSocket *sock)
+static void direct_link_node_socket_storage(BlendDataReader *reader,
+                                            const bNode *node,
+                                            bNodeSocket *sock)
 {
   if (!sock->storage) {
     return;
@@ -1734,8 +1832,8 @@ void direct_link_node_socket_storage(BlendDataReader *reader, const bNode *node,
         NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
             sock->storage);
         BKE_image_format_blend_read_data(reader, &sockdata->format);
-        break;
       }
+      break;
     case CMP_NODE_IMAGE:
     case CMP_NODE_R_LAYERS:
       BLO_read_struct(reader, NodeImageLayer, &sock->storage);
@@ -2010,7 +2108,7 @@ static void ntree_blend_read_after_liblink(BlendLibReader *reader, ID *id)
    * first versioning that can change types still without functions that
    * update the `typeinfo` pointers. Versioning after lib linking needs
    * these top be valid. */
-  node_tree_set_type(nullptr, *ntree);
+  node_tree_set_type(*ntree);
 
   /* For nodes with static socket layout, add/remove sockets as needed
    * to match the static layout. */
@@ -2286,7 +2384,6 @@ static void node_socket_set_typeinfo(bNodeTree *ntree,
 
 /* Set specific typeinfo pointers in all node trees on register/unregister */
 static void update_typeinfo(Main *bmain,
-                            const bContext *C,
                             bNodeTreeType *treetype,
                             bNodeType *nodetype,
                             bNodeSocketType *socktype,
@@ -2304,7 +2401,7 @@ static void update_typeinfo(Main *bmain,
     /* initialize nodes */
     for (bNode *node : ntree->all_nodes()) {
       if (nodetype && node->idname == nodetype->idname) {
-        node_set_typeinfo(C, ntree, node, unregister ? nullptr : nodetype);
+        node_set_typeinfo(nullptr, ntree, node, unregister ? nullptr : nodetype);
       }
 
       /* initialize node sockets */
@@ -2323,7 +2420,7 @@ static void update_typeinfo(Main *bmain,
   FOREACH_NODETREE_END;
 }
 
-void node_tree_set_type(const bContext *C, bNodeTree &ntree)
+void node_tree_set_type(bNodeTree &ntree)
 {
   ntree_set_typeinfo(&ntree, node_tree_type_find(ntree.idname));
 
@@ -2337,7 +2434,7 @@ void node_tree_set_type(const bContext *C, bNodeTree &ntree)
       node_socket_set_typeinfo(&ntree, sock, node_socket_type_find(sock->idname));
     }
 
-    node_set_typeinfo(C, &ntree, node, node_type_find(node->idname));
+    node_set_typeinfo(nullptr, &ntree, node, node_type_find(node->idname));
   }
 }
 
@@ -2415,7 +2512,7 @@ void node_tree_type_add(bNodeTreeType &nt)
   /* XXX pass Main to register function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, &nt, nullptr, nullptr, false);
+  update_typeinfo(G_MAIN, &nt, nullptr, nullptr, false);
 }
 
 static void ntree_free_type(void *treetype_v)
@@ -2424,11 +2521,11 @@ static void ntree_free_type(void *treetype_v)
   /* XXX pass Main to unregister function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, treetype, nullptr, nullptr, true);
+  update_typeinfo(G_MAIN, treetype, nullptr, nullptr, true);
 
   /* Defer freeing the tree type, because it may still be referenced by trees in depsgraph
    * copies. We can't just remove these tree types, because the depsgraph may exist completely
-   * separate from original data. */
+   * separately from original data. */
   defer_free_tree_type(treetype);
 }
 
@@ -2472,7 +2569,7 @@ static void node_free_type(void *nodetype_v)
   /* XXX pass Main to unregister function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, nullptr, nodetype, nullptr, true);
+  update_typeinfo(G_MAIN, nullptr, nodetype, nullptr, true);
 
   /* Setting this to null is necessary for the case of static node types. When running tests,
    * they may be registered and unregistered multiple times. */
@@ -2507,7 +2604,7 @@ void node_register_type(bNodeType &nt)
   /* XXX pass Main to register function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, nullptr, &nt, nullptr, false);
+  update_typeinfo(G_MAIN, nullptr, &nt, nullptr, false);
 }
 
 void node_unregister_type(bNodeType &nt)
@@ -2555,7 +2652,7 @@ static void node_free_socket_type(void *socktype_v)
   /* XXX pass Main to unregister function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, nullptr, nullptr, socktype, true);
+  update_typeinfo(G_MAIN, nullptr, nullptr, socktype, true);
 
   /* Defer freeing the socket type, because it may still be referenced by nodes in depsgraph
    * copies. We can't just remove these socket types, because the depsgraph may exist completely
@@ -2569,7 +2666,7 @@ void node_register_socket_type(bNodeSocketType &st)
   /* XXX pass Main to register function? */
   /* Probably not. It is pretty much expected we want to update G_MAIN here I think -
    * or we'd want to update *all* active Mains, which we cannot do anyway currently. */
-  update_typeinfo(G_MAIN, nullptr, nullptr, nullptr, &st, false);
+  update_typeinfo(G_MAIN, nullptr, nullptr, &st, false);
 }
 
 void node_unregister_socket_type(bNodeSocketType &st)
@@ -2904,8 +3001,12 @@ bool node_is_static_socket_type(const bNodeSocketType &stype)
   return RNA_struct_is_a(stype.ext_socket.srna, &RNA_NodeSocketStandard);
 }
 
-std::optional<StringRefNull> node_static_socket_type(const int type, const int subtype)
+std::optional<StringRefNull> node_static_socket_type(const int type,
+                                                     const int subtype,
+                                                     const std::optional<int> dimensions)
 {
+  BLI_assert(!(dimensions.has_value() && type != SOCK_VECTOR));
+
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
       switch (PropertySubType(subtype)) {
@@ -2952,26 +3053,78 @@ std::optional<StringRefNull> node_static_socket_type(const int type, const int s
     case SOCK_MATRIX:
       return "NodeSocketMatrix";
     case SOCK_VECTOR:
-      switch (PropertySubType(subtype)) {
-        case PROP_FACTOR:
-          return "NodeSocketVectorFactor";
-        case PROP_PERCENTAGE:
-          return "NodeSocketVectorPercentage";
-        case PROP_TRANSLATION:
-          return "NodeSocketVectorTranslation";
-        case PROP_DIRECTION:
-          return "NodeSocketVectorDirection";
-        case PROP_VELOCITY:
-          return "NodeSocketVectorVelocity";
-        case PROP_ACCELERATION:
-          return "NodeSocketVectorAcceleration";
-        case PROP_EULER:
-          return "NodeSocketVectorEuler";
-        case PROP_XYZ:
-          return "NodeSocketVectorXYZ";
-        case PROP_NONE:
-        default:
-          return "NodeSocketVector";
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage2D";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation2D";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection2D";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity2D";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration2D";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler2D";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ2D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector2D";
+        }
+      }
+      else if (dimensions.value() == 4) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeSocketVectorFactor4D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketVectorPercentage4D";
+          case PROP_TRANSLATION:
+            return "NodeSocketVectorTranslation4D";
+          case PROP_DIRECTION:
+            return "NodeSocketVectorDirection4D";
+          case PROP_VELOCITY:
+            return "NodeSocketVectorVelocity4D";
+          case PROP_ACCELERATION:
+            return "NodeSocketVectorAcceleration4D";
+          case PROP_EULER:
+            return "NodeSocketVectorEuler4D";
+          case PROP_XYZ:
+            return "NodeSocketVectorXYZ4D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketVector4D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeSocketVector";
       }
     case SOCK_RGBA:
       return "NodeSocketColor";
@@ -3008,8 +3161,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type, const int s
   return std::nullopt;
 }
 
-std::optional<StringRefNull> node_static_socket_interface_type_new(const int type,
-                                                                   const int subtype)
+std::optional<StringRefNull> node_static_socket_interface_type_new(
+    const int type, const int subtype, const std::optional<int> dimensions)
 {
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
@@ -3057,26 +3210,78 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(const int typ
     case SOCK_MATRIX:
       return "NodeTreeInterfaceSocketMatrix";
     case SOCK_VECTOR:
-      switch (PropertySubType(subtype)) {
-        case PROP_FACTOR:
-          return "NodeTreeInterfaceSocketVectorFactor";
-        case PROP_PERCENTAGE:
-          return "NodeTreeInterfaceSocketVectorPercentage";
-        case PROP_TRANSLATION:
-          return "NodeTreeInterfaceSocketVectorTranslation";
-        case PROP_DIRECTION:
-          return "NodeTreeInterfaceSocketVectorDirection";
-        case PROP_VELOCITY:
-          return "NodeTreeInterfaceSocketVectorVelocity";
-        case PROP_ACCELERATION:
-          return "NodeTreeInterfaceSocketVectorAcceleration";
-        case PROP_EULER:
-          return "NodeTreeInterfaceSocketVectorEuler";
-        case PROP_XYZ:
-          return "NodeTreeInterfaceSocketVectorXYZ";
-        case PROP_NONE:
-        default:
-          return "NodeTreeInterfaceSocketVector";
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage2D";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation2D";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection2D";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity2D";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration2D";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler2D";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ2D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector2D";
+        }
+      }
+      else if (dimensions.value() == 4) {
+        switch (PropertySubType(subtype)) {
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketVectorFactor4D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketVectorPercentage4D";
+          case PROP_TRANSLATION:
+            return "NodeTreeInterfaceSocketVectorTranslation4D";
+          case PROP_DIRECTION:
+            return "NodeTreeInterfaceSocketVectorDirection4D";
+          case PROP_VELOCITY:
+            return "NodeTreeInterfaceSocketVectorVelocity4D";
+          case PROP_ACCELERATION:
+            return "NodeTreeInterfaceSocketVectorAcceleration4D";
+          case PROP_EULER:
+            return "NodeTreeInterfaceSocketVectorEuler4D";
+          case PROP_XYZ:
+            return "NodeTreeInterfaceSocketVectorXYZ4D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketVector4D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeTreeInterfaceSocketVector";
       }
     case SOCK_RGBA:
       return "NodeTreeInterfaceSocketColor";
@@ -3666,6 +3871,17 @@ void node_socket_move_default_value(Main & /*bmain*/,
     if (!convert.is_convertible(src_type, dst_type)) {
       return;
     }
+  }
+
+  /* Special handling for strings because the generic code below can't handle them. */
+  if (src.type == SOCK_STRING && dst.type == SOCK_STRING &&
+      dst_node.is_type("FunctionNodeInputString"))
+  {
+    auto *src_value = static_cast<bNodeSocketValueString *>(src.default_value);
+    auto *dst_storage = static_cast<NodeInputString *>(dst_node.storage);
+    MEM_SAFE_FREE(dst_storage->string);
+    dst_storage->string = BLI_strdup_null(src_value->value);
+    return;
   }
 
   void *src_value = socket_value_storage(src);
