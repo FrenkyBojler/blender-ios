@@ -337,3 +337,25 @@ bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const
 bool indices_are_range(Span<int> indices, IndexRange range);
 
 }  // namespace blender::array_utils
+
+namespace blender {
+template<typename T, int Size> struct VecBase;
+}
+
+namespace blender::array_utils {
+
+template<typename T, int Size>
+inline void vector_split(const Span<VecBase<T, Size>> src, Span<MutableSpan<T>> dst)
+{
+  BLI_assert(dst.size() == Size);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const auto dst_item) { return dst_item.size() == src.size(); }));
+  threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      for (const int axis_i : IndexRange(Size)) {
+        dst[axis_i][i] = src[i][axis_i];
+      }
+    }
+  });
+}
+
+}

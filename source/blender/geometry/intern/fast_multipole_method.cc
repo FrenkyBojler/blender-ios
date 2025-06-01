@@ -14,6 +14,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_rand.hh"
 #include "BLI_task.hh"
 
 #include "GEO_abstract_kd_bucket_hierarchy.hh"
@@ -50,27 +51,28 @@ namespace blender::ispc_math {
 
 constexpr int programCount = ispc::FMMConstants::ChunkSize;
 
-static void distance_to_n(const Span<float> src_a_x,
-                          const Span<float> src_a_y,
-                          const Span<float> src_a_z,
-                          const float3 src_b_xyz,
-                          MutableSpan<float> dst)
+static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
+                                               const Span<float> src_a_y,
+                                               const Span<float> src_a_z,
+                                               const float3 src_b_xyz,
+                                               MutableSpan<float> dst)
 {
   BLI_assert(src_a_x.size() == src_a_y.size());
   BLI_assert(src_a_x.size() == src_a_z.size());
   BLI_assert(src_a_x.size() == dst.size());
 
-  ispc::distance_to_n(
+  ispc::distance_to_n_squared(
       src_a_x.data(), src_a_y.data(), src_a_z.data(), src_b_xyz, src_a_z.size(), dst.data());
 }
 
-static void chunked_squared_distances_table(const Span<float[programCount]> row_x,
-                                            const Span<float[programCount]> row_y,
-                                            const Span<float[programCount]> row_z,
-                                            const Span<float> col_x,
-                                            const Span<float> col_y,
-                                            const Span<float> col_z,
-                                            MutableSpan<float[programCount]> distances)
+static BLI_NOINLINE void chunked_squared_distances_table(
+    const Span<float[programCount]> row_x,
+    const Span<float[programCount]> row_y,
+    const Span<float[programCount]> row_z,
+    const Span<float> col_x,
+    const Span<float> col_y,
+    const Span<float> col_z,
+    MutableSpan<float[programCount]> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -91,13 +93,13 @@ static void chunked_squared_distances_table(const Span<float[programCount]> row_
                                         distances.data());
 }
 
-static void squared_distances_table(const Span<float> row_x,
-                                    const Span<float> row_y,
-                                    const Span<float> row_z,
-                                    const Span<float> col_x,
-                                    const Span<float> col_y,
-                                    const Span<float> col_z,
-                                    MutableSpan<float> distances)
+static BLI_NOINLINE void squared_distances_table(const Span<float> row_x,
+                                                 const Span<float> row_y,
+                                                 const Span<float> row_z,
+                                                 const Span<float> col_x,
+                                                 const Span<float> col_y,
+                                                 const Span<float> col_z,
+                                                 MutableSpan<float> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -118,9 +120,10 @@ static void squared_distances_table(const Span<float> row_x,
                                 distances.data());
 }
 
-static void chunked_zero_if_index_in_range(const Span<int[programCount]> row_indices,
-                                           const ShiftedRange col_range,
-                                           MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range(
+    const Span<int[programCount]> row_indices,
+    const ShiftedRange col_range,
+    MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -131,9 +134,9 @@ static void chunked_zero_if_index_in_range(const Span<int[programCount]> row_ind
                                        rows_and_cols.data());
 }
 
-static void zero_if_index_in_range(const Span<int> row_indices,
-                                   const ShiftedRange col_range,
-                                   MutableSpan<float> rows_and_cols)
+static BLI_NOINLINE void zero_if_index_in_range(const Span<int> row_indices,
+                                                const ShiftedRange col_range,
+                                                MutableSpan<float> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -144,9 +147,10 @@ static void zero_if_index_in_range(const Span<int> row_indices,
                                rows_and_cols.data());
 }
 
-static void chunked_table_product_reduce(const Span<float[programCount]> rows_and_cols,
-                                         const Span<float> col_values,
-                                         MutableSpan<float[programCount]> row_values)
+static BLI_NOINLINE void chunked_table_product_reduce(
+    const Span<float[programCount]> rows_and_cols,
+    const Span<float> col_values,
+    MutableSpan<float[programCount]> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
 
@@ -157,9 +161,9 @@ static void chunked_table_product_reduce(const Span<float[programCount]> rows_an
                                      row_values.data());
 }
 
-static void table_product_reduce(const Span<float> rows_and_cols,
-                                 const Span<float> col_values,
-                                 MutableSpan<float> row_values)
+static BLI_NOINLINE void table_product_reduce(const Span<float> rows_and_cols,
+                                              const Span<float> col_values,
+                                              MutableSpan<float> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
 
@@ -171,7 +175,7 @@ static void table_product_reduce(const Span<float> rows_and_cols,
 }
 
 template<typename T>
-static void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
+static BLI_NOINLINE void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
 {
   BLI_assert(src.size() == indices.size());
   for (const int i : src.index_range()) {
@@ -180,7 +184,7 @@ static void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> d
 }
 
 template<typename T>
-static void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
+static BLI_NOINLINE void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
 {
   BLI_assert(dst.size() == indices.size());
   for (const int i : dst.index_range()) {
@@ -189,10 +193,10 @@ static void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> ds
 }
 
 template<typename T>
-static void parition_as_gather(MutableSpan<T> values,
-                               const Span<int> front_indices,
-                               const Span<int> back_indices,
-                               MutableSpan<T> buffer)
+static BLI_NOINLINE void parition_as_gather(MutableSpan<T> values,
+                                            const Span<int> front_indices,
+                                            const Span<int> back_indices,
+                                            MutableSpan<T> buffer)
 {
   BLI_assert(front_indices.size() == back_indices.size());
   BLI_assert(front_indices.size() + back_indices.size() == buffer.size());
@@ -206,10 +210,10 @@ static void parition_as_gather(MutableSpan<T> values,
 }
 
 template<typename T>
-static void parition_as_gather_front_only(MutableSpan<T> values,
-                                          const Span<int> front_indices,
-                                          const Span<int> back_indices,
-                                          MutableSpan<T> buffer)
+static BLI_NOINLINE void parition_as_gather_front_only(MutableSpan<T> values,
+                                                       const Span<int> front_indices,
+                                                       const Span<int> back_indices,
+                                                       MutableSpan<T> buffer)
 {
   BLI_assert(front_indices.size() == back_indices.size());
   BLI_assert(front_indices.size() + back_indices.size() == buffer.size());
@@ -219,12 +223,12 @@ static void parition_as_gather_front_only(MutableSpan<T> values,
   scatter<T>(buffer.take_front(back_indices.size()), back_indices, values);
 }
 
-static int count_floats_less_than(const Span<float> values, float min_predicate_value)
+static BLI_NOINLINE int count_floats_less_than(const Span<float> values, float min_predicate_value)
 {
   return ispc::count_floats_less_than(values.data(), min_predicate_value, values.size());
 }
 
-static std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
+static BLI_NOINLINE std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
     MutableSpan<int> indices,
     const Span<float> predicates,
     const float min_predicate_value,
@@ -240,7 +244,9 @@ static std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
   return {indices.slice(0, total / 2), indices.slice(total / 2, total / 2)};
 }
 
-static void mul_n_add_to(MutableSpan<float> dst, const Span<float> src, const float value)
+static BLI_NOINLINE void mul_n_add_to(MutableSpan<float> dst,
+                                      const Span<float> src,
+                                      const float value)
 {
   BLI_assert(dst.size() == src.size());
   ispc::mul_n_add_to(dst.data(), src.data(), value, src.size());
@@ -252,28 +258,29 @@ namespace blender::math {
 
 constexpr int programCount = 16;
 
-static void distance_to_n(const Span<float> src_a_x,
-                          const Span<float> src_a_y,
-                          const Span<float> src_a_z,
-                          const float3 src_b_xyz,
-                          MutableSpan<float> dst)
+static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
+                                               const Span<float> src_a_y,
+                                               const Span<float> src_a_z,
+                                               const float3 src_b_xyz,
+                                               MutableSpan<float> dst)
 {
   BLI_assert(src_a_x.size() == src_a_y.size());
   BLI_assert(src_a_x.size() == src_a_z.size());
   BLI_assert(src_a_x.size() == dst.size());
 
   for (const int i : src_a_x.index_range()) {
-    dst[i] = math::distance(float3(src_a_x[i], src_a_y[i], src_a_z[i]), src_b_xyz);
+    dst[i] = math::distance_squared(float3(src_a_x[i], src_a_y[i], src_a_z[i]), src_b_xyz);
   }
 }
 
-static void chunked_squared_distances_table(const Span<float[programCount]> row_x,
-                                            const Span<float[programCount]> row_y,
-                                            const Span<float[programCount]> row_z,
-                                            const Span<float> col_x,
-                                            const Span<float> col_y,
-                                            const Span<float> col_z,
-                                            MutableSpan<float[programCount]> distances)
+static BLI_NOINLINE void chunked_squared_distances_table(
+    const Span<float[programCount]> row_x,
+    const Span<float[programCount]> row_y,
+    const Span<float[programCount]> row_z,
+    const Span<float> col_x,
+    const Span<float> col_y,
+    const Span<float> col_z,
+    MutableSpan<float[programCount]> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -298,13 +305,13 @@ static void chunked_squared_distances_table(const Span<float[programCount]> row_
   }
 }
 
-static void squared_distances_table(const Span<float> row_x,
-                                    const Span<float> row_y,
-                                    const Span<float> row_z,
-                                    const Span<float> col_x,
-                                    const Span<float> col_y,
-                                    const Span<float> col_z,
-                                    MutableSpan<float> distances)
+static BLI_NOINLINE void squared_distances_table(const Span<float> row_x,
+                                                 const Span<float> row_y,
+                                                 const Span<float> row_z,
+                                                 const Span<float> col_x,
+                                                 const Span<float> col_y,
+                                                 const Span<float> col_z,
+                                                 MutableSpan<float> distances)
 {
   BLI_assert(row_x.size() == row_y.size());
   BLI_assert(row_x.size() == row_z.size());
@@ -324,9 +331,10 @@ static void squared_distances_table(const Span<float> row_x,
   }
 }
 
-static void chunked_zero_if_index_in_range(const Span<int[programCount]> row_indices,
-                                           const ShiftedRange col_range,
-                                           MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range(
+    const Span<int[programCount]> row_indices,
+    const ShiftedRange col_range,
+    MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -347,9 +355,9 @@ static void chunked_zero_if_index_in_range(const Span<int[programCount]> row_ind
   }
 }
 
-static void zero_if_index_in_range(const Span<int> row_indices,
-                                   const ShiftedRange col_range,
-                                   MutableSpan<float> rows_and_cols)
+static BLI_NOINLINE void zero_if_index_in_range(const Span<int> row_indices,
+                                                const ShiftedRange col_range,
+                                                MutableSpan<float> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -368,9 +376,10 @@ static void zero_if_index_in_range(const Span<int> row_indices,
   }
 }
 
-static void chunked_table_product_reduce(const Span<float[programCount]> rows_and_cols,
-                                         const Span<float> col_values,
-                                         MutableSpan<float[programCount]> row_values)
+static BLI_NOINLINE void chunked_table_product_reduce(
+    const Span<float[programCount]> rows_and_cols,
+    const Span<float> col_values,
+    MutableSpan<float[programCount]> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
   for (const int row_index : row_values.index_range()) {
@@ -384,9 +393,9 @@ static void chunked_table_product_reduce(const Span<float[programCount]> rows_an
   }
 }
 
-static void table_product_reduce(const Span<float> rows_and_cols,
-                                 const Span<float> col_values,
-                                 MutableSpan<float> row_values)
+static BLI_NOINLINE void table_product_reduce(const Span<float> rows_and_cols,
+                                              const Span<float> col_values,
+                                              MutableSpan<float> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
   for (const int row_index : row_values.index_range()) {
@@ -398,7 +407,7 @@ static void table_product_reduce(const Span<float> rows_and_cols,
 }
 
 template<typename T>
-static void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
+static BLI_NOINLINE void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
 {
   BLI_assert(src.size() == indices.size());
   for (const int i : src.index_range()) {
@@ -407,7 +416,7 @@ static void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> d
 }
 
 template<typename T>
-static void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
+static BLI_NOINLINE void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
 {
   BLI_assert(dst.size() == indices.size());
   for (const int i : dst.index_range()) {
@@ -416,10 +425,10 @@ static void gather(const Span<T> src, const Span<int> indices, MutableSpan<T> ds
 }
 
 template<typename T>
-static void parition_as_gather(MutableSpan<T> values,
-                               const Span<int> front_indices,
-                               const Span<int> back_indices,
-                               MutableSpan<T> buffer)
+static BLI_NOINLINE void parition_as_gather(MutableSpan<T> values,
+                                            const Span<int> front_indices,
+                                            const Span<int> back_indices,
+                                            MutableSpan<T> buffer)
 {
   BLI_assert(front_indices.size() == back_indices.size());
   BLI_assert(front_indices.size() + back_indices.size() == buffer.size());
@@ -433,10 +442,10 @@ static void parition_as_gather(MutableSpan<T> values,
 }
 
 template<typename T>
-static void parition_as_gather_front_only(MutableSpan<T> values,
-                                          const Span<int> front_indices,
-                                          const Span<int> back_indices,
-                                          MutableSpan<T> buffer)
+static BLI_NOINLINE void parition_as_gather_front_only(MutableSpan<T> values,
+                                                       const Span<int> front_indices,
+                                                       const Span<int> back_indices,
+                                                       MutableSpan<T> buffer)
 {
   BLI_assert(front_indices.size() == back_indices.size());
   BLI_assert(front_indices.size() + back_indices.size() == buffer.size());
@@ -446,13 +455,13 @@ static void parition_as_gather_front_only(MutableSpan<T> values,
   scatter<T>(buffer.take_front(back_indices.size()), back_indices, values);
 }
 
-static int count_floats_less_than(const Span<float> values, float min_predicate_value)
+static BLI_NOINLINE int count_floats_less_than(const Span<float> values, float min_predicate_value)
 {
   return std::count_if(
       values.begin(), values.end(), [&](const float item) { return item < min_predicate_value; });
 }
 
-static std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
+static BLI_NOINLINE std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
     MutableSpan<int> indices_buffer,
     const Span<float> predicates,
     const float min_predicate_value,
@@ -482,7 +491,9 @@ static std::pair<Span<int>, Span<int>> predicate_partition_indices_float_cmp(
   return {indices_buffer.slice(0, front_size), indices_buffer.slice(front_size, back_size)};
 }
 
-static void mul_n_add_to(MutableSpan<float> dst, const Span<float> src, const float value)
+static BLI_NOINLINE void mul_n_add_to(MutableSpan<float> dst,
+                                      const Span<float> src,
+                                      const float value)
 {
   BLI_assert(dst.size() == src.size());
   for (const int i : dst.index_range()) {
@@ -492,7 +503,7 @@ static void mul_n_add_to(MutableSpan<float> dst, const Span<float> src, const fl
 
 }  // namespace blender::math
 
-#if (1)
+#if (0)
 namespace fast_math = blender::math;
 #else
 namespace fast_math = blender::ispc_math;
@@ -500,167 +511,241 @@ namespace fast_math = blender::ispc_math;
 
 namespace blender::geometry::fmm {
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values_old(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
 {
   switch (power_value) {
     case 0:
       return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
     case 1:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(value);
-        });
+        ispc::safe_1_rpow_n(values.begin(), values.size());
       };
     case 2:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(value * value);
-        });
+        ispc::safe_2_rpow_n(values.begin(), values.size());
       };
     case 3:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          return math::safe_rcp(value * value * value);
-        });
+        ispc::safe_3_rpow_n(values.begin(), values.size());
       };
     case 4:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          return math::safe_rcp(squared * squared);
-        });
+        ispc::safe_4_rpow_n(values.begin(), values.size());
       };
     case 5:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          return math::safe_rcp(squared * squared * value);
-        });
+        ispc::safe_5_rpow_n(values.begin(), values.size());
       };
     case 6:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          return math::safe_rcp(squared * squared * squared);
-        });
+        ispc::safe_6_rpow_n(values.begin(), values.size());
       };
     case 7:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * squared * value);
-        });
+        ispc::safe_7_rpow_n(values.begin(), values.size());
       };
     case 8:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * fourth_degree);
-        });
+        ispc::safe_8_rpow_n(values.begin(), values.size());
       };
     case 9:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * fourth_degree * value);
-        });
+        ispc::safe_9_rpow_n(values.begin(), values.size());
       };
     case 10:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * fourth_degree * squared);
-        });
-      };
-    case 11:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * fourth_degree * squared * value);
-        });
-      };
-    case 12:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        std::transform(values.begin(), values.end(), values.begin(), [](const float value) {
-          const float squared = math::square(value);
-          const float fourth_degree = math::square(squared);
-          return math::safe_rcp(fourth_degree * fourth_degree * fourth_degree);
-        });
+        ispc::safe_10_rpow_n(values.begin(), values.size());
       };
     default:
       return [](const int power_value, MutableSpan<float> values) {
-        const float power_factor = float(-power_value);
+        const float power_factor = float(power_value);
         std::transform(
             values.begin(), values.end(), values.begin(), [power_factor](const float value) {
-              return math::pow(value, power_factor);
+              return math::safe_rcp(math::pow(value, power_factor));
             });
       };
   }
 }
 
-static FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static FunctionRef<void(int, MutableSpan<float>)> powered_half_rcp_for_values(
+    const int power_value)
 {
   switch (power_value) {
     case 0:
-      return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_0_rpow_n(values.begin(), values.size());
-      };
+      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
     case 1:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_1_rpow_n(values.begin(), values.size());
+        ispc::safe_0_5_rpow_n(values.begin(), values.size());
       };
     case 2:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_2_rpow_n(values.begin(), values.size());
+        ispc::safe_1_rpow_n(values.begin(), values.size());
       };
     case 3:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_3_rpow_n(values.begin(), values.size());
+        ispc::safe_1_5_rpow_n(values.begin(), values.size());
       };
     case 4:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_4_rpow_n(values.begin(), values.size());
+        ispc::safe_2_rpow_n(values.begin(), values.size());
       };
     case 5:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_5_rpow_n(values.begin(), values.size());
+        ispc::safe_2_5_rpow_n(values.begin(), values.size());
       };
     case 6:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_6_rpow_n(values.begin(), values.size());
+        ispc::safe_3_rpow_n(values.begin(), values.size());
       };
     case 7:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_7_rpow_n(values.begin(), values.size());
+        ispc::safe_3_5_rpow_n(values.begin(), values.size());
       };
     case 8:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_8_rpow_n(values.begin(), values.size());
+        ispc::safe_4_rpow_n(values.begin(), values.size());
       };
     case 9:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_9_rpow_n(values.begin(), values.size());
+        ispc::safe_4_5_rpow_n(values.begin(), values.size());
       };
     case 10:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_10_rpow_n(values.begin(), values.size());
+        ispc::safe_5_rpow_n(values.begin(), values.size());
       };
     case 11:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_11_rpow_n(values.begin(), values.size());
+        ispc::safe_5_5_rpow_n(values.begin(), values.size());
       };
     case 12:
       return [](int /*power_value*/, MutableSpan<float> values) {
-        ispc::fixed_safe_12_rpow_n(values.begin(), values.size());
+        ispc::safe_6_rpow_n(values.begin(), values.size());
+      };
+    default:
+      return [](const int power_value, MutableSpan<float> values) {
+        const float power_factor = float(power_value) / 2.0f;
+        std::transform(
+            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
+              return math::safe_rcp(math::pow(value, power_factor));
+            });
+      };
+  }
+}
+
+static FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_rcp_for_values(
+    const int power_value)
+{
+  switch (power_value) {
+    case 0:
+      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
+    case 1:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_1_rpow_n(values.begin(), values.size());
+      };
+    case 2:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_2_rpow_n(values.begin(), values.size());
+      };
+    case 3:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_3_rpow_n(values.begin(), values.size());
+      };
+    case 4:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_4_rpow_n(values.begin(), values.size());
+      };
+    case 5:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_5_rpow_n(values.begin(), values.size());
+      };
+    case 6:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_6_rpow_n(values.begin(), values.size());
+      };
+    case 7:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_7_rpow_n(values.begin(), values.size());
+      };
+    case 8:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_8_rpow_n(values.begin(), values.size());
+      };
+    case 9:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_9_rpow_n(values.begin(), values.size());
+      };
+    case 10:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_10_rpow_n(values.begin(), values.size());
       };
     default:
       return [](const int power_value, MutableSpan<float> values) {
         const float power_factor = float(power_value);
+        std::transform(
+            values.begin(), values.end(), values.begin(), [power_factor](const float value) {
+              return math::safe_rcp(math::pow(value, power_factor));
+            });
+      };
+  }
+}
+
+static FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_half_rcp_for_values(
+    const int power_value)
+{
+  switch (power_value) {
+    case 0:
+      return [](int /*power_value*/, MutableSpan<float> values) { values.fill(1.0f); };
+    case 1:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_0_5_rpow_n(values.begin(), values.size());
+      };
+    case 2:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_1_rpow_n(values.begin(), values.size());
+      };
+    case 3:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_1_5_rpow_n(values.begin(), values.size());
+      };
+    case 4:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_2_rpow_n(values.begin(), values.size());
+      };
+    case 5:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_2_5_rpow_n(values.begin(), values.size());
+      };
+    case 6:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_3_rpow_n(values.begin(), values.size());
+      };
+    case 7:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_3_5_rpow_n(values.begin(), values.size());
+      };
+    case 8:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_4_rpow_n(values.begin(), values.size());
+      };
+    case 9:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_4_5_rpow_n(values.begin(), values.size());
+      };
+    case 10:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_5_rpow_n(values.begin(), values.size());
+      };
+    case 11:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_5_5_rpow_n(values.begin(), values.size());
+      };
+    case 12:
+      return [](int /*power_value*/, MutableSpan<float> values) {
+        ispc::unsafe_6_rpow_n(values.begin(), values.size());
+      };
+    default:
+      return [](const int power_value, MutableSpan<float> values) {
+        const float power_factor = float(power_value) / 2.0f;
         std::transform(
             values.begin(), values.end(), values.begin(), [power_factor](const float value) {
               return math::safe_rcp(math::pow(value, power_factor));
@@ -727,11 +812,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     BLI_assert(!sampler_to_bucket_range.has_value() ||
                src_bucket_position[0].index_range().contains(*sampler_to_bucket_range));
   }
-  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion = powered_rcp_for_values(
-      power_value);
+
+  const bool has_offset = offset_value != 0.0f;
+
+  const FunctionRef<void(int, MutableSpan<float>)> distance_invertion =
+      has_offset ? powered_rcp_for_values(power_value) : powered_half_rcp_for_values(power_value);
+  const FunctionRef<void(int, MutableSpan<float>)> fast_distance_invertion =
+      has_offset ? powered_unsafe_rcp_for_values(power_value) :
+                   powered_unsafe_half_rcp_for_values(power_value);
 
   const int batch_size = sample_position[0].size();
-  const int aligned_batch_size = round_up_for(batch_size, sse_min_alignment);
+  const int aligned_batch_size = round_up_for(batch_size, sse_min_alignment / sizeof(float));
   const int data_axes_num = src_bucket_value.size();
 
   Array<float, 0, GuardedAlignedAllocator<sse_min_alignment>> sampler_position_data(
@@ -777,6 +868,22 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   Vector<int, 32> joint_stack({0});
   Vector<int, 32> prefix_to_visit_stack({batch_size});
 
+  RandomNumberGenerator unbiased_order_generator({0});
+  const auto push_childs_of = [&](const int depth_i, const int joint_i, const int prefix_size) {
+    BLI_assert(depth_i < total_depth - 1);
+
+    bool first_on_top = true;
+    if ((depth_i < total_depth / 2) && (total_depth > 10)) {
+      first_on_top = (unbiased_order_generator.get_int32() & 1) == 1;
+    }
+    const int first_child_i = joint_i * 2 + (first_on_top ? 1 : 0);
+    const int second_child_i = joint_i * 2 + (first_on_top ? 0 : 1);
+
+    depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
+    joint_stack.extend_unchecked({first_child_i, second_child_i});
+    prefix_to_visit_stack.extend_unchecked({prefix_size, prefix_size});
+  };
+
   while (!depth_stack.is_empty()) {
     const int prefix_to_visit = prefix_to_visit_stack.pop_last();
     const int depth_i = depth_stack.pop_last();
@@ -798,20 +905,24 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     batch_distances_buffer.reinitialize(prefix_to_visit);
 
-    fast_math::distance_to_n(batch_positions_x,
-                             batch_positions_y,
-                             batch_positions_z,
-                             joint_position,
-                             batch_distances_buffer);
+    fast_math::distance_to_n_squared(batch_positions_x,
+                                     batch_positions_y,
+                                     batch_positions_z,
+                                     joint_position,
+                                     batch_distances_buffer);
 
-    const int total_to_pass_to_childs = fast_math::count_floats_less_than(
-        batch_distances_buffer, joint_min_distance - offset_value);
+    if (has_offset) {
+      ispc::sqrt_n_add_single(
+          batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
+    }
+    const float min_distance_to_joint = has_offset ? joint_min_distance :
+                                                     math::square(joint_min_distance);
+    const int total_to_pass_to_childs = fast_math::count_floats_less_than(batch_distances_buffer,
+                                                                          min_distance_to_joint);
 
     const bool all_pass_to_childs = total_to_pass_to_childs == prefix_to_visit;
     if (all_pass_to_childs && !leaf_joint) {
-      depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
-      joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
-      prefix_to_visit_stack.extend_unchecked({prefix_to_visit, prefix_to_visit});
+      push_childs_of(depth_i, joint_i, prefix_to_visit);
       continue;
     }
 
@@ -828,10 +939,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
       std::optional<MutableSpan<int>> partition_buffer;
       if (!all_end_on_joint) {
         partition_mapping = fast_math::predicate_partition_indices_float_cmp(
-            partition,
-            batch_distances_buffer,
-            joint_min_distance - offset_value,
-            total_to_pass_to_childs);
+            partition, batch_distances_buffer, min_distance_to_joint, total_to_pass_to_childs);
         partition_buffer = partition_buffer_data.take_front(partition_mapping->first.size() +
                                                             partition_mapping->second.size());
 
@@ -848,13 +956,9 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                   batch_distances_buffer.begin());
       }
 
-      for (const int i : IndexRange(prefix_to_visit - total_to_pass_to_childs)) {
-        batch_distances_buffer[i] += offset_value;
-      }
-
-      distance_invertion(power_value,
-                         batch_distances_buffer.as_mutable_span().take_front(
-                             prefix_to_visit - total_to_pass_to_childs));
+      fast_distance_invertion(power_value,
+                              batch_distances_buffer.as_mutable_span().take_front(
+                                  prefix_to_visit - total_to_pass_to_childs));
 
       if (!all_end_on_joint) {
         for (const int data_i : IndexRange(data_axes_num)) {
@@ -905,16 +1009,14 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         continue;
       }
 
-      depth_stack.extend_unchecked({depth_i + 1, depth_i + 1});
-      joint_stack.extend_unchecked({joint_i * 2 + 1, joint_i * 2 + 0});
-      prefix_to_visit_stack.extend_unchecked({total_to_pass_to_childs, total_to_pass_to_childs});
+      push_childs_of(depth_i, joint_i, total_to_pass_to_childs);
       continue;
     }
 
     const IndexRange joint_backet = buckets_offsets[joint_i];
 
     const int bucket_size = joint_backet.size();
-    const int aligned_bucket_size = round_up_for(bucket_size, sse_min_alignment);
+    const int aligned_bucket_size = round_up_for(bucket_size, sse_min_alignment / sizeof(float));
 
     bucket_position_data.reinitialize(aligned_bucket_size * 3);
     for (const int axis_i : IndexRange(3)) {
@@ -983,8 +1085,11 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                                        rest_distances);
     BLI_assert(!batch_distances_buffer.as_span().contains(-1.0f));
 
-    ispc::sqrt_n_add_single(
-        batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
+    if (has_offset) {
+      ispc::sqrt_n_add_single(
+          batch_distances_buffer.data(), batch_distances_buffer.size(), offset_value);
+    }
+
     distance_invertion(power_value, batch_distances_buffer.as_mutable_span());
 
     if (sampler_to_bucket_range.has_value()) {

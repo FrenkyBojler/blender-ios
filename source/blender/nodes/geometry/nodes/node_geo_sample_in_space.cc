@@ -118,13 +118,13 @@ class GradientSumFunction : public mf::MultiFunction {
 
   int total_depth_;
 
-  Array<int, 0> start_indices_;
+  Array<int, 0> offset_indices_;
 
-  Array<float3, 0> bucket_positions_;
-  GArray<> bucket_values_;
+  std::array<Array<float, 0>, 3> bucket_positions_;
+  Array<Array<float, 0>, 3> bucket_values_;
 
   Array<float3, 0> joints_positions_;
-  GArray<> joints_values_;
+  Array<Array<float, 0>, 3> joints_values_;
 
   Array<float, 0> joints_min_distance_;
 
@@ -164,22 +164,77 @@ class GradientSumFunction : public mf::MultiFunction {
     const int total_buckets = akdbh::total_buckets_for(total_depth_);
     const int total_joints = akdbh::total_joints_for_depth(total_depth_);
 
-    start_indices_.reinitialize(total_buckets + 1);
-    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size,
-                                                                               start_indices_);
+    offset_indices_.reinitialize(total_buckets + 1);
+    const OffsetIndices<int> base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, offset_indices_);
 
     Array<int> indices(domain_size);
     akdbh::from_positions(positions, base_offsets, total_depth_, indices);
 
-    bucket_positions_.reinitialize(domain_size);
-    bucket_values_ = GArray<>(data_type, domain_size);
-
+    Array<float3> bucket_positions;
+    bucket_positions.reinitialize(domain_size);
     array_utils::gather(
-        Span<float3>(positions), indices.as_span(), bucket_positions_.as_mutable_span());
-    bke::attribute_math::gather(src_values, indices.as_span(), bucket_values_.as_mutable_span());
+        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
+    {
+      bucket_positions_[0].reinitialize(domain_size);
+      bucket_positions_[1].reinitialize(domain_size);
+      bucket_positions_[2].reinitialize(domain_size);
+      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
+        for (const int i : range) {
+          bucket_positions_[0][i] = bucket_positions[i].x;
+          bucket_positions_[1][i] = bucket_positions[i].y;
+          bucket_positions_[2][i] = bucket_positions[i].z;
+        }
+      });
+    }
 
-    joints_values_ = GArray<>(data_type, total_joints);
-    akdbh::mean_sums(base_offsets, total_depth_, bucket_values_, joints_values_);
+    BLI_assert(data_type.is<float>() || data_type.is<float3>());
+    const int data_axes_count = data_type.is<float3>() ? 3 : 1;
+
+    GArray<> bucket_values(data_type, domain_size);
+    bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
+    bucket_values_.reinitialize(data_axes_count);
+    {
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        bucket_values_[axis_i].reinitialize(domain_size);
+      }
+      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
+        if (data_type.is<float3>()) {
+          for (const int i : range) {
+            bucket_values_[0][i] = bucket_values.as_span().typed<float3>()[i].x;
+            bucket_values_[1][i] = bucket_values.as_span().typed<float3>()[i].y;
+            bucket_values_[2][i] = bucket_values.as_span().typed<float3>()[i].z;
+          }
+        }
+        else {
+          for (const int i : range) {
+            bucket_values_[0][i] = bucket_values.as_span().typed<float>()[i];
+          }
+        }
+      });
+    }
+
+    GArray<> joints_values(data_type, total_joints);
+    akdbh::mean_sums(base_offsets, total_depth_, bucket_values_, joints_values);
+    joints_values_.reinitialize(data_axes_count);
+    {
+      for (const int axis_i : IndexRange(data_axes_count)) {
+        joints_values_[axis_i].reinitialize(total_joints);
+      }
+      threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
+        if (data_type.is<float3>()) {
+          for (const int i : range) {
+            joints_values_[0][i] = joints_values.as_span().typed<float3>()[i].x;
+            joints_values_[1][i] = joints_values.as_span().typed<float3>()[i].y;
+            joints_values_[2][i] = joints_values.as_span().typed<float3>()[i].z;
+          }
+        }
+        else {
+          for (const int i : range) {
+            joints_values_[0][i] = joints_values.as_span().typed<float>()[i];
+          }
+        }
+      });
+    }
 
     joints_positions_.reinitialize(total_joints);
     joints_min_distance_.reinitialize(total_joints);
@@ -207,7 +262,7 @@ class GradientSumFunction : public mf::MultiFunction {
     results.type().value_initialize_n(task_results.data(), task_results.size());
 
     using namespace blender::geometry;
-    // fmm::akdbh_accumulate_in(OffsetIndices<int>(start_indices_),
+    // fmm::akdbh_accumulate_in(OffsetIndices<int>(offset_indices_),
     //                          total_depth_,
     //                          joints_min_distance_,
     //                          joints_positions_,
