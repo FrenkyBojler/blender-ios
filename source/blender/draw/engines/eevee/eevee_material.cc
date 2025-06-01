@@ -212,12 +212,24 @@ void MaterialModule::end_sync()
     inst_.sampling.reset();
   }
 
+  GPU_debug_group_begin("Texture Loading");
+
+  threading::parallel_for(texture_loading_queue_.index_range(), 1, [&](const IndexRange range) {
+    for (auto i : range) {
+      GPUMaterialTexture *tex = texture_loading_queue_[i];
+      ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
+      BKE_image_tag_time(tex->ima);
+      BKE_image_get_tile(tex->ima, 0);
+      ImBuf *imbuf = BKE_image_acquire_ibuf(tex->ima, iuser, nullptr);
+      BKE_image_release_ibuf(tex->ima, imbuf, nullptr);
+    }
+  });
+
   /* To avoid freezing the UI too much, we only allow 100ms of texture loading per frame. */
   double loading_time_per_sync = inst_.is_image_render ? DBL_MAX : 0.100;
 
   double start_time = BLI_time_now_seconds();
 
-  GPU_debug_group_begin("Texture Loading");
   for (GPUMaterialTexture *tex : texture_loading_queue_) {
     BLI_assert(tex->ima);
     GPU_debug_group_begin(tex->ima->id.name);
