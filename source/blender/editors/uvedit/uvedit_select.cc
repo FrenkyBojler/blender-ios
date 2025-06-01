@@ -1210,6 +1210,7 @@ void uvedit_loop_vert_select_set(const ToolSettings *ts,
     BLI_assert(bm->uv_sync_select_valid);
     UNUSED_VARS_NDEBUG(bm);
     BM_elem_flag_set(l, BM_ELEM_SELECT_UV, select);
+    return;
   }
   BM_ELEM_CD_SET_BOOL(l, offsets.select_vert, select);
 }
@@ -1224,6 +1225,7 @@ void uvedit_loop_edge_select_set(const ToolSettings *ts,
     BLI_assert(bm->uv_sync_select_valid);
     UNUSED_VARS_NDEBUG(bm);
     BM_elem_flag_set(l, BM_ELEM_SELECT_UV_EDGE, select);
+    return;
   }
   BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, select);
 }
