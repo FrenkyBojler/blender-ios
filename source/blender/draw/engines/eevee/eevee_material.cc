@@ -226,7 +226,7 @@ void MaterialModule::end_sync()
   });
 
   /* To avoid freezing the UI too much, we only allow 100ms of texture loading per frame. */
-  double loading_time_per_sync = inst_.is_image_render ? DBL_MAX : 0.100;
+  double loading_time_per_sync = inst_.is_image_render ? DBL_MAX : 0.250;
 
   double start_time = BLI_time_now_seconds();
 
