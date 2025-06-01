@@ -86,6 +86,12 @@ template<typename T> inline T safe_mod(const T &a, const T &b)
   return (b != 0) ? std::fmod(a, b) : 0;
 }
 
+template<typename T1, typename T2>
+inline T1 inverse_mix(const T1 &from_min, const T1 &from_max, const T2 &value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 template<typename T> inline void min_max(const T &value, T &min, T &max)
 {
   static_assert(std::is_arithmetic_v<T>,

@@ -280,6 +280,13 @@ float wrap(float a, float b, float c)
   return (range != 0.0f) ? a - range * s : c;
 }
 
+template<typename T> T inverse_mix(T from_min, T from_max, T value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
+template float inverse_mix<float>(float, float, float);
+
 /** \} */
 
 #endif /* GPU_SHADER_MATH_BASE_LIB_GLSL */

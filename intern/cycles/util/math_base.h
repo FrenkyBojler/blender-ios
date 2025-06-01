@@ -87,6 +87,11 @@ CCL_NAMESPACE_BEGIN
 
 /* Scalar */
 
+ccl_device_inline float inverse_mixf(float from_min, float from_max, float value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 #if !defined(__HIP__) && !defined(__KERNEL_ONEAPI__)
 #  ifdef _WIN32
 ccl_device_inline float fmaxf(const float a, const float b)

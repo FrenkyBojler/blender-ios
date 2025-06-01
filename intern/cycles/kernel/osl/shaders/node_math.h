@@ -56,6 +56,11 @@ float safe_log(float a, float b)
   return (a > 0.0 && b > 0.0) ? log(a) / log(b) : 0.0;
 }
 
+float inverse_mix(float from_min, float from_max, float value)
+{
+  return (value - from_min) / (from_max - from_min);
+}
+
 vector project(vector v, vector v_proj)
 {
   float lenSquared = dot(v_proj, v_proj);

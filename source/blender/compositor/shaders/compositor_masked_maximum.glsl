@@ -62,12 +62,6 @@ float compute_rounded_square_radius(float2 coord, const float roundness)
   }
 }
 
-/* TODO: Remove inverse_mix() function once it is in gpu_shader_math_base_lib.glsl. */
-float inverse_mix(const float from_min, const float from_max, const float value)
-{
-  return (value - from_min) / (from_max - from_min);
-}
-
 float compute_rounded_square_mask(float2 coord,
                                   float2 size,
                                   const float roundness,

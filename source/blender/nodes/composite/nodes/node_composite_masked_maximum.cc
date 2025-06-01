@@ -232,13 +232,6 @@ class MaskedMaximumOperation : public NodeOperation {
     }
   }
 
-  /* TODO: Remove inverse_mix() function once it is in BLI_math_base.hh. */
-  template<typename T1, typename T2>
-  inline T1 inverse_mix(const T1 &from_min, const T1 &from_max, const T2 &value)
-  {
-    return (value - from_min) / (from_max - from_min);
-  }
-
   float compute_rounded_square_mask(float2 coord,
                                     float2 size,
                                     const float roundness,
@@ -262,7 +255,7 @@ class MaskedMaximumOperation : public NodeOperation {
         }
         else {
           /* coord is in the linear falloff part of the mask. */
-          return inverse_mix(falloff, 0.0f, compute_rounded_square_radius(coord, roundness));
+          return math::inverse_mix(falloff, 0.0f, compute_rounded_square_radius(coord, roundness));
         }
       }
       else {
@@ -277,7 +270,7 @@ class MaskedMaximumOperation : public NodeOperation {
         }
         else {
           /* coord is in the linear falloff part of the mask. */
-          return inverse_mix(size.x + falloff, size.x, math::abs(coord.x));
+          return math::inverse_mix(size.x + falloff, size.x, math::abs(coord.x));
         }
       }
     }
@@ -295,7 +288,7 @@ class MaskedMaximumOperation : public NodeOperation {
       }
       else {
         /* coord is in the linear falloff part of the mask. */
-        return inverse_mix(
+        return math::inverse_mix(
             size.x + falloff,
             size.x,
             compute_rounded_square_radius(float2(coord.x, coord.y * size.x / size.y), roundness));
