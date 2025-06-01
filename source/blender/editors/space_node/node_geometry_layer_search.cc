@@ -132,7 +132,9 @@ static void layer_search_update_fn(
 
   LayerSearchData *data = static_cast<LayerSearchData *>(arg);
 
-  const Vector<LayerSearchInfo> filtered_layer_info = get_layer_names_from_context(*C, *data);
+  /* Put this in global space so this list won't get destructed after this function returns. */
+  static const Vector<LayerSearchInfo> filtered_layer_info = get_layer_names_from_context(*C,
+                                                                                          *data);
 
   BLI_assert(items);
   ui::grease_pencil_layer_search_add_items(str, filtered_layer_info.as_span(), *items, is_first);
@@ -143,7 +145,7 @@ static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
   }
-  std::string *item = static_cast<std::string *>(item_v);
+  LayerSearchInfo *item = static_cast<LayerSearchInfo *>(item_v);
   if (item == nullptr) {
     return;
   }
@@ -172,7 +174,7 @@ static void layer_search_exec_fn(bContext *C, void *data_v, void *item_v)
   BLI_assert(socket->type == SOCK_STRING);
 
   bNodeSocketValueString *value = static_cast<bNodeSocketValueString *>(socket->default_value);
-  BLI_strncpy(value->value, item->c_str(), MAX_NAME);
+  BLI_strncpy(value->value, item->name.c_str(), MAX_NAME);
 
   ED_undo_push(C, "Assign Layer Name");
 }

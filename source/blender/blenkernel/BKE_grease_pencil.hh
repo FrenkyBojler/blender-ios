@@ -39,7 +39,7 @@ struct AttributeAccessorFunctions;
 namespace greasepencil {
 
 struct LayerSearchInfo {
-  StringRefNull name;
+  std::string name;
   bool is_group;
   bool operator==(const LayerSearchInfo &other) const
   {

@@ -200,7 +200,7 @@ static void layer_name_search_update_fn(
 static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
 {
   const SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
-  const std::string *item = static_cast<std::string *>(item_v);
+  const LayerSearchInfo *item = static_cast<LayerSearchInfo *>(item_v);
   if (!item) {
     return;
   }
@@ -210,7 +210,7 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
   }
 
   IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, data.socket_identifier);
-  IDP_AssignString(&name_property, item->c_str());
+  IDP_AssignString(&name_property, item->name.c_str());
 
   ED_undo_push(C, "Assign Layer Name");
 }

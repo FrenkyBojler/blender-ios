@@ -35,7 +35,7 @@ void grease_pencil_layer_search_add_items(const StringRef str,
                                           uiSearchItems &seach_items,
                                           const bool is_first)
 {
-  static std::string dummy_str;
+  static LayerSearchInfo dummy_info;
 
   /* Any string may be valid, so add the current search string along with the hints. */
   if (!str.is_empty()) {
@@ -46,16 +46,16 @@ void grease_pencil_layer_search_add_items(const StringRef str,
       }
     }
     if (!contained) {
-      dummy_str = str;
-      UI_search_item_add(&seach_items, str, &dummy_str, ICON_NONE, 0, 0);
+      dummy_info.name = str;
+      UI_search_item_add(&seach_items, str, &dummy_info, ICON_NONE, 0, 0);
     }
   }
 
   if (str.is_empty() && !is_first) {
     /* Allow clearing the text field when the string is empty, but not on the first pass,
      * or opening a layer name field for the first time would show this search item. */
-    dummy_str = str;
-    UI_search_item_add(&seach_items, str, &dummy_str, ICON_X, 0, 0);
+    dummy_info.name = str;
+    UI_search_item_add(&seach_items, str, &dummy_info, ICON_X, 0, 0);
   }
 
   /* Don't filter when the menu is first opened, but still run the search
@@ -71,7 +71,7 @@ void grease_pencil_layer_search_add_items(const StringRef str,
   for (const LayerSearchInfo *item : filtered_items) {
     if (!UI_search_item_add(&seach_items,
                             item->name,
-                            (void *)item->name.c_str(),
+                            (void *)item,
                             item->is_group ? ICON_GREASEPENCIL_LAYER_GROUP :
                                              ICON_OUTLINER_DATA_GP_LAYER,
                             UI_BUT_HAS_SEP_CHAR,
