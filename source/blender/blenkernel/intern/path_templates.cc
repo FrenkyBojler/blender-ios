@@ -163,9 +163,9 @@ bool operator==(const Error &left, const Error &right)
 
 using namespace blender::bke::path_templates;
 
-std::optional<VariableMap> BKE_build_template_variables_for_prop(PointerRNA *ptr,
-                                                                 PropertyRNA *prop,
-                                                                 const bContext *C)
+std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext *C,
+                                                                 PointerRNA *ptr,
+                                                                 PropertyRNA *prop)
 {
   /*
    * This function should be maintained such that it always produces variables
@@ -745,6 +745,11 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
   return std::nullopt;
 }
 
+bool BKE_path_contains_template_syntax(blender::StringRef path)
+{
+  return path.find_first_of("{}") != std::string_view::npos;
+}
+
 /**
  * Evaluates the path template in `in_path` and writes the result to `out_path`
  * if provided.
@@ -828,7 +833,7 @@ static blender::Vector<Error> eval_template(char *out_path,
             errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
-          strcpy(replacement_string, string_value->c_str());
+          BLI_strncpy(replacement_string, string_value->c_str(), sizeof(replacement_string));
           break;
         }
 
@@ -893,7 +898,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
 
   if (errors.is_empty()) {
     /* No errors, so copy the modified path back to the original. */
-    strcpy(path, path_buffer.data());
+    BLI_strncpy(path, path_buffer.data(), path_max_length);
   }
   return errors;
 }
@@ -937,4 +942,28 @@ void BKE_report_path_template_errors(ReportList *reports,
   }
 
   BKE_report(reports, report_type, error_message.c_str());
+}
+
+std::optional<std::string> BKE_path_template_format_float(
+    const blender::StringRef format_specifier, const double value)
+{
+  const FormatSpecifier format = parse_format_specifier(format_specifier);
+  if (format.type == FormatSpecifierType::SYNTAX_ERROR) {
+    return std::nullopt;
+  }
+  char buffer[FORMAT_BUFFER_SIZE];
+  format_float_to_string(format, value, buffer);
+  return buffer;
+}
+
+std::optional<std::string> BKE_path_template_format_int(const blender::StringRef format_specifier,
+                                                        const int64_t value)
+{
+  const FormatSpecifier format = parse_format_specifier(format_specifier);
+  if (format.type == FormatSpecifierType::SYNTAX_ERROR) {
+    return std::nullopt;
+  }
+  char buffer[FORMAT_BUFFER_SIZE];
+  format_int_to_string(format, value, buffer);
+  return buffer;
 }
