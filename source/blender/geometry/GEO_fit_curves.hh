@@ -25,7 +25,8 @@ enum class FitMethod {
  * \param src_curves: The input curves.
  * \param curve_selection: A selection of curves to fit. The selected curves will be replaced by
  * the fitted bézier curves and the unselected curves are copied to the output geometry.
- * \param thresholds: A error threshold (fit distance) for each input curve.
+ * \param thresholds: A error threshold (fit distance) for each input curve. The fitted curve
+ * should be within this distance.
  * \param corners: Boolean value for each input point. When this is true, the point is treated as a
  * corner in the curve fitting. The resulting bézier curve will include this point and the handles
  * will be "free", resulting in a sharp corner.
