@@ -502,6 +502,9 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
 
   BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
 
+  /* Store the previous active item index to restore it if needed */
+  int prev_active = data->active;
+
   /* reset vars */
   data->items.totitem = 0;
   data->items.more = 0;
@@ -567,6 +570,11 @@ void ui_searchbox_update(bContext *C, ARegion *region, uiBut *but, const bool re
               ui_searchbox_select(C, region, but, 0);
               break;
             }
+          }
+          /* If no item is hovered, revert to the previous selection */
+          if (data->active == -1) {
+            data->active = prev_active;
+            ui_searchbox_select(C, region, but, 0);
           }
         }
       }
