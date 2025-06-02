@@ -289,9 +289,8 @@ void AttributeStorage::rename(const StringRef old_name, std::string new_name)
 {
   /* The VectorSet must be rebuilt from scratch because the data used to create the hash is
    * changed. */
-  auto old_vector_set = std::move(this->runtime->attributes);
-  const int index = old_vector_set.index_of_as(old_name);
-  auto old_vector = old_vector_set.extract_vector();
+  const int index = this->runtime->attributes.index_of_try_as(old_name);
+  auto old_vector = this->runtime->attributes.extract_vector();
   old_vector[index]->name_ = std::move(new_name);
   this->runtime->attributes.reserve(old_vector.size());
   for (std::unique_ptr<Attribute> &attribute : old_vector) {
