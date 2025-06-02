@@ -4423,7 +4423,9 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
-    if (dst_type != CurveType::CURVE_TYPE_POLY) {
+    const IndexMask poly_curves_selection = curves.indices_for_curve_type(
+        CurveType::CURVE_TYPE_POLY, strokes, memory);
+    if (!poly_curves_selection.is_empty() && dst_type != CurveType::CURVE_TYPE_POLY) {
       const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
 
       if (detect_corners) {
@@ -4438,12 +4440,12 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
             curves, angle_mins, radius_mins, radius_maxs, samples_maxs);
         const VArray<bool> corners = VArray<bool>::ForSpan(corners_data);
         curves = geometry::fit_curves(
-            curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
+            curves, poly_curves_selection, thresholds, corners, geometry::FitMethod::Refit, {});
       }
       else {
         const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
         curves = geometry::fit_curves(
-            curves, strokes, thresholds, corners, geometry::FitMethod::Refit, {});
+            curves, poly_curves_selection, thresholds, corners, geometry::FitMethod::Refit, {});
       }
     }
 
