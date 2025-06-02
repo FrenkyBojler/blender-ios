@@ -498,6 +498,10 @@ void *MEM_lockfree_calloc_arrayN_aligned(const size_t len,
                                          const size_t alignment,
                                          const char *str)
 {
+  if (alignment <= MEM_MIN_CPP_ALIGNMENT) {
+    return MEM_lockfree_calloc_arrayN(len, size, str);
+  }
+
   size_t bytes_num;
   /* There is no lower level #calloc with an alignment parameter, so we have to fallback to using
    * #memset unfortunately. */
