@@ -78,6 +78,7 @@ set(SRC
   nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
+  nodes/node_geo_fit_curves.cc
   nodes/node_geo_field_average.cc
   nodes/node_geo_field_min_and_max.cc
   nodes/node_geo_field_variance.cc
