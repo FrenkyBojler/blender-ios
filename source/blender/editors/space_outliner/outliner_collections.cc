@@ -113,6 +113,9 @@ TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te
   TreeStoreElem *tselem = TREESTORE(te);
 
   if (outliner_is_collection_tree_element(te)) {
+    if (te->store_elem->type == TSE_SCENE_COLLECTION_BASE) {
+      return TRAVERSE_CONTINUE;
+    }
     BLI_addtail(&data->selected_array, BLI_genericNodeN(te));
     return TRAVERSE_SKIP_CHILDS;
   }
