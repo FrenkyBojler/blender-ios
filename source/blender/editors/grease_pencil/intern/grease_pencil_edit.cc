@@ -4412,7 +4412,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   const float radius_max = RNA_float_get(op->ptr, "radius_max");
   const int samples_max = RNA_int_get(op->ptr, "samples_max");
 
-  bool changed = false;
+  std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
@@ -4458,8 +4458,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
     curves = geometry::convert_curves(curves, strokes, dst_type, {}, options);
 
     info.drawing.tag_topology_changed();
-
-    changed = true;
+    changed.store(true, std::memory_order_relaxed);
   });
 
   if (changed) {
