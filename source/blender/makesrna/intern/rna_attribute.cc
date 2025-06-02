@@ -73,6 +73,20 @@ const EnumPropertyItem rna_enum_attribute_type_with_auto_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem rna_enum_attr_storage_type[] = {
+    {int(blender::bke::AttrStorageType::Array),
+     "ARRAY",
+     0,
+     "Array",
+     "Store a value for every element"},
+    {int(blender::bke::AttrStorageType::Single),
+     "SINGLE",
+     0,
+     "Single",
+     "Store a single value for the entire domain"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_attribute_domain_items[] = {
     /* Not implement yet */
     // {ATTR_DOMAIN_GEOMETRY, "GEOMETRY", 0, "Geometry", "Attribute on (whole) geometry"},
@@ -373,6 +387,17 @@ static int rna_Attribute_type_get(PointerRNA *ptr)
 
   CustomDataLayer *layer = static_cast<CustomDataLayer *>(ptr->data);
   return layer->type;
+}
+
+static int rna_Attribute_storage_type_get(PointerRNA *ptr)
+{
+  using namespace blender;
+  if (GS(ptr->owner_id->name) == ID_PT) {
+    const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
+    return int(attr->storage_type());
+  }
+
+  return int(bke::AttrStorageType::Array);
 }
 
 const EnumPropertyItem *rna_enum_attribute_domain_itemf(const AttributeOwner &owner,
@@ -1775,6 +1800,12 @@ static void rna_def_attribute(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_attribute_type_items);
   RNA_def_property_enum_funcs(prop, "rna_Attribute_type_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Data Type", "Type of data stored in attribute");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "storage_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_attr_storage_type);
+  RNA_def_property_enum_funcs(prop, "rna_Attribute_storage_type_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Storage Type", "Method used to store the data");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "domain", PROP_ENUM, PROP_NONE);
