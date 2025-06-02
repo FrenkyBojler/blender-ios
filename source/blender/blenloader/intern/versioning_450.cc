@@ -6186,6 +6186,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  // TODO: Move to versioning_500.cc before committing.
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
     LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
       blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
