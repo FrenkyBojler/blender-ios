@@ -33,31 +33,31 @@ static const auto &changed_tags()
   return attributes;
 }
 
+namespace {
+
 struct BuiltinInfo {
   bke::AttrDomain domain;
   bke::AttrType type;
-  GPointer default_value;
-  AttributeValidator validator;
-  bool deletable;
+  GPointer default_value = {};
+  AttributeValidator validator = {};
+  bool deletable = false;
+  BuiltinInfo(bke::AttrDomain domain, bke::AttrType type) : domain(domain), type(type) {}
 };
+
+}  // namespace
 
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
     Map<StringRef, BuiltinInfo> map;
-    {
-      BuiltinInfo position{};
-      position.domain = bke::AttrDomain::Point;
-      position.type = bke::AttrType::Float3;
-      position.deletable = false;
-      map.add_new("position", std::move(position));
-    }
-    {
-      BuiltinInfo radius{};
-      radius.domain = bke::AttrDomain::Point;
-      radius.type = bke::AttrType::Float;
-      map.add_new("radius", std::move(radius));
-    }
+
+    BuiltinInfo position(bke::AttrDomain::Point, bke::AttrType::Float3);
+    position.deletable = false;
+    map.add_new("position", std::move(position));
+
+    BuiltinInfo radius(bke::AttrDomain::Point, bke::AttrType::Float);
+    map.add_new("radius", std::move(radius));
+
     return map;
   }();
   return attributes;
