@@ -1719,15 +1719,21 @@ void GLCompilerWorker::compile(const GLSourcesBaked &sources)
   compilation_start = BLI_time_now_seconds();
 }
 
-void GLCompilerWorker::block_until_ready()
+bool GLCompilerWorker::block_until_ready()
 {
   BLI_assert(ELEM(state_, COMPILATION_REQUESTED, COMPILATION_READY));
   if (state_ == COMPILATION_READY) {
-    return;
+    return true;
   }
 
-  end_semaphore_->decrement();
+  while (!end_semaphore_->try_decrement(1000)) {
+    if (is_lost()) {
+      return false;
+    }
+  }
+
   state_ = COMPILATION_READY;
+  return true;
 }
 
 bool GLCompilerWorker::is_lost()
@@ -1741,7 +1747,9 @@ bool GLCompilerWorker::is_lost()
 
 bool GLCompilerWorker::load_program_binary(GLint program)
 {
-  block_until_ready();
+  if (!block_until_ready()) {
+    return false;
+  }
 
   ShaderBinaryHeader *binary = (ShaderBinaryHeader *)shared_mem_->get_data();
 
