@@ -42,14 +42,15 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
     corners.materialize(point_selection, is_corner.as_mutable_span());
   }
 
+  bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
+
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
                                                                  memory);
 
-  /* Add one at the end so we can accumulate the sizes to offsets later. */
-  Array<int> all_curve_sizes(src_curves.curves_num() + 1);
-  offset_indices::copy_group_sizes(
-      src_offsets, unselected_curves, all_curve_sizes.as_mutable_span());
+  /* Write the new sizes to the dst_offsets, they will be accumulated later to offsets again. */
+  MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
+  offset_indices::copy_group_sizes(src_offsets, unselected_curves, dst_curve_sizes);
   Array<int8_t> all_curve_types(src_curves.curves_num());
   src_curves.curve_types().materialize(all_curve_types.as_mutable_span());
 
@@ -135,7 +136,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
 
     if (error) {
       /* Some error occured. Fall back to using the input positions as the (poly) curve. */
-      all_curve_sizes[curve_i] = points.size();
+      dst_curve_sizes[curve_i] = points.size();
       all_curve_types[curve_i] = CURVE_TYPE_POLY;
 
       control_points_per_curve[pos].resize(points.size());
@@ -156,7 +157,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                        r_corner_index_array_len);
     const Span<int> orig_indices_map(reinterpret_cast<int *>(r_orig_index_map), dst_points_num);
 
-    all_curve_sizes[curve_i] = dst_points_num;
+    dst_curve_sizes[curve_i] = dst_points_num;
     all_curve_types[curve_i] = CURVE_TYPE_BEZIER;
 
     left_handles_per_curve[pos].resize(dst_points_num);
@@ -199,11 +200,8 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
     return src_curves;
   }
 
-  /* Create new curves geometry. Copy only the curve domain from the src_curves. */
-  bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
   const OffsetIndices dst_points_by_curve = offset_indices::accumulate_counts_to_offsets(
-      all_curve_sizes.as_mutable_span());
-  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+      dst_curve_sizes);
   dst_curves.resize(dst_curves.offsets().last(), dst_curves.curves_num());
 
   const Span<float3> src_handle_positions_left = src_curves.handle_positions_left();
