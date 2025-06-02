@@ -19,6 +19,7 @@ struct GPUPass;
 
 enum eGPUPassStatus {
   GPU_PASS_FAILED = 0,
+  GPU_PASS_CREATED,
   GPU_PASS_QUEUED,
   GPU_PASS_SUCCESS,
 };
@@ -27,7 +28,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
                            const char *debug_name,
                            eGPUMaterialEngine engine,
-                           bool deferred_compilation,
+                           GPUMaterialCompileMode compile_mode,
                            GPUCodegenCallbackFn finalize_source_cb,
                            void *thunk,
                            bool optimize_graph);

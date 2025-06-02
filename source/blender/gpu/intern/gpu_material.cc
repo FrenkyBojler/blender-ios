@@ -135,7 +135,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
                                         const char *name,
                                         eGPUMaterialEngine engine,
                                         uint64_t shader_uuid,
-                                        bool deferred_compilation,
+                                        GPUMaterialCompileMode compile_mode,
                                         GPUCodegenCallbackFn callback,
                                         void *thunk,
                                         GPUMaterialPassReplacementCallbackFn pass_replacement_cb)
@@ -144,7 +144,7 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   LISTBASE_FOREACH (LinkData *, link, gpumaterials) {
     GPUMaterial *mat = (GPUMaterial *)link->data;
     if (mat->uuid == shader_uuid && mat->engine == engine) {
-      if (!deferred_compilation) {
+      if (compile_mode == GPU_COMPILE_NOW) {
         GPU_pass_ensure_its_ready(mat->pass);
       }
       return mat;
@@ -177,14 +177,14 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   else {
     /* Create source code and search pass cache for an already compiled version. */
     mat->pass = GPU_generate_pass(
-        mat, &mat->graph, mat->name.c_str(), engine, deferred_compilation, callback, thunk, false);
+        mat, &mat->graph, mat->name.c_str(), engine, compile_mode, callback, thunk, false);
   }
 
   /* Determine whether we should generate an optimized variant of the graph.
    * Heuristic is based on complexity of default material pass and shader node graph. */
   if (GPU_pass_should_optimize(mat->pass)) {
     mat->optimized_pass = GPU_generate_pass(
-        mat, &mat->graph, mat->name.c_str(), engine, true, callback, thunk, true);
+        mat, &mat->graph, mat->name.c_str(), engine, GPU_COMPILE_ASYNC, callback, thunk, true);
   }
 
   gpu_node_graph_free_nodes(&mat->graph);
@@ -222,7 +222,7 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
                                      &material->graph,
                                      __func__,
                                      engine,
-                                     false,
+                                     GPU_COMPILE_NOW,
                                      generate_code_function_cb,
                                      thunk,
                                      false);
@@ -234,7 +234,7 @@ GPUMaterial *GPU_material_from_callbacks(eGPUMaterialEngine engine,
                                                  &material->graph,
                                                  __func__,
                                                  engine,
-                                                 true,
+                                                 GPU_COMPILE_ASYNC,
                                                  generate_code_function_cb,
                                                  thunk,
                                                  true);
@@ -306,6 +306,7 @@ eGPUMaterialStatus GPU_material_status(GPUMaterial *mat)
   switch (GPU_pass_status(mat->pass)) {
     case GPU_PASS_SUCCESS:
       return GPU_MAT_SUCCESS;
+    case GPU_PASS_CREATED:
     case GPU_PASS_QUEUED:
       return GPU_MAT_QUEUED;
     default:
@@ -322,6 +323,7 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
   switch (GPU_pass_status(mat->optimized_pass)) {
     case GPU_PASS_SUCCESS:
       return GPU_MAT_OPTIMIZATION_SUCCESS;
+    case GPU_PASS_CREATED:
     case GPU_PASS_QUEUED:
       return GPU_MAT_OPTIMIZATION_QUEUED;
     default:

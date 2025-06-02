@@ -39,7 +39,7 @@ struct GPUPass {
   GPUCodegenCreateInfo *create_info = nullptr;
   BatchHandle compilation_handle = 0;
   std::atomic<GPUShader *> shader = nullptr;
-  std::atomic<eGPUPassStatus> status = GPU_PASS_QUEUED;
+  std::atomic<eGPUPassStatus> status = GPU_PASS_CREATED;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
   /* The last time the refcount was greater than 0. */
@@ -53,7 +53,7 @@ struct GPUPass {
   bool is_optimization_pass = false;
 
   GPUPass(GPUCodegenCreateInfo *info,
-          bool deferred_compilation,
+          GPUMaterialCompileMode compile_mode,
           bool is_optimization_pass,
           bool should_optimize)
       : create_info(info),
@@ -61,18 +61,25 @@ struct GPUPass {
         is_optimization_pass(is_optimization_pass)
   {
     BLI_assert(!is_optimization_pass || !should_optimize);
-    if (is_optimization_pass && deferred_compilation) {
-      // Defer until all non optimization passes are compiled.
+    if (is_optimization_pass && compile_mode != GPU_COMPILE_NOW) {
+      /* Defer until all non optimization passes are compiled. */
+      return;
+    }
+
+    if (compile_mode == GPU_PREPARE_ONLY) {
+      /* Compilation will be scheduled manually later. */
       return;
     }
 
     GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
 
-    if (deferred_compilation) {
+    if (compile_mode == GPU_COMPILE_ASYNC) {
+      status = GPU_PASS_QUEUED;
       compilation_handle = GPU_shader_batch_create_from_infos(
           Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
     }
     else {
+      BLI_assert(compile_mode == GPU_COMPILE_NOW);
       shader = GPU_shader_create_from_info(base_info);
       finalize_compilation();
     }
@@ -84,7 +91,7 @@ struct GPUPass {
       GPU_shader_batch_cancel(compilation_handle);
     }
     else {
-      BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
+      BLI_assert(create_info == nullptr || status == GPU_PASS_CREATED);
     }
     MEM_delete(create_info);
     GPU_SHADER_FREE_SAFE(shader);
@@ -226,7 +233,7 @@ class GPUPassCache {
  public:
   void add(eGPUMaterialEngine engine,
            GPUCodegen &codegen,
-           bool deferred_compilation,
+           GPUMaterialCompileMode compile_mode,
            bool is_optimization_pass)
   {
     std::lock_guard lock(mutex_);
@@ -234,19 +241,19 @@ class GPUPassCache {
     passes_[engine][is_optimization_pass].add(
         codegen.hash_get(),
         std::make_unique<GPUPass>(codegen.create_info,
-                                  deferred_compilation,
+                                  compile_mode,
                                   is_optimization_pass,
                                   codegen.should_optimize_heuristic()));
   };
 
   GPUPass *get(eGPUMaterialEngine engine,
                size_t hash,
-               bool allow_deferred,
+               GPUMaterialCompileMode compile_mode,
                bool is_optimization_pass)
   {
     std::lock_guard lock(mutex_);
     std::unique_ptr<GPUPass> *pass = passes_[engine][is_optimization_pass].lookup_ptr(hash);
-    if (!allow_deferred && pass && pass->get()->status == GPU_PASS_QUEUED) {
+    if (compile_mode == GPU_COMPILE_NOW && pass && pass->get()->status == GPU_PASS_QUEUED) {
       pass->get()->finalize_compilation();
     }
     return pass ? pass->get() : nullptr;
@@ -367,7 +374,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
                            GPUNodeGraph *graph,
                            const char *debug_name,
                            eGPUMaterialEngine engine,
-                           bool deferred_compilation,
+                           GPUMaterialCompileMode compile_mode,
                            GPUCodegenCallbackFn finalize_source_cb,
                            void *thunk,
                            bool optimize_graph)
@@ -397,7 +404,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   }
 
   /* Cache lookup: Reuse shaders already compiled. */
-  pass = g_cache->get(engine, codegen.hash_get(), deferred_compilation, optimize_graph);
+  pass = g_cache->get(engine, codegen.hash_get(), compile_mode, optimize_graph);
 
   if (pass) {
     pass->refcount++;
@@ -413,10 +420,10 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
   finalize_source_cb(thunk, material, &codegen.output);
 
   codegen.create_info->finalize();
-  g_cache->add(engine, codegen, deferred_compilation, optimize_graph);
+  g_cache->add(engine, codegen, compile_mode, optimize_graph);
   codegen.create_info = nullptr;
 
-  return g_cache->get(engine, codegen.hash_get(), deferred_compilation, optimize_graph);
+  return g_cache->get(engine, codegen.hash_get(), compile_mode, optimize_graph);
 }
 
 /** \} */

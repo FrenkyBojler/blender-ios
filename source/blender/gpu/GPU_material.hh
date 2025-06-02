@@ -49,6 +49,15 @@ enum eGPUMaterialStatus {
   GPU_MAT_SUCCESS,
 };
 
+enum GPUMaterialCompileMode {
+  /* Only return when the shader compilation is finished. */
+  GPU_COMPILE_NOW = 0,
+  /* Compile the shader using async compilation if available. */
+  GPU_COMPILE_ASYNC,
+  /* Only create the shader source but do not schedule shader compilation. */
+  GPU_PREPARE_ONLY,
+};
+
 /* GPU_MAT_OPTIMIZATION_SKIP for cases where we do not
  * plan to perform optimization on a given material. */
 enum eGPUMaterialOptimizationStatus {
@@ -101,7 +110,7 @@ GPUMaterial *GPU_material_from_nodetree(
     const char *name,
     eGPUMaterialEngine engine,
     uint64_t shader_uuid,
-    bool deferred_compilation,
+    GPUMaterialCompileMode compile_mode,
     GPUCodegenCallbackFn callback,
     void *thunk,
     GPUMaterialPassReplacementCallbackFn pass_replacement_cb = nullptr);

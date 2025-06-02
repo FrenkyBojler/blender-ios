@@ -976,7 +976,7 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
                                                                  thunk->default_mat->nodetree,
                                                                  pipeline_type,
                                                                  geometry_type,
-                                                                 false,
+                                                                 GPU_COMPILE_NOW,
                                                                  nullptr);
     return GPU_material_get_pass(mat);
   }
@@ -988,7 +988,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                                bNodeTree *nodetree,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
-                                               bool deferred_compilation,
+                                               GPUMaterialCompileMode compile_mode,
                                                ::Material *default_mat)
 {
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
@@ -1008,7 +1008,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                     blender_mat->id.name,
                                     GPU_MAT_EEVEE,
                                     shader_uuid,
-                                    deferred_compilation,
+                                    compile_mode,
                                     codegen_callback,
                                     &thunk,
                                     is_default_material ? nullptr : pass_replacement_cb);
@@ -1017,7 +1017,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
 GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                             bNodeTree *nodetree,
                                             eMaterialPipeline pipeline_type,
-                                            bool deferred_compilation)
+                                            GPUMaterialCompileMode compile_mode)
 {
   uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type, MAT_GEOM_WORLD);
 
@@ -1029,7 +1029,7 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
                                     blender_world->id.name,
                                     GPU_MAT_EEVEE,
                                     shader_uuid,
-                                    deferred_compilation,
+                                    compile_mode,
                                     codegen_callback,
                                     &thunk);
 }

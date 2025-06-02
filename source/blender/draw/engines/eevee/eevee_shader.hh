@@ -239,12 +239,12 @@ class ShaderModule {
                                    bNodeTree *nodetree,
                                    eMaterialPipeline pipeline_type,
                                    eMaterialGeometry geometry_type,
-                                   bool deferred_compilation,
+                                   GPUMaterialCompileMode compile_mode,
                                    ::Material *default_mat);
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type,
-                                bool deferred_compilation);
+                                GPUMaterialCompileMode compile_mode);
 
   void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
 
