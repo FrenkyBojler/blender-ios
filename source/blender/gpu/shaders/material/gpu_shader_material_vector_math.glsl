@@ -131,12 +131,14 @@ void vector_math_absolute(
   outVector = abs(a);
 }
 
-void vector_math_power(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_power(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = compatible_pow(a, b);
 }
 
-void vector_math_sign(float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
+void vector_math_sign(
+    float3 a, float3 b, float3 c, float scale, out float3 outVector, out float outValue)
 {
   outVector = sign(a);
 }
