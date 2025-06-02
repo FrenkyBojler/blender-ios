@@ -187,13 +187,17 @@ static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
   if (!attr) {
     return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
   }
-  if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
-    const Span span(static_cast<const T *>(array_data->data), array_data->size);
-    BLI_assert(array_data->size == pointcloud.totpoint);
-    return VArray<T>::ForSpan(span);
-  }
-  if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
-    return VArray<T>::ForSingle(*static_cast<const T *>(single_data->value), pointcloud.totpoint);
+  switch (attr->storage_type()) {
+    case bke::AttrStorageType::Array: {
+      const auto &data = std::get<bke::Attribute::ArrayData>(attr->data());
+      const Span span(static_cast<const T *>(data.data), data.size);
+      BLI_assert(array_data->size == pointcloud.totpoint);
+      return VArray<T>::ForSpan(span);
+    }
+    case bke::AttrStorageType::Single: {
+      const auto &data = std::get<bke::Attribute::SingleData>(attr->data());
+      return VArray<T>::ForSingle(*static_cast<const T *>(data.value), pointcloud.totpoint);
+    }
   }
   return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
 }

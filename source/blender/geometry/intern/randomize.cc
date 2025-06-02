@@ -91,12 +91,18 @@ static void reorder_attribute_domain(bke::AttributeStorage &data,
       return;
     }
     const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
-    if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr.data())) {
-      auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, new_by_old_map.size());
-      bke::attribute_math::gather(GSpan(type, array_data->data, array_data->size),
-                                  new_by_old_map,
-                                  GMutableSpan(type, new_data.data, new_data.size));
-      attr.data_for_write() = std::move(new_data);
+    switch (attr.storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
+        auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, new_by_old_map.size());
+        bke::attribute_math::gather(GSpan(type, data.data, data.size),
+                                    new_by_old_map,
+                                    GMutableSpan(type, new_data.data, new_data.size));
+        attr.data_for_write() = std::move(new_data);
+      }
+      case bke::AttrStorageType::Single: {
+        return;
+      }
     }
   });
 }
