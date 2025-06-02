@@ -1656,7 +1656,7 @@ GLSourcesBaked GLShader::get_sources()
 
 void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
-  shader->program_get(&specialization.constants);
+  dynamic_cast<GLShader *>(unwrap(specialization.shader))->program_get(&specialization.constants);
 }
 
 /** \} */

@@ -69,6 +69,7 @@ struct GLSourcesBaked : NonCopyable {
 class GLShader : public Shader {
   friend shader::ShaderCreateInfo;
   friend shader::StageInterfaceInfo;
+  friend class GLShaderCompilerSubprocess;
   friend class GLShaderCompiler;
 
  private:
@@ -218,7 +219,7 @@ class GLShaderCompiler : public ShaderCompiler {
 #if BLI_SUBPROCESS_SUPPORT
 
 class GLCompilerWorker {
-  friend class GLShaderCompiler;
+  friend class GLShaderCompilerSubprocess;
 
  private:
   BlenderSubprocess subprocess_;
@@ -251,7 +252,7 @@ class GLCompilerWorker {
   bool is_lost();
 };
 
-class GLShaderCompilerSubprocess : public GLShaderCompiler {
+class GLShaderCompilerSubprocess : public ShaderCompiler {
  private:
   Vector<GLCompilerWorker *> workers_;
   std::mutex workers_mutex_;
