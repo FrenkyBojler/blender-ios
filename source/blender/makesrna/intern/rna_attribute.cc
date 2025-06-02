@@ -244,9 +244,7 @@ static std::optional<std::string> rna_Attribute_path(const PointerRNA *ptr)
   using namespace blender;
   if (GS(ptr->owner_id->name) == ID_PT) {
     bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-    std::string escaped_name;
-    escaped_name.resize(attr->name().size() * 2);
-    BLI_str_escape(escaped_name.data(), attr->name().data(), escaped_name.size());
+    const std::string escaped_name = BLI_str_escape(escaped_name.name().c_str());
     return fmt::format("attributes[\"{}\"]", escaped_name);
   }
 
