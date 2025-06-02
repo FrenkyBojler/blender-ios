@@ -37,6 +37,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   }
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
 
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
   if (current_node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
     if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
@@ -78,7 +81,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         const NodeGeometryClosureInputItem &item = output_storage.input_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const std::string identifier = ClosureInputItemsAccessor::socket_identifier_for_item(item);
-        b.add_output(socket_type, item.name, identifier);
+        b.add_output(socket_type, item.name, identifier).supports_field();
       }
     }
   }
