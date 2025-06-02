@@ -1070,17 +1070,18 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
 {
   int x, y;
 
-  if (const int64_t paths_size = WM_drag_get_paths(drag).size(); paths_size > 1) {
-    /* Slightly bigger to improve paths count readability. */
+  if (const int64_t path_count = WM_drag_get_paths(drag).size(); path_count > 1) {
+    /* Custom scale to improve path count readability. */
     const float scale = UI_SCALE_FAC * 1.15f;
-    int padding = 4 * scale;
+    const int padding = 4 * scale;
     x = xy[0] - 6 * padding;
     y = xy[1] - 4 * scale;
 
     const uchar text_col[] = {255, 255, 255, 255};
     IconTextOverlay text_overlay;
-    UI_icon_text_overlay_init_from_count(&text_overlay, paths_size);
-    UI_icon_draw_ex(x, y, ICON_DOCUMENTS, 1 / scale, 0.8, 0.0f, text_col, false, &text_overlay);
+    UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
+    UI_icon_draw_ex(
+        x, y, ICON_DOCUMENTS, 1.0f / scale, 1.0f, 0.0f, text_col, false, &text_overlay);
   }
   else if (drag->imb) {
     /* This could also get the preview image of an ID when dragging one. But the big preview icon
