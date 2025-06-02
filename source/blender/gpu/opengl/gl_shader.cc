@@ -11,6 +11,8 @@
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
 
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_vector.hh"
@@ -1726,8 +1728,24 @@ bool GLCompilerWorker::block_until_ready()
     return true;
   }
 
+  auto delete_cached_binary = [&]() {
+    /* If the subprocess crashed when loading the binary,
+     * its name should be stored in shared memory.
+     * Delete it to prevent more crashes in the future. */
+    char str_start[] = "SOURCE_HASH:";
+    char *shared_mem = reinterpret_cast<char *>(shared_mem_->get_data());
+    if (BLI_str_startswith(shared_mem, str_start)) {
+      std::string path = GL_shader_cache_dir_get() + SEP_STR +
+                         std::string(shared_mem + sizeof(str_start) - 1);
+      if (BLI_exists(path.c_str())) {
+        BLI_delete(path.c_str(), false, false);
+      }
+    }
+  };
+
   while (!end_semaphore_->try_decrement(1000)) {
     if (is_lost()) {
+      delete_cached_binary();
       return false;
     }
   }
