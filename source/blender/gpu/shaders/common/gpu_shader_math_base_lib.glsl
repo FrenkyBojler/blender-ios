@@ -130,6 +130,16 @@ float compatible_mod(float a, float b)
   return 0.0f;
 }
 
+float floored_modulo(float a, float b)
+{
+  return a - floor(a / b) * b;
+}
+
+float safe_floored_modulo(float a, float b)
+{
+  return (b != 0.0) ? a - floor(a / b) * b : 0.0;
+}
+
 /**
  * Returns \a a if it is a multiple of \a b or the next multiple or \a b after \b a .
  * In other words, it is equivalent to `divide_ceil(a, b) * b`.
