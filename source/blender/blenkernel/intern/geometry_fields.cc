@@ -540,9 +540,9 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
     return {};
   }
 
-  StringRef selection_name = StringRef(layer_name_);
+  const StringRef selection_name = StringRef(layer_name_);
   IndexMaskMemory memory;
-  IndexMask selection_mask = grease_pencil.layer_selection_by_name(selection_name, memory);
+  const IndexMask selection_mask = grease_pencil.layer_selection_by_name(selection_name, memory);
 
   auto layer_is_selected = [selection_name,
                             &grease_pencil,
@@ -556,11 +556,13 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
 
   if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
     const int layer_i = context.grease_pencil_layer_index();
-    const bool selected = layer_is_selected(layer_i);
-    return VArray<bool>::ForSingle(selected, mask.min_array_size());
+    return VArray<bool>::ForSingle(selection_mask.contains(layer_i), mask.min_array_size());
   }
 
-  return VArray<bool>::ForFunc(mask.min_array_size(), layer_is_selected);
+  Array<bool> selection(mask.min_array_size());
+  selection_mask.slice_content(0, mask.min_array_size()).to_bools(selection.as_mutable_span());
+
+  return VArray<bool>::ForContainer(std::move(selection));
 }
 
 uint64_t NamedLayerSelectionFieldInput::hash() const

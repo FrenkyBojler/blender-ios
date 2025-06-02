@@ -18,6 +18,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
+#include "BLI_struct_equality_utils.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_grease_pencil_types.h"
@@ -41,13 +42,10 @@ namespace greasepencil {
 struct LayerSearchInfo {
   std::string name;
   bool is_group;
-  bool operator==(const LayerSearchInfo &other) const
-  {
-    return name == other.name && is_group == other.is_group;
-  }
+  BLI_STRUCT_EQUALITY_OPERATORS_2(LayerSearchInfo, name, is_group)
   uint64_t hash() const
   {
-    return blender::get_default_hash(name);
+    return blender::get_default_hash(this->name);
   }
 };
 

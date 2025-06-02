@@ -183,9 +183,8 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
           info.layers_num = grease_pencil->nodes().size();
           Set<LayerSearchInfo> unique_layers;
           for (const bke::greasepencil::TreeNode *node : grease_pencil->nodes()) {
-            const StringRefNull layer_name(node->name());
             LayerSearchInfo item;
-            item.name = layer_name;
+            item.name = node->name();
             item.is_group = node->is_group();
             if (unique_layers.add(item)) {
               info.layers.append(item);

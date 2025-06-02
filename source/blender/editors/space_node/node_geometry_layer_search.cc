@@ -46,8 +46,8 @@ struct LayerSearchData {
 /* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<LayerSearchData>, "");
 
-static const Vector<LayerSearchInfo> get_layer_names_from_context(const bContext &C,
-                                                                  LayerSearchData &data)
+static Vector<LayerSearchInfo> get_layer_names_from_context(const bContext &C,
+                                                            LayerSearchData &data)
 {
   using namespace nodes::geo_eval_log;
 

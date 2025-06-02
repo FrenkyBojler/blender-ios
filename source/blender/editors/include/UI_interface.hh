@@ -96,7 +96,7 @@ void attribute_search_add_items(StringRef str,
                                 bool is_first);
 
 void grease_pencil_layer_search_add_items(StringRef str,
-                                          const Span<LayerSearchInfo> filtered_layer_infos,
+                                          Span<LayerSearchInfo> filtered_layer_infos,
                                           uiSearchItems &items,
                                           bool is_first);
 
