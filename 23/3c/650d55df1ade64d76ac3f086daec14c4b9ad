@@ -1,3 +1,3 @@
-Referenced by pull request #139349, WIP: Fix: Graph Editor box select selects non-visible handles
+Referenced by pull request #139349, Fix: Graph Editor box select selects non-visible handles
 Referenced by pull request #139531, Fix: ANIM: Graph Editor Circle/Lasso select fails to select handles
 Referenced by commit 7494a57b1687c0e7e00f1f4ebec784fb0fc25f05, Fix: Graph Editor Circle/Lasso select fails to select handles
