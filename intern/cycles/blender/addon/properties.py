@@ -1550,6 +1550,7 @@ class CyclesDeviceSettings(bpy.types.PropertyGroup):
     name: StringProperty(name="Name")
     use: BoolProperty(name="Use", default=True)
     type: EnumProperty(name="Type", items=enum_device_type, default='CUDA')
+    optimized: BoolProperty(name="Optimized", default=True)
 
 
 class CyclesPreferences(bpy.types.AddonPreferences):
@@ -1663,6 +1664,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 entry.id = device[2]
                 entry.name = device[0]
                 entry.type = device[1]
+                entry.optimized = device[7]
                 entry.use = entry.type != 'CPU'
             elif entry.name != device[0]:
                 # Update name in case it changed
@@ -1840,13 +1842,23 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         for device in devices:
             import unicodedata
+
+            has_execution_optimisation = device.optimized
+            device_text_label = device.name.replace(
+                '(TM)',
+                unicodedata.lookup('TRADE MARK SIGN')).replace(
+                '(tm)',
+                unicodedata.lookup('TRADE MARK SIGN')).replace(
+                '(R)',
+                unicodedata.lookup('REGISTERED SIGN')).replace(
+                '(C)',
+                unicodedata.lookup('COPYRIGHT SIGN'))
+
+            if not has_execution_optimisation:
+                device_text_label += rpt_(" (Unoptimised Performance)")
+
             box.prop(
-                device, "use", text=device.name
-                .replace('(TM)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(R)', unicodedata.lookup('REGISTERED SIGN'))
-                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN')),
-                translate=False
+                device, "use", text=device_text_label, translate=False
             )
 
     def draw_impl(self, layout, context):
