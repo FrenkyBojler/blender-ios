@@ -49,13 +49,6 @@ static float channel_height_pixelspace_get(const View2D *timeline_region_v2d)
          UI_view2d_view_to_region_y(timeline_region_v2d, 0.0f);
 }
 
-static float frame_width_pixelspace_get(const View2D *timeline_region_v2d)
-{
-
-  return UI_view2d_view_to_region_x(timeline_region_v2d, 1.0f) -
-         UI_view2d_view_to_region_x(timeline_region_v2d, 0.0f);
-}
-
 static float icon_width_get(const SeqChannelDrawContext *context)
 {
   return (U.widget_unit * 0.8 * context->scale);
@@ -115,7 +108,7 @@ static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
                                   UI_BTYPE_TOGGLE,
                                   1,
                                   icon,
-                                  context->v2d->cur.xmax / context->scale - offset,
+                                  context->region->winx / context->scale - offset,
                                   y,
                                   width,
                                   width,
@@ -154,7 +147,7 @@ static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
                                   UI_BTYPE_TOGGLE,
                                   1,
                                   icon,
-                                  context->v2d->cur.xmax / context->scale - offset,
+                                  context->region->winx / context->scale - offset,
                                   y,
                                   width,
                                   width,
@@ -193,7 +186,7 @@ static rctf label_rect_init(const SeqChannelDrawContext *context,
   float y = channel_index_y_min(context, channel_index) + margin;
 
   float margin_x = icon_width_get(context) * 0.65;
-  float width = max_ff(0.0f, context->v2d->cur.xmax / context->scale - used_width);
+  float width = max_ff(0.0f, context->region->winx / context->scale - used_width);
 
   /* Text input has its own margin. Prevent text jumping around and use as much space as possible.
    */
@@ -319,7 +312,6 @@ void channel_draw_context_init(const bContext *C,
   r_context->timeline_region_v2d = &r_context->timeline_region->v2d;
 
   r_context->channel_height = channel_height_pixelspace_get(r_context->timeline_region_v2d);
-  r_context->frame_width = frame_width_pixelspace_get(r_context->timeline_region_v2d);
   r_context->draw_offset = draw_offset_get(r_context->timeline_region_v2d);
 
   r_context->scale = min_ff(r_context->channel_height / (U.widget_unit * 0.6), 1);
@@ -341,11 +333,7 @@ void draw_channels(const bContext *C, ARegion *region)
     return;
   }
 
-  UI_view2d_view_ortho(context.v2d);
-
   draw_channel_headers(&context);
-
-  UI_view2d_view_restore(C);
 }
 
 }  // namespace blender::ed::vse

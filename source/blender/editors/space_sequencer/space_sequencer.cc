@@ -1061,14 +1061,22 @@ static bool sequencer_channel_region_poll(const RegionPollParams *params)
 /* add handlers, stuff you only do once or on area/region changes */
 static void sequencer_channel_region_init(wmWindowManager *wm, ARegion *region)
 {
-  wmKeyMap *keymap;
 
   region->alignment = RGN_ALIGN_LEFT;
-
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
-
-  keymap = WM_keymap_ensure(wm->defaultconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->defaultconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
+
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+}
+
+static void sequencer_channel_region_user_resize(const ARegion *region)
+{
+  /*View2D v2d = region->v2d;
+  v2d.winx = region->winx;
+  v2d.mask.xmax = v2d.cur.xmax = v2d.tot.xmax = v2d.winx * 3;
+  v2d.mask.ymax = v2d.cur.ymax;
+  UI_view2d_curRect_validate(&v2d);*/
 }
 
 static void sequencer_channel_region_draw(const bContext *C, ARegion *region)
@@ -1187,7 +1195,7 @@ void ED_spacetype_sequencer()
   art = MEM_callocN<ARegionType>("spacetype sequencer channels");
   art->regionid = RGN_TYPE_CHANNELS;
   art->prefsizex = UI_COMPACT_PANEL_WIDTH;
-  art->keymapflag = ED_KEYMAP_UI;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
   art->poll = sequencer_channel_region_poll;
   art->init = sequencer_channel_region_init;
   art->draw = sequencer_channel_region_draw;

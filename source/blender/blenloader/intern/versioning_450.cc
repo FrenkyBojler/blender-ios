@@ -17,6 +17,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_vec_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -35,6 +36,10 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_screen.hh"
+
+#include "UI_interface_c.hh"
+#include "UI_view2d.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -6109,6 +6114,43 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     blender::bke::mesh_sculpt_mask_to_generic(*mesh);
     blender::bke::mesh_custom_normals_to_generic(*mesh);
     rename_mesh_uv_seam_attribute(*mesh);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 666)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_SEQ) {
+            continue;
+          }
+          if (ELEM(((SpaceSeq *)sl)->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
+            continue;
+          }
+
+          ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                 &sl->regionbase;
+          ARegion *channels = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_CHANNELS);
+          ARegion *timeline = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_WINDOW);
+          if (channels != nullptr && timeline != nullptr) {
+            // XXX technically should not be necessary
+            channels->v2d.cur = timeline->v2d.cur;
+            channels->v2d.tot = timeline->v2d.tot;
+
+            copy_v2_v2(channels->v2d.min, timeline->v2d.min);
+            copy_v2_v2(channels->v2d.max, timeline->v2d.max);
+            channels->v2d.minzoom = timeline->v2d.minzoom;
+            channels->v2d.maxzoom = timeline->v2d.maxzoom;
+
+            channels->v2d.flag |= V2D_VIEWSYNC_SCREEN_TIME;
+            timeline->v2d.flag |= V2D_VIEWSYNC_SCREEN_TIME;
+
+            channels->v2d.keepzoom = V2D_LOCKZOOM_X;
+            channels->v2d.keepofs = V2D_LOCKOFS_X;
+            channels->v2d.keeptot = V2D_KEEPTOT_STRICT;
+          }
+        }
+      }
+    }
   }
 
   /**

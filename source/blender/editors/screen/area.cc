@@ -1114,34 +1114,37 @@ static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *reg
                            region_background_is_transparent(area, region);
 
   /* Only scale the padding inside the region, not outside. */
-  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  const float aspect_x = BLI_rctf_size_x(&region->v2d.cur) /
+                         (BLI_rcti_size_x(&region->v2d.mask) + 1);
+  const float aspect_y = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   /* Different padding inside and outside the region. */
   const int pad_out = (is_narrow ? 2.0f : 3.0f) * UI_SCALE_FAC;
-  const int pad_in = (is_narrow ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect;
+  const int pad_in_x = (is_narrow ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect_x;
+  const int pad_in_y = (is_narrow ? 1.0f : (transparent ? 8.0f : 4.0f)) * UI_SCALE_FAC / aspect_y;
 
   switch (az->edge) {
     case AE_TOP_TO_BOTTOMRIGHT:
       az->x1 = region->winrct.xmin;
       az->y1 = region->winrct.ymax + pad_out;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymax - pad_in;
+      az->y2 = region->winrct.ymax - pad_in_y;
       break;
     case AE_BOTTOM_TO_TOPLEFT:
       az->x1 = region->winrct.xmin;
       az->y1 = region->winrct.ymin + pad_out;
       az->x2 = region->winrct.xmax;
-      az->y2 = region->winrct.ymin - pad_in;
+      az->y2 = region->winrct.ymin - pad_in_y;
       break;
     case AE_LEFT_TO_TOPRIGHT:
       az->x1 = region->winrct.xmin - pad_out;
       az->y1 = region->winrct.ymin;
-      az->x2 = region->winrct.xmin + pad_in;
+      az->x2 = region->winrct.xmin + pad_in_x;
       az->y2 = region->winrct.ymax;
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      az->x1 = region->winrct.xmax - pad_in;
+      az->x1 = region->winrct.xmax - pad_in_x;
       az->y1 = region->winrct.ymin;
       az->x2 = region->winrct.xmax + pad_out;
       az->y2 = region->winrct.ymax;
