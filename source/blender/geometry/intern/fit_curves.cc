@@ -265,16 +265,21 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   curves_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange dst_points = dst_points_by_curve[curve_i];
 
-    dst_handle_positions_left.slice(dst_points).copy_from(left_handles_per_curve[pos].as_span());
     dst_control_point_positions.slice(dst_points)
         .copy_from(control_points_per_curve[pos].as_span());
-    dst_handle_positions_right.slice(dst_points).copy_from(right_handles_per_curve[pos].as_span());
-    dst_handle_types_left.slice(dst_points).copy_from(left_handle_type_per_curve[pos].as_span());
-    dst_handle_types_right.slice(dst_points).copy_from(right_handle_type_per_curve[pos].as_span());
-
     old_to_new_map.as_mutable_span()
         .slice(dst_points)
         .copy_from(old_to_new_per_curve[pos].as_span());
+
+    if (all_curve_types[curve_i] != CURVE_TYPE_BEZIER) {
+      /* Skip handles for when the curve fitting failed for some reason. */
+      return;
+    }
+
+    dst_handle_positions_left.slice(dst_points).copy_from(left_handles_per_curve[pos].as_span());
+    dst_handle_positions_right.slice(dst_points).copy_from(right_handles_per_curve[pos].as_span());
+    dst_handle_types_left.slice(dst_points).copy_from(left_handle_type_per_curve[pos].as_span());
+    dst_handle_types_right.slice(dst_points).copy_from(right_handle_type_per_curve[pos].as_span());
   });
 
   dst_curves.curve_types_for_write().copy_from(all_curve_types);
