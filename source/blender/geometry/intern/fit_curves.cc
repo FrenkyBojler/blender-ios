@@ -7,6 +7,7 @@
 #include "BLI_task.hh"
 
 #include "BKE_curves_utils.hh"
+#include "BKE_deform.hh"
 
 #include "GEO_fit_curves.hh"
 
@@ -203,6 +204,8 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   const OffsetIndices dst_points_by_curve = offset_indices::accumulate_counts_to_offsets(
       dst_curve_sizes);
   dst_curves.resize(dst_curves.offsets().last(), dst_curves.curves_num());
+
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
   const Span<float3> src_handle_positions_left = src_curves.handle_positions_left();
   const Span<float3> src_control_point_positions = src_curves.positions();
