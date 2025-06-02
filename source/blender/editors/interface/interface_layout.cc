@@ -32,7 +32,6 @@
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_main.hh"
 #include "BKE_path_templates.hh"
 #include "BKE_screen.hh"
 
