@@ -11,3 +11,4 @@ Referenced by pull request #135575, Tests: Adjust shadow_link_transparency so it
 Referenced by commit 65f3a8003612512dd1eef5018ed0bf937a244d15, Tests: Adjust shadow_link_transparency so it shows a recent Cycles regression
 Referenced by issue #136531, Cycles: Light not updating in viewport when emission sampling is None
 Referenced by issue #139670, Regression: Cycles CPU+GPU Crash rendering hair
+Referenced by commit bc543ec5312d56550604f7c1122df79b8d81b318, Fix #139670: Cycles crash with persistent data and light geometry
