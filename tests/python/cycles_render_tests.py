@@ -24,17 +24,20 @@ BLOCKLIST_ALL = [
     "image_log_osl.blend",
 ]
 
-# Blocklist that disables OSL specific tests for configurations that do not support the OSL backend.
-BLOCKLIST_OSL = [
+# Blocklist for device + build configuration that does not support OSL at all.
+BLOCKLIST_OSL_NONE = [
     '.*_osl.blend',
     'osl_.*.blend',
 ]
 
-# Blocklist for SVM tests that are forced to run with OSL to test consistency between the two backends.
-# Most of these tests are blocked due to expected differences between SVM and OSL. Due to the expected
-# differences there are usually a SVM and OSL version of the test. So blocking these tests doesn't lose
-# any test permutations.
-BLOCKLIST_FORCED_OSL = [
+# Blocklist for OSL with limited OSL tests for fast test execution.
+BLOCKLIST_OSL_LIMITED = []
+
+# Blocklist for tests that fail when running all tests with OSL backend.
+# Most of these tests are blocked due to expected differences between SVM and OSL.
+# Due to the expected differences there are usually a SVM and OSL version of the test.
+# So blocking these tests doesn't lose any test permutations.
+BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # AOVs are not supported. See 73266
     'aov_position.blend',
     'render_passes_aov.*.blend',
@@ -62,15 +65,15 @@ BLOCKLIST_OPTIX = [
     'big_plane_43865.blend',
 ]
 
-# Blocklist for OSL tests that fail with the OptiX OSL backend
-BLOCKLIST_OPTIX_OSL = [
+# Blocklist for OSL tests that fail with the OptiX OSL backend.
+BLOCKLIST_OPTIX_OSL_LIMITED = [
     'image_.*_osl.blend',
     # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
 ]
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
-BLOCKLIST_OPTIX_FORCED_OSL = [
+BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     # OptiX OSL does support AO or Bevel
     'ambient_occlusion.*.blend',
     'bake_bevel.blend',
@@ -208,8 +211,7 @@ def create_argparse():
     parser.add_argument("--outdir", required=True)
     parser.add_argument("--oiiotool", required=True)
     parser.add_argument("--device", required=True)
-    parser.add_argument("--blocklist", nargs="*", default=[])
-    parser.add_argument("--osl_test_type", default='none')
+    parser.add_argument("--osl", default='none', type=str, choices=["none", "limited", "all"])
     parser.add_argument('--batch', default=False, action='store_true')
     return parser
 
@@ -220,25 +222,28 @@ def main():
 
     device = args.device
 
-    is_osl_forced_on = args.osl_test_type.lower() == 'forced_on'
-
     blocklist = BLOCKLIST_ALL
+
+    if args.osl == 'none':
+        blocklist += BLOCKLIST_OSL_NONE
+    elif args.osl == "limited":
+        blocklist += BLOCKLIST_OSL_LIMITED
+    else:
+        blocklist += BLOCKLIST_OSL_ALL
+
     if device != 'CPU':
         blocklist += BLOCKLIST_GPU
-    if (args.osl_test_type.lower() == 'none') or 'OSL' in args.blocklist:
-        blocklist += BLOCKLIST_OSL
+
     if device == 'OPTIX':
         blocklist += BLOCKLIST_OPTIX
-        if args.osl_test_type.lower() != 'none':
-            blocklist += BLOCKLIST_OPTIX_OSL
-            if is_osl_forced_on:
-                blocklist += BLOCKLIST_OPTIX_FORCED_OSL
+        if args.osl == 'limited':
+            blocklist += BLOCKLIST_OPTIX_OSL_LIMITED
+        elif args.osl == 'all':
+            blocklist += BLOCKLIST_OPTIX_OSL_ALL
     if device == 'METAL':
         blocklist += BLOCKLIST_METAL
-    if is_osl_forced_on:
-        blocklist += BLOCKLIST_FORCED_OSL
 
-    report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, is_osl_forced_on)
+    report = CyclesReport('Cycles', args.outdir, args.oiiotool, device, blocklist, args.osl == 'all')
     report.set_pixelated(True)
     report.set_reference_dir("cycles_renders")
     if device == 'CPU':
@@ -259,12 +264,12 @@ def main():
 
     test_dir_name = Path(args.testdir).name
     if (test_dir_name in {'motion_blur', 'integrator', "displacement"}) or \
-       ((is_osl_forced_on) and (test_dir_name in {'shader', 'hair'})):
+       ((args.osl == 'all') and (test_dir_name in {'shader', 'hair'})):
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have
     # noticably different noise causing OSL Principled BSDF tests to fail.
-    if ((is_osl_forced_on) and (test_dir_name == 'principled_bsdf')):
+    if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
