@@ -23,6 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -460,7 +461,7 @@ void NODE_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select nodes with similar properties";
   ot->idname = "NODE_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = node_select_grouped_exec;
   ot->poll = ED_operator_node_active;
@@ -672,6 +673,8 @@ static bool node_mouse_select(bContext *C,
   WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
   WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
+  BKE_main_ensure_invariants(bmain, node_tree.id);
+
   return true;
 }
 
@@ -711,7 +714,7 @@ void NODE_OT_select(wmOperatorType *ot)
   ot->idname = "NODE_OT_select";
   ot->description = "Select the node under the cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_select_exec;
   ot->invoke = node_select_invoke;
   ot->poll = ED_operator_node_active;
@@ -818,7 +821,7 @@ void NODE_OT_select_box(wmOperatorType *ot)
   ot->idname = "NODE_OT_select_box";
   ot->description = "Use box selection to select nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = node_box_select_invoke;
   ot->exec = node_box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -908,7 +911,7 @@ void NODE_OT_select_circle(wmOperatorType *ot)
   ot->idname = "NODE_OT_select_circle";
   ot->description = "Use circle selection to select nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_circle_invoke;
   ot->exec = node_circleselect_exec;
   ot->modal = WM_gesture_circle_modal;
@@ -1028,7 +1031,7 @@ void NODE_OT_select_lasso(wmOperatorType *ot)
   ot->description = "Select nodes using lasso selection";
   ot->idname = "NODE_OT_select_lasso";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = node_lasso_select_invoke;
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = node_lasso_select_exec;
@@ -1112,7 +1115,7 @@ void NODE_OT_select_all(wmOperatorType *ot)
   ot->description = "(De)select all nodes";
   ot->idname = "NODE_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_select_all_exec;
   ot->poll = ED_operator_node_active;
 
@@ -1164,7 +1167,7 @@ void NODE_OT_select_linked_to(wmOperatorType *ot)
   ot->description = "Select nodes linked to the selected ones";
   ot->idname = "NODE_OT_select_linked_to";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_select_linked_to_exec;
   ot->poll = ED_operator_node_active;
 
@@ -1214,7 +1217,7 @@ void NODE_OT_select_linked_from(wmOperatorType *ot)
   ot->description = "Select nodes linked from the selected ones";
   ot->idname = "NODE_OT_select_linked_from";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_select_linked_from_exec;
   ot->poll = ED_operator_node_active;
 
@@ -1286,7 +1289,7 @@ void NODE_OT_select_same_type_step(wmOperatorType *ot)
   ot->description = "Activate and view same node type, step by step";
   ot->idname = "NODE_OT_select_same_type_step";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_select_same_type_step_exec;
   ot->poll = ED_operator_node_active;
 
@@ -1364,26 +1367,18 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
+  const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
+
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_searchbox_size_x(), UI_UNIT_Y, "");
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           "",
-           0,
-           -height,
-           UI_searchbox_size_x(),
-           height,
-           nullptr,
-           0,
-           0,
-           std::nullopt);
+  uiDefBut(
+      block, UI_BTYPE_LABEL, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};
@@ -1407,7 +1402,7 @@ void NODE_OT_find_node(wmOperatorType *ot)
   ot->description = "Search for a node by name and focus and select it";
   ot->idname = "NODE_OT_find_node";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = node_find_node_invoke;
   ot->poll = ED_operator_node_active;
 

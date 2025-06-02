@@ -434,10 +434,10 @@ static void do_versions_sequencer_speed_effect_recursive(Scene *scene, const Lis
         }
         else {
           v->speed_control_type = SEQ_SPEED_MULTIPLY;
-          v->speed_fader = globalSpeed * (float(strip->seq1->len) /
+          v->speed_fader = globalSpeed * (float(strip->input1->len) /
                                           max_ff(float(blender::seq::time_right_handle_frame_get(
-                                                           scene, strip->seq1) -
-                                                       strip->seq1->start),
+                                                           scene, strip->input1) -
+                                                       strip->input1->start),
                                                  1.0f));
         }
       }
@@ -681,7 +681,7 @@ static void version_geometry_nodes_replace_transfer_attribute_node(bNodeTree *nt
   using namespace blender;
   using namespace blender::bke;
   /* Otherwise `ntree->typeInfo` is null. */
-  blender::bke::node_tree_set_type(nullptr, *ntree);
+  blender::bke::node_tree_set_type(*ntree);
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
     if (node->type_legacy != GEO_NODE_TRANSFER_ATTRIBUTE_DEPRECATED) {
       continue;

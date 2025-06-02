@@ -263,7 +263,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "thickness", UI_ITEM_R_SLIDER, IFACE_("Line Thickness"), ICON_NONE);
   col->prop(ptr, "opacity", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -493,7 +493,7 @@ static void material_mask_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_material_mask_bits");
   for (int i = 0; i < 8; i++) {
-    uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
+    sub->prop(ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
       sub = &col->row(true);
     }
@@ -519,7 +519,7 @@ static void intersection_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_intersection_mask");
   for (int i = 0; i < 8; i++) {
-    uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
+    sub->prop(ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
       sub = &col->row(true);
     }
@@ -668,14 +668,14 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayout *col = &layout->column(false);
   uiLayoutSetEnabled(col, !is_baked);
-  uiItemO(col, std::nullopt, ICON_NONE, "OBJECT_OT_lineart_bake_strokes");
-  uiItemBooleanO(
-      col, IFACE_("Bake All"), ICON_NONE, "OBJECT_OT_lineart_bake_strokes", "bake_all", true);
+  col->op("OBJECT_OT_lineart_bake_strokes", std::nullopt, ICON_NONE);
+  PointerRNA op_ptr = col->op("OBJECT_OT_lineart_bake_strokes", IFACE_("Bake All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "bake_all", true);
 
   col = &layout->column(false);
-  uiItemO(col, std::nullopt, ICON_NONE, "OBJECT_OT_lineart_clear");
-  uiItemBooleanO(
-      col, IFACE_("Clear All"), ICON_NONE, "OBJECT_OT_lineart_clear", "clear_all", true);
+  col->op("OBJECT_OT_lineart_clear", std::nullopt, ICON_NONE);
+  op_ptr = col->op("OBJECT_OT_lineart_clear", IFACE_("Clear All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "clear_all", true);
 }
 
 static void composition_panel_draw(const bContext * /*C*/, Panel *panel)

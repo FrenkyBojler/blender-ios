@@ -32,25 +32,34 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
   b.add_input<decl::Vector>("Upper Left")
-      .default_value({0.0f, 1.0f, 0.0f})
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .compositor_expects_single_value();
   b.add_input<decl::Vector>("Upper Right")
-      .default_value({1.0f, 1.0f, 0.0f})
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .compositor_expects_single_value();
   b.add_input<decl::Vector>("Lower Left")
-      .default_value({0.0f, 0.0f, 0.0f})
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.0f, 0.0f})
       .min(0.0f)
       .max(1.0f)
       .compositor_expects_single_value();
   b.add_input<decl::Vector>("Lower Right")
-      .default_value({1.0f, 0.0f, 0.0f})
+      .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({1.0f, 0.0f})
       .min(0.0f)
       .max(1.0f)
       .compositor_expects_single_value();
+
   b.add_output<decl::Color>("Image");
   b.add_output<decl::Float>("Plane");
 }
@@ -314,7 +323,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_cornerpin_cc
 
-void register_node_type_cmp_cornerpin()
+static void register_node_type_cmp_cornerpin()
 {
   namespace file_ns = blender::nodes::node_composite_cornerpin_cc;
 
@@ -332,3 +341,4 @@ void register_node_type_cmp_cornerpin()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_cornerpin)

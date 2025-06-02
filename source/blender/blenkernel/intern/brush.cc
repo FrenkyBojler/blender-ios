@@ -10,6 +10,9 @@
 
 #include "MEM_guardedalloc.h"
 
+/* Allow using deprecated functionality for .blend file I/O. */
+#define DNA_DEPRECATED_ALLOW
+
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_defaults.h"
@@ -49,7 +52,7 @@
 
 static void brush_init_data(ID *id)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(brush, id));
 
   MEMCPY_STRUCT_AFTER(brush, DNA_struct_default_get(Brush), id);
@@ -67,8 +70,8 @@ static void brush_copy_data(Main * /*bmain*/,
                             const ID *id_src,
                             const int flag)
 {
-  Brush *brush_dst = (Brush *)id_dst;
-  const Brush *brush_src = (const Brush *)id_src;
+  Brush *brush_dst = reinterpret_cast<Brush *>(id_dst);
+  const Brush *brush_src = reinterpret_cast<const Brush *>(id_src);
   if (brush_src->icon_imbuf) {
     brush_dst->icon_imbuf = IMB_dupImBuf(brush_src->icon_imbuf);
   }
@@ -82,6 +85,10 @@ static void brush_copy_data(Main * /*bmain*/,
 
   brush_dst->curve = BKE_curvemapping_copy(brush_src->curve);
   brush_dst->automasking_cavity_curve = BKE_curvemapping_copy(brush_src->automasking_cavity_curve);
+
+  brush_dst->curve_rand_hue = BKE_curvemapping_copy(brush_src->curve_rand_hue);
+  brush_dst->curve_rand_saturation = BKE_curvemapping_copy(brush_src->curve_rand_saturation);
+  brush_dst->curve_rand_value = BKE_curvemapping_copy(brush_src->curve_rand_value);
 
   if (brush_src->gpencil_settings != nullptr) {
     brush_dst->gpencil_settings = MEM_dupallocN<BrushGpencilSettings>(
@@ -119,12 +126,16 @@ static void brush_copy_data(Main * /*bmain*/,
 
 static void brush_free_data(ID *id)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
   if (brush->icon_imbuf) {
     IMB_freeImBuf(brush->icon_imbuf);
   }
   BKE_curvemapping_free(brush->curve);
   BKE_curvemapping_free(brush->automasking_cavity_curve);
+
+  BKE_curvemapping_free(brush->curve_rand_hue);
+  BKE_curvemapping_free(brush->curve_rand_saturation);
+  BKE_curvemapping_free(brush->curve_rand_value);
 
   if (brush->gpencil_settings != nullptr) {
     BKE_curvemapping_free(brush->gpencil_settings->curve_sensitivity);
@@ -156,7 +167,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
     return;
   }
 
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
   const bool lib_local = (flags & LIB_ID_MAKELOCAL_FULL_LIBRARY) != 0;
 
   bool force_local, force_copy;
@@ -170,7 +181,8 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
     id_fake_user_set(&brush->id);
   }
   else if (force_copy) {
-    Brush *brush_new = (Brush *)BKE_id_copy(bmain, &brush->id); /* Ensures FAKE_USER is set */
+    Brush *brush_new = reinterpret_cast<Brush *>(
+        BKE_id_copy(bmain, &brush->id)); /* Ensures FAKE_USER is set */
 
     id_us_min(&brush_new->id);
 
@@ -188,7 +200,7 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
 
 static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->toggle_brush, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, brush->paint_curve, IDWALK_CB_USER);
@@ -203,7 +215,7 @@ static void brush_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
   if (brush->icon_filepath[0] != '\0') {
     BKE_bpath_foreach_path_fixed_process(
         bpath_data, brush->icon_filepath, sizeof(brush->icon_filepath));
@@ -212,7 +224,7 @@ static void brush_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 
 static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
 
   BLO_write_id_struct(writer, Brush, id_address, &brush->id);
   BKE_id_blend_write(writer, &brush->id);
@@ -223,6 +235,16 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   if (brush->automasking_cavity_curve) {
     BKE_curvemapping_blend_write(writer, brush->automasking_cavity_curve);
+  }
+
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, brush->curve_rand_hue);
+  }
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, brush->curve_rand_saturation);
+  }
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, brush->curve_rand_value);
   }
 
   if (brush->gpencil_settings) {
@@ -269,7 +291,7 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
 static void brush_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
 
   /* Falloff curve. */
   BLO_read_struct(reader, CurveMapping, &brush->curve);
@@ -289,6 +311,30 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
   }
   else {
     brush->automasking_cavity_curve = BKE_sculpt_default_cavity_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_rand_hue);
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_blend_read(reader, brush->curve_rand_hue);
+  }
+  else {
+    brush->curve_rand_hue = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_rand_saturation);
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_blend_read(reader, brush->curve_rand_saturation);
+  }
+  else {
+    brush->curve_rand_saturation = BKE_paint_default_curve();
+  }
+
+  BLO_read_struct(reader, CurveMapping, &brush->curve_rand_value);
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_blend_read(reader, brush->curve_rand_value);
+  }
+  else {
+    brush->curve_rand_value = BKE_paint_default_curve();
   }
 
   /* grease pencil */
@@ -588,6 +634,64 @@ bool BKE_brush_delete(Main *bmain, Brush *brush)
   BKE_id_delete(bmain, brush);
 
   return true;
+}
+
+Brush *BKE_brush_duplicate(Main *bmain,
+                           Brush *brush,
+                           eDupli_ID_Flags /*dupflag*/,
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options)
+{
+  const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
+  const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
+
+  const eDupli_ID_Flags dupflag = USER_DUP_OBDATA | USER_DUP_LINKED_ID;
+
+  if (!is_subprocess) {
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+  if (is_root_id) {
+    duplicate_options &= ~LIB_ID_DUPLICATE_IS_ROOT_ID;
+  }
+
+  constexpr int id_copy_flag = LIB_ID_COPY_DEFAULT;
+
+  Brush *new_brush = reinterpret_cast<Brush *>(
+      BKE_id_copy_for_duplicate(bmain, &brush->id, dupflag, id_copy_flag));
+
+  /* Currently this duplicates everything and the passed in value of `dupflag` is ignored. Ideally,
+   * this should both check user preferences and do further filtering based on eDupli_ID_Flags. */
+  auto dependencies_cb = [&](const LibraryIDLinkCallbackData *cb_data) -> int {
+    if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {
+      return IDWALK_NOP;
+    }
+    if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
+      return IDWALK_NOP;
+    }
+
+    BKE_id_copy_for_duplicate(bmain, *cb_data->id_pointer, dupflag, id_copy_flag);
+    return IDWALK_NOP;
+  };
+
+  BKE_library_foreach_ID_link(bmain, &new_brush->id, dependencies_cb, nullptr, IDWALK_RECURSE);
+
+  if (!is_subprocess) {
+    /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
+    BKE_libblock_relink_to_newid(bmain, &new_brush->id, 0);
+
+#ifndef NDEBUG
+    /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
+    ID *id_iter;
+    FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+      BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
+    }
+    FOREACH_MAIN_ID_END;
+#endif
+
+    /* Cleanup. */
+    BKE_main_id_newptr_and_tag_clear(bmain);
+  }
+
+  return new_brush;
 }
 
 void BKE_brush_init_curves_sculpt_settings(Brush *brush)
@@ -1020,6 +1124,42 @@ const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const B
     return scene->toolsettings->unified_paint_settings.rgb;
   }
   return brush->rgb;
+}
+
+/** Get color jitter settings if enabled. */
+const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
+    const Scene *scene, const Paint *paint, const Brush *brush)
+{
+  if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
+    if ((scene->toolsettings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
+      return std::nullopt;
+    }
+
+    const UnifiedPaintSettings settings = scene->toolsettings->unified_paint_settings;
+    return BrushColorJitterSettings{
+        settings.color_jitter_flag,
+        settings.hsv_jitter[0],
+        settings.hsv_jitter[1],
+        settings.hsv_jitter[2],
+        settings.curve_rand_hue,
+        settings.curve_rand_saturation,
+        settings.curve_rand_value,
+    };
+  }
+
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) == 0) {
+    return std::nullopt;
+  }
+
+  return BrushColorJitterSettings{
+      brush->color_jitter_flag,
+      brush->hsv_jitter[0],
+      brush->hsv_jitter[1],
+      brush->hsv_jitter[2],
+      brush->curve_rand_hue,
+      brush->curve_rand_saturation,
+      brush->curve_rand_value,
+  };
 }
 
 const float *BKE_brush_secondary_color_get(const Scene *scene,
