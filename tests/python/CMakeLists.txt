@@ -710,7 +710,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
       foreach(render_test ${_cycles_render_tests})
         set(_cycles_test_name "cycles_${render_test}_${_cycles_device_lower}")
-        # Only run OSL basic tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
         add_render_test(
           ${_cycles_test_name}
           ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
