@@ -1464,11 +1464,10 @@ static void tempdir_session_create(char *tempdir_session,
     }
 #endif
   }
+
   tempdir_session[0] = '\0';
 
-    // Attempt 3: Use tempdir/blender_sessions directly, this might be problematic with other blender instances
-    // but if the other 2 attempts failes this will probably fail too
-
+    // Attempt 3: Use tempdir/blender_sessions directly
     if (strlen(sessions_subdir_path) + 1 <= tempdir_session_maxncpy) {
 
       BLI_strncpy(tempdir_session, sessions_subdir_path, tempdir_session_maxncpy);
@@ -1476,6 +1475,35 @@ static void tempdir_session_create(char *tempdir_session,
       return; /* Success with attempt 3 */
     }
   }
+
+  // attempt 4: use the blender installation dir
+  if (g_app.program_dirname[0] != '\0' && !path_is_root(g_app.program_dirname) &&
+       path_is_usable(g_app.program_dirname))
+  {
+    BLI_path_join(
+        c_template_path, sizeof(c_template_path), g_app.program_dirname, _template_suffix);
+
+    if (strlen(c_template_path) + 1 <= session_path_buffer_maxncpy) {
+      BLI_strncpy(session_path_buffer, c_template_path, session_path_buffer_maxncpy);
+
+#ifdef WIN32
+      if (_mktemp_s(session_path_buffer, session_path_buffer_maxncpy) == 0) {
+        if (BLI_dir_create_recursive(session_path_buffer) && BLI_is_dir(session_path_buffer)) {
+          BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+          return true; /* Success with attempt 4 */
+        }
+      }
+#else
+      if (mkdtemp(session_path_buffer) != nullptr) {
+        if (BLI_is_dir(session_path_buffer)) {
+          BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+          return true; /* Success with attempt 4 */
+        }
+      }
+#endif
+    }
 
   // if everything fails, maybe blender doesnt have permission or something. just try the os temp path
   CLOG_WARN(&LOG,
