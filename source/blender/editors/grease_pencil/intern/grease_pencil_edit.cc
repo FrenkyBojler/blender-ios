@@ -4406,7 +4406,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
   const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
-  const float threshold = RNA_float_get(op->ptr, "error");
+  const float threshold = RNA_float_get(op->ptr, "threshold");
   const float angle_min = RNA_float_get(op->ptr, "angle_min");
   const float radius_min = RNA_float_get(op->ptr, "radius_min");
   const float radius_max = RNA_float_get(op->ptr, "radius_max");
@@ -4488,7 +4488,7 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
-  layout->prop(&ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   layout->prop(&ptr, "detect_corners", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
@@ -4520,12 +4520,12 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 
   PropertyRNA *prop = RNA_def_float(
       ot->srna,
-      "error",
+      "threshold",
       0.01f,
       0.0f,
       100.0f,
-      "Error",
-      "The error distance that the resulting points are allowed to be within",
+      "Threshold",
+      "The threshold distance that the resulting points are allowed to be within",
       0.0f,
       100.0f);
   RNA_def_property_subtype(prop, PROP_DISTANCE);
