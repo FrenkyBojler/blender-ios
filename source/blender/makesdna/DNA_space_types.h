@@ -888,6 +888,9 @@ typedef struct SpaceNode {
   /** Grease-pencil data. */
   struct bGPdata *gpd;
 
+  char gizmo_flag;
+  char _pad2[7];
+
   SpaceNodeOverlay overlay;
 
   SpaceNode_Runtime *runtime;
@@ -1132,12 +1135,6 @@ typedef struct SpreadsheetInstanceID {
 typedef struct SpreadsheetTableID {
   /** #eSpreadsheetTableIDType. */
   int type;
-
-#ifdef __cplusplus
-  uint64_t hash() const;
-  friend bool operator==(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-  friend bool operator!=(const SpreadsheetTableID &a, const SpreadsheetTableID &b);
-#endif
 } SpreadsheetTableID;
 
 typedef struct SpreadsheetTableIDGeometry {

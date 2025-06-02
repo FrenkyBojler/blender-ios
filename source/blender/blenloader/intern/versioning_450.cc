@@ -15,6 +15,7 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -34,6 +35,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -4264,6 +4266,61 @@ static void do_version_blur_node_options_to_inputs_animation(bNodeTree *node_tre
   });
 }
 
+/* Unified paint settings need a default curve for the color jitter options. */
+static void do_init_default_jitter_curves_in_unified_paint_settings(ToolSettings *ts)
+{
+  if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
+    ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
+    ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_value == nullptr) {
+    ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
+/* GP_BRUSH_* settings in gpencil_settings->flag2 were deprecated and replaced with
+ * brush->color_jitter_flag. */
+static void do_convert_gp_jitter_flags(Brush *brush)
+{
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  if (settings->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_HUE_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS;
+  }
+}
+
+/* The options were converted into inputs. */
+static void do_version_flip_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
+{
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Flip X")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Flip X", "Flip X");
+    input->default_value_typed<bNodeSocketValueBoolean>()->value = ELEM(node->custom1, 0, 2);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Flip Y")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Flip Y", "Flip Y");
+    input->default_value_typed<bNodeSocketValueBoolean>()->value = ELEM(node->custom1, 1, 2);
+  }
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -4880,6 +4937,18 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 84)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      do_init_default_jitter_curves_in_unified_paint_settings(scene->toolsettings);
+    }
+
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_convert_gp_jitter_flags(brush);
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -5145,6 +5214,25 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
       brush->flag &= ~BRUSH_ORIGINAL_PLANE;
 
       brush->sculpt_brush_type = SCULPT_BRUSH_TYPE_PLANE;
+    }
+  }
+}
+
+static void node_interface_single_value_to_structure_type(bNodeTreeInterfaceItem &item)
+{
+  if (item.item_type == eNodeTreeInterfaceItemType::NODE_INTERFACE_SOCKET) {
+    auto &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+    if (socket.flag & NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY) {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE;
+    }
+    else {
+      socket.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO;
+    }
+  }
+  else {
+    auto &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+    for (bNodeTreeInterfaceItem *item : blender::Span(panel.items_array, panel.items_num)) {
+      node_interface_single_value_to_structure_type(*item);
     }
   }
 }
@@ -6060,6 +6148,35 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_BLUR) {
             do_version_blur_node_options_to_inputs(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 81)) {
+    LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 83)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = std::max<int>(1, ob->soft->fuzzyness);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 85)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_FLIP) {
+            do_version_flip_node_options_to_inputs(node_tree, node);
           }
         }
       }
