@@ -502,10 +502,14 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       geomDescCrv.segmentControlPointCount = (hair->curve_shape == CURVE_THICK_LINEAR) ? 2 : 4;
       geomDescCrv.curveType = (hair->curve_shape == CURVE_RIBBON) ? MTLCurveTypeFlat :
                                                                     MTLCurveTypeRound;
-      geomDescCrv.curveBasis = (hair->curve_shape == CURVE_THICK_LINEAR) ? MTLCurveBasisLinear :
-                                                                           MTLCurveBasisCatmullRom;
-      geomDescCrv.curveEndCaps = (hair->curve_shape == CURVE_THICK_LINEAR) ? MTLCurveEndCapsSphere :
-                                                                             MTLCurveEndCapsDisk;
+      if (hair->curve_shape == CURVE_THICK_LINEAR) {
+        geomDescCrv.curveBasis = MTLCurveBasisLinear;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsSphere;
+      }
+      else {
+        geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
       geomDescCrv.intersectionFunctionTableOffset = 1;
@@ -577,10 +581,14 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       geomDescCrv.segmentControlPointCount = (hair->curve_shape == CURVE_THICK_LINEAR) ? 2 : 4;
       geomDescCrv.curveType = (hair->curve_shape == CURVE_RIBBON) ? MTLCurveTypeFlat :
                                                                     MTLCurveTypeRound;
-      geomDescCrv.curveBasis = (hair->curve_shape == CURVE_THICK_LINEAR) ? MTLCurveBasisLinear :
-                                                                           MTLCurveBasisCatmullRom;
-      geomDescCrv.curveEndCaps = (hair->curve_shape == CURVE_THICK_LINEAR) ? MTLCurveEndCapsSphere :
-                                                                             MTLCurveEndCapsDisk;
+      if (hair->curve_shape == CURVE_THICK_LINEAR) {
+        geomDescCrv.curveBasis = MTLCurveBasisLinear;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsSphere;
+      }
+      else {
+        geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
       geomDescCrv.intersectionFunctionTableOffset = 1;

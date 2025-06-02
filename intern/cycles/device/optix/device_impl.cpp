@@ -1270,8 +1270,12 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
           keys = motion_keys->data_float3() + attr_offset * hair->get_curve_keys().size();
         }
 
+        if (hair->curve_shape == CURVE_THICK_LINEAR
 #  if OPTIX_ABI_VERSION >= 55
-        if (hair->curve_shape == CURVE_THICK || hair->curve_shape == CURVE_THICK_LINEAR) {
+            || hair->curve_shape == CURVE_THICK
+#  endif
+        )
+        {
           for (size_t curve_index = 0, segment_index = 0, vertex_index = step * num_vertices;
                curve_index < hair->num_curves();
                ++curve_index)
@@ -1333,9 +1337,7 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
             }
           }
         }
-        else
-#  endif
-        {
+        else {
           for (size_t curve_index = 0, i = 0; curve_index < hair->num_curves(); ++curve_index) {
             const Hair::Curve curve = hair->get_curve(curve_index);
 
@@ -1416,14 +1418,16 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
       OptixBuildInput build_input = {};
       if (hair->curve_shape != CURVE_RIBBON) {
         build_input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
-        if (hair->curve_shape == CURVE_THICK_LINEAR)
+        if (hair->curve_shape == CURVE_THICK_LINEAR) {
           build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
-        else
+        }
+        else {
 #  if OPTIX_ABI_VERSION >= 55
           build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
 #  else
           build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CUBIC_BSPLINE;
 #  endif
+        }
         build_input.curveArray.numPrimitives = num_segments;
         build_input.curveArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
         build_input.curveArray.numVertices = num_vertices;

@@ -426,25 +426,25 @@ void pack_motion_verts(const size_t num_curves,
                        const T *verts,
                        const float *curve_radius,
                        float4 *rtc_verts,
-                       bool catmullrom)
+                       CurveShapeType curve_shape)
 {
   for (size_t j = 0; j < num_curves; ++j) {
     const Hair::Curve c = hair->get_curve(j);
     int fk = c.first_key;
-    int k = catmullrom ? 1 : 0;
+    int k = curve_shape != CURVE_THICK_LINEAR ? 1 : 0;
     for (; k < c.num_keys + 1; ++k, ++fk) {
       rtc_verts[k].x = verts[fk].x;
       rtc_verts[k].y = verts[fk].y;
       rtc_verts[k].z = verts[fk].z;
       rtc_verts[k].w = curve_radius[fk];
     }
-    rtc_verts += c.num_keys;
-    if (catmullrom) {
+    if (curve_shape != CURVE_THICK_LINEAR) {
       /* Duplicate Embree's Catmull-Rom spline CVs at the start and end of each curve. */
       rtc_verts[0] = rtc_verts[1];
       rtc_verts[k] = rtc_verts[k - 1];
       rtc_verts += 2;
     }
+    rtc_verts += c.num_keys;
   }
 }
 
@@ -492,22 +492,14 @@ void BVHEmbree::set_curve_vertex_buffer(RTCGeometry geom_id, const Hair *hair, c
       const size_t num_curves = hair->num_curves();
       if (t == t_mid || attr_mP == nullptr) {
         const float3 *verts = hair->get_curve_keys().data();
-        pack_motion_verts<float3>(num_curves,
-                                  hair,
-                                  verts,
-                                  curve_radius,
-                                  rtc_verts,
-                                  hair->curve_shape != CURVE_THICK_LINEAR);
+        pack_motion_verts<float3>(
+            num_curves, hair, verts, curve_radius, rtc_verts, hair->curve_shape);
       }
       else {
         const int t_ = (t > t_mid) ? (t - 1) : t;
         const float4 *verts = &attr_mP->data_float4()[t_ * num_keys];
-        pack_motion_verts<float4>(num_curves,
-                                  hair,
-                                  verts,
-                                  curve_radius,
-                                  rtc_verts,
-                                  hair->curve_shape != CURVE_THICK_LINEAR);
+        pack_motion_verts<float4>(
+            num_curves, hair, verts, curve_radius, rtc_verts, hair->curve_shape);
       }
     }
 
