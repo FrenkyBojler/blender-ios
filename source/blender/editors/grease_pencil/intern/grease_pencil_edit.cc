@@ -4411,6 +4411,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
   const float radius_min = RNA_float_get(op->ptr, "radius_min");
   const float radius_max = RNA_float_get(op->ptr, "radius_max");
   const int samples_max = RNA_int_get(op->ptr, "samples_max");
+  const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4449,8 +4450,6 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       }
     }
 
-    const bool use_handles = false;
-
     geometry::ConvertCurvesOptions options;
     options.convert_bezier_handles_to_poly_points = use_handles;
     options.convert_bezier_handles_to_catmull_rom_points = use_handles;
@@ -4484,6 +4483,9 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
   layout->prop(&ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
+  if (dst_type != CurveType::CURVE_TYPE_BEZIER) {
+    layout->prop(&ptr, "use_handles", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   if (dst_type == CurveType::CURVE_TYPE_POLY) {
     return;
@@ -4570,6 +4572,12 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
               "Maximum amount of points to test for a potential corner",
               1,
               32);
+
+  RNA_def_boolean(ot->srna,
+                  "use_handles",
+                  false,
+                  "Handles",
+                  "Take handle information into account in the conversion");
 }
 
 /** \} */
