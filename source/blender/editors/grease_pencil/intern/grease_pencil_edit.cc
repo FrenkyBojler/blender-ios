@@ -4480,7 +4480,7 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, &ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
 
@@ -4488,19 +4488,17 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
     return;
   }
 
-  uiItemR(layout, &ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&ptr, "error", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, &ptr, "detect_corners", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&ptr, "detect_corners", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   const bool detect_corners = RNA_boolean_get(op->ptr, "detect_corners");
 
   uiLayout *col = &layout->column(true, IFACE_("Corners"));
   uiLayoutSetActive(col, detect_corners);
-  uiItemR(col, &ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-  uiItemS(layout);
+  col->prop(&ptr, "angle_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "radius_min", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "radius_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "samples_max", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
