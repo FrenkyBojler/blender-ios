@@ -121,7 +121,6 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
 
 static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-
   if (!node_gizmo_is_set_visible(C)) {
     return false;
   }
