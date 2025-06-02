@@ -1073,10 +1073,8 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
   if (const int64_t path_count = WM_drag_get_paths(drag).size(); path_count > 1) {
     /* Custom scale to improve path count readability. */
     const float scale = UI_SCALE_FAC * 1.15f;
-    const int padding = 4 * scale;
-    x = xy[0] - 6 * padding;
-    y = xy[1] - 4 * scale;
-
+    x = xy[0] - 8 * scale;
+    y = xy[1] - scale;
     const uchar text_col[] = {255, 255, 255, 255};
     IconTextOverlay text_overlay;
     UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
@@ -1160,7 +1158,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
 
   const int winsize_y = WM_window_native_pixel_y(win);
   int x, y;
-  if (drag->imb && WM_drag_get_paths(drag).size() < 2) {
+  if (drag->imb) {
     const int icon_width = wm_drag_imbuf_icon_width_get(drag);
     const int icon_height = wm_drag_imbuf_icon_height_get(drag);
 
@@ -1173,7 +1171,17 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
       y = xy[1] - (icon_height / 2) - padding - iconsize - padding - iconsize;
     }
   }
-  if (drag->preview_icon_id) {
+  if (WM_drag_get_paths(drag).size() > 1) {
+    x = xy[0] - 2 * padding;
+
+    if (xy[1] + 2 * 1.15 * iconsize < winsize_y) {
+      y = xy[1] + 1.15f * (iconsize + 6 * UI_SCALE_FAC);
+    }
+    else {
+      y = xy[1] - 1.15f * (iconsize + padding);
+    }
+  }
+  else if (drag->preview_icon_id) {
     const int size = wm_drag_preview_icon_size_get();
 
     x = xy[0] - (size / 2);
