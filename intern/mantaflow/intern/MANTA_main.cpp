@@ -972,6 +972,13 @@ void MANTA::initializeRNAMap(FluidModifierData *fmd)
   mRNAMap["SNDPARTICLE_UPDATE_RADIUS"] = to_string(fds->sndparticle_update_radius);
   mRNAMap["LIQUID_SURFACE_TENSION"] = to_string(fds->surface_tension);
   mRNAMap["FLUID_VISCOSITY"] = to_string(viscosity);
+  mRNAMap["FLUID_DOMAIN_CELL_SIZE_X"] = to_string(fds->cell_size[0]);
+  mRNAMap["FLUID_DOMAIN_CELL_SIZE_Y"] = to_string(fds->cell_size[1]);
+  mRNAMap["FLUID_DOMAIN_CELL_SIZE_Z"] = to_string(fds->cell_size[2]);
+  /* Position of Domain origin on Grid */
+  mRNAMap["FLUID_DOMAIN_ORIGIN_X"] = to_string(fds->dp0[0] + fds->res_min[0] * fds->cell_size[0]);
+  mRNAMap["FLUID_DOMAIN_ORIGIN_Y"] = to_string(fds->dp0[1] + fds->res_min[1] * fds->cell_size[1]);
+  mRNAMap["FLUID_DOMAIN_ORIGIN_Z"] = to_string(fds->dp0[2] + fds->res_min[2] * fds->cell_size[2]);
   mRNAMap["FLUID_DOMAIN_SIZE"] = to_string(domainSize);
   mRNAMap["FLUID_DOMAIN_SIZE_X"] = to_string(fds->global_size[0]);
   mRNAMap["FLUID_DOMAIN_SIZE_Y"] = to_string(fds->global_size[1]);

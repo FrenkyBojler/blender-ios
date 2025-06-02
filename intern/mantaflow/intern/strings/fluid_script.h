@@ -124,6 +124,12 @@ end_frame_s$ID$     = $END_FRAME$\n\
 \n\
 # Fluid diffusion / viscosity\n\
 domainSize_s$ID$ = $FLUID_DOMAIN_SIZE$ # longest domain side in meters\n\
+domainOriginX_s$ID$ = $FLUID_DOMAIN_ORIGIN_X$\n\
+domainOriginY_s$ID$ = $FLUID_DOMAIN_ORIGIN_Y$\n\
+domainOriginZ_s$ID$ = $FLUID_DOMAIN_ORIGIN_Z$\n\
+cellSizeX_s$ID$ = $FLUID_DOMAIN_CELL_SIZE_X$  \n\
+cellSizeY_s$ID$ = $FLUID_DOMAIN_CELL_SIZE_Y$ \n\
+cellSizeZ_s$ID$ = $FLUID_DOMAIN_CELL_SIZE_Z$ \n\
 kinViscosity_s$ID$ = $FLUID_VISCOSITY$ / (domainSize_s$ID$*domainSize_s$ID$) # kinematic viscosity in m^2/s\n\
 \n\
 # Factors to convert Blender units to Manta units\n\
@@ -697,7 +703,10 @@ def fluid_file_export_s$ID$(framenr, file_format, path, dict, file_name=None, mo
             file = os.path.join(path, file_name + '_' + framenr + file_format)\n\
             if not os.path.isfile(file) or mode_override:\n\
                 if file_format == '.vdb':\n\
-                    saveCombined = save(name=file, objects=list(dict.values()), worldSize=domainSize_s$ID$, skipDeletedParts=True, compression=vdbCompression_s$ID$, precision=vdbPrecision_s$ID$, clip=vdbClip_s$ID$, clipGrid=clipGrid, meta=True)\n\
+                    saveCombined = save(name=file, objects=list(dict.values()), \
+                                        scaleX=cellSizeX_s$ID$, scaleY=cellSizeY_s$ID$, scaleZ=cellSizeZ_s$ID$, \
+                                        translationX=domainOriginX_s$ID$, translationY=domainOriginY_s$ID$, translationZ=domainOriginZ_s$ID$, skipDeletedParts=True, \
+                                        compression=vdbCompression_s$ID$, precision=vdbPrecision_s$ID$, clip=vdbClip_s$ID$, clipGrid=clipGrid, meta=True)\n\
                 elif file_format == '.bobj.gz' or file_format == '.obj':\n\
                     for name, object in dict.items():\n\
                         if not os.path.isfile(file) or mode_override:\n\

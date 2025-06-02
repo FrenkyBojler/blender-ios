@@ -72,7 +72,12 @@ int writeGridsTxt(const std::string &name, std::vector<PbClass *> *grids);
 // OpenVDB
 int writeObjectsVDB(const std::string &filename,
                     std::vector<PbClass *> *objects,
-                    float scale = 1.0,
+                    float scaleX = 1.0,
+                    float scaleY = 1.0,
+                    float scaleZ = 1.0,
+                    float translationX = 0.0,
+                    float translationY = 0.0,
+                    float translationZ = 0.0,
                     bool skipDeletedParts = false,
                     int compression = COMPRESSION_ZIP,
                     int precision = PRECISION_HALF,

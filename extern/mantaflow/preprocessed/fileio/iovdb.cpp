@@ -199,10 +199,14 @@ template<class GridType>
 static void setGridOptions(typename GridType::Ptr grid,
                            string name,
                            openvdb::GridClass cls,
-                           float voxelSize,
-                           int precision)
+                           const openvdb::math::Vec3d voxelSize,
+                           const openvdb::math::Vec3d gridTranslation,
+                           const int precision)
 {
-  grid->setTransform(openvdb::math::Transform::createLinearTransform(voxelSize));
+  openvdb::math::Mat4d transformMatrix = openvdb::math::Mat4d::identity();
+  transformMatrix.preTranslate(gridTranslation);
+  transformMatrix.preScale(voxelSize);
+  grid->setTransform(openvdb::math::Transform::createLinearTransform(transformMatrix));
   grid->setGridClass(cls);
   grid->setName(name);
   grid->setSaveFloatAsHalf(precision == PRECISION_MINI || precision == PRECISION_HALF);
@@ -246,6 +250,8 @@ typename GridType::Ptr exportVDB(Grid<T> *from, float clip, openvdb::FloatGrid::
       accessor.setValue(xyz, vdbValue);
     }
   }
+  // to->setIsInWorldSpace(false);
+  // to->setVectorType(openvdb::VEC_INVARIANT);
   return to;
 }
 
@@ -402,7 +408,12 @@ static void registerCustomCodecs()
 
 int writeObjectsVDB(const string &filename,
                     std::vector<PbClass *> *objects,
-                    float worldSize,
+                    float scaleX,
+                    float scaleY,
+                    float scaleZ,
+                    float translationX,
+                    float translationY,
+                    float translationZ,
                     bool skipDeletedParts,
                     int compression,
                     int precision,
@@ -437,12 +448,9 @@ int writeObjectsVDB(const string &filename,
     openvdb::GridBase::Ptr vdbGrid;
 
     PbClass *object = dynamic_cast<PbClass *>(*iter);
-    const Real dx = object->getParent()->getDx();
-    const Real voxelSize = worldSize * dx;
     const string objectName = object->getName();
 
     if (GridBase *mantaGrid = dynamic_cast<GridBase *>(*iter)) {
-
       if (mantaGrid->getType() & GridBase::TypeInt) {
         debMsg("Writing int grid '" << mantaGrid->getName() << "' to vdb file " << filename, 1);
         Grid<int> *mantaIntGrid = (Grid<int> *)mantaGrid;
@@ -491,6 +499,7 @@ int writeObjectsVDB(const string &filename,
       debMsg("Writing particle system '" << mantaPP->getName()
                                          << "' (and buffered pData) to vdb file " << filename,
              1);
+      const Real voxelSize = scaleX;
       vdbGrid = exportVDB(mantaPP, pdbBuffer, skipDeletedParts, voxelSize, precision);
       gridsVDB.push_back(vdbGrid);
       pdbBuffer.clear();
@@ -508,7 +517,9 @@ int writeObjectsVDB(const string &filename,
 
     // Set additional grid attributes, e.g. name, grid class, compression level, etc.
     if (vdbGrid) {
-      setGridOptions<openvdb::GridBase>(vdbGrid, objectName, gClass, voxelSize, precision);
+      setGridOptions<openvdb::GridBase>(vdbGrid, objectName, gClass,
+                                        openvdb::math::Vec3d(scaleX, scaleY, scaleZ),
+                                        openvdb::math::Vec3d(translationX, translationY, translationZ), precision);
 
       // Optional metadata: Save additional simulation information per vdb object
       if (meta) {
@@ -516,8 +527,6 @@ int writeObjectsVDB(const string &filename,
         // The (dense) resolution of this grid
         vdbGrid->insertMeta(META_BASE_RES,
                             openvdb::Vec3IMetadata(openvdb::Vec3i(size.x, size.y, size.z)));
-        // Length of one voxel side
-        vdbGrid->insertMeta(META_VOXEL_SIZE, openvdb::FloatMetadata(voxelSize));
       }
     }
   }
@@ -885,7 +894,12 @@ template void exportVDB<Vec3, openvdb::Vec3s>(ParticleDataImpl<Vec3> *from,
 
 int writeObjectsVDB(const string &filename,
                     std::vector<PbClass *> *objects,
-                    float worldSize,
+                    float scaleX,
+                    float scaley,
+                    float scaleZ,
+                    float translationX,
+                    float translationY,
+                    float translationZ,
                     bool skipDeletedParts,
                     int compression,
                     int precision,

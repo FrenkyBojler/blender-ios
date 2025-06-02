@@ -79,7 +79,12 @@ void PbRegister_load()
 
 int save(const string &name,
          std::vector<PbClass *> &objects,
-         float worldSize = 1.0,
+         float scaleX = 1.0,
+         float scaleY = 1.0,
+         float scaleZ = 1.0,
+         float translationX = 0.0,
+         float translationY = 0.0,
+         float translationZ = 0.0,
          bool skipDeletedParts = false,
          int compression = COMPRESSION_ZIP,
          bool precisionHalf = true,
@@ -106,7 +111,7 @@ int save(const string &name,
     return writeGridsVol(name, &objects);
   if (ext == ".vdb")
     return writeObjectsVDB(
-        name, &objects, worldSize, skipDeletedParts, compression, precision, clip, clipGrid, meta);
+        name, &objects, scaleX, scaleY, scaleZ, translationX, translationY, translationZ, skipDeletedParts, compression, precision, clip, clipGrid, meta);
   else if (ext == ".npz")
     return writeGridsNumpy(name, &objects);
   else if (ext == ".txt")
@@ -128,7 +133,12 @@ static PyObject *_W_1(PyObject *_self, PyObject *_linargs, PyObject *_kwds)
       const string &name = _args.get<string>("name", 0, &_lock);
       std::vector<PbClass *> &objects = *_args.getPtr<std::vector<PbClass *>>(
           "objects", 1, &_lock);
-      float worldSize = _args.getOpt<float>("worldSize", 2, 1.0, &_lock);
+      float scaleX = _args.getOpt<float>("scaleX", 2, 1.0, &_lock);
+      float scaleY = _args.getOpt<float>("scaleY", 2, 1.0, &_lock);
+      float scaleZ = _args.getOpt<float>("scaleZ", 2, 1.0, &_lock);
+      float translationX = _args.getOpt<float>("translationX", 2, 1.0, &_lock);
+      float translationY = _args.getOpt<float>("translationY", 2, 1.0, &_lock);
+      float translationZ = _args.getOpt<float>("translationZ", 2, 1.0, &_lock);
       bool skipDeletedParts = _args.getOpt<bool>("skipDeletedParts", 3, false, &_lock);
       int compression = _args.getOpt<int>("compression", 4, COMPRESSION_ZIP, &_lock);
       bool precisionHalf = _args.getOpt<bool>("precisionHalf", 5, true, &_lock);
@@ -138,7 +148,12 @@ static PyObject *_W_1(PyObject *_self, PyObject *_linargs, PyObject *_kwds)
       const bool meta = _args.getOpt<bool>("meta", 9, false, &_lock);
       _retval = toPy(save(name,
                           objects,
-                          worldSize,
+                          scaleX,
+                          scaleY,
+                          scaleZ,
+                          translationX,
+                          translationY,
+                          translationZ,
                           skipDeletedParts,
                           compression,
                           precisionHalf,
