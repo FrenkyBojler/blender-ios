@@ -145,6 +145,7 @@ class GLShader : public Shader {
   ~GLShader();
 
   void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
+  void init() override;
 
   /** Return true on success. */
   void vertex_shader_from_glsl(MutableSpan<StringRefNull> sources) override;
@@ -248,8 +249,7 @@ class GLShaderCompiler : public ShaderCompiler {
   Vector<GLCompilerWorker *> workers_;
   std::mutex workers_mutex_;
 
-  GLCompilerWorker *get_compiler_worker(const GLSourcesBaked &sources);
-  bool check_worker_is_lost(GLCompilerWorker *&worker);
+  GLCompilerWorker *get_compiler_worker();
 
   GLShader::GLProgram *specialization_program_get(ShaderSpecialization &specialization);
 
