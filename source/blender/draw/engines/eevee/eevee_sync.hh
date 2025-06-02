@@ -12,7 +12,6 @@
 #pragma once
 
 #include "BKE_duplilist.hh"
-#include "BLI_ghash.h"
 #include "BLI_map.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_object_types.h"
@@ -129,8 +128,8 @@ class SyncModule {
   Map<ObjectKey, ObjectHandle> ob_handles = {};
 
  public:
-  SyncModule(Instance &inst) : inst_(inst){};
-  ~SyncModule(){};
+  SyncModule(Instance &inst) : inst_(inst) {};
+  ~SyncModule() {};
 
   ObjectHandle &sync_object(const ObjectRef &ob_ref);
   WorldHandle sync_world(const ::World &world);
