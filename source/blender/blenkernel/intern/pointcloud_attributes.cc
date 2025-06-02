@@ -124,7 +124,7 @@ static Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_ty
   switch (initializer.type) {
     case AttributeInit::Type::Construct: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      return Attribute::ArrayData::ForUninitialized(type, domain_size);
+      return Attribute::ArrayData::ForConstructed(type, domain_size);
     }
     case AttributeInit::Type::DefaultValue: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
