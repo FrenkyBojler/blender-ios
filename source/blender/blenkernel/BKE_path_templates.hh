@@ -145,7 +145,7 @@ bool operator==(const Error &left, const Error &right);
  * returns nullopt.
  */
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
-    PointerRNA *ptr, PropertyRNA *prop, const bContext *C);
+    const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 
 /**
  * Build a template variable map for render output paths.
@@ -175,6 +175,18 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  */
 blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
     const char *blend_file_path, const RenderData *render_data);
+
+/**
+ * Check if a path contains any templating syntax at all.
+ *
+ * This is primarily intended to be used as a pre-check in performance-sensitive
+ * code to skip path template processing when it's not needed.
+ *
+ * \return False if the path contains no templating syntax (no template
+ * processing is needed). True if the path does contain templating syntax
+ * (template processing *is* needed).
+ */
+bool BKE_path_contains_template_syntax(blender::StringRef path);
 
 /**
  * Validate the templating in the given path.
@@ -247,3 +259,16 @@ void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
                                      blender::Span<blender::bke::path_templates::Error> errors);
+
+/**
+ * Format the given floating point value with the provided format specifier. The format specifier
+ * is e.g. the "##.###" in "{name:##.###}".
+ *
+ * \return #std::nullopt if the format specifier is invalid.
+ */
+std::optional<std::string> BKE_path_template_format_float(blender::StringRef format_specifier,
+                                                          double value);
+
+/** Same as #BKE_path_template_format_float but for formatting an integer value.  */
+std::optional<std::string> BKE_path_template_format_int(blender::StringRef format_specifier,
+                                                        int64_t value);
