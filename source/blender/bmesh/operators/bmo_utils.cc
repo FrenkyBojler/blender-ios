@@ -406,24 +406,21 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
       MEM_mallocN(sizeof(*cos) * BMO_slot_buffer_len(op->slots_in, "verts"), __func__));
   float *co, *co2, clip_dist = BMO_slot_float_get(op->slots_in, "clip_dist");
   const float fac = BMO_slot_float_get(op->slots_in, "factor");
-  int i, j, clipx, clipy, clipz;
-  int xaxis, yaxis, zaxis;
+  int i;
+  const bool clipx = BMO_slot_bool_get(op->slots_in, "mirror_clip_x");
+  const bool clipy = BMO_slot_bool_get(op->slots_in, "mirror_clip_y");
+  const bool clipz = BMO_slot_bool_get(op->slots_in, "mirror_clip_z");
+  const bool xaxis = BMO_slot_bool_get(op->slots_in, "use_axis_x");
+  const bool yaxis = BMO_slot_bool_get(op->slots_in, "use_axis_y");
+  const bool zaxis = BMO_slot_bool_get(op->slots_in, "use_axis_z");
 
-  clipx = BMO_slot_bool_get(op->slots_in, "mirror_clip_x");
-  clipy = BMO_slot_bool_get(op->slots_in, "mirror_clip_y");
-  clipz = BMO_slot_bool_get(op->slots_in, "mirror_clip_z");
-
-  xaxis = BMO_slot_bool_get(op->slots_in, "use_axis_x");
-  yaxis = BMO_slot_bool_get(op->slots_in, "use_axis_y");
-  zaxis = BMO_slot_bool_get(op->slots_in, "use_axis_z");
-
+  /* First pass: calculate new positions */
   i = 0;
   BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
-
     co = cos[i];
     zero_v3(co);
 
-    j = 0;
+    int j = 0;
     BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
       co2 = BM_edge_other_vert(e, v)->co;
       add_v3_v3v3(co, co, co2);
@@ -439,6 +436,7 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
     mul_v3_fl(co, 1.0f / float(j));
     interp_v3_v3v3(co, v->co, co, fac);
 
+    /* Handle mirroring and clipping */
     if (clipx && fabsf(v->co[0]) <= clip_dist) {
       co[0] = 0.0f;
     }
@@ -452,6 +450,7 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
     i++;
   }
 
+  /* Second pass: apply new positions */
   i = 0;
   BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
     if (xaxis) {
@@ -463,7 +462,6 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
     if (zaxis) {
       v->co[2] = cos[i][2];
     }
-
     i++;
   }
 

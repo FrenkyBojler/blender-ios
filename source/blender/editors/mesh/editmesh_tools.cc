@@ -75,6 +75,9 @@
 #include "mesh_intern.hh" /* own include */
 
 #include "bmesh_tools.hh"
+#include <array>
+#include <map>
+#include <set>
 
 using blender::Vector;
 
@@ -2736,7 +2739,6 @@ void MESH_OT_normals_make_consistent(wmOperatorType *ot)
   ot->description = "Make face and vertex normals point either outside or inside the mesh";
   ot->idname = "MESH_OT_normals_make_consistent";
 
-  /* api callbacks */
   ot->exec = edbm_normals_make_consistent_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -2751,7 +2753,39 @@ void MESH_OT_normals_make_consistent(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Smooth Vertices Operator
  * \{ */
+static BMVert *find_mirror_vert(
+    BMEditMesh *em, BMVert *v, const std::vector<int> &active_axes, int bitmask, bool use_topology)
+{
+  BMVert *current = v;  // Start with the input vertex
 
+  // Loop through each possible axis
+  for (size_t i = 0; i < active_axes.size(); i++) {
+    if (bitmask & (1 << i)) {  // Check if this axis is active in the bitmask
+      // Initialize the mirroring cache for this axis
+      EDBM_verts_mirror_cache_begin(em, active_axes[i], false, true, false, use_topology);
+
+      // Get the mirrored vertex for the current axis
+      current = EDBM_verts_mirror_get(em, current);
+
+      // Clear the cache after use
+      EDBM_verts_mirror_cache_end(em);
+
+      // If no mirrored vertex is found, stop and return nullptr
+      if (!current) {
+        return nullptr;
+      }
+    }
+  }
+
+  return current;  // Return the final mirrored vertex
+}
+
+/**
+ * Execute the vertex smoothing operator with multi-axis symmetry support.
+ * @param C Blender context.
+ * @param op Operator containing properties like factor, axes, and repeat.
+ * @return Operator status (FINISHED or CANCELLED).
+ */
 static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 {
   const float fac = RNA_float_get(op->ptr, "factor");
@@ -2786,66 +2820,122 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     }
     tot_selected++;
 
-    const uint symm = ((Mesh *)obedit->data)->symmetry;
+    // Determine active symmetry axes
+    const uint symm = mesh->symmetry;
+    std::vector<int> active_axes;
+    if (symm & ME_SYMMETRY_X)
+      active_axes.push_back(0);
+    if (symm & ME_SYMMETRY_Y)
+      active_axes.push_back(1);
+    if (symm & ME_SYMMETRY_Z)
+      active_axes.push_back(2);
 
-    for (int axis = 0; axis < 3; axis++) {
-      if (symm & (ME_SYMMETRY_X << axis)) {
-        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
-      }
-    }
-
+    // Check for mirror modifier clipping settings
     LISTBASE_FOREACH (ModifierData *, md, &obedit->modifiers) {
       if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
         MirrorModifierData *mmd = (MirrorModifierData *)md;
         if (mmd->flag & MOD_MIR_CLIPPING) {
-          if (mmd->flag & MOD_MIR_AXIS_X) {
+          if (mmd->flag & MOD_MIR_AXIS_X)
             mirrx = true;
-          }
-          if (mmd->flag & MOD_MIR_AXIS_Y) {
+          if (mmd->flag & MOD_MIR_AXIS_Y)
             mirry = true;
-          }
-          if (mmd->flag & MOD_MIR_AXIS_Z) {
+          if (mmd->flag & MOD_MIR_AXIS_Z)
             mirrz = true;
-          }
           clip_dist = mmd->tolerance;
         }
       }
     }
 
-    for (int i = 0; i < repeat; i++) {
-      if (!EDBM_op_callf(em,
-                         op,
-                         "smooth_vert verts=%hv factor=%f "
-                         "mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b "
-                         "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-                         BM_ELEM_SELECT,
-                         fac,
-                         mirrx,
-                         mirry,
-                         mirrz,
-                         clip_dist,
-                         xaxis,
-                         yaxis,
-                         zaxis))
-      {
-        continue;
+    // Collect extended selection: selected vertices and their symmetric counterparts
+    std::set<BMVert *> extended_selection;
+    BMIter viter;
+    BMVert *v;
+    BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        extended_selection.insert(v);
+        for (int b = 0; b < (1 << active_axes.size()); b++) {
+          BMVert *v_mirror = find_mirror_vert(em, v, active_axes, b, use_topology);
+          if (v_mirror) {
+            extended_selection.insert(v_mirror);
+          }
+        }
       }
     }
 
-    bool calc_normals = false;
-    for (int axis = 0; axis < 3; axis++) {
-      if (symm & (ME_SYMMETRY_X << axis)) {
+    // Axes to smooth
+    bool use_axes[3] = {xaxis, yaxis, zaxis};
+
+    // Apply smoothing for the specified number of iterations
+    for (int i = 0; i < repeat; i++) {
+      std::map<BMVert *, std::array<float, 3>> new_positions;
+      for (BMVert *v : extended_selection) {
+        if (BM_elem_flag_test(v, BM_ELEM_HIDDEN))
+          continue;
+
+        // Collect positions of DIRECT neighbors only (not mirrored)
+        std::vector<std::array<float, 3>> positions;
+        BMIter eiter;
+        BMEdge *e;
+        BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+          BMVert *n = BM_edge_other_vert(e, v);
+          if (n) {
+            std::array<float, 3> pos;
+            copy_v3_v3(pos.data(), n->co);
+            positions.push_back(pos);
+          }
+        }
+
+        if (positions.empty())
+          continue;
+
+        // Compute average position of direct neighbors
+        std::array<float, 3> avg = {0.0f, 0.0f, 0.0f};
+        for (const auto &pos : positions) {
+          add_v3_v3(avg.data(), pos.data());
+        }
+        mul_v3_fl(avg.data(), 1.0f / positions.size());
+
+        // Compute new position with smoothing factor, respecting use_axes
+        std::array<float, 3> p_new;
+        for (int axis = 0; axis < 3; axis++) {
+          if (use_axes[axis]) {
+            p_new[axis] = (1.0f - fac) * v->co[axis] + fac * avg[axis];
+          }
+          else {
+            p_new[axis] = v->co[axis];
+          }
+        }
+
+        // Project onto symmetry planes if within clip distance
+        for (int axis : active_axes) {
+          if (std::abs(v->co[axis]) < clip_dist) {
+            p_new[axis] = 0.0f;
+          }
+        }
+
+        // Store the new position
+        new_positions[v] = p_new;
+      }
+
+      // Update all vertex positions after computation
+      for (const auto &pair : new_positions) {
+        copy_v3_v3(pair.first->co, pair.second.data());
+      }
+
+      // Apply mirroring to maintain symmetry
+      for (int axis : active_axes) {
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
         EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0, axis);
         EDBM_verts_mirror_cache_end(em);
-        calc_normals = true;
       }
     }
 
+    // Update the mesh with new vertex positions
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
-    params.calc_normals = calc_normals;
+    params.calc_normals = true;
     params.is_destructive = false;
-    EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+    EDBM_update(mesh, &params);
   }
 
   if (tot_selected == 0 && !tot_locked) {
@@ -2854,7 +2944,6 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
   return tot_selected ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
-
 void MESH_OT_vertices_smooth(wmOperatorType *ot)
 {
   /* identifiers */
@@ -5312,8 +5401,39 @@ void MESH_OT_beautify_fill(wmOperatorType *ot)
 /** \name Poke Face Operator
  * \{ */
 
+static BMFace *find_mirror_face(BMEditMesh *em,
+                                BMFace *face,
+                                const std::vector<int> &active_axes,
+                                int bitmask,
+                                bool use_topology)
+{
+  BMFace *current = face;  // Start with the input face
+
+  // Loop through each possible axis in the bitmask
+  for (size_t i = 0; i < active_axes.size(); i++) {
+    if (bitmask & (1 << i)) {  // Check if this axis is active in the bitmask
+      // Initialize the mirroring cache for this axis
+      EDBM_verts_mirror_cache_begin(em, active_axes[i], false, true, false, use_topology);
+
+      // Get the mirrored face for the current axis
+      current = EDBM_verts_mirror_get_face(em, current);
+
+      // Clear the cache after use
+      EDBM_verts_mirror_cache_end(em);
+
+      // If no mirrored face is found, stop and return nullptr
+      if (!current) {
+        return nullptr;
+      }
+    }
+  }
+
+  return current;  // Return the final mirrored face
+}
+
 static int edbm_poke_face_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender;
   const float offset = RNA_float_get(op->ptr, "offset");
   const bool use_relative_offset = RNA_boolean_get(op->ptr, "use_relative_offset");
   const int center_mode = RNA_enum_get(op->ptr, "center_mode");
@@ -5322,35 +5442,104 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
-    if (em->bm->totfacesel == 0) {
+    if (bm->totfacesel == 0) {
       continue;
     }
 
     BMOperator bmop;
-    EDBM_op_init(em,
-                 &bmop,
-                 op,
-                 "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
-                 BM_ELEM_SELECT,
-                 offset,
-                 use_relative_offset,
-                 center_mode);
-    BMO_op_exec(em->bm, &bmop);
+    if (me->symmetry == 0) {
+      /* No symmetry: perform the poke operation as usual */
+      EDBM_op_init(em,
+                   &bmop,
+                   op,
+                   "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
+                   BM_ELEM_SELECT,
+                   offset,
+                   use_relative_offset,
+                   center_mode);
+      BMO_op_exec(em->bm, &bmop);
 
-    EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+      EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+      BMO_slot_buffer_hflag_enable(
+          em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+      BMO_slot_buffer_hflag_enable(
+          em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
 
-    BMO_slot_buffer_hflag_enable(
-        em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
-    BMO_slot_buffer_hflag_enable(
-        em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      if (!EDBM_op_finish(em, &bmop, op, true)) {
+        continue;
+      }
+    }
+    else {
+      /* Symmetry enabled: collect all faces and their mirrors for all axes */
+      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
 
-    if (!EDBM_op_finish(em, &bmop, op, true)) {
-      continue;
+      /* Determine active symmetry axes */
+      std::vector<int> active_axes;
+      if (me->symmetry & ME_SYMMETRY_X)
+        active_axes.push_back(0);
+      if (me->symmetry & ME_SYMMETRY_Y)
+        active_axes.push_back(1);
+      if (me->symmetry & ME_SYMMETRY_Z)
+        active_axes.push_back(2);
+
+      /* Collect selected faces and their mirrors */
+      std::set<BMFace *> faces_to_poke;
+      BMIter iter;
+      BMFace *face;
+      BM_ITER_MESH (face, &iter, bm, BM_FACES_OF_MESH) {
+        if (!BM_elem_flag_test(face, BM_ELEM_SELECT) || BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
+          continue;
+        }
+        faces_to_poke.insert(face);
+
+        /* Find all mirrored faces for all axis combinations */
+        for (int b = 0; b < (1 << active_axes.size()); b++) {
+          BMFace *face_mirror = find_mirror_face(em, face, active_axes, b, use_topology);
+          if (face_mirror && !BM_elem_flag_test(face_mirror, BM_ELEM_HIDDEN)) {
+            faces_to_poke.insert(face_mirror);
+          }
+        }
+      }
+
+      if (faces_to_poke.empty()) {
+        continue;
+      }
+
+      /* Mark all collected faces as selected */
+      for (BMFace *f : faces_to_poke) {
+        BM_elem_flag_enable(f, BM_ELEM_SELECT);
+      }
+
+      /* Initialize and execute poke operator on collected faces */
+      EDBM_op_init(em,
+                   &bmop,
+                   op,
+                   "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
+                   BM_ELEM_SELECT,
+                   offset,
+                   use_relative_offset,
+                   center_mode);
+      BMO_op_exec(em->bm, &bmop);
+
+      /* Update selection for output vertices and faces */
+      EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+      BMO_slot_buffer_hflag_enable(
+          em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+      BMO_slot_buffer_hflag_enable(
+          em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+
+      if (!EDBM_op_finish(em, &bmop, op, true)) {
+        continue;
+      }
     }
 
+    /* Update the mesh */
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = true;
