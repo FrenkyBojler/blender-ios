@@ -7,8 +7,10 @@
  */
 
 #include "BLI_mmap.h"
+#include "BLI_assert.h"
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "MEM_guardedalloc.h"
 
 #include <cstring>
@@ -17,13 +19,14 @@
 #  include <csignal>
 #  include <cstdlib>
 #  include <sys/mman.h> /* For mmap. */
-#  include <unistd.h>   /* For read close. */
+#  include <unistd.h>   /* For write. */
 #else
 #  include "BLI_winstuff.h"
-#  include <io.h> /* For open close read. */
+#  include <io.h> /* For _get_osfhandle. */
 #endif
 
 struct BLI_mmap_file {
+  struct BLI_mmap_file *next, *prev;
   /* The address to which the file was mapped. */
   char *memory;
 
@@ -31,72 +34,258 @@ struct BLI_mmap_file {
   size_t length;
 
   /* Platform-specific handle for the mapping. */
-  void *handle;
+  void *volatile handle;
 
   /* Flag to indicate IO errors. Needs to be volatile since it's being set from
    * within the signal handler, which is not part of the normal execution flow. */
   volatile bool io_error;
+
+  /* Used to break out of infinite loops when an error keeps occurring. */
+  size_t id;
 };
 
-#ifndef WIN32
-/* When using memory-mapped files, any IO errors will result in a SIGBUS signal.
- * Therefore, we need to catch that signal and stop reading the file in question.
- * To do so, we keep a list of all current FileDatas that use memory-mapped files,
- * and if a SIGBUS is caught, we check if the failed address is inside one of the
- * mapped regions.
- * If it is, we set a flag to indicate a failed read and remap the memory in
- * question to a zero-backed region in order to avoid additional signals.
- * The code that actually reads the memory area has to check whether the flag was
- * set after it's done reading.
- * If the error occurred outside of a memory-mapped region, we call the previous
- * handler if one was configured and abort the process otherwise.
+static blender::Mutex mmap_mutex;
+
+/* When using memory-mapped files, any IO errors will result in an EXCEPTION_IN_PAGE_ERROR on
+ * Windows and a SIGBUS signal on other platforms. Therefore, we need to catch that signal and
+ * stop reading the file in question. To do so, we keep a list of all currently opened
+ * memory-mapped files, and if a error is caught, we check if the failed address is inside one of
+ * the mapped regions. If it is, we set a flag to indicate a failed read and remap the memory in
+ * question to a zero-backed region in order to avoid additional signals. The code that actually
+ * reads the memory area has to check whether the flag was set after it's done reading. If the
+ * error occurred outside of a memory-mapped region or the remapping failed, we call the previous
+ * handler if one was initialized and abort the process otherwise on Linux and on Windows let the
+ * exception crash the program.
  */
 
-static struct error_handler_data {
-  ListBase open_mmaps;
-  char configured;
-  void (*next_handler)(int, siginfo_t *, void *);
-} error_handler = {{nullptr}};
+static ListBase open_mmaps = {nullptr};
 
-static void sigbus_handler(int sig, siginfo_t *siginfo, void *ptr)
+/* Print a message to stderr without using the standard library routines.
+ * If a mmap error occurs while reading a pointer inside one of the standard library's IO routines,
+ * any global locks it was holding won't be unlocked entering the handler. Using the normal
+ * printing routines could then cause a deadlock. */
+static void print_error(const char *message);
+
+/* Tries to replace the mapping with zeroes.
+ * Returns true on success. */
+static bool try_map_zeros(BLI_mmap_file *file) noexcept;
+
+/* Find the file mapping containing the address and call try_map_zeroes for it.
+ * Returns true when execution can continue. */
+static bool try_handle_error_for_address(const void *address) noexcept
+{
+  static thread_local size_t last_handled_file_id = -1;
+
+  std::unique_lock lock(mmap_mutex);
+
+  BLI_mmap_file *file = nullptr;
+  LISTBASE_FOREACH (BLI_mmap_file *, link_file, &open_mmaps) {
+    /* Is the address where the error occurred in this file's mapped range? */
+    if (address >= link_file->memory && address < link_file->memory + link_file->length) {
+      file = link_file;
+      break;
+    }
+  }
+
+  if (file == nullptr) {
+    /* Not our error. */
+    return false;
+  }
+
+  /* Check if we already handled this error. */
+  if (file->io_error) {
+    /* If this is our second time encountering this file in this thread, something has gone
+     * very wrong, so just crash. */
+    if (file->id == last_handled_file_id) {
+      print_error("BLI_mmap: Error: Mapped file has already been remapped with zeros.");
+      return false;
+    }
+    /* Someone else handled it, we can continue execution. */
+    last_handled_file_id = file->id;
+    return true;
+  }
+
+  last_handled_file_id = file->id;
+  file->io_error = true;
+
+  if (try_map_zeros(file)) {
+    return true;
+  }
+
+  print_error("BLI_mmap: Error: Could not replace mapped file with zeros.");
+  return false;
+}
+
+#ifdef WIN32
+using MapViewOfFile3Fn = PVOID(WINAPI *)(HANDLE FileMapping,
+                                         HANDLE Process,
+                                         PVOID BaseAddress,
+                                         ULONG64 Offset,
+                                         SIZE_T ViewSize,
+                                         ULONG AllocationType,
+                                         ULONG PageProtection,
+                                         MEM_EXTENDED_PARAMETER *ExtendedParameters,
+                                         ULONG ParameterCount);
+
+using VirtualAlloc2Fn = PVOID(WINAPI *)(HANDLE Process,
+                                        PVOID BaseAddress,
+                                        SIZE_T Size,
+                                        ULONG AllocationType,
+                                        ULONG PageProtection,
+                                        MEM_EXTENDED_PARAMETER *ExtendedParameters,
+                                        ULONG ParameterCount);
+
+static MapViewOfFile3Fn mmap_MapViewOfFile3 = nullptr;
+
+static VirtualAlloc2Fn mmap_VirtualAlloc2 = nullptr;
+
+void print_error(const char *message)
+{
+  HANDLE stderr_handle = GetStdHandle(STD_ERROR_HANDLE);
+  WriteFile(stderr_handle, message, strlen(message), nullptr, nullptr);
+  WriteFile(stderr_handle, "\r\n", 2, nullptr, nullptr);
+}
+
+static bool try_map_zeros(BLI_mmap_file *file) noexcept
+{
+  if (!UnmapViewOfFileEx(file->memory, MEM_PRESERVE_PLACEHOLDER)) {
+    return false;
+  }
+
+  if (!CloseHandle(file->handle)) {
+    return false;
+  }
+
+  ULARGE_INTEGER length_ularge_int;
+  length_ularge_int.QuadPart = file->length;
+  file->handle = CreateFileMapping(INVALID_HANDLE_VALUE,
+                                   nullptr,
+                                   PAGE_READONLY,
+                                   length_ularge_int.HighPart,
+                                   length_ularge_int.LowPart,
+                                   nullptr);
+  if (file->handle == nullptr) {
+    return false;
+  }
+
+  void *memory = mmap_MapViewOfFile3(file->handle,
+                                     nullptr,
+                                     file->memory,
+                                     0,
+                                     file->length,
+                                     MEM_REPLACE_PLACEHOLDER,
+                                     PAGE_READONLY,
+                                     nullptr,
+                                     0);
+  if (memory == nullptr) {
+    return false;
+  }
+
+  BLI_assert(memory == file->memory);
+
+  return true;
+}
+
+static LONG page_exception_handler(EXCEPTION_POINTERS *ExceptionInfo) noexcept
+{
+  /* On Windows, if an IO error occurs trying to read from a mapped file, an
+   * EXCEPTION_IN_PAGE_ERROR error will be raised. Also check for
+   * EXCEPTION_ACCESS_VIOLATION, which can be raised when a thread tries to read from the mapping
+   * while it is being replaced by another. */
+  if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_IN_PAGE_ERROR ||
+      ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+  {
+    if (ExceptionInfo->ExceptionRecord->NumberParameters >= 2) {
+      /* Currently, mmap'd files are read only, so don't replace the mapping when a write is
+       * attempted. */
+      if (ExceptionInfo->ExceptionRecord->ExceptionInformation[0] == 1) {
+        return EXCEPTION_CONTINUE_SEARCH;
+      }
+      const void *address = reinterpret_cast<const void *>(
+          ExceptionInfo->ExceptionRecord->ExceptionInformation[1]);
+      if (try_handle_error_for_address(address)) {
+        return EXCEPTION_CONTINUE_EXECUTION;
+      }
+    }
+  }
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+/* Ensures that the error handler is set up and ready. */
+static bool ensure_mmap_initialized()
+{
+  static bool initialized = false;
+  std::unique_lock lock(mmap_mutex);
+
+  if (!initialized) {
+    HMODULE kernelbase = ::LoadLibraryA("kernelbase.dll");
+    if (kernelbase) {
+      mmap_MapViewOfFile3 = reinterpret_cast<MapViewOfFile3Fn>(
+          ::GetProcAddress(kernelbase, "MapViewOfFile3"));
+      mmap_VirtualAlloc2 = reinterpret_cast<VirtualAlloc2Fn>(
+          ::GetProcAddress(kernelbase, "VirtualAlloc2"));
+    }
+    if (mmap_MapViewOfFile3 && mmap_VirtualAlloc2) {
+      /* First has to be FALSE to avoid our handler being called before ASAN's handler. */
+      AddVectoredExceptionHandler(FALSE, page_exception_handler);
+    }
+    else {
+      fprintf(stderr, "BLI_mmap: Could not load necessary functions for mmap error handling.\n");
+    }
+    initialized = true;
+  }
+  return true;
+}
+#else
+void print_error(const char *message)
+{
+  write(STDERR_FILENO, message, strlen(message));
+  write(STDERR_FILENO, "\n", 1);
+}
+
+static bool try_map_zeros(BLI_mmap_file *file) noexcept
+{
+  /* Replace the mapped memory with zeroes. */
+  const void *mapped_memory = mmap(
+      file->memory, file->length, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+  if (mapped_memory == MAP_FAILED) {
+    return false;
+  }
+
+  return true;
+}
+
+static struct sigaction next_handler = {};
+
+static void sigbus_handler(int sig, siginfo_t *siginfo, void *ptr) noexcept
 {
   /* We only handle SIGBUS here for now. */
   BLI_assert(sig == SIGBUS);
 
-  const char *error_addr = (const char *)siginfo->si_addr;
-  /* Find the file that this error belongs to. */
-  LISTBASE_FOREACH (LinkData *, link, &error_handler.open_mmaps) {
-    BLI_mmap_file *file = static_cast<BLI_mmap_file *>(link->data);
-
-    /* Is the address where the error occurred in this file's mapped range? */
-    if (error_addr >= file->memory && error_addr < file->memory + file->length) {
-      file->io_error = true;
-
-      /* Replace the mapped memory with zeroes. */
-      const void *mapped_memory = mmap(
-          file->memory, file->length, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-      if (mapped_memory == MAP_FAILED) {
-        fprintf(stderr, "SIGBUS handler: Error replacing mapped file with zeros\n");
-      }
-
-      return;
-    }
+  if (try_handle_error_for_address(siginfo->si_addr)) {
+    return;
   }
 
   /* Fall back to other handler if there was one. */
-  if (error_handler.next_handler) {
-    error_handler.next_handler(sig, siginfo, ptr);
+  if (next_handler.sa_sigaction && (next_handler.sa_flags & SA_SIGINFO)) {
+    next_handler.sa_sigaction(sig, siginfo, ptr);
+  }
+  else if (!ELEM(next_handler.sa_handler, nullptr, SIG_DFL, SIG_IGN)) {
+    next_handler.sa_handler(sig);
   }
   else {
-    fprintf(stderr, "Unhandled SIGBUS caught\n");
+    print_error("Unhandled SIGBUS caught");
     abort();
   }
 }
 
 /* Ensures that the error handler is set up and ready. */
-static bool sigbus_handler_setup()
+static bool ensure_mmap_initialized()
 {
-  if (!error_handler.configured) {
+  static bool initialized = false;
+
+  std::unique_lock lock(mmap_mutex);
+  if (!initialized) {
     struct sigaction newact = {{nullptr}}, oldact = {{nullptr}};
 
     newact.sa_sigaction = sigbus_handler;
@@ -106,44 +295,46 @@ static bool sigbus_handler_setup()
       return false;
     }
 
-    /* Remember the previously configured handler to fall back to it if the error
+    /* Remember the previously handler to fall back to it if the error
      * does not belong to any of the mapped files. */
-    error_handler.next_handler = oldact.sa_sigaction;
-    error_handler.configured = 1;
+    next_handler = oldact;
+    initialized = true;
   }
 
   return true;
 }
+#endif
 
 /* Adds a file to the list that the error handler checks. */
-static void sigbus_handler_add(BLI_mmap_file *file)
+static void error_handler_add(BLI_mmap_file *file)
 {
-  BLI_addtail(&error_handler.open_mmaps, BLI_genericNodeN(file));
+  std::unique_lock lock(mmap_mutex);
+  BLI_addtail(&open_mmaps, file);
 }
 
 /* Removes a file from the list that the error handler checks. */
-static void sigbus_handler_remove(BLI_mmap_file *file)
+static void error_handler_remove(BLI_mmap_file *file)
 {
-  LinkData *link = static_cast<LinkData *>(
-      BLI_findptr(&error_handler.open_mmaps, file, offsetof(LinkData, data)));
-  BLI_freelinkN(&error_handler.open_mmaps, link);
+  std::unique_lock lock(mmap_mutex);
+  BLI_remlink(&open_mmaps, file);
 }
-#endif
 
 BLI_mmap_file *BLI_mmap_open(int fd)
 {
+  static std::atomic_size_t id_counter = 0;
+
   void *memory, *handle = nullptr;
   const size_t length = BLI_lseek(fd, 0, SEEK_END);
   if (UNLIKELY(length == size_t(-1))) {
     return nullptr;
   }
 
-#ifndef WIN32
-  /* Ensure that the SIGBUS handler is configured. */
-  if (!sigbus_handler_setup()) {
+  /* Ensures that the error handler is set up and ready. */
+  if (!ensure_mmap_initialized()) {
     return nullptr;
   }
 
+#ifndef WIN32
   /* Map the given file to memory. */
   memory = mmap(nullptr, length, PROT_READ, MAP_PRIVATE, fd, 0);
   if (memory == MAP_FAILED) {
@@ -152,17 +343,57 @@ BLI_mmap_file *BLI_mmap_open(int fd)
 #else
   /* Convert the POSIX-style file descriptor to a Windows handle. */
   void *file_handle = (void *)_get_osfhandle(fd);
-  /* Memory mapping on Windows is a two-step process - first we create a mapping,
-   * then we create a view into that mapping.
-   * In our case, one view that spans the entire file is enough. */
-  handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
-  if (handle == nullptr) {
-    return nullptr;
+
+  /* Memory mapping on Windows is a multi-step process - first we create a placeholder
+   * allocation. Then we create a mapping, and after that we create a view into that mapping
+   * on top of the placeholder. In our case, one view that spans the entire file is enough.
+   * NOTE: Changes to protection flags should also be reflected in #try_map_zeros, if write support
+   * is added, the write check in #page_exception_handler should be updated. */
+  if (mmap_MapViewOfFile3 && mmap_VirtualAlloc2) {
+    memory = mmap_VirtualAlloc2(nullptr,
+                                nullptr,
+                                length,
+                                MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
+                                PAGE_NOACCESS,
+                                nullptr,
+                                0);
+    if (memory == nullptr) {
+      return nullptr;
+    }
+
+    handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    if (handle == nullptr) {
+      VirtualFree(memory, 0, MEM_RELEASE);
+      return nullptr;
+    }
+
+    if (mmap_MapViewOfFile3(handle,
+                            nullptr,
+                            memory,
+                            0,
+                            length,
+                            MEM_REPLACE_PLACEHOLDER,
+                            PAGE_READONLY,
+                            nullptr,
+                            0) == nullptr)
+    {
+      VirtualFree(memory, 0, MEM_RELEASE);
+      CloseHandle(handle);
+      return nullptr;
+    }
   }
-  memory = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0);
-  if (memory == nullptr) {
-    CloseHandle(handle);
-    return nullptr;
+  else {
+    /* Fallback without error handling for versions older than Windows 10 (1803). */
+    handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
+    if (handle == nullptr) {
+      return nullptr;
+    }
+
+    memory = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0);
+    if (memory == nullptr) {
+      CloseHandle(handle);
+      return nullptr;
+    }
   }
 #endif
 
@@ -171,11 +402,10 @@ BLI_mmap_file *BLI_mmap_open(int fd)
   file->memory = static_cast<char *>(memory);
   file->handle = handle;
   file->length = length;
+  file->id = id_counter++;
 
-#ifndef WIN32
   /* Register the file with the error handler. */
-  sigbus_handler_add(file);
-#endif
+  error_handler_add(file);
 
   return file;
 }
@@ -188,23 +418,7 @@ bool BLI_mmap_read(BLI_mmap_file *file, void *dest, size_t offset, size_t length
     return false;
   }
 
-#ifndef WIN32
-  /* If an error occurs in this call, sigbus_handler will be called and will set
-   * file->io_error to true. */
   memcpy(dest, file->memory + offset, length);
-#else
-  /* On Windows, we use exception handling to be notified of errors. */
-  __try
-  {
-    memcpy(dest, file->memory + offset, length);
-  }
-  __except (GetExceptionCode() == EXCEPTION_IN_PAGE_ERROR ? EXCEPTION_EXECUTE_HANDLER :
-                                                            EXCEPTION_CONTINUE_SEARCH)
-  {
-    file->io_error = true;
-    return false;
-  }
-#endif
 
   return !file->io_error;
 }
@@ -226,9 +440,9 @@ bool BLI_mmap_any_io_error(const BLI_mmap_file *file)
 
 void BLI_mmap_free(BLI_mmap_file *file)
 {
+  error_handler_remove(file);
 #ifndef WIN32
   munmap((void *)file->memory, file->length);
-  sigbus_handler_remove(file);
 #else
   UnmapViewOfFile(file->memory);
   CloseHandle(file->handle);
