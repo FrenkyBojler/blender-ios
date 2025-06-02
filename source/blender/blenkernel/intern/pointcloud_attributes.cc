@@ -68,21 +68,22 @@ static GAttributeReader attribute_to_reader(const Attribute &attribute,
                                             const int64_t domain_size)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(attribute.data_type());
-  return std::visit(
-      [&](const auto &data) {
-        using T = std::decay_t<decltype(data)>;
-        if constexpr (std::is_same_v<T, Attribute::ArrayData>) {
-          return GAttributeReader{GVArray::ForSpan(GSpan(cpp_type, data.data, data.size)),
-                                  domain,
-                                  data.sharing_info.get()};
-        }
-        else {
-          return GAttributeReader{GVArray::ForSingleRef(cpp_type, domain_size, data.value),
-                                  domain,
-                                  data.sharing_info.get()};
-        }
-      },
-      attribute.data());
+  switch (attribute.storage_type()) {
+    case AttrStorageType::Array: {
+      const auto &data = std::get<Attribute::ArrayData>(attribute.data());
+      return GAttributeReader{GVArray::ForSpan(GSpan(cpp_type, data.data, data.size)),
+                              domain,
+                              data.sharing_info.get()};
+    }
+    case AttrStorageType::Single: {
+      const auto &data = std::get<Attribute::SingleData>(attribute.data());
+      return GAttributeReader{GVArray::ForSingleRef(cpp_type, domain_size, data.value),
+                              domain,
+                              data.sharing_info.get()};
+    }
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 static GAttributeWriter attribute_to_writer(PointCloud &pointcloud,
@@ -90,25 +91,27 @@ static GAttributeWriter attribute_to_writer(PointCloud &pointcloud,
                                             Attribute &attribute)
 {
   const CPPType &cpp_type = attribute_type_to_cpp_type(attribute.data_type());
-  Attribute::DataVariant &data = attribute.data_for_write();
-  if (auto *array = std::get_if<Attribute::ArrayData>(&data)) {
-    BLI_assert(array->size == domain_size);
+  switch (attribute.storage_type()) {
+    case AttrStorageType::Array: {
+      auto &data = std::get<Attribute::ArrayData>(attribute.data_for_write());
+      BLI_assert(data.size == domain_size);
 
-    std::function<void()> tag_modified_fn;
-    if (const UpdateOnChange update_fn = changed_tags().lookup_default(attribute.name(), nullptr))
-    {
-      tag_modified_fn = [pointcloud = &pointcloud, update_fn]() { update_fn(pointcloud); };
-    };
+      std::function<void()> tag_modified_fn;
+      if (const UpdateOnChange update_fn = changed_tags().lookup_default(attribute.name(),
+                                                                         nullptr))
+      {
+        tag_modified_fn = [pointcloud = &pointcloud, update_fn]() { update_fn(pointcloud); };
+      };
 
-    return GAttributeWriter{
-        GVMutableArray::ForSpan(GMutableSpan(cpp_type, array->data, domain_size)),
-        attribute.domain(),
-        std::move(tag_modified_fn)};
-  }
-  if (std::get_if<Attribute::SingleData>(&data)) {
-    /* Not yet implemented. */
-    BLI_assert_unreachable();
-    return {};
+      return GAttributeWriter{
+          GVMutableArray::ForSpan(GMutableSpan(cpp_type, data.data, domain_size)),
+          attribute.domain(),
+          std::move(tag_modified_fn)};
+    }
+    case AttrStorageType::Single: {
+      /* Not yet implemented. */
+      BLI_assert_unreachable();
+    }
   }
   BLI_assert_unreachable();
   return {};
