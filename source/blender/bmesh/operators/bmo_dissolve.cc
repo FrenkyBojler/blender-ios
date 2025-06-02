@@ -252,6 +252,56 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "region.out", BM_FACE, FACE_NEW);
 }
 
+/* Calculates the angle of an edge pair, from a combination of raw angle and normal angle. */
+static float bmo_vert_calc_edge_angle_blended(const BMVert *v)
+{
+  BMEdge *e_pair[2];
+  bool is_edge_pair = BM_vert_edge_pair(v, &e_pair[0], &e_pair[1]);
+
+  BLI_assert(is_edge_pair);
+
+  /* Compute the angle between the edges. Start with the raw angle. */
+  BMVert *v_a = BM_edge_other_vert(e_pair[0], v);
+  BMVert *v_b = BM_edge_other_vert(e_pair[1], v);
+  float angle = M_PI - angle_v3v3v3(v_a->co, v->co, v_b->co);
+
+  /* There are two ways to measure the angle around a vert with two edges. The first is to
+   * measure the raw angle between the two neighboring edges, the second is to measure the
+   * angle of the edges around the vertex normal vector. When the vert is an edge pair
+   * between two faces, The normal measurement is better in general. In the specific case of
+   * a vert between two faces, but the faces have a *very* sharp angle between them, then the
+   * raw angle is better, because the normal is perpendicular to average of the two faces,
+   * and if the faces are folded almost 180 degrees, the vertex normal becomes more an more
+   * edge-on to the faces, meaning the angle *around the normal* becomes more and more flat,
+   * even if it makes a sharp angle when viewed from the side.
+   *
+   * When the faces become very folded, the raw_factor adds some of the "as seen from the
+   * side" angle back into the computation, making the algorithm behave more intuitively.
+   *
+   * `raw_factor` is computed as follows:
+   * - When not a face pair, part this is skipped, and the raw angle is used.
+   * - When a face pair is co-planar, or has an angle up to 90 degrees, `raw_factor` is 0.0.
+   * - As angle increases from 90 to 180 degrees, `raw_factor` increases from 0.0 to 1.0.
+   */
+  BMFace *f_pair[2];
+  if (BM_edge_face_pair(v->e, &f_pair[0], &f_pair[1])) {
+    /* Due to merges, the normals are not currently trustworthy. Recompute them. */
+    BM_face_normal_update(f_pair[0]);
+    BM_face_normal_update(f_pair[1]);
+
+    /* Now determine the raw factor based on how folded the faces are.*/
+    float raw_factor = -dot_v3v3(f_pair[0]->no, f_pair[1]->no);
+    CLAMP(raw_factor, 0.0f, 1.0f);
+
+    /* Blend the two ways of computing the angle. */
+    float normal_angle = M_PI - angle_on_axis_v3v3v3_v3(v_a->co, v->co, v_b->co, v->no);
+    angle = interpf(angle, normal_angle, raw_factor);
+  }
+
+  return angle;
+}
+
+
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
   // BMOperator fop;
@@ -361,49 +411,12 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
         /* At an angle threshold of 180, dissolve everything, skip the math of the angle test. */
         if (dissolve_all) {
+          /* VERT_MARK remains enabled. */
           continue;
         }
 
-        /* Compute the angle between the edges.  Start with the raw angle. */
-        BMVert *v_a = BM_edge_other_vert(e_pair[0], v);
-        BMVert *v_b = BM_edge_other_vert(e_pair[1], v);
-        float angle = M_PI - angle_v3v3v3(v_a->co, v->co, v_b->co);
-
-        /* There are two ways to measure the angle around a vert with two edges. The first is to
-         * measure the raw angle between the two neighboring edges, the second is to measure the
-         * angle of the edges around the vertex normal vector. When the vert is an edge pair
-         * between two faces, The normal measurement is better in general. In the specific case of
-         * a vert between two faces, but the faces have a *very* sharp angle between them, then the
-         * raw angle is better, because the normal is perpendicular to average of the two faces,
-         * and if the faces are folded almost 180 degrees, the vertex normal becomes more an more
-         * edge-on to the faces, meaning the angle *around the normal* becomes more and more flat,
-         * even if it makes a sharp angle when viewed from the side.
-         *
-         * When the faces become very folded, the raw_factor adds some of the "as seen from the
-         * side" angle back into the computation, making the algorithm behave more intuitively.
-         *
-         * `raw_factor` is computed as follows:
-         * - When not a face pair, part this is skipped, and the raw angle is used.
-         * - When a face pair is co-planar, or has an angle up to 90 degrees, `raw_factor` is 0.0.
-         * - As angle increases from 90 to 180 degrees, `raw_factor` increases from 0.0 to 1.0.
-         */
-        BMFace *f_pair[2];
-        if (BM_edge_face_pair(v->e, &f_pair[0], &f_pair[1])) {
-          /* Due to merges, the normals are not currently trustworthy. Recompute them. */
-          BM_face_normal_update(f_pair[0]);
-          BM_face_normal_update(f_pair[1]);
-
-          /* Now determine the raw factor based on how folded the faces are.*/
-          float raw_factor = -dot_v3v3(f_pair[0]->no, f_pair[1]->no);
-          CLAMP(raw_factor, 0.0f, 1.0f);
-
-          /* Blend the two ways of computing the angle. */
-          float normal_angle = M_PI - angle_on_axis_v3v3v3_v3(v_a->co, v->co, v_b->co, v->no);
-          angle = interpf(angle, normal_angle, raw_factor);
-        }
-
         /* If the angle at the vert is larger than the threshold, it cannot be merged. */
-        if (angle > angle_threshold - angle_epsilon) {
+        if (bmo_vert_calc_edge_angle_blended(v) > angle_threshold - angle_epsilon) {
           BMO_vert_flag_disable(bm, v, VERT_MARK);
           continue;
         }
