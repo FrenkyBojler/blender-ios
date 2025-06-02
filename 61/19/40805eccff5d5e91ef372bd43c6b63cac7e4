@@ -1,2 +1,3 @@
 Referenced by issue #139580, Proxy Generator doesn't create last frame
 Referenced by pull request #139731, Fix #139580: Movie proxies can be missing the last frame
+Referenced by commit 71897ebf959de6cff40f7d6944fa1ba883e82255, Fix #139580: Movie proxies can be missing the last frame
