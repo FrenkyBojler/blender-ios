@@ -1130,10 +1130,118 @@ void BKE_appdir_app_templates(ListBase *templates)
 /** \name Temporary Directories
  * \{ */
 
-static bool path_is_network_win32(const char *path)
+
+/**
+ * Tries to create a Blender session in the OS default path
+ * It tries, in order:
+ * 1. (os temp dir)/blender_sessions/blender_XXXXXX
+ * 2. (os temp dir)/blender_XXXXXX
+ * If that fails (which is not good)
+ * 3. (os temp dir)/blender_sessions/ (if blender could be created)
+ * 4. (os temp dir)/ (its not good cuz it will prob get deleted, but what other choise do we have)
+ *
+ * \param session_path_buffer: Output buffer for the final path.
+ * \param session_path_buffer_maxncpy: Size of the output buffer
+ * \return true if a session subdir was successfully made, otherwise false
+ */
+static bool create_session_in_os_temp(
+    char *session_path_buffer,
+    const size_t session_path_buffer_maxncpy)
 {
-  return (path && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') &&
-          path[2] != '\0' && path[2] != '\\' && path[2] != '/');
+  session_path_buffer[0] = '\0';
+
+  const char *_template_suffix = "blender_XXXXXX";
+  char c_template_path[FILE_MAX];
+  char os_temp_base_path[FILE_MAX];
+
+  BLI_temp_directory_path_get(os_temp_base_path, sizeof(os_temp_base_path));
+
+  // attempt 1: (os temp dir)/blender_sessions/blender_XXXXXX
+  char os_blender_subdir[FILE_MAX];
+  BLI_path_join(os_blender_subdir, sizeof(os_blender_subdir), os_temp_base_path, "blender_sessions");
+
+  bool os_blender_subdir_is_ready = BLI_is_dir(os_blender_subdir);
+  if (!os_blender_subdir_is_ready) {
+    if (BLI_dir_create_recursive(os_blender_subdir)) {
+      os_blender_subdir_is_ready = BLI_is_dir(os_blender_subdir);
+    }
+  }
+
+  if (os_blender_subdir_is_ready) {
+    BLI_path_slash_ensure(os_blender_subdir, sizeof(os_blender_subdir));
+    BLI_path_join(c_template_path,
+                  sizeof(c_template_path),
+                  os_blender_subdir,
+                  _template_suffix);
+
+    if (strlen(c_template_path) + 1 <= session_path_buffer_maxncpy) {
+      BLI_strncpy(session_path_buffer, c_template_path, session_path_buffer_maxncpy);
+
+#ifdef WIN32
+      if (_mktemp_s(session_path_buffer, session_path_buffer_maxncpy) == 0) {
+        if (BLI_dir_create_recursive(session_path_buffer) && BLI_is_dir(session_path_buffer)) {
+          BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+          return true;
+        }
+      }
+
+#else
+      if (mkdtemp(session_path_buffer) != nullptr) {
+        if (BLI_is_dir(session_path_buffer)) {
+          BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+          return true;
+        }
+      }
+
+#endif
+    }
+  }
+  session_path_buffer[0] = '\0';
+
+  // attempt 2: (os temp dir)/blender_XXXXXX ---
+  BLI_path_join(c_template_path,
+                sizeof(c_template_path),
+                os_temp_base_path,
+                _template_suffix);
+
+  if (strlen(c_template_path) + 1 <= session_path_buffer_maxncpy) {
+    BLI_strncpy(session_path_buffer, c_template_path, session_path_buffer_maxncpy);
+
+#ifdef WIN32
+    if (_mktemp_s(session_path_buffer, session_path_buffer_maxncpy) == 0) {
+      if (BLI_dir_create_recursive(session_path_buffer) && BLI_is_dir(session_path_buffer)) {
+        BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+        return true;
+      }
+    }
+
+#else
+    if (mkdtemp(session_path_buffer) != nullptr)
+{
+      if (BLI_is_dir(session_path_buffer)) {
+        BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+        return true;
+      }
+    }
+#endif
+  }
+  session_path_buffer[0] = '\0'; // So attempts failed, last try to use something
+
+  if (os_blender_subdir_is_ready) {
+      CLOG_WARN(&LOG,
+                "Could not create session, using '%s' directly.",
+                os_blender_subdir);
+    BLI_strncpy(session_path_buffer, os_blender_subdir, session_path_buffer_maxncpy);
+    BLI_path_slash_ensure(session_path_buffer, session_path_buffer_maxncpy);
+
+    return true;
+  }
+
+  return false; //nothing worked
 }
 
 /**
@@ -1141,6 +1249,12 @@ static bool path_is_network_win32(const char *path)
 
  * \param path: The dir to check
  */
+
+static bool path_is_network_win32(const char *path)
+{
+  return (path && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') &&
+          path[2] != '\0' && path[2] != '\\' && path[2] != '/');
+}
 
 static bool path_is_root(const char *path){
   if (!path || path[0] == '\0') {
@@ -1206,6 +1320,45 @@ static bool path_is_usable(const char *dirpath)
   return false;
 }
 
+static void where_is_temp(char *tempdir_base, const size_t tempdir_base_maxncpy, const char *userdir) {
+  if (userdir && userdir[0] != '\0') {
+    if (BLI_temp_directory_path_copy_if_valid(tempdir_base, tempdir_base_maxncpy, userdir)) {
+      if (path_is_root(tempdir_base)) {
+        CLOG_WARN(&LOG,
+        "'%s' is a root directory, please change it in Preferences > File Paths > Temporary Files",
+          tempdir_base);
+
+        tempdir_base[0] = '\0'; // trigger OS temp fallback
+      }
+      else if (!path_is_usable(tempdir_base)) {
+        CLOG_WARN(&LOG,
+        "'%s' is not usable, please change it in Preferences > File Paths > Temporary Files or ensure Blender has enough permissions",
+        tempdir_base);
+
+        tempdir_base[0] = '\0';
+      }
+      else {
+        BLI_path_slash_ensure(tempdir_base, tempdir_base_maxncpy);
+
+        return; // use userdir for base
+      }
+    }
+    else {
+      CLOG_WARN(&LOG,
+                "'%s' is not a valid directory.",
+                userdir);
+
+      tempdir_base[0] = '\0';
+    }
+  }
+
+
+  // If userdir is empty or didnt work, use the OS temporary directory as the base
+  if (tempdir_base[0] == '\0') {
+    BLI_temp_directory_path_get(tempdir_base, tempdir_base_maxncpy);
+  }
+}
+
 /**
  * Gets the temp directory when blender first runs.
  * If the default path is not found, use try $TEMP
@@ -1218,40 +1371,6 @@ static bool path_is_usable(const char *dirpath)
  * note that by default this is an empty string, only use when non-empty.
  */
 
-static void where_is_temp(char *tempdir, const size_t tempdir_maxncpy, const char *userdir)
-{
-  if (userdir && BLI_temp_directory_path_copy_if_valid(tempdir, tempdir_maxncpy, userdir)) {
-
-    /* Dont use the root directory */
-    if (path_is_root(tempdir)) {
-      CLOG_WARN(&LOG,
-                "'%s' is a root directory, please change it in"
-                "Preferences > File Paths > Temporary Files",
-                tempdir);
-
-      tempdir[0] = '\0';
-    }
-    /* Neither a directory blender cant use */
-    else if (!path_is_usable(tempdir)) {
-      CLOG_WARN(&LOG,
-                "Not enough permissions to use '%s', please change it in"
-                "Preferences > File Paths > Temporary Files",
-                tempdir);
-
-      tempdir[0] = '\0';
-    }
-    else {
-      return;
-    }
-  }
-
-  /* if userdir is empty or was was made empty above, tempdir will be used */
-  if (tempdir[0] == '\0')
-  {
-    BLI_temp_directory_path_get(tempdir, tempdir_maxncpy);
-  }
-}
-
 static void tempdir_session_create(char *tempdir_session,
                                    const size_t tempdir_session_maxncpy,
                                    const char *tempdir)
@@ -1261,41 +1380,116 @@ static void tempdir_session_create(char *tempdir_session,
   const int tempdir_len = strlen(tempdir);
   /* 'XXXXXX' is kind of tag to be replaced by `mktemp-family` by an UUID. */
   const char *session_name = "blender_XXXXXX";
-  const int session_name_len = strlen(session_name);
+  char c_template_path[FILE_MAX];
 
-  /* +1 as a slash is added,
-   * #_mktemp_s also requires the last null character is included. */
-  const int tempdir_session_len_required = tempdir_len + session_name_len + 1;
-
-  if (tempdir_session_len_required <= tempdir_session_maxncpy) {
-    /* No need to use path joining utility as we know the last character of #tempdir is a slash. */
-    BLI_string_join(tempdir_session, tempdir_session_maxncpy, tempdir, session_name);
-#ifdef WIN32
-    const bool needs_create = (_mktemp_s(tempdir_session, tempdir_session_len_required) == 0);
-#else
-    const bool needs_create = (mkdtemp(tempdir_session) == nullptr);
-#endif
-    if (needs_create) {
-      BLI_dir_create_recursive(tempdir_session);
-    }
-    if (BLI_is_dir(tempdir_session)) {
-      BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
-      /* Success. */
+  // tempdir should have been set by where_is_temp by now,
+  // if its empty try os path
+  if (!tempdir || tempdir[0] == '\0') {
+    // Try OS temp
+    if (create_session_in_os_temp(tempdir_session, tempdir_session_maxncpy)) {
       return;
+    }
+    CLOG_WARN(&LOG,
+               "Session temp creation failed. please change the temp path in Preferences > File Paths > Temporary Files"
+);
+    // It shouldnt get here, but if it does its bad
+    return;
+  }
+
+  // Attempt 1: Create session dir in tempdir/blender_sessions
+  char sessions_subdir_path[FILE_MAX];
+  BLI_path_join(sessions_subdir_path,
+                sizeof(sessions_subdir_path),
+                tempdir,
+                "blender_sessions");
+
+  bool sessions_subdir_is_good = BLI_is_dir(sessions_subdir_path);
+  if (!sessions_subdir_is_good) {
+    if (BLI_dir_create_recursive(sessions_subdir_path)) {
+      sessions_subdir_is_good = BLI_is_dir(sessions_subdir_path);
     }
   }
 
-   // if it gets here, it failed, so just use the tempdir
-  char os_tempdir[FILE_MAX];
-  BLI_temp_directory_path_get(os_tempdir, sizeof(os_tempdir));
+  if (sessions_subdir_is_good) {
+    BLI_path_slash_ensure(sessions_subdir_path, sizeof(sessions_subdir_path));
+    BLI_path_join(c_template_path,
+                  sizeof(c_template_path),
+                  sessions_subdir_path,
+                  session_name);
+
+    if (strlen(c_template_path) + 1 <= tempdir_session_maxncpy) {
+      BLI_strncpy(tempdir_session, c_template_path, tempdir_session_maxncpy);
+#ifdef WIN32
+      if (_mktemp_s(tempdir_session, tempdir_session_maxncpy) == 0) {
+        if (BLI_dir_create_recursive(tempdir_session) && BLI_is_dir(tempdir_session)) {
+          BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
+
+          return; /* Success with attempt 1 */
+        }
+      }
+#else
+      if (mkdtemp(tempdir_session) != nullptr) {
+        if (BLI_is_dir(tempdir_session)) {
+          BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
+          CLOG_INFO(&LOG, "Session temp (in base '%s'/blender_sessions): %s", tempdir, tempdir_session);
+          return; /* Success with attempt 1 */
+        }
+      }
+#endif
+    }
+    tempdir_session[0] = '\0';
+
+    // Attempt 2: Create session dir directly in tempdir
+  BLI_path_join(c_template_path,
+                sizeof(c_template_path),
+                tempdir,
+                session_name);
+
+  if (strlen(c_template_path) + 1 <= tempdir_session_maxncpy) {
+    BLI_strncpy(tempdir_session, c_template_path, tempdir_session_maxncpy);
+#ifdef WIN32
+    if (_mktemp_s(tempdir_session, tempdir_session_maxncpy) == 0) {
+      if (BLI_dir_create_recursive(tempdir_session) && BLI_is_dir(tempdir_session)) {
+        BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
+        return; /* Success with attempt 2 */
+      }
+    }
+#else
+    if (mkdtemp(tempdir_session) != nullptr) {
+      if (BLI_is_dir(tempdir_session)) {
+        BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
+
+        return; /* Success with attempt 2 */
+      }
+    }
+#endif
+  }
+  tempdir_session[0] = '\0';
+
+    // Attempt 3: Use tempdir/blender_sessions directly, this might be problematic with other blender instances
+    // but if the other 2 attempts failes this will probably fail too
+
+    if (strlen(sessions_subdir_path) + 1 <= tempdir_session_maxncpy) {
+
+      BLI_strncpy(tempdir_session, sessions_subdir_path, tempdir_session_maxncpy);
+      BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy); // slash is already ensured but but just in case
+      return; /* Success with attempt 3 */
+    }
+  }
+
+  // if everything fails, maybe blender doesnt have permission or something. just try the os temp path
+  CLOG_WARN(&LOG,
+  "'%s' is not usable, please change it in Preferences > File Paths > Temporary Files or ensure Blender has enough permissions",
+            tempdir);
+
+  if (create_session_in_os_temp(tempdir_session, tempdir_session_maxncpy)) {
+    return;
+  }
 
   CLOG_WARN(&LOG,
-            "Could not generate a temp file name for '%s', falling to '%s'",
-            tempdir,
-            os_tempdir);
+             "Session temp creation failed. please change the temp path in Preferences > File Paths > Temporary Files"
 
-  BLI_strncpy(tempdir_session, os_tempdir, tempdir_session_maxncpy);
-  BLI_path_slash_ensure(tempdir_session, tempdir_session_maxncpy);
+);
 }
 
 void BKE_tempdir_init(const char *userdir)
