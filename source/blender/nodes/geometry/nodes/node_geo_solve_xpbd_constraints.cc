@@ -134,7 +134,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Old Position").field_on({geometry_in}).hide_value();
   b.add_input<decl::Rotation>("Old Rotation").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Position")
-      .implicit_field_on(implicit_field_inputs::position, {geometry_in});
+      .implicit_field_on(NODE_DEFAULT_INPUT_POSITION_FIELD, {geometry_in});
   b.add_output<decl::Vector>("Position").field_on({geometry_out}).align_with_previous();
   b.add_input<decl::Rotation>("Rotation").field_on({geometry_in}).hide_value();
   b.add_output<decl::Rotation>("Rotation").field_on({geometry_out}).align_with_previous();
@@ -176,7 +176,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "solver_method", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "solver_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void output_solver_matrix(const Eigen::SparseMatrix<float> &matrix,
@@ -555,7 +555,7 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
   eval_params.inv_delta_time = inv_delta_time;
   eval_params.inv_delta_time_squared = inv_delta_time_squared;
   eval_params.error_message_add = [params](const StringRef message) {
-    params.error_message_add(geo_eval_log::NodeWarningType::Warning, message);
+    params.error_message_add(NodeWarningType::Warning, message);
   };
   eval_params.debug_check = debug_check;
   if (use_debug_steps) {

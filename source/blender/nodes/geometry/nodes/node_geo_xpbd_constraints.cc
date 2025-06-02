@@ -861,7 +861,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
   b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
   b.add_input<decl::Vector>("Rest Position")
-      .implicit_field_on_all(implicit_field_inputs::position)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description("Rest position defining the edge length of constraints");
 
   b.add_output<decl::Geometry>("Constraints");

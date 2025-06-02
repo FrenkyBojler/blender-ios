@@ -43,7 +43,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   const int geometry_in = b.add_input<decl::Geometry>("Geometry").index();
 
   b.add_input<decl::Vector>("Position")
-      .implicit_field_on(implicit_field_inputs::position, {geometry_in});
+      .implicit_field_on(NODE_DEFAULT_INPUT_POSITION_FIELD, {geometry_in});
   b.add_input<decl::Rotation>("Rotation").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Velocity").field_on({geometry_in}).hide_value();
   b.add_input<decl::Vector>("Angular Velocity").field_on({geometry_in}).hide_value();
@@ -66,7 +66,7 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
   eval_params.inv_delta_time = 0.0f;
   eval_params.inv_delta_time_squared = 0.0f;
   eval_params.error_message_add = [params](const StringRef message) {
-    params.error_message_add(geo_eval_log::NodeWarningType::Warning, message);
+    params.error_message_add(NodeWarningType::Warning, message);
   };
   eval_params.debug_check = false;
 
