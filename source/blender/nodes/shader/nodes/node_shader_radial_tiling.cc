@@ -110,7 +110,6 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
 {
   (void)ntree;
 
-  bNodeSocket *inVectorSock = bke::node_find_socket(*node, SOCK_IN, "Vector");
   bNodeSocket *inR_gonSidesSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Sides");
   bNodeSocket *inR_gonRoundnessSock = bke::node_find_socket(*node, SOCK_IN, "R_gon Roundness");
 
@@ -119,7 +118,6 @@ static void node_shader_update_radial_tiling(bNodeTree *ntree, bNode *node)
   bNodeSocket *outX_axisToAngleBisectorAngleSock = bke::node_find_socket(
       *node, SOCK_OUT, "X_axis To Angle Bisector Angle");
 
-  node_sock_label(inVectorSock, "Vector 2D");
   node_sock_label(inR_gonSidesSock, "Segments");
   node_sock_label(inR_gonRoundnessSock, "Roundness");
 

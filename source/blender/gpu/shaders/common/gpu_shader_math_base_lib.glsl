@@ -117,16 +117,6 @@ float safe_mod(float a, float b)
   return (b != 0.0f) ? mod(a, b) : 0.0f;
 }
 
-float floored_modulo(float a, float b)
-{
-  return a - floor(a / b) * b;
-}
-
-float safe_floored_modulo(float a, float b)
-{
-  return (b != 0.0) ? a - floor(a / b) * b : 0.0;
-}
-
 /**
  * A version of mod that behaves similar to C++ `std::modf`, and is safe such that it returns 0
  * when b is also 0.

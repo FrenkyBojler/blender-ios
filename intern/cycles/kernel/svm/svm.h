@@ -408,7 +408,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_normal_map(kg, sd, stack, node);
       break;
       SVM_CASE(NODE_RADIAL_TILING)
-      offset = svm_node_radial_tiling<node_feature_mask>(kg, sd, stack, node, offset);
+      offset = svm_node_radial_tiling<node_feature_mask>(stack, node, offset);
       break;
       SVM_CASE(NODE_INVERT)
       svm_node_invert(stack, node.y, node.z, node.w);

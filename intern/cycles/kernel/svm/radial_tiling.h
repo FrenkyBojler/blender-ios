@@ -26,8 +26,7 @@ struct RoundedPolygonStackOffsets {
 };
 
 template<uint node_feature_mask>
-ccl_device_noinline int svm_node_radial_tiling(
-    KernelGlobals kg, ccl_private ShaderData *sd, ccl_private float *stack, uint4 node, int offset)
+ccl_device_noinline int svm_node_radial_tiling(ccl_private float *stack, uint4 node, int offset)
 {
   RoundedPolygonStackOffsets so;
 
