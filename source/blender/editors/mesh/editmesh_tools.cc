@@ -1063,21 +1063,23 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
       }
     }
     else {
+      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
+      BMIter iter;
+      BMEdge *eed;
+
       for (int axis = 0; axis < 3; axis++) {
         const int axis_flag = (ME_SYMMETRY_X << axis);
         if ((me->symmetry & axis_flag) == 0) {
           continue;
         }
-        const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
 
         EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
 
-        BMIter iter;
-        BMEdge *eed;
         BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
           if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
             continue;
           }
+
           if (clear) {
             BM_elem_flag_disable(eed, BM_ELEM_SEAM);
           }
@@ -1099,11 +1101,9 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
         EDBM_verts_mirror_cache_end(em);
       }
     }
-  }
 
-  ED_uvedit_live_unwrap(scene, objects);
+    ED_uvedit_live_unwrap(scene, objects);
 
-  for (Object *obedit : objects) {
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
@@ -2135,7 +2135,8 @@ static bool flip_custom_normals(BMesh *bm, BMLoopNorEditDataArray *lnors_ed_arr)
   BM_lnorspace_update(bm);
 
   /* We need to recreate the custom normal array because the clnors_data will
-   * be mangled because we swapped the loops around when we flipped the faces. */
+   * be mangled because we swapped the loops around when we flipped the faces.
+   */
   BMLoopNorEditDataArray *lnors_ed_arr_new_full = BM_loop_normal_editdata_array_init(bm, true);
 
   {
