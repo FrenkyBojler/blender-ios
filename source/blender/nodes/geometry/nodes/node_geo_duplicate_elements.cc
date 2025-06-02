@@ -1115,20 +1115,16 @@ static void duplicate_instances(GeometrySet &geometry_set,
 
   std::unique_ptr<bke::Instances> dst_instances = std::make_unique<bke::Instances>();
 
-  /* TODO: Make IndexMask from non-zero groups. Make VectorSet of handler indices. */
-  /* TODO: If IndexMask of non-zero groups is full then just copy handlers. */
   dst_instances->resize(duplicates.total_size());
-  const Span<int> src_handler_indices = src_instances.reference_handles();
-  const Span<bke::InstanceReference> src_handlers = src_instances.references();
-  selection.foreach_index([&](const int src_index, const int dst_index) {
-    const IndexRange range = duplicates[dst_index];
+  selection.foreach_index([&](const int i_src, const int i_dst) {
+    const IndexRange range = duplicates[i_dst];
     if (range.is_empty()) {
       return;
     }
-    const int src_handle = src_handler_indices[src_index];
-    const bke::InstanceReference src_reference = src_handlers[src_handle];
-    const int dst_handle = dst_instances->add_reference(src_reference);
-    dst_instances->reference_handles_for_write().slice(range).fill(dst_handle);
+    const int old_handle = src_instances.reference_handles()[i_src];
+    const bke::InstanceReference reference = src_instances.references()[old_handle];
+    const int new_handle = dst_instances->add_reference(reference);
+    dst_instances->reference_handles_for_write().slice(range).fill(new_handle);
   });
 
   bke::gather_attributes_to_groups(
