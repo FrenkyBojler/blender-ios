@@ -150,7 +150,7 @@ static void rna_uiItemR(uiLayout *layout,
     flag |= UI_ITEM_R_CHECKBOX_INVERT;
   }
 
-  uiItemFullR(layout, ptr, prop, index, 0, flag, text, icon, placeholder_str);
+  layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
 }
 
 static void rna_uiItemR_with_popover(uiLayout *layout,
@@ -376,9 +376,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   const float prev_weight = uiLayoutGetSearchWeight(layout);
   uiLayoutSetSearchWeight(layout, search_weight);
 
-  PointerRNA opptr;
-  uiItemFullO_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, &opptr);
+  PointerRNA opptr = layout->op(ot, text, icon, uiLayoutGetOperatorContext(layout), flag);
 
   uiLayoutSetSearchWeight(layout, prev_weight);
   return opptr;
@@ -417,7 +415,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
 
   PointerRNA opptr;
   uiItemFullOMenuHold_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, menu, &opptr);
+      layout, ot, text, icon, uiLayoutGetOperatorContext(layout), flag, menu, &opptr);
   return opptr;
 }
 
@@ -470,7 +468,7 @@ static void rna_uiItemL(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemL(layout, text.value_or(""), icon);
+  layout->label(text.value_or(""), icon);
 }
 
 static void rna_uiItemM(uiLayout *layout,
@@ -489,7 +487,7 @@ static void rna_uiItemM(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemM(layout, menuname, text, icon);
+  layout->menu(menuname, text, icon);
 }
 
 static void rna_uiItemM_contents(uiLayout *layout, const char *menuname)
@@ -543,7 +541,7 @@ static void rna_uiItemProgress(uiLayout *layout,
 
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 {
-  uiItemS_ex(layout, factor, LayoutSeparatorType(type));
+  layout->separator(factor, LayoutSeparatorType(type));
 }
 
 static void rna_uiTemplateID(uiLayout *layout,
@@ -867,6 +865,16 @@ static const EnumPropertyItem *rna_uiTemplateAssetView_filter_id_types_itemf(
   return items;
 }
 
+static uiLayout *rna_uiLayoutBox(uiLayout *layout)
+{
+  return &layout->box();
+}
+
+static uiLayout *rna_uiLayoutSplit(uiLayout *layout, float factor, bool align)
+{
+  return &layout->split(factor, align);
+}
+
 static uiLayout *rna_uiLayoutRowWithHeading(
     uiLayout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
 {
@@ -900,6 +908,11 @@ static uiLayout *rna_uiLayoutGridFlow(uiLayout *layout,
   return &layout->grid_flow(row_major, columns_len, even_columns, even_rows, align);
 }
 
+static uiLayout *rna_uiLayoutMenuPie(uiLayout *layout)
+{
+  return &layout->menu_pie();
+}
+
 void rna_uiLayoutPanelProp(uiLayout *layout,
                            bContext *C,
                            ReportList *reports,
@@ -916,7 +929,7 @@ void rna_uiLayoutPanelProp(uiLayout *layout,
     return;
   }
 
-  PanelLayout panel_layout = uiLayoutPanelProp(C, layout, data, property);
+  PanelLayout panel_layout = layout->panel_prop(C, data, property);
   *r_layout_header = panel_layout.header;
   *r_layout_body = panel_layout.body;
 }
@@ -936,7 +949,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
     *r_layout_body = nullptr;
     return;
   }
-  PanelLayout panel_layout = uiLayoutPanel(C, layout, idname, default_closed);
+  PanelLayout panel_layout = layout->panel(C, idname, default_closed);
   *r_layout_header = panel_layout.header;
   *r_layout_body = panel_layout.body;
 }
@@ -1367,7 +1380,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_return(func, parm);
 
   /* box layout */
-  func = RNA_def_function(srna, "box", "uiLayoutBox");
+  func = RNA_def_function(srna, "box", "rna_uiLayoutBox");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_function_ui_description(func,
@@ -1375,7 +1388,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                                   "under each other in a column and are surrounded by a box)");
 
   /* split layout */
-  func = RNA_def_function(srna, "split", "uiLayoutSplit");
+  func = RNA_def_function(srna, "split", "rna_uiLayoutSplit");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_float(func,
@@ -1390,7 +1403,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
   /* radial/pie layout */
-  func = RNA_def_function(srna, "menu_pie", "uiLayoutRadial");
+  func = RNA_def_function(srna, "menu_pie", "rna_uiLayoutMenuPie");
   parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
   RNA_def_function_return(func, parm);
   RNA_def_function_ui_description(func,
@@ -1595,63 +1608,6 @@ void RNA_api_ui_layout(StructRNA *srna)
       func, "properties", "OperatorProperties", "", "Operator properties to fill in");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_return(func, parm);
-
-  /* useful in C but not in python */
-#  if 0
-
-  func = RNA_def_function(srna, "operator_enum_single", "uiItemEnumO_string");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "value", nullptr, 0, "", "Enum property value");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_boolean", "uiItemBooleanO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_boolean(
-      func, "value", false, "", "Value of the property to call the operator with");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_int", "uiItemIntO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func,
-                     "value",
-                     0,
-                     INT_MIN,
-                     INT_MAX,
-                     "",
-                     "Value of the property to call the operator with",
-                     INT_MIN,
-                     INT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_float", "uiItemFloatO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_float(func,
-                       "value",
-                       0,
-                       -FLT_MAX,
-                       FLT_MAX,
-                       "",
-                       "Value of the property to call the operator with",
-                       -FLT_MAX,
-                       FLT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_string", "uiItemStringO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(
-      func, "value", nullptr, 0, "", "Value of the property to call the operator with");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-#  endif
 
   func = RNA_def_function(srna, "label", "rna_uiItemL");
   RNA_def_function_ui_description(func, "Item. Displays text and/or icon in the layout.");
