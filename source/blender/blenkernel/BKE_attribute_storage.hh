@@ -141,6 +141,16 @@ class AttributeStorage : public ::AttributeStorage {
   void foreach_with_stop(FunctionRef<bool(Attribute &)> fn);
   void foreach_with_stop(FunctionRef<bool(const Attribute &)> fn) const;
 
+  /** Return the number of attributes. */
+  int count() const;
+
+  /** Return the attribute at the given index. */
+  Attribute &at_index(int index);
+  const Attribute &at_index(int index) const;
+
+  /** Return the index of the attribute with the given name, or -1 if not found. */
+  int index_of(StringRef name) const;
+
   /**
    * Try to find the attribute with a given name. The non-const overload does not make the
    * attribute data itself mutable.

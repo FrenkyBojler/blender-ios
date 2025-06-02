@@ -823,17 +823,10 @@ std::optional<blender::StringRefNull> BKE_attributes_active_name_get(AttributeOw
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::AttributeStorage &storage = pointcloud.attribute_storage.wrap();
-    int index = 0;
-    bke::Attribute *active_attr = nullptr;
-    storage.foreach_with_stop([&](bke::Attribute &attr) {
-      if (index == active_index) {
-        active_attr = &attr;
-        return false;
-      }
-      index++;
-      return true;
-    });
-    return active_attr ? std::make_optional(active_attr->name()) : std::nullopt;
+    if (active_index >= storage.count()) {
+      return std::nullopt;
+    }
+    return storage.at_index(active_index).name();
   }
 
   if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
@@ -872,16 +865,7 @@ void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
   if (owner.type() == AttributeOwnerType::PointCloud) {
     PointCloud &pointcloud = *owner.get_pointcloud();
     bke::AttributeStorage &attributes = pointcloud.attribute_storage.wrap();
-    int index = 0;
-    attributes.foreach_with_stop([&](bke::Attribute &attr) {
-      if (attr.name() == name) {
-        pointcloud.attributes_active_index = index;
-        return false;
-      }
-      index++;
-      return true;
-    });
-    *BKE_attributes_active_index_p(owner) = index;
+    *BKE_attributes_active_index_p(owner) = attributes.index_of(name);
     return;
   }
 

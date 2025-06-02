@@ -219,6 +219,25 @@ AttributeStorage::~AttributeStorage()
   MEM_delete(this->runtime);
 }
 
+int AttributeStorage::count() const
+{
+  return this->runtime->attributes.size();
+}
+
+Attribute &AttributeStorage::at_index(int index)
+{
+  return *this->runtime->attributes[index];
+}
+const Attribute &AttributeStorage::at_index(int index) const
+{
+  return *this->runtime->attributes[index];
+}
+
+int AttributeStorage::index_of(StringRef name) const
+{
+  return this->runtime->attributes.index_of_try_as(name);
+}
+
 const Attribute *AttributeStorage::lookup(const StringRef name) const
 {
   const std::unique_ptr<blender::bke::Attribute> *attribute =
