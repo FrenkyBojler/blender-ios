@@ -748,13 +748,13 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Inactive",
-      "Socket is grayed out because it has been detected to not have any effect");
+      "Socket is grayed out because it has been detected to not have any effect on the output");
 
   prop = RNA_def_property(srna, "is_icon_visible", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(prop, "rna_NodeSocket_is_icon_visible_get", nullptr);
   RNA_def_property_ui_text(
-      prop, "Icon Visible", "Socket is drawn as interactible icon in the node editor");
+      prop, "Icon Visible", "Socket is drawn as interactive icon in the node editor");
 
   prop = RNA_def_property(srna, "hide_value", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SOCK_HIDE_VALUE);
