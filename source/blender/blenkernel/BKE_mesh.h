@@ -194,7 +194,10 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
  * Move data from a mesh outside of the main data-base into a mesh in the data-base.
  * Takes ownership of the source mesh.
  */
-void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob);
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src,
+                             Mesh *mesh_dst,
+                             Object *ob,
+                             bool process_shape_keys = true);
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb);
 
 /* Vertex level transformations & checks (no evaluated mesh). */
