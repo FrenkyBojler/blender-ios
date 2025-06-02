@@ -217,6 +217,11 @@ string HIPDevice::compile_kernel_get_common_cflags(const uint kernel_features)
     cflags += " -D__KERNEL_FEATURES__=" + to_string(kernel_features);
   }
 
+  const std::string arch = hipDeviceArch(hipDevId);
+  if (arch.substr(0, 3) == "gfx") {
+    cflags += " -DCCL_HIP_AMD_GFX_ARCH=" + arch.substr(3);
+  }
+
   const char *extra_cflags = getenv("CYCLES_HIP_EXTRA_CFLAGS");
   if (extra_cflags) {
     cflags += string(" ") + string(extra_cflags);
@@ -267,10 +272,6 @@ string HIPDevice::compile_kernel(const uint kernel_features, const char *name, c
     options.append(
         " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
         "-fgpu-flush-denormals-to-zero -ffp-contract=off");
-  }
-
-  if (arch == "gfx1150" || arch == "gfx1151") {
-    options.append("-DGPU_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256");
   }
 
 #  ifndef NDEBUG

@@ -231,27 +231,20 @@ string HIPRTDevice::compile_kernel(const uint kernel_features, const char *name,
         " -fhip-fp32-correctly-rounded-divide-sqrt -fno-gpu-approx-transcendentals "
         "-fgpu-flush-denormals-to-zero -ffp-contract=off");
   }
-#  ifdef _WIN32
-  if (arch == "gfx1200" || arch == "gfx1201") {
-    options.append("-DGPU_HIPRT_KERNEL_BLOCK_NUM_THREADS_SHADE_SURFACE=256");
-  }
-#  endif
-#  ifdef WITH_NANOVDB
-  options.append(" -D WITH_NANOVDB");
-#  endif
 
   printf("Compiling  %s and caching to %s", source_path.c_str(), fatbin.c_str());
 
   double starttime = time_dt();
 
-  string compile_command = string_printf("%s %s -I %s -I %s --%s %s -o \"%s\"",
+  string compile_command = string_printf("%s %s -I %s -I %s --%s %s -o \"%s\" %s",
                                          hipcc,
                                          options.c_str(),
                                          include_path.c_str(),
                                          hiprt_include_path.c_str(),
                                          kernel_ext,
                                          source_path.c_str(),
-                                         fatbin.c_str());
+                                         fatbin.c_str(),
+                                         common_cflags.c_str());
 
   printf("Compiling %sHIP kernel ...\n%s\n",
          (use_adaptive_compilation()) ? "adaptive " : "",
