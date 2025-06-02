@@ -177,6 +177,8 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
   std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
+  /** TODO: Use more persistent key. */
+  Map<int, nodes::StructureType> closure_socket_structure_types;
 
   /**
    * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this

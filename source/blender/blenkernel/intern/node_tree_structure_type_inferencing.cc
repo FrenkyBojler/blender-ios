@@ -9,6 +9,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_tree_zones.hh"
 
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_node_types.h"
@@ -107,6 +108,24 @@ static DataRequirement merge(const DataRequirement a, const DataRequirement b)
   return DataRequirement::Invalid;
 }
 
+static StructureType data_requirement_to_auto_structure_type(const DataRequirement requirement)
+{
+  switch (requirement) {
+    case DataRequirement::None:
+      return StructureType::Dynamic;
+    case DataRequirement::Field:
+      return StructureType::Field;
+    case DataRequirement::Single:
+      return StructureType::Single;
+    case DataRequirement::Grid:
+      return StructureType::Grid;
+    case DataRequirement::Invalid:
+      return StructureType::Dynamic;
+  }
+  BLI_assert_unreachable();
+  return StructureType::Dynamic;
+}
+
 static void init_input_requirements(const bNodeTree &tree,
                                     MutableSpan<DataRequirement> input_requirements)
 {
@@ -115,6 +134,12 @@ static void init_input_requirements(const bNodeTree &tree,
     const bNodeSocket &socket = *input_sockets[i];
     const nodes::SocketDeclaration *declaration = socket.runtime->declaration;
     if (!declaration) {
+      input_requirements[i] = DataRequirement::None;
+      continue;
+    }
+    const bNode &node = socket.owner_node();
+    if (ELEM(node.type_legacy, NODE_GROUP_OUTPUT, GEO_NODE_CLOSURE_OUTPUT)) {
+      /* Inputs of these nodes have no requirements. */
       input_requirements[i] = DataRequirement::None;
       continue;
     }
@@ -180,22 +205,39 @@ static void store_group_input_structure_types(const bNodeTree &tree,
     }
 
     const DataRequirement requirement = interface_requirements[i];
-    switch (requirement) {
-      case DataRequirement::None:
-        derived_interface.inputs[i] = StructureType::Dynamic;
-        break;
-      case DataRequirement::Field:
-        derived_interface.inputs[i] = StructureType::Field;
-        break;
-      case DataRequirement::Single:
-        derived_interface.inputs[i] = StructureType::Single;
-        break;
-      case DataRequirement::Grid:
-        derived_interface.inputs[i] = StructureType::Grid;
-        break;
-      case DataRequirement::Invalid:
-        derived_interface.inputs[i] = StructureType::Dynamic;
-        break;
+    derived_interface.inputs[i] = data_requirement_to_auto_structure_type(requirement);
+  }
+}
+
+static void store_closure_input_structure_types(const bNodeTree &tree,
+                                                const Span<DataRequirement> input_requirements,
+                                                MutableSpan<StructureType> structure_types)
+{
+  const bNodeTreeZones *zones = tree.zones();
+  if (!zones) {
+    return;
+  }
+  for (const bNodeTreeZone *zone : zones->zones) {
+    const bNode *input_node = zone->input_node();
+    const bNode *output_node = zone->output_node();
+    if (!input_node || !output_node) {
+      continue;
+    }
+    if (!output_node->is_type("GeometryNodeClosureOutput")) {
+      continue;
+    }
+    const auto *storage = static_cast<const NodeGeometryClosureOutput *>(output_node->storage);
+    for (const int i : IndexRange(storage->input_items.items_num)) {
+      const NodeGeometryClosureInputItem &item = storage->input_items.items[i];
+      const bNodeSocket &socket = input_node->output_socket(i);
+      StructureType &structure_type = structure_types[socket.index_in_tree()];
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        structure_type = StructureType(item.structure_type);
+        continue;
+      }
+      const DataRequirement requirement = calc_output_socket_requirement(socket,
+                                                                         input_requirements);
+      structure_type = data_requirement_to_auto_structure_type(requirement);
     }
   }
 }
@@ -551,6 +593,10 @@ static void propagate_left_to_right(const bNodeTree &tree,
         }
         continue;
       }
+      if (node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
+        /* Initialized in #store_closure_input_structure_types already. */
+        continue;
+      }
 
       for (const bNodeSocket *input : input_sockets) {
         if (!input->is_available()) {
@@ -707,8 +753,32 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
   init_input_requirements(tree, data_requirements);
   propagate_right_to_left(tree, node_interfaces, data_requirements);
   store_group_input_structure_types(tree, data_requirements, *derived_interface);
+  store_closure_input_structure_types(tree, data_requirements, structure_types);
   propagate_left_to_right(tree, node_interfaces, derived_interface->inputs, structure_types);
   store_group_output_structure_types(tree, node_interfaces, structure_types, *derived_interface);
+
+  const bNodeTreeZones *zones = tree.zones();
+  tree.runtime->closure_socket_structure_types.clear();
+  if (zones) {
+    for (const bNodeTreeZone *zone : zones->zones) {
+      const bNode *input_node = zone->input_node();
+      const bNode *output_node = zone->output_node();
+      if (!input_node || !output_node) {
+        continue;
+      }
+      if (!output_node->is_type("GeometryNodeClosureOutput")) {
+        continue;
+      }
+      for (const bNodeSocket *socket : input_node->output_sockets().drop_back(1)) {
+        tree.runtime->closure_socket_structure_types.add(socket->index_in_tree(),
+                                                         structure_types[socket->index_in_tree()]);
+      }
+      for (const bNodeSocket *socket : output_node->input_sockets().drop_back(1)) {
+        tree.runtime->closure_socket_structure_types.add(socket->index_in_tree(),
+                                                         structure_types[socket->index_in_tree()]);
+      }
+    }
+  }
 
   return derived_interface;
 }
