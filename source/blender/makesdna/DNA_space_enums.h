@@ -855,7 +855,7 @@ typedef enum eSpaceNode_Flag {
 enum {
   /** All gizmos. */
   SNODE_GIZMO_HIDE = (1 << 0),
-  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 2),
+  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
 };
 
 /** #SpaceNode.texfrom */
@@ -978,6 +978,7 @@ typedef enum eSpaceSpreadsheet_Flag {
    * versioning first.
    */
   SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED_LEGACY = (1 << 1),
+  SPREADSHEET_FLAG_SHOW_INTERNAL_ATTRIBUTES = (1 << 2),
 } eSpaceSpreadsheet_Flag;
 
 typedef enum eSpaceSpreadsheet_FilterFlag {
