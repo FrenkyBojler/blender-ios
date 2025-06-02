@@ -26,12 +26,15 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   if (curves_selection.is_empty()) {
     return src_curves;
   }
+
+  BLI_assert(thresholds.size() == src_curves.curves_num());
+  BLI_assert(corners.size() == src_curves.points_num());
+
   const OffsetIndices src_offsets = src_curves.offsets();
   const Span<float3> src_positions = src_curves.positions();
   const VArray<bool> src_cyclic = src_curves.cyclic();
 
   /* Build boolean array that marks all the corners. */
-  BLI_assert(src_offsets.total_size() == corners.size());
   Array<bool> is_corner(src_curves.points_num(), false);
   if (!corners.is_single() || corners.get_internal_single() == true) {
     IndexMaskMemory memory;

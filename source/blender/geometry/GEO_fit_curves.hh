@@ -8,8 +8,29 @@
 
 namespace blender::geometry {
 
-enum class FitMethod { Refit, Split };
+enum class FitMethod {
+  /**
+   * Iteratively removes knots/control points with the least error starting with a dense curve.
+   */
+  Refit,
+  /**
+   * Uses a least squares solver to recursively find the control points.
+   */
+  Split
+};
 
+/**
+ * Fit the selected curves to bézier curves.
+ *
+ * \param src_curves: The input curves.
+ * \param curve_selection: A selection of curves to fit. The selected curves will be replaced by
+ * the fitted bézier curves and the unselected curves are copied to the output geometry.
+ * \param thresholds: A error threshold (fit distance) for each input curve.
+ * \param corners: Boolean value for each input point. When this is true, the point is treated as a
+ * corner in the curve fitting. The resulting bézier curve will include this point and the handles
+ * will be "free", resulting in a sharp corner.
+ * \param method: The fitting algorithm to use. See #FitMethod.
+ */
 bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                const IndexMask &curve_selection,
                                const VArray<float> &thresholds,
