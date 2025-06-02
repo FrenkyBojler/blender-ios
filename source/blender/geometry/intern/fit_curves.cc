@@ -282,8 +282,6 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   dst_curves.curve_types_for_write().copy_from(all_curve_types);
   dst_curves.update_curve_types();
 
-  dst_curves.tag_topology_changed();
-
   bke::gather_attributes(
       src_curves.attributes(),
       bke::AttrDomain::Point,
