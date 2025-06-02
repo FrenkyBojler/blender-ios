@@ -191,7 +191,7 @@ static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
     case bke::AttrStorageType::Array: {
       const auto &data = std::get<bke::Attribute::ArrayData>(attr->data());
       const Span span(static_cast<const T *>(data.data), data.size);
-      BLI_assert(array_data->size == pointcloud.totpoint);
+      BLI_assert(data.size == pointcloud.totpoint);
       return VArray<T>::ForSpan(span);
     }
     case bke::AttrStorageType::Single: {
