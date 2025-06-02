@@ -17,13 +17,13 @@ extern "C" {
 namespace blender::geometry {
 
 bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
-                               const IndexMask &curves_selection,
+                               const IndexMask &curve_selection,
                                const VArray<float> &thresholds,
                                const VArray<bool> &corners,
                                const FitMethod method,
                                const bke::AttributeFilter &attribute_filter)
 {
-  if (curves_selection.is_empty()) {
+  if (curve_selection.is_empty()) {
     return src_curves;
   }
 
@@ -38,14 +38,13 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   Array<bool> is_corner(src_curves.points_num(), false);
   if (!corners.is_single() || corners.get_internal_single() == true) {
     IndexMaskMemory memory;
-    const IndexMask point_selection = IndexMask::from_ranges(
-        src_offsets, curves_selection, memory);
+    const IndexMask point_selection = IndexMask::from_ranges(src_offsets, curve_selection, memory);
     corners.materialize(point_selection, is_corner.as_mutable_span());
   }
 
   IndexMaskMemory memory;
-  const IndexMask unselected_curves = curves_selection.complement(src_curves.curves_range(),
-                                                                  memory);
+  const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
+                                                                 memory);
 
   /* Add one at the end so we can accumulate the sizes to offsets later. */
   Array<int> all_curve_sizes(src_curves.curves_num() + 1);
@@ -54,15 +53,15 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   Array<int8_t> all_curve_types(src_curves.curves_num());
   src_curves.curve_types().materialize(all_curve_types.as_mutable_span());
 
-  Array<Vector<float3>> left_handles_per_curve(curves_selection.size());
-  Array<Vector<float3>> control_points_per_curve(curves_selection.size());
-  Array<Vector<float3>> right_handles_per_curve(curves_selection.size());
-  Array<Vector<int8_t>> left_handle_type_per_curve(curves_selection.size());
-  Array<Vector<int8_t>> right_handle_type_per_curve(curves_selection.size());
-  Array<Vector<int>> old_to_new_per_curve(curves_selection.size());
+  Array<Vector<float3>> left_handles_per_curve(curve_selection.size());
+  Array<Vector<float3>> control_points_per_curve(curve_selection.size());
+  Array<Vector<float3>> right_handles_per_curve(curve_selection.size());
+  Array<Vector<int8_t>> left_handle_type_per_curve(curve_selection.size());
+  Array<Vector<int8_t>> right_handle_type_per_curve(curve_selection.size());
+  Array<Vector<int>> old_to_new_per_curve(curve_selection.size());
 
   std::atomic<bool> success = false;
-  curves_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i, const int64_t pos) {
+  curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange points = src_offsets[curve_i];
     const Span<float3> curve_positions = src_positions.slice(points);
     const bool use_cyclic = src_cyclic[curve_i];
@@ -262,7 +261,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   });
 
   /* Now copy the data of the newly fitted curves. */
-  curves_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange dst_points = dst_points_by_curve[curve_i];
 
     dst_control_point_positions.slice(dst_points)
