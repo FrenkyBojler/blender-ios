@@ -95,7 +95,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     output.propagate_all();
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -450,6 +450,7 @@ static void register_node()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
+  ntype.ignore_inferred_input_socket_visibility = true;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   ntype.internally_linked_input = node_internally_linked_input;
@@ -479,7 +480,6 @@ std::unique_ptr<LazyFunction> get_menu_switch_node_socket_usage_lazy_function(co
 }
 
 StructRNA *MenuSwitchItemsAccessor::item_srna = &RNA_NodeEnumItem;
-int MenuSwitchItemsAccessor::node_type = GEO_NODE_MENU_SWITCH;
 
 void MenuSwitchItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

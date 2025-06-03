@@ -216,10 +216,10 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node) {
+  if (!zone->output_node_id) {
     return;
   }
-  bNode &output_node = const_cast<bNode &>(*zone->output_node);
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
 
   BakeDrawContext ctx;
   if (!get_bake_draw_context(C, output_node, ctx)) {
@@ -287,8 +287,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const final
   {
-    const GeoNodesLFUserData &user_data = *static_cast<const GeoNodesLFUserData *>(
-        context.user_data);
+    const GeoNodesUserData &user_data = *static_cast<const GeoNodesUserData *>(context.user_data);
     if (!user_data.call_data->simulation_params) {
       this->set_default_outputs(params);
       return;
@@ -343,7 +342,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
   }
 
   void output_simulation_state_copy(lf::Params &params,
-                                    const GeoNodesLFUserData &user_data,
+                                    const GeoNodesUserData &user_data,
                                     bke::bake::BakeDataBlockMap *data_block_map,
                                     const bke::bake::BakeStateRef &zone_state) const
   {
@@ -364,7 +363,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
   }
 
   void output_simulation_state_move(lf::Params &params,
-                                    const GeoNodesLFUserData &user_data,
+                                    const GeoNodesUserData &user_data,
                                     bke::bake::BakeDataBlockMap *data_block_map,
                                     bke::bake::BakeState zone_state) const
   {
@@ -385,7 +384,7 @@ class LazyFunctionForSimulationInputNode final : public LazyFunction {
   }
 
   void pass_through(lf::Params &params,
-                    const GeoNodesLFUserData &user_data,
+                    const GeoNodesUserData &user_data,
                     bke::bake::BakeDataBlockMap *data_block_map) const
   {
     Array<void *> input_values(inputs_.size());
@@ -437,12 +436,15 @@ static void node_declare(NodeDeclarationBuilder &b)
                                &node_tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
-      input_decl.supports_field();
+      /* If it's below a geometry input it may be a field evaluated on that geometry. */
+      input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -560,13 +562,23 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
 
   void execute_impl(lf::Params &params, const lf::Context &context) const final
   {
-    GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    GeoNodesLocalUserData &local_user_data = *static_cast<GeoNodesLocalUserData *>(
+        context.local_user_data);
     if (!user_data.call_data->self_object()) {
       /* The self object is currently required for generating anonymous attribute names. */
       this->set_default_outputs(params);
       return;
     }
     if (!user_data.call_data->simulation_params) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {node_.identifier,
+             {NodeWarningType::Error, TIP_("Simulation zone is not supported")}});
+      }
       this->set_default_outputs(params);
       return;
     }
@@ -576,6 +588,15 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
       return;
     }
     if (found_id->is_in_loop || found_id->is_in_closure) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        const StringRefNull message = U.experimental.use_bundle_and_closure_nodes ?
+                                          TIP_("Simulation must not be in a loop or closure") :
+                                          TIP_("Simulation must not be in a loop");
+        tree_logger->node_warnings.append(*tree_logger->allocator,
+                                          {node_.identifier, {NodeWarningType::Error, message}});
+      }
       this->set_default_outputs(params);
       return;
     }
@@ -615,7 +636,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
   }
 
   void output_cached_state(lf::Params &params,
-                           GeoNodesLFUserData &user_data,
+                           GeoNodesUserData &user_data,
                            bke::bake::BakeDataBlockMap *data_block_map,
                            const bke::bake::BakeStateRef &state) const
   {
@@ -687,7 +708,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
   }
 
   void pass_through(lf::Params &params,
-                    GeoNodesLFUserData &user_data,
+                    GeoNodesUserData &user_data,
                     bke::bake::BakeDataBlockMap *data_block_map) const
   {
     std::optional<bke::bake::BakeState> bake_state = this->get_bake_state_from_inputs(
@@ -714,7 +735,7 @@ class LazyFunctionForSimulationOutputNode final : public LazyFunction {
   }
 
   void store_new_state(lf::Params &params,
-                       GeoNodesLFUserData &user_data,
+                       GeoNodesUserData &user_data,
                        bke::bake::BakeDataBlockMap *data_block_map,
                        const sim_output::StoreNewState &info) const
   {
@@ -786,12 +807,15 @@ static void node_declare(NodeDeclarationBuilder &b)
                                &tree->id, SimulationItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_fields(socket_type)) {
-      input_decl.supports_field();
+      /* If it's below a geometry input it may be a field evaluated on that geometry. */
+      input_decl.supports_field().structure_type(StructureType::Dynamic);
       output_decl.dependent_field({input_decl.index()});
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -992,7 +1016,6 @@ void mix_baked_data_item(const eNodeSocketDatatype socket_type,
 }
 
 StructRNA *SimulationItemsAccessor::item_srna = &RNA_SimulationStateItem;
-int SimulationItemsAccessor::node_type = GEO_NODE_SIMULATION_OUTPUT;
 
 void SimulationItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

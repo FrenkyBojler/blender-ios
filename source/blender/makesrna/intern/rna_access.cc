@@ -1210,6 +1210,11 @@ int RNA_property_tags(PropertyRNA *prop)
   return rna_ensure_property(prop)->tags;
 }
 
+PropertyPathTemplateType RNA_property_path_template_type(PropertyRNA *prop)
+{
+  return rna_ensure_property(prop)->path_template_type;
+}
+
 bool RNA_property_builtin(PropertyRNA *prop)
 {
   return (rna_ensure_property(prop)->flag_internal & PROP_INTERN_BUILTIN) != 0;
@@ -3650,7 +3655,10 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
 
   size_t length = size_t(RNA_property_string_length(ptr, prop));
   std::string string_ret{};
-  string_ret.reserve(length + 1);
+  /* Note: after `resize()` the underlying buffer is actually at least `length +
+   * 1` bytes long, because (since C++11) `std::string` guarantees a terminating
+   * null byte, but that is not considered part of the length. */
+  string_ret.resize(length);
 
   if (sprop->get) {
     sprop->get(ptr, string_ret.data());
@@ -4133,7 +4141,8 @@ void RNA_property_pointer_set(PointerRNA *ptr,
       IDP_ReplaceInGroup_ex(
           group,
           blender::bke::idprop::create(idprop->name, value, IDP_FLAG_STATIC_TYPE).release(),
-          idprop);
+          idprop,
+          0);
     }
   }
   /* IDProperty disguised as RNA property (and not yet defined in ptr). */

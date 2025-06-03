@@ -288,7 +288,7 @@ static const GPUVertFormat &position_format()
 static const GPUVertFormat &normal_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "nor", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "nor", GPU_COMP_I16, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
   return format;
 }
 
@@ -310,7 +310,7 @@ static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
                                       const StringRef name,
                                       const eCustomDataType data_type)
 {
-  GPUVertFormat format = draw::init_format_for_attribute(data_type, "data");
+  GPUVertFormat format = init_format_for_attribute(data_type, "data");
 
   bool is_render, is_active;
   const char *prefix = "a";

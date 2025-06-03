@@ -58,6 +58,7 @@
 #include "BKE_curves.h"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
+#include "BKE_deform.hh"
 #include "BKE_displist.h"
 #include "BKE_duplilist.hh"
 #include "BKE_effect.h"
@@ -725,7 +726,7 @@ void OBJECT_OT_add(wmOperatorType *ot)
   ot->description = "Add an object to the scene";
   ot->idname = "OBJECT_OT_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -790,7 +791,7 @@ void OBJECT_OT_lightprobe_add(wmOperatorType *ot)
   ot->description = "Add a light probe object";
   ot->idname = "OBJECT_OT_lightprobe_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = lightprobe_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -902,7 +903,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
   ot->description = "Add an empty object with a physics effector to the scene";
   ot->idname = "OBJECT_OT_effector_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = effector_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -962,7 +963,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
   ot->description = "Add a camera object to the scene";
   ot->idname = "OBJECT_OT_camera_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_camera_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1033,7 +1034,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
   ot->description = "Add an metaball object to the scene";
   ot->idname = "OBJECT_OT_metaball_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_metaball_add_exec;
   ot->poll = ED_operator_scene_editable;
@@ -1080,7 +1081,7 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
   ot->description = "Add a text object to the scene";
   ot->idname = "OBJECT_OT_text_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_add_text_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1153,7 +1154,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
   ot->description = "Add an armature object to the scene";
   ot->idname = "OBJECT_OT_armature_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_armature_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1196,7 +1197,7 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
   ot->description = "Add an empty object to the scene";
   ot->idname = "OBJECT_OT_empty_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_empty_add_exec;
   ot->poll = ED_operator_objectmode;
@@ -1321,7 +1322,7 @@ void OBJECT_OT_empty_image_add(wmOperatorType *ot)
   ot->description = "Add an empty image type to scene with data";
   ot->idname = "OBJECT_OT_empty_image_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_image_add_invoke;
   ot->exec = object_image_add_exec;
   ot->poll = object_image_add_poll;
@@ -1521,7 +1522,7 @@ void OBJECT_OT_grease_pencil_add(wmOperatorType *ot)
   ot->description = "Add a Grease Pencil object to the scene";
   ot->idname = "OBJECT_OT_grease_pencil_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_grease_pencil_add_exec;
   ot->invoke = object_grease_pencil_add_invoke;
   ot->poll = ED_operator_objectmode;
@@ -1626,7 +1627,7 @@ void OBJECT_OT_light_add(wmOperatorType *ot)
   ot->description = "Add a light object to the scene";
   ot->idname = "OBJECT_OT_light_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_light_add_exec;
   ot->poll = ED_operator_objectmode;
@@ -1763,7 +1764,7 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
   ot->description = "Add a collection instance";
   ot->idname = "OBJECT_OT_collection_instance_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_instance_add_invoke;
   ot->exec = collection_instance_add_exec;
   ot->poll = ED_operator_objectmode;
@@ -1865,7 +1866,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
   ot->description = "Add the dragged collection to the scene";
   ot->idname = "OBJECT_OT_collection_external_asset_drop";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_instance_add_invoke;
   ot->exec = collection_drop_exec;
   ot->poll = ED_operator_objectmode;
@@ -1944,7 +1945,7 @@ void OBJECT_OT_data_instance_add(wmOperatorType *ot)
   ot->description = "Add an object data instance";
   ot->idname = "OBJECT_OT_data_instance_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_add_drop_xy_generic_invoke;
   ot->exec = object_data_instance_add_exec;
   ot->poll = ED_operator_objectmode;
@@ -2010,7 +2011,7 @@ void OBJECT_OT_speaker_add(wmOperatorType *ot)
   ot->description = "Add a speaker object to the scene";
   ot->idname = "OBJECT_OT_speaker_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_speaker_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -2047,7 +2048,7 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
   ot->description = "Add a curves object with random curves to the scene";
   ot->idname = "OBJECT_OT_curves_random_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_curves_random_add_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -2319,7 +2320,7 @@ void OBJECT_OT_delete(wmOperatorType *ot)
   ot->description = "Delete selected objects";
   ot->idname = "OBJECT_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_delete_invoke;
   ot->exec = object_delete_exec;
   ot->poll = ED_operator_objectmode;
@@ -2711,7 +2712,7 @@ void OBJECT_OT_duplicates_make_real(wmOperatorType *ot)
   ot->description = "Make instanced objects attached to this object real";
   ot->idname = "OBJECT_OT_duplicates_make_real";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_duplicates_make_real_exec;
 
   ot->poll = ED_operator_objectmode;
@@ -3276,6 +3277,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     }
   });
 
+  BKE_defgroup_copy_list(&grease_pencil.vertex_group_names, &mesh_copied->vertex_group_names);
+
   curves.radius_for_write().fill(stroke_radius);
 
   drawing_line->strokes_for_write() = std::move(curves);
@@ -3620,7 +3623,7 @@ static Object *convert_font_to_curve_legacy_generic(Object *ob,
                         nullptr);
 
   newob->type = OB_CURVES_LEGACY;
-  cu->type = OB_CURVES_LEGACY;
+  cu->ob_type = OB_CURVES_LEGACY;
 
 #define CURVE_VFONT_CLEAR(vfont_member) \
   if (cu->vfont_member) { \
@@ -3697,6 +3700,42 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
   return curve_ob;
 }
 
+/* Currently neither Grease Pencil nor legacy curves supports per-stroke/curve fill attribute, thus
+ * the #fill argument applies on all strokes that are converted. */
+static void add_grease_pencil_materials_for_conversion(Main &bmain,
+                                                       ID &from_id,
+                                                       Object &gp_object,
+                                                       const bool use_fill)
+{
+  short *len_p = BKE_id_material_len_p(&from_id);
+  if (!len_p || *len_p == 0) {
+    return;
+  }
+  Material ***materials = BKE_id_material_array_p(&from_id);
+  if (!materials || !(*materials)) {
+    return;
+  }
+  for (short i = 0; i < *len_p; i++) {
+    const Material *orig_material = (*materials)[i];
+    const char *name = orig_material ? BKE_id_name(orig_material->id) : IFACE_("Empty Material");
+
+    Material *gp_material = BKE_grease_pencil_object_material_new(
+        &bmain, &gp_object, name, nullptr);
+
+    /* If the original object has this material slot but didn't assign any material, then we don't
+     * have anything to copy color information from. In those cases we still added an empty
+     * material to keep the material index matching. */
+    if (!orig_material) {
+      continue;
+    }
+
+    copy_v4_v4(gp_material->gp_style->fill_rgba, &orig_material->r);
+
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, !use_fill, GP_MATERIAL_STROKE_SHOW);
+    SET_FLAG_FROM_TEST(gp_material->gp_style->flag, use_fill, GP_MATERIAL_FILL_SHOW);
+  }
+}
+
 static Object *convert_font_to_grease_pencil(Base &base,
                                              ObjectConversionInfo &info,
                                              Base **r_new_base)
@@ -3727,6 +3766,10 @@ static Object *convert_font_to_grease_pencil(Base &base,
 
   curve_ob->data = grease_pencil;
   curve_ob->type = OB_GREASE_PENCIL;
+  curve_ob->totcol = grease_pencil->material_array_num;
+
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* We don't need the intermediate font/curve data ID any more. */
   BKE_id_delete(info.bmain, legacy_curve_id);
@@ -3828,6 +3871,18 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
 
   newob->data = grease_pencil;
   newob->type = OB_GREASE_PENCIL;
+
+  /* Some functions like #BKE_id_material_len_p still uses Object::totcol so this value must be in
+   * sync. */
+  newob->totcol = grease_pencil->material_array_num;
+
+  const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+
+  /* For some reason this must be called, otherwise evaluated id_cow will still be the original
+   * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
+   * specific conversion combination), not sure why. Ref: #138793 */
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
 
   BKE_id_free(nullptr, curves_nomain);
 
@@ -4225,7 +4280,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
   ot->description = "Convert selected objects to another type";
   ot->idname = "OBJECT_OT_convert";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_convert_exec;
   ot->poll = object_convert_poll;
@@ -4319,8 +4374,7 @@ static void object_add_duplicate_internal(Main *bmain,
     return;
   }
 
-  Object *obn = static_cast<Object *>(
-      ID_NEW_SET(ob, BKE_object_duplicate(bmain, ob, dupflag, duplicate_options)));
+  Object *obn = BKE_object_duplicate(bmain, ob, dupflag, duplicate_options);
   if (r_ob_new) {
     *r_ob_new = obn;
   }
@@ -4494,7 +4548,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
   ot->description = "Duplicate selected objects";
   ot->idname = "OBJECT_OT_duplicate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = duplicate_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -4612,7 +4666,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
   ot->description = "Add named object";
   ot->idname = "OBJECT_OT_add_named";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_add_drop_xy_generic_invoke;
   ot->exec = object_add_named_exec;
   ot->poll = ED_operator_objectmode_poll_msg;
@@ -4722,7 +4776,7 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
   ot->description = "Snap selected item(s) to the mouse location";
   ot->idname = "OBJECT_OT_transform_to_mouse";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_add_drop_xy_generic_invoke;
   ot->exec = object_transform_to_mouse_exec;
   ot->poll = ED_operator_objectmode_poll_msg;
@@ -4863,7 +4917,7 @@ void OBJECT_OT_join(wmOperatorType *ot)
   ot->description = "Join selected objects into active object";
   ot->idname = "OBJECT_OT_join";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_join_exec;
   ot->poll = object_join_poll;
 
