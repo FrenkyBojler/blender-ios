@@ -502,17 +502,21 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
   using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::PointCloud) {
+    PointCloud &pointcloud = *owner.get_pointcloud();
+    bke::MutableAttributeAccessor accessor = pointcloud.attributes_for_write();
+
     bke::Attribute *attr = ptr->data_as<bke::Attribute>();
+    const int domain_size = accessor.domain_size(attr->domain());
     const CPPType &type = bke::attribute_type_to_cpp_type(attr->data_type());
     switch (attr->storage_type()) {
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
-        rna_iterator_array_begin(iter, ptr, data.data, type.size, data.size, false, nullptr);
+        rna_iterator_array_begin(iter, ptr, data.data, type.size, domain_size, false, nullptr);
         break;
       }
       case bke::AttrStorageType::Single: {
         const auto &data = std::get<bke::Attribute::SingleData>(attr->data_for_write());
-        rna_iterator_array_begin(iter, ptr, data.value, type.size, 1, false, nullptr);
+        rna_iterator_array_begin(iter, ptr, data.value, 0, domain_size, false, nullptr);
         break;
       }
     }
@@ -536,13 +540,8 @@ static int rna_Attribute_data_length(PointerRNA *ptr)
   using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::PointCloud) {
-    bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-    if (auto *data = std::get_if<bke::Attribute::ArrayData>(&attr->data_for_write())) {
-      return data->size;
-    }
-    if (std::get_if<bke::Attribute::SingleData>(&attr->data_for_write())) {
-      return 1;
-    }
+    const PointCloud &pointcloud = *owner.get_pointcloud();
+    return pointcloud.totpoint;
   }
 
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
