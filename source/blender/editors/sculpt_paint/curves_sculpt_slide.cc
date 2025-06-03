@@ -81,7 +81,7 @@ struct SlideOperationExecutor {
   SlideOperation *self_ = nullptr;
   CurvesSculptCommonContext ctx_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -236,7 +236,8 @@ struct SlideOperationExecutor {
       return;
     }
     remember_stroke_position(
-        *ctx_.scene, math::transform_point(transforms_.curves_to_world, brush_3d->position_cu));
+        *curves_sculpt_,
+        math::transform_point(transforms_.curves_to_world, brush_3d->position_cu));
 
     const ReverseUVSampler reverse_uv_sampler_orig{surface_uv_map_orig_,
                                                    surface_corner_tris_orig_};

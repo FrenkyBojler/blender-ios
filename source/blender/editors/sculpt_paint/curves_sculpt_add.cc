@@ -92,7 +92,7 @@ struct AddOperationExecutor {
   VArraySpan<float2> surface_uv_map_eval_;
   bke::BVHTreeFromMesh surface_bvh_eval_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   const BrushCurvesSculptSettings *brush_settings_ = nullptr;
   int add_amount_;
@@ -241,7 +241,8 @@ struct AddOperationExecutor {
               curves_orig_->positions().slice(add_outputs.new_points_range)))
       {
         remember_stroke_position(
-            *ctx_.scene, math::transform_point(transforms_.curves_to_world, center_cu->center()));
+            *curves_sculpt_,
+            math::transform_point(transforms_.curves_to_world, center_cu->center()));
       }
     }
 

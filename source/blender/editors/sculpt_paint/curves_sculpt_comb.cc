@@ -78,7 +78,7 @@ struct CombOperationExecutor {
   CombOperation *self_ = nullptr;
   CurvesSculptCommonContext ctx_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -390,7 +390,7 @@ struct CombOperationExecutor {
     if (brush_3d.has_value()) {
       self_->brush_3d_ = *brush_3d;
       remember_stroke_position(
-          *ctx_.scene,
+          *curves_sculpt_,
           math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
     }
   }

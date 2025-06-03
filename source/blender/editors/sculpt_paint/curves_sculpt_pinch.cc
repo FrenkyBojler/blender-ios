@@ -68,7 +68,7 @@ struct PinchOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -118,7 +118,7 @@ struct PinchOperationExecutor {
                                                    brush_pos_re_,
                                                    brush_radius_base_re_);
         remember_stroke_position(
-            *ctx_.scene,
+            *curves_sculpt_,
             math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
       }
 

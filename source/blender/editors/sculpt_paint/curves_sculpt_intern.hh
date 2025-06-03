@@ -99,7 +99,7 @@ std::optional<CurvesBrush3D> sample_curves_3d_brush(const Depsgraph &depsgraph,
  * Updates the position of the stroke so that it can be used by the orbit-around-selection
  * navigation method.
  */
-void remember_stroke_position(Scene &scene, const float3 &brush_position_wo);
+void remember_stroke_position(CurvesSculpt &curves_sculpt, const float3 &brush_position_wo);
 
 Vector<float4x4> get_symmetry_brush_transforms(eCurvesSymmetryType symmetry);
 
