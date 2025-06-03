@@ -29,7 +29,9 @@ GHOST_System::GHOST_System()
 #endif
       m_multitouchGestures(true),
       m_tabletAPI(GHOST_kTabletAutomatic),
-      m_is_debug_enabled(false)
+      m_is_debug_enabled(false),
+      /* Default sleeping duration is 5000us == 5ms. */
+      sleepDurationUs(5000)
 {
 }
 
@@ -137,6 +139,11 @@ GHOST_IWindow *GHOST_System::getWindowUnderCursor(int32_t x, int32_t y)
   }
 
   return nullptr;
+}
+
+void GHOST_System::setMaxSleepDurationUs(int sleep_us)
+{
+  sleepDurationUs = sleep_us;
 }
 
 void GHOST_System::dispatchEvents()

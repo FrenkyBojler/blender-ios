@@ -6,6 +6,7 @@
  * \ingroup GHOST
  */
 
+#include <cmath>
 #include <limits>
 #include <map>
 
@@ -185,6 +186,18 @@ GHOST_SystemWin32::GHOST_SystemWin32() : m_hasPerformanceCounter(false), m_freq(
 #ifdef WITH_INPUT_NDOF
   m_ndofManager = new GHOST_NDOFManagerWin32(*this);
 #endif
+
+  /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is only supported since Windows 10, version 1803.
+   * It is fine if the function below fails with ERROR_INVALID_PARAMETER. Then, fallback code will
+   * be used. */
+  timerHandle = CreateWaitableTimerExW(
+      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+  if (!timerHandle) {
+    if (GetLastError() != ERROR_INVALID_PARAMETER) {
+      printf("GHOST_SystemWin32::GHOST_SystemWin32: CreateWaitableTimerExW failed: %d\n",
+             GetLastError());
+    }
+  }
 }
 
 GHOST_SystemWin32::~GHOST_SystemWin32()
@@ -420,22 +433,33 @@ bool GHOST_SystemWin32::processEvents(bool waitForEvent)
   do {
     GHOST_TimerManager *timerMgr = getTimerManager();
 
-    if (waitForEvent && !::PeekMessage(&msg, nullptr, 0, 0, PM_NOREMOVE)) {
-#if 1
-      ::Sleep(1);
-#else
-      uint64_t next = timerMgr->nextFireTime();
-      int64_t maxSleep = next - getMilliSeconds();
+    int64_t maxSleepUs = sleepDurationUs;
+    uint64_t next = timerMgr->nextFireTime();
+    if (next != GHOST_kFireTimeNever) {
+      maxSleepUs = std::min(maxSleepUs, int64_t(next - getMilliSeconds()));
+    }
 
-      if (next == GHOST_kFireTimeNever) {
-        ::WaitMessage();
+    if (next == GHOST_kFireTimeNever && maxSleepUs == std::numeric_limits<int>::max()) {
+      /* Unlimited sleeping. */
+      ::WaitMessage();
+    }
+    else if (timerHandle) {
+      /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is only supported since Windows 10, version 1803.
+       * Wait time is specified in 100 nanosecond intervals. */
+      LARGE_INTEGER waitTime;
+      waitTime.QuadPart = -maxSleepUs * 10;
+      if (!SetWaitableTimer(timerHandle, &waitTime, 0, nullptr, nullptr, 0)) {
+        printf("GHOST_SystemWin32::processEvents: SetWaitableTimer failed: %d\n", GetLastError());
       }
-      else if (maxSleep >= 0.0) {
-        ::SetTimer(nullptr, 0, maxSleep, nullptr);
-        ::WaitMessage();
-        ::KillTimer(nullptr, 0);
-      }
-#endif
+      int nCount = 1;
+      MsgWaitForMultipleObjects(nCount, &timerHandle, false, INFINITE, QS_ALLINPUT);
+    }
+    else {
+      /* Fallback code for systems older than Windows 10, version 1803. */
+      int maxSleepMs = int(double(maxSleepUs) / 1000.0);
+      ::SetTimer(nullptr, 0, maxSleepMs, nullptr);
+      ::WaitMessage();
+      ::KillTimer(nullptr, 0);
     }
 
     if (timerMgr->fireTimers(getMilliSeconds())) {

@@ -246,6 +246,12 @@ extern GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemha
  ***************************************************************************************/
 
 /**
+ * Sets the maximum sleeping duration when waiting for new window events to arrive.
+ * \param sleep_us: Sleeping duration in microseconds.
+ */
+extern void GHOST_SetMaxSleepDurationUs(GHOST_SystemHandle systemhandle, int sleep_us);
+
+/**
  * Retrieves events from the system and stores them in the queue.
  * \param systemhandle: The handle to the system.
  * \param waitForEvent: Boolean to indicate that #ProcessEvents should.

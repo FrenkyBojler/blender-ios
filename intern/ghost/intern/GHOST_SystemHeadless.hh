@@ -34,6 +34,9 @@ class GHOST_SystemHeadless : public GHOST_System {
   {
     return false;
   }
+  void setMaxSleepDurationUs(int /*sleep_us*/) override
+  { /* nop */
+  }
   bool setConsoleWindowState(GHOST_TConsoleWindowState /*action*/) override
   {
     return false;

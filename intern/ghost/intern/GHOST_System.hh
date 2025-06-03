@@ -135,6 +135,12 @@ class GHOST_System : public GHOST_ISystem {
    ***************************************************************************************/
 
   /**
+   * Sets the maximum sleeping duration when waiting for new window events to arrive.
+   * \param sleep_us: Sleeping duration in microseconds.
+   */
+  void setMaxSleepDurationUs(int sleep_us) override;
+
+  /**
    * Inherited from GHOST_ISystem but left pure virtual
    *
    * virtual bool processEvents(bool waitForEvent) = 0;
@@ -391,6 +397,9 @@ class GHOST_System : public GHOST_ISystem {
   GHOST_TTabletAPI m_tabletAPI;
 
   bool m_is_debug_enabled;
+
+  /* Time to sleep while waiting for window events to arrive. */
+  int sleepDurationUs;
 };
 
 inline GHOST_TimerManager *GHOST_System::getTimerManager() const

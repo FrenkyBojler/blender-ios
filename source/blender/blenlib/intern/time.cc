@@ -11,6 +11,8 @@
 #ifdef WIN32
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
+
+/* timeapi.h needs to be included after windows.h. */
 #  include <timeapi.h>
 
 double BLI_time_now_seconds(void)

@@ -481,6 +481,9 @@ class GHOST_SystemWin32 : public GHOST_System {
 
   /** Wheel delta accumulator. */
   int m_wheelDeltaAccum;
+
+  /** Timer handle for specifying sleep durations used when waiting for events. */
+  HANDLE timerHandle;
 };
 
 inline void GHOST_SystemWin32::handleKeyboardChange()

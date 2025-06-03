@@ -169,7 +169,7 @@ enum ModSide {
  * \{ */
 
 static void wm_window_set_drawable(wmWindowManager *wm, wmWindow *win, bool activate);
-static bool wm_window_timers_process(const bContext *C, int *sleep_us_p);
+static bool wm_window_timers_process(const bContext *C);
 static uint8_t wm_ghost_modifier_query(const enum ModSide side);
 
 bool wm_get_screensize(int r_size[2])
@@ -1676,8 +1676,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 
 #if defined(__APPLE__) || defined(WIN32)
           /* MACOS and WIN32 don't return to the main-loop while resize. */
-          int dummy_sleep_ms = 0;
-          wm_window_timers_process(C, &dummy_sleep_ms);
+          wm_window_timers_process(C);
           wm_event_do_handlers(C);
           wm_event_do_notifiers(C);
           wm_draw_update(C);
@@ -1828,20 +1827,14 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 }
 
 /**
- * This timer system only gives maximum 1 timer event per redraw cycle,
- * to prevent queues to get overloaded.
- * - Timer handlers should check for delta to decide if they just update, or follow real time.
- * - Timer handlers can also set duration to match frames passed.
- *
  * \param sleep_us_p: The number of microseconds to sleep which may be reduced by this function
  * to account for timers that would run during the anticipated sleep period.
  */
-static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
+static void wm_window_timers_get_anticipated_sleep_period(const bContext *C, int *sleep_us_p)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   const double time = BLI_time_now_seconds();
-  bool has_event = false;
 
   const int sleep_us = *sleep_us_p;
   /* The nearest time an active timer is scheduled to run. */
@@ -1856,12 +1849,57 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
       continue;
     }
 
-    /* Future timer, update nearest time & skip. */
+    /* Future timer, update nearest time. */
     if (wt->time_next >= time) {
-      if ((has_event == false) && (sleep_us != 0)) {
+      if (sleep_us != 0) {
         /* The timer is not ready to run but may run shortly. */
         ntime_min = std::min(wt->time_next, ntime_min);
       }
+    }
+  }
+
+  if ((sleep_us != 0) && (ntime_min != DBL_MAX)) {
+    /* Clamp the sleep time so next execution runs earlier (if necessary).
+     * Use `ceil` so the timer is guaranteed to be ready to run (not always the case with
+     * rounding). Even though using `floor` or `round` is more responsive, it causes CPU intensive
+     * loops that may run until the timer is reached, see: #111579. */
+    const double microseconds = 1000000.0;
+    const double sleep_sec = double(sleep_us) / microseconds;
+    const double sleep_sec_next = ntime_min - time;
+
+    if (sleep_sec_next < sleep_sec) {
+      *sleep_us_p = int(std::ceil(sleep_sec_next * microseconds));
+    }
+  }
+}
+
+/**
+ * This timer system only gives maximum 1 timer event per redraw cycle,
+ * to prevent queues to get overloaded.
+ * - Timer handlers should check for delta to decide if they just update, or follow real time.
+ * - Timer handlers can also set duration to match frames passed.
+ */
+static bool wm_window_timers_process(const bContext *C)
+{
+  Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  const double time = BLI_time_now_seconds();
+  bool has_event = false;
+
+  /* The nearest time an active timer is scheduled to run. */
+  double ntime_min = DBL_MAX;
+
+  /* Mutable in case the timer gets removed. */
+  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
+    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+      continue;
+    }
+    if (wt->sleep == true) {
+      continue;
+    }
+
+    /* Future timer, skip. */
+    if (wt->time_next >= time) {
       continue;
     }
 
@@ -1899,20 +1937,6 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
     }
   }
 
-  if ((has_event == false) && (sleep_us != 0) && (ntime_min != DBL_MAX)) {
-    /* Clamp the sleep time so next execution runs earlier (if necessary).
-     * Use `ceil` so the timer is guarantee to be ready to run (not always the case with rounding).
-     * Even though using `floor` or `round` is more responsive,
-     * it causes CPU intensive loops that may run until the timer is reached, see: #111579. */
-    const double microseconds = 1000000.0;
-    const double sleep_sec = double(sleep_us) / microseconds;
-    const double sleep_sec_next = ntime_min - time;
-
-    if (sleep_sec_next < sleep_sec) {
-      *sleep_us_p = int(std::ceil(sleep_sec_next * microseconds));
-    }
-  }
-
   /* Effectively delete all timers marked for removal. */
   wm_window_timers_delete_removed(wm);
 
@@ -1921,31 +1945,37 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 
 void wm_window_events_process(const bContext *C)
 {
+  static bool has_event = false;
+
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
-  bool has_event = GHOST_ProcessEvents(g_system, false); /* `false` is no wait. */
+  int sleep_us = std::numeric_limits<int>::max();
+  /* When there was no event in the last event loop iteration, sleep until a new event is
+   * avaiable or a timer needs to be fired. This helps to save on CPU cycles when idling.
+   * Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
+   * events are typically generated from a timer that runs in the main loop. */
+  if (has_event || !(G.f & G_FLAG_EVENT_SIMULATE)) {
+    sleep_us = 0;
+  }
+  else {
+    sleep_us = std::numeric_limits<int>::max();
+    wm_window_timers_get_anticipated_sleep_period(C, &sleep_us);
+  }
+  GHOST_SetMaxSleepDurationUs(g_system, sleep_us);
+  has_event = GHOST_ProcessEvents(g_system, false); /* `false` is no wait. */
 
   if (has_event) {
     GHOST_DispatchEvents(g_system);
   }
 
-  /* When there is no event, sleep 5 milliseconds not to use too much CPU when idle. */
-  const int sleep_us_default = 5000;
-  int sleep_us = has_event ? 0 : sleep_us_default;
-  has_event |= wm_window_timers_process(C, &sleep_us);
+  has_event |= wm_window_timers_process(C);
 #ifdef WITH_XR_OPENXR
   /* XR events don't use the regular window queues. So here we don't only trigger
    * processing/dispatching but also handling. */
   has_event |= wm_xr_events_handle(CTX_wm_manager(C));
 #endif
   GPU_render_end();
-
-  /* Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
-   * events are typically generated from a timer that runs in the main loop. */
-  if ((has_event == false) && (sleep_us != 0) && !(G.f & G_FLAG_EVENT_SIMULATE)) {
-    BLI_time_sleep_duration(std::chrono::microseconds(sleep_us));
-  }
 }
 
 /** \} */
