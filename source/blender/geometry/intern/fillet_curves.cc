@@ -370,7 +370,7 @@ static bke::CurvesGeometry fillet_curves(const bke::CurvesGeometry &src_curves,
                                          const bool use_bezier_mode,
                                          const bke::AttributeFilter &attribute_filter)
 {
-  if (src_curves.points_num() == 0) {
+  if (src_curves.is_empty() == 0) {
     return src_curves;
   }
   const OffsetIndices src_points_by_curve = src_curves.points_by_curve();
