@@ -217,16 +217,16 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       return;
     }
 
-    const Span<float3> cubic_array_span = cubic_array_per_curve[pos];
-    BLI_assert(dst_points.size() * 3 == cubic_array_span.size());
+    const Span<float3> cubic_array = cubic_array_per_curve[pos];
+    BLI_assert(dst_points.size() * 3 == cubic_array.size());
     MutableSpan<float3> left_handles = dst_handle_positions_left.slice(dst_points);
     MutableSpan<float3> right_handles = dst_handle_positions_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
         const int index = i * 3;
-        left_handles[i] = cubic_array_span[index];
-        control_points[i] = cubic_array_span[index + 1];
-        right_handles[i] = cubic_array_span[index + 2];
+        left_handles[i] = cubic_array[index];
+        control_points[i] = cubic_array[index + 1];
+        right_handles[i] = cubic_array[index + 2];
       }
     });
 
