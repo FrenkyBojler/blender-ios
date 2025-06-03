@@ -434,11 +434,10 @@ enum class SetDriverSourceResult {
       Object &object = *reinterpret_cast<Object *>(driver_target.id);
       const auto transform_channel = eDriverTarget_TransformChannels(driver_target.transChan);
       const auto flag = eDriverTarget_Flag(driver_target.flag);
-      /* Definitions taken from #prop_local_space_items. */
       const eDriverTarget_Flag space_flag = eDriverTarget_Flag(
           flag & (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS));
+      /* Definitions taken from #prop_local_space_items. */
       const bool use_world_space = space_flag == 0;
-      const bool use_transform_space = space_flag == DTAR_FLAG_LOCALSPACE;
       const bool use_local_space = space_flag == (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS);
 
       switch (transform_channel) {
@@ -561,7 +560,11 @@ enum class SetDriverSourceResult {
         /* We try to update just the first driver target for now. This is consistent with how a
          * math node only propagates the drivers through the first input. */
         DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
-        const float updated_value = value - driver->curval + driver_var.curval;
+        float offset = value - driver->curval;
+        if (driver_type == DRIVER_TYPE_AVERAGE) {
+          offset *= variable_count;
+        }
+        const float updated_value = driver_var.curval + offset;
         if (set_driver_variable(C, driver_var, updated_value)) {
           return SetDriverSourceResult::Success;
         }
