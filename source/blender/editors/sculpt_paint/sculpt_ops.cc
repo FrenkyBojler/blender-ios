@@ -358,7 +358,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   }
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene, Paint& paint)
+void ensure_valid_pivot(const Object &ob, Scene &scene, Paint &paint)
 {
   UnifiedPaintSettings &ups = paint.unified_paint_settings;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);

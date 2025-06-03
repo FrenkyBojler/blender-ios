@@ -178,9 +178,10 @@ void VertexSmearOperation::on_stroke_extended(const bContext &C,
 
       const float distance_falloff = math::clamp(
           1.0f - (math::distance(color_grid_.center, view_pos) / radius * 2), 0.0f, 1.0f);
-      const float influence = brush_point_influence(
+      const float influence =
+          brush_point_influence(
               scene, paint, brush, view_pos, extension_sample, params.multi_frame_falloff) *
-                              distance_falloff;
+          distance_falloff;
       if (influence > 0.0f) {
         ColorGeometry4f &color = vertex_colors[point_i];
         const float alpha = color.a;

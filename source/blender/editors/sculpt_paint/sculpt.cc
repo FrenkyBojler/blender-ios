@@ -2323,7 +2323,8 @@ void sculpt_apply_texture(const SculptSession &ss,
 
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     /* Get strength by feeding the vertex location directly into a texture. */
-    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool, cache.paint);
+    *r_value = BKE_brush_sample_tex_3d(
+        scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool, cache.paint);
   }
   else {
     /* If the active area is being applied for symmetry, flip it

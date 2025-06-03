@@ -4308,7 +4308,6 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 }
 
-
 static void rna_def_curve_paint_settings(BlenderRNA *brna)
 {
   StructRNA *srna;

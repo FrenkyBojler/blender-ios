@@ -588,7 +588,7 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
-bool BKE_paint_use_unified_color(const ToolSettings */*tool_settings*/, const Paint *paint)
+bool BKE_paint_use_unified_color(const ToolSettings * /*tool_settings*/, const Paint *paint)
 {
   /* Grease pencil draw mode never uses unified paint. */
   if (paint->runtime.ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
@@ -1836,9 +1836,12 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
         __func__, *brush_ref->brush_asset_reference);
   }
 
-  dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_hue);
-  dst->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_saturation);
-  dst->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_value);
+  dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_hue);
+  dst->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_saturation);
+  dst->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_value);
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus((ID *)dst->palette);

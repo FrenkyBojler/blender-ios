@@ -364,7 +364,6 @@ static void blo_update_defaults_paint(Paint &paint)
   if (paint.unified_paint_settings.curve_rand_value == nullptr) {
     paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
-
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)

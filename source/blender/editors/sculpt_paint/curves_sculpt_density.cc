@@ -153,8 +153,10 @@ struct DensityAddOperationExecutor {
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_settings_ = brush_->curves_sculpt_settings;
-    brush_strength_ = brush_strength_get(*ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
-    brush_radius_re_ = brush_radius_get(*ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(
+        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_radius_re_ = brush_radius_get(
+        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
@@ -562,7 +564,8 @@ struct DensitySubtractOperationExecutor {
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_, &curves_sculpt_->paint);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(
+        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     minimum_distance_ = brush_->curves_sculpt_settings->minimum_distance;

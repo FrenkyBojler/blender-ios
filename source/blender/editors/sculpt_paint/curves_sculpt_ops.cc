@@ -115,7 +115,8 @@ float brush_strength_get(const Scene &scene,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_alpha_get(&scene, &brush, &paint) * brush_strength_factor(brush, stroke_extension);
+  return BKE_brush_alpha_get(&scene, &brush, &paint) *
+         brush_strength_factor(brush, stroke_extension);
 }
 
 static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(

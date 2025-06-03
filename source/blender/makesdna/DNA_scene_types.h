@@ -1512,7 +1512,6 @@ typedef enum eGP_Interpolate_Type {
   GP_IPO_SINE = 12,
 } eGP_Interpolate_Type;
 
-
 /** #UnifiedPaintSettings::flag */
 typedef enum {
   UNIFIED_PAINT_SIZE = (1 << 0),

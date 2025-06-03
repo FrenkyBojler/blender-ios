@@ -279,7 +279,8 @@ static void brush_painter_mask_imbuf_update(BrushPainter *painter,
 
       if (!use_texture_old) {
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
-        res = ushort(65535.0f * BKE_brush_sample_masktex(scene, brush, texco, thread, pool, painter->paint));
+        res = ushort(65535.0f *
+                     BKE_brush_sample_masktex(scene, brush, texco, thread, pool, painter->paint));
       }
 
       /* read from old texture buffer */
