@@ -59,7 +59,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   Array<MutableSpan<int>> original_indices_per_curve(curve_selection.size());
 
   std::atomic<bool> success = false;
-  curve_selection.foreach_index(GrainSize(512), [&](const int64_t curve_i, const int64_t pos) {
+  curve_selection.foreach_index(GrainSize(32), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange points = src_offsets[curve_i];
     const Span<float3> curve_positions = src_positions.slice(points);
     const bool use_cyclic = src_cyclic[curve_i];
