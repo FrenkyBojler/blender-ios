@@ -269,7 +269,7 @@ def enum_openimagedenoise_denoiser(self, context):
 
 
 def enum_optix_denoiser(self, context):
-    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_device_list('OPTIX')):
         return [('OPTIX', "OptiX", n_(
             "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
@@ -1668,16 +1668,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 # Update name in case it changed
                 entry.name = device[0]
 
-    # Gets all devices types for a compute device type.
-    def get_devices_for_type(self, compute_device_type):
+    # Gets all devices types to display in the preferences for a compute device type.
+    # This includes the CPU device.
+    def get_devices_for_type(self, compute_device_type, device_list=None):
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = self.get_device_list(compute_device_type)
+        if device_list is None:
+            device_list = self.get_device_list(compute_device_type)
 
         # Sort entries into lists
         devices = []
         cpu_devices = []
         for device in device_list:
             entry = self.find_existing_device_entry(device)
+            entry.optimized = device[7]
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1768,8 +1771,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         return False
 
-    def _draw_devices(self, layout, device_type, devices):
+    @staticmethod
+    def _format_device_name(name):
+        import unicodedata
+        return name.replace('(TM)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(R)', unicodedata.lookup('REGISTERED SIGN')) \
+                   .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN'))
+
+    def _draw_devices(self, layout, device_type, device_list):
         box = layout.box()
+
+        # Get preference devices, including CPU.
+        devices = self.get_devices_for_type(device_type, device_list)
 
         found_device = False
         for device in devices:
@@ -1838,30 +1852,11 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             return
 
-        for device in self.get_device_list(device_type):
-            import unicodedata
-
-            device_entry = self.find_existing_device_entry(device)
-            if not device_entry:
-                continue
-
-            has_execution_optimization = device[7]
-            device_text_label = device_entry.name.replace(
-                '(TM)',
-                unicodedata.lookup('TRADE MARK SIGN')).replace(
-                '(tm)',
-                unicodedata.lookup('TRADE MARK SIGN')).replace(
-                '(R)',
-                unicodedata.lookup('REGISTERED SIGN')).replace(
-                '(C)',
-                unicodedata.lookup('COPYRIGHT SIGN'))
-
-            if not has_execution_optimization:
-                device_text_label += rpt_(" (Unoptimized Performance)")
-
-            box.prop(
-                device_entry, "use", text=device_text_label, translate=False
-            )
+        for device in devices:
+            name = self._format_device_name(device.name)
+            if not device.optimized:
+                name += rpt_(" (Unoptimized Performance)")
+            box.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()
@@ -1871,14 +1866,14 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         if compute_device_type == 'NONE':
             return
         row = layout.row()
-        devices = self.get_devices_for_type(compute_device_type)
+        devices = self.get_device_list(compute_device_type)
         self._draw_devices(row, compute_device_type, devices)
 
         import _cycles
         has_peer_memory = False
         has_enabled_hardware_rt = False
         has_disabled_hardware_rt = False
-        for device in self.get_device_list(compute_device_type):
+        for device in devices:
             if not self.find_existing_device_entry(device).use:
                 continue
             if device[1] != compute_device_type:
