@@ -145,6 +145,16 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
       old_to_new_per_curve[pos].resize(points.size());
       array_utils::fill_index_range<int>(old_to_new_per_curve[pos].as_mutable_span(),
                                          points.start());
+
+      if (r_cubic_array) {
+        free(r_cubic_array);
+      }
+      if (r_orig_index_map) {
+        free(r_orig_index_map);
+      }
+      if (r_corner_index_array) {
+        free(r_corner_index_array);
+      }
       return;
     }
     success.store(true, std::memory_order_relaxed);
@@ -193,6 +203,16 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
         old_by_new[i] = orig_indices_map[i] + points.start();
       }
     });
+
+    if (r_cubic_array) {
+      free(r_cubic_array);
+    }
+    if (r_orig_index_map) {
+      free(r_orig_index_map);
+    }
+    if (r_corner_index_array) {
+      free(r_corner_index_array);
+    }
   });
 
   if (!success) {
