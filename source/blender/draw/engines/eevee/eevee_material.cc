@@ -236,8 +236,12 @@ void MaterialModule::material_shaders_compile()
                                                               request.geometry_type,
                                                               compile_mode,
                                                               default_mat);
-
-      queue_texture_loading(gpumat);
+      /* Only do this during render as it increases the time to first pixel in the viewport. */
+      if (inst_.is_image_render) {
+        /* Still stage the texture for loading as they would have been during sync.
+         * This allow to use threaded texture loading while the shaders are compiling. */
+        queue_texture_loading(gpumat);
+      }
       GPU_debug_group_end();
     }
   };
