@@ -4423,7 +4423,8 @@ static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
   curves = geometry::resample_to_evaluated(curves, non_catmull_rom_curves_selection);
 
   /* To avoid having too many control points, simplify the position attribute based on the
-   * threshold. This won't guarantee a fitting w*/
+   * threshold. This doesn't replace an actual curve fitting (which would be better), but
+   * is a decent approximation for the meantime. */
   const IndexMask points_to_remove = geometry::simplify_curve_attribute(
       curves.positions(),
       non_catmull_rom_curves_selection,
