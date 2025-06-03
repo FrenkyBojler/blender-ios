@@ -1468,21 +1468,14 @@ void OneapiDevice::architecture_information(const SyclDevice *device,
       is_optimized = is_arch_optimised; \
       break;
 
-  /* The information below about optimization status is based on the combined efforts of several
-   * software engineers from both Blender and Intel, focusing on optimizing different devices.
-   * For example, Intel Rocket Lake iGPU (RKL below) is not allowed to be used with Cycles in
-   * Blender by default, and also there was no effort to optimize it from different people,
-   * as far as I know. Thus, this device is marked as non-optimized.
-   * In another case, Intel Arc Alchemist dGPU was the object of several different
-   * optimization efforts from several people, thus it is marked as optimized.
-   * Optimization status is generally expected to be unidirectional - devices would go
-   * from "unoptimized" to "optimized" but not vice versa.
-   * The list of known architectures is expected to be expanded manually upon
-   * DPC++ upgrading, as DPC++ needs to receive an update first, in order to recognize
-   * the new platform.
-   * Intel new devices are released not that often, as well as Blender versions,
-   * so it would not be a big burden and the Intel Blender team is
-   * expected to keep this list (below) actual and up-to-date. */
+  /* List of architectures that have been optimized by Intel and Blender developers.
+   *
+   * For example, Intel Rocket Lake iGPU (rkl) is not supported and not optimized,
+   * while Intel Arc Alchemist dGPU (dg2) was optimized for.
+   *
+   * Devices can changed from unoptimized to optimized manually, after DPC++ has
+   * been upgraded to support the architecture and CYCLES_ONEAPI_INTEL_BINARIES_ARCH
+   * in CMake includes the architecture. */
   switch (arch) {
     FILL_ARCH_INFO(intel_gpu_bdw, false)
     FILL_ARCH_INFO(intel_gpu_skl, false)
@@ -1506,7 +1499,7 @@ void OneapiDevice::architecture_information(const SyclDevice *device,
     FILL_ARCH_INFO(intel_gpu_dg2_g12, true)
     FILL_ARCH_INFO(intel_gpu_pvc, false)
     FILL_ARCH_INFO(intel_gpu_pvc_vg, false)
-    // intel_gpu_mtl_u == intel_gpu_mtl_s, intel_gpu_arl_u, intel_gpu_arl_s = intel_gpu_mtl_u
+    /* intel_gpu_mtl_u == intel_gpu_mtl_s == intel_gpu_arl_u == intel_gpu_arl_s */
     FILL_ARCH_INFO(intel_gpu_mtl_u, true)
     FILL_ARCH_INFO(intel_gpu_mtl_h, true)
     FILL_ARCH_INFO(intel_gpu_bmg_g21, true)
