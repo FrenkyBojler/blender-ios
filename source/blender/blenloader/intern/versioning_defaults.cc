@@ -345,26 +345,30 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
   }
 }
 
-static void blo_update_defaults_paint(Paint &paint)
+static void blo_update_defaults_paint(Paint *paint)
 {
+  if (!paint) {
+    return;
+  }
+
   /* Ensure input_samples has a correct default value of 1. */
-  if (paint.unified_paint_settings.input_samples == 0) {
-    paint.unified_paint_settings.input_samples = 1;
+  if (paint->unified_paint_settings.input_samples == 0) {
+    paint->unified_paint_settings.input_samples = 1;
   }
 
   const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
-  paint.unified_paint_settings.flag = default_ups.flag;
-  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
-  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+  paint->unified_paint_settings.flag = default_ups.flag;
+  copy_v3_v3(paint->unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(paint->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
 
-  if (paint.unified_paint_settings.curve_rand_hue == nullptr) {
-    paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  if (paint->unified_paint_settings.curve_rand_hue == nullptr) {
+    paint->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
   }
-  if (paint.unified_paint_settings.curve_rand_saturation == nullptr) {
-    paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  if (paint->unified_paint_settings.curve_rand_saturation == nullptr) {
+    paint->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
   }
-  if (paint.unified_paint_settings.curve_rand_value == nullptr) {
-    paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  if (paint->unified_paint_settings.curve_rand_value == nullptr) {
+    paint->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
 }
 
@@ -488,14 +492,14 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
 
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->vpaint));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->wpaint));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->sculpt));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->gp_paint));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->gp_vertexpaint));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->gp_sculptpaint));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(*ts->curves_sculpt));
-  blo_update_defaults_paint(reinterpret_cast<Paint &>(ts->imapaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->vpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->wpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_paint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(&ts->imapaint));
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
