@@ -250,8 +250,14 @@ static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const w
   const int estimated_count = calc_estimated_remesh_vert_count(mesh, mesh.remesh_voxel_size);
 
   if (estimated_count > remesh_vertex_count_threshold) {
-    return WM_operator_confirm_message(
-        C, op, TIP_("The remesher is estimated to generate more than 10 million vertices."));
+    return WM_operator_confirm_ex(
+        C,
+        op,
+        IFACE_("Voxel Remesh"),
+        IFACE_("The remesher is estimated to generate more than 10 million vertices."),
+        IFACE_("OK"),
+        ALERT_ICON_WARNING,
+        false);
   }
 
   return voxel_remesh_exec(C, op);
