@@ -1322,6 +1322,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         }
       }
       else if (data->is_mouse_down) {
+        data->drag_end = clamp_to_window(screen_space_cursor);
+
         if (!data->crossed_threshold) {
           const int2 delta = data->drag_end - data->drag_start;
           if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
@@ -1332,14 +1334,10 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
           }
         }
 
-        data->drag_end = clamp_to_window(screen_space_cursor);
-
         if (data->crossed_threshold) {
-          int2 clamped_p2 = data->drag_end;
-
           if (data->force_square) {
             int2 temp_p1 = data->p1;
-            int2 temp_p2 = clamped_p2;
+            int2 temp_p2 = data->drag_end;
             square_points(temp_p1, temp_p2);
 
             // Check if the resulting square is fully within the window
@@ -1347,12 +1345,12 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
               data->p2 = temp_p2;
             }
             else {
-              // If not, fallback to using the clamped rectangle (non-square)
-              data->p2 = clamped_p2;
+              // Clamp to rectangle if square would go out of bounds
+              data->p2 = clamp_to_window(temp_p2);
             }
           }
           else {
-            data->p2 = clamped_p2;
+            data->p2 = data->drag_end;
           }
         }
       }
