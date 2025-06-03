@@ -4412,12 +4412,12 @@ static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
                                    const IndexMask &selection,
                                    const float threshold)
 {
-  if (curves.is_single_type(CurveType::CURVE_TYPE_CATMULL_ROM)) {
+  if (curves.is_single_type(CURVE_TYPE_CATMULL_ROM)) {
     return;
   }
   IndexMaskMemory memory;
   const IndexMask non_catmull_rom_curves_selection =
-      curves.indices_for_curve_type(CurveType::CURVE_TYPE_CATMULL_ROM, selection, memory)
+      curves.indices_for_curve_type(CURVE_TYPE_CATMULL_ROM, selection, memory)
           .complement(selection, memory);
   BLI_assert(!non_catmull_rom_curves_selection.is_empty());
   curves = geometry::resample_to_evaluated(curves, non_catmull_rom_curves_selection);
@@ -4441,18 +4441,19 @@ static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
   options.keep_bezier_shape_as_nurbs = true;
   options.keep_catmull_rom_shape_as_nurbs = true;
   curves = geometry::convert_curves(
-      curves, non_catmull_rom_curves_selection, CurveType::CURVE_TYPE_CATMULL_ROM, {}, options);
+      curves, non_catmull_rom_curves_selection, CURVE_TYPE_CATMULL_ROM, {}, options);
 }
 
 static void convert_to_poly(bke::CurvesGeometry &curves, const IndexMask &selection)
 {
-  if (curves.is_single_type(CurveType::CURVE_TYPE_POLY)) {
+  if (curves.is_single_type(CURVE_TYPE_POLY)) {
     return;
   }
   IndexMaskMemory memory;
-  const IndexMask non_poly_curves_selection =
-      curves.indices_for_curve_type(CurveType::CURVE_TYPE_POLY, selection, memory)
-          .complement(selection, memory);
+  const IndexMask non_poly_curves_selection = curves
+                                                  .indices_for_curve_type(
+                                                      CURVE_TYPE_POLY, selection, memory)
+                                                  .complement(selection, memory);
   BLI_assert(!non_poly_curves_selection.is_empty());
   curves = geometry::resample_to_evaluated(curves, non_poly_curves_selection);
 }
@@ -4461,12 +4462,12 @@ static void convert_to_bezier(bke::CurvesGeometry &curves,
                               const IndexMask &selection,
                               const float threshold)
 {
-  if (curves.is_single_type(CurveType::CURVE_TYPE_BEZIER)) {
+  if (curves.is_single_type(CURVE_TYPE_BEZIER)) {
     return;
   }
   IndexMaskMemory memory;
   const IndexMask poly_curves_selection = curves.indices_for_curve_type(
-      CurveType::CURVE_TYPE_POLY, selection, memory);
+      CURVE_TYPE_POLY, selection, memory);
   if (!poly_curves_selection.is_empty()) {
     curves = fit_poly_curves(curves, poly_curves_selection, threshold);
   }
@@ -4476,20 +4477,20 @@ static void convert_to_bezier(bke::CurvesGeometry &curves,
   options.convert_bezier_handles_to_catmull_rom_points = false;
   options.keep_bezier_shape_as_nurbs = true;
   options.keep_catmull_rom_shape_as_nurbs = true;
-  curves = geometry::convert_curves(curves, selection, CurveType::CURVE_TYPE_BEZIER, {}, options);
+  curves = geometry::convert_curves(curves, selection, CURVE_TYPE_BEZIER, {}, options);
 }
 
 static void convert_to_nurbs(bke::CurvesGeometry &curves,
                              const IndexMask &selection,
                              const float threshold)
 {
-  if (curves.is_single_type(CurveType::CURVE_TYPE_NURBS)) {
+  if (curves.is_single_type(CURVE_TYPE_NURBS)) {
     return;
   }
 
   IndexMaskMemory memory;
   const IndexMask poly_curves_selection = curves.indices_for_curve_type(
-      CurveType::CURVE_TYPE_POLY, selection, memory);
+      CURVE_TYPE_POLY, selection, memory);
   if (!poly_curves_selection.is_empty()) {
     curves = fit_poly_curves(curves, poly_curves_selection, threshold);
   }
@@ -4499,7 +4500,7 @@ static void convert_to_nurbs(bke::CurvesGeometry &curves,
   options.convert_bezier_handles_to_catmull_rom_points = false;
   options.keep_bezier_shape_as_nurbs = true;
   options.keep_catmull_rom_shape_as_nurbs = true;
-  curves = geometry::convert_curves(curves, selection, CurveType::CURVE_TYPE_NURBS, {}, options);
+  curves = geometry::convert_curves(curves, selection, CURVE_TYPE_NURBS, {}, options);
 }
 
 static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOperator *op)
@@ -4523,16 +4524,16 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
     }
 
     switch (dst_type) {
-      case CurveType::CURVE_TYPE_CATMULL_ROM:
+      case CURVE_TYPE_CATMULL_ROM:
         convert_to_catmull_rom(curves, strokes, threshold);
         break;
-      case CurveType::CURVE_TYPE_POLY:
+      case CURVE_TYPE_POLY:
         convert_to_poly(curves, strokes);
         break;
-      case CurveType::CURVE_TYPE_BEZIER:
+      case CURVE_TYPE_BEZIER:
         convert_to_bezier(curves, strokes, threshold);
         break;
-      case CurveType::CURVE_TYPE_NURBS:
+      case CURVE_TYPE_NURBS:
         convert_to_nurbs(curves, strokes, threshold);
         break;
       default:
@@ -4566,7 +4567,7 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
 
-  if (dst_type == CurveType::CURVE_TYPE_POLY) {
+  if (dst_type == CURVE_TYPE_POLY) {
     return;
   }
 
