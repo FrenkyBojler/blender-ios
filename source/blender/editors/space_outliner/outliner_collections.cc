@@ -107,7 +107,8 @@ TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void 
   return TRAVERSE_CONTINUE;
 }
 
-static TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te, void *customdata)
+static TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te,
+                                                                        void *customdata)
 {
   IDsSelectedData *data = static_cast<IDsSelectedData *>(customdata);
 
