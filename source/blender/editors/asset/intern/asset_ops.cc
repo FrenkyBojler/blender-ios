@@ -1345,7 +1345,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
               data->p2 = temp_p2;
             }
             else {
-              // Clamp to rectangle if square would go out of bounds
+              // Clamp to window boundaries, which may turn the shape into a rectangle if the
+              // square would extend outside the window
               data->p2 = clamp_to_window(temp_p2);
             }
           }
