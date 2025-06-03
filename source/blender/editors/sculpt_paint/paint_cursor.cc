@@ -1683,7 +1683,7 @@ static void paint_draw_3D_view_inactive_brush_cursor(PaintCursorContext &pcontex
 static void paint_cursor_update_object_space_radius(PaintCursorContext &pcontext)
 {
   pcontext.radius = object_space_radius_get(
-      pcontext.vc, *pcontext.scene, *pcontext.brush, pcontext.location);
+      pcontext.vc, *pcontext.scene, *pcontext.paint, *pcontext.brush, pcontext.location);
 }
 
 static void paint_cursor_drawing_setup_cursor_space(const PaintCursorContext &pcontext)

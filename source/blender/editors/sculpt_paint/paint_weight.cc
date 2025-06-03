@@ -1106,7 +1106,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, TODO, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -1218,7 +1218,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, TODO, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -1345,7 +1345,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
   const float paintweight = strength;
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, TODO, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;

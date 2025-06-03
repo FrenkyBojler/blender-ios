@@ -55,7 +55,7 @@ namespace blender::ed::sculpt_paint {
 void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name)
 {
   const Scene &scene = *CTX_data_scene(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 

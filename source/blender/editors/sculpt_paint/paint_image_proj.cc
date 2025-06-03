@@ -5217,7 +5217,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
   float pos_ofs[2] = {0};
   float co[2];
   ushort mask_short;
-  const float brush_alpha = BKE_brush_alpha_get(ps->scene, brush, TODO);
+  const float brush_alpha = BKE_brush_alpha_get(ps->scene, brush, ps->paint);
   const float brush_radius = ps->brush_size;
   /* avoid a square root with every dist comparison */
   const float brush_radius_sq = brush_radius * brush_radius;
@@ -5425,7 +5425,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
             /* Mask texture. */
             if (ps->is_maskbrush) {
               float texmask = BKE_brush_sample_masktex(
-                  ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool, TODO);
+                  ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool, ps->paint);
               CLAMP(texmask, 0.0f, 1.0f);
               custom_mask *= texmask;
             }
@@ -5449,7 +5449,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
               /* NOTE: for clone and smear,
                * we only use the alpha, could be a special function */
               BKE_brush_sample_tex_3d(
-                  ps->scene, brush, mtex, samplecos, texrgba, thread_index, pool, TODO);
+                  ps->scene, brush, mtex, samplecos, texrgba, thread_index, pool, ps->paint);
 
               copy_v3_v3(texrgb, texrgba);
               custom_mask *= texrgba[3];

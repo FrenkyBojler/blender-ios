@@ -697,7 +697,7 @@ static float paint_space_stroke_spacing(const bContext *C,
     const float3 last_object_space_position = math::transform_point(
         stroke->vc.obact->world_to_object(), stroke->last_world_space_position);
     size_clamp = object_space_radius_get(
-        stroke->vc, *scene, brush, last_object_space_position, size_pressure);
+        stroke->vc, *scene, *paint, brush, last_object_space_position, size_pressure);
   }
   else {
     /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel

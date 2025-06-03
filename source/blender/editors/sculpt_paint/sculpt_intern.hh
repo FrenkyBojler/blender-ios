@@ -242,6 +242,7 @@ struct StrokeCache {
   /* TODO: Clean this up! */
   ViewContext *vc = nullptr;
   const Brush *brush = nullptr;
+  const Paint *paint = nullptr;
 
   float special_rotation = 0.0f;
   float3 grab_delta = float3(0);
@@ -857,6 +858,7 @@ void ensure_valid_pivot(const Object &ob, Scene &scene, Paint &paint);
 /** Retrieve or calculate the object space radius depending on brush settings. */
 float object_space_radius_get(const ViewContext &vc,
                               const Scene &scene,
+                              const Paint &paint,
                               const Brush &brush,
                               const float3 &location,
                               float scale_factor = 1.0);

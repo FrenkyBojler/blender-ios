@@ -484,6 +484,7 @@ void update_cache_invariants(
   /* Truly temporary data that isn't stored in properties */
   cache->vc = vc;
   cache->brush = brush;
+  cache->paint = &vp.paint;
   cache->first_time = true;
 
   /* cache projection matrix */

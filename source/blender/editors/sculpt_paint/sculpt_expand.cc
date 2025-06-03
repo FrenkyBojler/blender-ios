@@ -198,7 +198,7 @@ static float falloff_value_vertex_get(const SculptSession &ss,
 
   float rgba[4];
   const float avg = BKE_brush_sample_tex_3d(
-      expand_cache.scene, brush, mtex, position, rgba, 0, ss.tex_pool, TODO);
+      expand_cache.scene, brush, mtex, position, rgba, 0, ss.tex_pool, expand_cache.paint);
 
   const float distortion = (avg - 0.5f) * expand_cache.texture_distortion_strength *
                            expand_cache.max_vert_falloff;
@@ -2576,6 +2576,7 @@ static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_
   Scene &scene = *CTX_data_scene(C);
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  expand_cache.paint = paint;
   expand_cache.brush = BKE_paint_brush_for_read(&sd.paint);
   BKE_curvemapping_init(expand_cache.brush->curve);
   copy_v4_fl(expand_cache.fill_color, 1.0f);

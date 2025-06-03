@@ -114,15 +114,16 @@ namespace blender::ed::sculpt_paint {
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
 float object_space_radius_get(const ViewContext &vc,
                               const Scene &scene,
+                              const Paint &paint,
                               const Brush &brush,
                               const float3 &location,
                               const float scale_factor)
 {
-  if (!BKE_brush_use_locked_size(&scene, &brush, TODO)) {
+  if (!BKE_brush_use_locked_size(&scene, &brush, &paint)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&scene, &brush, TODO) * scale_factor);
+        vc, location, BKE_brush_size_get(&scene, &brush, &paint) * scale_factor);
   }
-  return BKE_brush_unprojected_radius_get(&scene, &brush, TODO) * scale_factor;
+  return BKE_brush_unprojected_radius_get(&scene, &brush, &paint) * scale_factor;
 }
 
 bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
@@ -2164,7 +2165,7 @@ static float brush_strength(const Sculpt &sd,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   /* Primary strength input; square it to make lower values more sensitive. */
-  const float root_alpha = BKE_brush_alpha_get(scene, &brush, TODO);
+  const float root_alpha = BKE_brush_alpha_get(scene, &brush, &sd.paint);
   const float alpha = root_alpha * root_alpha;
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
   float overlap = ups.overlap_factor;
@@ -2322,7 +2323,7 @@ void sculpt_apply_texture(const SculptSession &ss,
 
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     /* Get strength by feeding the vertex location directly into a texture. */
-    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool, TODO);
+    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool, cache.paint);
   }
   else {
     /* If the active area is being applied for symmetry, flip it
@@ -2362,7 +2363,7 @@ void sculpt_apply_texture(const SculptSession &ss,
           cache.vc->region, symm_point, cache.projection_mat);
       const float point_3d[3] = {point_2d[0], point_2d[1], 0.0f};
       *r_value = BKE_brush_sample_tex_3d(
-          scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool, TODO);
+          scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool, cache.paint);
     }
   }
 }
@@ -3985,6 +3986,7 @@ static void sculpt_update_cache_invariants(
   /* Truly temporary data that isn't stored in properties. */
   cache->vc = vc;
   cache->brush = brush;
+  cache->paint = &sd.paint;
 
   /* Cache projection matrix. */
   cache->projection_mat = ED_view3d_ob_project_mat_get(cache->vc->rv3d, &ob);
@@ -4337,10 +4339,10 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 
   /* Truly temporary data that isn't stored in properties. */
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    cache.initial_radius = object_space_radius_get(*cache.vc, scene, brush, cache.location);
+    cache.initial_radius = object_space_radius_get(*cache.vc, scene, paint, brush, cache.location);
 
-    if (!BKE_brush_use_locked_size(&scene, &brush, TODO)) {
-      BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius, TODO);
+    if (!BKE_brush_use_locked_size(&scene, &brush, &paint)) {
+      BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius, &paint);
     }
   }
 
@@ -4655,7 +4657,8 @@ bool cursor_geometry_info_update(bContext *C,
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Scene *scene = CTX_data_scene(C);
-  const Brush &brush = *BKE_paint_brush_for_read(BKE_paint_get_active_from_context(C));
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush_for_read(paint);
   bool original = false;
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -4761,7 +4764,7 @@ bool cursor_geometry_info_update(bContext *C,
   ss.rv3d = vc.rv3d;
   ss.v3d = vc.v3d;
 
-  ss.cursor_radius = object_space_radius_get(vc, *scene, brush, out->location);
+  ss.cursor_radius = object_space_radius_get(vc, *scene, *paint, brush, out->location);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = pbvh_gather_cursor_update(ob, original, memory);
@@ -4808,8 +4811,8 @@ static bool stroke_get_location_bvh_ex(bContext *C,
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
   const bool original = force_original || ((cache) ? !cache->accum : false);
-
-  const Brush &brush = *BKE_paint_brush(BKE_paint_get_active_from_context(C));
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush(paint);
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
 
@@ -4898,7 +4901,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
 
   float closest_radius_sq = std::numeric_limits<float>::max();
   if (limit_closest_radius) {
-    closest_radius_sq = object_space_radius_get(vc, *CTX_data_scene(C), brush, out);
+    closest_radius_sq = object_space_radius_get(vc, *CTX_data_scene(C), *paint, brush, out);
     closest_radius_sq *= closest_radius_sq;
   }
 
