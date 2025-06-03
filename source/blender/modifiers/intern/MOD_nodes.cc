@@ -925,6 +925,7 @@ static void check_property_socket_sync(const Object *ob,
     if (input_structure_types[i] == nodes::StructureType::Grid) {
       continue;
     }
+    // TODO: LISTS
 
     IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {

@@ -85,7 +85,7 @@ static Array<nodes::StructureTypeInterface> calc_node_interfaces(const bNodeTree
   return interfaces;
 }
 
-enum class DataRequirement : int8_t { None, Field, Single, Grid, Invalid };
+enum class DataRequirement : int8_t { None, Field, Single, Grid, List, Invalid };
 
 static DataRequirement merge(const DataRequirement a, const DataRequirement b)
 {
@@ -133,6 +133,10 @@ static void init_input_requirements(const bNodeTree &tree,
       }
       case StructureType::Field: {
         input_requirements[i] = DataRequirement::Field;
+        break;
+      }
+      case StructureType::List: {
+        input_requirements[i] = DataRequirement::List;
         break;
       }
     }
@@ -192,6 +196,9 @@ static void store_group_input_structure_types(const bNodeTree &tree,
         break;
       case DataRequirement::Grid:
         derived_interface.inputs[i] = StructureType::Grid;
+        break;
+      case DataRequirement::List:
+        derived_interface.inputs[i] = StructureType::List;
         break;
       case DataRequirement::Invalid:
         derived_interface.inputs[i] = StructureType::Dynamic;

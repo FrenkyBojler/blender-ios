@@ -13,6 +13,7 @@
 #include "BKE_volume_grid.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_list.hh"
 
 #include "BLI_color.hh"
 #include "BLI_math_rotation_types.hh"
@@ -124,6 +125,7 @@ template<typename T> T SocketValueVariant::extract()
         const GPointer single_value = this->get_single_ptr();
         return fn::make_constant_field(*single_value.type(), single_value.get());
       }
+      case Kind::List:
       case Kind::Grid: {
         const CPPType *cpp_type = socket_type_to_geo_nodes_base_cpp_type(socket_type_);
         BLI_assert(cpp_type);
@@ -147,6 +149,7 @@ template<typename T> T SocketValueVariant::extract()
         return std::move(value_.get<GVolumeGrid>());
       }
       case Kind::Single:
+      case Kind::List:
       case Kind::Field: {
         const std::optional<VolumeGridType> grid_type = socket_type_to_grid_type(socket_type_);
         BLI_assert(grid_type);
@@ -163,6 +166,9 @@ template<typename T> T SocketValueVariant::extract()
     return this->extract<GVolumeGrid>().typed<typename T::base_type>();
   }
 #endif
+  else if constexpr (std::is_same_v<T, nodes::List>) {
+    return std::move(value_.get<T>());
+  }
   else {
     BLI_assert(static_type_is_base_socket_type<T>(socket_type_));
     if (kind_ == Kind::Single) {
@@ -200,6 +206,10 @@ template<typename T> void SocketValueVariant::store_impl(T value)
   else if constexpr (fn::is_field_v<T>) {
     /* Always store #Field<T> as #GField. */
     this->store_impl<fn::GField>(std::move(value));
+  }
+  else if constexpr (std::is_same_v<T, nodes::List>) {
+    kind_ = Kind::List;
+    value_.emplace<nodes::ListPtr>(std::move(value));
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
@@ -315,6 +325,7 @@ void SocketValueVariant::convert_to_single()
       fn::evaluate_constant_field(field, buffer);
       break;
     }
+    case Kind::List:
     case Kind::Grid: {
       /* Can't convert a grid to a single value, so just use the default value of the current
        * socket type. */
