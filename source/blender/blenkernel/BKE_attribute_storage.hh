@@ -53,6 +53,8 @@ class Attribute {
      * It's not necessary to manage a single value. */
     void *value;
     ImplicitSharingPtr<> sharing_info;
+    static SingleData ForValue(const GPointer &value);
+    static SingleData ForDefaultValue(const CPPType &type);
   };
   using DataVariant = std::variant<ArrayData, SingleData>;
   friend AttributeStorage;

@@ -97,6 +97,22 @@ Attribute::ArrayData Attribute::ArrayData::ForConstructed(const CPPType &type,
   return data;
 }
 
+Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
+{
+  Attribute::SingleData data{};
+  const CPPType &type = *value.type();
+  data.value = MEM_mallocN_aligned(type.size, type.alignment, __func__);
+  type.copy_construct(value.get(), data.value);
+  BLI_assert(type.is_trivially_destructible);
+  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.value));
+  return data;
+}
+
+Attribute::SingleData Attribute::SingleData::ForDefaultValue(const CPPType &type)
+{
+  return ForValue(GPointer(type, type.default_value()));
+}
+
 void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
 {
   for (const std::unique_ptr<Attribute> &attribute : this->runtime->attributes) {
@@ -127,13 +143,6 @@ void AttributeStorage::foreach_with_stop(FunctionRef<bool(const Attribute &)> fn
   }
 }
 
-static ImplicitSharingInfo *create_sharing_info_for_array(void *data,
-                                                          const int64_t size,
-                                                          const CPPType &type)
-{
-  return MEM_new<ArrayDataImplicitSharing>(__func__, data, size, type);
-}
-
 AttrStorageType Attribute::storage_type() const
 {
   if (std::get_if<Attribute::ArrayData>(&data_)) {
@@ -153,19 +162,18 @@ Attribute::DataVariant &Attribute::data_for_write()
       data->sharing_info->tag_ensured_mutable();
       return data_;
     }
-
-    const CPPType &cpp_type = attribute_type_to_cpp_type(type_);
-    void *new_data = MEM_malloc_arrayN_aligned(
-        data->size, cpp_type.size, cpp_type.alignment, __func__);
-    cpp_type.copy_construct_n(data->data, new_data, data->size);
-
-    data->data = new_data;
-    data->sharing_info = ImplicitSharingPtr<>(
-        create_sharing_info_for_array(data->data, data->size, cpp_type));
+    const CPPType &type = attribute_type_to_cpp_type(type_);
+    ArrayData new_data = ArrayData::ForConstructed(type, data->size);
+    type.copy_construct_n(data->data, new_data.data, data->size);
+    *data = std::move(new_data);
   }
-  else if (std::get_if<Attribute::SingleData>(&data_)) {
-    /* Not yet implemented because #SingleData isn't used at runtime yet. */
-    BLI_assert_unreachable();
+  else if (auto *data = std::get_if<Attribute::SingleData>(&data_)) {
+    if (data->sharing_info->is_mutable()) {
+      data->sharing_info->tag_ensured_mutable();
+      return data_;
+    }
+    const CPPType &type = attribute_type_to_cpp_type(type_);
+    *data = SingleData::ForValue(GPointer(type, data->value));
   }
   return data_;
 }
