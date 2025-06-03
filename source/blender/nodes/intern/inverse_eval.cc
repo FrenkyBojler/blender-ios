@@ -20,6 +20,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_object.hh"
 #include "BKE_type_conversions.hh"
 
 #include "BLI_listbase.h"
@@ -383,6 +384,14 @@ enum class SetDriverSourceResult {
   Success,
 };
 
+[[nodiscard]] static bool set_object_transform(Object &object, const float4x4 &object_to_world)
+{
+  /* TODO: Take constraints and drivers on transforms into account? */
+  BKE_object_apply_mat4(&object, object_to_world.ptr(), true, true);
+  DEG_id_tag_update(&object.id, ID_RECALC_TRANSFORM);
+  return true;
+}
+
 [[nodiscard]] static bool set_driver_variable(bContext &C,
                                               DriverVar &driver_var,
                                               const RNAValueVariant &value_variant)
@@ -437,15 +446,24 @@ enum class SetDriverSourceResult {
       const auto transform_channel = eDriverTarget_TransformChannels(driver_target.transChan);
       const auto flag = eDriverTarget_Flag(driver_target.flag);
       /* Definitions taken from #prop_local_space_items. */
-      const bool use_world_space = flag == 0;
-      const bool use_transform_space = flag & DTAR_FLAG_LOCALSPACE;
-      const bool use_local_space = (flag & (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS)) ==
-                                   (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS);
+      const eDriverTarget_Flag space_flag = eDriverTarget_Flag(
+          flag & (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS));
+      const bool use_world_space = space_flag == 0;
+      const bool use_transform_space = space_flag == DTAR_FLAG_LOCALSPACE;
+      const bool use_local_space = space_flag == (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS);
+
+      const float value = std::visit([](auto &&v) { return float(v); }, value_variant);
+
       switch (transform_channel) {
         case DTAR_TRANSCHAN_LOCX:
         case DTAR_TRANSCHAN_LOCY:
         case DTAR_TRANSCHAN_LOCZ: {
           const int location_index = transform_channel - DTAR_TRANSCHAN_LOCX;
+          if (use_world_space) {
+            float4x4 object_to_world = object.object_to_world();
+            object_to_world[3][location_index] = value;
+            return set_object_transform(object, object_to_world);
+          }
           if (use_local_space) {
             return set_rna_property(
                 C, object.id, fmt::format("location[{}]", location_index), value_variant);
@@ -456,6 +474,17 @@ enum class SetDriverSourceResult {
         case DTAR_TRANSCHAN_ROTY:
         case DTAR_TRANSCHAN_ROTZ: {
           const int rotation_index = transform_channel - DTAR_TRANSCHAN_ROTX;
+          if (use_world_space) {
+            const float4x4 old_object_to_world = object.object_to_world();
+            float3 location;
+            math::EulerXYZ rotation;
+            float3 scale;
+            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
+            rotation.xyz()[rotation_index] = value;
+            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
+                location, rotation, scale);
+            return set_object_transform(object, new_object_to_world);
+          }
           if (use_local_space) {
             return set_rna_property(
                 C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value_variant);
@@ -466,6 +495,17 @@ enum class SetDriverSourceResult {
         case DTAR_TRANSCHAN_SCALEY:
         case DTAR_TRANSCHAN_SCALEZ: {
           const int scale_index = transform_channel - DTAR_TRANSCHAN_SCALEX;
+          if (use_world_space) {
+            const float4x4 old_object_to_world = object.object_to_world();
+            float3 location;
+            math::EulerXYZ rotation;
+            float3 scale;
+            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
+            scale[scale_index] = value;
+            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
+                location, rotation, scale);
+            return set_object_transform(object, new_object_to_world);
+          }
           if (use_local_space) {
             return set_rna_property(
                 C, object.id, fmt::format("scale[{}]", scale_index), value_variant);
@@ -473,6 +513,17 @@ enum class SetDriverSourceResult {
           return false;
         }
         case DTAR_TRANSCHAN_SCALE_AVG: {
+          if (use_world_space) {
+            const float4x4 old_object_to_world = object.object_to_world();
+            float3 location;
+            math::EulerXYZ rotation;
+            float3 scale;
+            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
+            scale = float3(value);
+            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
+                location, rotation, scale);
+            return set_object_transform(object, new_object_to_world);
+          }
           if (use_local_space) {
             return set_rna_property(C, object.id, "scale[0]", value_variant) &&
                    set_rna_property(C, object.id, "scale[1]", value_variant) &&
