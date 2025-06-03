@@ -547,7 +547,7 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
+    const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
     Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
