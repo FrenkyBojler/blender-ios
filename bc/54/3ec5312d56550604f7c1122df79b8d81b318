@@ -1,1 +1,2 @@
 Referenced by commit 4c56c2d7b054d2b441080ba5e5192c6e84110070, Fix: Crash in BVH2 instance packing after recent bugfix in bc543ec5312d
+Referenced by issue #139791, Cycles: Crash constructing some BVH configurations
