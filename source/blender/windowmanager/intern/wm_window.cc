@@ -1955,7 +1955,7 @@ void wm_window_events_process(const bContext *C)
    * avaiable or a timer needs to be fired. This helps to save on CPU cycles when idling.
    * Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
    * events are typically generated from a timer that runs in the main loop. */
-  if (has_event || !(G.f & G_FLAG_EVENT_SIMULATE)) {
+  if (has_event || (G.f & G_FLAG_EVENT_SIMULATE) != 0) {
     sleep_us = 0;
   }
   else {
