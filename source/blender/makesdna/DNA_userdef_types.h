@@ -1020,7 +1020,7 @@ typedef enum eNdof_Flag {
    * is called, just that it feels right */
   /* zoom is up/down if this flag is set (otherwise forward/backward) */
   NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
-  NDOF_ZOOM_INVERT = (1 << 8), /* Deprecated */
+  // NDOF_ZOOM_INVERT = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),
   NDOF_ROTZ_INVERT_AXIS = (1 << 11),
@@ -1050,7 +1050,7 @@ typedef enum eNdof_Navigation_Mode {
 /* Some navigation modes make use of Auto CoR and some doesnt.
  * Instead of testing against all possibilities let's use a macro. */
 /* TODO: Add Target Camera Mode when implemented */
-#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(mode) (mode == NDOF_OBJECT_MODE)
+#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) (userdef.ndof_navigation_mode == NDOF_OBJECT_MODE)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 

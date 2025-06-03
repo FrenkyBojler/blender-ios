@@ -2122,9 +2122,9 @@ class USERPREF_PT_ndof_settings(Panel):
             if show_3dview_settings:
                 row = col.row(heading="Invert Rotate")
                 for text, attr in (
-                        ("Rx", "ndof_rotx_invert_axis"),
-                        ("Ry", "ndof_roty_invert_axis"),
-                        ("Rz", "ndof_rotz_invert_axis"),
+                        ("X", "ndof_rotx_invert_axis"),
+                        ("Y", "ndof_roty_invert_axis"),
+                        ("Z", "ndof_rotz_invert_axis"),
                 ):
                     row.prop(props, attr, text=text, toggle=True)
 
