@@ -35,7 +35,7 @@ void VertexBlurOperation::on_stroke_extended(const bContext &C,
   const Scene &scene = *CTX_data_scene(&C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush(&paint);
-  const float radius = brush_radius(scene, brush, extension_sample.pressure);
+  const float radius = brush_radius(scene, TODO, brush, extension_sample.pressure);
   const float radius_squared = radius * radius;
 
   const bool use_selection_masking = GPENCIL_ANY_VERTEX_MASK(
@@ -75,8 +75,12 @@ void VertexBlurOperation::on_stroke_extended(const bContext &C,
       const ColorGeometry4f mix_color(average_color.x, average_color.y, average_color.z, 1.0f);
 
       for (const int point : points) {
-        const float influence = brush_point_influence(
-            scene, brush, view_positions[point], extension_sample, params.multi_frame_falloff);
+        const float influence = brush_point_influence(scene,
+                                                      TODO,
+                                                      brush,
+                                                      view_positions[point],
+                                                      extension_sample,
+                                                      params.multi_frame_falloff);
         ColorGeometry4f &color = vertex_colors[point];
         if (color.a > 0.0f && influence > 0.0f) {
           color = math::interpolate(color, mix_color, influence);

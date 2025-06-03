@@ -1339,6 +1339,7 @@ void BKE_brush_scale_size(int *r_brush_size,
 }
 
 void BKE_brush_jitter_pos(const Scene &scene,
+                          const Paint &paint,
                           const Brush &brush,
                           const float pos[2],
                           float jitterpos[2])
@@ -1357,7 +1358,7 @@ void BKE_brush_jitter_pos(const Scene &scene,
     spread = 1.0;
   }
   else {
-    diameter = 2 * BKE_brush_size_get(&scene, &brush, TODO);
+    diameter = 2 * BKE_brush_size_get(&scene, &brush, &paint);
     spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */

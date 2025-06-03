@@ -91,6 +91,7 @@ void BKE_brush_tag_unsaved_changes(Brush *brush);
 Brush *BKE_brush_first_search(Main *bmain, eObjectMode ob_mode);
 
 void BKE_brush_jitter_pos(const Scene &scene,
+                          const Paint &paint,
                           const Brush &brush,
                           const float pos[2],
                           float jitterpos[2]);

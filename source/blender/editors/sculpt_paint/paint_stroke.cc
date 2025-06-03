@@ -530,7 +530,7 @@ void paint_stroke_jitter_pos(Scene &scene,
       factor *= pressure;
     }
 
-    BKE_brush_jitter_pos(scene, brush, mval, r_mouse_out);
+    BKE_brush_jitter_pos(scene, TODO, brush, mval, r_mouse_out);
 
     /* XXX: meh, this is round about because
      * BKE_brush_jitter_pos isn't written in the best way to

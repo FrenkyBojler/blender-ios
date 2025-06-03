@@ -196,7 +196,7 @@ class ProjectionPaintMode : public AbstractPaintMode {
  private:
   void paint_fill(const bContext *C,
                   const Scene *scene,
-                  const Paint * /*paint*/,
+                  const Paint *paint,
                   Brush *brush,
                   PaintStroke *stroke,
                   void *stroke_handle,
@@ -210,7 +210,7 @@ class ProjectionPaintMode : public AbstractPaintMode {
                       paint_stroke_flipped(stroke),
                       1.0,
                       0.0,
-                      BKE_brush_size_get(scene, brush, TODO));
+                      BKE_brush_size_get(scene, brush, paint));
     /* two redraws, one for GPU update, one for notification */
     paint_proj_redraw(C, stroke_handle, false);
     paint_proj_redraw(C, stroke_handle, true);

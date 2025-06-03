@@ -51,8 +51,12 @@ void ThicknessOperation::on_stroke_extended(const bContext &C, const InputSample
 
         point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
           float &radius = radii[point_i];
-          const float influence = brush_point_influence(
-              scene, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+          const float influence = brush_point_influence(scene,
+                                                        TODO,
+                                                        brush,
+                                                        view_positions[point_i],
+                                                        extension_sample,
+                                                        params.multi_frame_falloff);
           /* Factor 1/1000 is used to map arbitrary influence value to a sensible radius. */
           const float delta_radius = (invert ? -influence : influence) * 0.001f;
           radius = std::max(radius + delta_radius, 0.0f);

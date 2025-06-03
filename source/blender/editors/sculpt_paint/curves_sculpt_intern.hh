@@ -13,6 +13,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
+#include "DNA_brush_types.h"
+#include "DNA_scene_types.h"
 
 #include "ED_curves.hh"
 
@@ -44,11 +46,13 @@ struct StrokeExtension {
 
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension);
 float brush_radius_get(const Scene &scene,
+                       const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension);
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension);
 float brush_strength_get(const Scene &scene,
+                         const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension);
 

@@ -144,7 +144,7 @@ struct AddOperationExecutor {
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_settings_ = brush_->curves_sculpt_settings;
-    brush_radius_re_ = brush_radius_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_radius_re_ = brush_radius_get(*ctx_.scene, TODO, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     use_front_face_ = brush_->flag & BRUSH_FRONTFACE;

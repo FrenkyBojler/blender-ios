@@ -54,8 +54,12 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
       Array<float2> view_positions = calculate_view_positions(params, point_selection);
       MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();
       point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-        const float influence = brush_point_influence(
-            scene, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+        const float influence = brush_point_influence(scene,
+                                                      TODO,
+                                                      brush,
+                                                      view_positions[point_i],
+                                                      extension_sample,
+                                                      params.multi_frame_falloff);
         if (influence > 0.0f && vertex_colors[point_i].a > 0.0f) {
           vertex_colors[point_i] = replace_color;
         }
@@ -72,8 +76,12 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
       fill_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
         const IndexRange points = points_by_curve[curve_i];
         const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-        const float influence = brush_fill_influence(
-            scene, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
+        const float influence = brush_fill_influence(scene,
+                                                     TODO,
+                                                     brush,
+                                                     curve_view_positions,
+                                                     extension_sample,
+                                                     params.multi_frame_falloff);
         if (influence > 0.0f && fill_colors[curve_i].a > 0.0f) {
           fill_colors[curve_i] = replace_color;
         }

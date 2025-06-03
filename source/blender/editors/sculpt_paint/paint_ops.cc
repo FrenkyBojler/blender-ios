@@ -62,7 +62,7 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
   if (brush) {
     /* Pixel radius. */
     {
-      const int old_size = (use_unified_size) ? BKE_brush_size_get(scene, brush, TODO) : brush->size;
+      const int old_size = (use_unified_size) ? BKE_brush_size_get(scene, brush, paint) : brush->size;
       int size = int(scalar * old_size);
 
       if (abs(old_size - size) < U.pixelsize) {
@@ -75,7 +75,7 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
       }
 
       if (use_unified_size) {
-        BKE_brush_size_set(scene, brush, size, TODO);
+        BKE_brush_size_set(scene, brush, size, paint);
       }
       else {
         brush->size = max_ii(size, 1);
@@ -86,13 +86,13 @@ static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
     /* Unprojected radius. */
     {
       float unprojected_radius = scalar * (use_unified_size ?
-                                               BKE_brush_unprojected_radius_get(scene, brush, TODO) :
+                                               BKE_brush_unprojected_radius_get(scene, brush, paint) :
                                                brush->unprojected_radius);
 
       unprojected_radius = std::max(unprojected_radius, 0.001f);
 
       if (use_unified_size) {
-        BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius, TODO);
+        BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius, paint);
       }
       else {
         brush->unprojected_radius = unprojected_radius;
