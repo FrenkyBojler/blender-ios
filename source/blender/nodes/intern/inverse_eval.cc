@@ -383,7 +383,24 @@ enum class SetDriverSourceResult {
   Success,
 };
 
-[[nodiscard]] static SetDriverSourceResult set_driver_source_if_available(
+[[nodiscard]] static bool set_driver_variable(bContext &C,
+                                              DriverVar &driver_var,
+                                              const RNAValueVariant &value_variant)
+{
+  if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
+    return false;
+  }
+  if (driver_var.num_targets != 1) {
+    return false;
+  }
+  const DriverTarget &driver_target = driver_var.targets[0];
+  if (!driver_target.id) {
+    return false;
+  }
+  return set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant);
+}
+
+[[nodiscard]] static SetDriverSourceResult set_driver_target_if_available(
     bContext &C,
     ID &id,
     const StringRefNull rna_path,
@@ -417,18 +434,7 @@ enum class SetDriverSourceResult {
         DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
         const RNAValueVariant updated_value_variant = add_value_variant(
             value_variant, -driver->curval + driver_var.curval);
-        if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        if (driver_var.num_targets != 1) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        const DriverTarget &driver_target = driver_var.targets[0];
-        if (!driver_target.id) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        if (set_rna_property(C, *driver_target.id, driver_target.rna_path, updated_value_variant))
-        {
+        if (set_driver_variable(C, driver_var, updated_value_variant)) {
           return SetDriverSourceResult::Success;
         }
         return SetDriverSourceResult::UnsupportedDriver;
@@ -439,17 +445,7 @@ enum class SetDriverSourceResult {
           return SetDriverSourceResult::UnsupportedDriver;
         }
         DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
-        if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        if (driver_var.num_targets != 1) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        const DriverTarget &driver_target = driver_var.targets[0];
-        if (!driver_target.id) {
-          return SetDriverSourceResult::UnsupportedDriver;
-        }
-        if (set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant)) {
+        if (set_driver_variable(C, driver_var, value_variant)) {
           return SetDriverSourceResult::Success;
         }
         return SetDriverSourceResult::UnsupportedDriver;
@@ -488,7 +484,7 @@ static bool set_rna_property(bContext &C,
   if (index >= 0) {
     index_opt = index;
   }
-  const SetDriverSourceResult set_driver_source_result = set_driver_source_if_available(
+  const SetDriverSourceResult set_driver_source_result = set_driver_target_if_available(
       C, id, *rna_path_without_index, index_opt, value_variant);
   if (set_driver_source_result == SetDriverSourceResult::Success) {
     return true;
