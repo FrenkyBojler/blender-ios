@@ -76,8 +76,6 @@ struct SequencerAddData {
   ImageFormatData im_format;
 };
 
-/* Generic functions, reused by add strip operators. */
-
 /* Avoid passing multiple args and be more verbose. */
 #define SEQPROP_STARTFRAME (1 << 0)
 #define SEQPROP_ENDFRAME (1 << 1)
@@ -95,6 +93,10 @@ static const EnumPropertyItem scale_fit_methods[] = {
     {SEQ_USE_ORIGINAL_SIZE, "ORIGINAL", 0, "Use Original Size", "Keep image at its original size"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+/* -------------------------------------------------------------------- */
+/** \name Generic Add Functions
+ * \{ */
 
 static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
 {
@@ -576,6 +578,26 @@ static bool seq_effect_add_properties_poll(const bContext * /*C*/,
   return true;
 }
 
+static void sequencer_disable_one_time_properties(bContext *C, wmOperator *op)
+{
+  Editing *ed = seq::editing_get(CTX_data_scene(C));
+  /* Disable following properties if there are any existing strips, unless overridden by user. */
+  if (ed && ed->seqbasep && ed->seqbasep->first) {
+    if (RNA_struct_find_property(op->ptr, "use_framerate")) {
+      RNA_boolean_set(op->ptr, "use_framerate", false);
+    }
+    if (RNA_struct_find_property(op->ptr, "set_view_transform")) {
+      RNA_boolean_set(op->ptr, "set_view_transform", false);
+    }
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Scene Strip
+ * \{ */
+
 static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -617,20 +639,6 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
   return OPERATOR_FINISHED;
 }
 
-static void sequencer_disable_one_time_properties(bContext *C, wmOperator *op)
-{
-  Editing *ed = seq::editing_get(CTX_data_scene(C));
-  /* Disable following properties if there are any existing strips, unless overridden by user. */
-  if (ed && ed->seqbasep && ed->seqbasep->first) {
-    if (RNA_struct_find_property(op->ptr, "use_framerate")) {
-      RNA_boolean_set(op->ptr, "use_framerate", false);
-    }
-    if (RNA_struct_find_property(op->ptr, "set_view_transform")) {
-      RNA_boolean_set(op->ptr, "set_view_transform", false);
-    }
-  }
-}
-
 static wmOperatorStatus sequencer_add_scene_strip_invoke(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent *event)
@@ -667,6 +675,12 @@ void SEQUENCER_OT_scene_strip_add(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Scene Strip With New Scene
+ * \{ */
 
 static EnumPropertyItem strip_new_scene_items[] = {
     {SCE_COPY_NEW, "NEW", 0, "New", "Add new Strip with a new empty Scene with default settings"},
@@ -797,6 +811,12 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
   RNA_def_property_flag(ot->prop, PROP_ENUM_NO_TRANSLATE);
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Movieclip Strip
+ * \{ */
+
 static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -876,6 +896,12 @@ void SEQUENCER_OT_movieclip_strip_add(wmOperatorType *ot)
   ot->prop = prop;
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Mask Strip
+ * \{ */
+
 static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
@@ -950,6 +976,12 @@ void SEQUENCER_OT_mask_strip_add(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
   ot->prop = prop;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Movie Strip
+ * \{ */
 
 static void sequencer_add_init(bContext * /*C*/, wmOperator *op)
 {
@@ -1376,6 +1408,12 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
                   "Set frame rate of the current scene to the frame rate of the movie");
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Sound Strip
+ * \{ */
+
 static void sequencer_add_sound_multiple_strips(bContext *C,
                                                 wmOperator *op,
                                                 seq::LoadData *load_data)
@@ -1519,6 +1557,12 @@ void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "cache", false, "Cache", "Cache the sound in memory");
   RNA_def_boolean(ot->srna, "mono", false, "Mono", "Merge all the sound's channels into one");
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Image Strip
+ * \{ */
 
 int sequencer_image_seq_get_minmax_frame(wmOperator *op,
                                          int sfra,
@@ -1759,6 +1803,12 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
                   "Use placeholders for missing frames of the strip");
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Add Effect Strip
+ * \{ */
+
 static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
@@ -1947,5 +1997,7 @@ void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot)
                              1.0f);
   RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
 }
+
+/** \} */
 
 }  // namespace blender::ed::vse
