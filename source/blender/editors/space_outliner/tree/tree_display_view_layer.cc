@@ -17,6 +17,7 @@
 #include "BLI_listbase_wrapper.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
+#include "BLI_set.hh"
 
 #include "../outliner_intern.hh"
 #include "common.hh"
@@ -32,7 +33,8 @@ class ObjectsChildrenBuilder {
 
   SpaceOutliner &outliner_;
   ObjectTreeElementsMap object_tree_elements_map_;
-  Vector<Object *> ordered_objects;
+  Vector<Object *> ordered_objects_;
+  Set<Object *> objects_in_ordered_objects_;
 
  public:
   ObjectsChildrenBuilder(SpaceOutliner &space_outliner);
@@ -43,7 +45,7 @@ class ObjectsChildrenBuilder {
  private:
   void object_tree_elements_lookup_create_recursive(TreeElement *te_parent);
   void make_object_parent_hierarchy_collections();
-  void foreach_object_add_parent_recursive(Object *ob);
+  void add_object_and_parents_in_order(Object *ob);
 };
 
 /* -------------------------------------------------------------------- */
@@ -223,7 +225,7 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
       Object *ob = (Object *)tselem->id;
       /* Lookup children or add new, empty children vector. */
       Vector<TreeElement *> &tree_elements = object_tree_elements_map_.lookup_or_add(ob, {});
-      foreach_object_add_parent_recursive(ob);
+      add_object_and_parents_in_order(ob);
       tree_elements.append(te);
       object_tree_elements_lookup_create_recursive(te);
     }
@@ -236,7 +238,7 @@ void ObjectsChildrenBuilder::object_tree_elements_lookup_create_recursive(TreeEl
  */
 void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
 {
-  for (Object *ob : ordered_objects) {
+  for (Object *ob : ordered_objects_) {
     if (ob->parent == nullptr) {
       continue;
     }
@@ -244,7 +246,7 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
     Vector<TreeElement *> *parent_ob_tree_elements = object_tree_elements_map_.lookup_ptr(
         ob->parent);
     Vector<TreeElement *> &child_ob_tree_elements = *object_tree_elements_map_.lookup_ptr(ob);
-    ;
+
     if (parent_ob_tree_elements == nullptr) {
       continue;
     }
@@ -293,12 +295,14 @@ void ObjectsChildrenBuilder::make_object_parent_hierarchy_collections()
   }
 }
 
-void ObjectsChildrenBuilder::foreach_object_add_parent_recursive(Object *ob)
+void ObjectsChildrenBuilder::add_object_and_parents_in_order(Object *ob)
 {
   if (Object *parent = ob->parent) {
-    foreach_object_add_parent_recursive(parent);
+    add_object_and_parents_in_order(parent);
   }
-  ordered_objects.append_non_duplicates(ob);
+  if (objects_in_ordered_objects_.add(ob)) {
+    ordered_objects_.append(ob);
+  }
 }
 
 /** \} */
