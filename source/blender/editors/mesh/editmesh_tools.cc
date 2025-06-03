@@ -1105,36 +1105,83 @@ void MESH_OT_mark_seam(wmOperatorType *ot)
 
 static int edbm_mark_sharp_exec(bContext *C, wmOperator *op)
 {
-  BMEdge *eed;
-  BMIter iter;
-  const bool clear = RNA_boolean_get(op->ptr, "clear");
-  const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool clear = RNA_boolean_get(op->ptr, "clear");
+  const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if ((use_verts && bm->totvertsel == 0) || (!use_verts && bm->totedgesel == 0)) {
       continue;
     }
 
-    BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-      if (use_verts) {
-        if (!(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
-              BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)))
-        {
+    if (me->symmetry == 0) {
+      BMIter iter;
+      BMEdge *eed;
+      BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+        if (use_verts) {
+          if (!(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
+                BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)) ||
+              BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
+          {
+            continue;
+          }
+        }
+        else {
+          if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+            continue;
+          }
+        }
+
+        BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
+      }
+    }
+    else {
+      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
+      BMIter iter;
+      BMEdge *eed;
+
+      for (int axis = 0; axis < 3; axis++) {
+        const int axis_flag = (ME_SYMMETRY_X << axis);
+        if ((me->symmetry & axis_flag) == 0) {
           continue;
         }
-      }
-      else if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
-        continue;
-      }
 
-      BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
+        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
+
+        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+          if (use_verts) {
+            if (!(BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
+                  BM_elem_flag_test(eed->v2, BM_ELEM_SELECT)) ||
+                BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
+            {
+              continue;
+            }
+          }
+          else {
+            if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN))
+            {
+              continue;
+            }
+          }
+
+          BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
+
+          BMEdge *eed_mirror = EDBM_verts_mirror_get_edge(em, eed);
+          if (eed_mirror) {
+            BM_elem_flag_set(eed_mirror, BM_ELEM_SMOOTH, clear);
+          }
+        }
+
+        EDBM_verts_mirror_cache_end(em);
+      }
     }
 
     EDBMUpdate_Params params{};
@@ -4312,7 +4359,7 @@ static bool mesh_separate_loose(
   blender::Array<BMEdge *> edge_groups(bm_old->totedge);
   blender::Array<BMFace *> face_groups(bm_old->totface);
 
-  int (*groups)[3] = nullptr;
+  int(*groups)[3] = nullptr;
   int groups_len = BM_mesh_calc_edge_groups_as_arrays(
       bm_old, vert_groups.data(), edge_groups.data(), face_groups.data(), &groups);
   if (groups_len <= 1) {
@@ -9448,7 +9495,7 @@ static int edbm_set_normals_from_faces_exec(bContext *C, wmOperator *op)
 
     BKE_editmesh_lnorspace_update(em);
 
-    float (*vert_normals)[3] = static_cast<float (*)[3]>(
+    float(*vert_normals)[3] = static_cast<float(*)[3]>(
         MEM_mallocN(sizeof(*vert_normals) * bm->totvert, __func__));
     {
       int v_index;
@@ -9556,7 +9603,7 @@ static int edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     BKE_editmesh_lnorspace_update(em);
     BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-    float (*smooth_normal)[3] = static_cast<float (*)[3]>(
+    float(*smooth_normal)[3] = static_cast<float(*)[3]>(
         MEM_callocN(sizeof(*smooth_normal) * lnors_ed_arr->totloop, __func__));
 
     /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current
