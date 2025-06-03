@@ -554,6 +554,13 @@ static VkImageCreateFlags to_vk_image_create(const eGPUTextureType texture_type,
     result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
   }
 
+  /* Depth stencil textures needs to be mutable, samplers can choose which plane they actually
+   * sample from. On Qualcomm devices not all samplers are supported, creating an image view
+   * specific to a single plane overcomes this limitation. */
+  if ((format_flag & GPU_FORMAT_DEPTH_STENCIL) == GPU_FORMAT_DEPTH_STENCIL) {
+    result |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+  }
+
   return result;
 }
 

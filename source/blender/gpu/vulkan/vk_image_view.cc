@@ -14,13 +14,27 @@
 
 namespace blender::gpu {
 
-static VkFormat to_non_srgb_format(const VkFormat format)
+static inline VkFormat to_non_srgb_format(const VkFormat format)
 {
   switch (format) {
     case VK_FORMAT_R8G8B8_SRGB:
       return VK_FORMAT_R8G8B8_UNORM;
     case VK_FORMAT_R8G8B8A8_SRGB:
       return VK_FORMAT_R8G8B8A8_UNORM;
+
+    default:
+      break;
+  }
+  return format;
+}
+
+static inline VkFormat to_non_stencil_format(const VkFormat format)
+{
+  switch (format) {
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+      return VK_FORMAT_D24_UNORM_S8_UINT;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+      return VK_FORMAT_D32_SFLOAT;
 
     default:
       break;
@@ -40,6 +54,9 @@ VKImageView::VKImageView(VKTexture &texture, const VKImageViewInfo &info, String
   vk_format_ = to_vk_format(device_format);
   if (texture.format_flag_get() & GPU_FORMAT_SRGB && !info.use_srgb) {
     vk_format_ = to_non_srgb_format(vk_format_);
+  }
+  if (texture.format_flag_get() & GPU_FORMAT_DEPTH_STENCIL && !info.use_stencil) {
+    vk_format_ = to_non_stencil_format(vk_format_);
   }
 
   VkImageViewCreateInfo image_view_info = {};
