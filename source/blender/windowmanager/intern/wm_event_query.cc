@@ -168,8 +168,8 @@ void WM_event_print(const wmEvent *event)
       printf(", tablet: active: %d, pressure %.4f, tilt: (%.4f %.4f)",
              wmtab->active,
              wmtab->pressure,
-             wmtab->x_tilt,
-             wmtab->y_tilt);
+             wmtab->tilt.x,
+             wmtab->tilt.y);
     }
     printf("\n");
   }
@@ -375,8 +375,8 @@ bool WM_event_consecutive_gesture_test_break(const wmWindow *win, const wmEvent 
     }
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    /* Modifiers are excluded because from a user perspective,
-     * releasing a modifier (for e.g.) should not begin a new action. */
+    /* Modifiers are excluded because from a user perspective.
+     * For example, releasing a modifier should not begin a new action. */
     if (!ISKEYMODIFIER(event->type)) {
       return true;
     }
@@ -406,6 +406,14 @@ int WM_event_drag_threshold(const wmEvent *event)
      * The `event->type` would include #MOUSEMOVE which is always the case when dragging
      * and does not help us know which threshold to use. */
     if (WM_event_is_tablet(event)) {
+      /* Decrease threshold as pen pressure is increased. */
+      if (event->tablet.pressure > 0.0f && event->tablet.pressure < 1.0f) {
+        /* Pressure 0 results in max threshold, pressure 0.5 and above results in 0 pixels. */
+        const float bias = 1.0f - std::min(event->tablet.pressure * 2.0f, 1.0f);
+        drag_threshold = std::max(int(bias * float(U.drag_threshold_tablet)), 0);
+        /* Return without multiplying by resolution scale. */
+        return drag_threshold;
+      }
       drag_threshold = U.drag_threshold_tablet;
     }
     else {
@@ -577,8 +585,7 @@ float wm_pressure_curve(float raw_pressure)
 float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
   if (r_tilt) {
-    r_tilt[0] = event->tablet.x_tilt;
-    r_tilt[1] = event->tablet.y_tilt;
+    copy_v2_v2(r_tilt, event->tablet.tilt);
   }
 
   if (r_pen_flip) {

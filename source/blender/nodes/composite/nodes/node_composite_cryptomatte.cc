@@ -701,12 +701,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
     int view_layer_index = 0;
     LISTBASE_FOREACH_INDEX (ViewLayer *, view_layer, &scene->view_layers, view_layer_index) {
-      /* Not the viewer layer used by the node. */
-      if (!StringRef(type_name).startswith(view_layer->name)) {
-        continue;
-      }
-
-      /* Find out which type of Cryptomatte layer the node uses.  */
+      /* Find out which type of Cryptomatte layer the node uses, if non matched, then this is not
+       * the view layer used by the node and we check other view layers. */
       const char *cryptomatte_type = nullptr;
       const std::string layer_prefix = std::string(view_layer->name) + ".";
       if (type_name == layer_prefix + RE_PASSNAME_CRYPTOMATTE_OBJECT) {
@@ -719,8 +715,9 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
         cryptomatte_type = RE_PASSNAME_CRYPTOMATTE_MATERIAL;
       }
 
+      /* Not the view layer used by the node. */
       if (!cryptomatte_type) {
-        return layers;
+        continue;
       }
 
       /* Each layer stores two ranks/levels, so do ceiling division by two. */
@@ -846,7 +843,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   }
 
   /* The domain should be centered with the same size as the source. In case of invalid source,
-   * fallback to the domain inferred from the input. */
+   * fall back to the domain inferred from the input. */
   Domain compute_domain() override
   {
     switch (get_source()) {
@@ -861,7 +858,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   }
 
   /* In case of an image source, the domain should be centered with the same size as the source
-   * image. In case of an invalid image, fallback to the domain inferred from the input. */
+   * image. In case of an invalid image, fall back to the domain inferred from the input. */
   Domain compute_image_domain()
   {
     BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
@@ -913,7 +910,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_cryptomatte_cc
 
-void register_node_type_cmp_cryptomatte()
+static void register_node_type_cmp_cryptomatte()
 {
   namespace file_ns = blender::nodes::node_composite_cryptomatte_cc;
 
@@ -923,7 +920,7 @@ void register_node_type_cmp_cryptomatte()
   ntype.ui_name = "Cryptomatte";
   ntype.ui_description =
       "Generate matte for individual objects and materials using Cryptomatte render passes";
-  ntype.enum_name_legacy = "CRYPTOMATTE";
+  ntype.enum_name_legacy = "CRYPTOMATTE_V2";
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_cryptomatte_declare;
   blender::bke::node_type_size(ntype, 240, 100, 700);
@@ -937,6 +934,7 @@ void register_node_type_cmp_cryptomatte()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte)
 
 /** \} */
 
@@ -1001,7 +999,7 @@ class LegacyCryptoMatteOperation : public BaseCryptoMatteOperation {
     Vector<Result> layers;
     /* Add all valid results of all inputs except the first input, which is the input image. */
     for (const bNodeSocket *input_socket : bnode().input_sockets().drop_front(1)) {
-      if (!input_socket->is_available()) {
+      if (!is_socket_available(input_socket)) {
         continue;
       }
 
@@ -1024,7 +1022,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_legacy_cryptomatte_cc
 
-void register_node_type_cmp_cryptomatte_legacy()
+static void register_node_type_cmp_cryptomatte_legacy()
 {
   namespace legacy_file_ns = blender::nodes::node_composite_legacy_cryptomatte_cc;
   namespace file_ns = blender::nodes::node_composite_cryptomatte_cc;
@@ -1045,5 +1043,6 @@ void register_node_type_cmp_cryptomatte_legacy()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte_legacy)
 
 /** \} */

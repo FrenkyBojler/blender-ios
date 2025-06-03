@@ -107,6 +107,8 @@ typedef struct localListBase {
   void *first, *last;
 } localListBase;
 
+namespace {
+
 /* NOTE(@hos): keep this struct aligned (e.g., IRIX/GCC). */
 typedef struct MemHead {
   int tag1;
@@ -136,6 +138,8 @@ static_assert(MEM_MIN_CPP_ALIGNMENT <= alignof(MemHead), "Bad alignment of MemHe
 static_assert(MEM_MIN_CPP_ALIGNMENT <= sizeof(MemHead), "Bad size of MemHead");
 
 typedef MemHead MemHeadAligned;
+
+}  // namespace
 
 /* #MemHead::flag. */
 enum MemHeadFlag {
@@ -740,7 +744,7 @@ void *MEM_guarded_calloc_arrayN_aligned(const size_t len,
                                         const char *str)
 {
   size_t bytes_num;
-  /* There is no lower level #calloc with an alignment parameter, so we have to fallback to using
+  /* There is no lower level #calloc with an alignment parameter, so we have to fall back to using
    * #memset unfortunately. */
   void *ptr = mem_guarded_malloc_arrayN_aligned(len, size, alignment, str, bytes_num);
   if (!ptr) {

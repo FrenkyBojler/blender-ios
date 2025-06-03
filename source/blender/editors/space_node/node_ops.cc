@@ -87,6 +87,7 @@ void node_operatortypes()
   WM_operatortype_append(NODE_OT_add_material);
   WM_operatortype_append(NODE_OT_add_color);
   WM_operatortype_append(NODE_OT_add_import_node);
+  WM_operatortype_append(NODE_OT_add_group_input_node);
 
   WM_operatortype_append(NODE_OT_new_node_tree);
 
@@ -146,6 +147,16 @@ void ED_operatormacros_node()
   RNA_boolean_set(mot->ptr, "clear_viewer", true);
   WM_operatortype_macro_define(ot, "NODE_OT_link_viewer");
 
+  ot = WM_operatortype_append_macro(
+      "NODE_OT_join_named",
+      "Join in Named Frame",
+      "Create a new frame node around the selected nodes and name it immediately",
+      OPTYPE_UNDO);
+  WM_operatortype_macro_define(ot, "NODE_OT_join");
+  mot = WM_operatortype_macro_define(ot, "WM_OT_call_panel");
+  RNA_string_set(mot->ptr, "name", "TOPBAR_PT_name");
+  RNA_boolean_set(mot->ptr, "keep_open", false);
+
   ot = WM_operatortype_append_macro("NODE_OT_translate_attach",
                                     "Move and Attach",
                                     "Move nodes and attach to frame",
@@ -153,7 +164,7 @@ void ED_operatormacros_node()
   mot = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
   WM_operatortype_macro_define(ot, "NODE_OT_attach");
 
-  /* NODE_OT_translate_attach with remove_on_cancel set to true. */
+  /* `NODE_OT_translate_attach` with remove_on_cancel set to true. */
   ot = WM_operatortype_append_macro("NODE_OT_translate_attach_remove_on_cancel",
                                     "Move and Attach",
                                     "Move nodes and attach to frame",

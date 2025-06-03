@@ -23,6 +23,16 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
   }
 }
 
+void vk_pipeline_viewport_set_commands(VKCommandBufferInterface &command_buffer,
+                                       const VKViewportData &viewport_data,
+                                       VKViewportData &r_viewport_state)
+{
+  if (assign_if_different(r_viewport_state, viewport_data)) {
+    command_buffer.set_viewport(viewport_data.viewports);
+    command_buffer.set_scissor(viewport_data.scissors);
+  }
+}
+
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                      const VKPipelineData &pipeline_data,
                                      VKBoundPipeline &r_bound_pipeline,
@@ -84,6 +94,7 @@ void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
                                            VKRenderGraphNodeLinks &node_links,
                                            const VKVertexBufferBindings &vertex_buffers)
 {
+  node_links.inputs.reserve(node_links.inputs.size() + vertex_buffers.buffer_count);
   for (const VkBuffer vk_buffer :
        Span<VkBuffer>(vertex_buffers.buffer, vertex_buffers.buffer_count))
   {

@@ -289,8 +289,7 @@ typedef struct bPoseChannel {
 
   /** Constraints that act on this PoseChannel. */
   ListBase constraints;
-  /** Need to match bone name length: MAXBONENAME. */
-  char name[64];
+  char name[/*MAXBONENAME*/ 64];
 
   /** Dynamic, for detecting transform changes. */
   short flag;
@@ -758,6 +757,11 @@ typedef enum eActionGroup_Flag {
  * \see blender::animrig::Action for more detailed documentation.
  */
 typedef struct bAction {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_AC;
+#endif
+
   /** ID-serialization for relinking. */
   ID id;
 
@@ -771,7 +775,9 @@ typedef struct bAction {
 
   /* Storage for the underlying data of strips. Each strip type has its own
    * array, and strips reference this data with an enum indicating the strip
-   * type and an int containing the index in the array to use. */
+   * type and an int containing the index in the array to use.
+   *
+   * NOTE: when adding new strip data arrays, also update `duplicate_slot()`. */
   struct ActionStripKeyframeData **strip_keyframe_data_array;
   int strip_keyframe_data_array_num;
 
@@ -1110,8 +1116,8 @@ typedef struct bActionChannel {
 
   /** Settings accessed via bitmapping. */
   int flag;
-  /** Channel name, MAX_NAME. */
-  char name[64];
+  /** Channel name. */
+  char name[/*MAX_NAME*/ 64];
   /** Temporary setting - may be used to indicate group that channel belongs to during syncing. */
   int temp;
 } bActionChannel;
@@ -1124,7 +1130,7 @@ typedef struct bActionChannel {
  */
 typedef struct ActionLayer {
   /** User-Visible identifier, unique within the Animation. */
-  char name[64]; /* MAX_NAME. */
+  char name[/*MAX_NAME*/ 64];
 
   float influence; /* [0-1] */
 
@@ -1168,7 +1174,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[66]; /* MAX_ID_NAME */
+  char identifier[/*MAX_ID_NAME*/ 66];
 
   /**
    * Type of ID-block that this slot is intended for.

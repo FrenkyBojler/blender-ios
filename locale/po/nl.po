@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-24 09:38+0000\n"
-"PO-Revision-Date: 2025-01-27 09:56+0000\n"
-"Last-Translator: Sander Spolspoel <sander@sworl.be>\n"
+"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"PO-Revision-Date: 2025-04-14 08:33+0000\n"
+"Last-Translator: Brecht Van Lommel <brechtvanlommel@gmail.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.9.2"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Shader AOV"
@@ -1445,6 +1445,10 @@ msgid "Good"
 msgstr "Goed"
 
 
+msgid "Profile"
+msgstr "Profiel"
+
+
 msgctxt "Action"
 msgid "Invalid"
 msgstr "Ongeldig"
@@ -2091,10 +2095,6 @@ msgid "Round"
 msgstr "Rond"
 
 
-msgid "Profile"
-msgstr "Profiel"
-
-
 msgid "Dimensions"
 msgstr "Dimensies"
 
@@ -2698,6 +2698,26 @@ msgid "Mask"
 msgstr "Mask"
 
 
+msgid "Mirror"
+msgstr "Spiegel"
+
+
+msgid "Local View"
+msgstr "Lokale Scherm"
+
+
+msgid "Navigation"
+msgstr "Navigatie"
+
+
+msgid "Select Similar"
+msgstr "Selecteer Vergelijkbaar"
+
+
+msgid "Select Linked"
+msgstr "Selecteer Aaneengesloten"
+
+
 msgid "Light"
 msgstr "Licht"
 
@@ -2740,26 +2760,6 @@ msgstr "Namen"
 
 msgid "Text"
 msgstr "Tekst"
-
-
-msgid "Mirror"
-msgstr "Spiegel"
-
-
-msgid "Local View"
-msgstr "Lokale Scherm"
-
-
-msgid "Navigation"
-msgstr "Navigatie"
-
-
-msgid "Select Similar"
-msgstr "Selecteer Vergelijkbaar"
-
-
-msgid "Select Linked"
-msgstr "Selecteer Aaneengesloten"
 
 
 msgctxt "MovieClip"
@@ -3168,6 +3168,10 @@ msgstr "Bewegingsonscherpte"
 
 msgid "Render Layers"
 msgstr "Render Lagen"
+
+
+msgid "Greater"
+msgstr "Groter"
 
 
 msgid "Rotate"
@@ -4022,10 +4026,6 @@ msgstr "Voeg Pad Toe"
 
 msgid "Deselected"
 msgstr "Gedeselecteerd"
-
-
-msgid "Greater"
-msgstr "Groter"
 
 
 msgid "Less"
@@ -4924,11 +4924,6 @@ msgstr "Aap"
 
 
 msgctxt "Operator"
-msgid "Hide Collection"
-msgstr "Verberg Collectie"
-
-
-msgctxt "Operator"
 msgid "Show Hidden Objects"
 msgstr "Toon Verborgen Objecten"
 
@@ -5275,6 +5270,11 @@ msgstr "Render de collectie"
 
 
 msgctxt "Operator"
+msgid "Hide Collection"
+msgstr "Verberg Collectie"
+
+
+msgctxt "Operator"
 msgid "Delete Hierarchy"
 msgstr "Verwijder Hiërarchie"
 
@@ -5402,6 +5402,10 @@ msgstr "Maak Paden van Botten Leeg"
 msgctxt "Operator"
 msgid "Update Bone Paths"
 msgstr "Update Paden van Botten"
+
+
+msgid "Parents"
+msgstr "Ouders"
 
 
 msgctxt "Operator"
@@ -5905,11 +5909,6 @@ msgstr "Maak Intern"
 msgctxt "Operator"
 msgid "Toggle Overwrite"
 msgstr "Overschrijven Aan/Uit"
-
-
-msgctxt "Operator"
-msgid "Refresh PyConstraints"
-msgstr "Ververs PyConstraints"
 
 
 msgctxt "Operator"
@@ -7351,10 +7350,6 @@ msgid "Add Image"
 msgstr "Voeg Afbeelding Toe"
 
 
-msgid "Endpoint"
-msgstr "Eindpunt"
-
-
 msgctxt "Operator"
 msgid "Custom..."
 msgstr "Aangepast..."
@@ -7476,6 +7471,10 @@ msgid "Fade Distance"
 msgstr "Vervaag Afstand"
 
 
+msgid "Endpoint"
+msgstr "Eindpunt"
+
+
 msgid "Sewing"
 msgstr "Naaien"
 
@@ -7531,10 +7530,6 @@ msgstr "Vlam Rook"
 
 msgid "Bubbles"
 msgstr "Bubbels"
-
-
-msgid "Is Resumable"
-msgstr "Is Hervatbaar"
 
 
 msgid "Empty Space"
@@ -8483,10 +8478,6 @@ msgid "Locations"
 msgstr "Locaties"
 
 
-msgid "Parents"
-msgstr "Ouders"
-
-
 msgctxt "Operator"
 msgid "Quick Edit"
 msgstr "Snel Bewerken"
@@ -8820,10 +8811,6 @@ msgid "Yesterday"
 msgstr "Gisteren"
 
 
-msgid "Close"
-msgstr "Sluit"
-
-
 msgid "Armature Options"
 msgstr "Skelet Opties"
 
@@ -8871,6 +8858,10 @@ msgstr "Bol"
 msgctxt "Mesh"
 msgid "Icosphere"
 msgstr "Icosphere"
+
+
+msgid "Close"
+msgstr "Sluit"
 
 
 msgid "No face selected"
@@ -9164,10 +9155,6 @@ msgstr "Vervang Origineel"
 
 msgid "Crease Edges"
 msgstr "Vouwranden"
-
-
-msgid "Center:"
-msgstr "Midden:"
 
 
 msgid "Path:"

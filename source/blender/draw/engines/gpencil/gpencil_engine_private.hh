@@ -23,9 +23,9 @@
 
 #define GP_LIGHT
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 #include "gpencil_shader.hh"
-#include "gpencil_shader_shared.h"
+#include "gpencil_shader_shared.hh"
 
 struct GpencilBatchCache;
 struct Object;
@@ -124,6 +124,7 @@ struct Instance final : public DrawEngine {
   PassSimple smaa_edge_ps = {"smaa_edge"};
   PassSimple smaa_weight_ps = {"smaa_weight"};
   PassSimple smaa_resolve_ps = {"smaa_resolve"};
+  PassSimple accumulate_ps = {"aa_accumulate"};
   /* Composite the object depth to the default depth buffer to occlude overlays. */
   PassSimple merge_depth_ps = {"merge_depth_ps"};
   /* Invert mask buffer content. */
@@ -203,9 +204,15 @@ struct Instance final : public DrawEngine {
   struct {
     tObject *first, *last;
   } tobjects, tobjects_infront;
+  /* Used to record whether the `tobjects` list is sorted. Do not sort drawings again in separate
+   * pass rendering to avoid generating infinite lists. */
+  bool is_sorted;
   /* Pointer to dtxl->depth */
   GPUTexture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
+  /* Used for render accumulation antialiasing. */
+  Texture accumulation_tx = {"gp_accumulation_tx"};
+  Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
   GPUTexture *dummy_tx;
   /* Copy of v3d->shading.single_color. */
@@ -252,6 +259,8 @@ struct Instance final : public DrawEngine {
 
   /* Display onion skinning */
   bool do_onion;
+  /* Show only the onion skins of the active object. */
+  bool do_onion_only_active_object;
   /* Playing animation */
   bool playing;
   /* simplify settings */
@@ -313,6 +322,10 @@ struct Instance final : public DrawEngine {
   void end_sync() final;
 
   void draw(Manager &manager) final;
+
+  void antialiasing_accumulate(Manager &manager, float alpha);
+
+  static float2 antialiasing_sample_get(int sample_index, int sample_count);
 
  private:
   tObject *object_sync_do(Object *ob, ResourceHandle res_handle);

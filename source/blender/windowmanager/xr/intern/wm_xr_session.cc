@@ -222,7 +222,7 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
     /* Root window is still valid, use it. */
     return runtime_data->session_root_win;
   }
-  /* Otherwise, fallback. */
+  /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
 }
 
@@ -1408,8 +1408,14 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
   }
   BLI_assert(format != GPU_R8);
 
-  offscreen = vp->offscreen = GPU_offscreen_create(
-      draw_view->width, draw_view->height, true, format, GPU_TEXTURE_USAGE_SHADER_READ, err_out);
+  offscreen = vp->offscreen = GPU_offscreen_create(draw_view->width,
+                                                   draw_view->height,
+                                                   true,
+                                                   format,
+                                                   GPU_TEXTURE_USAGE_SHADER_READ |
+                                                       GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                   false,
+                                                   err_out);
   if (offscreen) {
     viewport = vp->viewport = GPU_viewport_create();
     if (!viewport) {

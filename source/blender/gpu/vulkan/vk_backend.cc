@@ -14,6 +14,7 @@
 
 #include "CLG_log.h"
 
+#include "GPU_capabilities.hh"
 #include "gpu_capabilities_private.hh"
 #include "gpu_platform_private.hh"
 
@@ -257,26 +258,18 @@ void VKBackend::platform_init()
            "",
            "",
            GPU_ARCHITECTURE_IMR);
+}
 
-  /* Query for all compatible devices */
-  VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
-  vk_application_info.pApplicationName = "Blender";
-  vk_application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.pEngineName = "Blender";
-  vk_application_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  vk_application_info.apiVersion = VK_API_VERSION_1_2;
-
-  VkInstanceCreateInfo vk_instance_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
-  vk_instance_info.pApplicationInfo = &vk_application_info;
-
-  VkInstance vk_instance = VK_NULL_HANDLE;
-  vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);
-  BLI_assert(vk_instance != VK_NULL_HANDLE);
+static void init_device_list(GHOST_ContextHandle ghost_context)
+{
+  GHOST_VulkanHandles vulkan_handles = {};
+  GHOST_GetVulkanHandles(ghost_context, &vulkan_handles);
 
   uint32_t physical_devices_count = 0;
-  vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, nullptr);
+  vkEnumeratePhysicalDevices(vulkan_handles.instance, &physical_devices_count, nullptr);
   Array<VkPhysicalDevice> vk_physical_devices(physical_devices_count);
-  vkEnumeratePhysicalDevices(vk_instance, &physical_devices_count, vk_physical_devices.data());
+  vkEnumeratePhysicalDevices(
+      vulkan_handles.instance, &physical_devices_count, vk_physical_devices.data());
   int index = 0;
   for (VkPhysicalDevice vk_physical_device : vk_physical_devices) {
     if (missing_capabilities_get(vk_physical_device).is_empty() &&
@@ -295,7 +288,7 @@ void VKBackend::platform_init()
     }
     index++;
   }
-  vkDestroyInstance(vk_instance, nullptr);
+
   std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
@@ -330,6 +323,19 @@ void VKBackend::platform_init(const VKDevice &device)
            driver_version.c_str(),
            GPU_ARCHITECTURE_IMR);
   GPG.devices = devices;
+
+  const VkPhysicalDeviceIDProperties &id_properties = device.physical_device_id_properties_get();
+
+  GPG.device_uuid = Array<uint8_t, 16>(Span<uint8_t>(id_properties.deviceUUID, VK_UUID_SIZE));
+
+  if (id_properties.deviceLUIDValid) {
+    GPG.device_luid = Array<uint8_t, 8>(Span<uint8_t>(id_properties.deviceUUID, VK_LUID_SIZE));
+    GPG.device_luid_node_mask = id_properties.deviceNodeMask;
+  }
+  else {
+    GPG.device_luid.reinitialize(0);
+    GPG.device_luid_node_mask = 0;
+  }
 
   CLOG_INFO(&LOG,
             0,
@@ -380,6 +386,14 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.dynamic_rendering_unused_attachments = device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
+#ifdef _WIN32
+  extensions.external_memory = device.supports_extension(
+      VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+#elif not defined(__APPLE__)
+  extensions.external_memory = device.supports_extension(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+#else
+  extensions.external_memory = false;
+#endif
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
@@ -434,7 +448,16 @@ void VKBackend::platform_exit()
   }
 }
 
-void VKBackend::delete_resources() {}
+void VKBackend::init_resources()
+{
+  compiler_ = MEM_new<ShaderCompiler>(
+      __func__, GPU_max_parallel_compilations(), GPUWorker::ContextType::Main);
+}
+
+void VKBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void VKBackend::samplers_update()
 {
@@ -479,6 +502,8 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   BLI_assert(ghost_context != nullptr);
   if (!device.is_initialized()) {
     device.init(ghost_context);
+    device.extensions_get().log();
+    init_device_list((GHOST_ContextHandle)ghost_context);
   }
 
   VKContext *context = new VKContext(ghost_window, ghost_context);
@@ -569,9 +594,35 @@ void VKBackend::render_end()
       device.orphaned_data.destroy_discarded_resources(device);
     }
   }
+
+  /* When performing animation render we want to release any discarded resources during rendering
+   * after each frame.
+   */
+  if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+    /* Fix #139284: During rendering when main thread is blocked or all screens are minimized the
+     * garbage collection will not happen resulting in crashes as resources are not freed.
+     *
+     * A better solution would be to do garbage collection in a separate thread but that requires a
+     * ref counting system. The specifics of such a system is still unclear.
+     *
+     * A possible solution for a Vulkan specific ref counting is to store the ref counts in the
+     * resource tracker. That would only handle images and buffers, but it would solve the most
+     * resource hungry issues.
+     */
+    device.wait_queue_idle();
+    device.orphaned_data.destroy_discarded_resources(device);
+  }
 }
 
-void VKBackend::render_step(bool /*force_resource_release*/) {}
+void VKBackend::render_step(bool force_resource_release)
+{
+  if (force_resource_release) {
+    device.orphaned_data.move_data(device.orphaned_data_render,
+                                   device.orphaned_data.timeline_ + 1);
+  }
+}
 
 void VKBackend::capabilities_init(VKDevice &device)
 {
@@ -581,7 +632,7 @@ void VKBackend::capabilities_init(VKDevice &device)
   /* Reset all capabilities from previous context. */
   GCaps = {};
   GCaps.geometry_shader_support = true;
-  GCaps.texture_view_support = true;
+  GCaps.clip_control_support = true;
   GCaps.stencil_export_support = device.supports_extension(
       VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
   GCaps.shader_draw_parameters_support =

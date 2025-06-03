@@ -120,7 +120,6 @@ void ShadowTileMap::sync_cubeface(eLightType light_type_,
 
 void ShadowTileMap::debug_draw() const
 {
-#ifdef WITH_DRAW_DEBUG
   /** Used for debug drawing. */
   const float4 debug_color[6] = {
       {1.0f, 0.1f, 0.1f, 1.0f},
@@ -135,7 +134,6 @@ void ShadowTileMap::debug_draw() const
 
   float4x4 persinv = winmat * viewmat;
   drw_debug_matrix_as_bbox(math::invert(persinv), color);
-#endif
 }
 
 /** \} */
@@ -1118,7 +1116,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  ObjectKey object_key(DEG_get_original_object(object_active));
+  ObjectKey object_key(DEG_get_original(object_active));
 
   if (inst_.lights.light_map_.contains(object_key) == false) {
     return;
@@ -1130,7 +1128,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state |
                    DRW_STATE_BLEND_CUSTOM;
 
   debug_draw_ps_.state_set(state);
@@ -1172,7 +1170,7 @@ bool ShadowModule::shadow_update_finished(int loop_count)
     return true;
   }
 
-  if (!inst_.is_image_render) {
+  if (!inst_.is_image_render && !inst_.is_light_bake) {
     /* For viewport, only run the shadow update once per redraw.
      * This avoids the stall from the read-back and freezes from long shadow update. */
     return true;

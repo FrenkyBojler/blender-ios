@@ -884,7 +884,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
     }
   }
   if (changed) {
-    uvedit_deselect_flush(scene, em);
+    uvedit_deselect_flush(scene, bm);
   }
   return changed;
 }
@@ -960,7 +960,7 @@ void UV_OT_rip(wmOperatorType *ot)
   ot->idname = "UV_OT_rip";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = uv_rip_exec;
   ot->invoke = uv_rip_invoke;
   ot->poll = ED_operator_uvedit;

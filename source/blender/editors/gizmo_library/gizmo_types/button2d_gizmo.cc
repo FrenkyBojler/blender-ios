@@ -94,7 +94,7 @@ static void button2d_geom_draw_backdrop(const wmGizmo *gz,
 
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+    immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     immUniformColor4fv(color);
     imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, 1.0f, nsegments);
     immUnbindProgram();
@@ -113,7 +113,7 @@ static void button2d_geom_draw_backdrop(const wmGizmo *gz,
     if ((fill_alpha != 1.0f) && (select == false)) {
       immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
       immUniform2fv("viewportSize", &viewport[2]);
-      immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+      immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
       immUniformColor4fv(color);
       imm_draw_circle_wire_3d(pos, 0.0f, 0.0f, 1.0f, nsegments);
       immUnbindProgram();
@@ -151,8 +151,8 @@ static void button2d_draw_intern(const bContext *C,
     }
     else if (RNA_property_is_set(gz->ptr, shape_prop)) {
       const uint polys_len = RNA_property_string_length(gz->ptr, shape_prop);
-      /* We shouldn't need the +1, but a nullptr char is set. */
-      char *polys = static_cast<char *>(MEM_mallocN(polys_len + 1, __func__));
+      /* We shouldn't need the +1, but a null char is set. */
+      char *polys = MEM_malloc_arrayN<char>(polys_len + 1, __func__);
       RNA_property_string_get(gz->ptr, shape_prop, polys);
       button->shape_batch[0] = GPU_batch_tris_from_poly_2d_encoded(
           (uchar *)polys, polys_len, nullptr);
@@ -176,7 +176,7 @@ static void button2d_draw_intern(const bContext *C,
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", gz->line_width * U.pixelsize);
+    immUniform1f("lineWidth", (gz->line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     immUniformColor4fv(color);
     immBegin(GPU_PRIM_LINE_STRIP, 2);
     immVertex3fv(pos, matrix_final[3]);
@@ -399,7 +399,7 @@ static void GIZMO_GT_button_2d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_button_2d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_button2d_draw;
   gzt->draw_select = gizmo_button2d_draw_select;
   gzt->test_select = gizmo_button2d_test_select;

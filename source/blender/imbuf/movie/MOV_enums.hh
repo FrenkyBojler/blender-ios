@@ -51,6 +51,7 @@ enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_VP9 = 167,
   FFMPEG_CODEC_ID_H265 = 173,
   FFMPEG_CODEC_ID_AV1 = 226,
+  FFMPEG_CODEC_ID_PRORES = 147,
   FFMPEG_CODEC_ID_PCM_S16LE = 65536,
   FFMPEG_CODEC_ID_MP2 = 86016,
   FFMPEG_CODEC_ID_MP3 = 86017,
@@ -66,6 +67,8 @@ enum IMB_Ffmpeg_Codec_ID {
  * These values are obtained by decoding each frame in movie stream. Time-code types define how
  * these map to frame index in Blender. This is used when seeking in movie stream. Note, that
  * meaning of terms time-code and record run here has little connection to their actual meaning.
+ *
+ * NOTE: Keep in sync with #MovieClipProxy.build_tc_flag.
  */
 enum IMB_Timecode_Type {
   /** Don't use time-code files at all. Use FFmpeg API to seek to PTS calculated on the fly. */
