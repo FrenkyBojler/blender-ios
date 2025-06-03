@@ -159,7 +159,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
     /* Cache points under brush influence. */
     Vector<float> weights;
     IndexMask point_mask = brush_point_influence_mask(scene,
-                                                      TODO,
+                                                      paint,
                                                       brush,
                                                       start_sample.mouse_position,
                                                       1.0f,

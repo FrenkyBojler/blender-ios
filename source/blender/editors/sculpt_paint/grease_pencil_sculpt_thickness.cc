@@ -52,7 +52,7 @@ void ThicknessOperation::on_stroke_extended(const bContext &C, const InputSample
         point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
           float &radius = radii[point_i];
           const float influence = brush_point_influence(scene,
-                                                        TODO,
+                                                        paint,
                                                         brush,
                                                         view_positions[point_i],
                                                         extension_sample,

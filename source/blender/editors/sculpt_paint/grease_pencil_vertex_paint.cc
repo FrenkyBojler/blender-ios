@@ -61,7 +61,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
         /* Erase vertex colors. */
         point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
           const float influence = brush_point_influence(scene,
-                                                        TODO,
+                                                        paint,
                                                         brush,
                                                         view_positions[point_i],
                                                         extension_sample,
@@ -76,7 +76,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
         /* Mix brush color into vertex colors by influence using alpha over. */
         point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
           const float influence = brush_point_influence(scene,
-                                                        TODO,
+                                                        paint,
                                                         brush,
                                                         view_positions[point_i],
                                                         extension_sample,
@@ -100,7 +100,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
           const IndexRange points = points_by_curve[curve_i];
           const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
           const float influence = brush_fill_influence(scene,
-                                                       TODO,
+                                                       paint,
                                                        brush,
                                                        curve_view_positions,
                                                        extension_sample,
@@ -116,7 +116,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
           const IndexRange points = points_by_curve[curve_i];
           const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
           const float influence = brush_fill_influence(scene,
-                                                       TODO,
+                                                       paint,
                                                        brush,
                                                        curve_view_positions,
                                                        extension_sample,

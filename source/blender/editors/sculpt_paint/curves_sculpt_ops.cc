@@ -310,7 +310,7 @@ static void curves_sculptmode_enter(bContext *C)
   paint->paint_cursor_col[3] = 128;
 
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
-  paint_init_pivot(ob, scene, TODO);
+  paint_init_pivot(ob, scene, paint);
 
   /* Necessary to change the object mode on the evaluated object. */
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);

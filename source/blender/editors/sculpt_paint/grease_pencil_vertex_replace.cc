@@ -55,7 +55,7 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
       MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();
       point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
         const float influence = brush_point_influence(scene,
-                                                      TODO,
+                                                      paint,
                                                       brush,
                                                       view_positions[point_i],
                                                       extension_sample,
@@ -77,7 +77,7 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
         const IndexRange points = points_by_curve[curve_i];
         const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
         const float influence = brush_fill_influence(scene,
-                                                     TODO,
+                                                     paint,
                                                      brush,
                                                      curve_view_positions,
                                                      extension_sample,
