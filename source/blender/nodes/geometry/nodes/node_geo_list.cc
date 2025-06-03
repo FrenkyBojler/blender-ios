@@ -1,9 +1,6 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-
-#include "BKE_pointcloud.hh"
-#include "DNA_pointcloud_types.h"
 
 #include "NOD_geometry_nodes_list.hh"
 
@@ -62,19 +59,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  ListPtr list = List::create();
-
   GField field = params.extract_input<GField>("Value");
-  Field<float> radius_field = params.extract_input<Field<float>>("Radius");
 
-  PointCloud *points = BKE_pointcloud_new_nomain(count);
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  AttributeWriter<float> output_radii = attributes.lookup_or_add_for_write<float>(
-      "radius", AttrDomain::Point);
+  ListPtr list = List::create();
+  // TODO
 
   ListFieldContext context{};
   fn::FieldEvaluator evaluator{context, count};
-  evaluator.add_with_destination(field, list.values_for_write());
+  evaluator.add_with_destination(std::move(field), list->values_for_write());
   evaluator.evaluate();
 
   params.set_output("List", std::move(list));
