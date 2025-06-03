@@ -30,6 +30,7 @@
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector_list.hh"
 
 #include "BLT_translation.hh"
 
@@ -1775,13 +1776,13 @@ struct UVSelectContext {
   const ToolSettings *toolsettings = nullptr;
   BMesh *bm = nullptr;
 
-  blender::Vector<BMVert *> bm_verts_select;
-  blender::Vector<BMEdge *> bm_edges_select;
-  blender::Vector<BMFace *> bm_faces_select;
+  blender::VectorList<BMVert *> bm_verts_select;
+  blender::VectorList<BMEdge *> bm_edges_select;
+  blender::VectorList<BMFace *> bm_faces_select;
 
-  blender::Vector<BMVert *> bm_verts_deselect;
-  blender::Vector<BMEdge *> bm_edges_deselect;
-  blender::Vector<BMFace *> bm_faces_deselect;
+  blender::VectorList<BMVert *> bm_verts_deselect;
+  blender::VectorList<BMEdge *> bm_edges_deselect;
+  blender::VectorList<BMFace *> bm_faces_deselect;
 };
 
 UVSelectContext *ED_uvedit_select_context_create_if_needed(const ToolSettings *ts, BMesh *bm)
