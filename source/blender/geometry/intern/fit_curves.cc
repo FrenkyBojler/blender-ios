@@ -52,8 +52,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
   /* Write the new sizes to the dst_offsets, they will be accumulated later to offsets again. */
   MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
   offset_indices::copy_group_sizes(src_offsets, unselected_curves, dst_curve_sizes);
-  Array<int8_t> all_curve_types(src_curves.curves_num());
-  src_curves.curve_types().materialize(all_curve_types.as_mutable_span());
+  MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
   Array<Vector<float3>> left_handles_per_curve(curve_selection.size());
   Array<Vector<float3>> control_points_per_curve(curve_selection.size());
@@ -138,7 +137,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
     if (error) {
       /* Some error occured. Fall back to using the input positions as the (poly) curve. */
       dst_curve_sizes[curve_i] = points.size();
-      all_curve_types[curve_i] = CURVE_TYPE_POLY;
+      dst_curve_types[curve_i] = CURVE_TYPE_POLY;
 
       control_points_per_curve[pos].resize(points.size());
       control_points_per_curve[pos].as_mutable_span().copy_from(curve_positions);
@@ -159,7 +158,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
     const Span<int> orig_indices_map(reinterpret_cast<int *>(r_orig_index_map), dst_points_num);
 
     dst_curve_sizes[curve_i] = dst_points_num;
-    all_curve_types[curve_i] = CURVE_TYPE_BEZIER;
+    dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
 
     left_handles_per_curve[pos].resize(dst_points_num);
     control_points_per_curve[pos].resize(dst_points_num);
@@ -271,7 +270,7 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
         .slice(dst_points)
         .copy_from(old_to_new_per_curve[pos].as_span());
 
-    if (all_curve_types[curve_i] != CURVE_TYPE_BEZIER) {
+    if (dst_curve_types[curve_i] != CURVE_TYPE_BEZIER) {
       /* Skip handles for when the curve fitting failed for some reason. */
       return;
     }
@@ -282,7 +281,6 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
     dst_handle_types_right.slice(dst_points).copy_from(right_handle_type_per_curve[pos].as_span());
   });
 
-  dst_curves.curve_types_for_write().copy_from(all_curve_types);
   dst_curves.update_curve_types();
 
   bke::gather_attributes(
