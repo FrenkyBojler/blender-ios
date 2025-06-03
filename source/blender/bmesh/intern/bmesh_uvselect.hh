@@ -19,6 +19,8 @@
 void BM_mesh_uvselect_flush_from_loop_verts(BMesh *bm);
 void BM_mesh_uvselect_flush_from_loop_verts_only_select(BMesh *bm);
 void BM_mesh_uvselect_flush_from_loop_verts_only_deselect(BMesh *bm);
+void BM_mesh_uvselect_flush_from_loop_edges_only_select(BMesh *bm);
+void BM_mesh_uvselect_flush_from_loop_edges_only_deselect(BMesh *bm);
 void BM_mesh_uvselect_flush_from_loop_edges(BMesh *bm, bool flush_down);
 void BM_mesh_uvselect_flush_from_faces(BMesh *bm, bool flush_down);
 void BM_mesh_uvselect_flush_from_faces_only_select(BMesh *bm);

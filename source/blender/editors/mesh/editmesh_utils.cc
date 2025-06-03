@@ -449,7 +449,9 @@ void EDBM_flag_disable_all(BMEditMesh *em, const char hflag)
   BM_mesh_elem_hflag_disable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, hflag, false);
 
   /* Keep this as there is no need to maintain UV selection when all are disabled. */
-  EDBM_uvselect_clear(em);
+  if (hflag & BM_ELEM_SELECT) {
+    EDBM_uvselect_clear(em);
+  }
 }
 
 void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
@@ -457,7 +459,9 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
   BM_mesh_elem_hflag_enable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, hflag, true);
 
   /* Keep this as there is no need to maintain UV selection when all are enabled. */
-  EDBM_uvselect_clear(em);
+  if (hflag & BM_ELEM_SELECT) {
+    EDBM_uvselect_clear(em);
+  }
 }
 
 bool EDBM_uvselect_clear(BMEditMesh *em)
@@ -1627,8 +1631,54 @@ bool EDBM_mesh_reveal(BMEditMesh *em, bool select)
     }
   }
 
+  if (em->bm->uv_sync_select_valid) {
+    BMesh *bm = em->bm;
+    /* NOTE(@ideasman42): this could/should use the "sticky" tool setting.
+     * Although in practice it's OK to assume "connected" sticky in this case. */
+    const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_PROP_FLOAT2);
+    if (cd_loop_uv_offset == -1) {
+      /* Not expected but not an error either, clear if the UV's have been removed. */
+      EDBM_uvselect_clear(em);
+    }
+    else {
+      BMIter iter;
+      BMFace *f;
+
+      if (em->selectmode & SCE_SELECT_VERTEX) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          do {
+            if (BM_elem_flag_test(l_iter->v, BM_ELEM_TAG)) {
+              BM_loop_vert_uvselect_set_shared(bm, l_iter, select, cd_loop_uv_offset);
+            }
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
+      else if (em->selectmode & SCE_SELECT_EDGE) {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          BMLoop *l_iter, *l_first;
+          l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+          do {
+            if (BM_elem_flag_test(l_iter->e, BM_ELEM_TAG)) {
+              BM_loop_edge_uvselect_set_shared(bm, l_iter, select, cd_loop_uv_offset);
+            }
+          } while ((l_iter = l_iter->next) != l_first);
+        }
+      }
+      else {
+        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+          if (BM_elem_flag_test(f, BM_ELEM_TAG)) {
+            BM_face_uvselect_set_shared(bm, f, select, cd_loop_uv_offset);
+          }
+        }
+      }
+
+      BM_mesh_uvselect_flush_mode(bm);
+    }
+  }
+
   EDBM_selectmode_flush(em);
-  EDBM_uvselect_clear(em);
 
   /* hidden faces can have invalid normals */
   EDBM_mesh_normals_update(em);
