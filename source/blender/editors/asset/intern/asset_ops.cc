@@ -1092,12 +1092,6 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
-  /* Squaring has to happen before sorting so the area is squared from the point where
-   * dragging started. */
-  if (RNA_boolean_get(op->ptr, "force_square")) {
-    square_points(p1, p2);
-  }
-
   sort_points(p1, p2);
 
   /* The min side is chosen arbitrarily to avoid accidental creations of very small screenshots. */
@@ -1191,9 +1185,6 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   int2 p1 = data->p1;
   int2 p2 = data->p2;
 
-  if (data->force_square) {
-    square_points(p1, p2);
-  }
   sort_points(p1, p2);
 
   /* Drawing rect just out of the screenshot area to not capture the box in the picture. */
@@ -1238,8 +1229,12 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-
+  wmWindow *win = CTX_wm_window(C);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+
+  auto clamp_to_window = [win](const int2 &pt) -> int2 {
+    return {clamp_i(pt.x, 0, win->sizex - 1), clamp_i(pt.y, 0, win->sizey - 1)};
+  };
 
   const int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
@@ -1255,7 +1250,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
           break;
         case KM_RELEASE:
           data->is_mouse_down = false;
-          data->drag_end = screen_space_cursor;
+          data->drag_end = clamp_to_window(screen_space_cursor);
           screenshot_area_transfer_to_rna(op, data);
           screenshot_preview_exec(C, op);
           screenshot_preview_exit(C, op);
@@ -1311,7 +1306,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     }
 
     case MOUSEMOVE: {
-      if (!data->crossed_threshold) {
+      if (data->is_mouse_down && !data->crossed_threshold) {
         const int2 delta = data->drag_end - data->drag_start;
         if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
           /* Only set the points once the threshold has been crossed. This allows to just
@@ -1323,13 +1318,40 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
       if (data->shift_area) {
         const int2 delta = screen_space_cursor - data->last_cursor;
-        data->p1 += delta;
-        data->p2 += delta;
+        int2 new_p1 = data->p1 + delta;
+        int2 new_p2 = data->p2 + delta;
+        // Apply movement only if the entire rectangle stays within window bounds
+        if (new_p1.x >= 0 && new_p1.x < win->sizex && new_p1.y >= 0 && new_p1.y < win->sizey &&
+            new_p2.x >= 0 && new_p2.x < win->sizex && new_p2.y >= 0 && new_p2.y < win->sizey)
+        {
+          data->p1 = new_p1;
+          data->p2 = new_p2;
+        }
       }
       else if (data->is_mouse_down) {
-        data->drag_end = screen_space_cursor;
+        data->drag_end = clamp_to_window(screen_space_cursor);
         if (data->crossed_threshold) {
-          data->p2 = screen_space_cursor;
+          int2 clamped_p2 = data->drag_end;
+          if (data->force_square) {
+            int2 temp_p1 = data->p1;
+            int2 temp_p2 = clamped_p2;
+            square_points(temp_p1, temp_p2);
+
+            // Check if the resulting square is fully within the window
+            if (temp_p1.x >= 0 && temp_p1.x < win->sizex && temp_p1.y >= 0 &&
+                temp_p1.y < win->sizey && temp_p2.x >= 0 && temp_p2.x < win->sizex &&
+                temp_p2.y >= 0 && temp_p2.y < win->sizey)
+            {
+              data->p2 = temp_p2;
+            }
+            else {
+              // If not, fallback to using the clamped rectangle (non-square)
+              data->p2 = clamped_p2;
+            }
+          }
+          else {
+            data->p2 = clamped_p2;
+          }
         }
       }
       CTX_wm_screen(C)->do_draw = true;
