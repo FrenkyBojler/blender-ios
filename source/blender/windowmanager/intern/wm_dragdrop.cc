@@ -1073,8 +1073,8 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
   if (const int64_t path_count = WM_drag_get_paths(drag).size(); path_count > 1) {
     /* Custom scale to improve path count readability. */
     const float scale = UI_SCALE_FAC * 1.15f;
-    x = xy[0] - 8 * scale;
-    y = xy[1] - scale;
+    x = xy[0] - int(8.0f * scale);
+    y = xy[1] - int(scale);
     const uchar text_col[] = {255, 255, 255, 255};
     IconTextOverlay text_overlay;
     UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
