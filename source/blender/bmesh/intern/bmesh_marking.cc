@@ -1554,7 +1554,7 @@ bool BM_face_uvselect_test(const BMFace *f)
 
 bool BM_vert_uvselect_loop_any(BMVert *v, const char hflag)
 {
-  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV));
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV, BM_ELEM_TAG));
   if (v->e) {
     BMEdge *e_iter, *e_first;
     e_iter = e_first = v->e;
@@ -1578,7 +1578,7 @@ bool BM_loop_vert_uvselect_check_other_loop_vert(BMLoop *l,
                                                  const char hflag,
                                                  const int cd_loop_uv_offset)
 {
-  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV));
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT_UV, BM_ELEM_TAG));
   BMVert *v = l->v;
   BLI_assert(v->e);
   const BMEdge *e_iter, *e_first;
@@ -1590,8 +1590,8 @@ bool BM_loop_vert_uvselect_check_other_loop_vert(BMLoop *l,
       do {
         if (l_iter->v == v) {
           if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-            if (BM_elem_flag_test(l_iter, hflag)) {
-              if (l_iter != l) {
+            if (l_iter != l) {
+              if (BM_elem_flag_test(l_iter, hflag)) {
                 if (BM_loop_uv_share_vert_check(l, l_iter, cd_loop_uv_offset)) {
                   return true;
                 }
@@ -1609,7 +1609,7 @@ bool BM_loop_vert_uvselect_check_other_loop_edge(BMLoop *l,
                                                  const char hflag,
                                                  const int cd_loop_uv_offset)
 {
-  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV_EDGE));
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT_UV_EDGE, BM_ELEM_TAG));
   BMVert *v = l->v;
   BLI_assert(v->e);
   const BMEdge *e_iter, *e_first;
@@ -1622,8 +1622,44 @@ bool BM_loop_vert_uvselect_check_other_loop_edge(BMLoop *l,
         if (l_iter->v == v) {
           /* Connected to a selected edge. */
           if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-            if (BM_elem_flag_test(l_iter, hflag) || BM_elem_flag_test(l_iter->prev, hflag)) {
-              if (l_iter != l) {
+            if (l_iter != l) {
+              if (BM_elem_flag_test(l_iter, hflag) || BM_elem_flag_test(l_iter->prev, hflag)) {
+                if (BM_loop_uv_share_vert_check(l, l_iter, cd_loop_uv_offset)) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      } while ((l_iter = l_iter->radial_next) != l_first);
+    }
+  } while ((e_iter = bmesh_disk_edge_next(e_iter, v)) != e_first);
+  return false;
+}
+
+bool BM_loop_vert_uvselect_check_other_edge(BMLoop *l,
+                                            const char hflag,
+                                            const int cd_loop_uv_offset)
+{
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_TAG));
+  BMVert *v = l->v;
+  BLI_assert(v->e);
+  const BMEdge *e_iter, *e_first;
+  e_iter = e_first = v->e;
+  do {
+    if (e_iter->l) {
+      BMLoop *l_first = e_iter->l;
+      BMLoop *l_iter = l_first;
+      do {
+        if (l_iter->v == v) {
+          /* Connected to a selected edge. */
+          if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
+            if (l_iter != l) {
+              if (((!BM_elem_flag_test(l_iter->e, BM_ELEM_HIDDEN)) &&
+                   BM_elem_flag_test(l_iter->e, hflag)) ||
+                  ((!BM_elem_flag_test(l_iter->prev->e, BM_ELEM_HIDDEN)) &&
+                   BM_elem_flag_test(l_iter->prev->e, hflag)))
+              {
                 if (BM_loop_uv_share_vert_check(l, l_iter, cd_loop_uv_offset)) {
                   return true;
                 }
@@ -1641,7 +1677,7 @@ bool BM_loop_vert_uvselect_check_other_face(BMLoop *l,
                                             const char hflag,
                                             const int cd_loop_uv_offset)
 {
-  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV));
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV, BM_ELEM_TAG));
   BMVert *v = l->v;
   BLI_assert(v->e);
   const BMEdge *e_iter, *e_first;
@@ -1653,8 +1689,8 @@ bool BM_loop_vert_uvselect_check_other_face(BMLoop *l,
       do {
         if (l_iter->v == v) {
           if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-            if (BM_elem_flag_test(l_iter->f, hflag)) {
-              if (l_iter != l) {
+            if (l_iter != l) {
+              if (BM_elem_flag_test(l_iter->f, hflag)) {
                 if (BM_loop_uv_share_vert_check(l, l_iter, cd_loop_uv_offset)) {
                   return true;
                 }
@@ -1672,12 +1708,12 @@ bool BM_loop_edge_uvselect_check_other_loop_edge(BMLoop *l,
                                                  const char hflag,
                                                  const int cd_loop_uv_offset)
 {
-  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV_EDGE));
+  BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV_EDGE, BM_ELEM_TAG));
   BMLoop *l_iter = l;
   do {
     if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-      if (BM_elem_flag_test(l_iter, hflag)) {
-        if (l_iter != l) {
+      if (l_iter != l) {
+        if (BM_elem_flag_test(l_iter, hflag)) {
           if (BM_loop_uv_share_edge_check(l, l_iter, cd_loop_uv_offset)) {
             return true;
           }
@@ -1696,8 +1732,8 @@ bool BM_loop_edge_uvselect_check_other_face(BMLoop *l,
   BMLoop *l_iter = l;
   do {
     if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
-      if (BM_elem_flag_test(l_iter->f, hflag)) {
-        if (l_iter != l) {
+      if (l_iter != l) {
+        if (BM_elem_flag_test(l_iter->f, hflag)) {
           if (BM_loop_uv_share_edge_check(l, l_iter, cd_loop_uv_offset)) {
             return true;
           }
@@ -2265,8 +2301,7 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
         if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
             ((e_prev_select || e_iter_select) ||
              /* This is a more expensive check, order last. */
-             BM_loop_vert_uvselect_check_other_loop_edge(
-                 l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
+             BM_loop_vert_uvselect_check_other_edge(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
         {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
         }
