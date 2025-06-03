@@ -92,12 +92,11 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
     const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | ((use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0);
 
-    float *r_cubic_array = nullptr;
-    uint32_t *r_orig_index_map = nullptr;
-    uint32_t r_cubic_array_len = 0;
-    uint32_t *r_corner_index_array = nullptr;
-    uint32_t r_corner_index_array_len = 0;
-
+    float *cubic_array = nullptr;
+    uint32_t *orig_index_map = nullptr;
+    uint32_t cubic_array_size = 0;
+    uint32_t *corner_index_array = nullptr;
+    uint32_t corner_index_array_size = 0;
     int error = 1;
     if (method == FitMethod::Split) {
       error = curve_fit_cubic_to_points_fl(curve_positions.cast<float>().data(),
@@ -107,11 +106,11 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                            flag,
                                            src_indices_corner_ptr,
                                            src_corner_indices.size(),
-                                           &r_cubic_array,
-                                           &r_cubic_array_len,
-                                           &r_orig_index_map,
-                                           &r_corner_index_array,
-                                           &r_corner_index_array_len);
+                                           &cubic_array,
+                                           &cubic_array_size,
+                                           &orig_index_map,
+                                           &corner_index_array,
+                                           &corner_index_array_size);
     }
     else if (method == FitMethod::Refit) {
       error = curve_fit_cubic_to_points_refit_fl(curve_positions.cast<float>().data(),
@@ -123,29 +122,29 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                                  src_corner_indices.size(),
                                                  /* Don't use automatic corner detection. */
                                                  FLT_MAX,
-                                                 &r_cubic_array,
-                                                 &r_cubic_array_len,
-                                                 &r_orig_index_map,
-                                                 &r_corner_index_array,
-                                                 &r_corner_index_array_len);
+                                                 &cubic_array,
+                                                 &cubic_array_size,
+                                                 &orig_index_map,
+                                                 &corner_index_array,
+                                                 &corner_index_array_size);
     }
 
     if (error) {
       /* Some error occured. Fall back to using the input positions as the (poly) curve. */
       dst_curve_sizes[curve_i] = points.size();
       dst_curve_types[curve_i] = CURVE_TYPE_POLY;
-
       return;
     }
+
     success.store(true, std::memory_order_relaxed);
 
-    const int dst_points_num = r_cubic_array_len;
-    MutableSpan<float3> cubic_array_span(reinterpret_cast<float3 *>(r_cubic_array),
+    const int dst_points_num = cubic_array_size;
+    MutableSpan<float3> cubic_array_span(reinterpret_cast<float3 *>(cubic_array),
                                          dst_points_num * 3);
     BLI_assert(!cubic_array_span.is_empty());
-    MutableSpan<int> corner_indices(reinterpret_cast<int *>(r_corner_index_array),
-                                    r_corner_index_array_len);
-    MutableSpan<int> orig_indices_map(reinterpret_cast<int *>(r_orig_index_map), dst_points_num);
+    MutableSpan<int> corner_indices(reinterpret_cast<int *>(corner_index_array),
+                                    corner_index_array_size);
+    MutableSpan<int> orig_indices_map(reinterpret_cast<int *>(orig_index_map), dst_points_num);
 
     dst_curve_sizes[curve_i] = dst_points_num;
     dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
