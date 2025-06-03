@@ -1845,7 +1845,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             if not device_entry:
                 continue
 
-            has_execution_optimisation = device[7]
+            has_execution_optimization = device[7]
             device_text_label = device_entry.name.replace(
                 '(TM)',
                 unicodedata.lookup('TRADE MARK SIGN')).replace(
@@ -1856,7 +1856,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 '(C)',
                 unicodedata.lookup('COPYRIGHT SIGN'))
 
-            if not has_execution_optimisation:
+            if not has_execution_optimization:
                 device_text_label += rpt_(" (Unoptimized Performance)")
 
             box.prop(
