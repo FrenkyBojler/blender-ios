@@ -1236,6 +1236,10 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     return {clamp_i(pt.x, 0, win->sizex - 1), clamp_i(pt.y, 0, win->sizey - 1)};
   };
 
+  auto is_within_window = [win](const int2 &pt) -> bool {
+    return pt.x >= 0 && pt.x < win->sizex && pt.y >= 0 && pt.y < win->sizey;
+  };
+
   const int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
       event->mval[1] + region->winrct.ymin,
@@ -1306,42 +1310,40 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     }
 
     case MOUSEMOVE: {
-      if (data->is_mouse_down && !data->crossed_threshold) {
-        const int2 delta = data->drag_end - data->drag_start;
-        if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
-          /* Only set the points once the threshold has been crossed. This allows to just
-           * click to confirm using a potentially existing screenshot rect. */
-          data->crossed_threshold = true;
-          data->p1 = data->drag_start;
-        }
-      }
-
       if (data->shift_area) {
         const int2 delta = screen_space_cursor - data->last_cursor;
         int2 new_p1 = data->p1 + delta;
         int2 new_p2 = data->p2 + delta;
+
         // Apply movement only if the entire rectangle stays within window bounds
-        if (new_p1.x >= 0 && new_p1.x < win->sizex && new_p1.y >= 0 && new_p1.y < win->sizey &&
-            new_p2.x >= 0 && new_p2.x < win->sizex && new_p2.y >= 0 && new_p2.y < win->sizey)
-        {
+        if (is_within_window(new_p1) && is_within_window(new_p2)) {
           data->p1 = new_p1;
           data->p2 = new_p2;
         }
       }
       else if (data->is_mouse_down) {
+        if (!data->crossed_threshold) {
+          const int2 delta = data->drag_end - data->drag_start;
+          if (std::abs(delta.x) > DRAG_THRESHOLD && std::abs(delta.y) > DRAG_THRESHOLD) {
+            /* Only set the points once the threshold has been crossed. This allows to just
+             * click to confirm using a potentially existing screenshot rect. */
+            data->crossed_threshold = true;
+            data->p1 = data->drag_start;
+          }
+        }
+
         data->drag_end = clamp_to_window(screen_space_cursor);
+
         if (data->crossed_threshold) {
           int2 clamped_p2 = data->drag_end;
+
           if (data->force_square) {
             int2 temp_p1 = data->p1;
             int2 temp_p2 = clamped_p2;
             square_points(temp_p1, temp_p2);
 
             // Check if the resulting square is fully within the window
-            if (temp_p1.x >= 0 && temp_p1.x < win->sizex && temp_p1.y >= 0 &&
-                temp_p1.y < win->sizey && temp_p2.x >= 0 && temp_p2.x < win->sizex &&
-                temp_p2.y >= 0 && temp_p2.y < win->sizey)
-            {
+            if (is_within_window(temp_p1) && is_within_window(temp_p2)) {
               data->p2 = temp_p2;
             }
             else {
@@ -1354,6 +1356,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
           }
         }
       }
+
       CTX_wm_screen(C)->do_draw = true;
       data->last_cursor = screen_space_cursor;
       break;
