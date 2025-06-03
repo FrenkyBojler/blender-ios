@@ -3719,6 +3719,9 @@ static void add_grease_pencil_materials_for_conversion(Main &bmain,
     Material *gp_material = BKE_grease_pencil_object_material_new(
         &bmain, &gp_object, name, nullptr);
 
+    /* If the original object has this material slot but didn't assign any material, then we don't
+     * have anything to copy color information from. In those cases we still added an empty
+     * material to keep the material index matching. */
     if (!orig_material) {
       continue;
     }
