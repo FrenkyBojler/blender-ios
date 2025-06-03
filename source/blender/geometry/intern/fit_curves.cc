@@ -211,6 +211,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       BLI_assert(src_points.size() == dst_points.size());
       positions.copy_from(src_positions.slice(src_points));
       array_utils::fill_index_range<int>(old_by_new, src_points.start());
+      // TODO: THIS LEAVES HANDLE TYPES AND POSITIONS UNINITIALIZED. Maybe better to change
+      // `curve_selection` to not contain failed curve indices.
       return;
     }
 
