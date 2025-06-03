@@ -1,1 +1,2 @@
 Referenced by issue #136817, UV Sync select progress
+Referenced by commit 4aa6d778c982e8f8a05ccf7017586bc09b7c7c99, Fix crash de-selecting UV edge loops in edge-selection mode
