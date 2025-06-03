@@ -31,7 +31,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   BLI_assert(thresholds.size() == src_curves.curves_num());
   BLI_assert(corners.size() == src_curves.points_num());
 
-  const OffsetIndices src_offsets = src_curves.offsets();
+  const OffsetIndices src_points_by_curve = src_curves.offsets();
   const Span<float3> src_positions = src_curves.positions();
   const VArray<bool> src_cyclic = src_curves.cyclic();
 
@@ -43,7 +43,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   /* Write the new sizes to the dst_offsets, they will be accumulated later to offsets again. */
   MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
-  offset_indices::copy_group_sizes(src_offsets, unselected_curves, dst_curve_sizes);
+  offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
   Array<MutableSpan<float3>> cubic_array_per_curve(curve_selection.size());
@@ -52,7 +52,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   std::atomic<bool> success = false;
   curve_selection.foreach_index(GrainSize(32), [&](const int64_t curve_i, const int64_t pos) {
-    const IndexRange points = src_offsets[curve_i];
+    const IndexRange points = src_points_by_curve[curve_i];
     const Span<float3> curve_positions = src_positions.slice(points);
     const bool use_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
@@ -167,40 +167,40 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   /* First handle the unselected curves. */
   if (!src_handle_positions_left.is_empty()) {
-    array_utils::copy_group_to_group(src_offsets,
+    array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
                                      src_handle_positions_left,
                                      dst_handle_positions_left);
   }
-  array_utils::copy_group_to_group(src_offsets,
+  array_utils::copy_group_to_group(src_points_by_curve,
                                    dst_points_by_curve,
                                    unselected_curves,
                                    src_control_point_positions,
                                    dst_control_point_positions);
   if (!src_handle_positions_right.is_empty()) {
-    array_utils::copy_group_to_group(src_offsets,
+    array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
                                      src_handle_positions_right,
                                      dst_handle_positions_right);
   }
   if (!src_handle_types_left.is_empty()) {
-    array_utils::copy_group_to_group(src_offsets,
+    array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
                                      src_handle_types_left,
                                      dst_handle_types_left);
   }
   if (!src_handle_types_right.is_empty()) {
-    array_utils::copy_group_to_group(src_offsets,
+    array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
                                      src_handle_types_right,
                                      dst_handle_types_right);
   }
   unselected_curves.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
-    const IndexRange src_points = src_offsets[curve_i];
+    const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     array_utils::fill_index_range<int>(old_by_new_map.as_mutable_span().slice(dst_points),
                                        src_points.start());
@@ -208,7 +208,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   /* Now copy the data of the newly fitted curves. */
   curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
-    const IndexRange src_points = src_offsets[curve_i];
+    const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     MutableSpan<float3> control_points = dst_control_point_positions.slice(dst_points);
     MutableSpan<int> old_by_new = old_by_new_map.as_mutable_span().slice(dst_points);
