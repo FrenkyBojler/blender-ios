@@ -4595,7 +4595,7 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
       0.0f,
       100.0f,
       "Threshold",
-      "The threshold distance that the resulting points are allowed to be within",
+      "The distance that the resulting points are allowed to be within",
       0.0f,
       100.0f);
   RNA_def_property_subtype(prop, PROP_DISTANCE);
