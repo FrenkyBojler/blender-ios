@@ -66,8 +66,8 @@ int4 compute_number_of_integration_steps(float2 uv, float distance_squared)
   float distortion_blue = distance(distorted_uv_green, distorted_uv_blue);
   int steps_blue = compute_number_of_integration_steps_heuristic(distortion_blue);
 
-  /* The number of integration steps used to compute the green and the alpha channels is the sum of both the red
-   * and the blue channel steps because it is computed once with each of them. */
+  /* The number of integration steps used to compute the green and the alpha channels is the sum of
+   * both the red and the blue channel steps because it is computed once with each of them. */
   return int4(steps_red, steps_red + steps_blue, steps_blue, steps_red + steps_blue);
 }
 

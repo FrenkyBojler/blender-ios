@@ -373,12 +373,13 @@ class LensDistortionOperation : public NodeOperation {
       float2 normalized_texel = (float2(texel) + float2(0.5f)) / float2(size);
 
       /* Sample the red and blue channels shifted by the dispersion amount. */
-      const float red = input.sample_bilinear_zero(normalized_texel + float2(dispersion, 0.0f)).x;
-      const float green = input.load_pixel<float4>(texel).y;
-      const float blue = input.sample_bilinear_zero(normalized_texel - float2(dispersion, 0.0f)).z;
-      const float alpha = input.load_pixel<float4>(texel).w;
+      const float4 red = input.sample_bilinear_zero(normalized_texel + float2(dispersion, 0.0f));
+      const float4 green = input.load_pixel<float4>(texel);
+      const float4 blue = input.sample_bilinear_zero(normalized_texel - float2(dispersion, 0.0f));
 
-      output.store_pixel(texel, float4(red, green, blue, alpha));
+      const float alpha = blender::math::dot(float3(red.w, green.w, blue.w), float3(1.0f)) / 3.0f;
+
+      output.store_pixel(texel, float4(red.x, green.y, blue.z, alpha));
     });
   }
 
