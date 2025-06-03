@@ -61,7 +61,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
      * treated as if they were corners. */
     const bool use_first_as_corner = !use_cyclic && !corners[points.first()];
     const bool use_last_as_corner = !use_cyclic && !corners[points.last()];
-    Vector<int> src_corners;
+    Vector<int, 32> src_corners;
     if (use_first_as_corner) {
       src_corners.append(0);
     }
