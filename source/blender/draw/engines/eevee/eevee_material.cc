@@ -178,6 +178,7 @@ void MaterialModule::end_sync()
   }
   GPU_debug_group_begin("Material Deferred GPU Pass Creation");
   for (MaterialPassRequest &request : material_queue_) {
+    GPU_debug_group_begin(request.blender_mat->id.name);
     /* The nodetree needs to be queried on a per material basis a there is only one
      * default_surface_ntree_. So we cannot multithread this part.
      * TODO: See if we can duplicate this nodetree for each default material (or thread). */
@@ -196,6 +197,7 @@ void MaterialModule::end_sync()
                                       request.geometry_type,
                                       GPU_COMPILE_ASYNC,
                                       default_mat);
+    GPU_debug_group_end();
   }
   GPU_debug_group_end();
 }
