@@ -360,6 +360,13 @@ void foreach_element_on_inverse_eval_path(
 }
 
 using RNAValueVariant = std::variant<float, int, bool>;
+
+static RNAValueVariant multiply_value_variant(const RNAValueVariant &value_variant,
+                                              const float factor)
+{
+  return std::visit([&](auto &&v) { return RNAValueVariant{v * factor}; }, value_variant);
+}
+
 static bool set_rna_property(bContext &C,
                              ID &id,
                              const StringRefNull rna_path,
@@ -393,12 +400,35 @@ enum class SetDriverSourceResult {
       continue;
     }
     const eDriver_Types driver_type = eDriver_Types(driver->driver->type);
+    const int variable_count = BLI_listbase_count(&driver->driver->variables);
     switch (driver_type) {
-      case DRIVER_TYPE_AVERAGE:
+      case DRIVER_TYPE_AVERAGE: {
+        if (variable_count == 1) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        /* We try to update just the first driver target for now. This is consistent with how a
+         * math node only propagates the drivers through the first input. */
+        const RNAValueVariant scaled_value_variant = multiply_value_variant(value_variant,
+                                                                            variable_count);
+        DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
+        if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        if (driver_var.num_targets != 1) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        const DriverTarget &driver_target = driver_var.targets[0];
+        if (!driver_target.id) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        if (set_rna_property(C, *driver_target.id, driver_target.rna_path, scaled_value_variant)) {
+          return SetDriverSourceResult::Success;
+        }
+        return SetDriverSourceResult::UnsupportedDriver;
+      }
       case DRIVER_TYPE_SUM:
       case DRIVER_TYPE_MIN:
       case DRIVER_TYPE_MAX: {
-        const int variable_count = BLI_listbase_count(&driver->driver->variables);
         if (variable_count != 1) {
           return SetDriverSourceResult::UnsupportedDriver;
         }
