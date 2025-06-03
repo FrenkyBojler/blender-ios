@@ -35,6 +35,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const VArray<bool> src_cyclic = src_curves.cyclic();
 
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
+BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
@@ -146,8 +147,6 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const OffsetIndices dst_points_by_curve = offset_indices::accumulate_counts_to_offsets(
       dst_curve_sizes);
   dst_curves.resize(dst_curves.offsets().last(), dst_curves.curves_num());
-
-  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
   const Span<float3> src_handle_positions_left = src_curves.handle_positions_left();
   const Span<float3> src_control_point_positions = src_curves.positions();
