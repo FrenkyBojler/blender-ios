@@ -176,30 +176,50 @@ void MaterialModule::end_sync()
   if (material_queue_.is_empty()) {
     return;
   }
-  GPU_debug_group_begin("Material Deferred GPU Pass Creation");
-  for (MaterialPassRequest &request : material_queue_) {
-    GPU_debug_group_begin(request.blender_mat->id.name);
-    /* The nodetree needs to be queried on a per material basis a there is only one
-     * default_surface_ntree_. So we cannot multithread this part.
-     * TODO: See if we can duplicate this nodetree for each default material (or thread). */
-    bNodeTree *ntree = (request.blender_mat->use_nodes &&
-                        request.blender_mat->nodetree != nullptr) ?
-                           request.blender_mat->nodetree :
-                           default_surface_ntree_.nodetree_get(request.blender_mat);
 
-    const bool is_volume = ELEM(
-        request.pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
-    ::Material *default_mat = is_volume ? default_volume : default_surface;
+  auto for_each_material_in_queue = [&](GPUMaterialCompileMode compile_mode) {
+    for (MaterialPassRequest &request : material_queue_) {
+      GPU_debug_group_begin(request.blender_mat->id.name);
+      /* The nodetree needs to be queried on a per material basis a there is only one
+       * default_surface_ntree_. So we cannot multithread this part.
+       * TODO: See if we can duplicate this nodetree for each default material (or thread). */
+      bNodeTree *ntree = (request.blender_mat->use_nodes &&
+                          request.blender_mat->nodetree != nullptr) ?
+                             request.blender_mat->nodetree :
+                             default_surface_ntree_.nodetree_get(request.blender_mat);
 
-    inst_.shaders.material_shader_get(request.blender_mat,
-                                      ntree,
-                                      request.pipeline_type,
-                                      request.geometry_type,
-                                      GPU_COMPILE_ASYNC,
-                                      default_mat);
+      const bool is_volume = ELEM(
+          request.pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
+      ::Material *default_mat = is_volume ? default_volume : default_surface;
+
+      inst_.shaders.material_shader_get(request.blender_mat,
+                                        ntree,
+                                        request.pipeline_type,
+                                        request.geometry_type,
+                                        compile_mode,
+                                        default_mat);
+      GPU_debug_group_end();
+    }
+  };
+
+  if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
+      !GPU_use_parallel_compilation() /* Only when subprocesses are not used. */)
+  {
+    /* Nvidia drivers can make the main thread hang badly during shader creation which can starve
+     * the compilation worker threads. To avoid this, split the source creation (nodetree parsing)
+     * and the shader compilation scheduling. */
+    GPU_debug_group_begin("Material Deferred GPU Pass Creation");
+    for_each_material_in_queue(GPU_PREPARE_ONLY);
+    GPU_debug_group_end();
+    GPU_debug_group_begin("Material Deferred GPU Pass Schedule");
+    for_each_material_in_queue(GPU_COMPILE_ASYNC);
     GPU_debug_group_end();
   }
-  GPU_debug_group_end();
+  else {
+    GPU_debug_group_begin("Material Deferred GPU Pass Creation");
+    for_each_material_in_queue(GPU_COMPILE_ASYNC);
+    GPU_debug_group_end();
+  }
 }
 
 MaterialPass MaterialModule::material_pass_get(Object *ob,

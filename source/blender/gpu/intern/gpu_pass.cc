@@ -128,6 +128,14 @@ struct GPUPass {
     update_gc_timestamp(timestamp);
   }
 
+  void schedule_for_compilation()
+  {
+    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+    status = GPU_PASS_QUEUED;
+    compilation_handle = GPU_shader_batch_create_from_infos(
+        Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
+  }
+
   void update_compilation()
   {
     if (compilation_handle) {
@@ -157,6 +165,11 @@ struct GPUPass {
            (timestamp - gc_timestamp) >= gc_collect_rate;
   }
 };
+
+void GPU_pass_schedule(GPUPass *pass)
+{
+  pass->schedule_for_compilation();
+}
 
 eGPUPassStatus GPU_pass_status(GPUPass *pass)
 {

@@ -33,6 +33,7 @@ GPUPass *GPU_generate_pass(GPUMaterial *material,
                            void *thunk,
                            bool optimize_graph);
 
+void GPU_pass_schedule(GPUPass *pass);
 eGPUPassStatus GPU_pass_status(GPUPass *pass);
 bool GPU_pass_should_optimize(GPUPass *pass);
 void GPU_pass_ensure_its_ready(GPUPass *pass);

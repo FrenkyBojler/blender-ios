@@ -147,6 +147,11 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
       if (compile_mode == GPU_COMPILE_NOW) {
         GPU_pass_ensure_its_ready(mat->pass);
       }
+      if (compile_mode == GPU_COMPILE_ASYNC) {
+        if (GPU_pass_status(mat->pass) == GPU_PASS_CREATED) {
+          GPU_pass_schedule(mat->pass);
+        }
+      }
       return mat;
     }
   }
