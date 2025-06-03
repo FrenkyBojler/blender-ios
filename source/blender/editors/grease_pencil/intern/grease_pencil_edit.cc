@@ -4536,9 +4536,6 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       case CURVE_TYPE_NURBS:
         convert_to_nurbs(curves, strokes, threshold);
         break;
-      default:
-        BLI_assert_unreachable();
-        break;
     }
 
     info.drawing.tag_topology_changed();
