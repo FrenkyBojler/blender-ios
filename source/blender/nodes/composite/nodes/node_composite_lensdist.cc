@@ -290,10 +290,12 @@ static void radial_lens_distortion(const int2 texel,
    * by the sum of the weights. Assuming no jitter, the weights are generated as an arithmetic
    * progression starting from (0.5 / n) to ((n - 0.5) / n) for n terms. The sum of an arithmetic
    * progression can be computed as (n * (start + end) / 2), which when subsisting the start and
-   * end reduces to (n / 2). So the color should be multiplied by 2 / n. The jitter sequence
-   * approximately sums to the same value because it is a uniform random value whose mean value is
-   * 0.5, so the expression doesn't change regardless of jitter. */
-  color *= 2.0f / float4(number_of_steps);
+   * end reduces to (n / 2). So the color should be multiplied by 2 / n. On the other hand alpha
+   * is not weighted by the arithmetic progression, so it is multiplied by (1.0) and it is
+   * normalized by averaging only (i.e. division by (n)). The jitter sequence approximately sums to
+   * the same value because it is a uniform random value whose mean value is 0.5, so the expression
+   * doesn't change regardless of jitter.*/
+  color *= float4(float3(2.0f), 1.0f) / float4(number_of_steps);
 
   output.store_pixel(texel, color);
 }
