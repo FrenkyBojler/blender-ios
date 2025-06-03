@@ -11,6 +11,7 @@
 #include "NOD_partial_eval.hh"
 #include "NOD_value_elem_eval.hh"
 
+#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
@@ -39,6 +40,7 @@
 #include "MOD_nodes.hh"
 
 #include "ANIM_keyframing.hh"
+#include "RNA_prototypes.hh"
 
 namespace blender::nodes::inverse_eval {
 
@@ -381,6 +383,20 @@ enum class SetDriverSourceResult {
   return true;
 }
 
+[[nodiscard]] static bool set_pose_bone_transform(bContext &C,
+                                                  Object &object,
+                                                  bPoseChannel *pchan,
+                                                  const float4x4 &bone_to_world)
+{
+  const float4x4 bone_to_armature = object.world_to_object() * bone_to_world;
+  PointerRNA pose_bone_ptr = RNA_pointer_create_discrete(&object.id, &RNA_PoseBone, pchan);
+  PropertyRNA *prop = RNA_struct_find_property(&pose_bone_ptr, "matrix");
+  RNA_property_float_set_array(
+      &pose_bone_ptr, prop, reinterpret_cast<const float *>(bone_to_armature.ptr()));
+  RNA_property_update(&C, &pose_bone_ptr, prop);
+  return true;
+}
+
 [[nodiscard]] static bool set_driver_variable(bContext &C,
                                               DriverVar &driver_var,
                                               const float value)
@@ -432,6 +448,18 @@ enum class SetDriverSourceResult {
         return false;
       }
       Object &object = *reinterpret_cast<Object *>(driver_target.id);
+      bPoseChannel *pchan = nullptr;
+      if (object.type == OB_ARMATURE) {
+        if (driver_target.pchan_name[0] != '\0') {
+          pchan = BKE_pose_channel_find_name(object.pose, driver_target.pchan_name);
+        }
+      }
+      std::string pchan_rna_path;
+      if (pchan) {
+        pchan_rna_path = fmt::format("pose.bones[\"{}\"]",
+                                     BLI_str_escape(driver_target.pchan_name));
+      }
+
       const auto transform_channel = eDriverTarget_TransformChannels(driver_target.transChan);
       const auto flag = eDriverTarget_Flag(driver_target.flag);
       const eDriverTarget_Flag space_flag = eDriverTarget_Flag(
@@ -445,6 +473,21 @@ enum class SetDriverSourceResult {
         case DTAR_TRANSCHAN_LOCY:
         case DTAR_TRANSCHAN_LOCZ: {
           const int location_index = transform_channel - DTAR_TRANSCHAN_LOCX;
+          if (pchan) {
+            if (use_world_space) {
+              float4x4 bone_to_world = object.object_to_world() * float4x4(pchan->pose_mat);
+              bone_to_world[3][location_index] = value;
+              return set_pose_bone_transform(C, object, pchan, bone_to_world);
+            }
+            if (use_local_space) {
+              return set_rna_property(
+                  C,
+                  object.id,
+                  fmt::format("{}.location[{}]", pchan_rna_path, location_index),
+                  value);
+            }
+            return false;
+          }
           if (use_world_space) {
             float4x4 object_to_world = object.object_to_world();
             object_to_world[3][location_index] = value;
