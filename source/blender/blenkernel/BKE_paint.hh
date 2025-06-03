@@ -22,7 +22,6 @@
 #include "DNA_brush_enums.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_enums.h"
-#include "DNA_scene_types.h"
 
 struct AssetWeakReference;
 struct BMFace;
