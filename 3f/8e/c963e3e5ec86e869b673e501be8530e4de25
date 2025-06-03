@@ -1,1 +1,2 @@
 Referenced by issue #139782, USD Point Cloud using the wrong frame (double frames) -- due to UsdTimeCode rounding?
+Referenced by pull request #139793, Fix #139782: USD MeshSequenceCache modifier using the wrong frame
