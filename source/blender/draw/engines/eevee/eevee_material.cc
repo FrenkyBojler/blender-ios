@@ -218,17 +218,26 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     use_deferred_compilation = false;
   }
 
+  /* For maximum parallelization of material compilation, we delay the compilation scheduling until
+   * end_sync. */
+  bool delayed_compilation_scheduling = true;
+  if (inst_.is_playback) {
+    /* In the case of animation playback, late scheduling can lead to material flickering. */
+    delayed_compilation_scheduling = false;
+  }
   const bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
   ::Material *default_mat = is_volume ? default_volume : default_surface;
 
   MaterialPass matpass = MaterialPass();
-  matpass.gpumat = inst_.shaders.material_shader_get(blender_mat,
-                                                     ntree,
-                                                     pipeline_type,
-                                                     geometry_type,
-                                                     use_deferred_compilation ? GPU_QUERY_ONLY :
-                                                                                GPU_COMPILE_NOW,
-                                                     default_mat);
+  matpass.gpumat = inst_.shaders.material_shader_get(
+      blender_mat,
+      ntree,
+      pipeline_type,
+      geometry_type,
+      use_deferred_compilation ?
+          (delayed_compilation_scheduling ? GPU_QUERY_ONLY : GPU_COMPILE_ASYNC) :
+          GPU_COMPILE_NOW,
+      default_mat);
 
   if (matpass.gpumat == nullptr) {
     BLI_assert(use_deferred_compilation);
