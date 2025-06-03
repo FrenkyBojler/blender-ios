@@ -1,1 +1,1 @@
-Referenced by issue #139782, USD Point Cloud freezing
+Referenced by issue #139782, USD Point Cloud using the wrong frame (double frames) -- due to UsdTimeCode rounding?
