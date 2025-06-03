@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-19 11:37+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:31+0000\n"
 "Last-Translator: Lee YeonJoo <yzoo2@naver.com>\n"
 "Language-Team: Korean <https://translate.blender.org/projects/blender-ui/ui/ko/>\n"
@@ -6708,10 +6708,6 @@ msgstr "대상을 향해 제약된 오브젝트를 조준"
 
 msgid "Target Z"
 msgstr "대상 Z"
-
-
-msgid "Target's Z axis, not World Z axis, will constraint the Up direction"
-msgstr "대상의 Z 축,아니면 월드 Z 축, 위쪽 방향을 제약합니다"
 
 
 msgid "Transform Cache Constraint"
@@ -15948,6 +15944,10 @@ msgid "Node tree for node based lights"
 msgstr "노드 기반 라이트에 대한 노드 트리"
 
 
+msgid "Normalize"
+msgstr "노멀라이즈"
+
+
 msgid "Specular Factor"
 msgstr "반사 팩터"
 
@@ -23829,12 +23829,56 @@ msgid "Material slot name"
 msgstr "매테리얼 슬롯 이름"
 
 
-msgid "Mirror"
-msgstr "미러"
+msgid "Special Characters"
+msgstr "특수 문자"
+
+
+msgid "Kerning"
+msgstr "자간"
+
+
+msgid "Text"
+msgstr "텍스트"
+
+
+msgid "Metaball"
+msgstr "메타볼"
+
+
+msgid "Show/Hide"
+msgstr "표시/숨기기"
+
+
+msgid "Names"
+msgstr "이름"
+
+
+msgid "Bone Roll"
+msgstr "본 롤"
+
+
+msgid "Clean Up"
+msgstr "정리"
+
+
+msgid "Pivot Point"
+msgstr "피벗 포인트"
 
 
 msgid "Snap"
 msgstr "스냅"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "비례 편집 감소"
+
+
+msgid "Mask Edit"
+msgstr "마스크 편집"
+
+
+msgid "Mirror"
+msgstr "미러"
 
 
 msgid "UV Mapping"
@@ -23889,10 +23933,6 @@ msgid "Assign Material"
 msgstr "매테리얼을 할당"
 
 
-msgid "Metaball"
-msgstr "메타볼"
-
-
 msgid "Light"
 msgstr "라이트"
 
@@ -23925,14 +23965,6 @@ msgid "Quick Effects"
 msgstr "빠른 이펙트"
 
 
-msgid "Show/Hide"
-msgstr "표시/숨기기"
-
-
-msgid "Clean Up"
-msgstr "정리"
-
-
 msgid "Asset"
 msgstr "에셋"
 
@@ -23959,10 +23991,6 @@ msgstr "사이에서"
 
 msgid "Propagate"
 msgstr "전파"
-
-
-msgid "Names"
-msgstr "이름"
 
 
 msgid "Toggle Bone Options"
@@ -23995,34 +24023,6 @@ msgstr "페이스 강도를 설정"
 
 msgid "Merge"
 msgstr "병합"
-
-
-msgid "Special Characters"
-msgstr "특수 문자"
-
-
-msgid "Kerning"
-msgstr "자간"
-
-
-msgid "Text"
-msgstr "텍스트"
-
-
-msgid "Bone Roll"
-msgstr "본 롤"
-
-
-msgid "Pivot Point"
-msgstr "피벗 포인트"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "비례 편집 감소"
-
-
-msgid "Mask Edit"
-msgstr "마스크 편집"
 
 
 msgid "Basic"
@@ -29546,10 +29546,6 @@ msgid "Reconstructed"
 msgstr "복원됨"
 
 
-msgid "Is tracking data contains valid reconstruction information"
-msgstr "은 추적 데이터에 유효한 재구성 정보가 포함되어 있습니다"
-
-
 msgid "Movie tracking settings"
 msgstr "무비 트래킹 설정"
 
@@ -29756,10 +29752,6 @@ msgstr "트래킹 하는 푸티지에서 그린 채널을 사용"
 
 msgid "Use Mask"
 msgstr "마스크를 사용"
-
-
-msgid "Normalize"
-msgstr "노멀라이즈"
 
 
 msgid "Normalize light intensities while tracking (slower)"
@@ -30064,6 +30056,10 @@ msgstr "안정 웨이트"
 
 msgid "Influence of this track on 2D stabilization"
 msgstr "2D 안정화에 이 트랙의 영향"
+
+
+msgid "Starting"
+msgstr "시작"
 
 
 msgid "NLA Strip"
@@ -30374,10 +30370,6 @@ msgid "Aspect Correction"
 msgstr "측면 보정"
 
 
-msgid "Type of aspect correction to use"
-msgstr "사용하는 측면 보정의 유형"
-
-
 msgid "Relative Size X"
 msgstr "상대적인 크기 X"
 
@@ -30390,20 +30382,8 @@ msgid "Bokeh"
 msgstr "보케"
 
 
-msgid "Use circular filter (slower)"
-msgstr "원형 필터를 사용 (느린 속도)"
-
-
 msgid "Extend Bounds"
 msgstr "확장 경계"
-
-
-msgid "Extend bounds of the input image to fully fit blurred image"
-msgstr "입력 이미지의 경계를 확대하여 흐린 이미지에 완전히 맞춥니다"
-
-
-msgid "Use relative (percent) values to define blur radius"
-msgstr "블러 반경을 정의 하는 상대적인(퍼센트) 값을 사용"
 
 
 msgid "Variable Size"
@@ -30526,16 +30506,8 @@ msgid "ASC-CDL standard color correction"
 msgstr "ASC-CDL 표준 컬러 보정"
 
 
-msgid "Correction for entire tonal range"
-msgstr "전체 색조 범위에 대한 보정"
-
-
 msgid "Basis"
 msgstr "기반"
-
-
-msgid "Support negative color by using this as the RGB basis"
-msgstr "RGB 기반으로 이를 이용하여 음성 컬러를 지원"
 
 
 msgid "Slope"
@@ -30700,10 +30672,6 @@ msgstr "X1"
 
 msgid "Y1"
 msgstr "Y1"
-
-
-msgid "Use relative values to crop image"
-msgstr "이미지 자르기로 상대적인 값을 사용"
 
 
 msgid "Crop Image Size"
@@ -31004,6 +30972,10 @@ msgstr "뒤집기 Y"
 
 msgid "Flip X & Y"
 msgstr "뒤집기 X & Y"
+
+
+msgid "Glare"
+msgstr "글레어"
 
 
 msgid "Angle Offset"
@@ -31439,6 +31411,10 @@ msgid "Render Layers"
 msgstr "렌더 레이어"
 
 
+msgid "Greater"
+msgstr "더 큰"
+
+
 msgid "Rotate"
 msgstr "회전"
 
@@ -31553,10 +31529,6 @@ msgstr "변환을 필터하는 데 사용하는 메서드"
 
 msgid "Translate"
 msgstr "옮기기"
-
-
-msgid "Use relative (fraction of input image size) values to define translation"
-msgstr "상대적인 (입력 이미지 크기의 소수) 값을 사용하여 옮기기을 정의"
 
 
 msgid "X Axis"
@@ -37772,10 +37744,6 @@ msgstr "컨트롤 포인트 행을 선택"
 
 msgid "Select similar curve points by property type"
 msgstr "속성 유형으로 비슷한 커브 포인트를 선택"
-
-
-msgid "Greater"
-msgstr "더 큰"
 
 
 msgid "Less"
@@ -48404,6 +48372,10 @@ msgid "All bones affected by active Keying Set"
 msgstr "활성 키잉 설정으로 영향을 준 모든 본"
 
 
+msgid "Parents"
+msgstr "부모"
+
+
 msgctxt "Operator"
 msgid "Select Connected"
 msgstr "연결된 선택"
@@ -49339,10 +49311,6 @@ msgid "Expand/Collapse Header Menus"
 msgstr "헤더 메뉴 확장/축소"
 
 
-msgid "Expand or collapse the header pulldown menus"
-msgstr "헤더의 풀다운 메뉴를 확장 또는 축소"
-
-
 msgctxt "Operator"
 msgid "Show Info Log"
 msgstr "정보 로그를 표시"
@@ -49873,11 +49841,6 @@ msgstr "릴렉스에 대해 HC 메서드를 사용"
 
 
 msgctxt "Operator"
-msgid "Change Effect Input"
-msgstr "이팩트 입력을 변경"
-
-
-msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "이팩트 유형을 변경"
 
@@ -49887,21 +49850,9 @@ msgid "Type"
 msgstr "유형"
 
 
-msgid "Sequencer effect type"
-msgstr "시퀀서 이펙트 유형"
-
-
-msgid "Crossfade effect strip type"
-msgstr "교차 페이드 이펙트 스트립 유형"
-
-
 msgctxt "Sequence"
 msgid "Add"
 msgstr "추가"
-
-
-msgid "Add effect strip type"
-msgstr "이팩트 스트립 유형을 추가"
 
 
 msgctxt "Sequence"
@@ -49909,17 +49860,9 @@ msgid "Subtract"
 msgstr "빼기"
 
 
-msgid "Subtract effect strip type"
-msgstr "빼기 이펙트 스트립 유형"
-
-
 msgctxt "Sequence"
 msgid "Alpha Over"
 msgstr "알파 오버"
-
-
-msgid "Alpha Over effect strip type"
-msgstr "알파 오버 이펙트 스트립 유형"
 
 
 msgctxt "Sequence"
@@ -49927,26 +49870,9 @@ msgid "Alpha Under"
 msgstr "알파 언더"
 
 
-msgid "Alpha Under effect strip type"
-msgstr "알파 언더 이펙트 스트립 유형"
-
-
-msgctxt "Sequence"
-msgid "Gamma Cross"
-msgstr "감마 교차"
-
-
-msgid "Gamma Cross effect strip type"
-msgstr "감마 교차 이펙트 스트립 유형"
-
-
 msgctxt "Sequence"
 msgid "Multiply"
 msgstr "곱하기"
-
-
-msgid "Multiply effect strip type"
-msgstr "곱하기 이펙트 스트립 유형"
 
 
 msgctxt "Sequence"
@@ -49954,17 +49880,9 @@ msgid "Wipe"
 msgstr "웨이프"
 
 
-msgid "Wipe effect strip type"
-msgstr "웨이프 이펙트 스트립 유형"
-
-
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "글로우"
-
-
-msgid "Glow effect strip type"
-msgstr "글로우 이펙트 스트립 유형"
 
 
 msgctxt "Sequence"
@@ -49972,17 +49890,9 @@ msgid "Transform"
 msgstr "변환"
 
 
-msgid "Transform effect strip type"
-msgstr "변환 이펙트 스트립 유형"
-
-
 msgctxt "Sequence"
 msgid "Color"
 msgstr "컬러"
-
-
-msgid "Color effect strip type"
-msgstr "컬러 이팩트 스트립 유형"
 
 
 msgctxt "Sequence"
@@ -50076,6 +49986,10 @@ msgstr "새로운 시퀀스 스트립에 중첩을 수정하지 않도록 합니
 
 msgid "Replace Selection"
 msgstr "선택을 교체"
+
+
+msgid "Sequencer effect type"
+msgstr "시퀀서 이펙트 유형"
 
 
 msgctxt "Operator"
@@ -53323,10 +53237,6 @@ msgid "Remove"
 msgstr "제거"
 
 
-msgid "Save a Collada file"
-msgstr "Collada 파일을 저장"
-
-
 msgid "Only Selected UV Map"
 msgstr "선택된 UV 맵 만"
 
@@ -53593,10 +53503,6 @@ msgstr "동일한 데이터에서 여러 오브젝트 인스턴스화"
 
 msgid "Copy textures to same folder where the .dae file is exported"
 msgstr ".dae 파일을 내보내는 동일한 폴더로 텍스처를 복사"
-
-
-msgid "Load a Collada file"
-msgstr "Collada 파일을 불러오기"
 
 
 msgid "Auto Connect"
@@ -54703,10 +54609,6 @@ msgid "Bleed"
 msgstr "번짐"
 
 
-msgid "Extend paint beyond the faces UVs to reduce seams (in pixels, slower)"
-msgstr "이음새를 줄이기 위해면 UV 이상으로 페인트를 확장합니다 (픽셀 단위로, 느림)"
-
-
 msgid "Stencil Color"
 msgstr "스텐실 컬러"
 
@@ -54927,6 +54829,38 @@ msgid "Panel containing UI elements"
 msgstr "UI 요소가 포함된 패널"
 
 
+msgid "Active Tool"
+msgstr "활성 도구"
+
+
+msgid "View Lock"
+msgstr "뷰 잠금"
+
+
+msgid "Shadow Settings"
+msgstr "섀도우 설정"
+
+
+msgid "SSAO Settings"
+msgstr "SSAO 설정"
+
+
+msgid "Cavity"
+msgstr "캐비티"
+
+
+msgid "Render Pass"
+msgstr "렌더 패스"
+
+
+msgid "Overlays"
+msgstr "오버레이"
+
+
+msgid "Guides"
+msgstr "가이드"
+
+
 msgid "Motion Tracking"
 msgstr "모션 트래킹"
 
@@ -54959,10 +54893,6 @@ msgid "Drawing Plane"
 msgstr "드로잉 평면"
 
 
-msgid "Guides"
-msgstr "가이드"
-
-
 msgid "Quad View"
 msgstr "쿼드 뷰"
 
@@ -54977,34 +54907,6 @@ msgstr "입체 영상"
 
 msgid "Multi Frame"
 msgstr "다중 프레임"
-
-
-msgid "Active Tool"
-msgstr "활성 도구"
-
-
-msgid "View Lock"
-msgstr "뷰 잠금"
-
-
-msgid "Shadow Settings"
-msgstr "섀도우 설정"
-
-
-msgid "SSAO Settings"
-msgstr "SSAO 설정"
-
-
-msgid "Cavity"
-msgstr "캐비티"
-
-
-msgid "Render Pass"
-msgstr "렌더 패스"
-
-
-msgid "Overlays"
-msgstr "오버레이"
 
 
 msgid "Bone Constraints"
@@ -58745,10 +58647,6 @@ msgid "Changes the size of the fonts and widgets in the interface"
 msgstr "인터페이스에서 폰트 및 위젯의 크기를 변경합니다"
 
 
-msgid "Open menu buttons and pulldowns automatically when the mouse is hovering"
-msgstr "메뉴 버튼을 열고 마우스가 움직일 때 자동으로 풀다운"
-
-
 msgid "Save Prompt"
 msgstr "프롬프트를 저장"
 
@@ -61495,10 +61393,6 @@ msgstr "섀도우와 하이라이트에 대한 라이트의 방향"
 
 msgid "Attenuation constant"
 msgstr "감쇠 상수"
-
-
-msgid "Distance of object that contribute to the Cavity/Edge effect"
-msgstr "캐비티/에지 효과에 기여하는 물체의 거리"
 
 
 msgid "Number of samples"
@@ -64267,6 +64161,14 @@ msgid "Display a different set of collections in this viewport"
 msgstr "이 뷰포트에 다른 컬렉션 모음을 표시"
 
 
+msgid "Text Info"
+msgstr "텍스트 정보"
+
+
+msgid "Display overlay text"
+msgstr "오버레이 텍스트를 표시"
+
+
 msgid "Get the node tree path as a string"
 msgstr "문자열로 노드 트리 경로를 가져오기"
 
@@ -64598,11 +64500,6 @@ msgid "Sound"
 msgstr "사운드"
 
 
-msgctxt "Sequence"
-msgid "Cross"
-msgstr "교차"
-
-
 msgid "Use Default Fade"
 msgstr "기본 페이드를 사용"
 
@@ -64717,10 +64614,6 @@ msgstr "단일 컬러로 채워진 이미지를 만드는 시퀀스 스트립"
 
 msgid "Effect Strip color"
 msgstr "이펙트 스트립 컬러"
-
-
-msgid "Cross Sequence"
-msgstr "교차 시퀀스"
 
 
 msgid "Sequence strip creating a gaussian blur"
@@ -65074,6 +64967,10 @@ msgstr "상승 컬러를 반전"
 
 msgid "Color balance lift (shadows)"
 msgstr "컬러 균형 상승 (섀도우)"
+
+
+msgid "Correction for entire tonal range"
+msgstr "전체 색조 범위에 대한 보정"
 
 
 msgid "Color balance parameters for a sequence strip"
@@ -65888,6 +65785,14 @@ msgid "Color of path before current frame"
 msgstr "현재 프레임 이전에 경로의 컬러"
 
 
+msgid "Preview Range"
+msgstr "미리보기 범위"
+
+
+msgid "Color of preview range overlay"
+msgstr "미리보기 범위 오버레이의 색상"
+
+
 msgid "Selected Marker"
 msgstr "선택된 마커"
 
@@ -66070,14 +65975,6 @@ msgstr "긴 키"
 
 msgid "Long Key Selected"
 msgstr "긴 키 선택됨"
-
-
-msgid "Preview Range"
-msgstr "미리보기 범위"
-
-
-msgid "Color of preview range overlay"
-msgstr "미리보기 범위 오버레이의 색상"
 
 
 msgid "Summary"
@@ -68039,10 +67936,6 @@ msgstr "메쉬에 대한 통계 정보를 표시"
 
 msgid "Show Text"
 msgstr "텍스트를 표시"
-
-
-msgid "Display overlay text"
-msgstr "오버레이 텍스트를 표시"
 
 
 msgid "Display Vertex Normals"
@@ -71811,16 +71704,6 @@ msgstr "씬..."
 
 
 msgctxt "Operator"
-msgid "Cross"
-msgstr "교차"
-
-
-msgctxt "Operator"
-msgid "Gamma Cross"
-msgstr "감마 교차"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "웨이프"
 
@@ -73016,10 +72899,6 @@ msgid "Viewport Overlays"
 msgstr "뷰포트 오버레이"
 
 
-msgid "Text Info"
-msgstr "텍스트 정보"
-
-
 msgid "Statistics"
 msgstr "통계"
 
@@ -73553,10 +73432,6 @@ msgstr "영향 만"
 
 msgid "Locations"
 msgstr "위치"
-
-
-msgid "Parents"
-msgstr "부모"
 
 
 msgid "Refine Method"
@@ -75641,10 +75516,6 @@ msgid "No mesh data to join"
 msgstr "합치는 메쉬 데이터가 없음"
 
 
-msgid "Selected meshes must have equal numbers of vertices"
-msgstr "선택된 메쉬는 동일한 버텍스 개수가 있어야 함"
-
-
 msgid "No additional selected meshes with equal vertex count to join"
 msgstr "합치는 동일한 버텍스 계산과 함께 추가적인 선택된 메쉬가 없음"
 
@@ -77602,20 +77473,8 @@ msgid "File '%s' could not be loaded"
 msgstr "파일 '%s'을 불러올 수 없습니다"
 
 
-msgid "No valid inputs to swap"
-msgstr "교환하는 유효한 입력이 없음"
-
-
 msgid "Please select two strips"
 msgstr "두 스트립을 선택하십시오"
-
-
-msgid "One of the effect inputs is unset, cannot swap"
-msgstr "이펙트 입력 중 하나가 설정되지 않음, 교환 할 수 없습니다"
-
-
-msgid "New effect needs more input strips"
-msgstr "새로운 이펙트는 더 많은 입력 스트립이 필요함"
 
 
 msgid "Can't create subtitle file"
@@ -79144,10 +79003,6 @@ msgid "Layer:"
 msgstr "레이어:"
 
 
-msgid "Glare"
-msgstr "글레어"
-
-
 msgid "Streak fade-out factor"
 msgstr "연속 페이드 아웃 팩터"
 
@@ -79995,8 +79850,4 @@ msgstr "완료"
 
 msgid "In Progress"
 msgstr "진행 중"
-
-
-msgid "Starting"
-msgstr "시작"
 
