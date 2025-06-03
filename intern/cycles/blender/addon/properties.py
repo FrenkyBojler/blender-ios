@@ -1855,7 +1855,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 unicodedata.lookup('COPYRIGHT SIGN'))
 
             if not has_execution_optimisation:
-                device_text_label += rpt_(" (Unoptimised Performance)")
+                device_text_label += rpt_(" (Unoptimized Performance)")
 
             box.prop(
                 device, "use", text=device_text_label, translate=False
