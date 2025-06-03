@@ -401,6 +401,37 @@ enum class SetDriverSourceResult {
   return true;
 }
 
+static float4x4 set_euler_rotation_axis_in_matrix(const float4x4 &matrix,
+                                                  const int axis,
+                                                  const float angle)
+{
+  float3 location;
+  math::EulerXYZ rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(matrix, location, rotation, scale);
+  rotation.xyz()[axis] = angle;
+  return math::from_loc_rot_scale<float4x4>(location, rotation, scale);
+}
+
+static float4x4 set_scale_axis_in_matrix(const float4x4 &matrix, const int axis, const float value)
+{
+  float3 location;
+  math::EulerXYZ rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(matrix, location, rotation, scale);
+  scale[axis] = value;
+  return math::from_loc_rot_scale<float4x4>(location, rotation, scale);
+}
+
+static float4x4 set_scale_in_matrix(const float4x4 &matrix, const float3 value)
+{
+  float3 location;
+  math::EulerXYZ rotation;
+  float3 scale;
+  math::to_loc_rot_scale_safe<true>(matrix, location, rotation, scale);
+  return math::from_loc_rot_scale<float4x4>(location, rotation, value);
+}
+
 [[nodiscard]] static bool set_driver_variable(bContext &C,
                                               DriverVar &driver_var,
                                               const float value)
@@ -507,16 +538,14 @@ enum class SetDriverSourceResult {
         case DTAR_TRANSCHAN_ROTY:
         case DTAR_TRANSCHAN_ROTZ: {
           const int rotation_index = transform_channel - DTAR_TRANSCHAN_ROTX;
+          if (pchan) {
+            return false;
+          }
           if (use_world_space) {
-            const float4x4 old_object_to_world = object.object_to_world();
-            float3 location;
-            math::EulerXYZ rotation;
-            float3 scale;
-            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
-            rotation.xyz()[rotation_index] = value;
-            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
-                location, rotation, scale);
-            return set_object_world_matrix(C, object, new_object_to_world);
+            return set_object_world_matrix(C,
+                                           object,
+                                           set_euler_rotation_axis_in_matrix(
+                                               object.object_to_world(), rotation_index, value));
           }
           if (use_local_space) {
             return set_rna_property(
@@ -528,16 +557,12 @@ enum class SetDriverSourceResult {
         case DTAR_TRANSCHAN_SCALEY:
         case DTAR_TRANSCHAN_SCALEZ: {
           const int scale_index = transform_channel - DTAR_TRANSCHAN_SCALEX;
+          if (pchan) {
+            return false;
+          }
           if (use_world_space) {
-            const float4x4 old_object_to_world = object.object_to_world();
-            float3 location;
-            math::EulerXYZ rotation;
-            float3 scale;
-            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
-            scale[scale_index] = value;
-            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
-                location, rotation, scale);
-            return set_object_world_matrix(C, object, new_object_to_world);
+            return set_object_world_matrix(
+                C, object, set_scale_axis_in_matrix(object.object_to_world(), scale_index, value));
           }
           if (use_local_space) {
             return set_rna_property(C, object.id, fmt::format("scale[{}]", scale_index), value);
@@ -545,16 +570,12 @@ enum class SetDriverSourceResult {
           return false;
         }
         case DTAR_TRANSCHAN_SCALE_AVG: {
+          if (pchan) {
+            return false;
+          }
           if (use_world_space) {
-            const float4x4 old_object_to_world = object.object_to_world();
-            float3 location;
-            math::EulerXYZ rotation;
-            float3 scale;
-            math::to_loc_rot_scale_safe<true>(old_object_to_world, location, rotation, scale);
-            scale = float3(value);
-            const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
-                location, rotation, scale);
-            return set_object_world_matrix(C, object, new_object_to_world);
+            return set_object_world_matrix(
+                C, object, set_scale_in_matrix(object.object_to_world(), float3(value)));
           }
           if (use_local_space) {
             return set_rna_property(C, object.id, "scale[0]", value) &&
