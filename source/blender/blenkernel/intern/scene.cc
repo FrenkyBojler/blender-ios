@@ -157,13 +157,6 @@ void BKE_sculpt_check_cavity_curves(Sculpt *sd)
   }
 }
 
-static void paint_init_data(Paint &paint)
-{
-  paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
-  paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
-  paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
-}
-
 static void scene_init_data(ID *id)
 {
   Scene *scene = (Scene *)id;
@@ -189,14 +182,6 @@ static void scene_init_data(ID *id)
 
   scene->toolsettings->autokey_mode = uchar(U.autokey_mode);
 
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->vpaint));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->wpaint));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->sculpt));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->gp_paint));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->gp_vertexpaint));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->gp_sculptpaint));
-  paint_init_data(reinterpret_cast<Paint &>(*scene->toolsettings->curves_sculpt));
-  paint_init_data(reinterpret_cast<Paint &>(scene->toolsettings->imapaint));
   scene->toolsettings->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
   scene->toolsettings->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
   scene->toolsettings->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();

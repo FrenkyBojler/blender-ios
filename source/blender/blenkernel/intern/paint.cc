@@ -1671,6 +1671,13 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
   }
 }
 
+static void paint_init_data(Paint &paint)
+{
+  paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+}
+
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
 {
   Paint *paint = nullptr;
@@ -1714,29 +1721,36 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
     *data = *DNA_struct_default_get(Sculpt);
 
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpPaint **)r_paint == &ts->gp_paint) {
     GpPaint *data = MEM_callocN<GpPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpVertexPaint **)r_paint == &ts->gp_vertexpaint) {
     GpVertexPaint *data = MEM_callocN<GpVertexPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpSculptPaint **)r_paint == &ts->gp_sculptpaint) {
     GpSculptPaint *data = MEM_callocN<GpSculptPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpWeightPaint **)r_paint == &ts->gp_weightpaint) {
     GpWeightPaint *data = MEM_callocN<GpWeightPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((CurvesSculpt **)r_paint == &ts->curves_sculpt) {
     CurvesSculpt *data = MEM_callocN<CurvesSculpt>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if (*r_paint == &ts->imapaint.paint) {
     paint = &ts->imapaint.paint;
+    paint_init_data(*paint);
   }
 
   paint->flags |= PAINT_SHOW_BRUSH;
