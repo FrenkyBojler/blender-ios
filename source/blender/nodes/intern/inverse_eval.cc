@@ -579,6 +579,18 @@ static float4x4 set_scale_in_matrix(const float4x4 &matrix, const float3 value)
         case DTAR_TRANSCHAN_SCALEZ: {
           const int scale_index = transform_channel - DTAR_TRANSCHAN_SCALEX;
           if (pchan) {
+            if (use_world_space) {
+              return set_pose_bone_world_matrix(
+                  C,
+                  object,
+                  pchan,
+                  set_scale_axis_in_matrix(
+                      object.object_to_world() * float4x4(pchan->pose_mat), scale_index, value));
+            }
+            if (use_local_space) {
+              return set_rna_property(
+                  C, object.id, fmt::format("{}.scale[{}]", pchan_rna_path, scale_index), value);
+            }
             return false;
           }
           if (use_world_space) {
@@ -592,6 +604,22 @@ static float4x4 set_scale_in_matrix(const float4x4 &matrix, const float3 value)
         }
         case DTAR_TRANSCHAN_SCALE_AVG: {
           if (pchan) {
+            if (use_world_space) {
+              return set_pose_bone_world_matrix(
+                  C,
+                  object,
+                  pchan,
+                  set_scale_in_matrix(object.object_to_world() * float4x4(pchan->pose_mat),
+                                      float3(value)));
+            }
+            if (use_local_space) {
+              return set_rna_property(
+                         C, object.id, fmt::format("{}.scale[0]", pchan_rna_path), value) &&
+                     set_rna_property(
+                         C, object.id, fmt::format("{}.scale[1]", pchan_rna_path), value) &&
+                     set_rna_property(
+                         C, object.id, fmt::format("{}.scale[2]", pchan_rna_path), value);
+            }
             return false;
           }
           if (use_world_space) {
