@@ -1673,9 +1673,24 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
 
 static void paint_init_data(Paint &paint)
 {
-  paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
-  paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
-  paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  const UnifiedPaintSettings& default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  paint.unified_paint_settings.size = default_ups.size;
+  paint.unified_paint_settings.input_samples = default_ups.input_samples;
+  paint.unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint.unified_paint_settings.alpha = default_ups.alpha;
+  paint.unified_paint_settings.weight = default_ups.weight;
+  paint.unified_paint_settings.flag = default_ups.flag;
+  if (!paint.unified_paint_settings.curve_rand_hue) {
+    paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (!paint.unified_paint_settings.curve_rand_saturation) {
+    paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (!paint.unified_paint_settings.curve_rand_value) {
+    paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
 }
 
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
@@ -1714,6 +1729,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   if (((VPaint **)r_paint == &ts->vpaint) || ((VPaint **)r_paint == &ts->wpaint)) {
     VPaint *data = MEM_callocN<VPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((Sculpt **)r_paint == &ts->sculpt) {
     Sculpt *data = MEM_callocN<Sculpt>(__func__);
@@ -2015,14 +2031,32 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
       }
     }
   }
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
+  if (ups->curve_rand_hue) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_hue);
+    BKE_curvemapping_init(ups->curve_rand_hue);
+  }
+
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_saturation);
+  if (ups->curve_rand_saturation) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_saturation);
+    BKE_curvemapping_init(ups->curve_rand_saturation);
+  }
+
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_value);
+  if (ups->curve_rand_value) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
+    BKE_curvemapping_init(ups->curve_rand_value);
+  }
 
   paint->paint_cursor = nullptr;
 
   /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
    * these are also NaN, which could lead to crashes in painting. */
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   zero_v3(ups->last_location);
   ups->last_hit = 0;
+
   paint_runtime_init(scene->toolsettings, paint);
 }
 
