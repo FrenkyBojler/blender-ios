@@ -6,7 +6,6 @@ set(INC
   PUBLIC .
   ../makesrna
   ../../../intern/eigen
-  ../../../extern/curve_fit_nd
 )
 
 set(INC_SYS
