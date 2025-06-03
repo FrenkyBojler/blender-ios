@@ -375,18 +375,22 @@ enum class SetDriverSourceResult {
   Success,
 };
 
-[[nodiscard]] static bool set_object_transform(Object &object, const float4x4 &object_to_world)
+[[nodiscard]] static bool set_object_world_matrix(bContext &C,
+                                                  Object &object,
+                                                  const float4x4 &object_to_world)
 {
-  /* We don't attempt to further propagate changes through drivers and constraints yet. */
-  BKE_object_apply_mat4(&object, object_to_world.ptr(), true, true);
-  DEG_id_tag_update(&object.id, ID_RECALC_TRANSFORM);
+  PointerRNA object_ptr = RNA_id_pointer_create(&object.id);
+  PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "matrix_world");
+  RNA_property_float_set_array(
+      &object_ptr, prop, reinterpret_cast<const float *>(object_to_world.ptr()));
+  RNA_property_update(&C, &object_ptr, prop);
   return true;
 }
 
-[[nodiscard]] static bool set_pose_bone_transform(bContext &C,
-                                                  Object &object,
-                                                  bPoseChannel *pchan,
-                                                  const float4x4 &bone_to_world)
+[[nodiscard]] static bool set_pose_bone_world_matrix(bContext &C,
+                                                     Object &object,
+                                                     bPoseChannel *pchan,
+                                                     const float4x4 &bone_to_world)
 {
   const float4x4 bone_to_armature = object.world_to_object() * bone_to_world;
   PointerRNA pose_bone_ptr = RNA_pointer_create_discrete(&object.id, &RNA_PoseBone, pchan);
@@ -477,7 +481,7 @@ enum class SetDriverSourceResult {
             if (use_world_space) {
               float4x4 bone_to_world = object.object_to_world() * float4x4(pchan->pose_mat);
               bone_to_world[3][location_index] = value;
-              return set_pose_bone_transform(C, object, pchan, bone_to_world);
+              return set_pose_bone_world_matrix(C, object, pchan, bone_to_world);
             }
             if (use_local_space) {
               return set_rna_property(
@@ -491,7 +495,7 @@ enum class SetDriverSourceResult {
           if (use_world_space) {
             float4x4 object_to_world = object.object_to_world();
             object_to_world[3][location_index] = value;
-            return set_object_transform(object, object_to_world);
+            return set_object_world_matrix(C, object, object_to_world);
           }
           if (use_local_space) {
             return set_rna_property(
@@ -512,7 +516,7 @@ enum class SetDriverSourceResult {
             rotation.xyz()[rotation_index] = value;
             const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
                 location, rotation, scale);
-            return set_object_transform(object, new_object_to_world);
+            return set_object_world_matrix(C, object, new_object_to_world);
           }
           if (use_local_space) {
             return set_rna_property(
@@ -533,7 +537,7 @@ enum class SetDriverSourceResult {
             scale[scale_index] = value;
             const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
                 location, rotation, scale);
-            return set_object_transform(object, new_object_to_world);
+            return set_object_world_matrix(C, object, new_object_to_world);
           }
           if (use_local_space) {
             return set_rna_property(C, object.id, fmt::format("scale[{}]", scale_index), value);
@@ -550,7 +554,7 @@ enum class SetDriverSourceResult {
             scale = float3(value);
             const float4x4 new_object_to_world = math::from_loc_rot_scale<float4x4>(
                 location, rotation, scale);
-            return set_object_transform(object, new_object_to_world);
+            return set_object_world_matrix(C, object, new_object_to_world);
           }
           if (use_local_space) {
             return set_rna_property(C, object.id, "scale[0]", value) &&
