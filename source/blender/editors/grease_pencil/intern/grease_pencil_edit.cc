@@ -4418,7 +4418,7 @@ static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
   IndexMaskMemory memory;
   const IndexMask non_catmull_rom_curves_selection =
       curves.indices_for_curve_type(CurveType::CURVE_TYPE_CATMULL_ROM, selection, memory)
-          .complement(curves.curves_range(), memory);
+          .complement(selection, memory);
   BLI_assert(!non_catmull_rom_curves_selection.is_empty());
   curves = geometry::resample_to_evaluated(curves, non_catmull_rom_curves_selection);
 
@@ -4451,7 +4451,7 @@ static void convert_to_poly(bke::CurvesGeometry &curves, const IndexMask &select
   IndexMaskMemory memory;
   const IndexMask non_poly_curves_selection =
       curves.indices_for_curve_type(CurveType::CURVE_TYPE_POLY, selection, memory)
-          .complement(curves.curves_range(), memory);
+          .complement(selection, memory);
   BLI_assert(!non_poly_curves_selection.is_empty());
   curves = geometry::resample_to_evaluated(curves, non_poly_curves_selection);
 }
