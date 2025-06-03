@@ -33,9 +33,13 @@ class ObjectsChildrenBuilder {
 
   SpaceOutliner &outliner_;
   ObjectTreeElementsMap object_tree_elements_map_;
-  /* Stores object such that parents are before children. */
+  /**
+   * Stores objects such that parents are before children.
+   */
   Vector<Object *> ordered_objects_;
-  /* Unique object list to later check and store objects in ordered way. */
+  /**
+   * Holds objects that were already added to #ordered_objects_, to prevent duplicates.
+   */
   Set<Object *> objects_in_ordered_objects_;
 
  public:
