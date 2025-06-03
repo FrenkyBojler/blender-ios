@@ -17,12 +17,12 @@ extern "C" {
 
 namespace blender::geometry {
 
-bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
-                               const IndexMask &curve_selection,
-                               const VArray<float> &thresholds,
-                               const VArray<bool> &corners,
-                               const FitMethod method,
-                               const bke::AttributeFilter &attribute_filter)
+bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
+                                              const IndexMask &curve_selection,
+                                              const VArray<float> &thresholds,
+                                              const VArray<bool> &corners,
+                                              const FitMethod method,
+                                              const bke::AttributeFilter &attribute_filter)
 {
   if (curve_selection.is_empty()) {
     return src_curves;

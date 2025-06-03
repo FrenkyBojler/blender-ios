@@ -32,11 +32,11 @@ enum class FitMethod {
  * will be "free", resulting in a sharp corner.
  * \param method: The fitting algorithm to use. See #FitMethod.
  */
-bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
-                               const IndexMask &curve_selection,
-                               const VArray<float> &thresholds,
-                               const VArray<bool> &corners,
-                               FitMethod method,
-                               const bke::AttributeFilter &attribute_filter);
+bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
+                                              const IndexMask &curve_selection,
+                                              const VArray<float> &thresholds,
+                                              const VArray<bool> &corners,
+                                              FitMethod method,
+                                              const bke::AttributeFilter &attribute_filter);
 
 }  // namespace blender::geometry

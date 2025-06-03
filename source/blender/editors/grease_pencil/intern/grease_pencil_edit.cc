@@ -4404,7 +4404,7 @@ static const bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
   const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
   /* TODO: Detect or manually provide corners. */
   const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
-  return geometry::fit_curves(
+  return geometry::fit_poly_to_bezier_curves(
       curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
 }
 
