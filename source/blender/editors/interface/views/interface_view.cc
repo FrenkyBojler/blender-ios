@@ -77,7 +77,6 @@ AbstractTreeView *UI_block_add_view(uiBlock &block,
                                     StringRef idname,
                                     std::unique_ptr<AbstractTreeView> tree_view)
 {
-  UI_block_flag_enable(&block, UI_BLOCK_LIST_ITEM);
   return ui_block_add_view_impl<AbstractTreeView>(block, idname, std::move(tree_view));
 }
 
