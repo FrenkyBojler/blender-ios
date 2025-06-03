@@ -375,7 +375,7 @@ enum class SetDriverSourceResult {
 
 [[nodiscard]] static bool set_object_transform(Object &object, const float4x4 &object_to_world)
 {
-  /* TODO: Take constraints and drivers on transforms into account? */
+  /* We don't attempt to further propagate changes through drivers and constraints yet. */
   BKE_object_apply_mat4(&object, object_to_world.ptr(), true, true);
   DEG_id_tag_update(&object.id, ID_RECALC_TRANSFORM);
   return true;
