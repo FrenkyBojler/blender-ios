@@ -387,17 +387,45 @@ enum class SetDriverSourceResult {
                                               DriverVar &driver_var,
                                               const RNAValueVariant &value_variant)
 {
-  if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
-    return false;
+  const eDriverVar_Types driver_var_type = eDriverVar_Types(driver_var.type);
+  switch (driver_var_type) {
+    case DVAR_TYPE_SINGLE_PROP: {
+      if (driver_var.num_targets != 1) {
+        return false;
+      }
+      const DriverTarget &driver_target = driver_var.targets[0];
+      if (!driver_target.id) {
+        return false;
+      }
+      return set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant);
+    }
+    case DVAR_TYPE_CONTEXT_PROP: {
+      if (driver_var.num_targets != 1) {
+        return false;
+      }
+      const DriverTarget &driver_target = driver_var.targets[0];
+      const auto context_property = eDriverTarget_ContextProperty(driver_target.context_property);
+      switch (context_property) {
+        case DTAR_CONTEXT_PROPERTY_ACTIVE_SCENE: {
+          Scene &scene = *CTX_data_scene(&C);
+          return set_rna_property(C, scene.id, driver_target.rna_path, value_variant);
+        }
+        case DTAR_CONTEXT_PROPERTY_ACTIVE_VIEW_LAYER: {
+          Scene &scene = *CTX_data_scene(&C);
+          ViewLayer &view_layer = *CTX_data_view_layer(&C);
+          const std::string view_layer_rna_path = fmt::format(
+              "view_layers[\"{}\"]{}", BLI_str_escape(view_layer.name), driver_target.rna_path);
+          return set_rna_property(C, scene.id, view_layer_rna_path, value_variant);
+        }
+        default: {
+          return false;
+        }
+      }
+    }
+    default: {
+      return false;
+    }
   }
-  if (driver_var.num_targets != 1) {
-    return false;
-  }
-  const DriverTarget &driver_target = driver_var.targets[0];
-  if (!driver_target.id) {
-    return false;
-  }
-  return set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant);
 }
 
 [[nodiscard]] static SetDriverSourceResult set_driver_target_if_available(
