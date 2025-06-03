@@ -249,13 +249,9 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     const Span<int> corner_indices = corner_indices_per_curve[pos];
     MutableSpan<int8_t> left_handle_types = dst_handle_types_left.slice(dst_points);
     MutableSpan<int8_t> right_handle_types = dst_handle_types_right.slice(dst_points);
-    if (!corner_indices.is_empty()) {
-      IndexMaskMemory corner_memory;
-      const IndexMask dst_corner_mask = IndexMask::from_indices(corner_indices, corner_memory);
-      index_mask::masked_fill(left_handle_types, int8_t(BEZIER_HANDLE_FREE), dst_corner_mask);
-      index_mask::masked_fill(right_handle_types, int8_t(BEZIER_HANDLE_FREE), dst_corner_mask);
-    }
-
+    left_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
+      right_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
+    
     const Span<int> original_indices = original_indices_per_curve[pos];
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
