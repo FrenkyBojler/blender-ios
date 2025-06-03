@@ -6,20 +6,29 @@
  * \ingroup cmpnodes
  */
 
+#include "BKE_node.hh"
+#include "BLI_assert.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_node_types.h"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
+#include "MEM_guardedalloc.h"
+#include "RNA_types.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 #include "node_composite_util.hh"
 
 /* **************** Displace  ******************** */
 
 namespace blender::nodes::node_composite_displace_cc {
+
+NODE_STORAGE_FUNCS(NodeDisplaceData)
 
 static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 {
@@ -44,6 +53,18 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .max(1000.0f)
       .compositor_domain_priority(3);
   b.add_output<decl::Color>("Image");
+}
+
+static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
+{
+  NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
+  data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
+  node->storage = data;
+}
+
+static void cmp_buts_displace(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -109,9 +130,11 @@ class DisplaceOperation : public NodeOperation {
     const Result &x_scale = get_input("X Scale");
     const Result &y_scale = get_input("Y Scale");
 
+    const Interpolation interpolation = this->get_interpolation();
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
+    output.get_realization_options().interpolation = interpolation;
 
     /* In order to perform EWA sampling, we need to compute the partial derivative of the displaced
      * coordinates along the x and y directions using a finite difference approximation. But in
@@ -163,7 +186,21 @@ class DisplaceOperation : public NodeOperation {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
         float4 displaced_color = image.sample_ewa_zero(coordinates, x_gradient, y_gradient);
-        output.store_pixel(texel, displaced_color);
+        /* TODO: Add switch for EWA */
+        switch (interpolation) {
+          case Interpolation::Bicubic:
+            output.store_pixel(texel,
+                               image.sample_cubic_wrap(coordinates, false, false));
+            break;
+          case Interpolation::Bilinear:
+            output.store_pixel(texel,
+                               image.sample_bilinear_wrap(coordinates, false, false));
+            break;
+          case Interpolation::Nearest:
+            output.store_pixel(texel,
+                               image.sample_nearest_wrap(coordinates, false, false));
+            break;
+        }
       };
 
       /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
@@ -181,6 +218,21 @@ class DisplaceOperation : public NodeOperation {
             upper_right_texel, upper_right_coordinates, upper_x_gradient, right_y_gradient);
       }
     });
+  }
+
+  Interpolation get_interpolation() const
+  {
+    switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    BLI_assert_unreachable();
+    return Interpolation::Nearest;
   }
 
   bool is_identity()
@@ -228,6 +280,10 @@ static void register_node_type_cmp_displace()
   ntype.enum_name_legacy = "DISPLACE";
   ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_displace_declare;
+  ntype.draw_buttons = file_ns::cmp_buts_displace;
+  ntype.initfunc = file_ns::cmp_node_init_displace;
+  blender::bke::node_type_storage(
+      ntype, "NodeDisplaceData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
