@@ -62,5 +62,5 @@ typedef enum eUnifiedPaintSettingsFlags {
   UNIFIED_PAINT_WEIGHT = (1 << 5),
   UNIFIED_PAINT_COLOR = (1 << 6),
   UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-
+  UNIFIED_PAINT_COLOR_JITTER = (1 << 8),
 } eUnifiedPaintSettingsFlags;
