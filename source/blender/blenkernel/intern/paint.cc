@@ -1848,7 +1848,7 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 }
 
-void BKE_paint_stroke_get_average(const Object *ob, const Paint *paint, float stroke[3])
+void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   if (ups->last_stroke_valid && ups->average_stroke_counter > 0) {
