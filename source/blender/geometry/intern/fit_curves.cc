@@ -73,9 +73,8 @@ bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
                                                             corner_memory);
     /* Both curve fitting algorithms expect the first and last points for non-cyclic curves to be
      * treated as if they were corners. */
-    const bool use_first_as_corner = !use_cyclic && !src_corner_mask.contains(0);
-    const bool use_last_as_corner = !use_cyclic &&
-                                    !src_corner_mask.contains(points.index_range().last());
+    const bool use_first_as_corner = !use_cyclic && !is_corner[points.first()];
+    const bool use_last_as_corner = !use_cyclic && !is_corner[points.last()];
     Array<int> src_corner_indices;
     if (!src_corner_mask.is_empty()) {
       src_corner_indices.reinitialize(src_corner_mask.size() + int(use_first_as_corner) +
