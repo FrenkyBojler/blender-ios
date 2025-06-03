@@ -1550,7 +1550,6 @@ class CyclesDeviceSettings(bpy.types.PropertyGroup):
     name: StringProperty(name="Name")
     use: BoolProperty(name="Use", default=True)
     type: EnumProperty(name="Type", items=enum_device_type, default='CUDA')
-    optimized: BoolProperty(name="Optimized", default=True)
 
 
 class CyclesPreferences(bpy.types.AddonPreferences):
@@ -1664,7 +1663,6 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 entry.id = device[2]
                 entry.name = device[0]
                 entry.type = device[1]
-                entry.optimized = device[7]
                 entry.use = entry.type != 'CPU'
             elif entry.name != device[0]:
                 # Update name in case it changed
@@ -1840,11 +1838,15 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                           icon='BLANK1', translate=False)
             return
 
-        for device in devices:
+        for device in self.get_device_list(device_type):
             import unicodedata
 
-            has_execution_optimisation = device.optimized
-            device_text_label = device.name.replace(
+            device_entry = self.find_existing_device_entry(device)
+            if not device_entry:
+                continue
+
+            has_execution_optimisation = device[7]
+            device_text_label = device_entry.name.replace(
                 '(TM)',
                 unicodedata.lookup('TRADE MARK SIGN')).replace(
                 '(tm)',
@@ -1858,7 +1860,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 device_text_label += rpt_(" (Unoptimized Performance)")
 
             box.prop(
-                device, "use", text=device_text_label, translate=False
+                device_entry, "use", text=device_text_label, translate=False
             )
 
     def draw_impl(self, layout, context):
