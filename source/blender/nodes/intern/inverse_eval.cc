@@ -362,17 +362,6 @@ void foreach_element_on_inverse_eval_path(
 
 using RNAValueVariant = std::variant<float, int, bool>;
 
-static RNAValueVariant multiply_value_variant(const RNAValueVariant &value_variant,
-                                              const float factor)
-{
-  return std::visit([&](auto &&v) { return RNAValueVariant{v * factor}; }, value_variant);
-}
-
-static RNAValueVariant add_value_variant(const RNAValueVariant &value_variant, const float value)
-{
-  return std::visit([&](auto &&v) { return RNAValueVariant{v + value}; }, value_variant);
-}
-
 static bool set_rna_property(bContext &C,
                              ID &id,
                              const StringRefNull rna_path,
@@ -394,7 +383,7 @@ enum class SetDriverSourceResult {
 
 [[nodiscard]] static bool set_driver_variable(bContext &C,
                                               DriverVar &driver_var,
-                                              const RNAValueVariant &value_variant)
+                                              const float value)
 {
   const eDriverVar_Types driver_var_type = eDriverVar_Types(driver_var.type);
   switch (driver_var_type) {
@@ -406,7 +395,7 @@ enum class SetDriverSourceResult {
       if (!driver_target.id) {
         return false;
       }
-      return set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant);
+      return set_rna_property(C, *driver_target.id, driver_target.rna_path, value);
     }
     case DVAR_TYPE_CONTEXT_PROP: {
       if (driver_var.num_targets != 1) {
@@ -417,14 +406,14 @@ enum class SetDriverSourceResult {
       switch (context_property) {
         case DTAR_CONTEXT_PROPERTY_ACTIVE_SCENE: {
           Scene &scene = *CTX_data_scene(&C);
-          return set_rna_property(C, scene.id, driver_target.rna_path, value_variant);
+          return set_rna_property(C, scene.id, driver_target.rna_path, value);
         }
         case DTAR_CONTEXT_PROPERTY_ACTIVE_VIEW_LAYER: {
           Scene &scene = *CTX_data_scene(&C);
           ViewLayer &view_layer = *CTX_data_view_layer(&C);
           const std::string view_layer_rna_path = fmt::format(
               "view_layers[\"{}\"]{}", BLI_str_escape(view_layer.name), driver_target.rna_path);
-          return set_rna_property(C, scene.id, view_layer_rna_path, value_variant);
+          return set_rna_property(C, scene.id, view_layer_rna_path, value);
         }
         default: {
           return false;
@@ -452,8 +441,6 @@ enum class SetDriverSourceResult {
       const bool use_transform_space = space_flag == DTAR_FLAG_LOCALSPACE;
       const bool use_local_space = space_flag == (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS);
 
-      const float value = std::visit([](auto &&v) { return float(v); }, value_variant);
-
       switch (transform_channel) {
         case DTAR_TRANSCHAN_LOCX:
         case DTAR_TRANSCHAN_LOCY:
@@ -466,7 +453,7 @@ enum class SetDriverSourceResult {
           }
           if (use_local_space) {
             return set_rna_property(
-                C, object.id, fmt::format("location[{}]", location_index), value_variant);
+                C, object.id, fmt::format("location[{}]", location_index), value);
           }
           return false;
         }
@@ -487,7 +474,7 @@ enum class SetDriverSourceResult {
           }
           if (use_local_space) {
             return set_rna_property(
-                C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value_variant);
+                C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value);
           }
           return false;
         }
@@ -507,8 +494,7 @@ enum class SetDriverSourceResult {
             return set_object_transform(object, new_object_to_world);
           }
           if (use_local_space) {
-            return set_rna_property(
-                C, object.id, fmt::format("scale[{}]", scale_index), value_variant);
+            return set_rna_property(C, object.id, fmt::format("scale[{}]", scale_index), value);
           }
           return false;
         }
@@ -525,9 +511,9 @@ enum class SetDriverSourceResult {
             return set_object_transform(object, new_object_to_world);
           }
           if (use_local_space) {
-            return set_rna_property(C, object.id, "scale[0]", value_variant) &&
-                   set_rna_property(C, object.id, "scale[1]", value_variant) &&
-                   set_rna_property(C, object.id, "scale[2]", value_variant);
+            return set_rna_property(C, object.id, "scale[0]", value) &&
+                   set_rna_property(C, object.id, "scale[1]", value) &&
+                   set_rna_property(C, object.id, "scale[2]", value);
           }
           return false;
         }
@@ -553,6 +539,7 @@ enum class SetDriverSourceResult {
   if (!adt) {
     return SetDriverSourceResult::NoDriver;
   }
+  const float value = std::visit([](auto &&v) { return float(v); }, value_variant);
   LISTBASE_FOREACH (FCurve *, driver, &adt->drivers) {
     if (driver->rna_path != rna_path) {
       continue;
@@ -574,9 +561,8 @@ enum class SetDriverSourceResult {
         /* We try to update just the first driver target for now. This is consistent with how a
          * math node only propagates the drivers through the first input. */
         DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
-        const RNAValueVariant updated_value_variant = add_value_variant(
-            value_variant, -driver->curval + driver_var.curval);
-        if (set_driver_variable(C, driver_var, updated_value_variant)) {
+        const float updated_value = value - driver->curval + driver_var.curval;
+        if (set_driver_variable(C, driver_var, updated_value)) {
           return SetDriverSourceResult::Success;
         }
         return SetDriverSourceResult::UnsupportedDriver;
@@ -587,7 +573,7 @@ enum class SetDriverSourceResult {
           return SetDriverSourceResult::UnsupportedDriver;
         }
         DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
-        if (set_driver_variable(C, driver_var, value_variant)) {
+        if (set_driver_variable(C, driver_var, value)) {
           return SetDriverSourceResult::Success;
         }
         return SetDriverSourceResult::UnsupportedDriver;
