@@ -1574,9 +1574,9 @@ bool BM_vert_uvselect_loop_any(BMVert *v, const char hflag)
   return false;
 }
 
-bool BM_loop_vert_uvselect_check_other_vert(BMLoop *l,
-                                            const char hflag,
-                                            const int cd_loop_uv_offset)
+bool BM_loop_vert_uvselect_check_other_loop_vert(BMLoop *l,
+                                                 const char hflag,
+                                                 const int cd_loop_uv_offset)
 {
   BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV));
   BMVert *v = l->v;
@@ -1605,9 +1605,9 @@ bool BM_loop_vert_uvselect_check_other_vert(BMLoop *l,
   return false;
 }
 
-bool BM_loop_vert_uvselect_check_other_edge(BMLoop *l,
-                                            const char hflag,
-                                            const int cd_loop_uv_offset)
+bool BM_loop_vert_uvselect_check_other_loop_edge(BMLoop *l,
+                                                 const char hflag,
+                                                 const int cd_loop_uv_offset)
 {
   BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV_EDGE));
   BMVert *v = l->v;
@@ -1652,8 +1652,8 @@ bool BM_loop_vert_uvselect_check_other_face(BMLoop *l,
       BMLoop *l_iter = l_first;
       do {
         if (l_iter->v == v) {
-          if (BM_elem_flag_test(l_iter->f, hflag)) {
-            if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
+          if (!BM_elem_flag_test(l_iter->f, BM_ELEM_HIDDEN)) {
+            if (BM_elem_flag_test(l_iter->f, hflag)) {
               if (l_iter != l) {
                 if (BM_loop_uv_share_vert_check(l, l_iter, cd_loop_uv_offset)) {
                   return true;
@@ -1668,9 +1668,9 @@ bool BM_loop_vert_uvselect_check_other_face(BMLoop *l,
   return false;
 }
 
-bool BM_loop_edge_uvselect_check_other_edge(BMLoop *l,
-                                            const char hflag,
-                                            const int cd_loop_uv_offset)
+bool BM_loop_edge_uvselect_check_other_loop_edge(BMLoop *l,
+                                                 const char hflag,
+                                                 const int cd_loop_uv_offset)
 {
   BLI_assert(ELEM(hflag, BM_ELEM_SELECT, BM_ELEM_SELECT_UV_EDGE));
   BMLoop *l_iter = l;
@@ -2055,12 +2055,14 @@ void BM_mesh_uvselect_flush_shared(BMesh *bm, const int cd_loop_uv_offset)
     l_iter = l_first = BM_FACE_FIRST_LOOP(f);
     do {
       if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
-        if (BM_loop_vert_uvselect_check_other_vert(l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset)) {
+        if (BM_loop_vert_uvselect_check_other_loop_vert(
+                l_iter, BM_ELEM_SELECT_UV, cd_loop_uv_offset))
+        {
           BM_loop_vert_uvselect_set_noflush(bm, l_iter, true);
         }
       }
       if (!BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV_EDGE)) {
-        if (BM_loop_edge_uvselect_check_other_edge(
+        if (BM_loop_edge_uvselect_check_other_loop_edge(
                 l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
         {
           BM_loop_edge_uvselect_set_noflush(bm, l_iter, true);
@@ -2159,7 +2161,7 @@ void BM_mesh_uvselect_selectmode_update(BMesh *bm,
             if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT)) {
               if (BM_elem_flag_test(l_iter, BM_ELEM_SELECT_UV)) {
                 if (!(e_prev_select || e_iter_select)) {
-                  if (!BM_loop_vert_uvselect_check_other_edge(
+                  if (!BM_loop_vert_uvselect_check_other_loop_edge(
                           l_iter, BM_ELEM_SELECT_UV_EDGE, cd_loop_uv_offset))
                   {
                     BM_elem_flag_disable(l_iter, BM_ELEM_SELECT_UV);
@@ -2263,7 +2265,8 @@ void BM_mesh_uvselect_flush_from_v3d_sticky_location(BMesh *bm, const int cd_loo
         if (BM_elem_flag_test(l_iter->v, BM_ELEM_SELECT) &&
             ((e_prev_select || e_iter_select) ||
              /* This is a more expensive check, order last. */
-             BM_loop_vert_uvselect_check_other_edge(l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
+             BM_loop_vert_uvselect_check_other_loop_edge(
+                 l_iter, BM_ELEM_SELECT, cd_loop_uv_offset)))
         {
           BM_elem_flag_enable(l_iter, BM_ELEM_SELECT_UV);
         }
@@ -2853,7 +2856,7 @@ void BM_edge_uvselect_set_pick(BMesh *bm,
           /* This was not de-selected. */
           continue;
         }
-        if (BM_loop_vert_uvselect_check_other_edge(
+        if (BM_loop_vert_uvselect_check_other_loop_edge(
                 l_edge_vert, BM_ELEM_SELECT_UV_EDGE, uv_pick_params.cd_loop_uv_offset))
         {
           BM_loop_vert_uvselect_set_noflush(bm, l_edge_vert, true);
