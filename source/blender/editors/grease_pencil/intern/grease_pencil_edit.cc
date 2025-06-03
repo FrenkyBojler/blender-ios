@@ -4397,9 +4397,9 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
 /** \name Convert Curve Type Operator
  * \{ */
 
-static bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
-                                           const IndexMask &selection,
-                                           const float threshold)
+static const bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
+                                                 const IndexMask &selection,
+                                                 const float threshold)
 {
   const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
   /* TODO: Detect or manually provide corners. */
