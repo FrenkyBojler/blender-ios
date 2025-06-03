@@ -539,6 +539,25 @@ static float4x4 set_scale_in_matrix(const float4x4 &matrix, const float3 value)
         case DTAR_TRANSCHAN_ROTZ: {
           const int rotation_index = transform_channel - DTAR_TRANSCHAN_ROTX;
           if (pchan) {
+            if (use_world_space) {
+              return set_pose_bone_world_matrix(
+                  C,
+                  object,
+                  pchan,
+                  set_euler_rotation_axis_in_matrix(object.object_to_world() *
+                                                        float4x4(pchan->pose_mat),
+                                                    rotation_index,
+                                                    value));
+            }
+            if (use_local_space) {
+              if (pchan->rotmode == ROT_MODE_XYZ) {
+                return set_rna_property(
+                    C,
+                    object.id,
+                    fmt::format("{}.rotation_euler[{}]", pchan_rna_path, rotation_index),
+                    value);
+              }
+            }
             return false;
           }
           if (use_world_space) {
@@ -548,8 +567,10 @@ static float4x4 set_scale_in_matrix(const float4x4 &matrix, const float3 value)
                                                object.object_to_world(), rotation_index, value));
           }
           if (use_local_space) {
-            return set_rna_property(
-                C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value);
+            if (object.rotmode == ROT_MODE_XYZ) {
+              return set_rna_property(
+                  C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value);
+            }
           }
           return false;
         }
