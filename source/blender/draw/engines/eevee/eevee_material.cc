@@ -225,6 +225,13 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     /* In the case of animation playback, late scheduling can lead to material flickering. */
     delayed_compilation_scheduling = false;
   }
+  if (inst_.is_image_render && !inst_.is_first_sync) {
+    /* In the case of image render, late scheduling (and double sync) can have issues with shadow
+     * update. This could eventually be fixed inside the shadow module but from a design
+     * perspective, double sync should be avoided in between frames. */
+    delayed_compilation_scheduling = false;
+  }
+
   const bool is_volume = ELEM(pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
   ::Material *default_mat = is_volume ? default_volume : default_surface;
 

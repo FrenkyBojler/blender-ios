@@ -189,6 +189,10 @@ void Instance::init(const int2 &output_res,
     is_image_render = true;
   }
 
+  if (is_image_render) {
+    is_first_sync = true;
+  }
+
   shaders_are_ready_ = shaders.static_shaders_are_ready(is_image_render);
   if (!shaders_are_ready_) {
     skip_render_ = true;
@@ -426,6 +430,8 @@ void Instance::end_sync()
   uniform_data.push_update();
 
   depsgraph_last_update_ = DEG_get_update_count(depsgraph);
+
+  is_first_sync = false;
 }
 
 void Instance::render_sync()

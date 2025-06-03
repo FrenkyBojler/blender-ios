@@ -146,6 +146,8 @@ class Instance : public DrawEngine {
   bool is_image_render = false;
   /** True if the instance is created only for viewport image render. */
   bool is_viewport_image_render = false;
+  /** True before the end of the first sync cycles during image render. */
+  bool is_first_sync = false;
   /** True if current viewport is drawn during playback. */
   bool is_playback = false;
   /** True if current viewport is drawn during navigation operator. */
