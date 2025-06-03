@@ -124,6 +124,7 @@ struct ImagePaintState {
   SpaceImage *sima;
   View2D *v2d;
   Scene *scene;
+  const Paint *paint;
 
   Brush *brush;
   short brush_type, blend;
@@ -232,7 +233,7 @@ static ushort *brush_painter_mask_ibuf_new(BrushPainter *painter, const int size
     for (x = 0; x < size; x++, m++) {
       float res;
       brush_imbuf_tex_co(&mask_mapping, x, y, texco);
-      res = BKE_brush_sample_masktex(scene, brush, texco, thread, pool, TODO);
+      res = BKE_brush_sample_masktex(scene, brush, texco, thread, pool, painter->paint);
       *m = ushort(65535.0f * res);
     }
   }
@@ -278,7 +279,7 @@ static void brush_painter_mask_imbuf_update(BrushPainter *painter,
 
       if (!use_texture_old) {
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
-        res = ushort(65535.0f * BKE_brush_sample_masktex(scene, brush, texco, thread, pool, TODO));
+        res = ushort(65535.0f * BKE_brush_sample_masktex(scene, brush, texco, thread, pool, painter->paint));
       }
 
       /* read from old texture buffer */
@@ -428,7 +429,7 @@ static ImBuf *brush_painter_imbuf_new(
       if (is_texbrush) {
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
         const MTex *mtex = &brush->mtex;
-        BKE_brush_sample_tex_3d(scene, brush, mtex, texco, rgba, thread, pool, TODO);
+        BKE_brush_sample_tex_3d(scene, brush, mtex, texco, rgba, thread, pool, painter->paint);
         /* TODO(sergey): Support texture paint color space. */
         if (!use_float) {
           IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
@@ -521,7 +522,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
       if (!use_texture_old) {
         if (is_texbrush) {
           brush_imbuf_tex_co(&tex_mapping, x, y, texco);
-          BKE_brush_sample_tex_3d(scene, brush, mtex, texco, rgba, thread, pool, TODO);
+          BKE_brush_sample_tex_3d(scene, brush, mtex, texco, rgba, thread, pool, painter->paint);
           /* TODO(sergey): Support texture paint color space. */
           if (!use_float) {
             IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
@@ -719,7 +720,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                                            float size)
 {
   const Scene *scene = painter->scene;
-  UnifiedPaintSettings *ups = &painter->paint->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &painter->paint->unified_paint_settings;
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */
@@ -1042,7 +1043,7 @@ static void paint_2d_lift_soften(ImagePaintState *s,
            * avoid colored speckles appearing in final image, and also to check for threshold. */
           outrgb[0] = outrgb[1] = outrgb[2] = IMB_colormanagement_get_luminance(outrgb);
           if (fabsf(outrgb[0]) > threshold) {
-            float mask = BKE_brush_alpha_get(s->scene, s->brush, TODO);
+            float mask = BKE_brush_alpha_get(s->scene, s->brush, s->paint);
             float alpha = rgba[3];
             rgba[3] = outrgb[3] = mask;
 
@@ -1325,7 +1326,7 @@ static int paint_2d_op(void *state,
   short blend = s->blend;
   const float *offset = image_paint_settings.clone_offset;
   float liftpos[2];
-  float mask_max = BKE_brush_alpha_get(s->scene, s->brush, TODO);
+  float mask_max = BKE_brush_alpha_get(s->scene, s->brush, s->paint);
   int bpos[2], blastpos[2], bliftpos[2];
   int a, tot;
 
@@ -1607,6 +1608,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   s->sima = CTX_wm_space_image(C);
   s->v2d = &CTX_wm_region(C)->v2d;
   s->scene = scene;
+  s->paint = paint;
 
   s->brush = brush;
   s->brush_type = brush->image_brush_type;
@@ -1816,6 +1818,7 @@ void paint_2d_bucket_fill(const bContext *C,
                           void *ps)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Image *ima = sima->image;
 
   ImagePaintState *s = static_cast<ImagePaintState *>(ps);
@@ -1824,7 +1827,7 @@ void paint_2d_bucket_fill(const bContext *C,
   int x_px, y_px;
   uint color_b;
   float color_f[4];
-  float strength = (s && br) ? BKE_brush_alpha_get(s->scene, br, TODO) : 1.0f;
+  float strength = (s && br) ? BKE_brush_alpha_get(s->scene, br, paint) : 1.0f;
 
   bool do_float;
 
@@ -2021,7 +2024,7 @@ void paint_2d_gradient_fill(
   float image_init[2], image_final[2];
   float tangent[2];
   float line_len_sq_inv, line_len;
-  const float brush_alpha = BKE_brush_alpha_get(s->scene, br, TODO);
+  const float brush_alpha = BKE_brush_alpha_get(s->scene, br, s->paint);
 
   bool do_float;
 

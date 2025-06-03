@@ -216,8 +216,12 @@ void init_stroke(Depsgraph &depsgraph, Object &ob)
   }
 }
 
-void init_session(
-    Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode object_mode)
+void init_session(Main &bmain,
+                  Depsgraph &depsgraph,
+                  Scene &scene,
+                  Paint &paint,
+                  Object &ob,
+                  eObjectMode object_mode)
 {
   /* Create persistent sculpt mode data */
   BKE_sculpt_toolsettings_data_ensure(&bmain, &scene);
@@ -227,7 +231,7 @@ void init_session(
   ob.sculpt->mode_type = object_mode;
   BKE_sculpt_update_object_for_edit(&depsgraph, &ob, true);
 
-  ensure_valid_pivot(ob, scene);
+  ensure_valid_pivot(ob, scene, paint);
 }
 
 void init_session_data(const ToolSettings &ts, Object &ob)
@@ -315,12 +319,13 @@ void mode_enter_generic(
    */
   BKE_object_free_derived_caches(&ob);
 
+  Paint *paint = nullptr;
   if (mode_flag == OB_MODE_VERTEX_PAINT) {
     const PaintMode paint_mode = PaintMode::Vertex;
     ED_mesh_color_ensure(mesh, nullptr);
 
     BKE_paint_ensure(scene.toolsettings, (Paint **)&scene.toolsettings->vpaint);
-    Paint *paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
+    paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
     ED_paint_cursor_start(paint, vertex_paint_poll);
     BKE_paint_init(&bmain, &scene, paint_mode, PAINT_CURSOR_VERTEX_PAINT);
   }
@@ -328,7 +333,7 @@ void mode_enter_generic(
     const PaintMode paint_mode = PaintMode::Weight;
 
     BKE_paint_ensure(scene.toolsettings, (Paint **)&scene.toolsettings->wpaint);
-    Paint *paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
+    paint = BKE_paint_get_active_from_paintmode(&scene, paint_mode);
     ED_paint_cursor_start(paint, weight_paint_poll);
     BKE_paint_init(&bmain, &scene, paint_mode, PAINT_CURSOR_WEIGHT_PAINT);
 
@@ -347,7 +352,8 @@ void mode_enter_generic(
     BKE_sculptsession_free(&ob);
   }
 
-  vwpaint::init_session(bmain, depsgraph, scene, ob, mode_flag);
+  BLI_assert(paint != nullptr);
+  vwpaint::init_session(bmain, depsgraph, scene, *paint, ob, mode_flag);
 
   /* Flush object mode. */
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
@@ -463,10 +469,10 @@ void update_cache_invariants(
   /* not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey) */
   if (cache->invert) {
-    ups->draw_inverted = true;
+    ups.draw_inverted = true;
   }
   else {
-    ups->draw_inverted = false;
+    ups.draw_inverted = false;
   }
 
   if (cache->alt_smooth) {
@@ -491,7 +497,7 @@ void update_cache_invariants(
   normalize_v3_v3(cache->view_normal, view_dir);
 
   cache->view_normal_symm = cache->view_normal;
-  cache->bstrength = BKE_brush_alpha_get(scene, brush, TODO);
+  cache->bstrength = BKE_brush_alpha_get(scene, brush, &vp.paint);
   cache->is_last_valid = false;
 
   cache->accum = true;
@@ -530,8 +536,8 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   /* Truly temporary data that isn't stored in properties */
   if (cache->first_time) {
     cache->initial_radius = paint_calc_object_space_radius(
-        *cache->vc, cache->location, BKE_brush_size_get(scene, &brush, TODO));
-    BKE_brush_unprojected_radius_set(scene, &brush, cache->initial_radius, TODO);
+        *cache->vc, cache->location, BKE_brush_size_get(scene, &brush, &vp.paint));
+    BKE_brush_unprojected_radius_set(scene, &brush, cache->initial_radius, &vp.paint);
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
@@ -551,14 +557,15 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 
 void get_brush_alpha_data(const Scene &scene,
                           const SculptSession &ss,
+                          const Paint &paint,
                           const Brush &brush,
                           float *r_brush_size_pressure,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure)
 {
-  *r_brush_size_pressure = BKE_brush_size_get(&scene, &brush, TODO) *
+  *r_brush_size_pressure = BKE_brush_size_get(&scene, &brush, &paint) *
                            (BKE_brush_use_size_pressure(&brush) ? ss.cache->pressure : 1.0f);
-  *r_brush_alpha_value = BKE_brush_alpha_get(&scene, &brush, TODO);
+  *r_brush_alpha_value = BKE_brush_alpha_get(&scene, &brush, &paint);
   *r_brush_alpha_pressure = (BKE_brush_use_alpha_pressure(&brush) ? ss.cache->pressure : 1.0f);
 }
 
@@ -774,7 +781,7 @@ static void paint_and_tex_color_alpha_intern(const VPaint &vp,
   const MTex *mtex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
   BLI_assert(mtex->tex != nullptr);
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
-    BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co, r_rgba, 0, nullptr, TODO);
+    BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co, r_rgba, 0, nullptr, &vp.paint);
   }
   else {
     float co_ss[2]; /* screenspace */
@@ -783,7 +790,7 @@ static void paint_and_tex_color_alpha_intern(const VPaint &vp,
         V3D_PROJ_RET_OK)
     {
       const float co_ss_3d[3] = {co_ss[0], co_ss[1], 0.0f}; /* we need a 3rd empty value */
-      BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co_ss_3d, r_rgba, 0, nullptr, TODO);
+      BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co_ss_3d, r_rgba, 0, nullptr, &vp.paint);
     }
     else {
       zero_v4(r_rgba);
@@ -1104,7 +1111,7 @@ static void do_vpaint_brush_blur_loops(const bContext *C,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_vert_sel = (mesh.editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL)) !=
                             0;
@@ -1260,7 +1267,7 @@ static void do_vpaint_brush_blur_verts(const bContext *C,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_vert_sel = (mesh.editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL)) !=
                             0;
@@ -1414,7 +1421,7 @@ static void do_vpaint_brush_smear(const bContext *C,
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
 
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_vert_sel = (mesh.editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL)) !=
                             0;
@@ -1750,7 +1757,7 @@ static void vpaint_do_draw(const bContext *C,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      scene, ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_vert_sel = (mesh.editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL)) !=
                             0;
@@ -2076,7 +2083,7 @@ static void vpaint_stroke_update_step(bContext *C,
    * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob.object_to_world().ptr(), ss.cache->location);
-  vwpaint::last_stroke_update(scene, loc_world, TODO);
+  vwpaint::last_stroke_update(scene, loc_world, vp.paint);
 
   ED_region_tag_redraw(vc.region);
 

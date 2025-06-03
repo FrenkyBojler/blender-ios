@@ -344,13 +344,14 @@ static void paint_stroke_update_step(bContext *C,
   PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
   Scene *scene = CTX_data_scene(C);
   ToolSettings *toolsettings = CTX_data_tool_settings(C);
-  UnifiedPaintSettings *ups = &toolsettings->imapaint.paint.unified_paint_settings;
-  Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  Brush *brush = BKE_paint_brush(paint);
 
   float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? ups->overlap_factor : 1.0f;
 
   /* initial brush values. Maybe it should be considered moving these to stroke system */
-  float startalpha = BKE_brush_alpha_get(scene, brush, TODO);
+  float startalpha = BKE_brush_alpha_get(scene, brush, paint);
 
   float mouse[2];
   float pressure;
@@ -370,10 +371,10 @@ static void paint_stroke_update_step(bContext *C,
   }
 
   if (BKE_brush_use_alpha_pressure(brush)) {
-    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac), TODO);
+    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * pressure * alphafac), paint);
   }
   else {
-    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac), TODO);
+    BKE_brush_alpha_set(scene, brush, max_ff(0.0f, startalpha * alphafac), paint);
   }
 
   if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
@@ -387,7 +388,7 @@ static void paint_stroke_update_step(bContext *C,
   copy_v2_v2(pop->prevmouse, mouse);
 
   /* restore brush values */
-  BKE_brush_alpha_set(scene, brush, startalpha, TODO);
+  BKE_brush_alpha_set(scene, brush, startalpha, paint);
 }
 
 static void paint_stroke_redraw(const bContext *C, PaintStroke *stroke, bool final)

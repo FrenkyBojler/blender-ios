@@ -597,6 +597,7 @@ bool brush_use_accumulate(const VPaint &vp);
 
 void get_brush_alpha_data(const Scene &scene,
                           const SculptSession &ss,
+                          const Paint &paint,
                           const Brush &brush,
                           float *r_brush_size_pressure,
                           float *r_brush_alpha_value,
@@ -605,8 +606,12 @@ void get_brush_alpha_data(const Scene &scene,
 void init_stroke(Depsgraph &depsgraph, Object &ob);
 void init_session_data(const ToolSettings &ts, Object &ob);
 /** Toggle operator for turning vertex paint mode on or off (copied from `sculpt.cc`) */
-void init_session(
-    Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode object_mode);
+void init_session(Main &bmain,
+                  Depsgraph &depsgraph,
+                  Scene &scene,
+                  Paint &paint,
+                  Object &ob,
+                  eObjectMode object_mode);
 
 IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
                               const Object &ob,

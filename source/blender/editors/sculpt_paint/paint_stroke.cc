@@ -76,6 +76,7 @@ struct PaintStroke {
 
   /* Cached values */
   ViewContext vc;
+  Paint *paint;
   Brush *brush;
   UnifiedPaintSettings *ups;
 
@@ -315,6 +316,7 @@ bool paint_brush_update(bContext *C,
                         bool *r_location_is_set)
 {
   Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
   UnifiedPaintSettings &ups = *stroke->ups;
   bool location_sampled = false;
   bool location_success = false;
@@ -350,8 +352,8 @@ bool paint_brush_update(bContext *C,
   ups.stroke_active = true;
   ups.size_pressure_value = stroke->cached_size_pressure;
 
-  ups.pixel_radius = BKE_brush_size_get(scene, &brush, TODO);
-  ups.initial_pixel_radius = BKE_brush_size_get(scene, &brush, TODO);
+  ups.pixel_radius = BKE_brush_size_get(scene, &brush, paint);
+  ups.initial_pixel_radius = BKE_brush_size_get(scene, &brush, paint);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
     ups.pixel_radius *= stroke->cached_size_pressure;
@@ -530,7 +532,7 @@ void paint_stroke_jitter_pos(Scene &scene,
       factor *= pressure;
     }
 
-    BKE_brush_jitter_pos(scene, TODO, brush, mval, r_mouse_out);
+    BKE_brush_jitter_pos(scene, *stroke.paint, brush, mval, r_mouse_out);
 
     /* XXX: meh, this is round about because
      * BKE_brush_jitter_pos isn't written in the best way to
@@ -700,7 +702,7 @@ static float paint_space_stroke_spacing(const bContext *C,
   else {
     /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
      * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, BKE_brush_size_get(scene, stroke->brush, TODO) * size_pressure);
+    size_clamp = max_ff(1.0f, BKE_brush_size_get(scene, stroke->brush, stroke->paint) * size_pressure);
   }
 
   float spacing = stroke->brush->spacing;
@@ -908,6 +910,7 @@ PaintStroke *paint_stroke_new(bContext *C,
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   PaintStroke *stroke = MEM_new<PaintStroke>(__func__);
   Paint *paint = BKE_paint_get_active_from_context(C);
+  stroke->paint = paint;
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -975,7 +978,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
 
-  ups->start_pixel_radius = BKE_brush_size_get(CTX_data_scene(C), br, TODO);
+  ups->start_pixel_radius = BKE_brush_size_get(CTX_data_scene(C), br, stroke->paint);
 
   return stroke;
 }
@@ -1488,7 +1491,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
     stroke->last_tablet_event_pressure = pressure;
   }
 
-  const int input_samples = BKE_brush_input_samples_get(scene, br, TODO);
+  const int input_samples = BKE_brush_input_samples_get(scene, br, stroke->paint);
   paint_stroke_add_sample(stroke, input_samples, event->mval[0], event->mval[1], pressure);
 
   PaintSample sample_average;
