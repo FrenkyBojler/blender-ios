@@ -373,11 +373,19 @@ class MaterialModule {
   uint64_t gpu_pass_last_update_ = 0;
   uint64_t gpu_pass_next_update_ = 0;
 
+  struct MaterialPassRequest {
+    ::Material *blender_mat;
+    eMaterialPipeline pipeline_type;
+    eMaterialGeometry geometry_type;
+  };
+  Vector<MaterialPassRequest> material_queue_;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
 
   void begin_sync();
+  void end_sync();
 
   /**
    * Returned Material references are valid until the next call to this function or material_get().

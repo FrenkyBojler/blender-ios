@@ -56,6 +56,8 @@ enum GPUMaterialCompileMode {
   GPU_COMPILE_ASYNC,
   /* Only create the shader source but do not schedule shader compilation. */
   GPU_PREPARE_ONLY,
+  /* Only get the gpu material if it exists. Return nullptr otherwise. */
+  GPU_QUERY_ONLY,
 };
 
 /* GPU_MAT_OPTIMIZATION_SKIP for cases where we do not

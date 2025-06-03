@@ -166,8 +166,38 @@ void MaterialModule::begin_sync()
   gpu_pass_last_update_ = gpu_pass_next_update_;
   gpu_pass_next_update_ = next_update;
 
+  material_queue_.clear();
   material_map_.clear();
   shader_map_.clear();
+}
+
+void MaterialModule::end_sync()
+{
+  if (material_queue_.is_empty()) {
+    return;
+  }
+  GPU_debug_group_begin("Material Deferred GPU Pass Creation");
+  for (MaterialPassRequest &request : material_queue_) {
+    /* The nodetree needs to be queried on a per material basis a there is only one
+     * default_surface_ntree_. So we cannot multithread this part.
+     * TODO: See if we can duplicate this nodetree for each default material (or thread). */
+    bNodeTree *ntree = (request.blender_mat->use_nodes &&
+                        request.blender_mat->nodetree != nullptr) ?
+                           request.blender_mat->nodetree :
+                           default_surface_ntree_.nodetree_get(request.blender_mat);
+
+    const bool is_volume = ELEM(
+        request.pipeline_type, MAT_PIPE_VOLUME_OCCUPANCY, MAT_PIPE_VOLUME_MATERIAL);
+    ::Material *default_mat = is_volume ? default_volume : default_surface;
+
+    inst_.shaders.material_shader_get(request.blender_mat,
+                                      ntree,
+                                      request.pipeline_type,
+                                      request.geometry_type,
+                                      GPU_COMPILE_ASYNC,
+                                      default_mat);
+  }
+  GPU_debug_group_end();
 }
 
 MaterialPass MaterialModule::material_pass_get(Object *ob,
@@ -194,9 +224,24 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
                                                      ntree,
                                                      pipeline_type,
                                                      geometry_type,
-                                                     use_deferred_compilation ? GPU_COMPILE_ASYNC :
+                                                     use_deferred_compilation ? GPU_QUERY_ONLY :
                                                                                 GPU_COMPILE_NOW,
                                                      default_mat);
+
+  if (matpass.gpumat == nullptr) {
+    BLI_assert(use_deferred_compilation);
+    /* Defer material creation after sync for better scheduling. */
+    material_queue_.append({blender_mat, pipeline_type, geometry_type});
+    queued_shaders_count++;
+
+    /* Replace with a default material for this sync. */
+    matpass.gpumat = inst_.shaders.material_shader_get(default_mat,
+                                                       default_mat->nodetree,
+                                                       pipeline_type,
+                                                       geometry_type,
+                                                       GPU_COMPILE_NOW,
+                                                       nullptr);
+  }
 
   const bool is_forward = ELEM(pipeline_type,
                                MAT_PIPE_FORWARD,

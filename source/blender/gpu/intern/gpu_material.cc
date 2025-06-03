@@ -151,6 +151,10 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
     }
   }
 
+  if (compile_mode == GPU_QUERY_ONLY) {
+    return nullptr;
+  }
+
   GPUMaterial *mat = MEM_new<GPUMaterial>(__func__, engine);
   mat->source_material = ma;
   mat->uuid = shader_uuid;
