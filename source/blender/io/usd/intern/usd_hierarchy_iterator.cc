@@ -153,9 +153,9 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
     /* Mark the point instancer's children as a point instance.*/
     USDExporterContext usd_export_context = create_usd_export_context(context);
     ExportChildren *children = graph_children(context);
-
+    
     bool is_referencing_self = false;
-
+    
     std::string instancer_path_str;
     if (strlen(params_.root_prim_path) != 0) {
       instancer_path_str = std::string(params_.root_prim_path) + context->export_path;
@@ -163,26 +163,29 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
     else {
       instancer_path_str = context->export_path;
     }
-
+    
     if (children != nullptr) {
       for (HierarchyContext *child_context : *children) {
         if (child_context->is_instance() && child_context->duplicator != nullptr &&
             !child_context->original_export_path.empty())
         {
-          if (isSubPath(context->export_path, child_context->original_export_path)) {
+          const pxr::SdfPath parent_export_path(context->export_path);
+          const pxr::SdfPath children_original_export_path(child_context->original_export_path);
+          
+          if (parent_export_path.HasPrefix(children_original_export_path)) {
             is_referencing_self = true;
             break;
           }
-
+          
           if (strlen(params_.root_prim_path) != 0) {
             std::string proto_path_str = std::string(params_.root_prim_path) +
-                                         child_context->original_export_path;
+            child_context->original_export_path;
             prototype_paths[instancer_path_str].insert(
-                std::make_pair(proto_path_str, child_context->object));
+                                                       std::make_pair(proto_path_str, child_context->object));
           }
           else {
             prototype_paths[instancer_path_str].insert(
-                std::make_pair(child_context->original_export_path, child_context->object));
+                                                       std::make_pair(child_context->original_export_path, child_context->object));
           }
           child_context->is_point_instance = true;
         }
@@ -191,21 +194,18 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
         }
       }
     }
-
+    
+    /* MARK: If the "Instance on Points" node uses an Object as a prototype,
+     but the "Object Info" node has not enabled the "As Instance" option,
+     then the generated reference path is incorrect and refers to itself. */
     if (is_referencing_self) {
-      /* MARK: If the "Instance on Points" node uses an Object as a prototype,
-       but the "Object Info" node has not enabled the "As Instance" option,
-       then the generated reference path is incorrect and refers to itself. */
-      if (is_referencing_self) {
-        BKE_reportf(
-            params_.worker_status->reports,
-            RPT_WARNING,
-            "One or more objects used as prototypes in 'Instance on Points' nodes either do not "
-            "have 'As Instance' enabled in their 'Object Info' nodes, or the prototype is the "
-            "base geometry input itself—both cases prevent valid point instancer export. If it's "
-            "the former, enable 'As Instance' to avoid incorrect self-referencing.");
-      }
-
+      BKE_reportf(params_.worker_status->reports,
+                  RPT_WARNING,
+                  "One or more objects used as prototypes in 'Instance on Points' nodes either do not "
+                  "have 'As Instance' enabled in their 'Object Info' nodes, or the prototype is the "
+                  "base geometry input itself—both cases prevent valid point instancer export. If it's "
+                  "the former, enable 'As Instance' to avoid incorrect self-referencing.");
+      
       prototype_paths[instancer_path_str].clear();
       for (HierarchyContext *child_context : *children) {
         child_context->is_point_instance = false;
@@ -239,7 +239,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
           data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
 
           /* Handle Mesh base data */
-          USDExporterContext mesh_context = create_pi_base_path_context(context,
+          USDExporterContext mesh_context = create_point_instancer_context(context,
                                                                         usd_export_context);
           USDMeshWriter *mesh_writer = new USDMeshWriter(mesh_context);
           mesh_writer->write(const_cast<HierarchyContext &>(*context));
@@ -284,7 +284,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
           data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
 
           /* Handle Curve base data */
-          USDExporterContext curves_context = create_pi_base_path_context(context,
+          USDExporterContext curves_context = create_point_instancer_context(context,
                                                                           usd_export_context);
           USDCurvesWriter *curves_writer = new USDCurvesWriter(curves_context);
           curves_writer->write(const_cast<HierarchyContext &>(*context));
@@ -322,7 +322,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
           data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
 
           /* Handle Point Cloud base data */
-          USDExporterContext pointcloud_context = create_pi_base_path_context(context,
+          USDExporterContext pointcloud_context = create_point_instancer_context(context,
                                                                               usd_export_context);
           USDPointsWriter *pointcloud_writer = new USDPointsWriter(pointcloud_context);
           pointcloud_writer->write(const_cast<HierarchyContext &>(*context));
@@ -412,7 +412,7 @@ void USDHierarchyIterator::add_usd_skel_export_mapping(const Object *obj, const 
   }
 }
 
-USDExporterContext USDHierarchyIterator::create_pi_base_path_context(
+USDExporterContext USDHierarchyIterator::create_point_instancer_context(
     const HierarchyContext *context, const USDExporterContext &usd_export_context)
 {
   BLI_assert(context && context->object);

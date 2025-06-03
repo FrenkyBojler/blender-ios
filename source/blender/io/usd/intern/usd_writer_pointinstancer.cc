@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_writer_pointinstancer.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
 #include "usd_writer_curves.hh"
 #include "usd_writer_mesh.hh"
+#include "usd_writer_pointinstancer.hh"
 #include "usd_writer_points.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -51,7 +51,7 @@
 namespace blender::io::usd {
 
 USDPointInstancerWriter::USDPointInstancerWriter(const USDExporterContext &ctx,
-                                                 std::set<std::pair<std::string, Object *>> paths)
+                                                 std::set<std::pair<std::string, Object *>> &paths)
     : USDAbstractWriter(ctx)
 {
   proto_paths = paths;
@@ -385,11 +385,8 @@ static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
 {
   switch (blender_domain) {
     case bke::AttrDomain::Instance:
-      if (attr_name == "uv_map") {
+      if (attr_name == "uv_map" || attr_name == "UVMap") {
         return pxr::UsdGeomTokens->faceVarying;
-      }
-      else {
-        return pxr::UsdGeomTokens->default_;
       }
     default:
       return std::nullopt;

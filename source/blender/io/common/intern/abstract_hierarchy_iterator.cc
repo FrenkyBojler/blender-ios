@@ -699,11 +699,12 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
        * branch of the export hierarchy. */
       return;
     }
+    
+    const bool need_writers = context->is_point_proto ||
+                              (!context->is_point_instance && !context->has_point_instance_ancestor);
 
-    BLI_assert(DEG_is_evaluated_object(context->object));
-    if ((transform_writer.is_newly_created() || export_subset_.transforms) &&
-        ((!context->is_point_instance && !context->has_point_instance_ancestor) ||
-         context->is_point_proto))
+    BLI_assert(DEG_is_evaluated_id(&context->object->id));
+    if ((transform_writer.is_newly_created() || export_subset_.transforms) && need_writers)
     {
       /* XXX This can lead to too many XForms being written. For example, a camera writer can
        * refuse to write an orthographic camera. By the time that this is known, the XForm has
@@ -711,9 +712,7 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
       transform_writer->write(*context);
     }
 
-    if (!context->weak_export && include_data_writers(context) &&
-        ((!context->is_point_instance && !context->has_point_instance_ancestor) ||
-         context->is_point_proto))
+    if (!context->weak_export && include_data_writers(context) && need_writers)
     {
       make_writers_particle_systems(context);
       make_writer_object_data(context);

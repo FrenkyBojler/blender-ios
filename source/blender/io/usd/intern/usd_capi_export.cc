@@ -395,7 +395,6 @@ static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &s
       continue;
     }
 
-    const std::string instancer_name = prim.GetName().GetString();
     pxr::UsdGeomPointInstancer instancer(prim);
     pxr::SdfPathVector targets;
     if (!instancer.GetPrototypesRel().GetTargets(&targets)) {
@@ -445,7 +444,7 @@ static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &s
           "This prim is used as a prototype by the PointInstancer \"{}\" so we override the def "
           "with an \"over\" so that it isn't imaged in the scene, but is available as a prototype "
           "that can be referenced.",
-          instancer_name);
+          prim.GetName().GetString());
       proto_prim.SetDocumentation(doc_message);
     }
   }

@@ -65,7 +65,7 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
 
  private:
   USDExporterContext create_usd_export_context(const HierarchyContext *context);
-  USDExporterContext create_pi_base_path_context(const HierarchyContext *context,
+  USDExporterContext create_point_instancer_context(const HierarchyContext *context,
                                                  const USDExporterContext &usd_export_context);
 
   void add_usd_skel_export_mapping(const Object *obj, const pxr::SdfPath &usd_path);

@@ -83,6 +83,7 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_pointinstancer.cc
   intern/usd_writer_points.cc
   intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
@@ -108,7 +109,6 @@ set(SRC
   intern/usd_reader_xform.cc
   intern/usd_skel_convert.cc
   intern/usd_skel_root_utils.cc
-  intern/usd_writer_pointinstancer.cc
 
   usd.hh
   usd_private.hh
@@ -135,6 +135,7 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_pointinstancer.hh
   intern/usd_writer_points.hh
   intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
@@ -160,7 +161,6 @@ set(SRC
   intern/usd_reader_xform.hh
   intern/usd_skel_convert.hh
   intern/usd_skel_root_utils.hh
-  intern/usd_writer_pointinstancer.hh
 )
 
 if(WITH_HYDRA)
