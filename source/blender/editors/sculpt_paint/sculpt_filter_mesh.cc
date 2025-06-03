@@ -161,7 +161,6 @@ void cache_init(bContext *C,
     copy_m4_m4(ss.filter_cache->viewmat_inv.ptr(), vc.rv3d->viewinv);
   }
 
-  Scene *scene = CTX_data_scene(C);
   UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
 
   float3 co;
@@ -172,7 +171,7 @@ void cache_init(bContext *C,
 
     float radius;
     if (brush) {
-      radius = object_space_radius_get(vc, *scene, sd.paint, *brush, co, area_normal_radius);
+      radius = object_space_radius_get(vc, sd.paint, *brush, co, area_normal_radius);
     }
     else {
       radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);

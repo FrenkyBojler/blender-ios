@@ -853,11 +853,10 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene, Paint &paint);
+void ensure_valid_pivot(const Object &ob, Paint &paint);
 
 /** Retrieve or calculate the object space radius depending on brush settings. */
 float object_space_radius_get(const ViewContext &vc,
-                              const Scene &scene,
                               const Paint &paint,
                               const Brush &brush,
                               const float3 &location,
@@ -881,8 +880,7 @@ bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
                                    Object &ob,
                                    Image **r_image,
                                    ImageUser **r_image_user) ATTR_NONNULL();
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
+void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,

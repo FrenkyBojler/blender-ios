@@ -153,10 +153,8 @@ struct DensityAddOperationExecutor {
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_settings_ = brush_->curves_sculpt_settings;
-    brush_strength_ = brush_strength_get(
-        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
-    brush_radius_re_ = brush_radius_get(
-        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_radius_re_ = brush_radius_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush_->falloff_shape);
@@ -562,10 +560,9 @@ struct DensitySubtractOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_, &curves_sculpt_->paint);
+    brush_radius_base_re_ = BKE_brush_size_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(
-        *ctx_.scene, curves_sculpt_->paint, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     minimum_distance_ = brush_->curves_sculpt_settings->minimum_distance;
@@ -845,7 +842,7 @@ static bool use_add_density_mode(const BrushStrokeMode brush_mode,
 
   const float2 brush_pos_re = stroke_start.mouse_position;
   /* Reduce radius so that only an inner circle is used to determine the existing density. */
-  const float brush_radius_re = BKE_brush_size_get(&scene, &brush, &paint) * 0.5f;
+  const float brush_radius_re = BKE_brush_size_get(&paint, &brush) * 0.5f;
 
   /* Find the surface point under the brush. */
   const std::optional<CurvesBrush3D> brush_3d = sample_curves_surface_3d_brush(

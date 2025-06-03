@@ -55,7 +55,6 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Main *bmain = CTX_data_main(&C);
-  Scene *scene = CTX_data_scene(&C);
   Brush *current_brush = BKE_paint_brush(paint);
 
   if (current_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
@@ -72,10 +71,10 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
   init_brush(*smooth_brush);
 
   saved_active_brush_ = current_brush;
-  saved_smooth_size_ = BKE_brush_size_get(scene, smooth_brush, paint);
+  saved_smooth_size_ = BKE_brush_size_get(paint, smooth_brush);
 
-  const int current_brush_size = BKE_brush_size_get(scene, current_brush, paint);
-  BKE_brush_size_set(scene, smooth_brush, current_brush_size, paint);
+  const int current_brush_size = BKE_brush_size_get(paint, current_brush);
+  BKE_brush_size_set(paint, smooth_brush, current_brush_size);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
@@ -92,8 +91,7 @@ void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
   /* If saved_active_brush is not set, brush was not switched/affected in
    * toggle_temp_on(). */
   if (saved_active_brush_) {
-    Scene *scene = CTX_data_scene(&C);
-    BKE_brush_size_set(scene, &brush, saved_smooth_size_, paint);
+    BKE_brush_size_set(paint, &brush, saved_smooth_size_);
     BKE_paint_brush_set(paint, saved_active_brush_);
     saved_active_brush_ = nullptr;
   }
@@ -114,7 +112,6 @@ void SmoothOperation::on_stroke_begin(const bContext &C, const InputSample &star
 
 void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  const Scene &scene = *CTX_data_scene(&C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = [&]() -> const Brush & {
     if (temp_smooth_) {
@@ -138,8 +135,7 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 
         const VArray<float> influences = VArray<float>::ForFunc(
             view_positions.size(), [&](const int64_t point_) {
-              return brush_point_influence(scene,
-                                           paint,
+              return brush_point_influence(paint,
                                            brush,
                                            view_positions[point_],
                                            extension_sample,

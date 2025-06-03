@@ -201,7 +201,7 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint);
+bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
 
@@ -329,10 +329,7 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
                                       const Brush &brush,
                                       float rotation);
 
-void BKE_paint_stroke_get_average(const Scene *scene,
-                                  const Object *ob,
-                                  float stroke[3],
-                                  const Paint *paint);
+void BKE_paint_stroke_get_average(const Object *ob, const Paint *paint, float stroke[3]);
 
 blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,

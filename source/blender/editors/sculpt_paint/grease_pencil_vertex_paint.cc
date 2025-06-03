@@ -46,7 +46,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
   const bool do_fill = do_vertex_color_fill(brush);
 
   float color_linear[3];
-  srgb_to_linearrgb_v3_v3(color_linear, BKE_brush_color_get(&scene, &paint, &brush));
+  srgb_to_linearrgb_v3_v3(color_linear, BKE_brush_color_get(&paint, &brush));
   const ColorGeometry4f mix_color(color_linear[0], color_linear[1], color_linear[2], 1.0f);
 
   this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
@@ -60,12 +60,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
       if (invert) {
         /* Erase vertex colors. */
         point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-          const float influence = brush_point_influence(scene,
-                                                        paint,
-                                                        brush,
-                                                        view_positions[point_i],
-                                                        extension_sample,
-                                                        params.multi_frame_falloff);
+          const float influence = brush_point_influence(
+              paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = vertex_colors[point_i];
           color.a -= influence;
@@ -75,12 +71,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
       else {
         /* Mix brush color into vertex colors by influence using alpha over. */
         point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-          const float influence = brush_point_influence(scene,
-                                                        paint,
-                                                        brush,
-                                                        view_positions[point_i],
-                                                        extension_sample,
-                                                        params.multi_frame_falloff);
+          const float influence = brush_point_influence(
+              paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = vertex_colors[point_i];
           color = math::interpolate(color, mix_color, influence);
@@ -99,12 +91,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
         fill_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
           const IndexRange points = points_by_curve[curve_i];
           const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-          const float influence = brush_fill_influence(scene,
-                                                       paint,
-                                                       brush,
-                                                       curve_view_positions,
-                                                       extension_sample,
-                                                       params.multi_frame_falloff);
+          const float influence = brush_fill_influence(
+              paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = fill_colors[curve_i];
           color.a -= influence;
@@ -115,12 +103,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
         fill_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
           const IndexRange points = points_by_curve[curve_i];
           const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-          const float influence = brush_fill_influence(scene,
-                                                       paint,
-                                                       brush,
-                                                       curve_view_positions,
-                                                       extension_sample,
-                                                       params.multi_frame_falloff);
+          const float influence = brush_fill_influence(
+              paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
 
           ColorGeometry4f &color = fill_colors[curve_i];
           color = math::interpolate(color, mix_color, influence);

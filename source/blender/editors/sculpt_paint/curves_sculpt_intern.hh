@@ -45,14 +45,12 @@ struct StrokeExtension {
 };
 
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension);
-float brush_radius_get(const Scene &scene,
-                       const Paint &paint,
+float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension);
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension);
-float brush_strength_get(const Scene &scene,
-                         const Paint &paint,
+float brush_strength_get(const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension);
 

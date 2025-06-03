@@ -168,8 +168,7 @@ class PaintModeData {
 void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data);
 
 bool paint_stroke_started(PaintStroke *stroke);
-void paint_stroke_jitter_pos(Scene &scene,
-                             const PaintStroke &stroke,
+void paint_stroke_jitter_pos(const PaintStroke &stroke,
                              const PaintMode mode,
                              const Brush &brush,
                              const float pressure,
@@ -347,8 +346,7 @@ void paint_proj_stroke(const bContext *C,
 void paint_proj_redraw(const bContext *C, void *ps_handle_p, bool final);
 void paint_proj_stroke_done(void *ps_handle_p);
 
-void paint_brush_color_get(Scene *scene,
-                           const Paint *paint,
+void paint_brush_color_get(const Paint *paint,
                            Brush *br,
                            blender::float3 &initial_hsv_jitter,
                            bool color_correction,
@@ -357,7 +355,7 @@ void paint_brush_color_get(Scene *scene,
                            float pressure,
                            const ColorManagedDisplay *display,
                            float r_color[3]);
-bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Brush *brush);
+bool paint_use_opacity_masking(const Paint *paint, const Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
 
@@ -595,8 +593,7 @@ bool use_normal(const VPaint &vp);
 bool brush_use_accumulate_ex(const Brush &brush, eObjectMode ob_mode);
 bool brush_use_accumulate(const VPaint &vp);
 
-void get_brush_alpha_data(const Scene &scene,
-                          const SculptSession &ss,
+void get_brush_alpha_data(const SculptSession &ss,
                           const Paint &paint,
                           const Brush &brush,
                           float *r_brush_size_pressure,
@@ -624,7 +621,7 @@ void mode_enter_generic(
 void mode_exit_generic(Object &ob, eObjectMode mode_flag);
 bool mode_toggle_poll_test(bContext *C);
 
-void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache);
+void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
 
 /** Initialize the stroke cache variants from operator properties. */
@@ -632,5 +629,5 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
-void last_stroke_update(Scene &scene, const float location[3], Paint &paint);
+void last_stroke_update(const float location[3], Paint &paint);
 }  // namespace blender::ed::sculpt_paint::vwpaint

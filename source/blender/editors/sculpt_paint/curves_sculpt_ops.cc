@@ -94,12 +94,11 @@ float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_exte
   return 1.0f;
 }
 
-float brush_radius_get(const Scene &scene,
-                       const Paint &paint,
+float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_size_get(&scene, &brush, &paint) * brush_radius_factor(brush, stroke_extension);
+  return BKE_brush_size_get(&paint, &brush) * brush_radius_factor(brush, stroke_extension);
 }
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
@@ -110,13 +109,11 @@ float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_ex
   return 1.0f;
 }
 
-float brush_strength_get(const Scene &scene,
-                         const Paint &paint,
+float brush_strength_get(const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_alpha_get(&scene, &brush, &paint) *
-         brush_strength_factor(brush, stroke_extension);
+  return BKE_brush_alpha_get(&paint, &brush) * brush_strength_factor(brush, stroke_extension);
 }
 
 static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
@@ -873,12 +870,11 @@ struct MinDistanceEditData {
 
 static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
-  const float brush_radius = BKE_brush_size_get(scene, op_data.brush, paint);
+  const float brush_radius = BKE_brush_size_get(paint, op_data.brush);
 
   float3 tangent_x_cu = math::cross(op_data.normal_cu, float3{0, 0, 1});
   if (math::is_zero(tangent_x_cu)) {
@@ -921,7 +917,6 @@ static void min_distance_edit_draw(bContext *C,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
 {
-  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(customdata);
 
@@ -952,7 +947,7 @@ static void min_distance_edit_draw(bContext *C,
 
   float4 circle_col = float4(op_data.brush->add_col);
   float circle_alpha = op_data.brush->cursor_overlay_alpha;
-  float brush_radius_re = BKE_brush_size_get(scene, op_data.brush, paint);
+  float brush_radius_re = BKE_brush_size_get(paint, op_data.brush);
 
   /* Draw the grid. */
   GPU_matrix_push();

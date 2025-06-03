@@ -358,7 +358,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
       mode = PaintMode::Texture3D;
     }
     Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
-    BKE_paint_stroke_get_average(scene, ob_eval, min, paint);
+    BKE_paint_stroke_get_average(ob_eval, paint, min);
     copy_v3_v3(max, min);
     changed = true;
     *r_do_zoom = false;

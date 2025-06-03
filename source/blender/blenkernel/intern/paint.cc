@@ -588,7 +588,7 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
-bool BKE_paint_use_unified_color(const ToolSettings * /*tool_settings*/, const Paint *paint)
+bool BKE_paint_use_unified_color(const Paint *paint)
 {
   /* Grease pencil draw mode never uses unified paint. */
   if (paint->runtime.ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
@@ -1848,10 +1848,7 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 }
 
-void BKE_paint_stroke_get_average(const Scene *scene,
-                                  const Object *ob,
-                                  float stroke[3],
-                                  const Paint *paint)
+void BKE_paint_stroke_get_average(const Object *ob, const Paint *paint, float stroke[3])
 {
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   if (ups->last_stroke_valid && ups->average_stroke_counter > 0) {
