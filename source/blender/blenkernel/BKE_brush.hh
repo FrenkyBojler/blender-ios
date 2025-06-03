@@ -139,9 +139,14 @@ float BKE_brush_sample_tex_3d(const Scene *scene,
                               const float point[3],
                               float rgba[4],
                               int thread,
-                              ImagePool *pool);
-float BKE_brush_sample_masktex(
-    const Scene *scene, Brush *br, const float point[2], int thread, ImagePool *pool);
+                              ImagePool *pool,
+                              const Paint *paint);
+float BKE_brush_sample_masktex(const Scene *scene,
+                               Brush *br,
+                               const float point[2],
+                               int thread,
+                               ImagePool *pool,
+                               const Paint *paint);
 
 /**
  * Get the mask texture for this given object mode.
@@ -185,23 +190,26 @@ const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_setting
 const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Paint *paint,
                                            const Brush *brush);
-void BKE_brush_color_set(Scene *scene, const Paint *paint, Brush *brush, const float color[3]);
+void BKE_brush_color_set(Scene *scene, Paint *paint, Brush *brush, const float color[3]);
 
-int BKE_brush_size_get(const Scene *scene, const Brush *brush);
-void BKE_brush_size_set(Scene *scene, Brush *brush, int size);
+int BKE_brush_size_get(const Scene *scene, const Brush *brush, const Paint *paint);
+void BKE_brush_size_set(Scene *scene, Brush *brush, int size, Paint *paint);
 
-float BKE_brush_unprojected_radius_get(const Scene *scene, const Brush *brush);
-void BKE_brush_unprojected_radius_set(Scene *scene, Brush *brush, float unprojected_radius);
+float BKE_brush_unprojected_radius_get(const Scene *scene, const Brush *brush, const Paint *paint);
+void BKE_brush_unprojected_radius_set(Scene *scene,
+                                      Brush *brush,
+                                      float unprojected_radius,
+                                      Paint *paint);
 
-float BKE_brush_alpha_get(const Scene *scene, const Brush *brush);
-void BKE_brush_alpha_set(Scene *scene, Brush *brush, float alpha);
-float BKE_brush_weight_get(const Scene *scene, const Brush *brush);
-void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value);
+float BKE_brush_alpha_get(const Scene *scene, const Brush *brush, const Paint *paint);
+void BKE_brush_alpha_set(Scene *scene, Brush *brush, float alpha, Paint *paint);
+float BKE_brush_weight_get(const Scene *scene, const Brush *brush, const Paint *paint);
+void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value, Paint *paint);
 
-int BKE_brush_input_samples_get(const Scene *scene, const Brush *brush);
-void BKE_brush_input_samples_set(const Scene *scene, Brush *brush, int value);
+int BKE_brush_input_samples_get(const Scene *scene, const Brush *brush, const Paint *paint);
+void BKE_brush_input_samples_set(const Scene *scene, Brush *brush, int value, Paint *paint);
 
-bool BKE_brush_use_locked_size(const Scene *scene, const Brush *brush);
+bool BKE_brush_use_locked_size(const Scene *scene, const Brush *brush, const Paint *paint);
 bool BKE_brush_use_alpha_pressure(const Brush *brush);
 bool BKE_brush_use_size_pressure(const Brush *brush);
 

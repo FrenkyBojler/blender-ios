@@ -588,14 +588,14 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint)
+bool BKE_paint_use_unified_color(const ToolSettings */*tool_settings*/, const Paint *paint)
 {
   /* Grease pencil draw mode never uses unified paint. */
   if (paint->runtime.ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
 
-  return tool_settings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
+  return paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
 }
 
 /**
@@ -1768,10 +1768,10 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
 void BKE_paint_init(
     Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], const bool ensure_brushes)
 {
-  UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
 
   BKE_paint_ensure_from_paintmode(sce, mode);
   Paint *paint = BKE_paint_get_active_from_paintmode(sce, mode);
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ensure_brushes) {
     BKE_paint_brushes_ensure(bmain, paint);
@@ -1803,6 +1803,10 @@ void BKE_paint_free(Paint *paint)
     MEM_delete(brush_ref);
   }
   MEM_delete(paint->runtime.previous_active_brush_reference);
+
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_hue);
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_saturation);
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_value);
 }
 
 void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
@@ -1832,14 +1836,21 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
         __func__, *brush_ref->brush_asset_reference);
   }
 
+  dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_hue);
+  dst->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_saturation);
+  dst->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(src->unified_paint_settings.curve_rand_value);
+
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus((ID *)dst->palette);
   }
 }
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3])
+void BKE_paint_stroke_get_average(const Scene *scene,
+                                  const Object *ob,
+                                  float stroke[3],
+                                  const Paint *paint)
 {
-  const UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   if (ups->last_stroke_valid && ups->average_stroke_counter > 0) {
     float fac = 1.0f / ups->average_stroke_counter;
     mul_v3_v3fl(stroke, ups->average_stroke_accum, fac);
@@ -1935,6 +1946,18 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
       }
     }
   }
+
+  if (paint->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_hue);
+  }
+
+  if (paint->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_saturation);
+  }
+
+  if (paint->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_value);
+  }
 }
 
 void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Paint *paint)
@@ -1980,6 +2003,12 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
   }
 
   paint->paint_cursor = nullptr;
+
+  /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
+   * these are also NaN, which could lead to crashes in painting. */
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  zero_v3(ups->last_location);
+  ups->last_hit = 0;
   paint_runtime_init(scene->toolsettings, paint);
 }
 

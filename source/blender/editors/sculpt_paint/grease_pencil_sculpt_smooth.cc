@@ -72,10 +72,10 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
   init_brush(*smooth_brush);
 
   saved_active_brush_ = current_brush;
-  saved_smooth_size_ = BKE_brush_size_get(scene, smooth_brush);
+  saved_smooth_size_ = BKE_brush_size_get(scene, smooth_brush, TODO);
 
-  const int current_brush_size = BKE_brush_size_get(scene, current_brush);
-  BKE_brush_size_set(scene, smooth_brush, current_brush_size);
+  const int current_brush_size = BKE_brush_size_get(scene, current_brush, TODO);
+  BKE_brush_size_set(scene, smooth_brush, current_brush_size, TODO);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
@@ -93,7 +93,7 @@ void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
    * toggle_temp_on(). */
   if (saved_active_brush_) {
     Scene *scene = CTX_data_scene(&C);
-    BKE_brush_size_set(scene, &brush, saved_smooth_size_);
+    BKE_brush_size_set(scene, &brush, saved_smooth_size_, TODO);
     BKE_paint_brush_set(paint, saved_active_brush_);
     saved_active_brush_ = nullptr;
   }

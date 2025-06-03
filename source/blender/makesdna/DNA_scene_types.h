@@ -1007,6 +1007,9 @@ typedef struct UnifiedPaintSettings {
   int flag;
   char _pad[4];
 
+  /* TODO: Many of the following values should not be on this struct, as it causes them to be
+   * persisted. PaintRuntime may be a better choice for some of these. */
+
   /* Rake rotation. */
 
   /** Record movement of mouse so that rake can start at an intuitive angle. */

@@ -566,7 +566,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /** Initialize viewport pivot from evaluated bounding box center of `ob`. */
-void paint_init_pivot(Object *ob, Scene *scene);
+void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
@@ -627,5 +627,5 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
-void last_stroke_update(Scene &scene, const float location[3]);
+void last_stroke_update(Scene &scene, const float location[3], Paint &paint);
 }  // namespace blender::ed::sculpt_paint::vwpaint

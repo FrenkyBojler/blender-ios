@@ -198,7 +198,7 @@ static float falloff_value_vertex_get(const SculptSession &ss,
 
   float rgba[4];
   const float avg = BKE_brush_sample_tex_3d(
-      expand_cache.scene, brush, mtex, position, rgba, 0, ss.tex_pool);
+      expand_cache.scene, brush, mtex, position, rgba, 0, ss.tex_pool, TODO);
 
   const float distortion = (avg - 0.5f) * expand_cache.texture_distortion_strength *
                            expand_cache.max_vert_falloff;

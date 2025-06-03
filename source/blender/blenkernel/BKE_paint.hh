@@ -22,6 +22,7 @@
 #include "DNA_brush_enums.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_enums.h"
+#include "DNA_scene_types.h"
 
 struct AssetWeakReference;
 struct BMFace;
@@ -328,7 +329,10 @@ void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
                                       const Brush &brush,
                                       float rotation);
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
+void BKE_paint_stroke_get_average(const Scene *scene,
+                                  const Object *ob,
+                                  float stroke[3],
+                                  const Paint *paint);
 
 blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
                                           const blender::float3 &initial_hsv_jitter,

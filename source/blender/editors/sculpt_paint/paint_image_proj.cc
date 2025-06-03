@@ -273,7 +273,7 @@ struct ProjPaintState {
   float paint_color_linear[3];
   float dither;
 
-  const Paint *paint;
+  Paint *paint;
   Brush *brush;
 
   /**
@@ -4502,7 +4502,7 @@ static void project_paint_begin(const bContext *C,
   /* At the moment this is just ps->arena_mt[0], but use this to show were not multi-threading. */
   MemArena *arena;
 
-  const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush);
+  const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush, TODO);
 
   bool reset_threads = false;
 
@@ -5216,7 +5216,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
   float pos_ofs[2] = {0};
   float co[2];
   ushort mask_short;
-  const float brush_alpha = BKE_brush_alpha_get(ps->scene, brush);
+  const float brush_alpha = BKE_brush_alpha_get(ps->scene, brush, TODO);
   const float brush_radius = ps->brush_size;
   /* avoid a square root with every dist comparison */
   const float brush_radius_sq = brush_radius * brush_radius;
@@ -5424,7 +5424,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
             /* Mask texture. */
             if (ps->is_maskbrush) {
               float texmask = BKE_brush_sample_masktex(
-                  ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
+                  ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool, TODO);
               CLAMP(texmask, 0.0f, 1.0f);
               custom_mask *= texmask;
             }
@@ -5448,7 +5448,7 @@ static void do_projectpaint_thread(TaskPool *__restrict /*pool*/, void *ph_v)
               /* NOTE: for clone and smear,
                * we only use the alpha, could be a special function */
               BKE_brush_sample_tex_3d(
-                  ps->scene, brush, mtex, samplecos, texrgba, thread_index, pool);
+                  ps->scene, brush, mtex, samplecos, texrgba, thread_index, pool, TODO);
 
               copy_v3_v3(texrgb, texrgba);
               custom_mask *= texrgba[3];
@@ -5728,7 +5728,7 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
       const int3 &tri = ps->corner_tris_eval[tri_index];
       const int vert_tri[3] = {PS_CORNER_TRI_AS_VERT_INDEX_3(ps, tri)};
       float world[3];
-      UnifiedPaintSettings *ups = &ps->scene->toolsettings->unified_paint_settings;
+      UnifiedPaintSettings *ups = &ps->paint->unified_paint_settings;
 
       interp_v3_v3v3v3(world,
                        ps->vert_positions_eval[vert_tri[0]],
@@ -5977,7 +5977,7 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
     }
   }
 
-  ps_handle->orig_brush_size = BKE_brush_size_get(scene, ps_handle->brush);
+  ps_handle->orig_brush_size = BKE_brush_size_get(scene, ps_handle->brush, TODO);
 
   Mesh *mesh = BKE_mesh_from_object(ob);
   ps_handle->symmetry_flags = mesh->symmetry;
@@ -6019,8 +6019,8 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
   }
 
   /* Don't allow brush size below 2 */
-  if (BKE_brush_size_get(scene, ps_handle->brush) < 2) {
-    BKE_brush_size_set(scene, ps_handle->brush, 2 * U.pixelsize);
+  if (BKE_brush_size_get(scene, ps_handle->brush, TODO) < 2) {
+    BKE_brush_size_set(scene, ps_handle->brush, 2 * U.pixelsize, TODO);
   }
 
   /* allocate and initialize spatial data structures */
@@ -6092,7 +6092,7 @@ void paint_proj_stroke_done(void *ps_handle_p)
     PROJ_PAINT_STATE_SHARED_CLEAR(ps_handle->ps_views[i]);
   }
 
-  BKE_brush_size_set(scene, ps_handle->brush, ps_handle->orig_brush_size);
+  BKE_brush_size_set(scene, ps_handle->brush, ps_handle->orig_brush_size, TODO);
 
   paint_brush_exit_tex(ps_handle->brush);
 
@@ -6180,9 +6180,9 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   ps.is_texbrush = false;
   ps.is_maskbrush = false;
   ps.do_masking = false;
-  orig_brush_size = BKE_brush_size_get(&scene, ps.brush);
+  orig_brush_size = BKE_brush_size_get(&scene, ps.brush, TODO);
   /* cover the whole image */
-  BKE_brush_size_set(&scene, ps.brush, 32 * U.pixelsize);
+  BKE_brush_size_set(&scene, ps.brush, 32 * U.pixelsize, TODO);
 
   /* so pixels are initialized with minimal info */
   ps.brush_type = IMAGE_PAINT_BRUSH_TYPE_DRAW;
@@ -6193,7 +6193,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   project_paint_begin(C, &ps, false, 0);
 
   if (ps.mesh_eval == nullptr) {
-    BKE_brush_size_set(&scene, ps.brush, orig_brush_size);
+    BKE_brush_size_set(&scene, ps.brush, orig_brush_size, TODO);
     BKE_report(op->reports, RPT_ERROR, "Could not get valid evaluated mesh");
     return OPERATOR_CANCELLED;
   }
@@ -6218,7 +6218,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   ED_image_undo_push_end();
 
   scene.toolsettings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
-  BKE_brush_size_set(&scene, ps.brush, orig_brush_size);
+  BKE_brush_size_set(&scene, ps.brush, orig_brush_size, TODO);
 
   return OPERATOR_FINISHED;
 }

@@ -118,11 +118,11 @@ float object_space_radius_get(const ViewContext &vc,
                               const float3 &location,
                               const float scale_factor)
 {
-  if (!BKE_brush_use_locked_size(&scene, &brush)) {
+  if (!BKE_brush_use_locked_size(&scene, &brush, TODO)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&scene, &brush) * scale_factor);
+        vc, location, BKE_brush_size_get(&scene, &brush, TODO) * scale_factor);
   }
-  return BKE_brush_unprojected_radius_get(&scene, &brush) * scale_factor;
+  return BKE_brush_unprojected_radius_get(&scene, &brush, TODO) * scale_factor;
 }
 
 bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
@@ -2164,7 +2164,7 @@ static float brush_strength(const Sculpt &sd,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   /* Primary strength input; square it to make lower values more sensitive. */
-  const float root_alpha = BKE_brush_alpha_get(scene, &brush);
+  const float root_alpha = BKE_brush_alpha_get(scene, &brush, TODO);
   const float alpha = root_alpha * root_alpha;
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
   float overlap = ups.overlap_factor;
@@ -2322,7 +2322,7 @@ void sculpt_apply_texture(const SculptSession &ss,
 
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     /* Get strength by feeding the vertex location directly into a texture. */
-    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool);
+    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool, TODO);
   }
   else {
     /* If the active area is being applied for symmetry, flip it
@@ -2361,7 +2361,8 @@ void sculpt_apply_texture(const SculptSession &ss,
       const blender::float2 point_2d = ED_view3d_project_float_v2_m4(
           cache.vc->region, symm_point, cache.projection_mat);
       const float point_3d[3] = {point_2d[0], point_2d[1], 0.0f};
-      *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool);
+      *r_value = BKE_brush_sample_tex_3d(
+          scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool, TODO);
     }
   }
 }
@@ -3869,12 +3870,12 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
     return;
   }
 
-  int cur_brush_size = BKE_brush_size_get(scene, cur_brush);
+  int cur_brush_size = BKE_brush_size_get(scene, cur_brush, TODO);
 
   cache->saved_active_brush = cur_brush;
 
-  cache->saved_smooth_size = BKE_brush_size_get(scene, smooth_brush);
-  BKE_brush_size_set(scene, smooth_brush, cur_brush_size);
+  cache->saved_smooth_size = BKE_brush_size_get(scene, smooth_brush, TODO);
+  BKE_brush_size_set(scene, smooth_brush, cur_brush_size, TODO);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
@@ -3901,7 +3902,7 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
    * smooth_brush_toggle_on(). */
   if (cache->saved_active_brush) {
     Scene *scene = CTX_data_scene(C);
-    BKE_brush_size_set(scene, &brush, cache->saved_smooth_size);
+    BKE_brush_size_set(scene, &brush, cache->saved_smooth_size, TODO);
     BKE_paint_brush_set(paint, cache->saved_active_brush);
     cache->saved_active_brush = nullptr;
   }
@@ -3912,8 +3913,8 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
+  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
-  UnifiedPaintSettings *ups = &tool_settings->unified_paint_settings;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
   ViewContext *vc = paint_stroke_view_context(static_cast<PaintStroke *>(op.customdata));
   Object &ob = *CTX_data_active_object(C);
@@ -4306,7 +4307,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 {
   Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  Paint &paint = *BKE_paint_get_active_from_context(C);
+  UnifiedPaintSettings &ups = paint.unified_paint_settings;
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -4337,8 +4339,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
     cache.initial_radius = object_space_radius_get(*cache.vc, scene, brush, cache.location);
 
-    if (!BKE_brush_use_locked_size(&scene, &brush)) {
-      BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius);
+    if (!BKE_brush_use_locked_size(&scene, &brush, TODO)) {
+      BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius, TODO);
     }
   }
 
@@ -5498,10 +5500,10 @@ static void stroke_update_step(bContext *C,
                                PaintStroke *stroke,
                                PointerRNA *itemptr)
 {
-  UnifiedPaintSettings &ups = CTX_data_tool_settings(C)->unified_paint_settings;
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  UnifiedPaintSettings &ups = sd.paint.unified_paint_settings;
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -5566,7 +5568,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
     brush_exit_tex(sd);
     return;
   }
-  UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
   Brush *brush = BKE_paint_brush(&sd.paint);
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   ups->draw_inverted = false;

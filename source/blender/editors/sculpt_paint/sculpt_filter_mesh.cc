@@ -128,7 +128,7 @@ Cache::~Cache() = default;
 
 void cache_init(bContext *C,
                 Object &ob,
-                const Sculpt &sd,
+                Sculpt &sd,
                 const undo::Type undo_type,
                 const float mval_fl[2],
                 float area_normal_radius,
@@ -162,7 +162,7 @@ void cache_init(bContext *C,
   }
 
   Scene *scene = CTX_data_scene(C);
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
 
   float3 co;
 

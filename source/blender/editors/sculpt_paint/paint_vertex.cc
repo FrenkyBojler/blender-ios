@@ -423,7 +423,7 @@ void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache
    * smooth_brush_toggle_on(). */
   if (cache->saved_active_brush) {
     Scene *scene = CTX_data_scene(C);
-    BKE_brush_size_set(scene, brush, cache->saved_smooth_size);
+    BKE_brush_size_set(scene, brush, cache->saved_smooth_size, TODO);
     BKE_paint_brush_set(paint, cache->saved_active_brush);
     cache->saved_active_brush = nullptr;
   }
@@ -433,7 +433,7 @@ void update_cache_invariants(
 {
   StrokeCache *cache;
   const Scene *scene = CTX_data_scene(C);
-  UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+  UnifiedPaintSettings &ups = vp.paint.unified_paint_settings;
   ViewContext *vc = paint_stroke_view_context((PaintStroke *)op->customdata);
   Object &ob = *CTX_data_active_object(C);
   float mat[3][3];
@@ -491,7 +491,7 @@ void update_cache_invariants(
   normalize_v3_v3(cache->view_normal, view_dir);
 
   cache->view_normal_symm = cache->view_normal;
-  cache->bstrength = BKE_brush_alpha_get(scene, brush);
+  cache->bstrength = BKE_brush_alpha_get(scene, brush, TODO);
   cache->is_last_valid = false;
 
   cache->accum = true;
@@ -530,8 +530,8 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   /* Truly temporary data that isn't stored in properties */
   if (cache->first_time) {
     cache->initial_radius = paint_calc_object_space_radius(
-        *cache->vc, cache->location, BKE_brush_size_get(scene, &brush));
-    BKE_brush_unprojected_radius_set(scene, &brush, cache->initial_radius);
+        *cache->vc, cache->location, BKE_brush_size_get(scene, &brush, TODO));
+    BKE_brush_unprojected_radius_set(scene, &brush, cache->initial_radius, TODO);
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
@@ -556,15 +556,15 @@ void get_brush_alpha_data(const Scene &scene,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure)
 {
-  *r_brush_size_pressure = BKE_brush_size_get(&scene, &brush) *
+  *r_brush_size_pressure = BKE_brush_size_get(&scene, &brush, TODO) *
                            (BKE_brush_use_size_pressure(&brush) ? ss.cache->pressure : 1.0f);
-  *r_brush_alpha_value = BKE_brush_alpha_get(&scene, &brush);
+  *r_brush_alpha_value = BKE_brush_alpha_get(&scene, &brush, TODO);
   *r_brush_alpha_pressure = (BKE_brush_use_alpha_pressure(&brush) ? ss.cache->pressure : 1.0f);
 }
 
-void last_stroke_update(Scene &scene, const float location[3])
+void last_stroke_update(Scene &scene, const float location[3], Paint &paint)
 {
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  UnifiedPaintSettings &ups = paint.unified_paint_settings;
   ups.average_stroke_counter++;
   add_v3_v3(ups.average_stroke_accum, location);
   ups.last_stroke_valid = true;
@@ -589,11 +589,11 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
     return;
   }
 
-  int cur_brush_size = BKE_brush_size_get(scene, cur_brush);
+  int cur_brush_size = BKE_brush_size_get(scene, cur_brush, TODO);
 
   cache->saved_active_brush = cur_brush;
-  cache->saved_smooth_size = BKE_brush_size_get(scene, smooth_brush);
-  BKE_brush_size_set(scene, smooth_brush, cur_brush_size);
+  cache->saved_smooth_size = BKE_brush_size_get(scene, smooth_brush, TODO);
+  BKE_brush_size_set(scene, smooth_brush, cur_brush_size, TODO);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 /** \} */
@@ -774,7 +774,7 @@ static void paint_and_tex_color_alpha_intern(const VPaint &vp,
   const MTex *mtex = BKE_brush_mask_texture_get(brush, OB_MODE_SCULPT);
   BLI_assert(mtex->tex != nullptr);
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
-    BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co, r_rgba, 0, nullptr);
+    BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co, r_rgba, 0, nullptr, TODO);
   }
   else {
     float co_ss[2]; /* screenspace */
@@ -783,7 +783,7 @@ static void paint_and_tex_color_alpha_intern(const VPaint &vp,
         V3D_PROJ_RET_OK)
     {
       const float co_ss_3d[3] = {co_ss[0], co_ss[1], 0.0f}; /* we need a 3rd empty value */
-      BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co_ss_3d, r_rgba, 0, nullptr);
+      BKE_brush_sample_tex_3d(vc->scene, brush, mtex, co_ss_3d, r_rgba, 0, nullptr, TODO);
     }
     else {
       zero_v4(r_rgba);
@@ -2076,7 +2076,7 @@ static void vpaint_stroke_update_step(bContext *C,
    * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob.object_to_world().ptr(), ss.cache->location);
-  vwpaint::last_stroke_update(scene, loc_world);
+  vwpaint::last_stroke_update(scene, loc_world, TODO);
 
   ED_region_tag_redraw(vc.region);
 

@@ -1540,7 +1540,7 @@ static void wpaint_paint_leaves(bContext *C,
                            wpd,
                            wpi,
                            mesh,
-                           BKE_brush_weight_get(&scene, &brush),
+                           BKE_brush_weight_get(&scene, &brush, TODO),
                            node_mask);
       break;
   }
@@ -1803,7 +1803,7 @@ static void wpaint_stroke_update_step(bContext *C,
 
   float mat[4][4];
 
-  const float brush_alpha_value = BKE_brush_alpha_get(&scene, &brush);
+  const float brush_alpha_value = BKE_brush_alpha_get(&scene, &brush, TODO);
 
   /* intentionally don't initialize as nullptr, make sure we initialize all members below */
   WeightPaintInfo wpi;
@@ -1859,7 +1859,7 @@ static void wpaint_stroke_update_step(bContext *C,
    * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob->object_to_world().ptr(), ss.cache->location);
-  vwpaint::last_stroke_update(scene, loc_world);
+  vwpaint::last_stroke_update(scene, loc_world, TODO);
 
   BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
 

@@ -87,7 +87,7 @@ void init_brush(Brush &brush)
 
 float brush_radius(const Scene &scene, const Brush &brush, const float pressure = 1.0f)
 {
-  float radius = BKE_brush_size_get(&scene, &brush);
+  float radius = BKE_brush_size_get(&scene, &brush, TODO);
   if (BKE_brush_use_size_pressure(&brush)) {
     radius *= BKE_curvemapping_evaluateF(brush.gpencil_settings->curve_sensitivity, 0, pressure);
   }
@@ -103,7 +103,7 @@ float brush_point_influence(const Scene &scene,
   const float radius = brush_radius(scene, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&scene, &brush, TODO) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
@@ -142,7 +142,7 @@ float brush_fill_influence(const Scene &scene,
   const float radius = brush_radius(scene, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&scene, &brush, TODO) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
@@ -170,7 +170,7 @@ IndexMask brush_point_influence_mask(const Scene &scene,
   const float radius = brush_radius(scene, brush, pressure);
   const float radius_squared = radius * radius;
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&scene, &brush, TODO) * brush_pressure *
                                multi_frame_falloff;
   const int2 mval_i = int2(math::round(mouse_position));
 

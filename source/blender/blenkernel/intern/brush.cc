@@ -873,9 +873,10 @@ float BKE_brush_sample_tex_3d(const Scene *scene,
                               const float point[3],
                               float rgba[4],
                               const int thread,
-                              ImagePool *pool)
+                              ImagePool *pool,
+                              const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   float intensity = 1.0;
   bool hasrgb = false;
 
@@ -990,10 +991,14 @@ float BKE_brush_sample_tex_3d(const Scene *scene,
   return intensity;
 }
 
-float BKE_brush_sample_masktex(
-    const Scene *scene, Brush *br, const float point[2], const int thread, ImagePool *pool)
+float BKE_brush_sample_masktex(const Scene *scene,
+                               Brush *br,
+                               const float point[2],
+                               const int thread,
+                               ImagePool *pool,
+                               const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   MTex *mtex = &br->mask_mtex;
   float rgba[4], intensity;
 
@@ -1121,7 +1126,7 @@ float BKE_brush_sample_masktex(
 const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
-    return scene->toolsettings->unified_paint_settings.rgb;
+    return paint->unified_paint_settings.rgb;
   }
   return brush->rgb;
 }
@@ -1131,11 +1136,11 @@ const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_setting
     const Scene *scene, const Paint *paint, const Brush *brush)
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
-    if ((scene->toolsettings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
+    if ((paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {
       return std::nullopt;
     }
 
-    const UnifiedPaintSettings settings = scene->toolsettings->unified_paint_settings;
+    const UnifiedPaintSettings settings = paint->unified_paint_settings;
     return BrushColorJitterSettings{
         settings.color_jitter_flag,
         settings.hsv_jitter[0],
@@ -1167,15 +1172,15 @@ const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Brush *brush)
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
-    return scene->toolsettings->unified_paint_settings.secondary_rgb;
+    return paint->unified_paint_settings.secondary_rgb;
   }
   return brush->secondary_rgb;
 }
 
-void BKE_brush_color_set(Scene *scene, const Paint *paint, Brush *brush, const float color[3])
+void BKE_brush_color_set(Scene *scene, Paint *paint, Brush *brush, const float color[3])
 {
   if (BKE_paint_use_unified_color(scene->toolsettings, paint)) {
-    UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+    UnifiedPaintSettings *ups = &paint->unified_paint_settings;
     copy_v3_v3(ups->rgb, color);
   }
   else {
@@ -1184,9 +1189,9 @@ void BKE_brush_color_set(Scene *scene, const Paint *paint, Brush *brush, const f
   }
 }
 
-void BKE_brush_size_set(Scene *scene, Brush *brush, int size)
+void BKE_brush_size_set(Scene *scene, Brush *brush, int size, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   /* make sure range is sane */
   CLAMP(size, 1, MAX_BRUSH_PIXEL_RADIUS);
@@ -1200,17 +1205,17 @@ void BKE_brush_size_set(Scene *scene, Brush *brush, int size)
   }
 }
 
-int BKE_brush_size_get(const Scene *scene, const Brush *brush)
+int BKE_brush_size_get(const Scene *scene, const Brush *brush, const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   int size = (ups->flag & UNIFIED_PAINT_SIZE) ? ups->size : brush->size;
 
   return size;
 }
 
-bool BKE_brush_use_locked_size(const Scene *scene, const Brush *brush)
+bool BKE_brush_use_locked_size(const Scene * /*scene*/, const Brush *brush, const Paint *paint)
 {
-  const short us_flag = scene->toolsettings->unified_paint_settings.flag;
+  const short us_flag = paint->unified_paint_settings.flag;
 
   return (us_flag & UNIFIED_PAINT_SIZE) ? (us_flag & UNIFIED_PAINT_BRUSH_LOCK_SIZE) :
                                           (brush->flag & BRUSH_LOCK_SIZE);
@@ -1226,9 +1231,12 @@ bool BKE_brush_use_alpha_pressure(const Brush *brush)
   return brush->flag & BRUSH_ALPHA_PRESSURE;
 }
 
-void BKE_brush_unprojected_radius_set(Scene *scene, Brush *brush, float unprojected_radius)
+void BKE_brush_unprojected_radius_set(Scene *scene,
+                                      Brush *brush,
+                                      float unprojected_radius,
+                                      Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ups->flag & UNIFIED_PAINT_SIZE) {
     ups->unprojected_radius = unprojected_radius;
@@ -1239,16 +1247,16 @@ void BKE_brush_unprojected_radius_set(Scene *scene, Brush *brush, float unprojec
   }
 }
 
-float BKE_brush_unprojected_radius_get(const Scene *scene, const Brush *brush)
+float BKE_brush_unprojected_radius_get(const Scene *scene, const Brush *brush, const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->unprojected_radius : brush->unprojected_radius;
 }
 
-void BKE_brush_alpha_set(Scene *scene, Brush *brush, float alpha)
+void BKE_brush_alpha_set(Scene *scene, Brush *brush, float alpha, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ups->flag & UNIFIED_PAINT_ALPHA) {
     ups->alpha = alpha;
@@ -1259,23 +1267,23 @@ void BKE_brush_alpha_set(Scene *scene, Brush *brush, float alpha)
   }
 }
 
-float BKE_brush_alpha_get(const Scene *scene, const Brush *brush)
+float BKE_brush_alpha_get(const Scene *scene, const Brush *brush, const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   return (ups->flag & UNIFIED_PAINT_ALPHA) ? ups->alpha : brush->alpha;
 }
 
-float BKE_brush_weight_get(const Scene *scene, const Brush *brush)
+float BKE_brush_weight_get(const Scene *scene, const Brush *brush, const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   return (ups->flag & UNIFIED_PAINT_WEIGHT) ? ups->weight : brush->weight;
 }
 
-void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value)
+void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ups->flag & UNIFIED_PAINT_WEIGHT) {
     ups->weight = value;
@@ -1286,16 +1294,16 @@ void BKE_brush_weight_set(const Scene *scene, Brush *brush, float value)
   }
 }
 
-int BKE_brush_input_samples_get(const Scene *scene, const Brush *brush)
+int BKE_brush_input_samples_get(const Scene *scene, const Brush *brush, const Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   return (ups->flag & UNIFIED_PAINT_INPUT_SAMPLES) ? ups->input_samples : brush->input_samples;
 }
 
-void BKE_brush_input_samples_set(const Scene *scene, Brush *brush, int value)
+void BKE_brush_input_samples_set(const Scene *scene, Brush *brush, int value, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ups->flag & UNIFIED_PAINT_INPUT_SAMPLES) {
     ups->input_samples = value;
@@ -1349,7 +1357,7 @@ void BKE_brush_jitter_pos(const Scene &scene,
     spread = 1.0;
   }
   else {
-    diameter = 2 * BKE_brush_size_get(&scene, &brush);
+    diameter = 2 * BKE_brush_size_get(&scene, &brush, TODO);
     spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */

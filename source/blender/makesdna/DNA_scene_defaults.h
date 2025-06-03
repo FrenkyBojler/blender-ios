@@ -288,7 +288,10 @@
 
 #define _DNA_DEFAULTS_ImagePaintSettings \
   { \
-    .paint.flags = PAINT_SHOW_BRUSH, \
+    .paint = { \
+      .flags = PAINT_SHOW_BRUSH, \
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
+    }, \
     .normal_angle = 80, \
     .seam_bleed = 2, \
     .clone_alpha = 0.5f, \
@@ -353,6 +356,8 @@
     .sharp_min = DEG2RADF(90.0f), \
     .sharp_max = DEG2RADF(180.0f), \
   }
+
+// TODO: Do the other unifiedpaintstructs need to be created?
 
 #define _DNA_DEFAULT_ToolSettings \
   { \
@@ -435,6 +440,7 @@
     .automasking_boundary_edges_propagation_steps = 1, \
     .flags = SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE,\
     .paint = {\
+      .unified_paint_settings = _DNA_DEFAULTS_UnifiedPaintSettings, \
       .symmetry_flags = PAINT_SYMMETRY_FEATHER,\
       .tile_offset = {1.0f, 1.0f, 1.0f},\
     }\

@@ -874,9 +874,9 @@ static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int fram
   return float3(0.0f);
 }
 
-void paint_init_pivot(Object *ob, Scene *scene)
+void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   blender::float3 location;
   switch (ob->type) {
@@ -955,7 +955,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
   /* Set pivot to bounding box center. */
   Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
-  paint_init_pivot(ob_eval ? ob_eval : &ob, &scene);
+  paint_init_pivot(ob_eval ? ob_eval : &ob, &scene, TODO);
 
   WM_main_add_notifier(NC_SCENE | ND_MODE, &scene);
 }
@@ -1067,7 +1067,7 @@ static wmOperatorStatus brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
   Brush *br = BKE_paint_brush(paint);
 
   if (BKE_paint_use_unified_color(scene.toolsettings, paint)) {
-    UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+    UnifiedPaintSettings &ups = paint->unified_paint_settings;
     swap_v3_v3(ups.rgb, ups.secondary_rgb);
   }
   else if (br) {

@@ -372,7 +372,7 @@ static void do_paint_brush_task(const Scene &scene,
   const StrokeCache &cache = *ss.cache;
 
   const float bstrength = fabsf(ss.cache->bstrength);
-  const float alpha = BKE_brush_alpha_get(&scene, &brush);
+  const float alpha = BKE_brush_alpha_get(&scene, &brush, TODO);
 
   const Span<int> verts = node.verts();
 

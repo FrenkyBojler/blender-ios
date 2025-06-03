@@ -202,7 +202,7 @@ static void do_crease_or_blob_brush(const Depsgraph &depsgraph,
   /* We divide out the squared alpha and multiply by the squared crease
    * to give us the pinch strength. */
   float crease_correction = brush.crease_pinch_factor * brush.crease_pinch_factor;
-  float brush_alpha = BKE_brush_alpha_get(&scene, &brush);
+  float brush_alpha = BKE_brush_alpha_get(&scene, &brush, TODO);
   if (brush_alpha > 0.0f) {
     crease_correction /= brush_alpha * brush_alpha;
   }
