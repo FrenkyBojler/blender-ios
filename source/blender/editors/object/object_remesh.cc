@@ -242,11 +242,10 @@ static int calc_estimated_remesh_vert_count(const Mesh &mesh, const double voxel
 
 static wmOperatorStatus voxel_remesh_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  static constexpr int remesh_vertex_count_threshold = 10000000;
-
   const Object &active_object = *CTX_data_active_object(C);
   const Mesh &mesh = *static_cast<Mesh *>(active_object.data);
 
+  const int remesh_vertex_count_threshold = math::max(10000000, mesh.verts_num);
   const int estimated_count = calc_estimated_remesh_vert_count(mesh, mesh.remesh_voxel_size);
 
   if (estimated_count > remesh_vertex_count_threshold) {
