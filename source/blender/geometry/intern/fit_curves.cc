@@ -54,13 +54,13 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   curve_selection.foreach_index(GrainSize(32), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange points = src_points_by_curve[curve_i];
     const Span<float3> curve_positions = src_positions.slice(points);
-    const bool use_cyclic = src_cyclic[curve_i];
+    const bool is_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
     /* Both curve fitting algorithms expect the first and last points for non-cyclic curves to be
      * treated as if they were corners. */
-    const bool use_first_as_corner = !use_cyclic && !corners[points.first()];
-    const bool use_last_as_corner = !use_cyclic && !corners[points.last()];
+    const bool use_first_as_corner = !is_cyclic && !corners[points.first()];
+    const bool use_last_as_corner = !is_cyclic && !corners[points.last()];
     Vector<int, 32> src_corners;
     if (use_first_as_corner) {
       src_corners.append(0);
@@ -77,7 +77,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                       nullptr :
                                       reinterpret_cast<uint *>(src_corners.data());
 
-    const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | ((use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0);
+    const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | ((is_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0);
 
     float *cubic_array = nullptr;
     uint32_t *orig_index_map = nullptr;
