@@ -422,6 +422,69 @@ enum class SetDriverSourceResult {
         }
       }
     }
+    case DVAR_TYPE_TRANSFORM_CHAN: {
+      if (driver_var.num_targets != 1) {
+        return false;
+      }
+      const DriverTarget &driver_target = driver_var.targets[0];
+      if (!driver_target.id) {
+        return false;
+      }
+      if (GS(driver_target.id->name) != ID_OB) {
+        return false;
+      }
+      Object &object = *reinterpret_cast<Object *>(driver_target.id);
+      const auto transform_channel = eDriverTarget_TransformChannels(driver_target.transChan);
+      const auto flag = eDriverTarget_Flag(driver_target.flag);
+      /* Definitions taken from #prop_local_space_items. */
+      const bool use_world_space = flag == 0;
+      const bool use_transform_space = flag & DTAR_FLAG_LOCALSPACE;
+      const bool use_local_space = (flag & (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS)) ==
+                                   (DTAR_FLAG_LOCALSPACE | DTAR_FLAG_LOCAL_CONSTS);
+      switch (transform_channel) {
+        case DTAR_TRANSCHAN_LOCX:
+        case DTAR_TRANSCHAN_LOCY:
+        case DTAR_TRANSCHAN_LOCZ: {
+          const int location_index = transform_channel - DTAR_TRANSCHAN_LOCX;
+          if (use_local_space) {
+            return set_rna_property(
+                C, object.id, fmt::format("location[{}]", location_index), value_variant);
+          }
+          return false;
+        }
+        case DTAR_TRANSCHAN_ROTX:
+        case DTAR_TRANSCHAN_ROTY:
+        case DTAR_TRANSCHAN_ROTZ: {
+          const int rotation_index = transform_channel - DTAR_TRANSCHAN_ROTX;
+          if (use_local_space) {
+            return set_rna_property(
+                C, object.id, fmt::format("rotation_euler[{}]", rotation_index), value_variant);
+          }
+          return false;
+        }
+        case DTAR_TRANSCHAN_SCALEX:
+        case DTAR_TRANSCHAN_SCALEY:
+        case DTAR_TRANSCHAN_SCALEZ: {
+          const int scale_index = transform_channel - DTAR_TRANSCHAN_SCALEX;
+          if (use_local_space) {
+            return set_rna_property(
+                C, object.id, fmt::format("scale[{}]", scale_index), value_variant);
+          }
+          return false;
+        }
+        case DTAR_TRANSCHAN_SCALE_AVG: {
+          if (use_local_space) {
+            return set_rna_property(C, object.id, "scale[0]", value_variant) &&
+                   set_rna_property(C, object.id, "scale[1]", value_variant) &&
+                   set_rna_property(C, object.id, "scale[2]", value_variant);
+          }
+          return false;
+        }
+        default: {
+          return false;
+        }
+      }
+    }
     default: {
       return false;
     }
