@@ -35,14 +35,6 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const Span<float3> src_positions = src_curves.positions();
   const VArray<bool> src_cyclic = src_curves.cyclic();
 
-  /* Build boolean array that marks all the corners. */
-  Array<bool> is_corner(src_curves.points_num(), false);
-  if (!corners.is_single() || corners.get_internal_single() == true) {
-    IndexMaskMemory memory;
-    const IndexMask point_selection = IndexMask::from_ranges(src_offsets, curve_selection, memory);
-    corners.materialize(point_selection, is_corner.as_mutable_span());
-  }
-
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
 
   IndexMaskMemory memory;
@@ -65,30 +57,25 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     const bool use_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
 
-    IndexMaskMemory corner_memory;
-    const IndexMask src_corner_mask = IndexMask::from_bools(is_corner.as_span().slice(points),
-                                                            corner_memory);
     /* Both curve fitting algorithms expect the first and last points for non-cyclic curves to be
      * treated as if they were corners. */
-    const bool use_first_as_corner = !use_cyclic && !is_corner[points.first()];
-    const bool use_last_as_corner = !use_cyclic && !is_corner[points.last()];
-    Array<int> src_corner_indices;
-    if (!src_corner_mask.is_empty()) {
-      src_corner_indices.reinitialize(src_corner_mask.size() + int(use_first_as_corner) +
-                                      int(use_last_as_corner));
-      if (use_first_as_corner) {
-        src_corner_indices.first() = 0;
-      }
-      src_corner_mask.to_indices(src_corner_indices.as_mutable_span()
-                                     .drop_front(use_first_as_corner ? 1 : 0)
-                                     .drop_back(use_last_as_corner ? 1 : 0));
-      if (use_last_as_corner) {
-        src_corner_indices.last() = points.index_range().last();
+    const bool use_first_as_corner = !use_cyclic && !corners[points.first()];
+    const bool use_last_as_corner = !use_cyclic && !corners[points.last()];
+    Vector<int> src_corners;
+    if (use_first_as_corner) {
+      src_corners.append(0);
+    }
+    for (const int i : IndexRange::from_begin_end(1, points.size() - 1)) {
+      if (corners[points[i]]) {
+        src_corners.append(i);
       }
     }
-    const uint *src_indices_corner_ptr = !src_corner_indices.is_empty() ?
-                                             reinterpret_cast<uint *>(src_corner_indices.data()) :
-                                             nullptr;
+    if (use_last_as_corner) {
+      src_corners.append(points.last());
+    }
+    const uint *src_corners_ptr = src_corners.is_empty() ?
+                                      nullptr :
+                                      reinterpret_cast<uint *>(src_corners.data());
 
     const uint8_t flag = CURVE_FIT_CALC_HIGH_QUALIY | ((use_cyclic) ? CURVE_FIT_CALC_CYCLIC : 0);
 
@@ -104,8 +91,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                            3,
                                            epsilon,
                                            flag,
-                                           src_indices_corner_ptr,
-                                           src_corner_indices.size(),
+                                           src_corners_ptr,
+                                           src_corners.size(),
                                            &cubic_array,
                                            &cubic_array_size,
                                            &orig_index_map,
@@ -118,8 +105,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                                  3,
                                                  epsilon,
                                                  flag,
-                                                 src_indices_corner_ptr,
-                                                 src_corner_indices.size(),
+                                                 src_corners_ptr,
+                                                 src_corners.size(),
                                                  /* Don't use automatic corner detection. */
                                                  FLT_MAX,
                                                  &cubic_array,
@@ -250,8 +237,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     MutableSpan<int8_t> left_handle_types = dst_handle_types_left.slice(dst_points);
     MutableSpan<int8_t> right_handle_types = dst_handle_types_right.slice(dst_points);
     left_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
-      right_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
-    
+    right_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
+
     const Span<int> original_indices = original_indices_per_curve[pos];
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
