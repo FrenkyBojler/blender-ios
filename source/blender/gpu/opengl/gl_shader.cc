@@ -1820,10 +1820,10 @@ void GLCompilerWorker::release()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GLShaderCompilerSubprocess
+/** \name GLSubprocessShaderCompiler
  * \{ */
 
-GLShaderCompilerSubprocess::~GLShaderCompilerSubprocess()
+GLSubprocessShaderCompiler::~GLSubprocessShaderCompiler()
 {
   /* Must be called before we destruct the GLCompilerWorkers. */
   destruct_compilation_worker();
@@ -1833,7 +1833,7 @@ GLShaderCompilerSubprocess::~GLShaderCompilerSubprocess()
   }
 }
 
-GLCompilerWorker *GLShaderCompilerSubprocess::get_compiler_worker()
+GLCompilerWorker *GLSubprocessShaderCompiler::get_compiler_worker()
 {
   auto new_worker = [&]() {
     GLCompilerWorker *result = new GLCompilerWorker();
@@ -1857,7 +1857,7 @@ GLCompilerWorker *GLShaderCompilerSubprocess::get_compiler_worker()
   return worker;
 }
 
-Shader *GLShaderCompilerSubprocess::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 {
   const_cast<ShaderCreateInfo *>(&info)->finalize();
   GLShader *shader = static_cast<GLShader *>(compile(info, true));
@@ -1900,7 +1900,7 @@ Shader *GLShaderCompilerSubprocess::compile_shader(const shader::ShaderCreateInf
   return shader;
 }
 
-void GLShaderCompilerSubprocess::specialize_shader(ShaderSpecialization &specialization)
+void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
   static std::mutex mutex;
 
