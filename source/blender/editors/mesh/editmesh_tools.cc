@@ -1027,12 +1027,11 @@ void MESH_OT_edge_face_add(wmOperatorType *ot)
 
 static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
-  Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool clear = RNA_boolean_get(op->ptr, "clear");
 
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
