@@ -234,8 +234,9 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
 static bool material_slot_remove_poll(bContext *C)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  const Object *ob = blender::ed::object::context_object(C);
 
+  /* Removing material slots in edit mode screws things up, see bug #21822. */
   if (ob == CTX_data_edit_object(C)) {
     CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
     return false;
