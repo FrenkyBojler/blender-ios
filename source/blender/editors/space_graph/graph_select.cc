@@ -865,10 +865,6 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
 
   /* 'include_handles' from the operator specifies whether to include handles in the selection. */
   bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
-  /* Only include handles when the RNA prop is set AND they are visible. */
-  SpaceGraph *sgraph = reinterpret_cast<SpaceGraph *>(ac.sl);
-  const bool handles_are_drawn = (sgraph->flag & SIPO_NOHANDLES) == 0;
-  incl_handles &= handles_are_drawn;
 
   /* Get settings from operator. */
   WM_operator_properties_border_to_rcti(op, &rect);
