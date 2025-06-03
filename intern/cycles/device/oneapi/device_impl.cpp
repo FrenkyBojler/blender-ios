@@ -1468,6 +1468,21 @@ void OneapiDevice::architecture_information(const SyclDevice *device,
       is_optimized = is_arch_optimised; \
       break;
 
+  /* The information below about optimization status is based on the combined efforts of several
+   * software engineers from both Blender and Intel, focusing on optimizing different devices.
+   * For example, Intel Rocket Lake iGPU (RKL below) is not allowed to be used with Cycles in
+   * Blender by default, and also there was no effort to optimize it from different people,
+   * as far as I know. Thus, this device is marked as non-optimized.
+   * In another case, Intel Arc Alchemist dGPU was the object of several different
+   * optimization efforts from several people, thus it is marked as optimized.
+   * Optimization status is generally expected to be unidirectional - devices would go
+   * from "unoptimized" to "optimized" but not vice versa.
+   * The list of known architectures is expected to be expanded manually upon
+   * DPC++ upgrading, as DPC++ needs to receive an update first, in order to recognize
+   * the new platform.
+   * Intel new devices are released not that often, as well as Blender versions,
+   * so it would not be a big burden and the Intel Blender team is
+   * expected to keep this list (below) actual and up-to-date. */
   switch (arch) {
     FILL_ARCH_INFO(intel_gpu_bdw, false)
     FILL_ARCH_INFO(intel_gpu_skl, false)
@@ -1526,7 +1541,7 @@ char *OneapiDevice::device_capabilities()
         reinterpret_cast<const SyclDevice *>(&device), arch_name, is_optimised_for_arch);
     capabilities << "\t\tsycl::info::device::architecture\t\t\t";
     capabilities << arch_name << "\n";
-    capabilities << "\t\tsycl::info::device::is_blender_optimised\t\t\t";
+    capabilities << "\t\tsycl::info::device::is_cycles_optimized\t\t\t";
     capabilities << is_optimised_for_arch << "\n";
 
 #  define WRITE_ATTR(attribute_name, attribute_variable) \
