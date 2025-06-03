@@ -8,6 +8,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 
 #include "gpu_shader_private.hh"
@@ -227,6 +228,11 @@ GPUShader *GPU_shader_get_builtin_shader(eGPUBuiltinShader shader)
 
 void GPU_shader_builtin_warm_up()
 {
+  if (GPU_use_parallel_compilation() && (GPU_backend_get_type() == GPU_BACKEND_OPENGL)) {
+    /* The overhead of creating the subprocesses at this exact moment can create bubbles during the
+     * startup process. It is usually fast enough on OpenGL that we can skip it. */
+    return;
+  }
   /* Ordered by first usage in default startup screen.
    * Adding more to this list will delay the scheduling of engine shaders and increase time to
    * first pixel. */
