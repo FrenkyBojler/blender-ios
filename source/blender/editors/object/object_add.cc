@@ -3699,10 +3699,10 @@ static Object *convert_font_to_curves(Base &base, ObjectConversionInfo &info, Ba
 
 /* Currently neither Grease Pencil nor legacy curves supports per-stroke/curve fill attribute, thus
  * the #fill argument applies on all strokes that are converted. */
-static void convert_add_materials_to_grease_pencil(Main &bmain,
-                                                   ID &from_id,
-                                                   Object &gp_object,
-                                                   bool use_fill)
+static void add_grease_pencil_materials_for_conversion(Main &bmain,
+                                                       ID &from_id,
+                                                       Object &gp_object,
+                                                       const bool use_fill)
 {
   short *len_p = BKE_id_material_len_p(&from_id);
   if (!len_p || *len_p == 0) {
@@ -3716,9 +3716,8 @@ static void convert_add_materials_to_grease_pencil(Main &bmain,
     const Material *orig_material = (*materials)[i];
     const char *name = orig_material ? BKE_id_name(orig_material->id) : IFACE_("Empty Material");
 
-    int index;
     Material *gp_material = BKE_grease_pencil_object_material_new(
-        &bmain, &gp_object, name, &index);
+        &bmain, &gp_object, name, nullptr);
 
     if (!orig_material) {
       continue;
@@ -3764,7 +3763,7 @@ static Object *convert_font_to_grease_pencil(Base &base,
   curve_ob->totcol = grease_pencil->material_array_num;
 
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
-  convert_add_materials_to_grease_pencil(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* We don't need the intermediate font/curve data ID any more. */
   BKE_id_delete(info.bmain, legacy_curve_id);
@@ -3872,7 +3871,7 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   newob->totcol = grease_pencil->material_array_num;
 
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
-  convert_add_materials_to_grease_pencil(*info.bmain, legacy_curve_id->id, *newob, use_fill);
+  add_grease_pencil_materials_for_conversion(*info.bmain, legacy_curve_id->id, *newob, use_fill);
 
   /* For some reason this must be called, otherwise evaluated id_cow will still be the original
    * curves id (and that seems to only happen if "Keep Original" is enabled, and only with this
