@@ -41,7 +41,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
                                                                  memory);
 
-  /* Write the new sizes to the dst_offsets, they will be accumulated later to offsets again. */
+  /* Write the new sizes to the dst_curve_sizes, they will be accumulated later to offsets. */
   MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
   offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
