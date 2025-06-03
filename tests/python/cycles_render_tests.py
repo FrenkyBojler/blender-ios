@@ -70,8 +70,10 @@ BLOCKLIST_OPTIX_OSL_LIMITED = [
     'image_.*_osl.blend',
     # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
-    # Noise functions do not return colour with OptiX OSL
+    # Noise functions do not return color with OptiX OSL
     'osl_camera_advanced.blend',
+    # Bump mapping differs from the CPU reference
+    'osl_camera_cubemap_auto_derivatives.blend',
     # These tests fail due to the issue described in #138185
     'osl_camera_advanced_manual_dof.blend',
     'osl_camera_offset_in_volume.blend',
@@ -94,8 +96,6 @@ BLOCKLIST_OPTIX_OSL_ALL = BLOCKLIST_OPTIX_OSL_LIMITED + [
     'image_mapping_udim_packed.blend',
     # Error during rendering. Need to investigate why.
     'points_volume.blend',
-    # Bump mapping differs from the CPU reference
-    'osl_camera_cubemap_auto_derivatives.blend',
 ]
 
 
