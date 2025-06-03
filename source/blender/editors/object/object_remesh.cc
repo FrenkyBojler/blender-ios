@@ -17,7 +17,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.hh"
-#include "BLI_noise.hh"
+#include "BLI_rand.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -202,9 +202,10 @@ static int calc_estimated_remesh_vert_count(const Mesh &mesh, const double voxel
 
   constexpr int samples = 10000;
   const int seed = faces.size();
+  RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
 
   for (const int i : IndexRange(samples)) {
-    const int face = int(noise::hash_to_float(seed, i) * (faces.size() - 1));
+    const int face = rng.get_int32(faces.size());
     total_sampled_area += bke::mesh::face_area_calc(positions, corner_verts.slice(faces[face]));
     total_axis_alignment_score += math::reduce_max(math::abs(face_normals[face]));
   }
