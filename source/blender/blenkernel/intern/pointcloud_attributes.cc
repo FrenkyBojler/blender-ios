@@ -244,13 +244,15 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
         return false;
       }
     }
+    const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name);
     const bool removed = storage.remove(name);
-    if (removed) {
-      if (const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name)) {
-        (*fn)(owner);
-      }
+    if (!removed) {
+      return false;
     }
-    return removed;
+    if (fn) {
+      (*fn)(owner);
+    }
+    return true;
   };
   fn.add = [](void *owner,
               const StringRef name,
