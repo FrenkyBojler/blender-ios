@@ -155,8 +155,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const VArraySpan<int8_t> src_handle_types_left = src_curves.handle_types_left();
   const VArraySpan<int8_t> src_handle_types_right = src_curves.handle_types_right();
 
-  Array<int> old_by_new_map(dst_curves.points_num());
-  MutableSpan<float3> dst_handle_positions_left = dst_curves.handle_positions_left_for_write();
+    MutableSpan<float3> dst_handle_positions_left = dst_curves.handle_positions_left_for_write();
   MutableSpan<float3> dst_control_point_positions = dst_curves.positions_for_write();
   MutableSpan<float3> dst_handle_positions_right = dst_curves.handle_positions_right_for_write();
   MutableSpan<int8_t> dst_handle_types_left = dst_curves.handle_types_left_for_write();
@@ -196,6 +195,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                      src_handle_types_right,
                                      dst_handle_types_right);
   }
+
+  Array<int> old_by_new_map(dst_curves.points_num());
   unselected_curves.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
