@@ -11,6 +11,7 @@
 #include "NOD_partial_eval.hh"
 #include "NOD_value_elem_eval.hh"
 
+#include "BKE_anim_data.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_context.hh"
 #include "BKE_library.hh"
@@ -21,6 +22,7 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_type_conversions.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_euler.hh"
 #include "BLI_set.hh"
@@ -358,6 +360,71 @@ void foreach_element_on_inverse_eval_path(
 }
 
 using RNAValueVariant = std::variant<float, int, bool>;
+static bool set_rna_property(bContext &C,
+                             ID &id,
+                             const StringRefNull rna_path,
+                             const RNAValueVariant &value_variant);
+
+enum class SetDriverSourceResult {
+  NoDriver,
+  UnsupportedDriver,
+  Success,
+};
+
+[[nodiscard]] static SetDriverSourceResult set_driver_source_if_available(
+    bContext &C,
+    ID &id,
+    const StringRefNull rna_path,
+    const std::optional<int> index,
+    const RNAValueVariant &value_variant)
+{
+  AnimData *adt = BKE_animdata_from_id(&id);
+  if (!adt) {
+    return SetDriverSourceResult::NoDriver;
+  }
+  LISTBASE_FOREACH (FCurve *, driver, &adt->drivers) {
+    if (driver->rna_path != rna_path) {
+      continue;
+    }
+    if (index.has_value() && driver->array_index != *index) {
+      continue;
+    }
+    if (!driver->driver) {
+      continue;
+    }
+    const eDriver_Types driver_type = eDriver_Types(driver->driver->type);
+    switch (driver_type) {
+      case DRIVER_TYPE_AVERAGE:
+      case DRIVER_TYPE_SUM:
+      case DRIVER_TYPE_MIN:
+      case DRIVER_TYPE_MAX: {
+        const int variable_count = BLI_listbase_count(&driver->driver->variables);
+        if (variable_count != 1) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        DriverVar &driver_var = *static_cast<DriverVar *>(driver->driver->variables.first);
+        if (driver_var.type != DVAR_TYPE_SINGLE_PROP) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        if (driver_var.num_targets != 1) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        const DriverTarget &driver_target = driver_var.targets[0];
+        if (!driver_target.id) {
+          return SetDriverSourceResult::UnsupportedDriver;
+        }
+        if (set_rna_property(C, *driver_target.id, driver_target.rna_path, value_variant)) {
+          return SetDriverSourceResult::Success;
+        }
+        return SetDriverSourceResult::UnsupportedDriver;
+      }
+      default: {
+        return SetDriverSourceResult::UnsupportedDriver;
+      }
+    }
+  }
+  return SetDriverSourceResult::NoDriver;
+}
 
 static bool set_rna_property(bContext &C,
                              ID &id,
@@ -373,6 +440,24 @@ static bool set_rna_property(bContext &C,
   PropertyRNA *prop;
   int index;
   if (!RNA_path_resolve_property_full(&id_ptr, rna_path.c_str(), &value_ptr, &prop, &index)) {
+    return false;
+  }
+
+  const std::optional<std::string> rna_path_without_index = RNA_path_from_ID_to_property(
+      &value_ptr, prop);
+  if (!rna_path_without_index) {
+    return false;
+  }
+  std::optional<int> index_opt;
+  if (index >= 0) {
+    index_opt = index;
+  }
+  const SetDriverSourceResult set_driver_source_result = set_driver_source_if_available(
+      C, id, *rna_path_without_index, index_opt, value_variant);
+  if (set_driver_source_result == SetDriverSourceResult::Success) {
+    return true;
+  }
+  if (set_driver_source_result != SetDriverSourceResult::NoDriver) {
     return false;
   }
 
