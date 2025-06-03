@@ -20,7 +20,7 @@ enum class FitMethod {
 };
 
 /**
- * Fit the selected curves to bézier curves.
+ * Fit the selected curves to Bézier curves.
  *
  * \param src_curves: The input curves.
  * \param curve_selection: A selection of curves to fit. The selected curves will be replaced by
