@@ -5614,6 +5614,10 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
       }
     }
 
+    if (ts->uv_flag & UV_SYNC_SELECTION) {
+      uvedit_select_prepare_sync_select(scene, bm);
+    }
+
     bool changed = false;
 
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
@@ -5642,7 +5646,13 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_SYNC_SELECTION) {
-        BM_mesh_select_flush(bm);
+        if (bm->uv_sync_select_valid) {
+          BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
+          BM_mesh_uvselect_flush_to_v3d(bm);
+        }
+        else {
+          BM_mesh_select_flush(bm);
+        }
       }
       else {
         uvedit_select_flush(scene, bm);
@@ -5731,6 +5741,10 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
       }
     }
 
+    if (ts->uv_flag & UV_SYNC_SELECTION) {
+      uvedit_select_prepare_sync_select(scene, bm);
+    }
+
     bool changed = false;
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
     float ob_m3[3][3];
@@ -5759,7 +5773,13 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_SYNC_SELECTION) {
-        BM_mesh_select_flush(bm);
+        if (bm->uv_sync_select_valid) {
+          BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
+          BM_mesh_uvselect_flush_to_v3d(bm);
+        }
+        else {
+          BM_mesh_select_flush(bm);
+        }
       }
       else {
         uvedit_select_flush(scene, bm);
@@ -5840,6 +5860,10 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       }
     }
 
+    if (ts->uv_flag & UV_SYNC_SELECTION) {
+      uvedit_select_prepare_sync_select(scene, bm);
+    }
+
     bool changed = false;
     const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
@@ -5866,7 +5890,13 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     }
     if (changed) {
       if (ts->uv_flag & UV_SYNC_SELECTION) {
-        BM_mesh_select_flush(bm);
+        if (bm->uv_sync_select_valid) {
+          BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
+          BM_mesh_uvselect_flush_to_v3d(bm);
+        }
+        else {
+          BM_mesh_select_flush(bm);
+        }
       }
       else {
         uvedit_select_flush(scene, bm);
@@ -5921,6 +5951,8 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
+    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, obedit->object_to_world().ptr());
 
@@ -5946,6 +5978,11 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+
+    if (ts->uv_flag & UV_SYNC_SELECTION) {
+      uvedit_select_prepare_sync_select(scene, bm);
+    }
+
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, obedit->object_to_world().ptr());
 
@@ -5969,7 +6006,13 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
 
     if (changed) {
       if (ts->uv_flag & UV_SYNC_SELECTION) {
-        BM_mesh_select_flush(bm);
+        if (bm->uv_sync_select_valid) {
+          BM_mesh_uvselect_flush_from_loop_verts_only_select(bm);
+          BM_mesh_uvselect_flush_to_v3d(bm);
+        }
+        else {
+          BM_mesh_select_flush(bm);
+        }
       }
       else {
         uvedit_select_flush(scene, bm);
