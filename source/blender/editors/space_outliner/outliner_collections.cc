@@ -675,11 +675,6 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
       }
     }
 
-    if (collection->flag & COLLECTION_IS_MASTER) {
-      BKE_report(op->reports, RPT_ERROR, "Can't duplicate the master collection");
-      continue;
-    }
-
     if (parent == nullptr) {
       BKE_report(op->reports,
                  RPT_WARNING,
