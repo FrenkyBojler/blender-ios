@@ -184,7 +184,7 @@ void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
  *
  * \note In many cases the UV selection can be maintained and this function removed,
  * although it adds some complexity & overhead.
- * See #UVSelectContext.
+ * See #UVSyncSelectFromView3D.
  *
  * \note If this call should *not* be removed in favor of supporting UV selection,
  * this should be mentioned in a code-comment, making it clear this is not a limitation to *fix*.

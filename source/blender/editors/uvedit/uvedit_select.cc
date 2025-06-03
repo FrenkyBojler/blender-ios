@@ -1772,75 +1772,30 @@ static void bm_clear_uv_vert_selection(const Scene *scene, BMesh *bm, const BMUV
  * to abstract away details regarding which selections modes are enabled.
  * \{ */
 
-struct UVSelectContext {
-  const ToolSettings *toolsettings = nullptr;
-  BMesh *bm = nullptr;
+namespace blender::ed::uv {
 
-  blender::VectorList<BMVert *> bm_verts_select;
-  blender::VectorList<BMEdge *> bm_edges_select;
-  blender::VectorList<BMFace *> bm_faces_select;
-
-  blender::VectorList<BMVert *> bm_verts_deselect;
-  blender::VectorList<BMEdge *> bm_edges_deselect;
-  blender::VectorList<BMFace *> bm_faces_deselect;
-};
-
-UVSelectContext *ED_uvedit_select_context_create_if_needed(const ToolSettings *ts, BMesh *bm)
-
+UVSyncSelectFromView3D *UVSyncSelectFromView3D::create_if_needed(const ToolSettings &ts, BMesh &bm)
 {
-  if ((ts->uv_flag & UV_SYNC_SELECTION) == 0) {
+  if ((ts.uv_flag & UV_SYNC_SELECTION) == 0) {
     return nullptr;
   }
-  if (ED_uvedit_sync_uvselect_ignore(ts)) {
+  if (ED_uvedit_sync_uvselect_ignore(&ts)) {
     return nullptr;
   }
-  if (bm->uv_sync_select_valid == false) {
+  if (bm.uv_sync_select_valid == false) {
     return nullptr;
   }
-  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
+  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm.ldata, CD_PROP_FLOAT2);
   if (cd_loop_uv_offset == -1) {
     return nullptr;
   }
 
-  UVSelectContext *selctx = MEM_new<UVSelectContext>(__func__);
-  selctx->toolsettings = ts;
-  selctx->bm = bm;
-  return selctx;
+  return MEM_new<UVSyncSelectFromView3D>(__func__, ts, bm);
 }
 
-void ED_uvedit_select_context_vert_select_set(UVSelectContext *selctx, BMVert *v, bool select)
+void UVSyncSelectFromView3D::apply()
 {
-  if (select) {
-    selctx->bm_verts_select.append(v);
-  }
-  else {
-    selctx->bm_verts_deselect.append(v);
-  }
-}
-void ED_uvedit_select_context_edge_select_set(UVSelectContext *selctx, BMEdge *e, bool select)
-{
-  if (select) {
-    selctx->bm_edges_select.append(e);
-  }
-  else {
-    selctx->bm_edges_deselect.append(e);
-  }
-}
-void ED_uvedit_select_context_face_select_set(UVSelectContext *selctx, BMFace *f, bool select)
-{
-  if (select) {
-    selctx->bm_faces_select.append(f);
-  }
-  else {
-    selctx->bm_faces_deselect.append(f);
-  }
-}
-
-void ED_uvedit_select_context_apply(UVSelectContext *selctx)
-{
-  BMesh *bm = selctx->bm;
-
-  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm->ldata, CD_PROP_FLOAT2);
+  const int cd_loop_uv_offset = CustomData_get_active_layer(&bm.ldata, CD_PROP_FLOAT2);
   BLI_assert(cd_loop_uv_offset != -1);
 
   /* TODO(@ideasman42): select picking is slow because it does flushing too.
@@ -1849,37 +1804,94 @@ void ED_uvedit_select_context_apply(UVSelectContext *selctx)
   /* FIXME(@ideasman42): There are flushing issues with de-selecting edges.
    * Possibly there are other flushing that needs work. */
 
-  const bool shared = selctx->toolsettings->uv_sticky == SI_STICKY_LOC;
+  const bool shared = toolsettings.uv_sticky == SI_STICKY_LOC;
   const BMUVSelectPickParams uv_pick_params = {
       /*cd_loop_uv_offset*/ cd_loop_uv_offset,
       /*shared*/ shared,
   };
 
-  for (BMVert *v : selctx->bm_verts_deselect) {
-    BM_vert_uvselect_set_pick(bm, v, false, uv_pick_params);
+  for (BMVert *v : bm_verts_deselect_) {
+    BM_vert_uvselect_set_pick(&bm, v, false, uv_pick_params);
   }
-  for (BMEdge *e : selctx->bm_edges_deselect) {
-    BM_edge_uvselect_set_pick(bm, e, false, uv_pick_params);
+  for (BMEdge *e : bm_edges_deselect_) {
+    BM_edge_uvselect_set_pick(&bm, e, false, uv_pick_params);
   }
-  for (BMFace *f : selctx->bm_faces_deselect) {
-    BM_face_uvselect_set_pick(bm, f, false, uv_pick_params);
+  for (BMFace *f : bm_faces_deselect_) {
+    BM_face_uvselect_set_pick(&bm, f, false, uv_pick_params);
   }
 
-  for (BMVert *v : selctx->bm_verts_select) {
-    BM_vert_uvselect_set_pick(bm, v, true, uv_pick_params);
+  for (BMVert *v : bm_verts_select_) {
+    BM_vert_uvselect_set_pick(&bm, v, true, uv_pick_params);
   }
-  for (BMEdge *e : selctx->bm_edges_select) {
-    BM_edge_uvselect_set_pick(bm, e, true, uv_pick_params);
+  for (BMEdge *e : bm_edges_select_) {
+    BM_edge_uvselect_set_pick(&bm, e, true, uv_pick_params);
   }
-  for (BMFace *f : selctx->bm_faces_select) {
-    BM_face_uvselect_set_pick(bm, f, true, uv_pick_params);
+  for (BMFace *f : bm_faces_select_) {
+    BM_face_uvselect_set_pick(&bm, f, true, uv_pick_params);
   }
 }
 
-void ED_uvedit_select_context_free(UVSelectContext *selctx)
+/* Select. */
+
+void UVSyncSelectFromView3D::vert_select_enable(BMVert *v)
 {
-  MEM_delete(selctx);
+  bm_verts_select_.append(v);
 }
+void UVSyncSelectFromView3D::edge_select_enable(BMEdge *f)
+{
+  bm_edges_select_.append(f);
+}
+void UVSyncSelectFromView3D::face_select_enable(BMFace *f)
+{
+  bm_faces_select_.append(f);
+}
+
+/* De-Select. */
+
+void UVSyncSelectFromView3D::vert_select_disable(BMVert *v)
+{
+  bm_verts_deselect_.append(v);
+}
+void UVSyncSelectFromView3D::edge_select_disable(BMEdge *f)
+{
+  bm_edges_deselect_.append(f);
+}
+void UVSyncSelectFromView3D::face_select_disable(BMFace *f)
+{
+  bm_faces_deselect_.append(f);
+}
+
+/* Select set. */
+
+void UVSyncSelectFromView3D::vert_select_set(BMVert *v, bool value)
+{
+  if (value) {
+    bm_verts_select_.append(v);
+  }
+  else {
+    bm_verts_deselect_.append(v);
+  }
+}
+void UVSyncSelectFromView3D::edge_select_set(BMEdge *f, bool value)
+{
+  if (value) {
+    bm_edges_select_.append(f);
+  }
+  else {
+    bm_edges_deselect_.append(f);
+  }
+}
+void UVSyncSelectFromView3D::face_select_set(BMFace *f, bool value)
+{
+  if (value) {
+    bm_faces_select_.append(f);
+  }
+  else {
+    bm_faces_deselect_.append(f);
+  }
+}
+
+}  // namespace blender::ed::uv
 
 /** \} */
 

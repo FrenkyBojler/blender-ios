@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_function_ref.hh"
+#include "BLI_vector_list.hh"
 
 #include "BKE_customdata.hh"
 
@@ -28,7 +29,6 @@ struct Object;
 struct Scene;
 struct SpaceImage;
 struct ToolSettings;
-struct UVSelectContext;
 struct View2D;
 struct ViewLayer;
 struct bContext;
@@ -85,6 +85,49 @@ void ED_object_assign_active_image(Main *bmain, Object *ob, int mat_nr, Image *i
 bool ED_uvedit_test(Object *obedit);
 
 /* `uvedit_select.cc` */
+
+namespace blender::ed::uv {
+
+class UVSyncSelectFromView3D : NonCopyable {
+
+  const ToolSettings &toolsettings;
+  BMesh &bm;
+
+  blender::VectorList<BMVert *> bm_verts_select_;
+  blender::VectorList<BMEdge *> bm_edges_select_;
+  blender::VectorList<BMFace *> bm_faces_select_;
+
+  blender::VectorList<BMVert *> bm_verts_deselect_;
+  blender::VectorList<BMEdge *> bm_edges_deselect_;
+  blender::VectorList<BMFace *> bm_faces_deselect_;
+
+ public:
+  UVSyncSelectFromView3D(const ToolSettings &ts, BMesh &bm) : toolsettings(ts), bm(bm) {}
+  UVSyncSelectFromView3D(const UVSyncSelectFromView3D &) = delete;
+
+  static UVSyncSelectFromView3D *create_if_needed(const ToolSettings &ts, BMesh &bm);
+  void apply();
+
+  /* Select. */
+
+  void vert_select_enable(BMVert *v);
+  void edge_select_enable(BMEdge *f);
+  void face_select_enable(BMFace *f);
+
+  /* De-Select. */
+
+  void vert_select_disable(BMVert *v);
+  void edge_select_disable(BMEdge *f);
+  void face_select_disable(BMFace *f);
+
+  /* Select set. */
+
+  void vert_select_set(BMVert *v, bool value);
+  void edge_select_set(BMEdge *f, bool value);
+  void face_select_set(BMFace *f, bool value);
+};
+
+}  // namespace blender::ed::uv
 
 bool ED_uvedit_sync_uvselect_ignore(const ToolSettings *ts);
 bool ED_uvedit_sync_uvselect_is_valid_or_ignore(const ToolSettings *ts, const BMesh *bm);
@@ -254,21 +297,6 @@ void uvedit_edge_select_set_noflush(const Scene *scene,
 void ED_uvedit_selectmode_clean(const Scene *scene, Object *obedit);
 void ED_uvedit_selectmode_clean_multi(bContext *C);
 void ED_uvedit_sticky_selectmode_update(bContext *C);
-
-/* -------------------------------------------------------------------- */
-/** \name UV Select Abstraction API
- * \{ */
-
-UVSelectContext *ED_uvedit_select_context_create_if_needed(const ToolSettings *ts, BMesh *bm);
-
-void ED_uvedit_select_context_vert_select_set(UVSelectContext *selctx, BMVert *v, bool select);
-void ED_uvedit_select_context_edge_select_set(UVSelectContext *selctx, BMEdge *e, bool select);
-void ED_uvedit_select_context_face_select_set(UVSelectContext *selctx, BMFace *f, bool select);
-
-void ED_uvedit_select_context_apply(UVSelectContext *selctx);
-void ED_uvedit_select_context_free(UVSelectContext *selctx);
-
-/** \} */
 
 /**
  * \brief UV Select Mode Flush
