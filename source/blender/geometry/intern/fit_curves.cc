@@ -35,7 +35,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   const VArray<bool> src_cyclic = src_curves.cyclic();
 
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
-BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
 
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
@@ -154,7 +154,7 @@ BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_
   const VArraySpan<int8_t> src_handle_types_left = src_curves.handle_types_left();
   const VArraySpan<int8_t> src_handle_types_right = src_curves.handle_types_right();
 
-    MutableSpan<float3> dst_handle_positions_left = dst_curves.handle_positions_left_for_write();
+  MutableSpan<float3> dst_handle_positions_left = dst_curves.handle_positions_left_for_write();
   MutableSpan<float3> dst_control_point_positions = dst_curves.positions_for_write();
   MutableSpan<float3> dst_handle_positions_right = dst_curves.handle_positions_right_for_write();
   MutableSpan<int8_t> dst_handle_types_left = dst_curves.handle_types_left_for_write();
@@ -239,7 +239,7 @@ BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_
     const Span<int> original_indices = original_indices_per_curve[pos];
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
-        old_by_new[i] = original_indices[i] + src_points.start();
+        old_by_new[i] = src_points[original_indices[i]];
       }
     });
   });
