@@ -1673,7 +1673,7 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
 
 static void paint_init_data(Paint &paint)
 {
-  const UnifiedPaintSettings& default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
   paint.unified_paint_settings.size = default_ups.size;
   paint.unified_paint_settings.input_samples = default_ups.input_samples;
   paint.unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
