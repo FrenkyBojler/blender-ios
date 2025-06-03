@@ -148,37 +148,33 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       dst_curve_sizes);
   dst_curves.resize(dst_curves.offsets().last(), dst_curves.curves_num());
 
-  const Span<float3> src_handle_positions_left = src_curves.handle_positions_left();
-  const Span<float3> src_control_point_positions = src_curves.positions();
-  const Span<float3> src_handle_positions_right = src_curves.handle_positions_right();
+  const Span<float3> src_handles_left = src_curves.handle_positions_left();
+  const Span<float3> src_handles_right = src_curves.handle_positions_right();
   const VArraySpan<int8_t> src_handle_types_left = src_curves.handle_types_left();
   const VArraySpan<int8_t> src_handle_types_right = src_curves.handle_types_right();
 
-  MutableSpan<float3> dst_handle_positions_left = dst_curves.handle_positions_left_for_write();
-  MutableSpan<float3> dst_control_point_positions = dst_curves.positions_for_write();
-  MutableSpan<float3> dst_handle_positions_right = dst_curves.handle_positions_right_for_write();
+  MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
+  MutableSpan<float3> dst_handles_left = dst_curves.handle_positions_left_for_write();
+  MutableSpan<float3> dst_handles_right = dst_curves.handle_positions_right_for_write();
   MutableSpan<int8_t> dst_handle_types_left = dst_curves.handle_types_left_for_write();
   MutableSpan<int8_t> dst_handle_types_right = dst_curves.handle_types_right_for_write();
 
   /* First handle the unselected curves. */
-  if (!src_handle_positions_left.is_empty()) {
+  if (!src_handles_left.is_empty()) {
     array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
-                                     src_handle_positions_left,
-                                     dst_handle_positions_left);
+                                     src_handles_left,
+                                     dst_handles_left);
   }
-  array_utils::copy_group_to_group(src_points_by_curve,
-                                   dst_points_by_curve,
-                                   unselected_curves,
-                                   src_control_point_positions,
-                                   dst_control_point_positions);
-  if (!src_handle_positions_right.is_empty()) {
+  array_utils::copy_group_to_group(
+      src_points_by_curve, dst_points_by_curve, unselected_curves, src_positions, dst_positions);
+  if (!src_handles_right.is_empty()) {
     array_utils::copy_group_to_group(src_points_by_curve,
                                      dst_points_by_curve,
                                      unselected_curves,
-                                     src_handle_positions_right,
-                                     dst_handle_positions_right);
+                                     src_handles_right,
+                                     dst_handles_right);
   }
   if (!src_handle_types_left.is_empty()) {
     array_utils::copy_group_to_group(src_points_by_curve,
@@ -207,34 +203,32 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
-    MutableSpan<float3> control_points = dst_control_point_positions.slice(dst_points);
+    MutableSpan<float3> positions = dst_positions.slice(dst_points);
     MutableSpan<int> old_by_new = old_by_new_map.as_mutable_span().slice(dst_points);
 
     if (dst_curve_types[curve_i] == CURVE_TYPE_POLY) {
       BLI_assert(src_points.size() == dst_points.size());
-      control_points.copy_from(src_positions.slice(src_points));
+      positions.copy_from(src_positions.slice(src_points));
       array_utils::fill_index_range<int>(old_by_new, src_points.start());
       return;
     }
 
     const Span<float3> cubic_array = cubic_array_per_curve[pos];
     BLI_assert(dst_points.size() * 3 == cubic_array.size());
-    MutableSpan<float3> left_handles = dst_handle_positions_left.slice(dst_points);
-    MutableSpan<float3> right_handles = dst_handle_positions_right.slice(dst_points);
+    MutableSpan<float3> left_handles = dst_handles_left.slice(dst_points);
+    MutableSpan<float3> right_handles = dst_handles_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
         const int index = i * 3;
+        positions[i] = cubic_array[index + 1];
         left_handles[i] = cubic_array[index];
-        control_points[i] = cubic_array[index + 1];
         right_handles[i] = cubic_array[index + 2];
       }
     });
 
     const Span<int> corner_indices = corner_indices_per_curve[pos];
-    MutableSpan<int8_t> left_handle_types = dst_handle_types_left.slice(dst_points);
-    MutableSpan<int8_t> right_handle_types = dst_handle_types_right.slice(dst_points);
-    left_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
-    right_handle_types.fill_indices(corner_indices, int8_t(BEZIER_HANDLE_FREE));
+    dst_handle_types_left.slice(dst_points).fill_indices(corner_indices, BEZIER_HANDLE_FREE);
+    dst_handle_types_right.slice(dst_points).fill_indices(corner_indices, BEZIER_HANDLE_FREE);
 
     const Span<int> original_indices = original_indices_per_curve[pos];
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
