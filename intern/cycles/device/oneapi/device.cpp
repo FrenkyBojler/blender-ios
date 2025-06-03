@@ -141,7 +141,7 @@ static void device_iterator_cb(const char *id,
   (void)hwrt_support;
 #  endif
 
-  info.has_execution_optimisation = has_execution_optimisation;
+  info.has_execution_optimization = has_execution_optimisation;
 
   devices->push_back(info);
   VLOG_INFO << "Added device \"" << info.description << "\" with id \"" << info.id << "\".";

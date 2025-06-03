@@ -449,7 +449,7 @@ static PyObject *available_devices_func(PyObject * /*self*/, PyObject *args)
     PyTuple_SET_ITEM(
         device_tuple, 5, PyBool_FromLong(device.denoisers & DENOISER_OPENIMAGEDENOISE));
     PyTuple_SET_ITEM(device_tuple, 6, PyBool_FromLong(device.denoisers & DENOISER_OPTIX));
-    PyTuple_SET_ITEM(device_tuple, 7, PyBool_FromLong(device.has_execution_optimisation));
+    PyTuple_SET_ITEM(device_tuple, 7, PyBool_FromLong(device.has_execution_optimization));
     PyTuple_SET_ITEM(ret, i, device_tuple);
   }
 
