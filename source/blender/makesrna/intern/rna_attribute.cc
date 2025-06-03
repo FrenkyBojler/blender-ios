@@ -516,7 +516,7 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
       }
       case bke::AttrStorageType::Single: {
         /* TODO: Access to single values is unimplemented for now. */
-iter->valid = false;
+        iter->valid = false;
         break;
       }
     }
