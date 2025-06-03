@@ -107,13 +107,12 @@ TreeTraversalAction outliner_collect_selected_collections(TreeElement *te, void 
   return TRAVERSE_CONTINUE;
 }
 
-TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te, void *customdata)
+static TreeTraversalAction outliner_collect_selected_parent_collections(TreeElement *te, void *customdata)
 {
   IDsSelectedData *data = static_cast<IDsSelectedData *>(customdata);
-  TreeStoreElem *tselem = TREESTORE(te);
 
   if (outliner_is_collection_tree_element(te)) {
-    if (te->store_elem->type == TSE_SCENE_COLLECTION_BASE) {
+    if (ELEM(te->store_elem->type, TSE_SCENE_COLLECTION_BASE, TSE_VIEW_COLLECTION_BASE)) {
       return TRAVERSE_CONTINUE;
     }
     BLI_addtail(&data->selected_array, BLI_genericNodeN(te));
@@ -678,7 +677,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
 
     if (collection->flag & COLLECTION_IS_MASTER) {
       BKE_report(op->reports, RPT_ERROR, "Can't duplicate the master collection");
-      return OPERATOR_CANCELLED;
+      continue;
     }
 
     if (parent == nullptr) {
@@ -693,6 +692,8 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
     BKE_collection_duplicate(
         bmain, parent, child, collection, dupli_flags, LIB_ID_DUPLICATE_IS_ROOT_ID);
   }
+
+  BLI_freelistN(&selected_collections.selected_array);
   DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, CTX_data_scene(C));
   ED_outliner_select_sync_from_object_tag(C);
