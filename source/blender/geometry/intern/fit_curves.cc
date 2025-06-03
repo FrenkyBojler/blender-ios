@@ -46,6 +46,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
+  /* NOTE: These spans own the data from the curve fit C-API. */
   Array<MutableSpan<float3>> cubic_array_per_curve(curve_selection.size());
   Array<MutableSpan<int>> corner_indices_per_curve(curve_selection.size());
   Array<MutableSpan<int>> original_indices_per_curve(curve_selection.size());
