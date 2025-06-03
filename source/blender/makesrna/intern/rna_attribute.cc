@@ -515,8 +515,8 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
         break;
       }
       case bke::AttrStorageType::Single: {
-        const auto &data = std::get<bke::Attribute::SingleData>(attr->data_for_write());
-        rna_iterator_array_begin(iter, ptr, data.value, 0, domain_size, false, nullptr);
+        /* TODO: Access to single values is unimplemented for now. */
+iter->valid = false;
         break;
       }
     }
