@@ -111,7 +111,7 @@ static TreeTraversalAction outliner_collect_selected_parent_collections(TreeElem
                                                                         void *customdata)
 {
   IDsSelectedData *data = static_cast<IDsSelectedData *>(customdata);
-
+  /* If collection is already selected, skip iterating their children. */
   if (outliner_is_collection_tree_element(te)) {
     if (ELEM(te->store_elem->type, TSE_SCENE_COLLECTION_BASE, TSE_VIEW_COLLECTION_BASE)) {
       return TRAVERSE_CONTINUE;
