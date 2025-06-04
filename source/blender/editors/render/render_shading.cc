@@ -253,7 +253,8 @@ static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (ob == CTX_data_edit_object(C)) {
+  /* Removing material slots in edit mode screws things up, see bug #21822. */
+  if (BKE_object_is_in_editmode(ob)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to remove material slot in edit mode");
     return OPERATOR_CANCELLED;
   }
