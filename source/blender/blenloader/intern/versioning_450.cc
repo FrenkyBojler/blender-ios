@@ -82,14 +82,11 @@ static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
       return;
     }
 
-    const int knots_modes_layer_index = CustomData_get_named_layer_index(
-        &curves.curve_data, CD_PROP_INT8, "knots_mode");
-    if (knots_modes_layer_index == -1) {
-      return;
-    }
-
     int8_t *knot_modes = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
         &curves.curve_data, CD_PROP_INT8, "knots_mode", curves.curve_num));
+    if (knot_modes == nullptr) {
+      return;
+    }
 
     for (const int curve : curves.curves_range()) {
       int8_t &knot_mode = knot_modes[curve];
@@ -100,22 +97,19 @@ static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
     curves.nurbs_custom_knots_update_size();
   };
 
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (ob->type == OB_CURVES) {
-      Curves *curves_id = static_cast<Curves *>(ob->data);
-      blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      fix_curves(curves);
-    }
-    else if (ob->type == OB_GREASE_PENCIL) {
-      GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
-      for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
-        if (base->type != GP_DRAWING) {
-          continue;
-        }
-        blender::bke::greasepencil::Drawing &drawing =
-            reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-        fix_curves(drawing.strokes_for_write());
+  LISTBASE_FOREACH (Curves *, curves_id, &bmain->hair_curves) {
+    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    fix_curves(curves);
+  }
+
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+      if (base->type != GP_DRAWING) {
+        continue;
       }
+      blender::bke::greasepencil::Drawing &drawing =
+          reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+      fix_curves(drawing.strokes_for_write());
     }
   }
 }
@@ -5001,10 +4995,6 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
-    fix_curve_nurbs_knot_mode_custom(bmain);
-  }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -6238,6 +6228,10 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+    fix_curve_nurbs_knot_mode_custom(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
