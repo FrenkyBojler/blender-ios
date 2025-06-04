@@ -355,6 +355,17 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "region.out", BM_FACE, FACE_NEW);
 }
 
+/* Given an edge, and vert that are part of a chain, finds the vert at the far end of the chain. */
+static BMVert *bmo_find_end_of_chain(BMEdge *e, BMVert *v)
+{
+  while (BM_vert_is_edge_pair(v)) {
+    e = BM_DISK_EDGE_NEXT(e, v);
+    v = BM_edge_other_vert(e, v);
+  }
+
+  return v;
+}
+
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
   // BMOperator fop;
@@ -441,6 +452,18 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
     BMLoop *l_a, *l_b;
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+
+      /* When VERT_MARK is set on a vert in the middle of a chain, the flag needs to be moved to
+       * the end of the chain, because when all the chain edges between the two faces get cleaned
+       * up as part of `BM_faces_join_pair`, the flagged vert would otherwise be lost.
+       * Find the end of the chain, where the dissolve test should be done, move the flag there. */
+      if (BMO_vert_flag_test(bm, e->v1, VERT_MARK) && BM_vert_is_edge_pair(e->v1)) {
+        BMO_vert_flag_enable(bm, bmo_find_end_of_chain(e, e->v1), VERT_MARK);
+      }
+      if (BMO_vert_flag_test(bm, e->v1, VERT_MARK) && BM_vert_is_edge_pair(e->v2)) {
+        BMO_vert_flag_enable(bm, bmo_find_end_of_chain(e, e->v2), VERT_MARK);
+      }
+
       BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
     }
   }
