@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 ## Update and uncomment this in the release branch
-# set(BLENDER_VERSION 3.1)
+set(BLENDER_VERSION 4.5)
 
 function(download_source dep)
   set(TARGET_FILE ${${dep}_FILE})
@@ -160,7 +160,7 @@ download_source(VCINTRINSICS)
 download_source(OPENCLHEADERS)
 download_source(ICDLOADER)
 download_source(MP11)
-download_source(SPIRV_HEADERS)
+download_source(DPCPP_SPIRV_HEADERS)
 download_source(UNIFIED_RUNTIME)
 download_source(UNIFIED_MEMORY_FRAMEWORK)
 download_source(IGC)
@@ -181,6 +181,10 @@ download_source(SHADERC_SPIRV_HEADERS)
 download_source(SHADERC_GLSLANG)
 download_source(VULKAN_HEADERS)
 download_source(VULKAN_LOADER)
+download_source(VULKAN_UTILITY_LIBRARIES)
+download_source(SPIRV_HEADERS)
+download_source(SPIRV_REFLECT)
+download_source(VULKAN_MEMORY_ALLOCATOR)
 download_source(PYBIND11)
 download_source(DEFLATE)
 download_source(HIPRT)
