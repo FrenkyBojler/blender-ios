@@ -72,15 +72,20 @@ class GLBackend : public GPUBackend {
          * compilation, and fix the scheduling bubbles (#139775). */
         desired_thread_count = 4;
       }
-      if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-        /* AMD has very good compilation time and doesn't block the main thread.
+      if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OPENSOURCE)) {
+        /* Mesa has very good compilation time and doesn't block the main thread.
          * The memory footprint of the worker context is rather small (<10MB).
          * Shader compilation gets much slower as the number of threads increases. */
         desired_thread_count = 8;
       }
+      if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+        /* AMD proprietary driver's context have huge memory footprint (~45MB).
+         * There is also not much gain from parallelization. */
+        desired_thread_count = 1;
+      }
       if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
         /* TODO(fclem): Profile. */
-        desired_thread_count = 8;
+        desired_thread_count = 16;
       }
       /* Allow thread count override option to limit the number of workers.
        * Also avoid using too much resources on low end systems. */
