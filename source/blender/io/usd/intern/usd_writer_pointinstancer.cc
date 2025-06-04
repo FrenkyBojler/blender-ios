@@ -2,11 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "usd_writer_pointinstancer.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
 #include "usd_writer_curves.hh"
 #include "usd_writer_mesh.hh"
-#include "usd_writer_pointinstancer.hh"
 #include "usd_writer_points.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
