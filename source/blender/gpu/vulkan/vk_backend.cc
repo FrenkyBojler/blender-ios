@@ -171,13 +171,13 @@ bool VKBackend::is_supported()
    * Disable implicit layers and only allow layers that we trust.
    *
    * Render doc layer is hidden behind a debug flag. There are malicious layers that impersonate
-   * renderdoc and can crash when loaded. See #139543
+   * RenderDoc and can crash when loaded. See #139543
    */
   std::stringstream allowed_layers;
   allowed_layers << "VK_LAYER_KHRONOS_*";
   allowed_layers << ",VK_LAYER_AMD_*";
   allowed_layers << ",VK_LAYER_INTEL_*";
-  allowed_layers << ",VK_LAYER_NVIDIA_*";
+  allowed_layers << ",VK_LAYER_NV_*";
   allowed_layers << ",VK_LAYER_MESA_*";
   if (bool(G.debug & G_DEBUG_GPU)) {
     allowed_layers << ",VK_LAYER_LUNARG_*";
