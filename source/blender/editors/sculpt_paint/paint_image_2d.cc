@@ -404,7 +404,7 @@ static ImBuf *brush_painter_imbuf_new(
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
     paint_brush_color_get(paint,
                           brush,
-                          *painter->initial_hsv_jitter,
+                          painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           distance,
@@ -496,7 +496,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
     paint_brush_color_get(paint,
                           brush,
-                          *painter->initial_hsv_jitter,
+                          painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           0.0f,
