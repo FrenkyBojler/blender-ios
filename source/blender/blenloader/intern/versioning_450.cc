@@ -30,7 +30,7 @@
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_curves.hh"
-#include "BKE_curves_utils.hh"
+#include "BKE_customdata.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_main.hh"
@@ -71,17 +71,33 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
   }
 }
 
+/**
+ * Fixes situation when `CurvesGeometry` instance has curves with `NURBS_KNOT_MODE_CUSTOM`, but has
+ * no custom knots.
+ */
 static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
 {
   auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
-    blender::IndexMaskMemory memory;
-    if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
-      blender::bke::curves::nurbs::update_custom_knot_modes(
-          curves.nurbs_custom_knot_curves(memory),
-          NURBS_KNOT_MODE_NORMAL,
-          NURBS_KNOT_MODE_NORMAL,
-          curves);
+    if (curves.custom_knots != nullptr) {
+      return;
     }
+
+    const int knots_modes_layer_index = CustomData_get_named_layer_index(
+        &curves.curve_data, CD_PROP_INT8, "knots_mode");
+    if (knots_modes_layer_index == -1) {
+      return;
+    }
+
+    int8_t *knot_modes = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
+        &curves.curve_data, CD_PROP_INT8, "knots_mode", curves.curve_num));
+
+    for (const int curve : curves.curves_range()) {
+      int8_t &knot_mode = knot_modes[curve];
+      if (knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+        knot_mode = NURBS_KNOT_MODE_NORMAL;
+      }
+    }
+    curves.nurbs_custom_knots_update_size();
   };
 
   LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
