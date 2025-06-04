@@ -455,6 +455,13 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
       if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
         /* Ensured in the previous loop. */
         BLI_assert(BM_vert_is_edge_pair(v));
+
+        /* Merge the header flags on the two edges that will be merged. */
+        BMEdge *e_pair[2];
+        BM_vert_edge_pair(v, &e_pair[0], &e_pair[1]);
+        BM_elem_flag_merge(e_pair[0], e_pair[1]);
+
+        /* dissolve the vert. */
         BM_vert_collapse_edge(bm, v->e, v, true, true, true);
       }
     }
