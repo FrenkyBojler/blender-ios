@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-19 11:37+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:12+0000\n"
 "Last-Translator: Zdeněk Doležal <Griperis@outlook.cz>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -9565,6 +9565,10 @@ msgid "Cycles light settings"
 msgstr "Cycles nastavení světla"
 
 
+msgid "Normalize"
+msgstr "Normalizovat"
+
+
 msgctxt "Light"
 msgid "Type"
 msgstr "Typ"
@@ -13581,12 +13585,48 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Mirror"
-msgstr "Zrcadlit"
+msgid "Special Characters"
+msgstr "Speciální Znaky"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
 
 
 msgid "Snap"
 msgstr "Přichytit"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
+
+
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
@@ -13613,10 +13653,6 @@ msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
 
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
 msgid "Light"
 msgstr "Světlo"
 
@@ -13641,14 +13677,6 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
@@ -13665,10 +13693,6 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
-msgid "Names"
-msgstr "Názvy"
-
-
 msgid "Mesh Select Mode"
 msgstr "Síťový mód výběru"
 
@@ -13679,26 +13703,6 @@ msgstr "Data Ploch"
 
 msgid "Merge"
 msgstr "Sloučit"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -16293,10 +16297,6 @@ msgid "Use Mask"
 msgstr "Maximalní X limitace"
 
 
-msgid "Normalize"
-msgstr "Normalizovat"
-
-
 msgid "Use Red Channel"
 msgstr "Změnit pruh"
 
@@ -16387,6 +16387,10 @@ msgstr "NLA stopa je vybrána"
 
 msgid "Custom Color"
 msgstr "Vlastní Barva"
+
+
+msgid "Starting"
+msgstr "Zahájení"
 
 
 msgid "NLA Strip"
@@ -16539,10 +16543,6 @@ msgstr "Space Sigma"
 
 msgid "Aspect Correction"
 msgstr "Odznačit spojené"
-
-
-msgid "Type of aspect correction to use"
-msgstr "Typ objektu pro převod na"
 
 
 msgid "Relative Size X"
@@ -16921,6 +16921,10 @@ msgid "Flip X & Y"
 msgstr "Prohodit osy X/Y"
 
 
+msgid "Glare"
+msgstr "Skrýt skryté soubory"
+
+
 msgid "Angle Offset"
 msgstr "Odsazení úhlu"
 
@@ -17141,6 +17145,10 @@ msgid "Render Layers"
 msgstr "Vyberte renderovanou vrstvu"
 
 
+msgid "Greater"
+msgstr "Větší"
+
+
 msgid "Rotate"
 msgstr "Otočit"
 
@@ -17253,16 +17261,16 @@ msgid "Z Combine"
 msgstr "Kužel"
 
 
-msgid "Boolean Math"
-msgstr "Boolean Matematika"
-
-
 msgid "And"
 msgstr "A"
 
 
 msgid "Or"
 msgstr "Nebo"
+
+
+msgid "Boolean Math"
+msgstr "Boolean Matematika"
 
 
 msgid "Equal"
@@ -21260,10 +21268,6 @@ msgstr "Nelze uložit soubor"
 msgctxt "Operator"
 msgid "Select Control Point Row"
 msgstr "Zobrazit neoznačení řídící body"
-
-
-msgid "Greater"
-msgstr "Větší"
 
 
 msgid "Less"
@@ -27375,6 +27379,10 @@ msgid "All bones affected by active Keying Set"
 msgstr "Odstranit aktivní klíčovací sestavu"
 
 
+msgid "Parents"
+msgstr "Nadřazený"
+
+
 msgctxt "Operator"
 msgid "Select Connected"
 msgstr "Vybrat spojené"
@@ -28131,11 +28139,6 @@ msgstr "Orientace manipulátorů (Klávesová zkratka: Alt Space)"
 
 
 msgctxt "Operator"
-msgid "Change Effect Input"
-msgstr "Změnit Vstup Efektu"
-
-
-msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "Změnit Typ Efektu"
 
@@ -28148,10 +28151,6 @@ msgstr "Typ"
 msgctxt "Sequence"
 msgid "Add"
 msgstr "Přidat"
-
-
-msgid "Add effect strip type"
-msgstr "Efekt"
 
 
 msgctxt "Sequence"
@@ -28174,10 +28173,6 @@ msgid "Multiply"
 msgstr "Násobyt"
 
 
-msgid "Multiply effect strip type"
-msgstr "Odstranit označené značky"
-
-
 msgctxt "Sequence"
 msgid "Wipe"
 msgstr "Otřít"
@@ -28188,17 +28183,9 @@ msgid "Transform"
 msgstr "Transformovat"
 
 
-msgid "Transform effect strip type"
-msgstr "Odstranit označené"
-
-
 msgctxt "Sequence"
 msgid "Color"
 msgstr "Barva"
-
-
-msgid "Color effect strip type"
-msgstr "Přidat vazbu aktivní kosti"
 
 
 msgctxt "Sequence"
@@ -30222,10 +30209,6 @@ msgid "Remove"
 msgstr "Odstranit"
 
 
-msgid "Save a Collada file"
-msgstr "Uložit soubor Collada"
-
-
 msgid "Only Selected UV Map"
 msgstr "Pouze Vybraná UV Mapa"
 
@@ -30296,10 +30279,6 @@ msgstr "Použít Blender Profil"
 
 msgid "Use Object Instances"
 msgstr "Použít Instance Objektu"
-
-
-msgid "Load a Collada file"
-msgstr "Načíst soubor Collada"
 
 
 msgid "Auto Connect"
@@ -30987,6 +30966,34 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
+
+
+msgid "Shadow Settings"
+msgstr "Nastavení Stínů"
+
+
+msgid "SSAO Settings"
+msgstr "Nastavení SSAO"
+
+
+msgid "Cavity"
+msgstr "Dutina"
+
+
+msgid "Overlays"
+msgstr "Překrytí"
+
+
+msgid "Guides"
+msgstr "Vodítka"
+
+
 msgid "Motion Tracking"
 msgstr "Sledování Pohybu"
 
@@ -31011,40 +31018,12 @@ msgid "Transform Orientations"
 msgstr "Orientace transformací"
 
 
-msgid "Guides"
-msgstr "Vodítka"
-
-
 msgid "Stereoscopy"
 msgstr "Stereoskopie"
 
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
-
-
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
-msgid "Shadow Settings"
-msgstr "Nastavení Stínů"
-
-
-msgid "SSAO Settings"
-msgstr "Nastavení SSAO"
-
-
-msgid "Cavity"
-msgstr "Dutina"
-
-
-msgid "Overlays"
-msgstr "Překrytí"
 
 
 msgid "Chain Scaling"
@@ -33380,10 +33359,6 @@ msgid "Changes the size of the fonts and widgets in the interface"
 msgstr "Změní velikost textu a widgetů v uživatelském rozhraní"
 
 
-msgid "Open menu buttons and pulldowns automatically when the mouse is hovering"
-msgstr "Otevřít nabídky a rozbalovací nabídky automaticky po přetažení myší"
-
-
 msgid "Translate Interface"
 msgstr "Překlad Rozhraní"
 
@@ -35536,10 +35511,6 @@ msgid "View Type"
 msgstr "Zobrazit Typ"
 
 
-msgid "Columns"
-msgstr "Sloupce"
-
-
 msgid "Geometry Component"
 msgstr "Geometrický Komponent"
 
@@ -35696,6 +35667,10 @@ msgid "Use Local Camera"
 msgstr "Použít Místní Kameru"
 
 
+msgid "Text Info"
+msgstr "Info i Textu"
+
+
 msgid "Space UV Editor"
 msgstr "UV/obrázkový editor "
 
@@ -35758,6 +35733,10 @@ msgstr "Koncový bod U"
 
 msgid "Endpoint V"
 msgstr "Koncový bod V"
+
+
+msgid "Columns"
+msgstr "Sloupce"
 
 
 msgid "Stereo Mode"
@@ -35888,10 +35867,6 @@ msgstr "Krok animace"
 
 msgid "Sequence strip creating an image filled with a single color"
 msgstr "Přidat vazbu aktivní kosti"
-
-
-msgid "Cross Sequence"
-msgstr "Barva"
 
 
 msgid "Sequence strip creating a glow effect"
@@ -40782,10 +40757,6 @@ msgid "Look At"
 msgstr "Dívat se na"
 
 
-msgid "Text Info"
-msgstr "Info i Textu"
-
-
 msgid "Statistics"
 msgstr "Statistika"
 
@@ -41153,10 +41124,6 @@ msgstr "Ovlivnit pouze"
 
 msgid "Locations"
 msgstr "Umístění"
-
-
-msgid "Parents"
-msgstr "Nadřazený"
 
 
 msgid "Detailing"
@@ -42359,10 +42326,6 @@ msgid "No mesh data to join"
 msgstr "Prochází připojená data sítě"
 
 
-msgid "Selected meshes must have equal numbers of vertices"
-msgstr "Odstranit aktuální skript link"
-
-
 msgctxt "Light"
 msgid "LightProbe"
 msgstr "LightProbe"
@@ -43161,16 +43124,8 @@ msgid "Mask not found"
 msgstr "Maska nebyla nalezena"
 
 
-msgid "No valid inputs to swap"
-msgstr "Jméno skriptu"
-
-
 msgid "Please select two strips"
 msgstr "Odstranit označené značky"
-
-
-msgid "One of the effect inputs is unset, cannot swap"
-msgstr "Jméno skriptu"
 
 
 msgid "Save to disk (ignore outside changes)"
@@ -43738,10 +43693,6 @@ msgid "Layer:"
 msgstr "Vrstva:"
 
 
-msgid "Glare"
-msgstr "Skrýt skryté soubory"
-
-
 msgid "Use feather information from the mask"
 msgstr "Zobrazit nastaveni hran"
 
@@ -44107,8 +44058,4 @@ msgstr "Dokončené"
 
 msgid "In Progress"
 msgstr "V procesu"
-
-
-msgid "Starting"
-msgstr "Zahájení"
 
