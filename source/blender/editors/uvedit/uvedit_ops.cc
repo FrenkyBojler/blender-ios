@@ -577,7 +577,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   float pos[2], min[2], max[2];
-  bool align_auto = false;
+  const bool align_auto = (tool == UV_ALIGN_AUTO);
   INIT_MINMAX2(min, max);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -588,7 +588,6 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
     ED_uvedit_foreach_uv_multi(
         scene, objects, true, true, [&](float luv[2]) { minmax_v2v2_v2(min, max, luv); });
     tool = (max[0] - min[0] >= max[1] - min[1]) ? UV_ALIGN_Y : UV_ALIGN_X;
-    align_auto = true;
   }
 
   for (Object *obedit : objects) {
@@ -648,9 +647,7 @@ static void uv_align_draw(bContext * /*C*/, wmOperator *op)
   /* Main draw call */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
 
-  uiLayout *col;
-
-  col = &layout->column(true);
+  uiLayout *col = &layout->column(true);
   col->prop(&ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (ELEM(RNA_enum_get(op->ptr, "axis"), UV_ALIGN_X, UV_ALIGN_Y)) {
