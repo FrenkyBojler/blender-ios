@@ -559,14 +559,14 @@ static bool uvedit_uv_island_offser(Scene *scene,
                                     BMesh *bm,
                                     eUVAlignIslandAxis axis,
                                     eUVAlignIsland align,
-                                    float gap)
+                                    float offset)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   if (offsets.uv == -1) {
     return false;
   }
   UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
-  float offset[2] = {0.0, 1.0};
+  float position[2] = {0.0, 1.0};
 
   if (element_map == nullptr) {
     return false;
@@ -602,51 +602,51 @@ static bool uvedit_uv_island_offser(Scene *scene,
     for (int j = 0; j < element_map->island_total_uvs[aabbs[i]->index]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (align == RIGHT && i > 0) {
-        luv[0] += offset[0] - aabbs[i]->max[0];
-        luv[1] += offset[1] - aabbs[i]->max[1] - gap;
+        luv[0] += position[0] - aabbs[i]->max[0];
+        luv[1] += position[1] - aabbs[i]->max[1] - offset;
       }
       else if (align == CENTER && i > 0) {
         if (axis == Y) {
-          luv[0] += offset[0] - (aabbs[i]->min[0] + aabbs[i]->cent[0]);
-          luv[1] += offset[1] - aabbs[i]->max[1] - gap;
+          luv[0] += position[0] - (aabbs[i]->min[0] + aabbs[i]->cent[0]);
+          luv[1] += position[1] - aabbs[i]->max[1] - offset;
         }
         else {
-          luv[0] += offset[0] - aabbs[i]->min[0] + gap;
-          luv[1] += offset[1] - (aabbs[i]->min[1] - aabbs[i]->cent[1]);
+          luv[0] += position[0] - aabbs[i]->min[0] + offset;
+          luv[1] += position[1] - (aabbs[i]->min[1] - aabbs[i]->cent[1]);
         }
       }
       else if (align == BOTTOM && i > 0) {
-        luv[1] += offset[1] - aabbs[i]->min[1];
-        luv[0] += offset[0] - aabbs[i]->min[0] + gap;
+        luv[1] += position[1] - aabbs[i]->min[1];
+        luv[0] += position[0] - aabbs[i]->min[0] + offset;
       }
       else {
-        luv[0] += offset[0] - aabbs[i]->min[0] + gap;
+        luv[0] += position[0] - aabbs[i]->min[0] + offset;
         if (axis == Y) {
-          luv[1] += offset[1] - aabbs[i]->max[1] - gap;
+          luv[1] += position[1] - aabbs[i]->max[1] - offset;
         }
         else {
-          luv[1] -= aabbs[i]->max[1] - offset[1] + gap;
+          luv[1] -= aabbs[i]->max[1] - position[1] + offset;
         }
       }
       changed = true;
     }
     if (axis == Y) {
       if (align == RIGHT && i == 0) {
-        offset[0] = (aabbs[i]->max[0] - aabbs[i]->min[0]) + gap;
+        position[0] = (aabbs[i]->max[0] - aabbs[i]->min[0]) + offset;
       }
       else if (align == CENTER && i == 0) {
-        offset[0] = aabbs[i]->cent[0] + gap;
+        position[0] = aabbs[i]->cent[0] + offset;
       }
-      offset[1] -= aabbs[i]->max[1] - aabbs[i]->min[1] + gap;
+      position[1] -= aabbs[i]->max[1] - aabbs[i]->min[1] + offset;
     }
     else {
       if (align == BOTTOM && i == 0) {
-        offset[1] -= (aabbs[i]->max[1] - aabbs[i]->min[1]) + gap;
+        position[1] -= (aabbs[i]->max[1] - aabbs[i]->min[1]) + offset;
       }
       else if (align == CENTER && i == 0) {
-        offset[1] = aabbs[i]->cent[1] - gap;
+        position[1] = aabbs[i]->cent[1] - offset;
       }
-      offset[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + gap;
+      position[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + offset;
     }
   }
 
@@ -672,7 +672,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     align = eUVAlignIsland(RNA_enum_get(op->ptr, "align_x"));
   }
 
-  float gap = RNA_float_get(op->ptr, "gap");
+  float offset = RNA_float_get(op->ptr, "offset");
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     bool changed = false;
@@ -680,7 +680,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    changed |= uvedit_uv_island_offser(scene, obedit, em->bm, axis, align, gap);
+    changed |= uvedit_uv_island_offser(scene, obedit, em->bm, axis, align, offset);
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
@@ -714,7 +714,7 @@ static void uv_align_island_draw(bContext * /*C*/, wmOperator *op)
     col->prop(&ptr, "align_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   col->separator();
-  col->prop(&ptr, "gap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 static void UV_OT_align_island(wmOperatorType *ot)
 {
@@ -753,11 +753,11 @@ static void UV_OT_align_island(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "align_y", align_Y_items, LEFT, "Align", "Location to align islands on");
   RNA_def_enum(ot->srna, "align_x", align_X_items, TOP, "Align", "Location to align islands on");
   RNA_def_float(ot->srna,
-                "gap",
+                "offset",
                 0.05,
                 0,
                 FLT_MAX,
-                "Gap",
+                "Offset",
                 "Distance between islands and the edge of the UV Map",
                 0,
                 FLT_MAX);
