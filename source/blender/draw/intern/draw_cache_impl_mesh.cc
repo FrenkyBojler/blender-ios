@@ -537,20 +537,19 @@ static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache 
   mesh_batch_cache_add_request(cache, MBC_SURFACE | MBC_SURFACE_PER_MAT);
   DRW_batch_request(&cache.batch.surface);
 
-  Array<bool> mat_used(cache.mat_len, false);
-  const VArraySpan<int> material_indices =
-      mesh.attributes().lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0).varray;
-  threading::parallel_for(material_indices.index_range(), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
-      mat_used[std::clamp(material_indices[i], 0, cache.mat_len - 1)] = true;
+  /* If there are only a few materials at most, just request batches for everything. However, if
+   * the maximum material index is large, detect the actually used material indices first and only
+   * request those. This reduces the overhead of dealing with all these batches down the line. */
+  if (cache.mat_len < 16) {
+    for (int i = 0; i < cache.mat_len; i++) {
+      DRW_batch_request(&cache.surface_per_mat[i]);
     }
-  });
-
-  for (int i = 0; i < cache.mat_len; i++) {
-    if (!mat_used[i]) {
-      continue;
+  }
+  else {
+    const VectorSet<int> &used_material_indices = mesh.material_indices_used();
+    for (const int material_index : used_material_indices) {
+      DRW_batch_request(&cache.surface_per_mat[material_index]);
     }
-    DRW_batch_request(&cache.surface_per_mat[i]);
   }
 }
 

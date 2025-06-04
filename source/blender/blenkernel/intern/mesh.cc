@@ -1400,12 +1400,16 @@ void Mesh::bounds_set_eager(const blender::Bounds<float3> &bounds)
   this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = bounds; });
 }
 
+static bool use_material_indices_of_bmesh(const Mesh &mesh)
+{
+  return mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && mesh.runtime->edit_mesh &&
+         mesh.runtime->edit_mesh->bm;
+}
+
 std::optional<int> Mesh::material_index_max() const
 {
   this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
-    if (this->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && this->runtime->edit_mesh &&
-        this->runtime->edit_mesh->bm)
-    {
+    if (use_material_indices_of_bmesh(*this)) {
       BMesh *bm = this->runtime->edit_mesh->bm;
       if (bm->totface == 0) {
         value = std::nullopt;
@@ -1433,6 +1437,55 @@ std::optional<int> Mesh::material_index_max() const
     }
   });
   return this->runtime->max_material_index.data();
+}
+
+const blender::VectorSet<int> &Mesh::material_indices_used() const
+{
+  using namespace blender;
+  this->runtime->used_material_indices.ensure([&](VectorSet<int> &r_data) {
+    const std::optional<int> max_material_index_opt = this->material_index_max();
+    r_data.clear();
+    if (!max_material_index_opt.has_value()) {
+      return;
+    }
+    const int max_material_index = *max_material_index_opt;
+    const auto clamp_material_index = [&](const int index) {
+      return std::clamp<int>(index, 0, max_material_index);
+    };
+
+    Array<bool> used_indices(max_material_index + 1, false);
+    if (use_material_indices_of_bmesh(*this)) {
+      BMesh *bm = this->runtime->edit_mesh->bm;
+      BMFace *efa;
+      BMIter iter;
+      BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
+        used_indices[clamp_material_index(efa->mat_nr)] = true;
+      }
+    }
+    else if (bke::AttributeReader<int> material_indices =
+                 this->attributes().lookup_or_default<int>(
+                     "material_index", bke::AttrDomain::Face, 0))
+    {
+      if (material_indices.varray.is_single()) {
+        used_indices[clamp_material_index(material_indices.varray.get_internal_single())] = true;
+      }
+      else {
+        VArraySpan<int> material_indices_span = material_indices.varray;
+        threading::parallel_for(
+            material_indices_span.index_range(), 1024, [&](const IndexRange range) {
+              for (const int i : range) {
+                used_indices[clamp_material_index(material_indices_span[i])] = true;
+              }
+            });
+      }
+    }
+    for (const int i : used_indices.index_range()) {
+      if (used_indices[i]) {
+        r_data.add_new(i);
+      }
+    }
+  });
+  return this->runtime->used_material_indices.data();
 }
 
 namespace blender::bke {
