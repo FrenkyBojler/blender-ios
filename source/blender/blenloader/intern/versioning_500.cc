@@ -44,10 +44,10 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
    */
 }
 
-void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main * /*bmain*/)
+void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   // Todo(habib): proper versioning
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 1)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
