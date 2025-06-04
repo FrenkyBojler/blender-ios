@@ -77,12 +77,13 @@ ShaderModule::~ShaderModule()
  *
  * \{ */
 
-LoadedBits ShaderModule::static_shaders_load(const LoadedBits request_bits, bool block_until_ready)
+ShaderGroups ShaderModule::static_shaders_load(const ShaderGroups request_bits,
+                                               bool block_until_ready)
 {
   std::lock_guard lock(mutex_);
 
-  LoadedBits ready = LoadedBits::NONE;
-  auto request = [&](LoadedBits bit, Span<eShaderType> shader_types) {
+  ShaderGroups ready = ShaderGroups::NONE;
+  auto request = [&](ShaderGroups bit, Span<eShaderType> shader_types) {
     if (request_bits & bit) {
       bool all_loaded = true;
       for (eShaderType shader : shader_types) {

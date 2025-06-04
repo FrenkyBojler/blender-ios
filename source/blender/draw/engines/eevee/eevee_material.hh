@@ -393,11 +393,14 @@ class MaterialModule {
    */
   Material &material_get(Object *ob, bool has_motion, int mat_nr, eMaterialGeometry geometry_type);
 
-  /* Request default material and return true if they are compiled. */
-  LoadedBits default_materials_load_async(bool block_until_ready = false);
-  LoadedBits default_materials_wait_ready()
+  /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
+  ShaderGroups default_materials_load_async()
   {
-    return default_materials_load_async(true);
+    return default_materials_load(false);
+  }
+  ShaderGroups default_materials_wait_ready()
+  {
+    return default_materials_load(true);
   }
 
  private:
@@ -417,6 +420,8 @@ class MaterialModule {
   /* Push unloaded texture used by this material to the texture loading queue.
    * Return true if all textures are already loaded. */
   bool queue_texture_loading(GPUMaterial *material);
+
+  ShaderGroups default_materials_load(bool block_until_ready = false);
 };
 
 /** \} */

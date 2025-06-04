@@ -226,13 +226,13 @@ class ShaderModule {
   ~ShaderModule();
 
   /* Trigger async compilation for the given shaders groups. */
-  LoadedBits static_shaders_load_async(LoadedBits request_bits)
+  ShaderGroups static_shaders_load_async(ShaderGroups request_bits)
   {
     return static_shaders_load(request_bits, false);
   }
   /* Wait for async compilation to finish for the given shaders groups.
    * If shaders are not scheduled to async compile, this will do blocking compilation. */
-  LoadedBits static_shaders_wait_ready(LoadedBits request_bits)
+  ShaderGroups static_shaders_wait_ready(ShaderGroups request_bits)
   {
     return static_shaders_load(request_bits, true);
   }
@@ -264,7 +264,7 @@ class ShaderModule {
 
  private:
   const char *static_shader_create_info_name_get(eShaderType shader_type);
-  LoadedBits static_shaders_load(LoadedBits request_bits, bool block_until_ready);
+  ShaderGroups static_shaders_load(ShaderGroups request_bits, bool block_until_ready);
 };
 
 }  // namespace blender::eevee

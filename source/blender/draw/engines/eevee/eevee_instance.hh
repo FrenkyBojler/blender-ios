@@ -158,8 +158,8 @@ class Instance : public DrawEngine {
   /** True if overlays need to be displayed (only for viewport). */
   bool draw_overlays = false;
 
-  LoadedBits loaded = LoadedBits(0);
-  LoadedBits needed_bits = LoadedBits(0);
+  ShaderGroups loaded_shaders = ShaderGroups(0);
+  ShaderGroups needed_shaders = ShaderGroups(0);
 
   /** View-layer overrides. */
   bool use_surfaces = true;
@@ -225,9 +225,9 @@ class Instance : public DrawEngine {
   void object_sync(ObjectRef &ob_ref, Manager &manager) final;
   void end_sync() final;
 
-  bool is_loaded(LoadedBits bits) const
+  bool is_loaded(ShaderGroups groups) const
   {
-    return (loaded & bits) == bits;
+    return (loaded_shaders & groups) == groups;
   }
 
   /**

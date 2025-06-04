@@ -565,7 +565,7 @@ Material &MaterialModule::material_get(Object *ob,
   return mat;
 }
 
-LoadedBits MaterialModule::default_materials_load_async(bool block_until_ready)
+ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
 {
   bool shaders_are_ready = true;
   auto request_shader = [&](::Material *mat, eMaterialPipeline pipeline, eMaterialGeometry geom) {

@@ -57,11 +57,11 @@ enum eCubeFace : uint32_t {
 };
 
 /**
- * Bitmask representing the loaded part of the engine.
- * This allows the async loading of certain parts to kick-in as soon as the parts that depends on
- * it are loaded.
+ * Bitmask representing the shader categories.
+ * This allows the loading of certain parts of the engine to kick-in as soon as the shaders that
+ * depends on it are compiled.
  */
-enum LoadedBits : uint32_t {
+enum ShaderGroups : uint32_t {
   NONE = 0,
   DEFERRED_LIGHTING_SHADERS = 1 << 0,
   DEFERRED_CAPTURE_SHADERS = 1 << 1,
@@ -86,7 +86,7 @@ enum LoadedBits : uint32_t {
   MATERIAL_SHADERS = 1 << 20,
   VOLUME_PROBE_SHADERS = 1 << 21,
 };
-ENUM_OPERATORS(LoadedBits, VOLUME_PROBE_SHADERS)
+ENUM_OPERATORS(ShaderGroups, VOLUME_PROBE_SHADERS)
 
 /* -------------------------------------------------------------------- */
 /** \name Transform
