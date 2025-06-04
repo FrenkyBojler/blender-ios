@@ -5,3 +5,4 @@ Referenced by pull request #136452, Fix #136378: Curve custom normals incorrectl
 Referenced by commit fe52284be955ef5853ec6f1015c4825727c2aff0, Fix #136378: Curve custom normals incorrectly propagated
 Referenced by issue #138709, Selecting faces of moderate polycount mesh freezes Blender for dozens of seconds at a time
 Referenced by pull request #139841, Mesh: 5.0 changes for mask, custom normals, UV seam
+Referenced by commit 84bee96757423ffed5a364cab7087ee5a50e8063, Mesh: 5.0 changes for mask, custom normals, UV seam
