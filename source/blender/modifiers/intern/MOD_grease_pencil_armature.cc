@@ -98,18 +98,6 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Armature Modifier");
 }
 
-static ImplicitSharingPtrAndData save_shared_attribute(const bke::GAttributeReader &attribute)
-{
-  if (attribute.sharing_info && attribute.varray.is_span()) {
-    const void *data = attribute.varray.get_internal_span().data();
-    attribute.sharing_info->add_user();
-    return {ImplicitSharingPtr(attribute.sharing_info), data};
-  }
-  auto *data = new ImplicitSharedValue<GArray<>>(attribute.varray.type(), attribute.varray.size());
-  attribute.varray.materialize(data->data.data());
-  return {ImplicitSharingPtr<>(data), data->data.data()};
-}
-
 static void modify_curves(ModifierData &md,
                           const ModifierEvalContext &ctx,
                           Drawing &drawing,

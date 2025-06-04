@@ -47,11 +47,6 @@ static void init_data(ModifierData *md)
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-#if 0
-  const ArmatureModifierData *amd = (const ArmatureModifierData *)md;
-#endif
-  ArmatureModifierData *tamd = (ArmatureModifierData *)target;
-
   BKE_modifier_copydata_generic(md, target, flag);
 }
 
