@@ -133,6 +133,24 @@ struct ObjectRef {
   {
     return dupli_parent ? dupli_parent->light_linking : object->light_linking;
   }
+
+  int recalc_flags(uint64_t last_update) const
+  {
+    auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
+      int flags = 0;
+      SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
+      SET_FLAG_FROM_TEST(flags, runtime.last_update_geometry > last_update, ID_RECALC_GEOMETRY);
+      SET_FLAG_FROM_TEST(flags, runtime.last_update_shading > last_update, ID_RECALC_SHADING);
+      return flags;
+    };
+
+    int flags = get_flags(*object->runtime);
+    if (dupli_parent) {
+      flags |= get_flags(*dupli_parent->runtime);
+    }
+
+    return flags;
+  }
 };
 
 };  // namespace blender::draw
