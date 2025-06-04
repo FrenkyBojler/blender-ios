@@ -34,11 +34,6 @@ ccl_device_inline uint3 make_uint3(const uint x, const uint y, uint z)
 }
 #endif /* __KERNEL_NATIVE_VECTOR_TYPES__ */
 
-ccl_device_inline uint3 make_uint3(const uint a)
-{
-  return make_uint3(a, a, a);
-}
-
 #if defined(__KERNEL_METAL__)
 /* Metal has native packed_float3. */
 #elif defined(__KERNEL_CUDA__) || defined(__KERNEL_ONEAPI__)

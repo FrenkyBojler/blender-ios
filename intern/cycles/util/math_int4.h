@@ -39,6 +39,11 @@ ccl_device_inline int4 operator-=(int4 &a, const int4 b)
   return a = a - b;
 }
 
+ccl_device_inline int4 operator*(const int4 a, const int4 b)
+{
+  return make_int4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+
 ccl_device_inline int4 operator>>(const int4 a, const int i)
 {
 #  ifdef __KERNEL_SSE__

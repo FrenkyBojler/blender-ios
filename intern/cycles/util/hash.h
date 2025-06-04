@@ -28,38 +28,25 @@ ccl_device_forceinline float uint_to_float_incl(const uint n)
 
 /* PCG 2D, 3D and 4D hash functions,
  * from "Hash Functions for GPU Rendering" JCGT 2020
- * https://jcgt.org/published/0009/03/02/ */
+ * https://jcgt.org/published/0009/03/02/
+ *
+ * Slightly modified to only use signed integers,
+ * so that they can also be implemented in OSL. */
 
-ccl_device_inline uint2 float2_as_uint2(const float2 f)
+ccl_device_inline int2 hash_pcg2d_i(int2 v)
 {
-  return make_uint2(__float_as_uint(f.x), __float_as_uint(f.y));
-}
-
-ccl_device_inline uint3 float3_as_uint3(const float3 f)
-{
-  return make_uint3(__float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z));
-}
-
-ccl_device_inline uint4 float4_as_uint4(const float4 f)
-{
-  return make_uint4(
-      __float_as_uint(f.x), __float_as_uint(f.y), __float_as_uint(f.z), __float_as_uint(f.w));
-}
-
-ccl_device_inline uint2 hash_pcg2d(uint2 v)
-{
-  v = v * make_uint2(1664525u) + make_uint2(1013904223u);
-  v.x += v.y * 1664525u;
-  v.y += v.x * 1664525u;
+  v = v * make_int2(1664525) + make_int2(1013904223);
+  v.x += v.y * 1664525;
+  v.y += v.x * 1664525;
   v = v ^ (v >> 16);
-  v.x += v.y * 1664525u;
-  v.y += v.x * 1664525u;
-  return v;
+  v.x += v.y * 1664525;
+  v.y += v.x * 1664525;
+  return v & make_int2(0x7FFFFFFF);
 }
 
-ccl_device_inline uint3 hash_pcg3d(uint3 v)
+ccl_device_inline int3 hash_pcg3d_i(int3 v)
 {
-  v = v * make_uint3(1664525u) + make_uint3(1013904223u);
+  v = v * make_int3(1664525) + make_int3(1013904223);
   v.x += v.y * v.z;
   v.y += v.z * v.x;
   v.z += v.x * v.y;
@@ -67,12 +54,12 @@ ccl_device_inline uint3 hash_pcg3d(uint3 v)
   v.x += v.y * v.z;
   v.y += v.z * v.x;
   v.z += v.x * v.y;
-  return v;
+  return v & make_int3(0x7FFFFFFF);
 }
 
-ccl_device_inline uint4 hash_pcg4d(uint4 v)
+ccl_device_inline int4 hash_pcg4d_i(int4 v)
 {
-  v = v * make_uint4(1664525u) + make_uint4(1013904223u);
+  v = v * make_int4(1664525) + make_int4(1013904223);
   v.x += v.y * v.w;
   v.y += v.z * v.x;
   v.z += v.x * v.y;
@@ -82,7 +69,7 @@ ccl_device_inline uint4 hash_pcg4d(uint4 v)
   v.y += v.z * v.x;
   v.z += v.x * v.y;
   v.w += v.y * v.z;
-  return v;
+  return v & make_int4(0x7FFFFFFF);
 }
 
 /* ***** Jenkins Lookup3 Hash Functions ***** */
@@ -245,33 +232,64 @@ ccl_device_inline float hash_float4_to_float(const float4 k)
       __float_as_uint(k.x), __float_as_uint(k.y), __float_as_uint(k.z), __float_as_uint(k.w));
 }
 
-/* Hashing float[234] into float[234] of components in the range [0, 1]. */
+/* Hashing int[234] into float[234] of components in the range [0, 1].
+ * These are based on PCG 2D/3D/4D. */
 
-ccl_device_inline float2 hash_float2_to_float2(const float2 k)
+ccl_device_inline float2 hash_int2_to_float2(const int2 k)
 {
-  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
-  uint2 uk = float2_as_uint2(k);
-  uint2 h = hash_pcg2d(uk);
+  int2 h = hash_pcg2d_i(k);
   float2 f = make_float2((float)h.x, (float)h.y);
   return f * (1.0f / (float)0xFFFFFFFFu);
 }
 
+ccl_device_inline float3 hash_int3_to_float3(const int3 k)
+{
+  int3 h = hash_pcg3d_i(k);
+  float3 f = make_float3((float)h.x, (float)h.y, (float)h.z);
+  return f * (1.0f / (float)0x7FFFFFFFu);
+}
+
+ccl_device_inline float4 hash_int4_to_float4(const int4 k)
+{
+  int4 h = hash_pcg4d_i(k);
+  float4 f = make_float4(h);
+  return f * (1.0f / (float)0x7FFFFFFFu);
+}
+
+ccl_device_inline float3 hash_int2_to_float3(const int2 k)
+{
+  return hash_int3_to_float3(make_int3(k.x, k.y, 0));
+}
+
+ccl_device_inline float3 hash_int4_to_float3(const int4 k)
+{
+  return make_float3(hash_int4_to_float4(k));
+}
+
+/* Hashing int[234] / float[234] into float[234] of components in the range [0, 1].
+ *
+ * Note that while using a more modern hash (e.g. PCG) would be faster, the current
+ * behavior has to be kept to match what is possible in OSL (OSL lacks bit casts and unsigned
+ * integers). */
+
+ccl_device_inline float2 hash_float2_to_float2(const float2 k)
+{
+  return make_float2(hash_float2_to_float(k), hash_float3_to_float(make_float3(k.x, k.y, 1.0)));
+}
+
 ccl_device_inline float3 hash_float3_to_float3(const float3 k)
 {
-  /* Reinterpret float bits as uint, use PCG3D, return [0..1] float result. */
-  uint3 uk = float3_as_uint3(k);
-  uint3 h = hash_pcg3d(uk);
-  float3 f = make_float3((float)h.x, (float)h.y, (float)h.z);
-  return f * (1.0f / (float)0xFFFFFFFFu);
+  return make_float3(hash_float3_to_float(k),
+                     hash_float4_to_float(make_float4(k.x, k.y, k.z, 1.0)),
+                     hash_float4_to_float(make_float4(k.x, k.y, k.z, 2.0)));
 }
 
 ccl_device_inline float4 hash_float4_to_float4(const float4 k)
 {
-  /* Reinterpret float bits as uint, use PCG4D, return [0..1] float result. */
-  uint4 uk = float4_as_uint4(k);
-  uint4 h = hash_pcg4d(uk);
-  float4 f = make_float4((float)h.x, (float)h.y, (float)h.z, (float)h.w);
-  return f * (1.0f / (float)0xFFFFFFFFu);
+  return make_float4(hash_float4_to_float(k),
+                     hash_float4_to_float(make_float4(k.w, k.x, k.y, k.z)),
+                     hash_float4_to_float(make_float4(k.z, k.w, k.x, k.y)),
+                     hash_float4_to_float(make_float4(k.y, k.z, k.w, k.x)));
 }
 
 /* Hashing float or float[234] into float3 of components in range [0, 1]. */
@@ -292,7 +310,9 @@ ccl_device_inline float3 hash_float2_to_float3(const float2 k)
 
 ccl_device_inline float3 hash_float4_to_float3(const float4 k)
 {
-  return make_float3(hash_float4_to_float4(k));
+  return make_float3(hash_float4_to_float(k),
+                     hash_float4_to_float(make_float4(k.z, k.x, k.w, k.y)),
+                     hash_float4_to_float(make_float4(k.w, k.z, k.y, k.x)));
 }
 
 /* Hashing float or float[234] into float2 of components in range [0, 1]. */
