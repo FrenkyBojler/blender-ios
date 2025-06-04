@@ -83,7 +83,11 @@ class GLBackend : public GPUBackend {
          * There is also not much gain from parallelization. */
         desired_thread_count = 1;
       }
-      if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+      if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY)) {
+        /* Intel windows driver offer almost no speedup with parallel compilation. */
+        desired_thread_count = 1;
+      }
+      if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
         /* TODO(fclem): Profile. */
         desired_thread_count = 16;
       }
