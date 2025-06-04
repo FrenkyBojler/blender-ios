@@ -15,7 +15,7 @@ void main()
   const float4 red = texture(input_tx, normalized_texel + float2(dispersion, 0.0f));
   const float4 green = texture_load(input_tx, texel);
   const float4 blue = texture(input_tx, normalized_texel - float2(dispersion, 0.0f));
-  const float alpha = (red.a + green.a + blue.a) / 3.0;
+  const float alpha = (red.a + green.a + blue.a) / 3.0f;
 
   imageStore(output_img, texel, float4(red.r, green.g, blue.b, alpha));
 }
