@@ -319,7 +319,8 @@ static void render_frame(RenderEngine *engine,
     motion_blur_enabled = (draw_ctx->view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0;
   }
 
-  const int motion_steps_count = max_ii(1, scene->eevee.motion_blur_steps) * 2 + 1;
+  const int motion_steps_count = max_ii(1, scene->grease_pencil_settings.motion_blur_steps) * 2 +
+                                 1;
   const int total_step_count = ceil_to_multiple_u(scene->grease_pencil_settings.aa_samples,
                                                   motion_steps_count);
   const int aa_per_step = total_step_count / motion_steps_count;
