@@ -39,6 +39,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_main_namemap.hh"
 #include "BKE_node.hh"
 #include "BKE_packedFile.hh"
@@ -578,6 +579,7 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
 
   BKE_libblock_relink_multiple(
       &bmain, ids_to_remap.as_span(), ID_REMAP_TYPE_REMAP, id_remapper, 0);
+  BKE_main_ensure_invariants(bmain);
 }
 
 void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
