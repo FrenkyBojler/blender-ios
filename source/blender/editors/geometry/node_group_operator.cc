@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -238,6 +239,10 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   LISTBASE_FOREACH (const KeyBlock *, kb, &key.block) {
+    if (kb == key.refkey) {
+      /* The basis key will just recieve values from the mesh positions. */
+      continue;
+    }
     const std::string attribute_name = fmt::format("shape_key:{}", kb->name);
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
     attributes.add<float3>(attribute_name,
@@ -247,7 +252,7 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
 }
 
 /* Copy shape key attributes back to the key data-block. */
-static void store_shape_keys(const Mesh &mesh, Key &key)
+static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
@@ -258,7 +263,14 @@ static void store_shape_keys(const Mesh &mesh, Key &key)
     }
     MEM_freeN(kb->data);
     kb->data = MEM_malloc_arrayN(attr.size(), sizeof(float3), __func__);
+    kb->totelem = attr.size();
     attr.materialize({static_cast<float3 *>(kb->data), attr.size()});
+  }
+  if (KeyBlock *kb = key.refkey) {
+    const Span<float3> positions = mesh.vert_positions();
+    kb->data = MEM_malloc_arrayN(positions.size(), sizeof(float3), __func__);
+    kb->totelem = positions.size();
+    array_utils::copy(positions, MutableSpan(static_cast<float3 *>(kb->data), positions.size()));
   }
 }
 
@@ -396,7 +408,7 @@ static void store_result_geometry(const bContext &C,
 
       if (Key *key = mesh.key) {
         /* Copy the evaluated shape key attributes back to the key data-block. */
-        store_shape_keys(*new_mesh, *key);
+        store_attributes_to_shape_keys(*new_mesh, *key);
       }
 
       if (object.mode == OB_MODE_SCULPT) {
