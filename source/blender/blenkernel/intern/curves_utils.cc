@@ -237,7 +237,7 @@ void gather_custom_knots(const bke::CurvesGeometry &src,
                                      dst.nurbs_custom_knots_for_write());
 }
 
-void update_custom_knot_modes(const IndexMask mask,
+void update_custom_knot_modes(const IndexMask &mask,
                               const KnotsMode mode_for_regular,
                               const KnotsMode mode_for_cyclic,
                               bke::CurvesGeometry &curves)
