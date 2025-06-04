@@ -33,6 +33,7 @@ using blender::Vector;
 #define EDGE_MARK 1
 #define EDGE_TAG 2
 #define EDGE_ISGC 8
+#define EDGE_CHAIN 16
 
 #define VERT_MARK 1
 #define VERT_MARK_PAIR 4
@@ -301,7 +302,6 @@ static float bmo_vert_calc_edge_angle_blended(const BMVert *v)
   return angle;
 }
 
-
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
   // BMOperator fop;
@@ -355,12 +355,22 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  /* tag all verts/edges connected to faces */
-  /* Any element tagged with xxx_ISGC is an edge or vert of a face that borders an edge to be
-   * dissolved, and it could end up being cleaned up after a face merge has made it irrelevant. */
+  /* Tag certain geometry around the selected edges, for later processing. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
+
+    /* Connected edge chains have endpoints with edge pairs. The existing behavior was to dissolve
+     * the verts, both in the middle, and at the ends, of any selected edges in chains. Mark these
+     * kind of edges, so we know to skip the angle threshold test later. */
+    if (BM_vert_is_edge_pair(e->v1) || BM_vert_is_edge_pair(e->v2)) {
+      BMO_edge_flag_enable(bm, e, EDGE_CHAIN);
+    }
+
     BMFace *f_pair[2];
     if (BM_edge_face_pair(e, &f_pair[0], &f_pair[1])) {
+      /* Tag all the edges and verts of the two faces on either side of this edge.
+       * This edge is going to be dissolved, and after that happens, some of those elements of the
+       * surrounding faces might end up as loose geometry, depending on how the dissolve affected
+       * geometry near them. Tag them xxxx_ISGC, to be checked later, and cleaned up if loose. */
       uint j;
       for (j = 0; j < 2; j++) {
         BMLoop *l_first, *l_iter;
@@ -411,6 +421,22 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
         /* At an angle threshold of 180, dissolve everything, skip the math of the angle test. */
         if (dissolve_all) {
+          /* VERT_MARK remains enabled. */
+          continue;
+        }
+
+        /* Verts in edge chains ignore the angle test.  This maintains the previous behavior, where
+         * such verts were not subject to the angle threshold.
+         *
+         * When edge chains are selected for dissolve, all edge-pair verts at *both* ends of each
+         * selected edge will be dissolved, combining the selected edges into their neighbors.
+         *
+         * Note that when only *part* of a chain is selected, this *will* alter unselected edges,
+         * because selected edges will merge *into their unselected neighbors*. This too, has been
+         * maintained, for consistency with the previous (but possibly unintentional) behavior. */
+        if (BMO_edge_flag_test(bm, e_pair[0], EDGE_CHAIN) ||
+            BMO_edge_flag_test(bm, e_pair[1], EDGE_CHAIN))
+        {
           /* VERT_MARK remains enabled. */
           continue;
         }
