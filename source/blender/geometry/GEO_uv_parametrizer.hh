@@ -4,11 +4,14 @@
 
 #pragma once
 
-#include "GEO_uv_pack.hh"
 #include <cstdint>
 
 namespace slim {
 struct MatrixTransfer;
+}
+
+namespace blender::geometry {
+struct UVPackIsland_Params;
 }
 
 /** \file
