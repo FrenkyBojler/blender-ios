@@ -415,6 +415,15 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   blender::Map<MenuType *, const char *> menu_display_name_map;
   const uiStyle *style = UI_style_get_dpi();
 
+  const bContextStore *old_context_store = CTX_store_get(C);
+  BLI_SCOPED_DEFER([&]() { CTX_store_set(C, old_context_store); });
+  bContextStore context_store;
+  if (old_context_store) {
+    context_store = *old_context_store;
+  }
+  context_store.entries.append({"is_menu_search", true});
+  CTX_store_set(C, &context_store);
+
   /* Convert into non-ui structure. */
   MenuSearch_Data *data = MEM_new<MenuSearch_Data>(__func__);
   ResourceScope &scope = data->scope;
@@ -710,7 +719,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             bool drawstr_is_empty = false;
             if (drawstr_sep != nullptr) {
               BLI_assert(str_buf.size() == 0);
-              /* Detect empty string, fallback to menu name. */
+              /* Detect empty string, fall back to menu name. */
               const char *drawstr = but->drawstr.c_str();
               int drawstr_len = drawstr_sep - but->drawstr.c_str();
               if (UNLIKELY(drawstr_len == 0)) {

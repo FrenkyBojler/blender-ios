@@ -437,7 +437,7 @@ static char convert_keyboard_event_to_ascii(const SDL_KeyboardEvent &sdl_sub_evt
 
 /**
  * Events don't always have valid windows,
- * but GHOST needs a window _always_. fallback to the GL window.
+ * but GHOST needs a window _always_. Fall back to the GL window.
  */
 static SDL_Window *SDL_GetWindowFromID_fallback(Uint32 id)
 {
@@ -605,7 +605,14 @@ void GHOST_SystemSDL::processEvent(SDL_Event *sdl_event)
       GHOST_WindowSDL *window = findGhostWindow(
           SDL_GetWindowFromID_fallback(sdl_sub_evt.windowID));
       assert(window != nullptr);
-      g_event = new GHOST_EventWheel(event_ms, window, sdl_sub_evt.y);
+      if (sdl_sub_evt.x != 0) {
+        g_event = new GHOST_EventWheel(
+            event_ms, window, GHOST_kEventWheelAxisHorizontal, sdl_sub_evt.x);
+      }
+      else if (sdl_sub_evt.y != 0) {
+        g_event = new GHOST_EventWheel(
+            event_ms, window, GHOST_kEventWheelAxisVertical, sdl_sub_evt.y);
+      }
       break;
     }
     case SDL_KEYDOWN:

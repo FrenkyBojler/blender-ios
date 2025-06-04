@@ -177,7 +177,7 @@ static void load_tex_task_cb_ex(void *__restrict userdata,
   const float radius = data->radius;
 
   bool convert_to_linear = false;
-  ColorSpace *colorspace = nullptr;
+  const ColorSpace *colorspace = nullptr;
 
   const int thread_id = BLI_task_parallel_thread_id(tls);
 
@@ -1412,22 +1412,23 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   Scene &scene = *pcontext.scene;
   UnifiedPaintSettings &ups = *pcontext.ups;
   ViewContext &vc = pcontext.vc;
-  SculptCursorGeometryInfo gi;
+  CursorGeometryInfo gi;
 
   const float2 mval_fl = {
       float(pcontext.mval.x - pcontext.region->winrct.xmin),
       float(pcontext.mval.y - pcontext.region->winrct.ymin),
   };
 
-  /* Ensure that the PBVH is generated before we call #SCULPT_cursor_geometry_info_update because
+  /* Ensure that the PBVH is generated before we call #cursor_geometry_info_update because
    * the PBVH is needed to do a ray-cast to find the active vertex. */
   bke::object::pbvh_ensure(*pcontext.depsgraph, *pcontext.vc.obact);
 
   /* This updates the active vertex, which is needed for most of the Sculpt/Vertex Colors tools to
    * work correctly */
+  vert_random_access_ensure(*vc.obact);
   pcontext.prev_active_vert_index = ss.active_vert_index();
   if (!ups.stroke_active) {
-    pcontext.is_cursor_over_mesh = SCULPT_cursor_geometry_info_update(
+    pcontext.is_cursor_over_mesh = cursor_geometry_info_update(
         C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
     pcontext.location = gi.location;
     pcontext.normal = gi.normal;
@@ -1454,7 +1455,7 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 {
   if (pcontext.win->grabcursor != 0 || pcontext.win->modalcursor != 0) {
     /* Don't set the cursor while it's grabbed, since this will show the cursor when interacting
-     * with the UI (dragging a number button for e.g.), see: #102792.
+     * with the UI (dragging a number button for example), see: #102792.
      * And don't overwrite a modal cursor, allowing modal operators to set a cursor temporarily. */
     return;
   }
@@ -1677,13 +1678,8 @@ static void paint_draw_3D_view_inactive_brush_cursor(PaintCursorContext &pcontex
 
 static void paint_cursor_update_object_space_radius(PaintCursorContext &pcontext)
 {
-  if (!BKE_brush_use_locked_size(pcontext.scene, pcontext.brush)) {
-    pcontext.radius = paint_calc_object_space_radius(
-        pcontext.vc, pcontext.location, BKE_brush_size_get(pcontext.scene, pcontext.brush));
-  }
-  else {
-    pcontext.radius = BKE_brush_unprojected_radius_get(pcontext.scene, pcontext.brush);
-  }
+  pcontext.radius = object_space_radius_get(
+      pcontext.vc, *pcontext.scene, *pcontext.brush, pcontext.location);
 }
 
 static void paint_cursor_drawing_setup_cursor_space(const PaintCursorContext &pcontext)
@@ -1807,7 +1803,7 @@ static void paint_cursor_draw_3d_view_brush_cursor_inactive(PaintCursorContext &
   Object &active_object = *pcontext.vc.obact;
   paint_cursor_update_object_space_radius(pcontext);
 
-  SCULPT_vertex_random_access_ensure(active_object);
+  vert_random_access_ensure(active_object);
 
   /* Setup drawing. */
   wmViewport(&pcontext.region->winrct);

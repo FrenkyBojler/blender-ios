@@ -667,7 +667,7 @@ static wmOperatorStatus ndof_orbit_invoke_impl(bContext *C,
 
   if (ndof->progress != P_FINISHING) {
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
-    /* if we can't rotate, fallback to translate (locked axis views) */
+    /* if we can't rotate, fall back to translate (locked axis views) */
     const bool has_translate = ndof_has_translate(ndof, v3d, rv3d) &&
                                (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION);
     const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
@@ -710,7 +710,7 @@ void VIEW3D_OT_ndof_orbit(wmOperatorType *ot)
   ot->description = "Orbit the view using the 3D mouse";
   ot->idname = ViewOpsType_ndof_orbit.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ndof_orbit_invoke;
   ot->poll = ED_operator_view3d_active;
 
@@ -772,7 +772,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     }
   }
   else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
-    /* if we can't rotate, fallback to translate (locked axis views) */
+    /* if we can't rotate, fall back to translate (locked axis views) */
     const bool has_translate = ndof_has_translate(ndof, v3d, rv3d);
     const bool has_zoom = (ndof->tvec[2] != 0.0f) && ED_view3d_offset_lock_check(v3d, rv3d);
 
@@ -847,7 +847,7 @@ void VIEW3D_OT_ndof_orbit_zoom(wmOperatorType *ot)
   ot->description = "Orbit and zoom the view using the 3D mouse";
   ot->idname = ViewOpsType_ndof_orbit_zoom.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ndof_orbit_zoom_invoke;
   ot->poll = ED_operator_view3d_active;
 
@@ -932,7 +932,7 @@ void VIEW3D_OT_ndof_pan(wmOperatorType *ot)
   ot->description = "Pan the view with the 3D mouse";
   ot->idname = ViewOpsType_ndof_pan.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ndof_pan_invoke;
   ot->poll = ED_operator_view3d_active;
 
@@ -983,7 +983,7 @@ void VIEW3D_OT_ndof_all(wmOperatorType *ot)
   ot->description = "Pan and rotate the view with the 3D mouse";
   ot->idname = ViewOpsType_ndof_all.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = ndof_all_invoke;
   ot->poll = ED_operator_view3d_active;
 

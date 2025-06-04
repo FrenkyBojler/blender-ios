@@ -282,7 +282,7 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar)
 
         /* Get actual character value of the "remappable" keys in international keyboards,
          * if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
-         * then fallback on using the received #charactersIgnoringModifiers. */
+         * then fall back on using the received #charactersIgnoringModifiers. */
         if (uchrHandle) {
           UInt32 deadKeyState = 0;
           UniCharCount actualStrLength = 0;
@@ -1645,7 +1645,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 
           GHOST_Rect bounds, windowBounds, correctedBounds;
 
-          /* fallback to window bounds */
+          /* fall back to window bounds */
           if (window->getCursorGrabBounds(bounds) == GHOST_kFailure) {
             window->getClientBounds(bounds);
           }
@@ -1743,17 +1743,16 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
       /* Standard scroll-wheel case, if no swiping happened,
        * and no momentum (kinetic scroll) works. */
       if (!m_multiTouchScroll && momentumPhase == NSEventPhaseNone) {
-        double deltaF = event.deltaY;
-
-        if (deltaF == 0.0) {
-          deltaF = event.deltaX; /* Make blender decide if it's horizontal scroll. */
+        if (event.deltaX != 0.0) {
+          const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
         }
-        if (deltaF == 0.0) {
-          break; /* Discard trackpad delta=0 events. */
+        if (event.deltaY != 0.0) {
+          const int32_t delta = event.deltaY > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
         }
-
-        const int32_t delta = deltaF > 0.0 ? 1 : -1;
-        pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, delta));
       }
       else {
         const NSPoint mousePos = event.locationInWindow;
@@ -1868,12 +1867,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
         }
       }
 
-      /* arrow keys should not have utf8 */
+      /* Arrow keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyLeftArrow) && (keyCode <= GHOST_kKeyDownArrow)) {
         utf8_buf[0] = '\0';
       }
 
-      /* F keys should not have utf8 */
+      /* F-keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyF1) && (keyCode <= GHOST_kKeyF20)) {
         utf8_buf[0] = '\0';
       }

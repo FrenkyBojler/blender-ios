@@ -76,6 +76,13 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
       xyz_label = IFACE_("Plane");
     }
 
+    if (STREQ(item->identifier, "PROPORTIONAL_SIZE_UP") &&
+        STREQ(item_y->identifier, "PROPORTIONAL_SIZE_DOWN") &&
+        STREQ(item_z->identifier, "PROPORTIONAL_SIZE"))
+    {
+      xyz_label = IFACE_("Proportional Size");
+    }
+
     if (xyz_label) {
       int icon_mod[KM_MOD_NUM] = {0};
 #ifdef WITH_HEADLESS
@@ -84,29 +91,29 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
       int icon = UI_icon_from_keymap_item(kmi, icon_mod);
 #endif
       for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
-        uiItemL(layout, "", icon_mod[j]);
+        layout->label("", icon_mod[j]);
         const float offset = ui_event_icon_offset(icon_mod[j]);
         if (offset != 0.0f) {
-          uiItemS_ex(layout, offset);
+          layout->separator(offset);
         }
       }
-      uiItemL(layout, "", icon);
-      uiItemS_ex(layout, ui_event_icon_offset(icon));
+      layout->label("", icon);
+      layout->separator(ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
-      uiItemL(layout, "", icon);
-      uiItemS_ex(layout, ui_event_icon_offset(icon));
+      layout->label("", icon);
+      layout->separator(ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
 #endif
-      uiItemL(layout, "", icon);
-      uiItemS_ex(layout, ui_event_icon_offset(icon));
-      uiItemS_ex(layout, 0.2f);
-      uiItemL(layout, xyz_label, ICON_NONE);
-      uiItemS_ex(layout, 0.6f);
+      layout->label("", icon);
+      layout->separator(ui_event_icon_offset(icon));
+      layout->separator(0.2f);
+      layout->label(xyz_label, ICON_NONE);
+      layout->separator(0.6f);
       return 3;
     }
   }
@@ -129,23 +136,23 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
       int icon = UI_icon_from_keymap_item(kmi, icon_mod);
 #endif
       for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
-        uiItemL(layout, "", icon_mod[j]);
+        layout->label("", icon_mod[j]);
         const float offset = ui_event_icon_offset(icon_mod[j]);
         if (offset != 0.0f) {
-          uiItemS_ex(layout, offset);
+          layout->separator(offset);
         }
       }
-      uiItemL(layout, "", icon);
-      uiItemS_ex(layout, ui_event_icon_offset(icon));
+      layout->label("", icon);
+      layout->separator(ui_event_icon_offset(icon));
 
 #ifndef WITH_HEADLESS
       icon = UI_icon_from_keymap_item(kmi_y, icon_mod);
 #endif
-      uiItemL(layout, "", icon);
-      uiItemS_ex(layout, ui_event_icon_offset(icon));
-      uiItemS_ex(layout, 0.2f);
-      uiItemL(layout, ab_label, ICON_NONE);
-      uiItemS_ex(layout, 0.6f);
+      layout->label("", icon);
+      layout->separator(ui_event_icon_offset(icon));
+      layout->separator(0.2f);
+      layout->label(ab_label, ICON_NONE);
+      layout->separator(0.6f);
       return 2;
     }
   }
@@ -169,36 +176,36 @@ bool uiTemplateEventFromKeymapItem(uiLayout *layout,
 #endif
   if (icon != 0) {
     for (int j = 0; j < ARRAY_SIZE(icon_mod) && icon_mod[j]; j++) {
-      uiItemL(layout, "", icon_mod[j]);
+      layout->label("", icon_mod[j]);
       const float offset = ui_event_icon_offset(icon_mod[j]);
       if (offset != 0.0f) {
-        uiItemS_ex(layout, offset);
+        layout->separator(offset);
       }
     }
 
     /* Icon and text separately is closer together with aligned layout. */
 
-    uiItemL(layout, "", icon);
+    layout->label("", icon);
     if (icon >= ICON_MOUSE_LMB && icon <= ICON_MOUSE_MMB_SCROLL) {
       /* Negative space after narrow mice icons. */
-      uiItemS_ex(layout, -0.68f);
+      layout->separator(-0.68f);
     }
 
     const float offset = ui_event_icon_offset(icon);
     if (offset != 0.0f) {
-      uiItemS_ex(layout, offset);
+      layout->separator(offset);
     }
 
-    uiItemS_ex(layout, 0.2f);
-    uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.6f);
+    layout->separator(0.2f);
+    layout->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
+    layout->separator(0.6f);
     ok = true;
   }
   else if (text_fallback) {
     const char *event_text = WM_key_event_string(kmi->type, true);
-    uiItemL(layout, event_text, ICON_NONE);
-    uiItemL(layout, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
-    uiItemS_ex(layout, 0.6f);
+    layout->label(event_text, ICON_NONE);
+    layout->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, text.c_str()), ICON_NONE);
+    layout->separator(0.6f);
     ok = true;
   }
   return ok;

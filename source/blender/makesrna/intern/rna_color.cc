@@ -84,7 +84,7 @@ static bool seq_update_modifier_curve(Strip *strip, void *user_data)
     if (smd->type == seqModifierType_Curves) {
       CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
       if (&cmd->curve_mapping == data->curve) {
-        blender::seq::relations_invalidate_cache_preprocessed(data->scene, strip);
+        blender::seq::relations_invalidate_cache(data->scene, strip);
       }
     }
   }
@@ -495,16 +495,28 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *bmain,
 
 static int rna_ColorManagedViewSettings_view_transform_get(PointerRNA *ptr)
 {
+  const ID *id = ptr->owner_id;
+  BLI_assert(GS(id->name) == ID_SCE);
+
+  const Scene *scene = reinterpret_cast<const Scene *>(id);
+
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
 
-  return IMB_colormanagement_view_get_named_index(view->view_transform);
+  return IMB_colormanagement_view_get_named_index(scene->display_settings.display_device,
+                                                  view->view_transform);
 }
 
 static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int value)
 {
+  const ID *id = ptr->owner_id;
+  BLI_assert(GS(id->name) == ID_SCE);
+
+  const Scene *scene = reinterpret_cast<const Scene *>(id);
+
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
 
-  const char *view_name = IMB_colormanagement_view_get_indexed_name(value);
+  const char *view_name = IMB_colormanagement_view_get_indexed_name(
+      scene->display_settings.display_device, value);
   if (!view_name) {
     return;
   }
@@ -704,7 +716,6 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
         blender::seq::cache_cleanup(scene);
-        blender::seq::thumbnail_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */
