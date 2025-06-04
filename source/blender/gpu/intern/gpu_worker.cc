@@ -38,7 +38,13 @@ void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<
     {
       /* Wait until wake_up() */
       std::unique_lock<std::mutex> lock(mutex_);
-      condition_var_.wait(lock);
+      condition_var_.wait(lock, [&]() {
+        if (pending_wake_ups_ > 0) {
+          pending_wake_ups_--;
+          return true;
+        }
+        return false;
+      });
     }
     if (terminate_) {
       continue;
