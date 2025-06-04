@@ -5585,14 +5585,14 @@ void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData
 
 #ifdef WITH_INPUT_NDOF
 
-void WM_event_ndof_sync_inversion(wmEvent *event) {
+void WM_event_ndof_sync_inversion(wmNDOFMotionData *ndofMotionData)
+{
   /* In object mode the 3D mouse cap movement should be a 1:1 representation of
    * objects movement in the viewport. Therefore, it's necessary to reverse all
    * translation and rotation values. */
-  if (U.ndof_navigation_mode == NDOF_OBJECT_MODE) {
-    wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
-    negate_v3(ndof->rvec);
-    negate_v3(ndof->tvec);
+  if ((U.ndof_navigation_mode == NDOF_OBJECT_MODE) && (ndofMotionData != nullptr)) {
+    negate_v3(ndofMotionData->rvec);
+    negate_v3(ndofMotionData->tvec);
   }
 }
 

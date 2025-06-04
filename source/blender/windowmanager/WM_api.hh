@@ -2016,7 +2016,7 @@ void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
 
 float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);
 void WM_event_ndof_to_quat(const wmNDOFMotionData *ndof, float q[4]);
-void WM_event_ndof_sync_inversion(wmEvent *event);
+void WM_event_ndof_sync_inversion(wmNDOFMotionData *ndofMotionData);
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

@@ -733,7 +733,8 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+  wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
+  WM_event_ndof_sync_inversion(ndof);
 
   if (U.ndof_flag & NDOF_CAMERA_PAN_ZOOM) {
     const wmOperatorStatus camera_retval = view3d_ndof_cameraview_pan_zoom(vod, ndof);
@@ -837,7 +838,6 @@ static wmOperatorStatus ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, cons
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_ndof_sync_inversion(const_cast<wmEvent*>(event));
   return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_orbit_zoom);
 }
 
