@@ -224,18 +224,17 @@ void gather_custom_knots(const bke::CurvesGeometry &src,
                          bke::CurvesGeometry &dst)
 {
   const OffsetIndices<int> src_knots_by_curve = src.nurbs_custom_knots_by_curve();
+  const int start_offset = dst.nurbs_custom_knots_by_curve()[dst_curve_offset].start();
   Array<int> dst_offsets(src_curves.size() + 1);
-  offset_indices::gather_group_sizes(src_knots_by_curve, src_curves, dst_offsets);
-  offset_indices::accumulate_counts_to_offsets(dst_offsets);
-  const int shift_by = dst.nurbs_custom_knots_by_curve()[dst_curve_offset].start();
-  for (int &offset : dst_offsets) {
-    offset += shift_by;
-  }
-  MutableSpan<float> dst_knots = dst.nurbs_custom_knots_for_write();
-  Span<float> src_knots = src.nurbs_custom_knots();
 
-  array_utils::gather_group_to_group(
-      src_knots_by_curve, dst_offsets.as_span(), src_curves, src_knots, dst_knots);
+  offset_indices::gather_selected_offsets(
+      src_knots_by_curve, src_curves, start_offset, dst_offsets);
+
+  array_utils::gather_group_to_group(src_knots_by_curve,
+                                     dst_offsets.as_span(),
+                                     src_curves,
+                                     src.nurbs_custom_knots(),
+                                     dst.nurbs_custom_knots_for_write());
 }
 
 void update_custom_knot_modes(const IndexMask mask,
