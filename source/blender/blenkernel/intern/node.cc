@@ -786,8 +786,9 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
     }
 
     if (node->type_legacy == CMP_NODE_SPLIT) {
-      const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
-      node->custom1 = int(input->default_value_typed<bNodeSocketValueFloat>()->value * 100.0f);
+      // Todo(Habib): forward compat
+      // const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
+      // node->custom1 = int(input->default_value_typed<bNodeSocketValueFloat>()->value * 100.0f);
     }
 
     if (node->type_legacy == CMP_NODE_INVERT) {

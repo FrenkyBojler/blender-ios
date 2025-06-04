@@ -4321,6 +4321,16 @@ static void do_version_flip_node_options_to_inputs(bNodeTree *node_tree, bNode *
   }
 }
 
+static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
+{
+  bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
+  float fac = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
+  printf("factor from versioning: %f\n", fac);
+
+  CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
+  // todo(habib): relative to pixel (Idea: image info node + divide by relevant dimension/axis)
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -6177,6 +6187,22 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_FLIP) {
             do_version_flip_node_options_to_inputs(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  // Todo(habib): proper versioning
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_SPLIT) {
+            printf("versioning split node...\n");
+            do_version_split_node_rotation(node_tree, node);
+            printf("\n");
           }
         }
       }
