@@ -120,13 +120,13 @@ void load_curve_knots(const KnotsMode mode,
                       const Span<float> custom_knots,
                       MutableSpan<float> knots)
 {
-  /* Some curves edit tools might not support custom knots, for example GP extrude.
-   * These tools create empty `custom_knots` with mode NURBS_KNOT_MODE_CUSTOM. */
-  if (mode == NURBS_KNOT_MODE_CUSTOM && !custom_knots.is_empty() && !curve_knots.is_empty()) {
-    bke::curves::nurbs::copy_custom_knots(order, cyclic, custom_knots.slice(curve_knots), knots);
+  if (mode == NURBS_KNOT_MODE_CUSTOM) {
+    BLI_assert(!custom_knots.is_empty());
+    BLI_assert(!curve_knots.is_empty());
+    copy_custom_knots(order, cyclic, custom_knots.slice(curve_knots), knots);
   }
   else {
-    curves::nurbs::calculate_knots(points_num, mode, order, cyclic, knots);
+    calculate_knots(points_num, mode, order, cyclic, knots);
   }
 }
 
