@@ -482,7 +482,7 @@ static bool init_structDNA(SDNA *sdna, bool do_endian_swap, const char **r_error
       }
     }
     if (!struct_indices.add(struct_info->type_index)) {
-      *r_error_message = "Invalid Struct definition in SDNA file";
+      *r_error_message = "Invalid duplicate struct type index in SDNA file";
       return false;
     }
 
