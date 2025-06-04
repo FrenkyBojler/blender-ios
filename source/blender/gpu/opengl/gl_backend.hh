@@ -13,6 +13,7 @@
 
 #include "gpu_backend.hh"
 
+#include "BLI_threads.h"
 #include "BLI_vector.hh"
 
 #ifdef WITH_RENDERDOC
