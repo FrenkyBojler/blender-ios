@@ -559,6 +559,7 @@ class UVAABBIsland {
 };
 
 static bool uvedit_uv_island_offser(Scene *scene,
+                                    SpaceImage *sima,
                                     Object *obedit,
                                     BMesh *bm,
                                     eUVAlignIslandAxis axis,
@@ -571,7 +572,7 @@ static bool uvedit_uv_island_offser(Scene *scene,
     return false;
   }
   UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
-  float position[2] = {0.0, 1.0};
+  float position[2] = {0.0, sima->tile_grid_shape[0]};
 
   if (element_map == nullptr) {
     return false;
@@ -687,7 +688,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    changed |= uvedit_uv_island_offser(scene, obedit, em->bm, axis, align, order, offset);
+    changed |= uvedit_uv_island_offser(scene, sima, obedit, em->bm, axis, align, order, offset);
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
@@ -723,7 +724,6 @@ static void uv_align_island_draw(bContext * /*C*/, wmOperator *op)
   col->separator();
   col->prop(&ptr, "order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->separator();
-
   col->prop(&ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 static void UV_OT_align_island(wmOperatorType *ot)
