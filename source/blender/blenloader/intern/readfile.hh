@@ -252,6 +252,7 @@ void blo_do_versions_420(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_430(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_440(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_450(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_500(FileData *fd, Library *lib, Main *bmain);
 
 void do_versions_after_linking_250(Main *bmain);
 void do_versions_after_linking_260(Main *bmain);
