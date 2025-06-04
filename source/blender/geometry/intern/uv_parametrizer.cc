@@ -4178,85 +4178,20 @@ void uv_parametrizer_stretch_end(ParamHandle *phandle)
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
-void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned)
+void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params)
 {
   if (handle->ncharts == 0) {
     return;
   }
 
   uv_parametrizer_scale_x(handle, 1.0f / handle->aspect_y);
-
-  Vector<PackIsland *> pack_island_vector;
-
-  UVPackIsland_Params params;
-  params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
-  params.margin = margin;
-  params.margin_method = ED_UVPACK_MARGIN_SCALED;
-
-  for (int i = 0; i < handle->ncharts; i++) {
-    PChart *chart = handle->charts[i];
-    if (ignore_pinned && chart->has_pins) {
-      continue;
-    }
-
-    geometry::PackIsland *pack_island = new geometry::PackIsland();
-    pack_island->caller_index = i;
-    pack_island->aspect_y = handle->aspect_y;
-    pack_island->pinned = chart->has_pins;
-
-    for (PFace *f = chart->faces; f; f = f->nextlink) {
-      PVert *v0 = f->edge->vert;
-      PVert *v1 = f->edge->next->vert;
-      PVert *v2 = f->edge->next->next->vert;
-      pack_island->add_triangle(v0->uv, v1->uv, v2->uv);
-    }
-
-    pack_island_vector.append(pack_island);
-  }
-
-  const float scale = pack_islands(pack_island_vector, params);
-
-  for (const int64_t i : pack_island_vector.index_range()) {
-    PackIsland *pack_island = pack_island_vector[i];
-    const float island_scale = pack_island->can_scale_(params) ? scale : 1.0f;
-    PChart *chart = handle->charts[pack_island->caller_index];
-
-    float matrix[2][2];
-    pack_island->build_transformation(island_scale, pack_island->angle, matrix);
-    for (PVert *v = chart->verts; v; v = v->nextlink) {
-      geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
-    }
-
-    pack_island_vector[i] = nullptr;
-    delete pack_island;
-  }
-
-  uv_parametrizer_scale_x(handle, handle->aspect_y);
-}
-
-void uv_parametrizer_pack(ParamHandle *handle,
-                          const float margin,
-                          const bool do_rotate,
-                          const bool ignore_pinned,
-                          const UVPackIsland_Params &params)
-{
-  if (handle->ncharts == 0) {
-    return;
-  }
-
-  uv_parametrizer_scale_x(handle, 1.0f / handle->aspect_y);
-
-  UVPackIsland_Params local_params = params;
-  local_params.rotate_method = do_rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
-  local_params.margin = margin;
-  local_params.margin_method = ED_UVPACK_MARGIN_SCALED;
 
   Vector<geometry::PackIsland> island_objects;
   island_objects.reserve(handle->ncharts);
 
   for (const int index : IndexRange(handle->ncharts)) {
     PChart *chart = handle->charts[index];
-    if (ignore_pinned && chart->has_pins) {
+    if (params.pin_method == ED_UVPACK_PIN_NONE && chart->has_pins) {
       continue;
     }
 
@@ -4282,10 +4217,10 @@ void uv_parametrizer_pack(ParamHandle *handle,
     pack_island_pointers.append(&pack_island);
   }
 
-  const float scale = pack_islands(pack_island_pointers, local_params);
+  const float scale = pack_islands(pack_island_pointers, params);
 
   for (geometry::PackIsland &pack_island : island_objects) {
-    const float island_scale = pack_island.can_scale_(local_params) ? scale : 1.0f;
+    const float island_scale = pack_island.can_scale_(params) ? scale : 1.0f;
     PChart *chart = handle->charts[pack_island.caller_index];
 
     float matrix[2][2];

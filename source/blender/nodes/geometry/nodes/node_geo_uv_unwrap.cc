@@ -113,6 +113,9 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     geometry::ParamKey vkeys[2]{uint(edges[i][0]), uint(edges[i][1])};
     geometry::uv_parametrizer_edge_set_seam(handle, vkeys);
   });
+  
+  blender::geometry::UVPackIsland_Params params;
+  params.margin = margin;
 
   /* TODO: once field input nodes are able to emit warnings (#94039), emit a
    * warning if we fail to solve an island. */
@@ -123,7 +126,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   geometry::uv_parametrizer_lscm_solve(handle, nullptr, nullptr);
   geometry::uv_parametrizer_lscm_end(handle);
   geometry::uv_parametrizer_average(handle, true, false, false);
-  geometry::uv_parametrizer_pack(handle, margin, true, true);
+  geometry::uv_parametrizer_pack(handle, params);
   geometry::uv_parametrizer_flush(handle);
   delete (handle);
 

@@ -120,8 +120,10 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
 
   blender::geometry::UVPackIsland_Params params;
   params.shape_method = shape_method;
+  params.rotate_method = rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
+  params.margin = margin;
 
-  geometry::uv_parametrizer_pack(handle, margin, rotate, true, params);
+  geometry::uv_parametrizer_pack(handle, params);
   geometry::uv_parametrizer_flush(handle);
   delete (handle);
 

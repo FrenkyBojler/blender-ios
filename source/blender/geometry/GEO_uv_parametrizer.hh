@@ -167,13 +167,7 @@ void uv_parametrizer_stretch_end(ParamHandle *handle);
 /** \name Packing
  * \{ */
 
-void uv_parametrizer_pack(ParamHandle *handle, float margin, bool do_rotate, bool ignore_pinned);
-
-void uv_parametrizer_pack(ParamHandle *handle,
-                          float margin,
-                          bool do_rotate,
-                          bool ignore_pinned,
-                          const UVPackIsland_Params &params);
+void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params);
 
 /** \} */
 
