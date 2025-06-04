@@ -8,12 +8,17 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_ID.h"
+
 #include "BLI_sys_types.h"
+
+#include "BKE_main.hh"
 
 #include "readfile.hh"
 
 #include "versioning_common.hh"
 
+// #include "CLG_log.h"
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
@@ -28,7 +33,6 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main * /*bmain*/)
 {
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
