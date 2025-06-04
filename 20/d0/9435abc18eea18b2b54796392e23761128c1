@@ -1,3 +1,4 @@
 Referenced by issue #130302, Flickering in 3D view when there are transparent or "In Front" objects
 Referenced by pull request #136507, Fix #136422: Workbench: Missing shadows for backface culled non-manifold meshes
 Referenced by commit 8b831be87fea35446338d4443d1d41d00b28cf63, Fix #136422: Workbench: Missing shadows for backface culled non-manifold meshes
+Referenced by issue #136330, Video graphics corruption when changing shading modes quickly (video memory leak perhaps?) Intel iGPU
