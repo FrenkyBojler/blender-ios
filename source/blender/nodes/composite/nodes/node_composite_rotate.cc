@@ -62,10 +62,6 @@ class RotateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(transformation);
     Interpolation interpolation = this->get_interpolation();
-    if (interpolation == Interpolation::EllipticalWeightedAverage) {
-      interpolation = Interpolation::Bilinear;
-    }
-
     output.get_realization_options().interpolation = interpolation;
   }
 
@@ -76,7 +72,7 @@ class RotateOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
-      case CMP_NODE_INTERPOLATION_EWA:
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
