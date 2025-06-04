@@ -53,7 +53,6 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   ArmatureModifierData *tamd = (ArmatureModifierData *)target;
 
   BKE_modifier_copydata_generic(md, target, flag);
-  tamd->vert_coords_prev = nullptr;
 }
 
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cddata_masks)
@@ -119,22 +118,15 @@ static void deform_verts(ModifierData *md,
                          blender::MutableSpan<blender::float3> positions)
 {
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
-
-  /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
-
   BKE_armature_deform_coords_with_mesh(amd->object,
                                        ctx->object,
                                        reinterpret_cast<float(*)[3]>(positions.data()),
                                        nullptr,
                                        positions.size(),
                                        amd->deformflag,
-                                       amd->vert_coords_prev,
+                                       nullptr,
                                        amd->defgrp_name,
                                        mesh);
-
-  /* free cache */
-  MEM_SAFE_FREE(amd->vert_coords_prev);
 }
 
 static void deform_verts_EM(ModifierData *md,
@@ -149,22 +141,15 @@ static void deform_verts_EM(ModifierData *md,
   }
 
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
-
-  /* if next modifier needs original vertices */
-  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
-
   BKE_armature_deform_coords_with_editmesh(amd->object,
                                            ctx->object,
                                            reinterpret_cast<float(*)[3]>(positions.data()),
                                            nullptr,
                                            positions.size(),
                                            amd->deformflag,
-                                           amd->vert_coords_prev,
+                                           nullptr,
                                            amd->defgrp_name,
                                            em);
-
-  /* free cache */
-  MEM_SAFE_FREE(amd->vert_coords_prev);
 }
 
 static void deform_matrices_EM(ModifierData *md,
@@ -220,7 +205,6 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   col = &layout->column(true);
   col->prop(ptr, "use_deform_preserve_volume", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "use_multi_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout->column(true, IFACE_("Bind To"));
   col->prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
@@ -232,13 +216,6 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 static void panel_register(ARegionType *region_type)
 {
   modifier_panel_register(region_type, eModifierType_Armature, panel_draw);
-}
-
-static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
-{
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
-
-  amd->vert_coords_prev = nullptr;
 }
 
 ModifierTypeInfo modifierType_Armature = {
@@ -273,6 +250,6 @@ ModifierTypeInfo modifierType_Armature = {
     /*free_runtime_data*/ nullptr,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
-    /*blend_read*/ blend_read,
+    /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
 };

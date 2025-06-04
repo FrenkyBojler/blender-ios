@@ -537,7 +537,6 @@ Object *BKE_modifiers_is_deformed_by_curve(Object *ob);
 bool BKE_modifiers_uses_multires(Object *ob);
 bool BKE_modifiers_uses_armature(Object *ob, bArmature *arm);
 bool BKE_modifiers_is_correctable_deformed(const Scene *scene, Object *ob);
-void BKE_modifier_free_temporary_data(ModifierData *md);
 
 struct CDMaskLink {
   CDMaskLink *next;

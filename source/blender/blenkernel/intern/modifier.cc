@@ -814,15 +814,6 @@ bool BKE_modifiers_is_correctable_deformed(const Scene *scene, Object *ob)
   return false;
 }
 
-void BKE_modifier_free_temporary_data(ModifierData *md)
-{
-  if (md->type == eModifierType_Armature) {
-    ArmatureModifierData *amd = (ArmatureModifierData *)md;
-
-    MEM_SAFE_FREE(amd->vert_coords_prev);
-  }
-}
-
 void BKE_modifiers_test_object(Object *ob)
 {
   /* just multires checked for now, since only multires

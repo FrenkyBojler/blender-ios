@@ -825,8 +825,6 @@ typedef struct ArmatureModifierData {
   short deformflag, multi;
   char _pad2[4];
   struct Object *object;
-  /** Stored input of previous modifier, for vertex-group blending. */
-  float (*vert_coords_prev)[3];
   char defgrp_name[/*MAX_VGROUP_NAME*/ 64];
 } ArmatureModifierData;
 

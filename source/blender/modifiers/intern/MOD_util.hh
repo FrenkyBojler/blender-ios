@@ -30,8 +30,6 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
                             float (*cos)[3],
                             float (*r_texco)[3]);
 
-void MOD_previous_vcos_store(ModifierData *md, const float (*vert_coords)[3]);
-
 void MOD_get_vgroup(const Object *ob,
                     const Mesh *mesh,
                     const char *name,

@@ -639,10 +639,6 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
 
   BLI_linklist_free((LinkNode *)datamasks, nullptr);
 
-  for (md = firstmd; md; md = md->next) {
-    BKE_modifier_free_temporary_data(md);
-  }
-
   if (mesh == nullptr) {
     if (allow_shared_mesh) {
       mesh = &mesh_input;
