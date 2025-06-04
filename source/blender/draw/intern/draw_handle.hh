@@ -22,6 +22,8 @@
 #include "BKE_duplilist.hh"
 #include "BLI_hash.h"
 #include "DEG_depsgraph_query.hh"
+#include "DNA_collection_types.h"
+#include "GPU_material.hh"
 #include "draw_shader_shared.hh"
 
 struct Object;
@@ -115,6 +117,16 @@ struct ObjectRef {
     else {
       return dupli_object->random_id * (1.0f / (float)0xFFFFFFFF);
     }
+  }
+
+  bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
+  {
+    /* If requesting instance data, check the parent particle system and object. */
+    if (attr.use_dupli) {
+      return BKE_object_dupli_find_rgba_attribute(
+          object, dupli_object, dupli_parent, attr.name, r_value);
+    }
+    return BKE_object_dupli_find_rgba_attribute(object, nullptr, nullptr, attr.name, r_value);
   }
 };
 
