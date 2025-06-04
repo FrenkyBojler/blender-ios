@@ -2,4 +2,4 @@ Referenced by pull request #138855, GPU: Replace U32/I32 combination with GPU_FE
 Referenced by commit 153abc372e914b92bb960cf17482fd1956a5ec96, GPU: Replace U32/I32 combination with GPU_FETCH_INT_TO_FLOAT in UI code
 Referenced by pull request #138873, GPU: Remove int float fetch mode combination
 Referenced by commit 91627b3d471c8aa87c321f87d57eefe718760201, GPU: Remove int float fetch mode combination
-Referenced by issue #139816, When viewport antialiasing is turned off and surface subdivision is enabled, the viewport displays wireframe fragmentation
+Referenced by issue #139816, Corrupt viewport wireframe with antialiasing off and GPU subdivision
