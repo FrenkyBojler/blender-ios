@@ -494,8 +494,6 @@ void fill_points(const OffsetIndices<int> points_by_curve,
  */
 bke::CurvesGeometry copy_only_curve_domain(const bke::CurvesGeometry &src_curves);
 
-void copy_custom_knots(const bke::CurvesGeometry &src_curves, bke::CurvesGeometry &dst_curves);
-
 IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
                            const CurveType type,

@@ -46,17 +46,6 @@ CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
   return dst_curves;
 }
 
-void copy_custom_knots(const CurvesGeometry &src_curves, CurvesGeometry &dst_curves)
-{
-  BLI_assert(dst_curves.runtime->custom_knots_sharing_info == nullptr);
-  dst_curves.custom_knots = src_curves.custom_knots;
-  dst_curves.custom_knot_num = src_curves.custom_knot_num;
-  dst_curves.runtime->custom_knots_sharing_info = src_curves.runtime->custom_knots_sharing_info;
-  if (src_curves.runtime->custom_knots_sharing_info) {
-    src_curves.runtime->custom_knots_sharing_info->add_user();
-  }
-}
-
 IndexMask indices_for_type(const VArray<int8_t> &types,
                            const std::array<int, CURVE_TYPES_NUM> &type_counts,
                            const CurveType type,

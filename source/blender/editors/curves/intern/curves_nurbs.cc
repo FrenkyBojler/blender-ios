@@ -5,6 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
+#include "BLI_array_utils.hh"
+
 #include "ED_curves.hh"
 
 #include "nurbs_intern.hh"
@@ -291,7 +293,6 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   /* Create new curves object and update point offsets. */
   const int new_points_added = repeat;
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
-  bke::curves::copy_custom_knots(curves, new_curves);
   new_curves.resize(curves.points_num() + new_points_added, curves.curves_num());
   new_curves.nurbs_knots_modes_for_write()[curve] = NURBS_KNOT_MODE_CUSTOM;
   MutableSpan<int> new_offsets = new_curves.offsets_for_write();
@@ -301,13 +302,18 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   }
   new_curves.nurbs_custom_knots_update_size();
 
-  /* Shift knots of curves stored after curve being modified. */
+  /* Copy knots of all other curves. */
+  const Span<float> src_knots_all = curves.nurbs_custom_knots();
   const OffsetIndices<int> new_knots_by_curve = new_curves.nurbs_custom_knots_by_curve();
   const IndexRange curve_knots = new_knots_by_curve[curve];
-  const IndexRange tail = IndexRange::from_begin_end(curve_knots.one_after_last(),
-                                                     new_knots_by_curve.total_size());
+  const IndexRange before_curve = IndexRange::from_begin_end(0, curve_knots.start());
+  const IndexRange after_curve = IndexRange::from_begin_end(curve_knots.one_after_last(),
+                                                            new_knots_by_curve.total_size());
   MutableSpan<float> new_knots_all = new_curves.nurbs_custom_knots_for_write();
-  new_knots_all.slice(tail).copy_from(curves.nurbs_custom_knots().take_back(tail.size()));
+  array_utils::copy<float>(src_knots_all.take_front(before_curve.size()),
+                           new_knots_all.slice(before_curve));
+  array_utils::copy<float>(src_knots_all.take_back(after_curve.size()),
+                           new_knots_all.slice(after_curve));
 
   /* Fill new knots of curve being modified. */
   insert_knot_value(
