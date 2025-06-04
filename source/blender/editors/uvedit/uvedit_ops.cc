@@ -614,12 +614,12 @@ static bool uvedit_uv_island_offser(Scene *scene,
       }
       else if (align == CENTER && i > 0) {
         if (axis == Y) {
-          luv[0] += position[0] - (aabbs[i]->min[0] + aabbs[i]->cent[0]);
+          luv[0] += position[0] - aabbs[i]->min[0] - aabbs[i]->cent[0];
           luv[1] += position[1] - aabbs[i]->max[1] - offset;
         }
         else {
           luv[0] += position[0] - aabbs[i]->min[0] + offset;
-          luv[1] += position[1] - (aabbs[i]->min[1] - aabbs[i]->cent[1]);
+          luv[1] += position[1] - aabbs[i]->min[1] - aabbs[i]->cent[1];
         }
       }
       else if (align == BOTTOM && i > 0) {
@@ -651,7 +651,7 @@ static bool uvedit_uv_island_offser(Scene *scene,
         position[1] -= (aabbs[i]->max[1] - aabbs[i]->min[1]) + offset;
       }
       else if (align == CENTER && i == 0) {
-        position[1] = aabbs[i]->cent[1] - offset;
+        position[1] -= aabbs[i]->cent[1] + offset;
       }
       position[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + offset;
     }
