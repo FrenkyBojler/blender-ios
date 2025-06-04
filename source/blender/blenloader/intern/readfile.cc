@@ -1048,14 +1048,16 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
                   if (i == j) {
                     continue;
                   }
-                  if (act->slot_array[j]->identifier == name.data()) {
+                  if (act->slot_array[j]->identifier == name) {
                     return true;
                   }
                 }
                 return false;
               },
+              "",
               '.',
-              act->slot_array[i]->identifier);
+              act->slot_array[i]->identifier,
+              sizeof(act->slot_array[i]->identifier));
         }
         break;
       }
