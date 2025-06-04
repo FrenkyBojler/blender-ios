@@ -583,11 +583,25 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  
   if (tool == UV_ALIGN_AUTO) {
     ED_uvedit_foreach_uv_multi(
         scene, objects, true, true, [&](float luv[2]) { minmax_v2v2_v2(min, max, luv); });
     tool = (max[0] - min[0] >= max[1] - min[1]) ? UV_ALIGN_Y : UV_ALIGN_X;
+  }
+
+  if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) && ELEM(loc, UV_MIN, UV_MAX)) {
+    ED_uvedit_minmax_multi(scene, objects, min, max);
+    if (loc == UV_MIN) {
+      pos[0] = min[0];
+      pos[1] = min[1];
+    }
+    else {
+      pos[0] = max[0];
+      pos[1] = max[1];
+    }
+  }
+  else {
+    ED_uvedit_center_multi(scene, objects, pos, 0);
   }
 
   for (Object *obedit : objects) {
@@ -596,21 +610,6 @@ static void uv_align(bContext *C, eUVWeldAlign tool, eUVAlignPostition loc)
 
     if (em->bm->totvertsel == 0) {
       continue;
-    }
-
-    if (!align_auto && ELEM(tool, UV_ALIGN_X, UV_ALIGN_Y) && ELEM(loc, UV_MIN, UV_MAX)) {
-      ED_uvedit_minmax_multi(scene, objects, min, max);
-      if (loc == UV_MIN) {
-        pos[0] = min[0];
-        pos[1] = min[1];
-      }
-      else {
-        pos[0] = max[0];
-        pos[1] = max[1];
-      }
-    }
-    else {
-      ED_uvedit_center_multi(scene, objects, pos, 0);
     }
 
     if (ELEM(tool, UV_ALIGN_AUTO, UV_ALIGN_X, UV_ALIGN_Y)) {
