@@ -899,11 +899,16 @@ endif()
 
 if(TEST_SRC_DIR_EXISTS)
   set(compositor_tests
-    color
-    converter
-    filter
     input
     output
+    color
+    filter
+    keying
+    mask
+    tracking
+    transform
+    texture
+    utilities    
     vector
 
     pixel_nodes
@@ -934,11 +939,16 @@ endif()
 
 if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   set(compositor_tests
-    color
-    converter
-    filter
     input
     output
+    color
+    filter
+    keying
+    mask
+    tracking
+    transform
+    texture
+    utilities    
     vector
 
     pixel_nodes
