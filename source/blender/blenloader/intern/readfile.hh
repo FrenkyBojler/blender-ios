@@ -266,6 +266,7 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain);
 void do_versions_after_linking_430(FileData *fd, Main *bmain);
 void do_versions_after_linking_440(FileData *fd, Main *bmain);
 void do_versions_after_linking_450(FileData *fd, Main *bmain);
+void do_versions_after_linking_500(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,
                              BlendfileLinkAppendContext *lapp_context,
