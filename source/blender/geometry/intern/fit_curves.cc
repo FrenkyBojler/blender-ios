@@ -208,11 +208,14 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     MutableSpan<int> old_by_new = old_by_new_map.as_mutable_span().slice(dst_points);
 
     if (dst_curve_types[curve_i] == CURVE_TYPE_POLY) {
+      /* Handle the curves for which the curve fitting has failed. */
       BLI_assert(src_points.size() == dst_points.size());
       positions.copy_from(src_positions.slice(src_points));
+      dst_handles_left.slice(dst_points).copy_from(src_positions.slice(src_points));
+      dst_handles_right.slice(dst_points).copy_from(src_positions.slice(src_points));
+      dst_handle_types_left.slice(dst_points).fill(BEZIER_HANDLE_FREE);
+      dst_handle_types_right.slice(dst_points).fill(BEZIER_HANDLE_FREE);
       array_utils::fill_index_range<int>(old_by_new, src_points.start());
-      // TODO: THIS LEAVES HANDLE TYPES AND POSITIONS UNINITIALIZED. Maybe better to change
-      // `curve_selection` to not contain failed curve indices.
       return;
     }
 
