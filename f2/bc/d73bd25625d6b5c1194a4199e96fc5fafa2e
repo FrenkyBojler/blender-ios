@@ -3,3 +3,4 @@ Referenced by issue #119441, Fix #119426: Enabling dyntopo creates duplicate mas
 Referenced by issue #119426, Regression: Activating DynTopo creates a hidden sculpt mask attribute that gets duplicated with every activation
 Referenced by issue #115298, Sculpt mask gets removed with undo involving mode change
 Referenced by pull request #139841, Mesh: 5.0 changes for mask, custom normals, UV seam
+Referenced by commit 84bee96757423ffed5a364cab7087ee5a50e8063, Mesh: 5.0 changes for mask, custom normals, UV seam
