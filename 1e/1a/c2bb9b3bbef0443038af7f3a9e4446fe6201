@@ -3,3 +3,4 @@ Referenced by commit 153abc372e914b92bb960cf17482fd1956a5ec96, GPU: Replace U32/
 Referenced by pull request #138873, GPU: Remove int float fetch mode combination
 Referenced by commit 91627b3d471c8aa87c321f87d57eefe718760201, GPU: Remove int float fetch mode combination
 Referenced by issue #139816, Corrupt viewport wireframe with antialiasing off and GPU subdivision
+Referenced by pull request #139839, Fix #139816: Corrupt wireframe with antialiasing off and subdivision
