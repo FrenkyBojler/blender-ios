@@ -314,18 +314,17 @@ static void render_frame(RenderEngine *engine,
 {
   Scene *scene = draw_ctx->scene;
 
-  bool motion_blur_enabled = (scene->r.mode & R_MBLUR) != 0;
-  if (motion_blur_enabled) {
-    motion_blur_enabled = (draw_ctx->view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0;
-  }
+  const float aa_radius = clamp_f(scene->r.gauss, 0.0f, 100.0f);
 
-  const int motion_steps_count = max_ii(1, scene->grease_pencil_settings.motion_blur_steps) * 2 +
-                                 1;
+  const bool motion_blur_enabled = (scene->r.mode & R_MBLUR) != 0 &&
+                                   (draw_ctx->view_layer->layflag & SCE_LAY_MOTION_BLUR) != 0 &&
+                                   scene->grease_pencil_settings.motion_blur_steps > 0;
+
+  const int motion_steps_count =
+      motion_blur_enabled ? max_ii(1, scene->grease_pencil_settings.motion_blur_steps) * 2 + 1 : 1;
   const int total_step_count = ceil_to_multiple_u(scene->grease_pencil_settings.aa_samples,
                                                   motion_steps_count);
   const int aa_per_step = total_step_count / motion_steps_count;
-
-  const float aa_radius = clamp_f(scene->r.gauss, 0.0f, 100.0f);
 
   const int shutter_position = scene->r.motion_blur_position;
   const float shutter_time = scene->r.motion_blur_shutter;
@@ -334,17 +333,22 @@ static void render_frame(RenderEngine *engine,
   const float initial_subframe = scene->r.subframe;
   const float frame_time = initial_frame + initial_subframe;
 
-  Array<float> time_steps(motion_steps_count, 0.0f);
+  Array<float> time_steps(motion_steps_count);
+  if (motion_blur_enabled) {
+    BKE_curvemapping_changed(&scene->r.mblur_shutter_curve, false);
 
-  BKE_curvemapping_changed(&scene->r.mblur_shutter_curve, false);
+    Array<float> cdf(CM_TABLE);
+    cdf_from_curvemapping(scene->r.mblur_shutter_curve, cdf);
+    cdf_invert(cdf, time_steps);
 
-  Array<float> cdf(CM_TABLE);
-  cdf_from_curvemapping(scene->r.mblur_shutter_curve, cdf);
-  cdf_invert(cdf, time_steps);
-
-  for (float &scene_time : time_steps) {
-    scene_time = shutter_time_to_scene_time(
-        shutter_position, shutter_time, frame_time, scene_time);
+    for (float &scene_time : time_steps) {
+      scene_time = shutter_time_to_scene_time(
+          shutter_position, shutter_time, frame_time, scene_time);
+    }
+  }
+  else {
+    BLI_assert(time_steps.size() == 1);
+    time_steps.first() = frame_time;
   }
 
   int sample_i = 0;
