@@ -43,6 +43,9 @@ void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context, std::function<
           pending_wake_ups_--;
           return true;
         }
+        if (terminate_) {
+          return true;
+        }
         return false;
       });
     }
