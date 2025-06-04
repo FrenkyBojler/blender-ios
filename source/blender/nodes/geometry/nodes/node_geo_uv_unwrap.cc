@@ -113,7 +113,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     geometry::ParamKey vkeys[2]{uint(edges[i][0]), uint(edges[i][1])};
     geometry::uv_parametrizer_edge_set_seam(handle, vkeys);
   });
-  
+
   blender::geometry::UVPackIsland_Params params;
   params.margin = margin;
 

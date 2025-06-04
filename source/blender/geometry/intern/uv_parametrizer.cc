@@ -4197,7 +4197,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
     island_objects.append(geometry::PackIsland());
     geometry::PackIsland &pack_island = island_objects.last();
-    
+
     pack_island.caller_index = index;
     pack_island.aspect_y = handle->aspect_y;
     pack_island.pinned = chart->has_pins;
@@ -4212,7 +4212,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
   Vector<geometry::PackIsland *> pack_island_pointers;
   pack_island_pointers.reserve(island_objects.size());
-  
+
   for (geometry::PackIsland &pack_island : island_objects) {
     pack_island_pointers.append(&pack_island);
   }
