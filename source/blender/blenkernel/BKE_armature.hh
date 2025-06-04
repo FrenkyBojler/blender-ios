@@ -647,7 +647,6 @@ void BKE_armature_deform_coords_with_curves(
     const Object &ob_target,
     const ListBase *defbase,
     blender::MutableSpan<blender::float3> vert_coords,
-    std::optional<blender::Span<blender::float3>> vert_coords_prev,
     std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
     blender::Span<MDeformVert> dverts,
     int deformflag,
@@ -659,7 +658,6 @@ void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
                                           float (*vert_deform_mats)[3][3],
                                           int vert_coords_len,
                                           int deformflag,
-                                          float (*vert_coords_prev)[3],
                                           const char *defgrp_name,
                                           const Mesh *me_target);
 
@@ -669,7 +667,6 @@ void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
                                               float (*vert_deform_mats)[3][3],
                                               int vert_coords_len,
                                               int deformflag,
-                                              float (*vert_coords_prev)[3],
                                               const char *defgrp_name,
                                               const BMEditMesh *em_target);
 

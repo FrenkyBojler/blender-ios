@@ -124,7 +124,6 @@ static void deform_verts(ModifierData *md,
                                        nullptr,
                                        positions.size(),
                                        amd->deformflag,
-                                       nullptr,
                                        amd->defgrp_name,
                                        mesh);
 }
@@ -147,7 +146,6 @@ static void deform_verts_EM(ModifierData *md,
                                            nullptr,
                                            positions.size(),
                                            amd->deformflag,
-                                           nullptr,
                                            amd->defgrp_name,
                                            em);
 }
@@ -167,7 +165,6 @@ static void deform_matrices_EM(ModifierData *md,
                                            reinterpret_cast<float(*)[3][3]>(matrices.data()),
                                            positions.size(),
                                            amd->deformflag,
-                                           nullptr,
                                            amd->defgrp_name,
                                            em);
 }
@@ -185,7 +182,6 @@ static void deform_matrices(ModifierData *md,
                                        reinterpret_cast<float(*)[3][3]>(matrices.data()),
                                        positions.size(),
                                        amd->deformflag,
-                                       nullptr,
                                        amd->defgrp_name,
                                        mesh);
 }

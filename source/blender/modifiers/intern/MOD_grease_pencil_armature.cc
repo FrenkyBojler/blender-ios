@@ -153,11 +153,6 @@ static void modify_curves(ModifierData &md,
     return;
   }
 
-  ImplicitSharingPtrAndData old_positions_data = save_shared_attribute(
-      curves.attributes().lookup("position", CD_PROP_FLOAT3));
-  Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
-                                curves.points_num()};
-
   std::optional<MutableSpan<float3>> deform_positions;
   std::optional<MutableSpan<float3x3>> deform_mats;
   if (edit_hints) {
@@ -173,10 +168,8 @@ static void modify_curves(ModifierData &md,
   curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
     const IndexRange points = points_by_curve[curve_i];
 
-    std::optional<Span<float3>> old_positions_for_curve;
     std::optional<MutableSpan<float3x3>> deform_mats_for_curve;
     if (deform_mats) {
-      old_positions_for_curve = old_positions.slice(points);
       deform_mats_for_curve = deform_mats->slice(points);
     }
 
@@ -188,7 +181,6 @@ static void modify_curves(ModifierData &md,
                                                &curves.vertex_group_names,
                                                deform_positions->slice(orig_points),
                                                {},
-                                               {},
                                                orig_dverts.as_span().slice(orig_points),
                                                deformflag,
                                                amd.influence.vertex_group_name);
@@ -198,7 +190,6 @@ static void modify_curves(ModifierData &md,
                                                *ctx.object,
                                                &curves.vertex_group_names,
                                                deform_positions->slice(points),
-                                               old_positions_for_curve,
                                                deform_mats_for_curve,
                                                dverts.slice(points),
                                                deformflag,
@@ -210,7 +201,6 @@ static void modify_curves(ModifierData &md,
                                              *ctx.object,
                                              &curves.vertex_group_names,
                                              positions.slice(points),
-                                             old_positions_for_curve,
                                              deform_mats_for_curve,
                                              dverts.slice(points),
                                              deformflag,

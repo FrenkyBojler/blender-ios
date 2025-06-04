@@ -234,7 +234,6 @@ struct ArmatureUserdata {
   const Mesh *me_target;
   float (*vert_coords)[3];
   float (*vert_deform_mats)[3][3];
-  float (*vert_coords_prev)[3];
 
   bool use_envelope;
   bool use_quaternion;
@@ -264,7 +263,6 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
 {
   float(*const vert_coords)[3] = data->vert_coords;
   float(*const vert_deform_mats)[3][3] = data->vert_deform_mats;
-  float(*const vert_coords_prev)[3] = data->vert_coords_prev;
   const bool use_envelope = data->use_envelope;
   const bool use_quaternion = data->use_quaternion;
   const bool use_dverts = data->use_dverts;
@@ -277,7 +275,6 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
   float *vec = nullptr, (*smat)[3] = nullptr;
   float contrib = 0.0f;
   float armature_weight = 1.0f; /* default to 1 if no overall def group */
-  float prevco_weight = 0.0f;   /* weight for optional cached vertexcos */
 
   const bool full_deform = vert_deform_mats != nullptr;
 
@@ -300,33 +297,14 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
     if (data->invert_vgroup) {
       armature_weight = 1.0f - armature_weight;
     }
-
-    /* hackish: the blending factor can be used for blending with vert_coords_prev too */
-    if (vert_coords_prev) {
-      /* This weight specifies the contribution from the coordinates at the start of this
-       * modifier evaluation, while armature_weight is normally the opposite of that. */
-      prevco_weight = 1.0f - armature_weight;
-      armature_weight = 1.0f;
-    }
   }
 
-  /* check if there's any  point in calculating for this vert */
-  if (vert_coords_prev) {
-    if (prevco_weight == 1.0f) {
-      return;
-    }
-
-    /* get the coord we work on */
-    co = vert_coords_prev[i];
+  if (armature_weight == 0.0f) {
+    return;
   }
-  else {
-    if (armature_weight == 0.0f) {
-      return;
-    }
 
-    /* get the coord we work on */
-    co = vert_coords[i];
-  }
+  /* get the coord we work on */
+  co = vert_coords[i];
 
   /* Apply the object's matrix */
   mul_m4_v3(data->premat, co);
@@ -418,14 +396,6 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata *data,
 
   /* always, check above code */
   mul_m4_v3(data->postmat, co);
-
-  /* interpolate with previous modifier position using weight group */
-  if (vert_coords_prev) {
-    float mw = 1.0f - prevco_weight;
-    vert_coords[i][0] = prevco_weight * vert_coords[i][0] + mw * co[0];
-    vert_coords[i][1] = prevco_weight * vert_coords[i][1] + mw * co[1];
-    vert_coords[i][2] = prevco_weight * vert_coords[i][2] + mw * co[2];
-  }
 }
 
 static void armature_vert_task(void *__restrict userdata,
@@ -485,7 +455,6 @@ static void armature_deform_coords_impl(const Object *ob_arm,
                                         float (*vert_deform_mats)[3][3],
                                         const int vert_coords_len,
                                         const int deformflag,
-                                        float (*vert_coords_prev)[3],
                                         const char *defgrp_name,
                                         blender::Span<MDeformVert> dverts,
                                         const Mesh *me_target,
@@ -557,7 +526,6 @@ static void armature_deform_coords_impl(const Object *ob_arm,
   data.me_target = me_target;
   data.vert_coords = vert_coords;
   data.vert_deform_mats = vert_deform_mats;
-  data.vert_coords_prev = vert_coords_prev;
   data.use_envelope = use_envelope;
   data.use_quaternion = use_quaternion;
   data.invert_vgroup = invert_vgroup;
@@ -609,7 +577,6 @@ void BKE_armature_deform_coords_with_curves(
     const Object &ob_target,
     const ListBase *defbase,
     blender::MutableSpan<blender::float3> vert_coords,
-    std::optional<blender::Span<blender::float3>> vert_coords_prev,
     std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
     blender::Span<MDeformVert> dverts,
     int deformflag,
@@ -619,12 +586,6 @@ void BKE_armature_deform_coords_with_curves(
    * used for Grease Pencil layers as well. */
   BLI_assert(dverts.size() == vert_coords.size());
 
-  blender::float3 *vert_coords_prev_data = nullptr;
-  if (vert_coords_prev.has_value()) {
-    /* const_cast for old positions for the C API, these are not actually written. */
-    vert_coords_prev_data = const_cast<blender::float3 *>(vert_coords_prev->data());
-  }
-
   armature_deform_coords_impl(
       &ob_arm,
       &ob_target,
@@ -633,7 +594,6 @@ void BKE_armature_deform_coords_with_curves(
       vert_deform_mats ? reinterpret_cast<float(*)[3][3]>(vert_deform_mats->data()) : nullptr,
       vert_coords.size(),
       deformflag,
-      reinterpret_cast<float(*)[3]>(vert_coords_prev_data),
       defgrp_name.c_str(),
       dverts,
       nullptr,
@@ -646,7 +606,6 @@ void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
                                           float (*vert_deform_mats)[3][3],
                                           int vert_coords_len,
                                           int deformflag,
-                                          float (*vert_coords_prev)[3],
                                           const char *defgrp_name,
                                           const Mesh *me_target)
 {
@@ -682,7 +641,6 @@ void BKE_armature_deform_coords_with_mesh(const Object *ob_arm,
                               vert_deform_mats,
                               vert_coords_len,
                               deformflag,
-                              vert_coords_prev,
                               defgrp_name,
                               dverts,
                               me_target,
@@ -695,7 +653,6 @@ void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
                                               float (*vert_deform_mats)[3][3],
                                               int vert_coords_len,
                                               int deformflag,
-                                              float (*vert_coords_prev)[3],
                                               const char *defgrp_name,
                                               const BMEditMesh *em_target)
 {
@@ -707,7 +664,6 @@ void BKE_armature_deform_coords_with_editmesh(const Object *ob_arm,
                               vert_deform_mats,
                               vert_coords_len,
                               deformflag,
-                              vert_coords_prev,
                               defgrp_name,
                               {},
                               nullptr,
