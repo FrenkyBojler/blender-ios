@@ -21,6 +21,7 @@
 
 #include "BKE_duplilist.hh"
 #include "BLI_hash.h"
+#include "BLI_math_matrix.hh"
 #include "DEG_depsgraph_query.hh"
 #include "DNA_collection_types.h"
 #include "GPU_material.hh"
@@ -150,6 +151,26 @@ struct ObjectRef {
     }
 
     return flags;
+  }
+
+  /* Particle data are stored in world space. If an object is instanced, the associated particle
+   * systems need to be offset appropriately. */
+  float4x4 particles_matrix() const
+  {
+    float4x4 dupli_mat = float4x4::identity();
+    if (dupli_parent && dupli_object) {
+      if (dupli_object->type & OB_DUPLICOLLECTION) {
+        Collection *collection = dupli_parent->instance_collection;
+        if (collection != nullptr) {
+          dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
+        }
+        dupli_mat = dupli_parent->object_to_world() * dupli_mat;
+      }
+      else {
+        dupli_mat = object->object_to_world() * math::invert(dupli_object->ob->object_to_world());
+      }
+    }
+    return dupli_mat;
   }
 };
 
