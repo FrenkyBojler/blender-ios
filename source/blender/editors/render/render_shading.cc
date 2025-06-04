@@ -236,13 +236,17 @@ static bool material_slot_remove_poll(bContext *C)
 {
   const Object *ob = blender::ed::object::context_object(C);
 
+  if (!object_materials_supported_poll_ex(C, ob)) {
+    return false;
+  }
+
   /* Removing material slots in edit mode screws things up, see bug #21822. */
   if (BKE_object_is_in_editmode(ob)) {
     CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
     return false;
   }
 
-  return object_materials_supported_poll_ex(C, ob);
+  return true;
 }
 
 static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator *op)
