@@ -139,6 +139,11 @@ class SocketValueVariant {
   bool is_single() const;
 
   /**
+   * The stored value is a list.
+   */
+  bool is_list() const;
+
+  /**
    * Convert the stored value into a single value. For simple value access, this is not necessary,
    * because #get` does the conversion implicitly. However, it is necessary if one wants to use
    * #get_single_ptr. Context-dependent fields or grids will just result in a fallback value.

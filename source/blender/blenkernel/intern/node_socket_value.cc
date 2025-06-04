@@ -310,6 +310,11 @@ bool SocketValueVariant::is_single() const
   return kind_ == Kind::Single;
 }
 
+bool SocketValueVariant::is_list() const
+{
+  return kind_ == Kind::List;
+}
+
 void SocketValueVariant::convert_to_single()
 {
   switch (kind_) {
