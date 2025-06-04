@@ -559,13 +559,13 @@ class UVAABBIsland {
 };
 
 static float2 uvedit_uv_island_offser(Scene *scene,
-                                    Object *obedit,
-                                    BMesh *bm,
-                                    eUVAlignIslandAxis axis,
-                                    eUVAlignIsland align,
-                                    eUVAlignIslandOrder order,
-                                    float offset,
-                                    float2 position)
+                                      Object *obedit,
+                                      BMesh *bm,
+                                      eUVAlignIslandAxis axis,
+                                      eUVAlignIsland align,
+                                      eUVAlignIslandOrder order,
+                                      float offset,
+                                      float2 position)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   if (offsets.uv == -1) {
@@ -686,10 +686,10 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    
+
     position = uvedit_uv_island_offser(
         scene, obedit, em->bm, axis, align, order, offset, position);
-    if (ELEM(align, RIGHT, CENTER,BOTTOM)) {
+    if (ELEM(align, RIGHT, CENTER, BOTTOM)) {
       if (axis == Y) {
         position[0] = 0;
       }
@@ -701,7 +701,6 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     uvedit_live_unwrap_update(sima, scene, obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    
   }
   return OPERATOR_FINISHED;
 }
@@ -742,20 +741,28 @@ static void UV_OT_align_island(wmOperatorType *ot)
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem align_Y_items[] = {
-      {RIGHT, "RIGHT", 0, "RIGHT", "Align the islands to the right side of the largest island"},
-      {LEFT, "LEFT", 0, "LEFT", "Align the islands to the left side of the largest island"},
-      {CENTER, "CENTER", 0, "CENTER", "Align the islands to the center of the largest island"},
+      {RIGHT, "RIGHT", 0, "Right", "Align the islands to the right side of the largest island"},
+      {LEFT, "LEFT", 0, "Left", "Align the islands to the left side of the largest island"},
+      {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem align_X_items[] = {
-      {TOP, "TOP", 0, "TOP", "Align the islands to the top of the largest island"},
-      {BOTTOM, "BOTTOM", 0, "BOTTOM", "Align the islands to the bottom of the largest island"},
-      {CENTER, "CENTER", 0, "CENTER", "Align the islands to the center of the largest island"},
+      {TOP, "TOP", 0, "Top", "Align the islands to the top of the largest island"},
+      {BOTTOM, "BOTTOM", 0, "Bottom", "Align the islands to the bottom of the largest island"},
+      {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem sort_items[] = {
-      {LARGE_TO_SMALL, "Largest to Smallest", 0, "Largest to Smallest", "Sort Islands from Largest to Smallest"},
-      {SMALL_TO_LARGE, "Smallest to Largest", 0, "Smallest to Largest", "Sort Islands from Smallest to Largest"},
+      {LARGE_TO_SMALL,
+       "Largest to Smallest",
+       0,
+       "Largest to Smallest",
+       "Sort Islands from Largest to Smallest"},
+      {SMALL_TO_LARGE,
+       "Smallest to Largest",
+       0,
+       "Smallest to Largest",
+       "Sort Islands from Smallest to Largest"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -774,7 +781,8 @@ static void UV_OT_align_island(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "axis", axis_items, Y, "Axis", "Axis to arrange UV islands on");
   RNA_def_enum(ot->srna, "align_y", align_Y_items, LEFT, "Align", "Location to align islands on");
   RNA_def_enum(ot->srna, "align_x", align_X_items, TOP, "Align", "Location to align islands on");
-  RNA_def_enum(ot->srna, "order", sort_items, LARGE_TO_SMALL, "Size order", "Location to align islands on");
+  RNA_def_enum(
+      ot->srna, "order", sort_items, LARGE_TO_SMALL, "Size order", "Location to align islands on");
 
   RNA_def_float(ot->srna,
                 "offset",
