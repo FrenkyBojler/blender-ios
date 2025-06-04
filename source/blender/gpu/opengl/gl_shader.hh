@@ -210,6 +210,7 @@ class GLShader : public Shader {
 };
 
 class GLShaderCompiler : public ShaderCompiler {
+ public:
   GLShaderCompiler(uint32_t threads_count = 1)
       : ShaderCompiler(threads_count, GPUWorker::ContextType::PerThread, true){};
 
