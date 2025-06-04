@@ -11604,9 +11604,9 @@ static int ui_but_pie_menu_apply(bContext *C,
 static uiBut *ui_block_pie_dir_activate(uiBlock *block, const wmEvent *event, RadialDirection dir)
 {
   if ((block->flag & UI_BLOCK_NUMSELECT) && event->val == KM_PRESS) {
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
+    for (uiBut *but : block->pie_data.pages[block->pie_data.active_page]) {
       if (but->pie_dir == dir && !ELEM(but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
-        return but.get();
+        return but;
       }
     }
   }
