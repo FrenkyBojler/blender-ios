@@ -3010,14 +3010,6 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_ANISOTROPIC = 3,
 } CMPNodeInterpolation;
 
-/* CornerPin node interpolation option. */
-typedef enum CMPNodeCornerPinInterpolation {
-  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
-} CMPNodeCornerPinInterpolation;
-
 /* Set Alpha Node. */
 
 /** #NodeSetAlpha.mode */
