@@ -105,6 +105,7 @@ struct uiLayout : uiItem {
 
  public:
   blender::ui::EmbossType emboss() const;
+  void emboss_set(blender::ui::EmbossType emboss);
 
   /** Sub-layout items. */
 
@@ -482,7 +483,6 @@ void uiLayoutSetScaleX(uiLayout *layout, float scale);
 void uiLayoutSetScaleY(uiLayout *layout, float scale);
 void uiLayoutSetUnitsX(uiLayout *layout, float unit);
 void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);

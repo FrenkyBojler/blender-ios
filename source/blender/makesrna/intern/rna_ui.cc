@@ -1505,7 +1505,7 @@ static int rna_UILayout_emboss_get(PointerRNA *ptr)
 
 static void rna_UILayout_emboss_set(PointerRNA *ptr, int value)
 {
-  uiLayoutSetEmboss(static_cast<uiLayout *>(ptr->data), blender::ui::EmbossType(value));
+  static_cast<uiLayout *>(ptr->data)->emboss_set(blender::ui::EmbossType(value));
 }
 
 static bool rna_UILayout_property_split_get(PointerRNA *ptr)

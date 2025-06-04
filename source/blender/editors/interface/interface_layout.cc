@@ -5156,9 +5156,9 @@ void uiLayoutSetUnitsY(uiLayout *layout, float unit)
   layout->units_[1] = unit;
 }
 
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss)
+void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 {
-  layout->emboss_ = emboss;
+  emboss_ = emboss;
 }
 
 bool uiLayoutGetPropSep(uiLayout *layout)
