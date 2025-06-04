@@ -108,6 +108,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_select_grouped);
 
   /* `sequencer_add.cc` */
+  WM_operatortype_append(SEQUENCER_OT_match_scene_to_strip);
   WM_operatortype_append(SEQUENCER_OT_scene_strip_add);
   WM_operatortype_append(SEQUENCER_OT_scene_strip_add_new);
   WM_operatortype_append(SEQUENCER_OT_movieclip_strip_add);

@@ -443,20 +443,6 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   load_data->r_video_stream_start = 0.0;
 
   if (anim_arr[0] != nullptr) {
-    short fps_num;
-    float fps_denom;
-    bool have_fps = MOV_get_fps_num_denom(anim_arr[0], fps_num, fps_denom);
-    if (have_fps) {
-      video_fps = fps_num / fps_denom;
-    }
-
-    /* Adjust scene's frame rate settings to match. */
-    if (have_fps && (load_data->flags & SEQ_LOAD_MOVIE_SYNC_FPS)) {
-      scene->r.frs_sec = fps_num;
-      scene->r.frs_sec_base = fps_denom;
-      DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
-    }
-
     load_data->r_video_stream_start = MOV_get_start_offset_seconds(anim_arr[0]);
   }
 

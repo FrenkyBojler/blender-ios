@@ -543,6 +543,7 @@ class USERPREF_PT_edit_sequence_editor(EditingPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         edit = prefs.edit
 
+        layout.prop(edit, "sequencer_match_framerate")
         layout.prop(edit, "use_sequencer_simplified_tweaking")
         layout.prop(edit, "connect_strips_by_default")
 

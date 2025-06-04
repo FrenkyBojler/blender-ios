@@ -588,6 +588,8 @@ typedef struct UserDef {
   /** Pie menu distance from center before a direction is set. */
   short pie_menu_threshold;
 
+  short sequencer_match_framerate; /* eUserpref_SeqMatchFramerate */
+  char _pad2[2];
   int sequencer_editor_flag; /* eUserpref_SeqEditorFlags */
 
   char factor_display_type;
@@ -607,6 +609,7 @@ typedef struct UserDef {
   char file_preview_type; /* eUserpref_File_Preview_Type */
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
 
+  char _pad4[4];
   struct WalkNavigation walk_navigation;
 
   /** The UI for the user preferences. */
@@ -1123,6 +1126,12 @@ typedef enum eUserpref_SeqProxySetup {
   USER_SEQ_PROXY_SETUP_MANUAL = 0,
   USER_SEQ_PROXY_SETUP_AUTOMATIC = 1,
 } eUserpref_SeqProxySetup;
+
+typedef enum eUserPref_SeqMatchFramerate {
+  USER_SEQ_MATCH_FRAMERATE_PROMPT = 0,
+  USER_SEQ_MATCH_FRAMERATE_ALWAYS = 1,
+  USER_SEQ_MATCH_FRAMERATE_NEVER = 2,
+} eUserPref_SeqMatchFramerate;
 
 typedef enum eUserpref_SeqEditorFlags {
   USER_SEQ_ED_UNUSED_0 = (1 << 0), /* Dirty. */

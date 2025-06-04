@@ -334,14 +334,6 @@ static Strip *rna_Strips_new_movie(ID *id,
                 vt_old);
   }
 
-  if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
-    BKE_reportf(reports,
-                RPT_WARNING,
-                "Scene frame rate set to %.4g (converted from %.4g)",
-                scene->r.frs_sec / scene->r.frs_sec_base,
-                fps_old);
-  }
-
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, scene);

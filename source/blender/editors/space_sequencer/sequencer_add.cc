@@ -9,6 +9,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <fmt/format.h>
 
 #include "DNA_sequence_types.h"
 #include "MEM_guardedalloc.h"
@@ -31,6 +32,7 @@
 
 #include "IMB_imbuf_enums.h"
 
+#include "MOV_read.hh"
 #include "SEQ_channels.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -45,6 +47,7 @@
 #include "SEQ_proxy.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_sound.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
@@ -595,6 +598,119 @@ static void sequencer_disable_one_time_properties(bContext *C, wmOperator *op)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Match Scene Framerate to Strip Operator
+ * \{ */
+
+struct FramerateData {
+  short num;
+  float denom;
+};
+
+void sequencer_match_scene_to_strip_free(bContext *C, wmOperator *op)
+{
+  FramerateData *frd = static_cast<FramerateData *>(op->customdata);
+  MEM_delete(frd);
+  op->customdata = nullptr;
+}
+
+static wmOperatorStatus sequencer_match_scene_to_strip_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  FramerateData *frd = static_cast<FramerateData *>(op->customdata);
+
+  float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
+
+  scene->r.frs_sec = frd->num;
+  scene->r.frs_sec_base = frd->denom;
+
+  /* Show report if a popup confirmation box did not appear. */
+  if (!RNA_boolean_get(op->ptr, "confirm")) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Scene frame rate set to %.4g (converted from %.4g)",
+                scene->r.frs_sec / scene->r.frs_sec_base,
+                fps_old);
+  }
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  seq::sound_update_length(bmain, scene);
+  sequencer_match_scene_to_strip_free(C, op);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus sequencer_match_scene_to_strip_invoke(bContext *C,
+                                                              wmOperator *op,
+                                                              const wmEvent * /*event*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  Strip *act_strip = scene->ed->act_strip;
+
+  StripAnim *sa = static_cast<StripAnim *>(act_strip->anims.first);
+  if (sa == nullptr || sa->anim == nullptr || act_strip->type != STRIP_TYPE_MOVIE) {
+    return OPERATOR_CANCELLED;
+  }
+
+  short act_fps_num;
+  float act_fps_denom;
+  bool have_fps = MOV_get_fps_num_denom(sa->anim, act_fps_num, act_fps_denom);
+  if (!have_fps) {
+    return OPERATOR_CANCELLED;
+  }
+
+  float act_fps = act_fps_num / act_fps_denom;
+  float scene_fps = scene->r.frs_sec / scene->r.frs_sec_base;
+  if (act_fps == scene_fps) {
+    /* Movie framerate already matches scene framerate. */
+    return OPERATOR_CANCELLED;
+  }
+
+  FramerateData *frd = MEM_new<FramerateData>("frameratedata");
+  frd->num = act_fps_num;
+  frd->denom = act_fps_denom;
+  op->customdata = frd;
+
+  std::string message = fmt::format(
+      "The scene and movie frame rates do not match. \n"
+      "Change scene frame rate from {:.4g} to {:.4g} to match media?",
+      scene_fps,
+      act_fps);
+
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Change scene framerate?"),
+                                  message.c_str(),
+                                  IFACE_("Change Framerate"),
+                                  ALERT_ICON_WARNING,
+                                  false);
+  }
+  return sequencer_match_scene_to_strip_exec(C, op);
+}
+
+void SEQUENCER_OT_match_scene_to_strip(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Match Scene Frame Rate to Strip";
+  ot->idname = "SEQUENCER_OT_match_scene_to_strip";
+  ot->description = "Match scene frame rate to active strip in the timeline";
+
+  /* API callbacks. */
+  ot->invoke = sequencer_match_scene_to_strip_invoke;
+  ot->exec = sequencer_match_scene_to_strip_exec;
+  ot->cancel = sequencer_match_scene_to_strip_free;
+  ot->poll = sequencer_strip_editable_poll;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER;
+
+  WM_operator_properties_confirm_or_exec(ot);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Add Scene Strip
  * \{ */
 
@@ -1064,6 +1180,42 @@ static void sequencer_add_movie_sync_sound_strip(
       scene, strip_sound, seq::time_left_handle_frame_get(scene, strip_movie));
 }
 
+static void sequencer_add_calculate_new_framerate(bContext *C,
+                                                  seq::LoadData *load_data,
+                                                  blender::VectorSet<Strip *> movie_strips)
+{
+  Scene *scene = CTX_data_scene(C);
+
+  if (!(load_data->flags & seq::SEQ_LOAD_MOVIE_SYNC_FPS) ||
+      U.sequencer_match_framerate == USER_SEQ_MATCH_FRAMERATE_NEVER || movie_strips.size() == 0)
+  {
+    return;
+  }
+
+  /* Switch to the framerate of the longest strip in case the imported strip framerates differ. */
+  Strip *source = nullptr;
+  int longest_duration = 0;
+
+  for (Strip *strip : movie_strips) {
+    int duration = seq::time_strip_length_get(scene, strip);
+    if (duration > longest_duration) {
+      longest_duration = duration;
+      source = strip;
+    }
+  }
+  /* The active strip will be used by `SEQUENCER_OT_match_scene_to_strip`.*/
+  seq::select_active_set(scene, source);
+
+  PointerRNA op_ptr;
+  WM_operator_properties_create(&op_ptr, "SEQUENCER_OT_match_scene_to_strip");
+  if (U.sequencer_match_framerate == USER_SEQ_MATCH_FRAMERATE_ALWAYS) {
+    RNA_boolean_set(&op_ptr, "confirm", false);
+  }
+  WM_operator_name_call(
+      C, "SEQUENCER_OT_match_scene_to_strip", WM_OP_INVOKE_DEFAULT, &op_ptr, nullptr);
+  WM_operator_properties_free(&op_ptr);
+}
+
 static void sequencer_add_movie_multiple_strips(bContext *C,
                                                 wmOperator *op,
                                                 seq::LoadData *load_data,
@@ -1072,9 +1224,9 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   const Editing *ed = seq::editing_ensure(scene);
-  bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
-                                  RNA_boolean_get(op->ptr, "overlap_shuffle_override");
-  bool has_seq_overlap = false;
+  const bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
+                                        RNA_boolean_get(op->ptr, "overlap_shuffle_override");
+  bool is_strip_overlap = false;
   blender::Vector<Strip *> added_strips;
 
   RNA_BEGIN (op->ptr, itemptr, "files") {
@@ -1088,52 +1240,48 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
     Strip *strip_sound = nullptr;
 
     strip_movie = seq::add_movie_strip(bmain, scene, ed->seqbasep, load_data);
-
     if (strip_movie == nullptr) {
       BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
+      continue;
+    }
+    added_strips.append(strip_movie);
+    r_movie_strips.add(strip_movie);
+
+    if (RNA_boolean_get(op->ptr, "sound")) {
+      strip_sound = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
+
+      if (strip_sound) {
+        added_strips.append(strip_sound);
+        /* Shift the video strip up a channel to make room for the sound strip. */
+        seq::strip_channel_set(strip_movie,
+                               find_unlocked_unmuted_channel(ed, strip_movie->channel + 1));
+        sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
+      }
+    }
+    load_data->start_frame += seq::time_right_handle_frame_get(scene, strip_movie) -
+                              seq::time_left_handle_frame_get(scene, strip_movie);
+
+    if (overlap_shuffle_override) {
+      is_strip_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
+      is_strip_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
     }
     else {
-      if (RNA_boolean_get(op->ptr, "sound")) {
-        strip_sound = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
-        sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
-        added_strips.append(strip_movie);
+      seq_load_apply_generic_options(C, op, strip_sound);
+      seq_load_apply_generic_options(C, op, strip_movie);
+    }
 
-        if (strip_sound) {
-          /* The video has sound, shift the video strip up a channel to make room for the sound
-           * strip. */
-          added_strips.append(strip_sound);
-          seq::strip_channel_set(strip_movie,
-                                 find_unlocked_unmuted_channel(ed, strip_movie->channel + 1));
-        }
-      }
-
-      load_data->start_frame += seq::time_right_handle_frame_get(scene, strip_movie) -
-                                seq::time_left_handle_frame_get(scene, strip_movie);
-      if (overlap_shuffle_override) {
-        has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
-        has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
-      }
-      else {
-        seq_load_apply_generic_options(C, op, strip_sound);
-        seq_load_apply_generic_options(C, op, strip_movie);
-      }
-
-      if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
-        seq::connect(strip_movie, strip_sound);
-      }
-
-      r_movie_strips.add(strip_movie);
+    if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
+      seq::connect(strip_movie, strip_sound);
     }
   }
   RNA_END;
 
-  if (overlap_shuffle_override) {
-    if (has_seq_overlap) {
-      ScrArea *area = CTX_wm_area(C);
-      const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag &
-                                     SEQ_MARKER_TRANS) != 0;
-      seq::transform_handle_overlap(scene, ed->seqbasep, added_strips, use_sync_markers);
-    }
+  /* Handle overlaps. */
+  if (overlap_shuffle_override && is_strip_overlap) {
+    ScrArea *area = CTX_wm_area(C);
+    const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag & SEQ_MARKER_TRANS) !=
+                                  0;
+    seq::transform_handle_overlap(scene, ed->seqbasep, added_strips, use_sync_markers);
   }
 }
 
@@ -1151,40 +1299,39 @@ static bool sequencer_add_movie_single_strip(bContext *C,
   blender::Vector<Strip *> added_strips;
 
   strip_movie = seq::add_movie_strip(bmain, scene, ed->seqbasep, load_data);
-
   if (strip_movie == nullptr) {
     BKE_reportf(op->reports, RPT_ERROR, "File '%s' could not be loaded", load_data->path);
     return false;
   }
+  added_strips.append(strip_movie);
+  r_movie_strips.add(strip_movie);
+
   if (RNA_boolean_get(op->ptr, "sound")) {
     strip_sound = seq::add_sound_strip(bmain, scene, ed->seqbasep, load_data);
-    sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
-    added_strips.append(strip_movie);
 
     if (strip_sound) {
       added_strips.append(strip_sound);
-
-      /* The video has sound, shift the video strip up a channel to make room for the sound
-       * strip. */
-      int movie_channel = strip_movie->channel + 1;
-
-      if (RNA_boolean_get(op->ptr, "skip_locked_or_muted_channels")) {
-        movie_channel = find_unlocked_unmuted_channel(ed, strip_movie->channel + 1);
-      }
-
-      seq::strip_channel_set(strip_movie, movie_channel);
+      /* Shift the video strip up a channel to make room for the sound strip. */
+      seq::strip_channel_set(strip_movie,
+                             find_unlocked_unmuted_channel(ed, strip_movie->channel + 1));
+      sequencer_add_movie_sync_sound_strip(bmain, scene, strip_movie, strip_sound, load_data);
     }
   }
 
-  bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
-                                  RNA_boolean_get(op->ptr, "overlap_shuffle_override");
+  if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
+    seq::connect(strip_movie, strip_sound);
+  }
+
+  /* Handle overlaps and apply options. */
+  const bool overlap_shuffle_override = RNA_boolean_get(op->ptr, "overlap") == false &&
+                                        RNA_boolean_get(op->ptr, "overlap_shuffle_override");
   if (overlap_shuffle_override) {
-    bool has_seq_overlap = false;
+    bool is_strip_overlap = false;
 
-    has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
-    has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
+    is_strip_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
+    is_strip_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
 
-    if (has_seq_overlap) {
+    if (is_strip_overlap) {
       ScrArea *area = CTX_wm_area(C);
       const bool use_sync_markers = (((SpaceSeq *)area->spacedata.first)->flag &
                                      SEQ_MARKER_TRANS) != 0;
@@ -1195,12 +1342,6 @@ static bool sequencer_add_movie_single_strip(bContext *C,
     seq_load_apply_generic_options(C, op, strip_sound);
     seq_load_apply_generic_options(C, op, strip_movie);
   }
-
-  if (U.sequencer_editor_flag & USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT) {
-    seq::connect(strip_movie, strip_sound);
-  }
-
-  r_movie_strips.add(strip_movie);
 
   return true;
 }
@@ -1233,7 +1374,6 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
 
   char vt_old[64];
   STRNCPY(vt_old, scene->view_settings.view_transform);
-  float fps_old = scene->r.frs_sec / scene->r.frs_sec_base;
 
   if (tot_files > 1) {
     sequencer_add_movie_multiple_strips(C, op, &load_data, movie_strips);
@@ -1250,13 +1390,8 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
                 vt_old);
   }
 
-  if (fps_old != scene->r.frs_sec / scene->r.frs_sec_base) {
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Scene frame rate set to %.4g (converted from %.4g)",
-                scene->r.frs_sec / scene->r.frs_sec_base,
-                fps_old);
-  }
+  /* If applicable, show popup to match movie framerate to scene depending on user settings. */
+  sequencer_add_calculate_new_framerate(C, &load_data, movie_strips);
 
   if (movie_strips.is_empty()) {
     sequencer_add_free(C, op);

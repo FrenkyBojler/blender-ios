@@ -961,8 +961,8 @@ static void rna_Scene_fps_update(Main *bmain, Scene * /*active_scene*/, PointerR
 {
   Scene *scene = (Scene *)ptr->owner_id;
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO_FPS | ID_RECALC_SEQUENCER_STRIPS);
-  /* NOTE: Tag via dependency graph will take care of all the updates ion the evaluated domain,
-   * however, changes in FPS actually modifies an original skip length,
+  /* NOTE: Tag via dependency graph will take care of all the updates in the evaluated domain,
+   * however, changes in FPS actually modify an original strip length,
    * so this we take care about here. */
   blender::seq::sound_update_length(bmain, scene);
   /* Reset simulation states because new frame interval doesn't apply anymore. */

@@ -5606,6 +5606,26 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem seq_match_framerate_options[]{
+      {USER_SEQ_MATCH_FRAMERATE_PROMPT,
+       "PROMPT",
+       0,
+       "Prompt",
+       "Show a popup box asking whether to update the scene frame rate if it does not match the "
+       "first movie strip added"},
+      {USER_SEQ_MATCH_FRAMERATE_ALWAYS,
+       "ALWAYS",
+       0,
+       "Always",
+       "Automatically match the scene frame rate to the first movie strip added"},
+      {USER_SEQ_MATCH_FRAMERATE_NEVER,
+       "NEVER",
+       0,
+       "Never",
+       "Prevent automatic updates to the scene frame rate"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "PreferencesEdit", nullptr);
   RNA_def_struct_sdna(srna, "UserDef");
   RNA_def_struct_nested(brna, srna, "Preferences");
@@ -5837,6 +5857,14 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Sculpt/Paint Overlay Color", "Color of texture overlay");
 
   /* VSE */
+  prop = RNA_def_property(srna, "sequencer_match_framerate", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, seq_match_framerate_options);
+  RNA_def_property_enum_sdna(prop, nullptr, "sequencer_match_framerate");
+  RNA_def_property_ui_text(prop,
+                           "Frame Rate Auto-Update",
+                           "Whether scene frame rate should be updated to match the first movie "
+                           "strip added to the timeline if their frame rates differ");
+
   prop = RNA_def_property(srna, "connect_strips_by_default", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT);
@@ -5901,7 +5929,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Duplicate Material", "Causes material data to be duplicated with the object");
 
-  /* Not implemented, keep because this is useful functionality. */
+/* Not implemented, keep because this is useful functionality. */
 #  if 0
   prop = RNA_def_property(srna, "use_duplicate_texture", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "dupflag", USER_DUP_TEX);
@@ -6048,14 +6076,14 @@ static void rna_def_userdef_system(BlenderRNA *brna)
     {22050, "RATE_22050", 0, "22.05 kHz", "Set audio sampling rate to 22050 samples per second"},
     {32000, "RATE_32000", 0, "32 kHz", "Set audio sampling rate to 32000 samples per second"},
 #  endif
-    {44100, "RATE_44100", 0, "44.1 kHz", "Set audio sampling rate to 44100 samples per second"},
-    {48000, "RATE_48000", 0, "48 kHz", "Set audio sampling rate to 48000 samples per second"},
+      {44100, "RATE_44100", 0, "44.1 kHz", "Set audio sampling rate to 44100 samples per second"},
+      {48000, "RATE_48000", 0, "48 kHz", "Set audio sampling rate to 48000 samples per second"},
 #  if 0
     {88200, "RATE_88200", 0, "88.2 kHz", "Set audio sampling rate to 88200 samples per second"},
 #  endif
-    {96000, "RATE_96000", 0, "96 kHz", "Set audio sampling rate to 96000 samples per second"},
+      {96000, "RATE_96000", 0, "96 kHz", "Set audio sampling rate to 96000 samples per second"},
     {192000, "RATE_192000", 0, "192 kHz", "Set audio sampling rate to 192000 samples per second"},
-    {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
 
   static const EnumPropertyItem audio_format_items[] = {

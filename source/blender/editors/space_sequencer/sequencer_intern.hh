@@ -278,6 +278,7 @@ Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mv
 
 /* `sequencer_add.cc` */
 
+void SEQUENCER_OT_match_scene_to_strip(wmOperatorType *ot);
 void SEQUENCER_OT_scene_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot);
 void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot);
