@@ -1646,11 +1646,6 @@ GreasePencil *from_context(bContext &C)
       grease_pencil = static_cast<GreasePencil *>(object->data);
     }
   }
-
-  if (grease_pencil && ID_IS_LINKED(grease_pencil)) {
-    return nullptr;
-  }
-
   return grease_pencil;
 }
 
