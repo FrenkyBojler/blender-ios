@@ -735,7 +735,7 @@ ccl_device_inline bool cone_sphere_intersect(const float4 curve[4],
   }
 
   /* Intersect start sphere. */
-  if (curve[0] == curve[1]) {
+  if (isequal(curve[0], curve[1])) {
     const float h2 = sqr(OdO) - dOdO * (dot(O, O) - sqr(r0));
     if (h2 >= 0.0f) {
       const float rhs1 = sqrt(h2);
