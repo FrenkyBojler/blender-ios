@@ -66,9 +66,11 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     if (use_first_as_corner) {
       src_corners.append(0);
     }
-    for (const int i : IndexRange::from_begin_end(1, points.size() - 1)) {
-      if (corners[points[i]]) {
-        src_corners.append(i);
+    if (points.size() > 2) {
+      for (const int i : IndexRange::from_begin_end(1, points.size() - 1)) {
+        if (corners[points[i]]) {
+          src_corners.append(i);
+        }
       }
     }
     if (use_last_as_corner) {
