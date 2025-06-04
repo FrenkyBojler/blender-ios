@@ -6,35 +6,27 @@
 
 namespace blender::nodes {
 
-List::List() = default;
+class List_For_GArray : public List {
+  GArray<> array_;
 
-List::~List() {}
+ public:
+  List_For_GArray(GArray<> array) : array_(std::move(array)) {}
+  virtual ~List_For_GArray() {}
 
-List::List(const List &other) : values_(other.values_), sharing_info_(other.sharing_info_) {}
-
-List::List(List &&other) noexcept
-    : values_(other.values_), sharing_info_(std::move(other.sharing_info_))
-{
-}
-
-List &List::operator=(const List &other)
-{
-  if (this == &other) {
-    return *this;
+  GSpan values() const override
+  {
+    return array_.as_span();
   }
-  this->~List();
-  new (this) List(other);
-  return *this;
-}
-
-List &List::operator=(List &&other) noexcept
-{
-  if (this == &other) {
-    return *this;
+  GMutableSpan values_for_write() override
+  {
+    BLI_assert(this->is_mutable());
+    return array_.as_mutable_span();
   }
-  this->~List();
-  new (this) List(std::move(other));
-  return *this;
+};
+
+ListPtr List::for_garray(GArray<> array)
+{
+  return ListPtr(MEM_new<List_For_GArray>(__func__, std::move(array)));
 }
 
 void List::delete_self()

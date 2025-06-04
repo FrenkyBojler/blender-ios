@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_generic_array.hh"
 #include "BLI_generic_span.hh"
 
 #include "NOD_geometry_nodes_list_fwd.hh"
@@ -23,13 +24,10 @@ class List : public ImplicitSharingMixin {
   List &operator=(List &&other) noexcept;
   ~List();
 
-  virtual GSpan values() const = 0;
-  virtual GMutableSpan values_for_write() const = 0;
+  static ListPtr for_garray(GArray<> array);
 
-  static ListPtr create()
-  {
-    return ListPtr(MEM_new<List>(__func__));
-  }
+  virtual GSpan values() const = 0;
+  virtual GMutableSpan values_for_write() = 0;
 
   void delete_self() override;
 };
