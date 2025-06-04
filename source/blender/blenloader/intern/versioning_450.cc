@@ -71,6 +71,39 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
   }
 }
 
+static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
+{
+  auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
+    blender::IndexMaskMemory memory;
+    if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
+      blender::bke::curves::nurbs::update_custom_knot_modes(
+          curves.nurbs_custom_knot_curves(memory),
+          NURBS_KNOT_MODE_NORMAL,
+          NURBS_KNOT_MODE_NORMAL,
+          curves);
+    }
+  };
+
+  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+    if (ob->type == OB_CURVES) {
+      Curves *curves_id = static_cast<Curves *>(ob->data);
+      blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      fix_curves(curves);
+    }
+    else if (ob->type == OB_GREASE_PENCIL) {
+      GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+      for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+        if (base->type != GP_DRAWING) {
+          continue;
+        }
+        blender::bke::greasepencil::Drawing &drawing =
+            reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+        fix_curves(drawing.strokes_for_write());
+      }
+    }
+  }
+}
+
 static void nlastrips_apply_fcurve_versioning(ListBase &strips)
 {
   LISTBASE_FOREACH (NlaStrip *, strip, &strips) {
@@ -4953,35 +4986,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
-    auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
-      blender::IndexMaskMemory memory;
-      if (curves.custom_knots == nullptr && !curves.nurbs_knots_modes().is_empty()) {
-        blender::bke::curves::nurbs::update_custom_knot_modes(
-            curves.nurbs_custom_knot_curves(memory),
-            NURBS_KNOT_MODE_NORMAL,
-            NURBS_KNOT_MODE_NORMAL,
-            curves);
-      }
-    };
-
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ob->type == OB_CURVES) {
-        Curves *curves_id = static_cast<Curves *>(ob->data);
-        blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-        fix_curves(curves);
-      }
-      else if (ob->type == OB_GREASE_PENCIL) {
-        GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
-        for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
-          if (base->type != GP_DRAWING) {
-            continue;
-          }
-          blender::bke::greasepencil::Drawing &drawing =
-              reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
-          fix_curves(drawing.strokes_for_write());
-        }
-      }
-    }
+    fix_curve_nurbs_knot_mode_custom(bmain);
   }
 
   /**
