@@ -5633,19 +5633,17 @@ void pie_menu_workspace_status(bContext *C, const uiBlock *block)
     return;
   }
   WorkspaceStatus status(C);
-  status.item(IFACE_("Cycle previous/next pie menu page"), ICON_EVENT_SHIFT, ICON_EVENT_TAB);
-  status.item("", ICON_MOUSE_MMB_SCROLL);
+  status.item(IFACE_("Cycle to previous/next page"), ICON_EVENT_SHIFT, ICON_EVENT_TAB);
 
+  status.item("", ICON_MOUSE_MMB_SCROLL);
   if (block->pie_data.active_page == 0) {
-    status.item(IFACE_("Scroll to next pie menu page"), ICON_EVENT_RIGHT_ARROW);
+    status.item(IFACE_("Show next page"), ICON_EVENT_RIGHT_ARROW);
   }
   else if (block->pie_data.active_page == block->pie_data.pages.size() - 1) {
-    status.item(IFACE_("Scroll to previous pie menu page"), ICON_EVENT_LEFT_ARROW);
+    status.item(IFACE_("Show previous page"), ICON_EVENT_LEFT_ARROW);
   }
   else {
-    status.item(IFACE_("Scroll to previous/next pie menu page"),
-                ICON_EVENT_LEFT_ARROW,
-                ICON_EVENT_RIGHT_ARROW);
+    status.item(IFACE_("Show previous/next page"), ICON_EVENT_LEFT_ARROW, ICON_EVENT_RIGHT_ARROW);
   }
 }
 void pie_menu_apply_paging_scroll(const uiBlock *block)
