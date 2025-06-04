@@ -19,6 +19,9 @@
  * the origin.
  */
 
+#include "BKE_duplilist.hh"
+#include "BLI_hash.h"
+#include "DEG_depsgraph_query.hh"
 #include "draw_shader_shared.hh"
 
 struct Object;
@@ -100,6 +103,18 @@ struct ObjectRef {
   bool is_active(const Object *active_object) const
   {
     return (dupli_object ? dupli_parent : object) == active_object;
+  }
+
+  float random() const
+  {
+    if (dupli_object == nullptr) {
+      /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
+       * put it in ob->runtime and make depsgraph ensure it is up to date. */
+      return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
+    }
+    else {
+      return dupli_object->random_id * (1.0f / (float)0xFFFFFFFF);
+    }
   }
 };
 
