@@ -96,6 +96,11 @@ struct ObjectRef {
   {
     return dupli_object != nullptr;
   }
+
+  bool is_active(const Object *active_object) const
+  {
+    return (dupli_object ? dupli_parent : object) == active_object;
+  }
 };
 
 };  // namespace blender::draw
