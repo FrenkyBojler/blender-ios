@@ -172,36 +172,6 @@ class ShaderModule {
  private:
   std::array<StaticShader, MAX_SHADER_TYPE> shaders_;
 
-  struct HandleRequest {
-    BatchHandle handle = 0;
-    bool requested = false;
-  };
-
-  struct {
-    HandleRequest ambient_occlusion;
-    HandleRequest film;
-    HandleRequest deferred;
-    HandleRequest deferred_thickness;
-    HandleRequest deferred_capture;
-    HandleRequest deferred_planar;
-    HandleRequest debug;
-    HandleRequest display;
-    HandleRequest dof;
-    HandleRequest hiz;
-    HandleRequest horizon;
-    HandleRequest light;
-    HandleRequest lightprobe_irradiance;
-    HandleRequest lookdev;
-    HandleRequest motion_blur;
-    HandleRequest ray;
-    HandleRequest renderpass;
-    HandleRequest sphere_probe;
-    HandleRequest shadow;
-    HandleRequest subsurface;
-    HandleRequest surfel;
-    HandleRequest vertex_copy;
-    HandleRequest volume;
-  } compilation_handles_;
   Mutex mutex_;
 
   class SpecializationsKey {
@@ -255,10 +225,16 @@ class ShaderModule {
   ShaderModule();
   ~ShaderModule();
 
-  LoadedBits static_shaders_load_async(LoadedBits request_bits, bool block_until_ready = false);
+  /* Trigger async compilation for the given shaders groups. */
+  LoadedBits static_shaders_load_async(LoadedBits request_bits)
+  {
+    return static_shaders_load(request_bits, false);
+  }
+  /* Wait for async compilation to finish for the given shaders groups.
+   * If shaders are not scheduled to async compile, this will do blocking compilation. */
   LoadedBits static_shaders_wait_ready(LoadedBits request_bits)
   {
-    return static_shaders_load_async(request_bits, true);
+    return static_shaders_load(request_bits, true);
   }
 
   bool request_specializations(bool block_until_ready,
@@ -288,6 +264,7 @@ class ShaderModule {
 
  private:
   const char *static_shader_create_info_name_get(eShaderType shader_type);
+  LoadedBits static_shaders_load(LoadedBits request_bits, bool block_until_ready);
 };
 
 }  // namespace blender::eevee

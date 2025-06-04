@@ -209,7 +209,9 @@ void Instance::init(const int2 &output_res,
   lookdev.init(visible_rect);
 
   /* Request static shaders */
-  LoadedBits request_bits = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS;
+  LoadedBits request_bits = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS |
+                            HIZ_SHADERS | SPHERE_PROBE_SHADERS | VOLUME_PROBE_SHADERS |
+                            LIGHT_CULLING_SHADERS;
   SET_FLAG_FROM_TEST(request_bits, depth_of_field.postfx_enabled(), DEPTH_OF_FIELD_SHADERS);
   SET_FLAG_FROM_TEST(request_bits, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
   SET_FLAG_FROM_TEST(request_bits, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
@@ -221,10 +223,10 @@ void Instance::init(const int2 &output_res,
   loaded |= shaders.static_shaders_load_async(request_bits);
   loaded |= materials.default_materials_load_async();
 
-  // if (is_image_render) { /* TODO: Fix assert. */
-  /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
-  loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
-  // }
+  if (is_image_render) {
+    /* Ensure all deferred shaders have been compiled to kickstart async specialization. */
+    loaded |= shaders.static_shaders_wait_ready(DEFERRED_LIGHTING_SHADERS);
+  }
 
   if (loaded & DEFERRED_LIGHTING_SHADERS) {
     bool ready = shaders.request_specializations(
@@ -237,15 +239,15 @@ void Instance::init(const int2 &output_res,
     SET_FLAG_FROM_TEST(loaded, ready, DEFERRED_LIGHTING_SHADERS);
   }
 
-  // if (is_image_render) { /* TODO: Fix assert. */
-  loaded |= shaders.static_shaders_wait_ready(request_bits);
-  loaded |= materials.default_materials_wait_ready();
-  // }
+  if (is_image_render) {
+    loaded |= shaders.static_shaders_wait_ready(request_bits);
+    loaded |= materials.default_materials_wait_ready();
+  }
 
   /* Needed bits to be able to display something to the screen. */
   needed_bits = request_bits | DEFAULT_MATERIALS;
 
-  skip_render_ = !is_loaded(needed_bits) && !film.is_valid_render_extent();
+  skip_render_ = !is_loaded(needed_bits) || !film.is_valid_render_extent();
 }
 
 void Instance::init_light_bake(Depsgraph *depsgraph, draw::Manager *manager)

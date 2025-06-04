@@ -68,76 +68,6 @@ ShaderModule::~ShaderModule()
       GPU_shader_batch_specializations_cancel(handle);
     }
   }
-
-  if (compilation_handles_.ambient_occlusion.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.ambient_occlusion.handle);
-  }
-  if (compilation_handles_.film.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.film.handle);
-  }
-  if (compilation_handles_.deferred.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.deferred.handle);
-  }
-  if (compilation_handles_.deferred_thickness.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.deferred_thickness.handle);
-  }
-  if (compilation_handles_.deferred_capture.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.deferred_capture.handle);
-  }
-  if (compilation_handles_.deferred_planar.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.deferred_planar.handle);
-  }
-  if (compilation_handles_.debug.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.debug.handle);
-  }
-  if (compilation_handles_.display.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.display.handle);
-  }
-  if (compilation_handles_.dof.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.dof.handle);
-  }
-  if (compilation_handles_.hiz.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.hiz.handle);
-  }
-  if (compilation_handles_.horizon.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.horizon.handle);
-  }
-  if (compilation_handles_.light.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.light.handle);
-  }
-  if (compilation_handles_.lightprobe_irradiance.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.lightprobe_irradiance.handle);
-  }
-  if (compilation_handles_.lookdev.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.lookdev.handle);
-  }
-  if (compilation_handles_.motion_blur.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.motion_blur.handle);
-  }
-  if (compilation_handles_.ray.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.ray.handle);
-  }
-  if (compilation_handles_.renderpass.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.renderpass.handle);
-  }
-  if (compilation_handles_.sphere_probe.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.sphere_probe.handle);
-  }
-  if (compilation_handles_.shadow.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.shadow.handle);
-  }
-  if (compilation_handles_.subsurface.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.subsurface.handle);
-  }
-  if (compilation_handles_.surfel.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.surfel.handle);
-  }
-  if (compilation_handles_.vertex_copy.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.vertex_copy.handle);
-  }
-  if (compilation_handles_.volume.handle) {
-    GPU_shader_batch_cancel(compilation_handles_.volume.handle);
-  }
 }
 
 /** \} */
@@ -147,50 +77,31 @@ ShaderModule::~ShaderModule()
  *
  * \{ */
 
-LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits,
-                                                   bool block_until_ready)
+LoadedBits ShaderModule::static_shaders_load(const LoadedBits request_bits, bool block_until_ready)
 {
   std::lock_guard lock(mutex_);
 
-  auto batch_ensure = [&](HandleRequest &batch_request, Span<eShaderType> shaders_type) {
-    if (batch_request.requested) {
-      return;
-    }
-    Vector<const GPUShaderCreateInfo *> infos;
-    infos.reserve(shaders_type.size());
-
-    for (eShaderType type : shaders_type) {
-      const char *name = static_shader_create_info_name_get(type);
-      const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(name);
-      infos.append(create_info);
-    }
-    batch_request.handle = GPU_shader_batch_create_from_infos(infos);
-    batch_request.requested = true;
-  };
-
-  auto is_ready = [&](HandleRequest &batch_request, Span<eShaderType> shader_types) {
-    if (batch_request.handle == 0) {
-      return true;
-    }
-    if (GPU_shader_batch_is_ready(batch_request.handle) || block_until_ready) {
-      Vector<GPUShader *> shaders = GPU_shader_batch_finalize(batch_request.handle);
-      for (int i : shaders.index_range()) {
-        shaders_[shader_types[i]].set(shaders[i]);
+  LoadedBits ready = LoadedBits::NONE;
+  auto request = [&](LoadedBits bit, Span<eShaderType> shader_types) {
+    if (request_bits & bit) {
+      bool all_loaded = true;
+      for (eShaderType shader : shader_types) {
+        if (shaders_[shader].is_ready()) {
+          /* Noop. */
+        }
+        else if (block_until_ready) {
+          shaders_[shader].get();
+        }
+        else {
+          shaders_[shader].ensure_compile_async();
+          all_loaded = false;
+        }
+      }
+      if (all_loaded) {
+        ready |= bit;
       }
     }
-    return batch_request.handle == 0;
   };
-
-  LoadedBits ready = LoadedBits::NONE;
-  auto request =
-      [&](HandleRequest &batch_request, LoadedBits bit, Span<eShaderType> shader_types) {
-        if (request_bits & bit) {
-          batch_ensure(batch_request, shader_types);
-          if (is_ready(batch_request, shader_types)) {
-            ready |= bit;
-          }
-        }
-      };
 
 #define AS_SPAN(arr) Span<eShaderType>(arr, ARRAY_SIZE(arr))
   {
@@ -201,12 +112,11 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        DEFERRED_LIGHT_DOUBLE,
                                        DEFERRED_COMBINE,
                                        DEFERRED_TILE_CLASSIFY};
-    request(compilation_handles_.deferred, DEFERRED_LIGHTING_SHADERS, AS_SPAN(shader_list));
+    request(DEFERRED_LIGHTING_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {AMBIENT_OCCLUSION_PASS};
-    request(
-        compilation_handles_.ambient_occlusion, AMBIENT_OCCLUSION_SHADERS, AS_SPAN(shader_list));
+    request(AMBIENT_OCCLUSION_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {RENDERPASS_CLEAR,
@@ -219,15 +129,15 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        FILM_PASS_CONVERT_VALUE,
                                        FILM_PASS_CONVERT_COLOR,
                                        FILM_PASS_CONVERT_CRYPTOMATTE};
-    request(compilation_handles_.film, FILM_SHADERS, AS_SPAN(shader_list));
+    request(FILM_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {DEFERRED_CAPTURE_EVAL};
-    request(compilation_handles_.deferred_capture, DEFERRED_CAPTURE_SHADERS, AS_SPAN(shader_list));
+    request(DEFERRED_CAPTURE_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {DEFERRED_PLANAR_EVAL};
-    request(compilation_handles_.deferred_planar, DEFERRED_PLANAR_SHADERS, AS_SPAN(shader_list));
+    request(DEFERRED_PLANAR_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {DOF_BOKEH_LUT,
@@ -247,16 +157,16 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        DOF_TILES_DILATE_MINABS,
                                        DOF_TILES_DILATE_MINMAX,
                                        DOF_TILES_FLATTEN};
-    request(compilation_handles_.dof, DEPTH_OF_FIELD_SHADERS, AS_SPAN(shader_list));
+    request(DEPTH_OF_FIELD_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {HIZ_UPDATE, HIZ_UPDATE_LAYER};
-    request(compilation_handles_.hiz, HIZ_SHADERS, AS_SPAN(shader_list));
+    request(HIZ_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {
         HORIZON_DENOISE, HORIZON_RESOLVE, HORIZON_SCAN, HORIZON_SETUP};
-    request(compilation_handles_.horizon, HORIZON_SCAN_SHADERS, AS_SPAN(shader_list));
+    request(HORIZON_SCAN_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {LIGHT_CULLING_DEBUG,
@@ -265,22 +175,19 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        LIGHT_CULLING_TILE,
                                        LIGHT_CULLING_ZBIN,
                                        LIGHT_SHADOW_SETUP};
-    request(compilation_handles_.light, LIGHT_CULLING_SHADERS, AS_SPAN(shader_list));
+    request(LIGHT_CULLING_SHADERS, AS_SPAN(shader_list));
   }
   {
-    const eShaderType shader_list[] = {LIGHTPROBE_IRRADIANCE_BOUNDS,
-                                       LIGHTPROBE_IRRADIANCE_OFFSET,
-                                       LIGHTPROBE_IRRADIANCE_RAY,
-                                       LIGHTPROBE_IRRADIANCE_LOAD};
-    request(
-        compilation_handles_.lightprobe_irradiance, IRRADIANCE_BAKE_SHADERS, AS_SPAN(shader_list));
+    const eShaderType shader_list[] = {
+        LIGHTPROBE_IRRADIANCE_BOUNDS, LIGHTPROBE_IRRADIANCE_OFFSET, LIGHTPROBE_IRRADIANCE_RAY};
+    request(IRRADIANCE_BAKE_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {MOTION_BLUR_GATHER,
                                        MOTION_BLUR_TILE_DILATE,
                                        MOTION_BLUR_TILE_FLATTEN_RGBA,
                                        MOTION_BLUR_TILE_FLATTEN_RG};
-    request(compilation_handles_.motion_blur, MOTION_BLUR_SHADERS, AS_SPAN(shader_list));
+    request(MOTION_BLUR_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {RAY_DENOISE_BILATERAL,
@@ -292,16 +199,19 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        RAY_TRACE_FALLBACK,
                                        RAY_TRACE_PLANAR,
                                        RAY_TRACE_SCREEN};
-    request(compilation_handles_.ray, RAYTRACING_SHADERS, AS_SPAN(shader_list));
+    request(RAYTRACING_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SPHERE_PROBE_CONVOLVE,
                                        SPHERE_PROBE_IRRADIANCE,
                                        SPHERE_PROBE_REMAP,
                                        SPHERE_PROBE_SELECT,
-                                       SPHERE_PROBE_SUNLIGHT,
-                                       LIGHTPROBE_IRRADIANCE_WORLD};
-    request(compilation_handles_.sphere_probe, SPHERE_PROBE_SHADERS, AS_SPAN(shader_list));
+                                       SPHERE_PROBE_SUNLIGHT};
+    request(SPHERE_PROBE_SHADERS, AS_SPAN(shader_list));
+  }
+  {
+    const eShaderType shader_list[] = {LIGHTPROBE_IRRADIANCE_WORLD, LIGHTPROBE_IRRADIANCE_LOAD};
+    request(VOLUME_PROBE_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SHADOW_CLIPMAP_CLEAR,
@@ -321,11 +231,11 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        SHADOW_TILEMAP_TAG_USAGE_OPAQUE,
                                        SHADOW_TILEMAP_TAG_USAGE_TRANSPARENT,
                                        SHADOW_VIEW_VISIBILITY};
-    request(compilation_handles_.shadow, SHADOW_SHADERS, AS_SPAN(shader_list));
+    request(SHADOW_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SUBSURFACE_CONVOLVE, SUBSURFACE_SETUP};
-    request(compilation_handles_.subsurface, SUBSURFACE_SHADERS, AS_SPAN(shader_list));
+    request(SUBSURFACE_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SURFEL_CLUSTER_BUILD,
@@ -334,11 +244,11 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        SURFEL_LIST_SORT,
                                        SHADOW_TILEMAP_TAG_USAGE_SURFELS,
                                        SURFEL_RAY};
-    request(compilation_handles_.surfel, SURFEL_SHADERS, AS_SPAN(shader_list));
+    request(SURFEL_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {VERTEX_COPY};
-    request(compilation_handles_.vertex_copy, VERTEX_COPY_SHADERS, AS_SPAN(shader_list));
+    request(VERTEX_COPY_SHADERS, AS_SPAN(shader_list));
   }
   {
     const eShaderType shader_list[] = {SHADOW_TILEMAP_TAG_USAGE_VOLUME,
@@ -347,7 +257,7 @@ LoadedBits ShaderModule::static_shaders_load_async(const LoadedBits request_bits
                                        VOLUME_RESOLVE,
                                        VOLUME_SCATTER,
                                        VOLUME_SCATTER_WITH_LIGHTS};
-    request(compilation_handles_.volume, VOLUME_EVAL_SHADERS, AS_SPAN(shader_list));
+    request(VOLUME_EVAL_SHADERS, AS_SPAN(shader_list));
   }
 #undef AS_SPAN
   return ready;

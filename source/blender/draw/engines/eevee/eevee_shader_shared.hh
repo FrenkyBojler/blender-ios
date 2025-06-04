@@ -84,8 +84,9 @@ enum LoadedBits : uint32_t {
   DEFAULT_MATERIALS = 1 << 18,
   WORLD_SHADERS = 1 << 19,
   MATERIAL_SHADERS = 1 << 20,
+  VOLUME_PROBE_SHADERS = 1 << 21,
 };
-ENUM_OPERATORS(LoadedBits, MATERIAL_SHADERS)
+ENUM_OPERATORS(LoadedBits, VOLUME_PROBE_SHADERS)
 
 /* -------------------------------------------------------------------- */
 /** \name Transform
