@@ -72,11 +72,6 @@ BLOCKLIST_OPTIX_OSL_LIMITED = [
     'osl_trace_shader.blend',
     # Noise functions do not return color with OptiX OSL
     'osl_camera_advanced.blend',
-    # Bump mapping differs from the CPU reference
-    'osl_camera_cubemap_auto_derivatives.blend',
-    # These tests fail due to the issue described in #138185
-    'osl_camera_advanced_manual_dof.blend',
-    'osl_camera_offset_in_volume.blend',
 ]
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
