@@ -128,6 +128,11 @@ struct ObjectRef {
     }
     return BKE_object_dupli_find_rgba_attribute(object, nullptr, nullptr, attr.name, r_value);
   }
+
+  LightLinking *light_linking() const
+  {
+    return dupli_parent ? dupli_parent->light_linking : object->light_linking;
+  }
 };
 
 };  // namespace blender::draw
