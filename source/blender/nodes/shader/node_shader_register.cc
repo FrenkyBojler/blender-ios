@@ -36,7 +36,6 @@ void register_shader_nodes()
   register_node_type_sh_camera();
   register_node_type_sh_clamp();
   register_node_type_sh_combcolor();
-  register_node_type_sh_combrgb();
   register_node_type_sh_combxyz();
   register_node_type_sh_curve_float();
   register_node_type_sh_curve_rgb();
@@ -74,7 +73,6 @@ void register_shader_nodes()
   register_node_type_sh_rgbtobw();
   register_node_type_sh_script();
   register_node_type_sh_sepcolor();
-  register_node_type_sh_seprgb();
   register_node_type_sh_sepxyz();
   register_node_type_sh_shadertorgb();
   register_node_type_sh_squeeze();

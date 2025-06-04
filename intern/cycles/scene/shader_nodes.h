@@ -1210,16 +1210,6 @@ class CombineColorNode : public ShaderNode {
   NODE_SOCKET_API(float, b)
 };
 
-class CombineRGBNode : public ShaderNode {
- public:
-  SHADER_NODE_CLASS(CombineRGBNode)
-  void constant_fold(const ConstantFolder &folder) override;
-
-  NODE_SOCKET_API(float, r)
-  NODE_SOCKET_API(float, g)
-  NODE_SOCKET_API(float, b)
-};
-
 class CombineXYZNode : public ShaderNode {
  public:
   SHADER_NODE_CLASS(CombineXYZNode)
@@ -1255,14 +1245,6 @@ class SeparateColorNode : public ShaderNode {
   void constant_fold(const ConstantFolder &folder) override;
 
   NODE_SOCKET_API(NodeCombSepColorType, color_type)
-  NODE_SOCKET_API(float3, color)
-};
-
-class SeparateRGBNode : public ShaderNode {
- public:
-  SHADER_NODE_CLASS(SeparateRGBNode)
-  void constant_fold(const ConstantFolder &folder) override;
-
   NODE_SOCKET_API(float3, color)
 };
 

@@ -17,7 +17,6 @@ set(SRC_OSL
   node_checker_texture.osl
   node_clamp.osl
   node_combine_color.osl
-  node_combine_rgb.osl
   node_combine_xyz.osl
   node_convert_from_color.osl
   node_convert_from_float.osl
@@ -76,7 +75,6 @@ set(SRC_OSL
   node_rgb_curves.osl
   node_rgb_ramp.osl
   node_separate_color.osl
-  node_separate_rgb.osl
   node_separate_xyz.osl
   node_set_normal.osl
   node_sheen_bsdf.osl

@@ -400,12 +400,6 @@ static ShaderNode *add_node(Scene *scene,
       node = mix_node;
     }
   }
-  else if (b_node.is_a(&RNA_ShaderNodeSeparateRGB)) {
-    node = graph->create_node<SeparateRGBNode>();
-  }
-  else if (b_node.is_a(&RNA_ShaderNodeCombineRGB)) {
-    node = graph->create_node<CombineRGBNode>();
-  }
   else if (b_node.is_a(&RNA_ShaderNodeSeparateColor)) {
     BL::ShaderNodeSeparateColor b_separate_node(b_node);
     SeparateColorNode *separate_node = graph->create_node<SeparateColorNode>();
