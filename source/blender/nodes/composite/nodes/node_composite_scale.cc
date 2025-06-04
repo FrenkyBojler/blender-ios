@@ -203,6 +203,8 @@ class ScaleOperation : public NodeOperation {
         return Interpolation::Bilinear;
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
+      case CMP_NODE_INTERPOLATION_EWA:
+        return Interpolation::EllipticalWeightedAverage;
     }
 
     BLI_assert_unreachable();

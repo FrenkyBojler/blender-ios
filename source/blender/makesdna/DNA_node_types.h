@@ -3007,6 +3007,7 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_NEAREST = 0,
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_INTERPOLATION_EWA = 3,
 } CMPNodeInterpolation;
 
 /* CornerPin node interpolation option. */

@@ -10,13 +10,13 @@
 #include "BLI_math_vector_types.hh"
 
 namespace blender::compositor {
-
 /* Possible interpolations to use when realizing an input result of some domain on another domain.
  * See the RealizationOptions struct for more information. */
 enum class Interpolation : uint8_t {
   Nearest,
   Bilinear,
   Bicubic,
+  EllipticalWeightedAverage,
 };
 
 /* ------------------------------------------------------------------------------------------------
