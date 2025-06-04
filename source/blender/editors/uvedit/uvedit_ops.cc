@@ -558,24 +558,23 @@ class UVAABBIsland {
   int64_t index;
 };
 
-static bool uvedit_uv_island_offser(Scene *scene,
-                                    SpaceImage *sima,
+static float2 uvedit_uv_island_offser(Scene *scene,
                                     Object *obedit,
                                     BMesh *bm,
                                     eUVAlignIslandAxis axis,
                                     eUVAlignIsland align,
                                     eUVAlignIslandOrder order,
-                                    float offset)
+                                    float offset,
+                                    float2 position)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   if (offsets.uv == -1) {
-    return false;
+    return position;
   }
   UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
-  float position[2] = {0.0, sima->tile_grid_shape[0]};
 
   if (element_map == nullptr) {
-    return false;
+    return position;
   }
 
   Vector<UvElement *> island_vector;
@@ -658,7 +657,7 @@ static bool uvedit_uv_island_offser(Scene *scene,
   }
 
   BM_uv_element_map_free(element_map);
-  return changed;
+  return position;
 }
 
 static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
@@ -670,6 +669,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
+  float2 position = {0, (float)sima->tile_grid_shape[1]};
   eUVAlignIslandAxis axis = eUVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
   eUVAlignIsland align;
   if (axis == Y) {
@@ -679,22 +679,29 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
     align = eUVAlignIsland(RNA_enum_get(op->ptr, "align_x"));
   }
   eUVAlignIslandOrder order = eUVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
-
   float offset = RNA_float_get(op->ptr, "offset");
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    bool changed = false;
 
     if (em->bm->totvertsel == 0) {
       continue;
     }
-    changed |= uvedit_uv_island_offser(scene, sima, obedit, em->bm, axis, align, order, offset);
-
-    if (changed) {
-      uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    
+    position = uvedit_uv_island_offser(
+        scene, obedit, em->bm, axis, align, order, offset, position);
+    if (ELEM(align, RIGHT, CENTER,BOTTOM)) {
+      if (axis == Y) {
+        position[0] = 0;
+      }
+      else {
+        position[1] = (float)sima->tile_grid_shape[1];
+      }
     }
+
+    uvedit_live_unwrap_update(sima, scene, obedit);
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    
   }
   return OPERATOR_FINISHED;
 }
