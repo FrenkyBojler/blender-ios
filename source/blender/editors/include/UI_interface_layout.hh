@@ -104,6 +104,10 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  blender::ui::EmbossType emboss() const;
+
+  /** Sub-layout items. */
+
   uiLayout &absolute(bool align);
   uiBlock *absolute_block();
 
@@ -498,7 +502,6 @@ float uiLayoutGetScaleX(uiLayout *layout);
 float uiLayoutGetScaleY(uiLayout *layout);
 float uiLayoutGetUnitsX(uiLayout *layout);
 float uiLayoutGetUnitsY(uiLayout *layout);
-blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
