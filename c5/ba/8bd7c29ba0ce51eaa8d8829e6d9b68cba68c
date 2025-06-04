@@ -2,3 +2,4 @@ Referenced by commit 30b48f32fb1, Fix #132692: Grease Pencil Python attribute lo
 Referenced by issue #132692, Grease Pencil 3 API - Stroke Points' select attribute not set correctly
 Referenced by issue #132268, Failed assertion from `rename_mesh_uv_seam_attribute())`
 Referenced by pull request #139841, Mesh: 5.0 changes for mask, custom normals, UV seam
+Referenced by commit 84bee96757423ffed5a364cab7087ee5a50e8063, Mesh: 5.0 changes for mask, custom normals, UV seam
