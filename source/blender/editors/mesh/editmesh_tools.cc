@@ -1070,7 +1070,6 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
       }
     }
 
-    ED_uvedit_live_unwrap(scene, objects);
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
