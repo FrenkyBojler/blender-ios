@@ -20,6 +20,79 @@
 
 #include "ED_mesh.hh"
 
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em_in,
+                                               Mesh *mesh_data_in,
+                                               BMesh *bmesh_in)
+    : em(em_in), mesh_data(mesh_data_in), bmesh(bmesh_in), symmetry_active(false)
+{
+  if (!em || !mesh_data || !bmesh || mesh_data->symmetry == 0) {
+    return;
+  }
+  symmetry_active = true;
+  use_topology_mirror = (mesh_data->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+  BMEdge *current_edge;
+  BMIter iter;
+
+  for (int axis = 0; axis < 3; ++axis) {
+    if (mesh_data->symmetry & (ME_SYMMETRY_X << axis)) {
+      EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology_mirror);
+      BM_ITER_MESH (current_edge, &iter, bmesh, BM_EDGES_OF_MESH) {
+        BMEdge *mirror_e = EDBM_verts_mirror_get_edge(em, current_edge);
+        if (mirror_e && mirror_e != current_edge) {
+          edge_to_mirrors_map[current_edge].push_back(mirror_e);
+        }
+      }
+      EDBM_verts_mirror_cache_end(em);
+    }
+  }
+}
+
+bool EditMeshSymmetryHelper::is_active() const
+{
+  return symmetry_active;
+}
+
+bool EditMeshSymmetryHelper::is_any_mirror_selected(BMEdge *edge) const
+{
+  if (!symmetry_active || edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
+    return false;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.at(edge)) {
+    if (BM_elem_flag_test(mirror_edge, BM_ELEM_SELECT) &&
+        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+template<typename Func>
+void EditMeshSymmetryHelper::apply_on_mirrors(BMEdge *edge, Func operation_lambda) const
+{
+  if (!symmetry_active || edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
+    return;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.at(edge)) {
+    if (!BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
+      operation_lambda(mirror_edge);
+    }
+  }
+}
+
+void EditMeshSymmetryHelper::set_seam_on_mirrors(BMEdge *edge, bool clear_seam) const
+{
+  apply_on_mirrors(edge, [clear_seam](BMEdge *e_mir) {
+    if (clear_seam) {
+      BM_elem_flag_disable(e_mir, BM_ELEM_SEAM);
+    }
+    else {
+      BM_elem_flag_enable(e_mir, BM_ELEM_SEAM);
+    }
+  });
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Mesh Spatial Mirror API
  * \{ */

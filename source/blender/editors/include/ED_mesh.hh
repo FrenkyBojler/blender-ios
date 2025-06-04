@@ -11,6 +11,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
+#include <unordered_map>
+#include <vector>
 
 struct ARegion;
 struct BMBVHTree;
@@ -44,6 +46,24 @@ struct UvElement;
 struct UvElementMap;
 
 /* `editmesh_utils.cc` */
+
+class EditMeshSymmetryHelper {
+ public:
+  EditMeshSymmetryHelper(BMEditMesh *em_in, Mesh *mesh_data_in, BMesh *bmesh_in);
+
+  bool is_active() const;
+  bool is_any_mirror_selected(BMEdge *edge) const;
+  template<typename Func> void apply_on_mirrors(BMEdge *edge, Func operation_lambda) const;
+  void set_seam_on_mirrors(BMEdge *edge, bool clear_seam) const;
+
+ private:
+  BMEditMesh *em;
+  Mesh *mesh_data;
+  BMesh *bmesh;
+  bool symmetry_active;
+  bool use_topology_mirror;
+  std::unordered_map<BMEdge *, std::vector<BMEdge *>> edge_to_mirrors_map;
+};
 
 /**
  * \param em: Edit-mesh used for generating mirror data.

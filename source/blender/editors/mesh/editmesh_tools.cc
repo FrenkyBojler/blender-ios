@@ -1027,10 +1027,9 @@ void MESH_OT_edge_face_add(wmOperatorType *ot)
 
 static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool clear = RNA_boolean_get(op->ptr, "clear");
-
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
@@ -1039,80 +1038,47 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
     BMesh *bm = em->bm;
     Mesh *me = static_cast<Mesh *>(obedit->data);
 
-    if (bm->totedgesel == 0) {
-      continue;
-    }
+    EditMeshSymmetryHelper symmetry_helper(em, me, bm);
 
-    if (me->symmetry == 0) {
-      BMIter iter;
-      BMEdge *eed;
-      if (clear) {
-        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-            BM_elem_flag_disable(eed, BM_ELEM_SEAM);
-          }
-        }
+    BMIter iter;
+    BMEdge *eed;
+
+    BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+        continue;
       }
-      else {
-        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-            BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-          }
-        }
+
+      const bool is_locally_selected = BM_elem_flag_test(eed, BM_ELEM_SELECT);
+      bool is_mirror_relevant = false;
+      if (symmetry_helper.is_active() && !is_locally_selected) {
+        is_mirror_relevant = symmetry_helper.is_any_mirror_selected(eed);
       }
-    }
-    else {
-      const bool use_topology = ((me->editflag & ME_EDIT_MIRROR_TOPO) != 0);
-      BMIter iter;
-      BMEdge *eed;
 
-      for (int axis = 0; axis < 3; axis++) {
-        const int axis_flag = (ME_SYMMETRY_X << axis);
-        if ((me->symmetry & axis_flag) == 0) {
-          continue;
+      const bool should_process_this_edge_group = is_locally_selected || is_mirror_relevant;
+
+      if (should_process_this_edge_group) {
+        if (clear) {
+          BM_elem_flag_disable(eed, BM_ELEM_SEAM);
+        }
+        else {
+          BM_elem_flag_enable(eed, BM_ELEM_SEAM);
         }
 
-        EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology);
-
-        BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
-          if (!BM_elem_flag_test(eed, BM_ELEM_SELECT) || BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-            continue;
-          }
-
-          if (clear) {
-            BM_elem_flag_disable(eed, BM_ELEM_SEAM);
-          }
-          else {
-            BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-          }
-
-          BMEdge *eed_mirror = EDBM_verts_mirror_get_edge(em, eed);
-          if (eed_mirror) {
-            if (clear) {
-              BM_elem_flag_disable(eed_mirror, BM_ELEM_SEAM);
-            }
-            else {
-              BM_elem_flag_enable(eed_mirror, BM_ELEM_SEAM);
-            }
-          }
+        if (symmetry_helper.is_active()) {
+          symmetry_helper.set_seam_on_mirrors(eed, clear);
         }
-
-        EDBM_verts_mirror_cache_end(em);
       }
     }
 
     ED_uvedit_live_unwrap(scene, objects);
-
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
     params.is_destructive = false;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
-
   return OPERATOR_FINISHED;
 }
-
 void MESH_OT_mark_seam(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1147,7 +1113,7 @@ static int edbm_mark_sharp_exec(bContext *C, wmOperator *op)
   BMIter iter;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
-  const Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
