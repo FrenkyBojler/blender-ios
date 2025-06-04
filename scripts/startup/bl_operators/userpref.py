@@ -381,6 +381,7 @@ class PREFERENCES_OT_keyitem_restore(Operator):
 
         if (not kmi.is_user_defined) and kmi.is_user_modified:
             km.restore_item_to_default(kmi)
+            context.preferences.is_dirty = True
 
         return {'FINISHED'}
 
@@ -453,9 +454,9 @@ class PREFERENCES_OT_keyconfig_remove(Operator):
 # Add-on Operators
 
 class PREFERENCES_OT_addon_enable(Operator):
-    """Turn on this extension"""
+    """Turn on this add-on"""
     bl_idname = "preferences.addon_enable"
-    bl_label = "Enable Extension"
+    bl_label = "Enable Add-on"
 
     module: StringProperty(
         name="Module",
@@ -484,9 +485,6 @@ class PREFERENCES_OT_addon_enable(Operator):
 
         # Ensure any wheels are setup before enabling.
         module_name = self.module
-        is_extension = addon_utils.check_extension(module_name)
-        if is_extension:
-            addon_utils.extensions_refresh(ensure_wheels=True, addon_modules_pending=[module_name])
 
         mod = addon_utils.enable(module_name, default_set=True, handle_error=err_cb)
 
@@ -499,21 +497,17 @@ class PREFERENCES_OT_addon_enable(Operator):
                 self.report(
                     {'WARNING'},
                     rpt_(
-                        "This script was written Blender "
+                        "This script was written for Blender "
                         "version {:d}.{:d}.{:d} and might not "
                         "function (correctly), "
                         "though it is enabled"
-                    ).format(info_ver)
+                    ).format(*info_ver)
                 )
             result = {'FINISHED'}
         else:
 
             if err_str:
                 self.report({'ERROR'}, err_str)
-
-            if is_extension:
-                # Since the add-on didn't work, remove any wheels it may have installed.
-                addon_utils.extensions_refresh(ensure_wheels=True)
 
             result = {'CANCELLED'}
 
@@ -524,9 +518,9 @@ class PREFERENCES_OT_addon_enable(Operator):
 
 
 class PREFERENCES_OT_addon_disable(Operator):
-    """Turn off this extension"""
+    """Turn off this add-on"""
     bl_idname = "preferences.addon_disable"
-    bl_label = "Disable Extension"
+    bl_label = "Disable Add-on"
 
     module: StringProperty(
         name="Module",
@@ -550,10 +544,7 @@ class PREFERENCES_OT_addon_disable(Operator):
             _wm_wait_cursor(True)
 
         module_name = self.module
-        is_extension = addon_utils.check_extension(module_name)
         addon_utils.disable(module_name, default_set=True, handle_error=err_cb)
-        if is_extension:
-            addon_utils.extensions_refresh(ensure_wheels=True)
 
         if err_str:
             self.report({'ERROR'}, err_str)
@@ -955,7 +946,10 @@ class PREFERENCES_OT_addon_show(Operator):
             context.preferences.view.show_addons_enabled_only = False
             context.window_manager.addon_filter = 'All'
             context.window_manager.addon_search = bl_info["name"]
-            bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
+
+            # No need to show the editor if it is already visible in the main window.
+            if 'PREFERENCES' not in (area.type for area in context.screen.areas):
+                bpy.ops.screen.userpref_show('INVOKE_DEFAULT')
 
         return {'FINISHED'}
 
@@ -1138,6 +1132,7 @@ class PREFERENCES_OT_studiolight_new(Operator):
     filename: StringProperty(
         name="Name",
         default="StudioLight",
+        subtype='FILE_NAME',
     )
 
     ask_override = False

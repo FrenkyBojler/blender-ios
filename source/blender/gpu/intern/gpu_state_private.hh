@@ -16,8 +16,7 @@
 
 #include <cstring>
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 /* Encapsulate all pipeline state that we need to track.
  * Try to keep small to reduce validation time. */
@@ -41,6 +40,8 @@ union GPUState {
     uint32_t logic_op_xor : 1;
     uint32_t invert_facing : 1;
     uint32_t shadow_bias : 1;
+    /** Clip range of 0..1 on OpenGL. */
+    uint32_t clip_control : 1;
     /** Number of clip distances enabled. */
     /* TODO(fclem): This should be a shader property. */
     uint32_t clip_distances : 3;
@@ -105,7 +106,7 @@ BLI_STATIC_ASSERT(sizeof(GPUStateMutable) == sizeof(GPUStateMutable::data),
 
 inline bool operator==(const GPUStateMutable &a, const GPUStateMutable &b)
 {
-  return memcmp(&a, &b, sizeof(GPUStateMutable)) == 0;
+  return a.data[0] == b.data[0] && a.data[1] == b.data[1] && a.data[2] == b.data[2];
 }
 
 inline bool operator!=(const GPUStateMutable &a, const GPUStateMutable &b)
@@ -141,9 +142,8 @@ class StateManager {
   GPUStateMutable mutable_state;
   bool use_bgl = false;
 
- public:
   StateManager();
-  virtual ~StateManager(){};
+  virtual ~StateManager() = default;
 
   virtual void apply_state() = 0;
   virtual void force_state() = 0;
@@ -169,8 +169,8 @@ class Fence {
   bool signalled_ = false;
 
  public:
-  Fence(){};
-  virtual ~Fence(){};
+  Fence() = default;
+  virtual ~Fence() = default;
 
   virtual void signal() = 0;
   virtual void wait() = 0;
@@ -190,5 +190,4 @@ static inline const Fence *unwrap(const GPUFence *pixbuf)
   return reinterpret_cast<const Fence *>(pixbuf);
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

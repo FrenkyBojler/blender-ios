@@ -6,7 +6,7 @@
  * \ingroup pythonintern
  *
  * This file exposed blend file library appending/linking to python, typically
- * this would be done via RNA api but in this case a hand written python api
+ * this would be done via RNA API but in this case a hand written Python API
  * allows us to use Python's context manager (`__enter__` and `__exit__`).
  *
  * Everything here is exposed via `bpy.data.libraries.load(...)` which returns
@@ -31,8 +31,6 @@
 #include "DNA_space_types.h" /* FILE_LINK, FILE_RELPATH */
 
 #include "BLO_readfile.hh"
-
-#include "MEM_guardedalloc.h"
 
 #include "bpy_capi_utils.hh"
 #include "bpy_library.hh"
@@ -76,9 +74,14 @@ static PyObject *bpy_lib_enter(BPy_Library *self);
 static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *args);
 static PyObject *bpy_lib_dir(BPy_Library *self);
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_lib_methods[] = {
@@ -88,8 +91,12 @@ static PyMethodDef bpy_lib_methods[] = {
     {nullptr} /* sentinel */
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static void bpy_lib_dealloc(BPy_Library *self)
@@ -166,7 +173,7 @@ PyDoc_STRVAR(
     "   Each object has attributes matching bpy.data which are lists of strings to be linked.\n"
     "\n"
     "   :arg filepath: The path to a blend file.\n"
-    "   :type filepath: string or bytes\n"
+    "   :type filepath: str | bytes\n"
     "   :arg link: When False reference to the original file is lost.\n"
     "   :type link: bool\n"
     "   :arg relative: When True the path is stored relative to the open blend file.\n"
@@ -185,7 +192,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *kw)
 {
   Main *bmain_base = CTX_data_main(BPY_context_get());
-  Main *bmain = static_cast<Main *>(self->ptr.data); /* Typically #G_MAIN */
+  Main *bmain = static_cast<Main *>(self->ptr->data); /* Typically #G_MAIN */
   BPy_Library *ret;
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};
   bool is_rel = false, is_link = false, use_assets_only = false;
@@ -588,9 +595,14 @@ static PyObject *bpy_lib_dir(BPy_Library *self)
   return PyDict_Keys(self->dict);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 PyMethodDef BPY_library_load_method_def = {
@@ -600,8 +612,12 @@ PyMethodDef BPY_library_load_method_def = {
     bpy_lib_load_doc,
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 int BPY_library_load_type_ready()

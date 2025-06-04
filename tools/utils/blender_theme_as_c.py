@@ -16,6 +16,10 @@ eg:
 
     ./tools/utils/blender_theme_as_c.py $(find ~/.config/blender -name "userpref.blend" | sort | tail -1)
 """
+__all__ = (
+    "main",
+)
+
 
 C_SOURCE_HEADER = r'''/* SPDX-FileCopyrightText: 2018 Blender Authors
  *
@@ -124,7 +128,7 @@ def dna_rename_defs(blend):
     for struct_name_runtime, members in member_runtime_to_storage_map.items():
         if len(members) > 1:
             # Order renames that are themselves destinations to go first, so that the item is not removed.
-            # Needed for e.g.
+            # Needed e.g.
             # `DNA_STRUCT_RENAME_ELEM(Light, energy_new, energy);`
             # `DNA_STRUCT_RENAME_ELEM(Light, energy, energy_deprecated)`
             # ... in this case the order matters.
@@ -174,7 +178,7 @@ def is_ignore_dna_name(name):
         return False
 
 
-def write_member(fw, indent, b, theme, ls):
+def write_member(fw, indent, _blend, _theme, ls):
     path_old = ()
 
     for key, value in ls:
@@ -262,6 +266,7 @@ def file_remove_empty_braces(source_dst):
     import re
 
     def key_replace(match):
+        del match
         return ""
     data_prev = None
     # Braces may become empty by removing nested

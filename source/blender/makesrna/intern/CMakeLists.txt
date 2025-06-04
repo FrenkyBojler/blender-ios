@@ -249,9 +249,11 @@ set(INC
   ../../gpu
   ../../ikplugin
   ../../imbuf
+  ../../imbuf/movie
   ../../io/usd
   ../../modifiers
   ../../nodes
+  ../../nodes/function/include
   ../../nodes/geometry/include
   ../../sequencer
   ../../simulation
@@ -286,19 +288,19 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_AUDASPACE)
@@ -315,15 +317,6 @@ if(WITH_AUDASPACE)
 endif()
 
 if(WITH_CODEC_FFMPEG)
-  list(APPEND INC
-    ../../../../intern/ffmpeg
-  )
-  list(APPEND INC_SYS
-    ${FFMPEG_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${FFMPEG_LIBRARIES}
-  )
   add_definitions(-DWITH_FFMPEG)
 endif()
 
@@ -505,6 +498,7 @@ set(LIB
   bf_editor_mesh
   bf_editor_object
   bf_editor_physics
+  bf_editor_pointcloud
   bf_editor_render
   bf_editor_scene
   bf_editor_sculpt_paint

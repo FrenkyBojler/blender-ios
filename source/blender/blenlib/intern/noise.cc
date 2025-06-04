@@ -4,12 +4,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later AND BSD-3-Clause */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <cstdint>
 
+#include "BLI_math_base.h"
 #include "BLI_math_base.hh"
-#include "BLI_math_base_safe.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_numbers.hh"
 #include "BLI_math_vector.hh"
@@ -583,8 +588,18 @@ float perlin(float4 position)
 
 /* fBM = Fractal Brownian Motion */
 template<typename T>
-float perlin_fbm(
-    T p, const float detail, const float roughness, const float lacunarity, const bool normalize)
+#if defined(_MSC_VER) && _MSC_VER >= 1930
+/* The MSVC 2022 optimizer generates bad code for perlin_fractal_distorted when perlin_fbm gets
+ * inlined leading to incorrect results and failing tests that rely on perlin noise. For now just
+ * disable inlining for this function until we can get the compiler fixed. */
+BLI_NOINLINE
+#endif
+    float
+    perlin_fbm(T p,
+               const float detail,
+               const float roughness,
+               const float lacunarity,
+               const bool normalize)
 {
   float fscale = 1.0f;
   float amp = 1.0f;
@@ -610,6 +625,12 @@ float perlin_fbm(
 
 /* Explicit instantiation for Wave Texture. */
 template float perlin_fbm<float3>(float3 p,
+                                  const float detail,
+                                  const float roughness,
+                                  const float lacunarity,
+                                  const bool normalize);
+
+template float perlin_fbm<float2>(float2 p,
                                   const float detail,
                                   const float roughness,
                                   const float lacunarity,
@@ -674,9 +695,7 @@ float perlin_hybrid_multi_fractal(T p,
   float weight = 1.0f;
 
   for (int i = 0; (weight > 0.001f) && (i <= int(detail)); i++) {
-    if (weight > 1.0f) {
-      weight = 1.0f;
-    }
+    weight = std::min(weight, 1.0f);
 
     float signal = (perlin_signed(p) + offset) * pwr;
     pwr *= roughness;
@@ -687,9 +706,7 @@ float perlin_hybrid_multi_fractal(T p,
 
   const float rmd = detail - floorf(detail);
   if ((rmd != 0.0f) && (weight > 0.001f)) {
-    if (weight > 1.0f) {
-      weight = 1.0f;
-    }
+    weight = std::min(weight, 1.0f);
     float signal = (perlin_signed(p) + offset) * pwr;
     value += rmd * weight * signal;
   }
@@ -1081,7 +1098,7 @@ float voronoi_distance(const float3 a, const float3 b, const VoronoiParams &para
     case NOISE_SHD_VORONOI_MANHATTAN:
       return std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z);
     case NOISE_SHD_VORONOI_CHEBYCHEV:
-      return std::max(std::abs(a.x - b.x), std::max(std::abs(a.y - b.y), std::abs(a.z - b.z)));
+      return std::max({std::abs(a.x - b.x), std::abs(a.y - b.y), std::abs(a.z - b.z)});
     case NOISE_SHD_VORONOI_MINKOWSKI:
       return std::pow(std::pow(std::abs(a.x - b.x), params.exponent) +
                           std::pow(std::abs(a.y - b.y), params.exponent) +
@@ -1103,8 +1120,7 @@ float voronoi_distance(const float4 a, const float4 b, const VoronoiParams &para
       return std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z) + std::abs(a.w - b.w);
     case NOISE_SHD_VORONOI_CHEBYCHEV:
       return std::max(
-          std::abs(a.x - b.x),
-          std::max(std::abs(a.y - b.y), std::max(std::abs(a.z - b.z), std::abs(a.w - b.w))));
+          {std::abs(a.x - b.x), std::abs(a.y - b.y), std::abs(a.z - b.z), std::abs(a.w - b.w)});
     case NOISE_SHD_VORONOI_MINKOWSKI:
       return std::pow(std::pow(std::abs(a.x - b.x), params.exponent) +
                           std::pow(std::abs(a.y - b.y), params.exponent) +
@@ -1116,6 +1132,17 @@ float voronoi_distance(const float4 a, const float4 b, const VoronoiParams &para
       break;
   }
   return 0.0f;
+}
+
+/* Possibly cheaper/faster version of Voronoi distance, in a way that does not change
+ * logic of "which distance is the closest?". */
+template<typename T>
+static float voronoi_distance_bound(const T a, const T b, const VoronoiParams &params)
+{
+  if (params.metric == NOISE_SHD_VORONOI_EUCLIDEAN) {
+    return math::length_squared(a - b);
+  }
+  return voronoi_distance(a, b, params);
 }
 
 /* **** 1D Voronoi **** */
@@ -1301,7 +1328,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float2 coord)
       float2 cellOffset(i, j);
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+      float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
       if (distanceToPoint < minDistance) {
         targetOffset = cellOffset;
         minDistance = distanceToPoint;
@@ -1311,7 +1338,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float2 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1445,22 +1472,22 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float2 coord)
 
   float2 closestPoint = {0.0f, 0.0f};
   float2 closestPointOffset = {0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset(i, j);
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = math::distance(pointPosition, localPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPoint = pointPosition;
         closestPointOffset = cellOffset;
       }
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float2 closestPointToClosestPoint = {0.0f, 0.0f};
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
@@ -1470,9 +1497,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float2 coord)
       float2 cellOffset = float2(i, j) + closestPointOffset;
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = math::distance(closestPoint, pointPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPointToClosestPoint = pointPosition;
       }
     }
@@ -1502,7 +1529,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float3 coord)
         float3 cellOffset(i, j, k);
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+        float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
         if (distanceToPoint < minDistance) {
           targetOffset = cellOffset;
           minDistance = distanceToPoint;
@@ -1513,7 +1540,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float3 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1657,16 +1684,16 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
 
   float3 closestPoint = {0.0f, 0.0f, 0.0f};
   float3 closestPointOffset = {0.0f, 0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset(i, j, k);
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = math::distance(pointPosition, localPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPoint = pointPosition;
           closestPointOffset = cellOffset;
         }
@@ -1674,7 +1701,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float3 closestPointToClosestPoint = {0.0f, 0.0f, 0.0f};
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
@@ -1685,9 +1712,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
         float3 cellOffset = float3(i, j, k) + closestPointOffset;
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = math::distance(closestPoint, pointPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPointToClosestPoint = pointPosition;
         }
       }
@@ -1719,7 +1746,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float4 coord)
           float4 cellOffset(i, j, k, u);
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+          float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
           if (distanceToPoint < minDistance) {
             targetOffset = cellOffset;
             minDistance = distanceToPoint;
@@ -1731,7 +1758,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float4 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1883,7 +1910,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
 
   float4 closestPoint = {0.0f, 0.0f, 0.0f, 0.0f};
   float4 closestPointOffset = {0.0f, 0.0f, 0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       for (int j = -1; j <= 1; j++) {
@@ -1891,9 +1918,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
           float4 cellOffset(i, j, k, u);
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = math::distance(pointPosition, localPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPoint = pointPosition;
             closestPointOffset = cellOffset;
           }
@@ -1902,7 +1929,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float4 closestPointToClosestPoint = {0.0f, 0.0f, 0.0f, 0.0f};
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
@@ -1914,9 +1941,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
           float4 cellOffset = float4(i, j, k, u) + closestPointOffset;
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = math::distance(closestPoint, pointPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPointToClosestPoint = pointPosition;
           }
         }
@@ -2126,20 +2153,27 @@ static float2 compute_2d_gabor_kernel(const float2 position,
   return windowed_gaussian_envelope * phasor;
 }
 
-/* Computes the approximate standard deviation of the zero mean normal distribution representing
+/**
+ * Computes the approximate standard deviation of the zero mean normal distribution representing
  * the amplitude distribution of the noise based on Equation (9) in the original Gabor noise paper.
  * For simplicity, the Hann window is ignored and the orientation is fixed since the variance is
  * orientation invariant. We start integrating the squared Gabor kernel with respect to x:
  *
- *   \int_{-\infty}^{-\infty} (e^{- \pi (x^2 + y^2)} cos(2 \pi f_0 x))^2 dx
+ * \code{.tex}
+ * \int_{-\infty}^{-\infty} (e^{- \pi (x^2 + y^2)} cos(2 \pi f_0 x))^2 dx
+ * \endcode
  *
  * Which gives:
  *
- *  \frac{(e^{2 \pi f_0^2}-1) e^{-2 \pi y^2 - 2 pi f_0^2}}{2^\frac{3}{2}}
+ * \code{.tex}
+ * \frac{(e^{2 \pi f_0^2}-1) e^{-2 \pi y^2 - 2 pi f_0^2}}{2^\frac{3}{2}}
+ * \endcode
  *
  * Then we similarly integrate with respect to y to get:
  *
- *  \frac{1 - e^{-2 \pi f_0^2}}{4}
+ * \code{.tex}
+ * \frac{1 - e^{-2 \pi f_0^2}}{4}
+ * \endcode
  *
  * Secondly, we note that the second moment of the weights distribution is 0.5 since it is a
  * fair Bernoulli distribution. So the final standard deviation expression is square root the
@@ -2149,7 +2183,9 @@ static float2 compute_2d_gabor_kernel(const float2 position,
  * converges to an upper limit as the frequency approaches infinity, so we replace the expression
  * with the following limit:
  *
- *  \lim_{x \to \infty} \frac{1 - e^{-2 \pi f_0^2}}{4}
+ * \code{.tex}
+ * \lim_{x \to \infty} \frac{1 - e^{-2 \pi f_0^2}}{4}
+ * \endcode
  *
  * To get an approximation of 0.25. */
 static float compute_2d_gabor_standard_deviation()

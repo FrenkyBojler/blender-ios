@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 
 #include "RNA_types.hh"
@@ -138,7 +140,7 @@ struct TreeElementIcon {
         ID_CV, \
         ID_PT, \
         ID_VO, \
-        ID_GP) || /* Only in 'blendfile' mode ... :/ */ \
+        ID_GP) || /* Only in blend-file mode ... :/ */ \
    ELEM(GS((_id)->name), \
         ID_SCR, \
         ID_WM, \
@@ -483,6 +485,7 @@ void OUTLINER_OT_lib_relocate(wmOperatorType *ot);
 void OUTLINER_OT_lib_reload(wmOperatorType *ot);
 
 void OUTLINER_OT_id_delete(wmOperatorType *ot);
+void OUTLINER_OT_id_linked_relocate(wmOperatorType *ot);
 
 void OUTLINER_OT_show_one_level(wmOperatorType *ot);
 void OUTLINER_OT_show_active(wmOperatorType *ot);
@@ -509,6 +512,10 @@ void OUTLINER_OT_orphans_manage(wmOperatorType *ot);
 
 /* `outliner_query.cc` */
 
+/**
+ * Iterate over the entire tree (including collapsed sub-elements),
+ * probing if any of the elements has a warning to be displayed.
+ */
 bool outliner_shows_mode_column(const SpaceOutliner &space_outliner);
 bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
 

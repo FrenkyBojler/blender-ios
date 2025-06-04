@@ -10,10 +10,14 @@
 
 #include "BKE_node.hh"
 
-namespace blender::realtime_compositor {
+#include "NOD_derived_node_tree.hh"
+
+namespace blender::compositor {
 class RenderContext;
 class Profiler;
-}  // namespace blender::realtime_compositor
+class Context;
+class NodeOperation;
+}  // namespace blender::compositor
 namespace blender::bke {
 struct bNodeTreeType;
 }  // namespace blender::bke
@@ -26,6 +30,9 @@ struct ViewLayer;
 
 extern blender::bke::bNodeTreeType *ntreeType_Composite;
 
+void register_node_tree_type_cmp();
+void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
+
 void node_cmp_rlayers_outputs(bNodeTree *ntree, bNode *node);
 void node_cmp_rlayers_register_pass(bNodeTree *ntree,
                                     bNode *node,
@@ -34,16 +41,6 @@ void node_cmp_rlayers_register_pass(bNodeTree *ntree,
                                     const char *name,
                                     eNodeSocketDatatype type);
 const char *node_cmp_rlayers_sock_to_pass(int sock_index);
-
-void register_node_type_cmp_custom_group(blender::bke::bNodeType *ntype);
-
-void ntreeCompositExecTree(Render *render,
-                           Scene *scene,
-                           bNodeTree *ntree,
-                           RenderData *rd,
-                           const char *view_name,
-                           blender::realtime_compositor::RenderContext *render_context,
-                           blender::realtime_compositor::Profiler *profiler);
 
 /**
  * Called from render pipeline, to tag render input and output.
@@ -84,9 +81,6 @@ void ntreeCompositOutputFileUniqueLayer(ListBase *list,
                                         const char defname[],
                                         char delim);
 
-void ntreeCompositColorBalanceSyncFromLGG(bNodeTree *ntree, bNode *node);
-void ntreeCompositColorBalanceSyncFromCDL(bNodeTree *ntree, bNode *node);
-
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
@@ -99,3 +93,10 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
  */
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
+
+namespace blender::nodes {
+
+compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
+                                                                DNode node);
+
+}

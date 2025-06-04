@@ -25,7 +25,7 @@
 #include "BKE_subdiv_eval.hh"
 
 #ifdef WITH_OPENSUBDIV
-#  include "opensubdiv_topology_refiner_capi.hh"
+#  include "opensubdiv_topology_refiner.hh"
 #endif
 
 using blender::Array;
@@ -261,8 +261,8 @@ static SubdivCCGCoord *subdiv_ccg_adjacent_edge_add_face(SubdivCCG &subdiv_ccg,
   adjacent_edge.boundary_coords = static_cast<SubdivCCGCoord **>(
       MEM_reallocN(adjacent_edge.boundary_coords,
                    adjacent_edge.num_adjacent_faces * sizeof(*adjacent_edge.boundary_coords)));
-  adjacent_edge.boundary_coords[adjacent_face_index] = static_cast<SubdivCCGCoord *>(
-      MEM_malloc_arrayN(grid_size * 2, sizeof(SubdivCCGCoord), "ccg adjacent boundary"));
+  adjacent_edge.boundary_coords[adjacent_face_index] = MEM_malloc_arrayN<SubdivCCGCoord>(
+      grid_size * 2, "ccg adjacent boundary");
   return adjacent_edge.boundary_coords[adjacent_face_index];
 }
 
@@ -443,7 +443,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   if (!subdiv_ccg) {
     return nullptr;
   }
-  Mesh *result = BKE_mesh_new_nomain_from_template(&coarse_mesh, 0, 0, 0, 0);
+  Mesh *result = BKE_mesh_copy_for_eval(coarse_mesh);
   result->runtime->subdiv_ccg = std::move(subdiv_ccg);
   return result;
 }

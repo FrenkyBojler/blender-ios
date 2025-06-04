@@ -21,17 +21,18 @@ static CLG_LogRef LOG = {"gpu.vulkan"};
 namespace blender::gpu {
 void VKContext::debug_group_begin(const char *name, int)
 {
-  render_graph.debug_group_begin(name);
+  render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
 }
 
 void VKContext::debug_group_end()
 {
-  render_graph.debug_group_end();
+  render_graph().debug_group_end();
 }
 
 bool VKContext::debug_capture_begin(const char *title)
 {
-  flush_render_graph();
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
   return VKBackend::get().debug_capture_begin(title);
 }
 
@@ -51,7 +52,8 @@ bool VKBackend::debug_capture_begin(const char *title)
 
 void VKContext::debug_capture_end()
 {
-  flush_render_graph();
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                     RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
   VKBackend::get().debug_capture_end();
 }
 
@@ -157,7 +159,6 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                    const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
                    void *user_data)
 {
-
   CLG_Severity severity = CLG_SEVERITY_INFO;
   if (message_severity & (VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                           VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT))
@@ -171,21 +172,18 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
     severity = CLG_SEVERITY_ERROR;
   }
 
-  if ((LOG.type->flag & CLG_FLAG_USE) && (LOG.type->level <= severity)) {
-    const char *format = "{0x%x}% s\n %s ";
-    CLG_logf(LOG.type,
-             severity,
-             "",
-             "",
-             format,
-             callback_data->messageIdNumber,
-             callback_data->pMessageIdName,
-             callback_data->pMessage);
-  }
-
+  const char *format = "{0x%x}% s\n %s ";
+  CLOG_AT_SEVERITY(&LOG,
+                   severity,
+                   0,
+                   format,
+                   callback_data->messageIdNumber,
+                   callback_data->pMessageIdName,
+                   callback_data->pMessage);
   const bool do_labels = (callback_data->objectCount + callback_data->cmdBufLabelCount +
                           callback_data->queueLabelCount) > 0;
-  if (do_labels) {
+  const bool log_active = bool(LOG.type->flag & CLG_FLAG_USE) || severity >= CLG_SEVERITY_WARN;
+  if (do_labels && log_active) {
     VKDebuggingTools &debugging_tools = *reinterpret_cast<VKDebuggingTools *>(user_data);
     debugging_tools.print_labels(callback_data);
   }

@@ -7,7 +7,6 @@
  */
 
 #include <cstring>
-#include <limits>
 
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
@@ -158,7 +157,7 @@ static Mesh *generate_bounding_box_mesh(const std::optional<Bounds<float3>> &bou
     result->totcol = totcol;
   }
 
-  BKE_mesh_translate(result, math::midpoint(bounds->min, bounds->max), false);
+  bke::mesh_translate(*result, math::midpoint(bounds->min, bounds->max), false);
 
   return result;
 }
@@ -175,6 +174,7 @@ static void modify_geometry_set(ModifierData *md,
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
   CacheFile *cache_file = mcmd->cache_file;
   const float frame = DEG_get_ctime(ctx->depsgraph);
+  const double frame_offset = BKE_cachefile_frame_offset(cache_file, double(frame));
   const double time = BKE_cachefile_time_offset(cache_file, frame, FPS);
   const char *err_str = nullptr;
 
@@ -209,16 +209,18 @@ static void modify_geometry_set(ModifierData *md,
           pointcloud->bounds_min_max(), pointcloud->mat, pointcloud->totcol);
     }
 
-    *geometry_set = bke::GeometrySet::from_mesh(bbox, bke::GeometryOwnershipType::Editable);
+    *geometry_set = bke::GeometrySet::from_mesh(bbox);
     return;
   }
 
   /* Time (in frames or seconds) between two velocity samples. Automatically computed to
    * scale the velocity vectors at render time for generating proper motion blur data. */
+#  ifdef WITH_ALEMBIC
   float velocity_scale = mcmd->velocity_scale;
   if (mcmd->cache_file->velocity_unit == CACHEFILE_VELOCITY_UNIT_FRAME) {
     velocity_scale *= FPS;
   }
+#  endif
 
   switch (cache_file->type) {
     case CACHEFILE_TYPE_ALEMBIC: {
@@ -235,7 +237,7 @@ static void modify_geometry_set(ModifierData *md,
     case CACHEFILE_TYPE_USD: {
 #  ifdef WITH_USD
       const blender::io::usd::USDMeshReadParams params = blender::io::usd::create_mesh_read_params(
-          time * FPS, mcmd->read_flag);
+          frame_offset, mcmd->read_flag);
       blender::io::usd::USD_read_geometry(
           mcmd->reader, ctx->object, *geometry_set, params, &err_str);
 #  endif
@@ -380,15 +382,18 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (has_cache_file) {
     uiItemPointerR(
-        layout, ptr, "object_path", &cache_file_ptr, "object_paths", nullptr, ICON_NONE);
+        layout, ptr, "object_path", &cache_file_ptr, "object_paths", std::nullopt, ICON_NONE);
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else if (RNA_enum_get(&ob_ptr, "type") == OB_CURVES) {
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -405,7 +410,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
-  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -492,7 +497,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*srna*/ &RNA_MeshSequenceCacheModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */
 
     /*copy_data*/ copy_data,

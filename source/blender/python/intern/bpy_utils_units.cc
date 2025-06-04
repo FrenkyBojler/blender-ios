@@ -151,16 +151,16 @@ PyDoc_STRVAR(
     "   Convert a given input string into a float value.\n"
     "\n"
     "   :arg unit_system: The unit system, from :attr:`bpy.utils.units.systems`.\n"
-    "   :type unit_system: string\n"
+    "   :type unit_system: str\n"
     "   :arg unit_category: The category of data we are converting (length, area, rotation, "
     "etc.),\n"
     "      from :attr:`bpy.utils.units.categories`.\n"
-    "   :type unit_category: string\n"
+    "   :type unit_category: str\n"
     "   :arg str_input: The string to convert to a float value.\n"
-    "   :type str_input: string\n"
+    "   :type str_input: str\n"
     "   :arg str_ref_unit: A reference string from which to extract a default unit, if none is "
     "found in ``str_input``.\n"
-    "   :type str_ref_unit: string or None\n"
+    "   :type str_ref_unit: str | None\n"
     "   :return: The converted/interpreted value.\n"
     "   :rtype: float\n"
     "   :raises ValueError: if conversion fails to generate a valid Python float value.\n");
@@ -236,11 +236,11 @@ PyDoc_STRVAR(
     "   Convert a given input float value into a string with units.\n"
     "\n"
     "   :arg unit_system: The unit system, from :attr:`bpy.utils.units.systems`.\n"
-    "   :type unit_system: string\n"
+    "   :type unit_system: str\n"
     "   :arg unit_category: The category of data we are converting (length, area, "
     "rotation, etc.),\n"
     "      from :attr:`bpy.utils.units.categories`.\n"
-    "   :type unit_category: string\n"
+    "   :type unit_category: str\n"
     "   :arg value: The value to convert to a string.\n"
     "   :type value: float\n"
     "   :arg precision: Number of digits after the comma.\n"
@@ -249,7 +249,7 @@ PyDoc_STRVAR(
     "one (1.01m).\n"
     "   :type split_unit: bool\n"
     "   :arg compatible_unit: Whether to use keyboard-friendly units (1m2) or nicer "
-    "utf-8 ones (1m²).\n"
+    "UTF8 ones (1m²).\n"
     "   :type compatible_unit: bool\n"
     "   :return: The converted string.\n"
     "   :rtype: str\n"
@@ -308,8 +308,8 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
     /* Maximum expected length of string result:
      * - Number itself: precision + decimal dot + up to four 'above dot' digits.
      * - Unit: up to ten chars
-     *   (six currently, let's be conservative, also because we use some utf8 chars).
-     * This can be repeated twice (e.g. 1m20cm), and we add ten more spare chars
+     *   (six currently, let's be conservative, also because we use some UTF8 chars).
+     * This can be repeated twice (e.g. `1m20cm`), and we add ten more spare chars
      * (spaces, trailing '\0'...).
      * So in practice, 64 should be more than enough.
      */
@@ -318,7 +318,7 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
     PyObject *result;
 
     BKE_unit_value_as_string_adaptive(
-        buf1, sizeof(buf1), value, precision, usys, ucat, bool(split_unit), false);
+        buf1, sizeof(buf1), value, precision, usys, ucat, split_unit, false);
 
     if (compatible_unit) {
       BKE_unit_name_to_alt(buf2, sizeof(buf2), buf1, usys, ucat);
@@ -334,9 +334,14 @@ static PyObject *bpyunits_to_string(PyObject * /*self*/, PyObject *args, PyObjec
   }
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpyunits_methods[] = {
@@ -351,8 +356,12 @@ static PyMethodDef bpyunits_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(

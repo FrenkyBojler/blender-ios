@@ -16,7 +16,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_bit_span_ops.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_math_base.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -27,7 +26,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
 
@@ -83,7 +82,7 @@ Array<float> duplicate_mask(const Object &object)
         result.fill(0.0f);
       }
       else {
-        BM_mesh_elem_table_ensure(&bm, BM_VERT);
+        vert_random_access_ensure(const_cast<Object &>(object));
         for (const int i : result.index_range()) {
           result[i] = BM_ELEM_CD_GET_FLOAT(BM_vert_at_index(&bm, i), offset);
         }
@@ -179,7 +178,7 @@ void average_neighbor_mask_bmesh(const int mask_offset,
                                  const Set<BMVert *, 0> &verts,
                                  const MutableSpan<float> new_masks)
 {
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
     new_masks[i] = average_masks(mask_offset, vert_neighbors_get_bmesh(*vert, neighbors));
@@ -432,19 +431,19 @@ static void fill_mask_grids(Main &bmain,
                             const IndexMask &node_mask)
 {
   SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
-  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  if (value == 0.0f && subdiv_ccg.masks.is_empty()) {
+  if (value == 0.0f && ss.subdiv_ccg->masks.is_empty()) {
     /* NOTE: Deleting the mask array would be possible here. */
     return;
   }
 
   MultiresModifierData &mmd = *BKE_sculpt_multires_active(&scene, &object);
   BKE_sculpt_mask_layers_ensure(&depsgraph, &bmain, &object, &mmd);
+
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
 
@@ -567,16 +566,15 @@ static void invert_mask_grids(Main &bmain,
                               const IndexMask &node_mask)
 {
   SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-
-  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
 
   MultiresModifierData &mmd = *BKE_sculpt_multires_active(&scene, &object);
   BKE_sculpt_mask_layers_ensure(&depsgraph, &bmain, &object, &mmd);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::Mask);
 
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
+  SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const BitGroupVector<> &grid_hidden = subdiv_ccg.grid_hidden;
 
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -651,7 +649,7 @@ static void invert_mask(Main &bmain, const Scene &scene, Depsgraph &depsgraph, O
   }
 }
 
-static int mask_flood_fill_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_flood_fill_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   const Scene &scene = *CTX_data_scene(C);
@@ -853,7 +851,7 @@ static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
 static void init_operation(bContext &C, gesture::GestureData &gesture_data, wmOperator &op)
 {
   gesture_data.operation = reinterpret_cast<gesture::Operation *>(
-      MEM_cnew<MaskOperation>(__func__));
+      MEM_callocN<MaskOperation>(__func__));
 
   MaskOperation *mask_operation = (MaskOperation *)gesture_data.operation;
 
@@ -885,7 +883,7 @@ static void gesture_operator_properties(wmOperatorType *ot)
       1.0f);
 }
 
-static int gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
   if (!gesture_data) {
@@ -896,7 +894,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
   if (!gesture_data) {
@@ -907,7 +905,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
   if (!gesture_data) {
@@ -918,7 +916,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
   if (!gesture_data) {
