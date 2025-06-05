@@ -20,7 +20,10 @@ GPUWorker::GPUWorker(uint32_t threads_count,
 
 GPUWorker::~GPUWorker()
 {
-  terminate_ = true;
+  {
+    std::unique_lock<std::mutex> lock(mutex_);
+    terminate_ = true;
+  }
   condition_var_.notify_all();
   for (std::unique_ptr<std::thread> &thread : threads_) {
     thread->join();
