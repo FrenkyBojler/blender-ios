@@ -47,6 +47,14 @@ struct CurvesUndoStep {
   Array<StepObject> objects;
 };
 
+static bool poll(bContext *C)
+{
+  if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+    return false;
+  }
+  return editable_curves_in_edit_mode_poll(C);
+}
+
 static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   CurvesUndoStep *us = reinterpret_cast<CurvesUndoStep *>(us_p);
@@ -133,7 +141,7 @@ static void foreach_ID_ref(UndoStep *us_p,
 void undosys_type_register(UndoType *ut)
 {
   ut->name = "Edit Curves";
-  ut->poll = editable_curves_in_edit_mode_poll;
+  ut->poll = undo::poll;
   ut->step_encode = undo::step_encode;
   ut->step_decode = undo::step_decode;
   ut->step_free = undo::step_free;
