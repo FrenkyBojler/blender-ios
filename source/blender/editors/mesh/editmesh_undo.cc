@@ -1045,6 +1045,9 @@ struct MeshUndoStep {
 
 static bool mesh_undosys_poll(bContext *C)
 {
+  if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+    return false;
+  }
   return editmesh_object_from_context(C) != nullptr;
 }
 

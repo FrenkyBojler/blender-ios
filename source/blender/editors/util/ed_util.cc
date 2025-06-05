@@ -23,6 +23,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_material.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_packedFile.hh"
@@ -66,6 +67,13 @@ void ED_editors_init_for_undo(Main *bmain)
     if (ob && (ob->mode & OB_MODE_TEXTURE_PAINT)) {
       BKE_texpaint_slots_refresh_object(scene, ob);
       ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
+    }
+    if (ob && (ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH)) {
+      EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
+      BMEditMesh *em = BKE_editmesh_from_object(ob);
+      if (LIKELY(em)) {
+        BKE_editmesh_looptris_and_normals_calc(em);
+      }
     }
 
     /* UI Updates. */
