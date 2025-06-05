@@ -5701,7 +5701,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       "so takes extra memory");
 
   prop = RNA_def_property(srna, "disable_edit_undo", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag2", USER_EDITUNDO);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_EDIT_UNDO);
   RNA_def_property_ui_text(
       prop,
       "Disable Edit Mode Undo",

@@ -789,6 +789,9 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
         col.prop(edit, "undo_steps", text="Undo Steps")
         col.prop(edit, "undo_memory_limit", text="Undo Memory Limit")
         col.prop(edit, "use_global_undo")
+        col = layout.column()
+        col.active = edit.use_global_undo
+        col.prop(edit, "disable_edit_undo")
 
         layout.separator()
 
