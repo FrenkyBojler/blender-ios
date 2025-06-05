@@ -45,6 +45,8 @@ VKContext::~VKContext()
   free_resources();
   VKBackend::get().device.context_unregister(*this);
 
+  this->process_frame_timings();
+
   imm = nullptr;
 }
 
@@ -138,6 +140,7 @@ void VKContext::end_frame()
 {
   VKDevice &device = VKBackend::get().device;
   device.orphaned_data.destroy_discarded_resources(device);
+  this->process_frame_timings();
 }
 
 void VKContext::flush()

@@ -16,17 +16,80 @@
 #include "vk_debug.hh"
 #include "vk_to_string.hh"
 
+#include "gpu_profile_report.hh"
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
 namespace blender::gpu {
 void VKContext::debug_group_begin(const char *name, int)
 {
   render_graph().debug_group_begin(name, debug::get_debug_group_color(name));
+
+  if (!G.profile_gpu) {
+    return;
+  }
+
+  ScopeTimings timings = {};
+  timings.name = name;
+  timings.finished = false;
+  timings.cpu_start = ScopeTimings::Clock::now();
+
+  scope_timings.append(timings);
 }
 
 void VKContext::debug_group_end()
 {
   render_graph().debug_group_end();
+
+  if (!G.profile_gpu) {
+    return;
+  }
+
+  for (int i = scope_timings.size() - 1; i >= 0; i--) {
+    ScopeTimings &query = scope_timings[i];
+    if (!query.finished) {
+      query.finished = true;
+      query.cpu_end = ScopeTimings::Clock::now();
+      break;
+    }
+    if (i == 0) {
+      std::cout << "Profile GPU error: Extra GPU_debug_group_end() call.\n";
+    }
+  }
+}
+
+VKContext::ScopeTimings::TimePoint VKContext::ScopeTimings::epoch =
+    VKContext::ScopeTimings::Clock::now();
+
+void VKContext::process_frame_timings()
+{
+  if (!G.profile_gpu) {
+    return;
+  }
+
+  Vector<ScopeTimings> &queries = scope_timings;
+
+  bool frame_is_valid = !queries.is_empty();
+
+  for (int i = queries.size() - 1; i >= 0; i--) {
+    if (!queries[i].finished) {
+      frame_is_valid = false;
+      std::cout << "Profile GPU error: Missing GPU_debug_group_end() call\n";
+    }
+    break;
+  }
+
+  if (!frame_is_valid) {
+    return;
+  }
+
+  for (ScopeTimings &query : queries) {
+    ScopeTimings::Nanoseconds begin = query.cpu_start - ScopeTimings::epoch;
+    ScopeTimings::Nanoseconds end = query.cpu_end - ScopeTimings::epoch;
+    ProfileReport::get().add_group_cpu(query.name, begin.count(), end.count());
+  }
+
+  queries.clear();
 }
 
 bool VKContext::debug_capture_begin(const char *title)
