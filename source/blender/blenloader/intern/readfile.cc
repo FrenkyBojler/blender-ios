@@ -1038,7 +1038,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           continue;
         }
 
-        /* If there are truncated slots idenfiers, ensuring their uniqueness must happen in a
+        /* If there are truncated slots identifiers, ensuring their uniqueness must happen in a
          * second loop, to avoid e.g. an attempt to read a slot identifier that has not yet been
          * truncated. */
         for (int i = 0; i < act->slot_array_num; i++) {
@@ -1973,7 +1973,11 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
     return id;
   }
 
-  /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
+  /* Invalid ID name (probably from 'too long' ID name from a future Blender version).
+   *
+   * They can only be truncated here, ensuring that all ID names remain unique happens later, after
+   * reading all local IDs, but before linking them, see the call to
+   * #long_id_names_ensure_unique_id_names in #blo_read_file_internal. */
   id->name[MAX_ID_NAME - 1] = '\0';
   fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
   CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
