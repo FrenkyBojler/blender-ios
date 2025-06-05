@@ -1497,7 +1497,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(500, 1)) {
-    userdef->uiflag2 |= USER_EDIT_UNDO;
+    userdef->uiflag |= USER_EDIT_UNDO;
   }
 
   /**
