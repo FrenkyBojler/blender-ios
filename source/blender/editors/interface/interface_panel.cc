@@ -1070,9 +1070,10 @@ static void panel_title_color_get(const Panel *panel,
   }
 }
 
-static void panel_draw_highlight_border(const Panel *panel,
-                                        const rcti *rect,
-                                        const rcti *header_rect)
+static void panel_draw_border(const Panel *panel,
+                              const rcti *rect,
+                              const rcti *header_rect,
+                              const bool is_active)
 {
   const bool is_subpanel = panel->type->parent != nullptr;
   if (is_subpanel) {
@@ -1091,7 +1092,7 @@ static void panel_draw_highlight_border(const Panel *panel,
   box_rect.ymax = header_rect->ymax;
 
   float color[4];
-  UI_GetThemeColor4fv(TH_SELECT_ACTIVE, color);
+  UI_GetThemeColor4fv(is_active ? TH_SELECT_ACTIVE : TH_PANEL_OUTLINE, color);
   UI_draw_roundbox_4fv(&box_rect, false, radius, color);
 }
 
@@ -1252,9 +1253,10 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
     }
 
     rctf box_rect;
-    box_rect.xmin = rect->xmin;
-    box_rect.xmax = rect->xmax;
-    box_rect.ymin = rect->ymin;
+    const float padding = is_subpanel ? U.widget_unit * 0.1f / aspect : 0.0f;
+    box_rect.xmin = rect->xmin + padding;
+    box_rect.xmax = rect->xmax - padding;
+    box_rect.ymin = rect->ymin + padding;
     box_rect.ymax = rect->ymax;
     UI_draw_roundbox_4fv(&box_rect, true, radius, panel_backcolor);
 
@@ -1316,8 +1318,9 @@ void ui_draw_aligned_panel(const ARegion *region,
                                region_search_filter_active);
   }
 
-  if (panel_custom_data_active_get(panel)) {
-    panel_draw_highlight_border(panel, rect, &header_rect);
+  /* Draw the panel outline on non-transparent panels. */
+  if (UI_panel_should_show_background(region, panel->type)) {
+    panel_draw_border(panel, rect, &header_rect, panel_custom_data_active_get(panel));
   }
 }
 

@@ -252,6 +252,7 @@ const bTheme U_theme_default = {
     .icon_folder = RGBA(0xccad63ff),
     .icon_autokey = RGBA(0xab3c48ff),
     .panel_roundness = 0.4f,
+    .panel_outline = RGBA(0xffffff11),
   },
   .space_properties = {
     .back = RGBA(0x30303000),
