@@ -81,7 +81,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         const NodeGeometryClosureInputItem &item = output_storage.input_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const std::string identifier = ClosureInputItemsAccessor::socket_identifier_for_item(item);
-        b.add_output(socket_type, item.name, identifier).supports_field();
+        b.add_output(socket_type, item.name, identifier);
       }
     }
   }
@@ -224,8 +224,12 @@ static void try_initialize_closure_from_evaluator(SpaceNode &snode,
 
   for (const int i : IndexRange(storage->input_items.items_num)) {
     const NodeGeometryEvaluateClosureInputItem &evaluate_item = storage->input_items.items[i];
-    socket_items::add_item_with_socket_type_and_name<ClosureInputItemsAccessor>(
-        closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
+    NodeGeometryClosureInputItem &input_item =
+        *socket_items::add_item_with_socket_type_and_name<ClosureInputItemsAccessor>(
+            closure_output_node,
+            eNodeSocketDatatype(evaluate_item.socket_type),
+            evaluate_item.name);
+    input_item.structure_type = evaluate_item.structure_type;
   }
   for (const int i : IndexRange(storage->output_items.items_num)) {
     const NodeGeometryEvaluateClosureOutputItem &evaluate_item = storage->output_items.items[i];
