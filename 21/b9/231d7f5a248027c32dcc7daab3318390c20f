@@ -5,3 +5,4 @@ Referenced by issue #78752, Proportional Editing: 'Connected Only' option can ca
 Referenced by issue #53602, Mesh - Proportional Editing (Connected) Bug
 Referenced by issue #43393, proportional editing issue with "connected" mode
 Referenced by issue #35590, Connected proportional editing gives unexpected results
+Referenced by issue #139828, Proportional editing with "connected only" ignores some parts of a mesh
