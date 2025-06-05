@@ -372,7 +372,7 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
 
 void paint_brush_color_get(const Paint *paint,
                            Brush *br,
-                           blender::float3 &initial_hsv_jitter,
+                           std::optional<blender::float3> &initial_hsv_jitter,
                            bool color_correction,
                            bool invert,
                            float distance,
@@ -409,7 +409,7 @@ void paint_brush_color_get(const Paint *paint,
     else if (color_jitter_settings) {
       copy_v3_v3(r_color,
                  BKE_paint_randomize_color(*color_jitter_settings,
-                                           initial_hsv_jitter,
+                                           *initial_hsv_jitter,
                                            distance,
                                            pressure,
                                            BKE_brush_color_get(paint, br)));

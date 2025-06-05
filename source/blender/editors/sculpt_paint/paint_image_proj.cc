@@ -5773,7 +5773,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
   if (ELEM(ps->brush_type, IMAGE_PAINT_BRUSH_TYPE_DRAW, IMAGE_PAINT_BRUSH_TYPE_FILL)) {
     paint_brush_color_get(paint,
                           brush,
-                          *ps_handle->initial_hsv_jitter,
+                          ps_handle->initial_hsv_jitter,
                           false,
                           ps->mode == BRUSH_STROKE_INVERT,
                           distance,
