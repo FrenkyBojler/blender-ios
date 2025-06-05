@@ -2,3 +2,4 @@ Referenced by issue #139869, Blender runs but is permanently stuck at its "loadi
 Referenced by issue #139884, Blender 4.5b - Customized filtering of UIList in Python is not working anymore
 Referenced by issue #139887, Blender 4.5b - Crash report
 Referenced by pull request #139905, Fix: UnifiedPaintSetting converting values incorrectly
+Referenced by commit 1eadfb1fbf32ffef52a6ed51bc90a4b1064a2c4d, Fix: UnifiedPaintSetting converting values incorrectly
