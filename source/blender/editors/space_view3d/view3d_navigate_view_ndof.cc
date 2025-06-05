@@ -133,7 +133,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
     return;
   }
 
-  WM_event_ndof_pan_get(ndof, pan_vec);
+  WM_event_ndof_pan_get_for_navigation(ndof, pan_vec);
 
   if (has_zoom) {
     /* zoom with Z */
@@ -211,7 +211,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
     float yvec[3] = {0, 1, 0};
 
     /* only use XY, ignore Z */
-    WM_event_ndof_rotate_get(ndof, rot);
+    WM_event_ndof_rotate_get_for_navigation(ndof, rot);
 
     /* Determine the direction of the X vector (for rotating up and down). */
     mul_qt_v3(view_inv, xvec);
@@ -600,7 +600,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_zoom = ndof->tvec[2] != 0.0f;
 
   float pan_vec[3];
-  WM_event_ndof_pan_get(ndof, pan_vec);
+  WM_event_ndof_pan_get_for_navigation(ndof, pan_vec);
 
   mul_v3_fl(pan_vec, ndof->dt);
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.
@@ -733,8 +733,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
-  WM_event_ndof_sync_inversion(ndof);
+  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
 
   if (U.ndof_flag & NDOF_CAMERA_PAN_ZOOM) {
     const wmOperatorStatus camera_retval = view3d_ndof_cameraview_pan_zoom(vod, ndof);
