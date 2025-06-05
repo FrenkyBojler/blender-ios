@@ -1556,7 +1556,7 @@ static void view3d_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   BLO_read_struct(reader, RegionView3D, &v3d->localvd);
 
   /* render can be quite heavy, set to solid on load */
-  if (v3d->shading.type == OB_RENDER) {
+  if (ELEM(v3d->shading.type, OB_RENDER, OB_MATERIAL)) {
     v3d->shading.type = OB_SOLID;
   }
   v3d->shading.prev_type = OB_SOLID;
