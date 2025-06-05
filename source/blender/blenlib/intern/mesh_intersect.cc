@@ -11,23 +11,23 @@
 
 #  include <algorithm>
 #  include <fstream>
+#  include <functional>
 #  include <iostream>
 #  include <memory>
+#  include <numeric>
 
-#  include "BLI_allocator.hh"
 #  include "BLI_array.hh"
 #  include "BLI_assert.h"
 #  include "BLI_delaunay_2d.hh"
-#  include "BLI_hash.hh"
-#  include "BLI_kdopbvh.h"
+#  include "BLI_kdopbvh.hh"
 #  include "BLI_map.hh"
-#  include "BLI_math_boolean.hh"
 #  include "BLI_math_geom.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_mpq.hh"
 #  include "BLI_math_vector.h"
 #  include "BLI_math_vector_mpq_types.hh"
 #  include "BLI_math_vector_types.hh"
+#  include "BLI_mutex.hh"
 #  include "BLI_polyfill_2d.h"
 #  include "BLI_set.hh"
 #  include "BLI_sort.hh"
@@ -35,13 +35,16 @@
 #  include "BLI_task.h"
 #  include "BLI_task.hh"
 #  include "BLI_threads.h"
-#  include "BLI_time.h"
 #  include "BLI_vector.hh"
 #  include "BLI_vector_set.hh"
 
 #  include "BLI_mesh_intersect.hh"
 
 // #  define PERFDEBUG
+
+#  ifdef _WIN_32
+#    include "BLI_fileops.h"
+#  endif
 
 namespace blender::meshintersect {
 
@@ -282,14 +285,6 @@ std::ostream &operator<<(std::ostream &os, const Face *f)
 }
 
 /**
- * Un-comment the following to try using a spin-lock instead of
- * a mutex in the arena allocation routines.
- * Initial tests showed that it doesn't seem to help very much,
- * if at all, to use a spin-lock.
- */
-// #define USE_SPINLOCK
-
-/**
  * #IMeshArena is the owner of the Vert and Face resources used
  * during a run of one of the mesh-intersect main functions.
  * It also keeps has a hash table of all Verts created so that it can
@@ -334,34 +329,9 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
   int next_face_id_ = 0;
 
   /* Need a lock when multi-threading to protect allocation of new elements. */
-#  ifdef USE_SPINLOCK
-  SpinLock lock_;
-#  else
-  ThreadMutex *mutex_;
-#  endif
+  Mutex mutex_;
 
  public:
-  IMeshArenaImpl()
-  {
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_init(&lock_);
-#  else
-      mutex_ = BLI_mutex_alloc();
-#  endif
-    }
-  }
-  ~IMeshArenaImpl()
-  {
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_end(&lock_);
-#  else
-      BLI_mutex_free(mutex_);
-#  endif
-    }
-  }
-
   void reserve(int vert_num_hint, int face_num_hint)
   {
     vset_.reserve(vert_num_hint);
@@ -399,21 +369,8 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
   Face *add_face(Span<const Vert *> verts, int orig, Span<int> edge_origs, Span<bool> is_intersect)
   {
     Face *f = new Face(verts, next_face_id_++, orig, edge_origs, is_intersect);
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_lock(&lock_);
-#  else
-      BLI_mutex_lock(mutex_);
-#  endif
-    }
+    std::lock_guard lock(mutex_);
     allocated_faces_.append(std::unique_ptr<Face>(f));
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_unlock(&lock_);
-#  else
-      BLI_mutex_unlock(mutex_);
-#  endif
-    }
     return f;
   }
 
@@ -434,21 +391,8 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
   {
     Vert vtry(co, double3(co[0].get_d(), co[1].get_d(), co[2].get_d()), NO_INDEX, NO_INDEX);
     VSetKey vskey(&vtry);
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_lock(&lock_);
-#  else
-      BLI_mutex_lock(mutex_);
-#  endif
-    }
+    std::lock_guard lock(mutex_);
     const VSetKey *lookup = vset_.lookup_key_ptr(vskey);
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_unlock(&lock_);
-#  else
-      BLI_mutex_unlock(mutex_);
-#  endif
-    }
     if (!lookup) {
       return nullptr;
     }
@@ -479,13 +423,7 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
     Vert *vtry = new Vert(mco, dco, NO_INDEX, NO_INDEX);
     const Vert *ans;
     VSetKey vskey(vtry);
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_lock(&lock_);
-#  else
-      BLI_mutex_lock(mutex_);
-#  endif
-    }
+    std::lock_guard lock(mutex_);
     const VSetKey *lookup = vset_.lookup_key_ptr(vskey);
     if (!lookup) {
       vtry->id = next_vert_id_++;
@@ -504,13 +442,6 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
       delete vtry;
       ans = lookup->vert;
     }
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_unlock(&lock_);
-#  else
-      BLI_mutex_unlock(mutex_);
-#  endif
-    }
     return ans;
   };
 
@@ -518,13 +449,7 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
   {
     const Vert *ans;
     VSetKey vskey(vtry);
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_lock(&lock_);
-#  else
-      BLI_mutex_lock(mutex_);
-#  endif
-    }
+    std::lock_guard lock(mutex_);
     const VSetKey *lookup = vset_.lookup_key_ptr(vskey);
     if (!lookup) {
       vtry->id = next_vert_id_++;
@@ -541,13 +466,6 @@ class IMeshArena::IMeshArenaImpl : NonCopyable, NonMovable {
        * one as the canonical one. */
       delete vtry;
       ans = lookup->vert;
-    }
-    if (intersect_use_threading) {
-#  ifdef USE_SPINLOCK
-      BLI_spin_unlock(&lock_);
-#  else
-      BLI_mutex_unlock(mutex_);
-#  endif
     }
     return ans;
   };
@@ -947,7 +865,7 @@ class CoplanarClusterInfo {
     return tri_cluster_[t];
   }
 
-  int add_cluster(CoplanarCluster cl)
+  int add_cluster(const CoplanarCluster &cl)
   {
     int c_index = clusters_.append_and_get_index(cl);
     for (int t : cl) {
@@ -2030,8 +1948,8 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
   uint(*tris)[3];
   const int totfilltri = flen - 2;
   /* Prepare projected vertices and array to receive triangles in tessellation. */
-  tris = static_cast<uint(*)[3]>(MEM_malloc_arrayN(totfilltri, sizeof(*tris), __func__));
-  projverts = static_cast<float(*)[2]>(MEM_malloc_arrayN(flen, sizeof(*projverts), __func__));
+  tris = MEM_malloc_arrayN<uint[3]>(size_t(totfilltri), __func__);
+  projverts = MEM_malloc_arrayN<float[2]>(size_t(flen), __func__);
   axis_dominant_v3_to_m3_negate(axis_mat, no);
   for (int j = 0; j < flen; ++j) {
     const double3 &dco = (*f)[j]->co;
@@ -2312,7 +2230,7 @@ static bool bvhtreeverlap_cmp(const BVHTreeOverlap &a, const BVHTreeOverlap &b)
   if (a.indexA < b.indexA) {
     return true;
   }
-  if ((a.indexA == b.indexA) & (a.indexB < b.indexB)) {
+  if ((a.indexA == b.indexA) && (a.indexB < b.indexB)) {
     return true;
   }
   return false;
@@ -2333,7 +2251,7 @@ class TriOverlaps {
 
  public:
   TriOverlaps(const IMesh &tm,
-              const Array<BoundingBox> &tri_bb,
+              const Span<BoundingBox> tri_bb,
               int nshapes,
               std::function<int(int)> shape_fn,
               bool use_self)
@@ -2644,7 +2562,7 @@ static void calc_subdivided_non_cluster_tris(Array<IMesh> &r_tri_subdivided,
 static void calc_cluster_tris(Array<IMesh> &tri_subdivided,
                               const IMesh &tm,
                               const CoplanarClusterInfo &clinfo,
-                              const Array<CDT_data> &cluster_subdivided,
+                              const Span<CDT_data> cluster_subdivided,
                               IMeshArena *arena)
 {
   for (int c : clinfo.index_range()) {
@@ -2956,7 +2874,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
   }
 #  ifdef PERFDEBUG
   perfdata_init();
-  double start_time = BLI_check_seconds_timer();
+  double start_time = BLI_time_now_seconds();
   std::cout << "trimesh_nary_intersect start\n";
 #  endif
   /* Usually can use tm_in but if it has degenerate or illegal triangles,
@@ -2974,17 +2892,17 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     }
   }
 #  ifdef PERFDEBUG
-  double clean_time = BLI_check_seconds_timer();
+  double clean_time = BLI_time_now_seconds();
   std::cout << "cleaned, time = " << clean_time - start_time << "\n";
 #  endif
   Array<BoundingBox> tri_bb = calc_face_bounding_boxes(*tm_clean);
 #  ifdef PERFDEBUG
-  double bb_calc_time = BLI_check_seconds_timer();
+  double bb_calc_time = BLI_time_now_seconds();
   std::cout << "bbs calculated, time = " << bb_calc_time - clean_time << "\n";
 #  endif
   TriOverlaps tri_ov(*tm_clean, tri_bb, nshapes, shape_fn, use_self);
 #  ifdef PERFDEBUG
-  double overlap_time = BLI_check_seconds_timer();
+  double overlap_time = BLI_time_now_seconds();
   std::cout << "intersect overlaps calculated, time = " << overlap_time - bb_calc_time << "\n";
 #  endif
   Array<IMesh> tri_subdivided(tm_clean->face_size(), NoInitialization());
@@ -2997,7 +2915,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     }
   });
 #  ifdef PERFDEBUG
-  double plane_populate = BLI_check_seconds_timer();
+  double plane_populate = BLI_time_now_seconds();
   std::cout << "planes populated, time = " << plane_populate - overlap_time << "\n";
 #  endif
   /* itt_map((a,b)) will hold the intersection value resulting from intersecting
@@ -3006,7 +2924,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
   itt_map.reserve(tri_ov.overlap().size());
   calc_overlap_itts(itt_map, *tm_clean, tri_ov, arena);
 #  ifdef PERFDEBUG
-  double itt_time = BLI_check_seconds_timer();
+  double itt_time = BLI_time_now_seconds();
   std::cout << "itts found, time = " << itt_time - plane_populate << "\n";
 #  endif
   CoplanarClusterInfo clinfo = find_clusters(*tm_clean, tri_bb, itt_map);
@@ -3014,7 +2932,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     std::cout << clinfo;
   }
 #  ifdef PERFDEBUG
-  double find_cluster_time = BLI_check_seconds_timer();
+  double find_cluster_time = BLI_time_now_seconds();
   std::cout << "clusters found, time = " << find_cluster_time - itt_time << "\n";
   doperfmax(0, tm_in.face_size());
   doperfmax(1, clinfo.tot_cluster());
@@ -3022,7 +2940,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
 #  endif
   calc_subdivided_non_cluster_tris(tri_subdivided, *tm_clean, itt_map, clinfo, tri_ov, arena);
 #  ifdef PERFDEBUG
-  double subdivided_tris_time = BLI_check_seconds_timer();
+  double subdivided_tris_time = BLI_time_now_seconds();
   std::cout << "subdivided non-cluster tris found, time = " << subdivided_tris_time - itt_time
             << "\n";
 #  endif
@@ -3031,13 +2949,13 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     cluster_subdivided[c] = calc_cluster_subdivided(clinfo, c, *tm_clean, tri_ov, itt_map, arena);
   }
 #  ifdef PERFDEBUG
-  double cluster_subdivide_time = BLI_check_seconds_timer();
+  double cluster_subdivide_time = BLI_time_now_seconds();
   std::cout << "subdivided clusters found, time = "
             << cluster_subdivide_time - subdivided_tris_time << "\n";
 #  endif
   calc_cluster_tris(tri_subdivided, *tm_clean, clinfo, cluster_subdivided, arena);
 #  ifdef PERFDEBUG
-  double extract_time = BLI_check_seconds_timer();
+  double extract_time = BLI_time_now_seconds();
   std::cout << "subdivided cluster tris found, time = " << extract_time - cluster_subdivide_time
             << "\n";
 #  endif
@@ -3047,7 +2965,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     std::cout << combined;
   }
 #  ifdef PERFDEBUG
-  double end_time = BLI_check_seconds_timer();
+  double end_time = BLI_time_now_seconds();
   std::cout << "triangles combined, time = " << end_time - extract_time << "\n";
   std::cout << "trimesh_nary_intersect done, total time = " << end_time - start_time << "\n";
   dump_perfdata();
@@ -3106,10 +3024,15 @@ void write_obj_mesh(IMesh &m, const std::string &objname)
    * This is just for developer debugging anyway,
    * and should never be called in production Blender. */
 #  ifdef _WIN_32
-  const char *objdir = BLI_getenv("HOME");
+  const char *objdir = BLI_dir_home();
+  if (objdir == nullptr) {
+    std::cout << "Could not access home directory\n";
+    return;
+  }
 #  else
   const char *objdir = "/tmp/";
 #  endif
+
   if (m.face_size() == 0) {
     return;
   }

@@ -16,6 +16,7 @@ struct rcti;
 
 /** Flags for mode of operation. */
 enum eGPUSelectMode {
+  GPU_SELECT_INVALID = 0,
   GPU_SELECT_ALL = 1,
   /* gpu_select_query */
   GPU_SELECT_NEAREST_FIRST_PASS = 2,
@@ -70,20 +71,20 @@ void GPU_select_begin_next(GPUSelectBuffer *buffer,
  * \warning We rely on the order of object rendering on passes to be the same for this to work.
  */
 bool GPU_select_load_id(unsigned int id);
-void GPU_select_finalize(void);
+void GPU_select_finalize();
 /**
  * Cleanup and flush selection results to buffer.
  * Return number of hits and hits in buffer.
  * if \a dopass is true, we will do a second pass with occlusion queries to get the closest hit.
  */
-unsigned int GPU_select_end(void);
+unsigned int GPU_select_end();
 
 /* Cache selection region. */
 
-bool GPU_select_is_cached(void);
-void GPU_select_cache_begin(void);
-void GPU_select_cache_load_id(void);
-void GPU_select_cache_end(void);
+bool GPU_select_is_cached();
+void GPU_select_cache_begin();
+void GPU_select_cache_load_id();
+void GPU_select_cache_end();
 
 /* Utilities. */
 

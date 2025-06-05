@@ -20,24 +20,24 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_fcurve_driver.h"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_object.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "atomic_ops.h"
 
@@ -46,13 +46,14 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern.h"
+#  include "BPY_extern.hh"
 #endif
 
+#include <algorithm>
 #include <cstring>
 
 #ifdef WITH_PYTHON
-static ThreadMutex python_driver_lock = BLI_MUTEX_INITIALIZER;
+static blender::Mutex python_driver_lock;
 #endif
 
 static CLG_LogRef LOG = {"bke.fcurve"};
@@ -109,7 +110,7 @@ static bool driver_get_target_context_property(const DriverTargetContext *driver
       return true;
 
     case DTAR_CONTEXT_PROPERTY_ACTIVE_VIEW_LAYER: {
-      *r_property_ptr = RNA_pointer_create(
+      *r_property_ptr = RNA_pointer_create_discrete(
           &driver_target_context->scene->id, &RNA_ViewLayer, driver_target_context->view_layer);
       return true;
     }
@@ -120,10 +121,7 @@ static bool driver_get_target_context_property(const DriverTargetContext *driver
   /* Reset to a nullptr RNA pointer.
    * This allows to more gracefully handle issues with unsupported configuration (forward
    * compatibility. for example). */
-  /* TODO(sergey): Replace with utility null-RNA-pointer creation once that is available. */
-  r_property_ptr->data = nullptr;
-  r_property_ptr->type = nullptr;
-  r_property_ptr->owner_id = nullptr;
+  *r_property_ptr = PointerRNA_NULL;
 
   return false;
 }
@@ -435,7 +433,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
     return 0.0f;
   }
 
-  float(*mat[2])[4];
+  const float(*mat[2])[4];
 
   /* NOTE: for now, these are all just world-space. */
   for (int i = 0; i < 2; i++) {
@@ -457,7 +455,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
     }
     else {
       /* Object. */
-      mat[i] = ob->object_to_world;
+      mat[i] = ob->object_to_world().ptr();
     }
   }
 
@@ -472,7 +470,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
   angle = 2.0f * safe_acosf(quat[0]);
   angle = fabsf(angle);
 
-  return (angle > float(M_PI)) ? float((2.0f * float(M_PI)) - angle) : float(angle);
+  return (angle > float(M_PI)) ? ((2.0f * float(M_PI)) - angle) : angle;
 }
 
 /**
@@ -537,7 +535,7 @@ static float dvar_eval_locDiff(const AnimationEvalContext * /*anim_eval_context*
       else {
         /* Convert to world-space. */
         copy_v3_v3(tmp_loc, pchan->pose_head);
-        mul_m4_v3(ob->object_to_world, tmp_loc);
+        mul_m4_v3(ob->object_to_world().ptr(), tmp_loc);
       }
     }
     else {
@@ -548,7 +546,7 @@ static float dvar_eval_locDiff(const AnimationEvalContext * /*anim_eval_context*
           float mat[4][4];
 
           /* Extract transform just like how the constraints do it! */
-          copy_m4_m4(mat, ob->object_to_world);
+          copy_m4_m4(mat, ob->object_to_world().ptr());
           BKE_constraint_mat_convertspace(
               ob, nullptr, nullptr, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
 
@@ -562,7 +560,7 @@ static float dvar_eval_locDiff(const AnimationEvalContext * /*anim_eval_context*
       }
       else {
         /* World-space. */
-        copy_v3_v3(tmp_loc, ob->object_to_world[3]);
+        copy_v3_v3(tmp_loc, ob->object_to_world().location());
       }
     }
 
@@ -604,11 +602,16 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
     return 0.0f;
   }
 
-  /* Target should be valid now. */
-  dtar->flag &= ~DTAR_FLAG_INVALID;
-
   /* Try to get pose-channel. */
   pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+  if (dtar->pchan_name[0] != '\0' && !pchan) {
+    driver->flag |= DRIVER_FLAG_INVALID;
+    dtar->flag |= DTAR_FLAG_INVALID;
+    return 0.0f;
+  }
+
+  /* Target should be valid now. */
+  dtar->flag &= ~DTAR_FLAG_INVALID;
 
   /* Check if object or bone, and get transform matrix accordingly:
    * - "use_eulers" code is used to prevent the problems associated with non-uniqueness
@@ -640,7 +643,7 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
     }
     else {
       /* World-space matrix. */
-      mul_m4_m4m4(mat, ob->object_to_world, pchan->pose_mat);
+      mul_m4_m4m4(mat, ob->object_to_world().ptr(), pchan->pose_mat);
     }
   }
   else {
@@ -654,7 +657,7 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
     if (dtar->flag & DTAR_FLAG_LOCALSPACE) {
       if (dtar->flag & DTAR_FLAG_LOCAL_CONSTS) {
         /* Just like how the constraints do it! */
-        copy_m4_m4(mat, ob->object_to_world);
+        copy_m4_m4(mat, ob->object_to_world().ptr());
         BKE_constraint_mat_convertspace(
             ob, nullptr, nullptr, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
       }
@@ -665,7 +668,7 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
     }
     else {
       /* World-space matrix - just the good-old one. */
-      copy_m4_m4(mat, ob->object_to_world);
+      copy_m4_m4(mat, ob->object_to_world().ptr());
     }
   }
 
@@ -1014,7 +1017,7 @@ DriverVar *driver_add_new_variable(ChannelDriver *driver)
   }
 
   /* Make a new variable. */
-  dvar = static_cast<DriverVar *>(MEM_callocN(sizeof(DriverVar), "DriverVar"));
+  dvar = MEM_callocN<DriverVar>("DriverVar");
   BLI_addtail(&driver->variables, dvar);
 
   /* Give the variable a 'unique' name. */
@@ -1123,7 +1126,7 @@ static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
   return BLI_expr_pylike_parse(driver->expression, names, names_len + VAR_INDEX_CUSTOM);
 }
 
-static bool driver_check_simple_expr_depends_on_time(ExprPyLike_Parsed *expr)
+static bool driver_check_simple_expr_depends_on_time(const ExprPyLike_Parsed *expr)
 {
   /* Check if the 'frame' parameter is actually used. */
   return BLI_expr_pylike_is_using_param(expr, VAR_INDEX_FRAME);
@@ -1354,15 +1357,11 @@ static void evaluate_driver_min_max(const AnimationEvalContext *anim_eval_contex
       /* Check if greater/smaller than the baseline. */
       if (driver->type == DRIVER_TYPE_MAX) {
         /* Max? */
-        if (tmp_val > value) {
-          value = tmp_val;
-        }
+        value = std::max(tmp_val, value);
       }
       else {
         /* Min? */
-        if (tmp_val < value) {
-          value = tmp_val;
-        }
+        value = std::min(tmp_val, value);
       }
     }
     else {
@@ -1393,11 +1392,10 @@ static void evaluate_driver_python(PathResolvedRNA *anim_rna,
 #ifdef WITH_PYTHON
     /* This evaluates the expression using Python, and returns its result:
      * - on errors it reports, then returns 0.0f. */
-    BLI_mutex_lock(&python_driver_lock);
+    std::scoped_lock lock(python_driver_lock);
 
     driver->curval = BPY_driver_exec(anim_rna, driver, driver_orig, anim_eval_context);
 
-    BLI_mutex_unlock(&python_driver_lock);
 #else  /* WITH_PYTHON */
     UNUSED_VARS(anim_rna, anim_eval_context);
 #endif /* WITH_PYTHON */

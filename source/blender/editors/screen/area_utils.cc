@@ -8,22 +8,16 @@
  * Helper functions for area/region API.
  */
 
-#include "DNA_userdef_types.h"
-
 #include "BKE_screen.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
-
-#include "RNA_access.hh"
-#include "RNA_types.hh"
 
 #include "WM_message.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_icons.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Tool System Region Callbacks

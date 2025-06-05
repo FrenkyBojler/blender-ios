@@ -17,7 +17,8 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BKE_report.h"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -29,8 +30,6 @@
 #include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
-
-#include "MEM_guardedalloc.h"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -59,8 +58,8 @@ static void edbm_extrude_edge_exclude_mirror(
         float mtx[4][4];
         if (mmd->mirror_ob) {
           float imtx[4][4];
-          invert_m4_m4(imtx, mmd->mirror_ob->object_to_world);
-          mul_m4_m4m4(mtx, imtx, obedit->object_to_world);
+          invert_m4_m4(imtx, mmd->mirror_ob->object_to_world().ptr());
+          mul_m4_m4m4(mtx, imtx, obedit->object_to_world().ptr());
         }
 
         BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
@@ -262,7 +261,7 @@ static bool edbm_extrude_ex(Object *obedit,
 /** \name Extrude Repeat Operator
  * \{ */
 
-static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
 {
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "offset");
@@ -297,7 +296,7 @@ static int edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
 
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    copy_m3_m4(tmat, obedit->object_to_world);
+    copy_m3_m4(tmat, obedit->object_to_world().ptr());
     invert_m3(tmat);
     mul_v3_m3v3(offset_local, tmat, offset);
 
@@ -324,7 +323,7 @@ void MESH_OT_extrude_repeat(wmOperatorType *ot)
   ot->description = "Extrude selected vertices, edges or faces repeatedly";
   ot->idname = "MESH_OT_extrude_repeat";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_repeat_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -426,7 +425,7 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
 }
 
 /* extrude without transform */
-static int edbm_extrude_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_region_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -460,7 +459,7 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_region";
   ot->description = "Extrude region of faces";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke = mesh_extrude_region_invoke;
   ot->exec = edbm_extrude_region_exec;
   ot->poll = ED_operator_editmesh;
@@ -470,7 +469,7 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna, "use_normal_flip", false, "Flip Normals", "");
   RNA_def_boolean(ot->srna, "use_dissolve_ortho_edges", false, "Dissolve Orthogonal Edges", "");
-  Transform_Properties(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -482,7 +481,7 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
  * \{ */
 
 /* extrude without transform */
-static int edbm_extrude_context_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_context_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -515,7 +514,7 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_context";
   ot->description = "Extrude selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_context_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -524,7 +523,7 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna, "use_normal_flip", false, "Flip Normals", "");
   RNA_def_boolean(ot->srna, "use_dissolve_ortho_edges", false, "Dissolve Orthogonal Edges", "");
-  Transform_Properties(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -533,7 +532,7 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
 /** \name Extrude Verts Operator
  * \{ */
 
-static int edbm_extrude_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -565,7 +564,7 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_verts_indiv";
   ot->description = "Extrude individual vertices only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_verts_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -573,7 +572,7 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* to give to transform */
-  Transform_Properties(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -582,7 +581,7 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
 /** \name Extrude Edges Operator
  * \{ */
 
-static int edbm_extrude_edges_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
 {
   const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
   const Scene *scene = CTX_data_scene(C);
@@ -615,7 +614,7 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_edges_indiv";
   ot->description = "Extrude individual edges only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_edges_exec;
   ot->poll = ED_operator_editmesh;
 
@@ -624,7 +623,7 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
 
   /* to give to transform */
   RNA_def_boolean(ot->srna, "use_normal_flip", false, "Flip Normals", "");
-  Transform_Properties(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -633,7 +632,7 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
 /** \name Extrude Faces Operator
  * \{ */
 
-static int edbm_extrude_faces_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -665,14 +664,14 @@ void MESH_OT_extrude_faces_indiv(wmOperatorType *ot)
   ot->idname = "MESH_OT_extrude_faces_indiv";
   ot->description = "Extrude individual faces only";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_extrude_faces_exec;
   ot->poll = ED_operator_editmesh;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  Transform_Properties(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_NO_DEFAULTS | P_MIRROR_DUMMY);
 }
 
 /** \} */
@@ -683,7 +682,9 @@ void MESH_OT_extrude_faces_indiv(wmOperatorType *ot)
  * Add-click-mesh (extrude) operator.
  * \{ */
 
-static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BMVert *v1;
@@ -723,7 +724,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
     }
 
     mul_v3_fl(local_center, 1.0f / float(local_verts_len));
-    mul_m4_v3(vc.obedit->object_to_world, local_center);
+    mul_m4_v3(vc.obedit->object_to_world().ptr(), local_center);
     mul_v3_fl(local_center, float(local_verts_len));
 
     add_v3_v3(center, local_center);
@@ -747,11 +748,11 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       continue;
     }
 
-    invert_m4_m4(vc.obedit->world_to_object, vc.obedit->object_to_world);
+    invert_m4_m4(vc.obedit->runtime->world_to_object.ptr(), vc.obedit->object_to_world().ptr());
     ED_view3d_init_mats_rv3d(vc.obedit, vc.rv3d);
 
     float local_center[3];
-    mul_v3_m4v3(local_center, vc.obedit->world_to_object, center);
+    mul_v3_m4v3(local_center, vc.obedit->world_to_object().ptr(), center);
 
     /* call extrude? */
     if (verts_len != 0) {
@@ -797,11 +798,11 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
         float view_vec[3], cross[3];
 
         /* convert the 2D normal into 3D */
-        mul_mat3_m4_v3(vc.rv3d->viewinv, nor);           /* World-space. */
-        mul_mat3_m4_v3(vc.obedit->world_to_object, nor); /* Local-space. */
+        mul_mat3_m4_v3(vc.rv3d->viewinv, nor);                   /* World-space. */
+        mul_mat3_m4_v3(vc.obedit->world_to_object().ptr(), nor); /* Local-space. */
 
         /* correct the normal to be aligned on the view plane */
-        mul_v3_mat3_m4v3(view_vec, vc.obedit->world_to_object, vc.rv3d->viewinv[2]);
+        mul_v3_mat3_m4v3(view_vec, vc.obedit->world_to_object().ptr(), vc.rv3d->viewinv[2]);
         cross_v3_v3v3(cross, nor, view_vec);
         cross_v3_v3v3(nor, view_vec, cross);
         normalize_v3(nor);
@@ -810,9 +811,9 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       /* center */
       copy_v3_v3(ofs, local_center);
 
-      mul_m4_v3(vc.obedit->object_to_world, ofs); /* view space */
+      mul_m4_v3(vc.obedit->object_to_world().ptr(), ofs); /* view space */
       ED_view3d_win_to_3d_int(vc.v3d, vc.region, ofs, event->mval, ofs);
-      mul_m4_v3(vc.obedit->world_to_object, ofs); /* back in object space */
+      mul_m4_v3(vc.obedit->world_to_object().ptr(), ofs); /* back in object space */
 
       sub_v3_v3(ofs, local_center);
 
@@ -863,7 +864,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
       copy_v3_v3(local_center, cursor);
       ED_view3d_win_to_3d_int(vc.v3d, vc.region, local_center, event->mval, local_center);
 
-      mul_m4_v3(vc.obedit->world_to_object, local_center); /* back in object space */
+      mul_m4_v3(vc.obedit->world_to_object().ptr(), local_center); /* back in object space */
 
       EDBM_op_init(vc.em, &bmop, op, "create_vert co=%v", local_center);
       BMO_op_exec(vc.em->bm, &bmop);
@@ -894,7 +895,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
   }
 
   /* Support dragging to move after extrude, see: #114282. */
-  const int retval = OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+  const wmOperatorStatus retval = OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   return WM_operator_flag_only_pass_through_on_press(retval, event);
 }
 
@@ -906,7 +907,7 @@ void MESH_OT_dupli_extrude_cursor(wmOperatorType *ot)
   ot->description =
       "Duplicate and extrude selected vertices, edges or faces towards the mouse cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_dupli_extrude_cursor_invoke;
   ot->poll = ED_operator_editmesh_region_view3d;
 

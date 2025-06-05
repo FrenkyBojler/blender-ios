@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "device/memory.h"
 #include "graph/node.h"
-#include "session/buffers.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -22,7 +20,7 @@ enum DenoiserType {
 /* COnstruct human-readable string which denotes the denoiser type. */
 const char *denoiserTypeToHumanReadable(DenoiserType type);
 
-typedef int DenoiserTypeMask;
+using DenoiserTypeMask = int;
 
 enum DenoiserPrefilter {
   /* Best quality of the result without extra processing time, but requires guiding passes to be
@@ -43,6 +41,7 @@ enum DenoiserPrefilter {
 enum DenoiserQuality {
   DENOISER_QUALITY_HIGH = 1,
   DENOISER_QUALITY_BALANCED = 2,
+  DENOISER_QUALITY_FAST = 3,
   DENOISER_QUALITY_NUM,
 };
 
@@ -70,8 +69,7 @@ class DenoiseParams : public Node {
   bool temporally_stable = false;
 
   /* If true, then allow, if supported, OpenImageDenoise to use GPU device.
-   * If false, then OpenImageDenoise will always use CPU regardless of GPU device
-   * precense. */
+   * If false, then OpenImageDenoise will always use CPU regardless of GPU device presence. */
   bool use_gpu = true;
 
   DenoiserPrefilter prefilter = DENOISER_PREFILTER_FAST;

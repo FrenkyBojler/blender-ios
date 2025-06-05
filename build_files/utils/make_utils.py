@@ -4,23 +4,69 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-Utility functions for make update and make tests.
+Utility functions for make update and make tests
+
+WARNING:
+- Python 3.6 is used on the Linux VM (Rocky8) to run "make update" to checkout LFS.
+- Python 3.9 is used on the built-bot.
+
+Take care *not* to use features from the Python version used by Blender!
+
+NOTE:
+Some type annotations are quoted to avoid errors in older Python versions.
+These can be unquoted eventually.
 """
+
+__all__ = (
+    "call",
+    "check_output",
+    "command_missing",
+    "git_branch",
+    "git_branch_exists",
+    "git_enable_submodule",
+    "git_get_remote_url",
+    "git_is_remote_repository",
+    "git_remote_exist",
+    "git_set_config",
+    "git_update_submodule",
+    "is_git_submodule_enabled",
+    "parse_blender_version",
+    "remove_directory",
+)
 
 import re
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
 
+from types import (
+    TracebackType,
+)
 from typing import (
-    Sequence,
-    Optional,
+    Any,
 )
 
+if sys.version_info >= (3, 9):
+    from collections.abc import (
+        Callable,
+        Sequence,
+    )
+else:
+    from typing import (
+        Callable,
+        Sequence,
+    )
 
-def call(cmd: Sequence[str], exit_on_error: bool = True, silent: bool = False, env=None) -> int:
+
+def call(
+        cmd: Sequence[str],
+        exit_on_error: bool = True,
+        silent: bool = False,
+        env: "dict[str, str] | None" = None,
+) -> int:
     if not silent:
         cmd_str = ""
         if env:
@@ -104,43 +150,92 @@ def git_is_remote_repository(git_command: str, repo: str) -> bool:
     return exit_code == 0
 
 
+def git_get_remotes(git_command: str) -> Sequence[str]:
+    """Get a list of git remotes"""
+    # Additional check if the remote exists, for safety in case the output of this command
+    # changes in the future.
+    remotes = check_output([git_command, "remote"]).split()
+    return [remote for remote in remotes if git_remote_exist(git_command, remote)]
+
+
+def git_add_remote(git_command: str, name: str, url: str, push_url: str) -> None:
+    """Add a git remote"""
+    call((git_command, "remote", "add", name, url), silent=True)
+    call((git_command, "remote", "set-url", "--push", name, push_url), silent=True)
+
+
 def git_branch(git_command: str) -> str:
     """Get current branch name."""
 
     try:
         branch = subprocess.check_output([git_command, "rev-parse", "--abbrev-ref", "HEAD"])
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
+        # No need to print the exception, error text is written to the output already.
         sys.stderr.write("Failed to get Blender git branch\n")
         sys.exit(1)
 
     return branch.strip().decode('utf8')
 
 
-def git_get_config(git_command: str, key: str, file: Optional[str] = None) -> str:
+def git_get_config(git_command: str, key: str, file: "str | None" = None) -> str:
     if file:
         return check_output([git_command, "config", "--file", file, "--get", key])
 
     return check_output([git_command, "config", "--get", key])
 
 
-def git_set_config(git_command: str, key: str, value: str, file: Optional[str] = None) -> str:
+def git_set_config(git_command: str, key: str, value: str, file: "str | None" = None) -> str:
     if file:
         return check_output([git_command, "config", "--file", file, key, value])
 
     return check_output([git_command, "config", key, value])
 
 
-def git_enable_submodule(git_command: str, submodule_dir: str):
+def _git_submodule_config_key(submodule_dir: Path, key: str) -> str:
+    submodule_dir_str = submodule_dir.as_posix()
+    return f"submodule.{submodule_dir_str}.{key}"
+
+
+def is_git_submodule_enabled(git_command: str, submodule_dir: Path) -> bool:
+    """Check whether submodule denoted by its directory within the repository is enabled"""
+
+    git_root = Path(check_output([git_command, "rev-parse", "--show-toplevel"]))
+    gitmodules = git_root / ".gitmodules"
+
+    # Check whether the submodule actually exists.
+    # Request path of an unknown submodule will cause non-zero exit code.
+    path = git_get_config(
+        git_command, _git_submodule_config_key(submodule_dir, "path"), str(gitmodules))
+    if not path:
+        return False
+
+    # When the "update" strategy is not provided explicitly in the local configuration
+    # `git config` returns a non-zero exit code. For those assume the default "checkout"
+    # strategy.
+    update = check_output(
+        (git_command, "config", "--local", _git_submodule_config_key(submodule_dir, "update")),
+        exit_on_error=False)
+    if update == "":
+        # The repository is not in our local configuration.
+        # Check the default `.gitmodules` setting.
+        update = check_output(
+            (git_command, "config", "--file", str(gitmodules), _git_submodule_config_key(submodule_dir, "update")),
+            exit_on_error=False)
+    return update.lower() != "none"
+
+
+def git_enable_submodule(git_command: str, submodule_dir: Path) -> None:
     """Enable submodule denoted by its directory within the repository"""
 
     command = (git_command,
                "config",
                "--local",
-               f"submodule.{submodule_dir}.update", "checkout")
-    call(command, exit_on_error=True, silent=False)
+               _git_submodule_config_key(submodule_dir, "update"),
+               "checkout")
+    call(command, exit_on_error=True, silent=True)
 
 
-def git_update_submodule(git_command: str, submodule_dir: str) -> bool:
+def git_update_submodule(git_command: str, submodule_dir: Path) -> bool:
     """
     Update the given submodule.
 
@@ -166,16 +261,16 @@ def git_update_submodule(git_command: str, submodule_dir: str) -> bool:
     #
     #   https://github.com/git/git/commit/7a132c628e57b9bceeb88832ea051395c0637b16
     #
-    # Doing "git lfs pull" after checkout with GIT_LFS_SKIP_SMUDGE=true seems to be the
+    # Doing `git lfs pull` after checkout with `GIT_LFS_SKIP_SMUDGE=true` seems to be the
     # valid process. For example, https://www.mankier.com/7/git-lfs-faq
 
     env = {"GIT_LFS_SKIP_SMUDGE": "1"}
 
-    if call((git_command, "submodule", "update", "--init", "--progress", submodule_dir),
+    if call((git_command, "submodule", "update", "--init", "--progress", str(submodule_dir)),
             exit_on_error=False, env=env) != 0:
         return False
 
-    return call((git_command, "-C", submodule_dir, "lfs", "pull"),
+    return call((git_command, "-C", str(submodule_dir), "lfs", "pull"),
                 exit_on_error=False) == 0
 
 
@@ -233,3 +328,23 @@ def parse_blender_version() -> BlenderVersion:
         int(version_info["BLENDER_VERSION_PATCH"]),
         version_info["BLENDER_VERSION_CYCLE"],
     )
+
+
+def remove_directory(directory: Path) -> None:
+    """
+    Recursively remove the given directory
+
+    Takes care of clearing read-only attributes which might prevent deletion on
+    Windows.
+    """
+    # NOTE: unquote typing once Python 3.6x is dropped.
+    def remove_readonly(
+            func: Callable[..., Any],
+            path: str,
+            _: "tuple[type[BaseException], BaseException, TracebackType]",
+    ) -> None:
+        "Clear the read-only bit and reattempt the removal."
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
+    shutil.rmtree(directory, onerror=remove_readonly)

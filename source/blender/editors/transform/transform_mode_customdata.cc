@@ -10,16 +10,15 @@
 
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_task.h"
+#include "BLI_task.hh"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -27,18 +26,11 @@
 
 #include "transform_mode.hh"
 
-/* -------------------------------------------------------------------- */
-/** \name Transform Element
- * \{ */
+namespace blender::ed::transform {
 
-/**
- * \note Small arrays / data-structures should be stored copied for faster memory access.
- */
-struct TransDataArgs_Value {
-  const TransInfo *t;
-  const TransDataContainer *tc;
-  float value;
-};
+/* -------------------------------------------------------------------- */
+/** \name Transform Value
+ * \{ */
 
 static void transdata_elem_value(const TransInfo * /*t*/,
                                  const TransDataContainer * /*tc*/,
@@ -53,28 +45,9 @@ static void transdata_elem_value(const TransInfo * /*t*/,
   CLAMP(*td->val, 0.0f, 1.0f);
 }
 
-static void transdata_elem_value_fn(void *__restrict iter_data_v,
-                                    const int iter,
-                                    const TaskParallelTLS *__restrict /*tls*/)
-{
-  TransDataArgs_Value *data = static_cast<TransDataArgs_Value *>(iter_data_v);
-  TransData *td = &data->tc->data[iter];
-  if (td->flag & TD_SKIP) {
-    return;
-  }
-  transdata_elem_value(data->t, data->tc, td, data->value);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Transform Value
- * \{ */
-
 static void apply_value_impl(TransInfo *t, const char *value_name)
 {
   float value;
-  int i;
   char str[UI_MAX_DRAW_STR];
 
   value = t->values[0] + t->values_modal_offset[0];
@@ -87,11 +60,11 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
 
   t->values_final[0] = value;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
 
     if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%s %s", value_name, c, t->proptext);
@@ -101,7 +74,7 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
     }
   }
   else {
-    /* default header print */
+    /* Default header print. */
     if (value >= 0.0f) {
       SNPRINTF(str, "%s: +%.3f %s", value_name, value, t->proptext);
     }
@@ -111,24 +84,15 @@ static void apply_value_impl(TransInfo *t, const char *value_name)
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    if (tc->data_len < TRANSDATA_THREAD_LIMIT) {
-      TransData *td = tc->data;
-      for (i = 0; i < tc->data_len; i++, td++) {
+    threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
+      for (const int i : range) {
+        TransData *td = &tc->data[i];
         if (td->flag & TD_SKIP) {
           continue;
         }
         transdata_elem_value(t, tc, td, value);
       }
-    }
-    else {
-      TransDataArgs_Value data{};
-      data.t = t;
-      data.tc = tc;
-      data.value = value;
-      TaskParallelSettings settings;
-      BLI_parallel_range_settings_defaults(&settings);
-      BLI_task_parallel_range(0, tc->data_len, &data, transdata_elem_value_fn, &settings);
-    }
+    });
   }
 
   recalc_data(t);
@@ -212,3 +176,5 @@ TransModeInfo TransMode_bevelweight = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

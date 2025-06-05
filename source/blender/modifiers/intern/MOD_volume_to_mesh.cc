@@ -6,8 +6,6 @@
  * \ingroup modifiers
  */
 
-#include <vector>
-
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
@@ -15,27 +13,22 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_to_mesh.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_volume_types.h"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "BLI_math_matrix_types.hh"
-#include "BLI_math_vector.h"
 #include "BLI_span.hh"
 #include "BLI_string.h"
-#include "BLI_timeit.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -89,30 +82,30 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "grid_name", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiLayout *col = &layout->column(false);
+    col->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "grid_name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "resolution_mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiLayout *col = &layout->column(false);
+    col->prop(ptr, "resolution_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
-      uiItemR(col, ptr, "voxel_amount", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col->prop(ptr, "voxel_amount", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else if (vmmd->resolution_mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE) {
-      uiItemR(col, ptr, "voxel_size", UI_ITEM_NONE, nullptr, ICON_NONE);
+      col->prop(ptr, "voxel_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
   {
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiItemR(col, ptr, "threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "adaptivity", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
+    uiLayout *col = &layout->column(false);
+    col->prop(ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "adaptivity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -162,8 +155,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   const openvdb::GridBase &local_grid = volume_grid->grid(tree_token);
 
   openvdb::math::Transform::Ptr transform = local_grid.transform().copy();
-  transform->postMult(openvdb::Mat4d((float *)vmmd->object->object_to_world));
-  openvdb::Mat4d imat = openvdb::Mat4d((float *)ctx->object->world_to_object);
+  transform->postMult(openvdb::Mat4d(vmmd->object->object_to_world().base_ptr()));
+  openvdb::Mat4d imat = openvdb::Mat4d(ctx->object->world_to_object().base_ptr());
   /* `imat` had floating point issues and wasn't affine. */
   imat.setCol(3, openvdb::Vec4d(0, 0, 0, 1));
   transform->postMult(imat);

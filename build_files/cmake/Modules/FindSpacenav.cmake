@@ -44,13 +44,13 @@ find_library(SPACENAV_LIBRARY
     ${_spacenav_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set SPACENAV_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(Spacenav DEFAULT_MSG
-    SPACENAV_LIBRARY SPACENAV_INCLUDE_DIR)
+  SPACENAV_LIBRARY SPACENAV_INCLUDE_DIR)
 
 if(SPACENAV_FOUND)
   set(SPACENAV_LIBRARIES ${SPACENAV_LIBRARY})
@@ -61,3 +61,5 @@ mark_as_advanced(
   SPACENAV_INCLUDE_DIR
   SPACENAV_LIBRARY
 )
+
+unset(_spacenav_SEARCH_DIRS)

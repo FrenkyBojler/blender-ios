@@ -8,8 +8,36 @@
 
 #pragma once
 
-#include "GPU_texture.h"
-#include "GPU_vertex_buffer.h"
+#include <atomic>
+#include <cmath>
+
+#include "DNA_vec_types.h"
+
+#include "BLF_api.hh"
+
+#include "BLI_map.hh"
+#include "BLI_mutex.hh"
+#include "BLI_vector.hh"
+
+#include "GPU_texture.hh"
+#include "GPU_vertex_buffer.hh"
+
+#include <ft2build.h>
+
+struct FontBLF;
+struct GlyphCacheBLF;
+struct GlyphBLF;
+
+namespace blender::gpu {
+class Batch;
+class VertBuf;
+}  // namespace blender::gpu
+struct GPUVertBufRaw;
+
+namespace blender::ocio {
+class Display;
+}  // namespace blender::ocio
+using ColorManagedDisplay = blender::ocio::Display;
 
 #include FT_MULTIPLE_MASTERS_H /* Variable font support. */
 
@@ -17,13 +45,13 @@
 #define BLF_VARIATIONS_MAX 16
 
 #define MAKE_DVAR_TAG(a, b, c, d) \
-  (((uint32_t)a << 24u) | ((uint32_t)b << 16u) | ((uint32_t)c << 8u) | ((uint32_t)d))
+  ((uint32_t(a) << 24u) | (uint32_t(b) << 16u) | (uint32_t(c) << 8u) | (uint32_t(d)))
 
-#define BLF_VARIATION_AXIS_WEIGHT MAKE_DVAR_TAG('w', 'g', 'h', 't')  /* 'wght' weight axis. */
-#define BLF_VARIATION_AXIS_SLANT MAKE_DVAR_TAG('s', 'l', 'n', 't')   /* 'slnt' slant axis. */
-#define BLF_VARIATION_AXIS_WIDTH MAKE_DVAR_TAG('w', 'd', 't', 'h')   /* 'wdth' width axis. */
-#define BLF_VARIATION_AXIS_SPACING MAKE_DVAR_TAG('s', 'p', 'a', 'c') /* 'spac' spacing axis. */
-#define BLF_VARIATION_AXIS_OPTSIZE MAKE_DVAR_TAG('o', 'p', 's', 'z') /* 'opsz' optical size. */
+#define BLF_VARIATION_AXIS_WEIGHT MAKE_DVAR_TAG('w', 'g', 'h', 't')  /* `wght` weight axis. */
+#define BLF_VARIATION_AXIS_SLANT MAKE_DVAR_TAG('s', 'l', 'n', 't')   /* `slnt` slant axis. */
+#define BLF_VARIATION_AXIS_WIDTH MAKE_DVAR_TAG('w', 'd', 't', 'h')   /* `wdth` width axis. */
+#define BLF_VARIATION_AXIS_SPACING MAKE_DVAR_TAG('s', 'p', 'a', 'c') /* `spac` spacing axis. */
+#define BLF_VARIATION_AXIS_OPTSIZE MAKE_DVAR_TAG('o', 'p', 's', 'z') /* `opsz` optical size. */
 
 /* -------------------------------------------------------------------- */
 /** \name Sub-Pixel Offset & Utilities
@@ -36,7 +64,7 @@
  * This is an internal type that represents sub-pixel positioning,
  * users of this type are to use `ft_pix_*` functions to keep scaling/rounding in one place.
  */
-typedef int32_t ft_pix;
+using ft_pix = int32_t;
 
 /* Macros copied from `include/freetype/internal/ftobjs.h`. */
 
@@ -44,27 +72,27 @@ typedef int32_t ft_pix;
 #define FT_PIX_ROUND(x) FT_PIX_FLOOR((x) + 32)
 #define FT_PIX_CEIL(x) ((x) + 63)
 
-BLI_INLINE int ft_pix_to_int(ft_pix v)
+inline int ft_pix_to_int(ft_pix v)
 {
-  return (int)(v >> 6);
+  return int(v >> 6);
 }
 
-BLI_INLINE int ft_pix_to_int_floor(ft_pix v)
+inline int ft_pix_to_int_floor(ft_pix v)
 {
-  return (int)(v >> 6); /* No need for explicit floor as the bits are removed when shifting. */
+  return int(v >> 6); /* No need for explicit floor as the bits are removed when shifting. */
 }
 
-BLI_INLINE int ft_pix_to_int_ceil(ft_pix v)
+inline int ft_pix_to_int_ceil(ft_pix v)
 {
-  return (int)(FT_PIX_CEIL(v) >> 6);
+  return (FT_PIX_CEIL(v) >> 6);
 }
 
-BLI_INLINE ft_pix ft_pix_from_int(int v)
+inline ft_pix ft_pix_from_int(int v)
 {
   return v * 64;
 }
 
-BLI_INLINE ft_pix ft_pix_from_float(float v)
+inline ft_pix ft_pix_from_float(float v)
 {
   return lroundf(v * 64.0f);
 }
@@ -79,37 +107,46 @@ BLI_INLINE ft_pix ft_pix_from_float(float v)
 /** A value in the kerning cache that indicates it is not yet set. */
 #define KERNING_ENTRY_UNSET INT_MAX
 
-typedef struct BatchBLF {
+struct BatchBLF {
   /** Can only batch glyph from the same font. */
-  struct FontBLF *font;
-  struct GPUBatch *batch;
-  struct GPUVertBuf *verts;
-  struct GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_comp_len_step,
-      glyph_mode_step;
-  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_comp_len_loc, glyph_mode_loc;
+  FontBLF *font;
+  blender::gpu::Batch *batch;
+  blender::gpu::VertBuf *verts;
+  GPUVertBufRaw pos_step, col_step, offset_step, glyph_size_step, glyph_flags_step;
+  unsigned int pos_loc, col_loc, offset_loc, glyph_size_loc, glyph_flags_loc;
   unsigned int glyph_len;
   /** Copy of `font->pos`. */
   int ofs[2];
   /* Previous call `modelmatrix`. */
   float mat[4][4];
   bool enabled, active, simple_shader;
-  struct GlyphCacheBLF *glyph_cache;
-} BatchBLF;
+  GlyphCacheBLF *glyph_cache;
+};
 
 extern BatchBLF g_batch;
 
-typedef struct KerningCacheBLF {
+struct KerningCacheBLF {
   /**
-   * Cache a ascii glyph pairs. Only store the x offset we are interested in,
+   * Cache a ASCII glyph pairs. Only store the x offset we are interested in,
    * instead of the full #FT_Vector since it's not used for drawing at the moment.
    */
   int ascii_table[KERNING_CACHE_TABLE_SIZE][KERNING_CACHE_TABLE_SIZE];
-} KerningCacheBLF;
+};
 
-typedef struct GlyphCacheBLF {
-  struct GlyphCacheBLF *next;
-  struct GlyphCacheBLF *prev;
+struct GlyphCacheKey {
+  uint charcode;
+  uint8_t subpixel;
+  friend bool operator==(const GlyphCacheKey &a, const GlyphCacheKey &b)
+  {
+    return a.charcode == b.charcode && a.subpixel == b.subpixel;
+  }
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(charcode, subpixel);
+  }
+};
 
+struct GlyphCacheBLF {
   /** Font size. */
   float size;
 
@@ -125,7 +162,7 @@ typedef struct GlyphCacheBLF {
   int fixed_width;
 
   /** The glyphs. */
-  ListBase bucket[257];
+  blender::Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;
 
   /** Texture array, to draw the glyphs. */
   GPUTexture *texture;
@@ -134,13 +171,11 @@ typedef struct GlyphCacheBLF {
   int bitmap_len_landed;
   int bitmap_len_alloc;
 
-} GlyphCacheBLF;
+  ~GlyphCacheBLF();
+};
 
-typedef struct GlyphBLF {
-  struct GlyphBLF *next;
-  struct GlyphBLF *prev;
-
-  /** The character, as UTF-32. */
+struct GlyphBLF {
+  /** The character, as UTF32. */
   unsigned int c;
 
   /** Freetype2 index, to speed-up the search. */
@@ -171,10 +206,7 @@ typedef struct GlyphBLF {
   /** Glyph width and height. */
   int dims[2];
   int pitch;
-  int depth;
-
-  /** Render mode (FT_Render_Mode). */
-  int render_mode;
+  int num_channels;
 
   /**
    * X and Y bearing of the glyph.
@@ -183,10 +215,12 @@ typedef struct GlyphBLF {
    */
   int pos[2];
 
-  struct GlyphCacheBLF *glyph_cache;
-} GlyphBLF;
+  GlyphCacheBLF *glyph_cache;
 
-typedef struct FontBufInfoBLF {
+  ~GlyphBLF();
+};
+
+struct FontBufInfoBLF {
   /** For draw to buffer, always set this to NULL after finish! */
   float *fbuf;
 
@@ -196,21 +230,17 @@ typedef struct FontBufInfoBLF {
   /** Buffer size, keep signed so comparisons with negative values work. */
   int dims[2];
 
-  /** Number of channels. */
-  int ch;
-
   /** Display device used for color management. */
-  struct ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
 
   /** The color, the alphas is get from the glyph! (color is sRGB space). */
   float col_init[4];
   /** Cached conversion from 'col_init'. */
   unsigned char col_char[4];
   float col_float[4];
+};
 
-} FontBufInfoBLF;
-
-typedef struct FontMetrics {
+struct FontMetrics {
   /** Indicate that these values have been properly loaded. */
   bool valid;
   /** This font's default weight, 100-900, 400 is normal. */
@@ -274,9 +304,9 @@ typedef struct FontMetrics {
   short superscript_xoffset;
   /** Positive (!) number of font units below baseline for subscript characters. */
   short superscript_yoffset;
-} FontMetrics;
+};
 
-typedef struct FontBLF {
+struct FontBLF {
   /** Full path to font file or NULL if from memory. */
   char *filepath;
 
@@ -293,8 +323,8 @@ typedef struct FontBLF {
    */
   uint unicode_ranges[4];
 
-  /** Number of times this font was loaded. */
-  unsigned int reference_count;
+  /** Number of references to this font object. When it reaches zero, font is unloaded. */
+  std::atomic<uint32_t> reference_count;
 
   /** Aspect ratio or scale. */
   float aspect[3];
@@ -305,13 +335,8 @@ typedef struct FontBLF {
   /** Angle in radians. */
   float angle;
 
-#if 0 /* BLF_BLUR_ENABLE */
-  /* blur: 3 or 5 large kernel */
-  int blur;
-#endif
-
-  /** Shadow level. */
-  int shadow;
+  /** Shadow type. */
+  FontShadowType shadow;
 
   /** And shadow offset. */
   int shadow_x;
@@ -323,17 +348,12 @@ typedef struct FontBLF {
   /** Main text color. */
   unsigned char color[4];
 
-  /**
-   * Multiplied this matrix with the current one before draw the text!
-   * see #blf_draw_gpu__start.
-   */
-  float m[16];
-
   /** Clipping rectangle. */
   rcti clip_rec;
 
   /** The width to wrap the text, see #BLF_WORD_WRAP. */
   int wrap_width;
+  BLFWrapMode wrap_mode;
 
   /** Font size. */
   float size;
@@ -357,7 +377,7 @@ typedef struct FontBLF {
    * List of glyph caches (#GlyphCacheBLF) for this font for size, DPI, bold, italic.
    * Use blf_glyph_cache_acquire(font) and blf_glyph_cache_release(font) to access cache!
    */
-  ListBase cache;
+  blender::Vector<std::unique_ptr<GlyphCacheBLF>> cache;
 
   /** Cache of unscaled kerning values. Will be NULL if font does not have kerning. */
   KerningCacheBLF *kerning_cache;
@@ -381,5 +401,5 @@ typedef struct FontBLF {
   FontBufInfoBLF buf_info;
 
   /** Mutex lock for glyph cache. */
-  ThreadMutex glyph_cache_mutex;
-} FontBLF;
+  blender::Mutex glyph_cache_mutex;
+};

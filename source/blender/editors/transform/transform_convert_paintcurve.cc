@@ -13,14 +13,16 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_context.hh"
+#include "BKE_brush.hh"
 #include "BKE_paint.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
 struct TransDataPaintCurve {
-  PaintCurvePoint *pcp; /* initial curve point */
+  PaintCurvePoint *pcp; /* Initial curve point. */
   char id;
 };
 
@@ -113,9 +115,9 @@ static void PaintCurvePointToTransData(PaintCurvePoint *pcp,
 static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
+  Brush *br = (paint) ? BKE_paint_brush(paint) : nullptr;
   PaintCurve *pc;
   PaintCurvePoint *pcp;
-  Brush *br;
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
   TransDataPaintCurve *tdpc = nullptr;
@@ -126,11 +128,10 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 
   tc->data_len = 0;
 
-  if (!paint || !paint->brush || !paint->brush->paint_curve) {
+  if (!paint || !br) {
     return;
   }
 
-  br = paint->brush;
   pc = br->paint_curve;
 
   for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
@@ -153,12 +154,10 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
   }
 
   tc->data_len = total;
-  td2d = tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransData2D"));
-  td = tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransData"));
-  tc->custom.type.data = tdpc = static_cast<TransDataPaintCurve *>(
-      MEM_callocN(tc->data_len * sizeof(TransDataPaintCurve), "TransDataPaintCurve"));
+  td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransData2D");
+  td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransData");
+  tc->custom.type.data = tdpc = MEM_calloc_arrayN<TransDataPaintCurve>(tc->data_len,
+                                                                       "TransDataPaintCurve");
   tc->custom.type.use_free = true;
 
   for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
@@ -205,6 +204,12 @@ static void flushTransPaintCurve(TransInfo *t)
     PaintCurvePoint *pcp = tdpc->pcp;
     copy_v2_v2(pcp->bez.vec[tdpc->id], td2d->loc);
   }
+
+  if (t->context) {
+    Paint *paint = BKE_paint_get_active_from_context(t->context);
+    Brush *br = (paint) ? BKE_paint_brush(paint) : nullptr;
+    BKE_brush_tag_unsaved_changes(br);
+  }
 }
 
 /** \} */
@@ -215,3 +220,5 @@ TransConvertTypeInfo TransConvertType_PaintCurve = {
     /*recalc_data*/ flushTransPaintCurve,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

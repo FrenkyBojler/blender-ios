@@ -19,9 +19,9 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -29,7 +29,6 @@
 #include "WM_types.hh"
 
 #include "ED_mesh.hh"
-#include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
@@ -419,8 +418,7 @@ static UnorderedLoopPair *edbm_tagged_loop_pairs_to_fill(BMesh *bm)
   }
 
   if (total_tag) {
-    UnorderedLoopPair *uloop_pairs = static_cast<UnorderedLoopPair *>(
-        MEM_mallocN(total_tag * sizeof(UnorderedLoopPair), __func__));
+    UnorderedLoopPair *uloop_pairs = MEM_malloc_arrayN<UnorderedLoopPair>(total_tag, __func__);
     UnorderedLoopPair *ulp = uloop_pairs;
 
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -1021,7 +1019,7 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
  * \{ */
 
 /* based on mouse cursor position, it defines how is being ripped */
-static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1137,7 +1135,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->idname = "MESH_OT_rip";
   ot->description = "Disconnect vertex or edges from connected geometry";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_rip_invoke;
   ot->poll = EDBM_view3d_poll;
 
@@ -1145,7 +1143,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* to give to transform */
-  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
   prop = RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill the ripped region");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
 }

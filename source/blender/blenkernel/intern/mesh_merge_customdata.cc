@@ -6,18 +6,14 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
 
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_mapping.hh"
-#include "BLI_memarena.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 using namespace blender;
 
@@ -111,7 +107,7 @@ void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
     return;
   }
 
-  const GroupedSpan<int> vert_to_loop = mesh->vert_to_corner_map();
+  const GroupedSpan<int> vert_to_corner = mesh->vert_to_corner_map();
 
   Vector<float2 *> mloopuv_layers;
   mloopuv_layers.reserve(mloopuv_layers_num);
@@ -125,7 +121,7 @@ void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
 
   threading::parallel_for(IndexRange(mesh->verts_num), 1024, [&](IndexRange range) {
     for (const int64_t v_index : range) {
-      merge_uvs_for_vertex(vert_to_loop[v_index], mloopuv_layers_as_span);
+      merge_uvs_for_vertex(vert_to_corner[v_index], mloopuv_layers_as_span);
     }
   });
 }

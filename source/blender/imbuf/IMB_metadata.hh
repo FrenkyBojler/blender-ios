@@ -8,9 +8,10 @@
 
 #pragma once
 
+#include <cstddef>
+
 struct IDProperty;
 struct ImBuf;
-struct ImBufAnim;
 
 /**
  * The metadata is a list of key/value pairs (both char *) that can me
@@ -39,7 +40,7 @@ void IMB_metadata_free(IDProperty *metadata);
  * \param len: length of value buffer allocated by user.
  * \return 1 (true) if metadata is present and value for the key found, 0 (false) otherwise.
  */
-bool IMB_metadata_get_field(IDProperty *metadata,
+bool IMB_metadata_get_field(const IDProperty *metadata,
                             const char *key,
                             char *value,
                             size_t value_maxncpy);
@@ -54,9 +55,8 @@ bool IMB_metadata_get_field(IDProperty *metadata,
  */
 void IMB_metadata_set_field(IDProperty *metadata, const char *key, const char *value);
 
-void IMB_metadata_copy(ImBuf *dimb, ImBuf *simb);
-IDProperty *IMB_anim_load_metadata(ImBufAnim *anim);
+void IMB_metadata_copy(ImBuf *ibuf_dst, const ImBuf *ibuf_src);
 
 /* Invoke callback for every value stored in the metadata. */
-typedef void (*IMBMetadataForeachCb)(const char *field, const char *value, void *userdata);
-void IMB_metadata_foreach(ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata);
+using IMBMetadataForeachCb = void (*)(const char *field, const char *value, void *userdata);
+void IMB_metadata_foreach(const ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata);

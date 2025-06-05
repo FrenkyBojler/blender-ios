@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+set(OCIO_PATCH echo .)
+
 set(OPENCOLORIO_EXTRA_ARGS
   -DOCIO_BUILD_APPS=OFF
   -DOCIO_BUILD_PYTHON=ON
@@ -38,10 +40,18 @@ if(APPLE)
 endif()
 
 if(BLENDER_PLATFORM_ARM)
-  set(OPENCOLORIO_EXTRA_ARGS
-    ${OPENCOLORIO_EXTRA_ARGS}
-    -DOCIO_USE_SSE=OFF
-  )
+  if(WIN32)
+    set(OCIO_PATCH
+      ${PATCH_CMD} -p 1 -d
+        ${BUILD_DIR}/opencolorio/src/external_opencolorio <
+        ${PATCH_DIR}/ocio_2089.diff
+    )
+  else()
+    set(OPENCOLORIO_EXTRA_ARGS
+      ${OPENCOLORIO_EXTRA_ARGS}
+      -DOCIO_USE_SSE=OFF
+    )
+  endif()
 endif()
 
 if(WIN32)
@@ -68,7 +78,13 @@ ExternalProject_Add(external_opencolorio
   URL_HASH ${OPENCOLORIO_HASH_TYPE}=${OPENCOLORIO_HASH}
   CMAKE_GENERATOR ${PLATFORM_ALT_GENERATOR}
   PREFIX ${BUILD_DIR}/opencolorio
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${LIBDIR}/opencolorio ${DEFAULT_CMAKE_FLAGS} ${OPENCOLORIO_EXTRA_ARGS}
+  PATCH_COMMAND ${OCIO_PATCH}
+
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${LIBDIR}/opencolorio
+    ${DEFAULT_CMAKE_FLAGS}
+    ${OPENCOLORIO_EXTRA_ARGS}
+
   INSTALL_DIR ${LIBDIR}/opencolorio
 )
 
@@ -87,25 +103,55 @@ add_dependencies(
 if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_opencolorio after_install
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencolorio/include ${HARVEST_TARGET}/opencolorio/include
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opencolorio/bin/OpenColorIO_2_3.dll ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO_2_3.dll
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencolorio/lib ${HARVEST_TARGET}/opencolorio/lib
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/opencolorio/include
+        ${HARVEST_TARGET}/opencolorio/include
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/opencolorio/bin/OpenColorIO_2_4.dll
+        ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO_2_4.dll
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/opencolorio/lib
+        ${HARVEST_TARGET}/opencolorio/lib
+
       DEPENDEES install
     )
   endif()
   if(BUILD_MODE STREQUAL Debug)
     ExternalProject_Add_Step(external_opencolorio after_install
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opencolorio/bin/OpenColorIO_d_2_3.dll ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO_d_2_3.dll
-      COMMAND ${CMAKE_COMMAND} -E copy ${LIBDIR}/opencolorio/lib/Opencolorio_d.lib ${HARVEST_TARGET}/opencolorio/lib/OpenColorIO_d.lib
-      COMMAND ${CMAKE_COMMAND} -E copy_directory ${LIBDIR}/opencolorio/lib/site-packages ${HARVEST_TARGET}/opencolorio/lib/site-packages-debug
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/opencolorio/bin/OpenColorIO_d_2_4.dll
+        ${HARVEST_TARGET}/opencolorio/bin/OpenColorIO_d_2_4.dll
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/opencolorio/lib/Opencolorio_d.lib
+        ${HARVEST_TARGET}/opencolorio/lib/OpenColorIO_d.lib
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${LIBDIR}/opencolorio/lib/site-packages
+        ${HARVEST_TARGET}/opencolorio/lib/site-packages-debug
+
       DEPENDEES install
     )
   endif()
 else()
   ExternalProject_Add_Step(external_opencolorio after_install
-    COMMAND cp ${LIBDIR}/yamlcpp/lib/libyaml-cpp.a ${LIBDIR}/opencolorio/lib/
-    COMMAND cp ${LIBDIR}/expat/lib/libexpat.a ${LIBDIR}/opencolorio/lib/
-    COMMAND cp ${LIBDIR}/pystring/lib/libpystring.a ${LIBDIR}/opencolorio/lib/
+    COMMAND cp
+      ${LIBDIR}/yamlcpp/lib/libyaml-cpp.a
+      ${LIBDIR}/opencolorio/lib/
+    COMMAND cp
+      ${LIBDIR}/expat/lib/libexpat.a
+      ${LIBDIR}/opencolorio/lib/
+    COMMAND cp
+      ${LIBDIR}/pystring/lib/libpystring.a
+      ${LIBDIR}/opencolorio/lib/
+
     DEPENDEES install
+  )
+
+  harvest(external_opencolorio opencolorio/include opencolorio/include "*.h")
+  harvest_rpath_lib(external_opencolorio opencolorio/lib opencolorio/lib "*${SHAREDLIBEXT}*")
+  harvest_rpath_python(
+    external_opencolorio
+    opencolorio/lib/python${PYTHON_SHORT_VERSION}
+    python/lib/python${PYTHON_SHORT_VERSION}
+    "*"
   )
 endif()

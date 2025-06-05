@@ -6,7 +6,6 @@
  * \ingroup edphys
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -14,7 +13,6 @@
 
 #include "CLG_log.h"
 
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -35,8 +33,6 @@
 #include "ED_undo.hh"
 
 #include "particle_edit_utildefines.h"
-
-#include "physics_intern.h"
 
 /** Only needed this locally. */
 static CLG_LogRef LOG = {"ed.undo.particle_edit"};

@@ -6,13 +6,12 @@
  * \ingroup spoutliner
  */
 
-#include "BLI_listbase_wrapper.hh"
-
 #include "DNA_anim_types.h"
-#include "DNA_listBase.h"
 #include "DNA_outliner_types.h"
 
-#include "BLT_translation.h"
+#include "BLI_listbase.h"
+
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 

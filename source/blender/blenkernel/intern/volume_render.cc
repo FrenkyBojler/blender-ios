@@ -12,11 +12,11 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_task.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_volume_types.h"
 
-#include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 #include "BKE_volume_render.hh"
@@ -36,8 +36,10 @@ static void extract_dense_voxels(const openvdb::GridBase &grid,
                                  VoxelType *r_voxels)
 {
   BLI_assert(grid.isType<GridType>());
-  openvdb::tools::Dense<VoxelType, openvdb::tools::LayoutXYZ> dense(bbox, r_voxels);
-  openvdb::tools::copyToDense(static_cast<const GridType &>(grid), dense);
+  blender::threading::memory_bandwidth_bound_task(bbox.volume() * sizeof(VoxelType), [&]() {
+    openvdb::tools::Dense<VoxelType, openvdb::tools::LayoutXYZ> dense(bbox, r_voxels);
+    openvdb::tools::copyToDense(static_cast<const GridType &>(grid), dense);
+  });
 }
 
 static void extract_dense_float_voxels(const VolumeGridType grid_type,
@@ -46,27 +48,45 @@ static void extract_dense_float_voxels(const VolumeGridType grid_type,
                                        float *r_voxels)
 {
   switch (grid_type) {
-    case VOLUME_GRID_BOOLEAN:
-      return extract_dense_voxels<openvdb::BoolGrid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_FLOAT:
-      return extract_dense_voxels<openvdb::FloatGrid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_DOUBLE:
-      return extract_dense_voxels<openvdb::DoubleGrid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_INT:
-      return extract_dense_voxels<openvdb::Int32Grid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_INT64:
-      return extract_dense_voxels<openvdb::Int64Grid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_MASK:
-      return extract_dense_voxels<openvdb::MaskGrid, float>(grid, bbox, r_voxels);
-    case VOLUME_GRID_VECTOR_FLOAT:
-      return extract_dense_voxels<openvdb::Vec3fGrid, openvdb::Vec3f>(
+    case VOLUME_GRID_BOOLEAN: {
+      extract_dense_voxels<openvdb::BoolGrid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_FLOAT: {
+      extract_dense_voxels<openvdb::FloatGrid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_DOUBLE: {
+      extract_dense_voxels<openvdb::DoubleGrid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_INT: {
+      extract_dense_voxels<openvdb::Int32Grid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_INT64: {
+      extract_dense_voxels<openvdb::Int64Grid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_MASK: {
+      extract_dense_voxels<openvdb::MaskGrid, float>(grid, bbox, r_voxels);
+      return;
+    }
+    case VOLUME_GRID_VECTOR_FLOAT: {
+      extract_dense_voxels<openvdb::Vec3fGrid, openvdb::Vec3f>(
           grid, bbox, reinterpret_cast<openvdb::Vec3f *>(r_voxels));
-    case VOLUME_GRID_VECTOR_DOUBLE:
-      return extract_dense_voxels<openvdb::Vec3dGrid, openvdb::Vec3f>(
+      return;
+    }
+    case VOLUME_GRID_VECTOR_DOUBLE: {
+      extract_dense_voxels<openvdb::Vec3dGrid, openvdb::Vec3f>(
           grid, bbox, reinterpret_cast<openvdb::Vec3f *>(r_voxels));
-    case VOLUME_GRID_VECTOR_INT:
-      return extract_dense_voxels<openvdb::Vec3IGrid, openvdb::Vec3f>(
+      return;
+    }
+    case VOLUME_GRID_VECTOR_INT: {
+      extract_dense_voxels<openvdb::Vec3IGrid, openvdb::Vec3f>(
           grid, bbox, reinterpret_cast<openvdb::Vec3f *>(r_voxels));
+      return;
+    }
     case VOLUME_GRID_POINTS:
     case VOLUME_GRID_UNKNOWN:
       /* Zero channels to copy. */
@@ -105,13 +125,20 @@ bool BKE_volume_grid_dense_floats(const Volume *volume,
   if (bbox.empty()) {
     return false;
   }
+  const std::array<int64_t, 6> bbox_indices = {UNPACK3(openvdb::math::Abs(bbox.min())),
+                                               UNPACK3(openvdb::math::Abs(bbox.max()))};
+  const int64_t max_bbox_index = *std::max_element(bbox_indices.begin(), bbox_indices.end());
+  if (max_bbox_index > (1 << 30)) {
+    /* There is an integer overflow when trying to extract dense voxels when the indices are very
+     * large. */
+    return false;
+  }
 
   const openvdb::Vec3i resolution = bbox.dim().asVec3i();
   const int64_t num_voxels = int64_t(resolution[0]) * int64_t(resolution[1]) *
                              int64_t(resolution[2]);
   const int channels = blender::bke::volume_grid::get_channels_num(grid_type);
-  const int elem_size = sizeof(float) * channels;
-  float *voxels = static_cast<float *>(MEM_malloc_arrayN(num_voxels, elem_size, __func__));
+  float *voxels = MEM_malloc_arrayN<float>(size_t(channels) * size_t(num_voxels), __func__);
   if (voxels == nullptr) {
     return false;
   }

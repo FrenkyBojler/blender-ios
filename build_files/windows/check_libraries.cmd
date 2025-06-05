@@ -1,4 +1,8 @@
-set BUILD_VS_LIBDIR=lib/windows_x64
+if "%BUILD_ARCH%" == "arm64" (
+	set BUILD_VS_LIBDIR=lib/windows_arm64
+) else (
+	set BUILD_VS_LIBDIR=lib/windows_x64
+)
 
 if NOT "%verbose%" == "" (
 	echo Library Directory = "%BUILD_VS_LIBDIR%"
@@ -52,7 +56,7 @@ if NOT EXIST "%BUILD_VS_LIBDIR%\.git" (
 			echo.
 			echo Python not found in external libraries, updating to latest version
 			echo.
-			"%GIT%" -C "%BLENDER_DIR%" submodule update "%BUILD_VS_LIBDIR%"
+			"%GIT%" -C "%BLENDER_DIR%\" submodule update "%BUILD_VS_LIBDIR%"
 		)
 	)
 )

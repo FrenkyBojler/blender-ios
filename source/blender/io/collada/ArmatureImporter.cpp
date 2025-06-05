@@ -6,14 +6,14 @@
  * \ingroup collada
  */
 
-/* COLLADABU_ASSERT, may be able to remove later */
-#include "COLLADABUPlatform.h"
-
 #include <algorithm>
+#include <iostream>
 
 #include "COLLADAFWUniqueId.h"
 
-#include "BKE_action.h"
+#include "DNA_key_types.h"
+
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_object.hh"
 #include "BLI_listbase.h"
@@ -119,7 +119,7 @@ int ArmatureImporter::create_bone(SkinInfo *skin,
       Object *ob_arm = skin->BKE_armature_from_object();
       if (ob_arm) {
         float invmat[4][4];
-        invert_m4_m4(invmat, ob_arm->object_to_world);
+        invert_m4_m4(invmat, ob_arm->object_to_world().ptr());
         mul_m4_m4m4(mat, invmat, mat);
       }
 
@@ -199,9 +199,7 @@ int ArmatureImporter::create_bone(SkinInfo *skin,
 
   for (uint i = 0; i < children.getCount(); i++) {
     int cl = create_bone(skin, children[i], bone, children.getCount(), mat, arm, layer_labels);
-    if (cl > chain_length) {
-      chain_length = cl;
-    }
+    chain_length = std::max(cl, chain_length);
   }
 
   bone->length = len_v3v3(bone->head, bone->tail);
@@ -476,12 +474,18 @@ void ArmatureImporter::create_armature_bones(Main *bmain, std::vector<Object *> 
       continue;
     }
 
+    /* Assumption that joint_parent_map only lists armatures is apparently wrong (it can be meshes,
+     * too), this needs to be checked again, for now prevent a crash though. */
+    if (ob_arm->type != OB_ARMATURE) {
+      continue;
+    }
+
     bArmature *armature = (bArmature *)ob_arm->data;
     if (!armature) {
       continue;
     }
 
-    char *bone_name = (char *)bc_get_joint_name(node);
+    const char *bone_name = bc_get_joint_name(node);
     Bone *bone = BKE_armature_find_bone_name(armature, bone_name);
     if (bone) {
       fprintf(stderr,
@@ -715,7 +719,7 @@ void ArmatureImporter::set_pose(Object *ob_arm,
 
     copy_m4_m4(mat, obmat);
     float invObmat[4][4];
-    invert_m4_m4(invObmat, ob_arm->object_to_world);
+    invert_m4_m4(invObmat, ob_arm->object_to_world().ptr());
     mul_m4_m4m4(pchan->pose_mat, invObmat, mat);
   }
 

@@ -5,23 +5,25 @@
 /** \file
  * \ingroup depsgraph
  *
- * Datatypes for internal use in the Depsgraph
+ * Data-types for internal use in the Depsgraph
  *
- * All of these datatypes are only really used within the "core" depsgraph.
+ * All of these data-types are only really used within the "core" depsgraph.
  * In particular, node types declared here form the structure of operations
  * in the graph.
  */
 
 #pragma once
 
+#include <cstdlib>
 #include <functional>
-#include <mutex>
-#include <stdlib.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 
+#include "BLI_linear_allocator.hh"
+#include "BLI_mutex.hh"
+#include "BLI_set.hh"
 #include "BLI_threads.h" /* for SpinLock */
 
 #include "DEG_depsgraph.hh"
@@ -29,7 +31,6 @@
 
 #include "intern/debug/deg_debug.h"
 #include "intern/depsgraph_light_linking.hh"
-#include "intern/depsgraph_type.hh"
 
 struct ID;
 struct Scene;
@@ -75,10 +76,16 @@ struct Depsgraph {
 
   /* Copy-on-Write Functionality ........ */
 
-  /* For given original ID get ID which is created by CoW system. */
+  /* For given original ID get ID which is created by copy-on-evaluation system. */
   ID *get_cow_id(const ID *id_orig) const;
 
   /* Core Graph Functionality ........... */
+
+  /**
+   * Used to decrease the cost of allocating many small structs when building the graph. This is a
+   * viable strategy because the graph is rebuilt from scratch rather than changed in-place.
+   */
+  LinearAllocator<> build_allocator;
 
   /* <ID : IDNode> mapping from ID blocks to nodes representing these
    * blocks, used for quick lookups. */
@@ -108,6 +115,8 @@ struct Depsgraph {
 
   /* Indicates which ID types were updated. */
   char id_type_updated[INDEX_ID_MAX];
+  /* Accumulate id type updates from multiple update passes. */
+  char id_type_updated_backup[INDEX_ID_MAX];
 
   /* Indicates type of IDs present in the depsgraph. */
   char id_type_exist[INDEX_ID_MAX];
@@ -176,13 +185,15 @@ struct Depsgraph {
   /* The number of times this graph has been evaluated. */
   uint64_t update_count;
 
+  /* If this mode does not allow writing back to original data any callbacks will be discarded. */
+  DepsgraphEvaluateSyncWriteback sync_writeback;
   /**
    * Stores functions that can be called after depsgraph evaluation to writeback some changes to
    * original data. Also see `DEG_depsgraph_writeback_sync.hh`.
    */
   Vector<std::function<void()>> sync_writeback_callbacks;
   /** Needs to be locked when adding a writeback callback during evaluation. */
-  std::mutex sync_writeback_callbacks_mutex;
+  Mutex sync_writeback_callbacks_mutex;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("Depsgraph");
 };

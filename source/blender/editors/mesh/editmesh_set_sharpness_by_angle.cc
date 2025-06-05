@@ -10,11 +10,11 @@
 #include "BLI_math_vector.hh"
 
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
+#include "BKE_mesh_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -23,14 +23,13 @@
 
 #include "WM_api.hh"
 
-#include "ED_mesh.hh"
 #include "ED_screen.hh"
 
 #include "mesh_intern.hh"
 
 namespace blender::ed::mesh {
 
-static int set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
 {
   const float angle_limit_cos = std::cos(RNA_float_get(op->ptr, "angle"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -39,7 +38,7 @@ static int set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
 
   for (Object *object : objects) {
     Mesh &mesh = *static_cast<Mesh *>(object->data);
-    BMEditMesh *em = mesh.edit_mesh;
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
     BMIter iter;

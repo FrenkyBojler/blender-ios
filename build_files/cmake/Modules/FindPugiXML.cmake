@@ -45,7 +45,7 @@ find_library(PUGIXML_LIBRARY
     ${_pugixml_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set PUGIXML_FOUND to TRUE if
 # all listed variables are TRUE
@@ -64,3 +64,5 @@ mark_as_advanced(
   PUGIXML_INCLUDE_DIR
   PUGIXML_LIBRARY
 )
+
+unset(_pugixml_SEARCH_DIRS)

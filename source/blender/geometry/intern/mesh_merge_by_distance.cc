@@ -10,7 +10,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.h"
-#include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_vector.hh"
 
@@ -1338,7 +1337,7 @@ static void customdata_weld(
     return;
   }
 
-  CustomData_interp(source, dest, (const int *)src_indices, nullptr, nullptr, count, dest_index);
+  CustomData_interp(source, dest, src_indices, nullptr, nullptr, count, dest_index);
 
   int src_i, dest_i;
   int j;
@@ -1820,9 +1819,9 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
 Mesh *mesh_merge_verts(const Mesh &mesh,
                        MutableSpan<int> vert_dest_map,
                        int vert_dest_map_len,
-                       const bool do_mix_vert_data)
+                       const bool do_mix_data)
 {
-  return create_merged_mesh(mesh, vert_dest_map, vert_dest_map_len, do_mix_vert_data);
+  return create_merged_mesh(mesh, vert_dest_map, vert_dest_map_len, do_mix_data);
 }
 
 /** \} */

@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "DNA_curve_types.h"
@@ -15,7 +14,7 @@
 #include "RNA_define.hh"
 #include "rna_internal.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -94,7 +93,7 @@ static void rna_CurveProfile_remove_point(CurveProfile *profile,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(point_ptr);
+  point_ptr->invalidate();
 }
 
 static void rna_CurveProfile_evaluate(CurveProfile *profile,

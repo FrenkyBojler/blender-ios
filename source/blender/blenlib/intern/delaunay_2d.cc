@@ -15,7 +15,6 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_math_boolean.hh"
-#include "BLI_math_mpq.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
@@ -1493,9 +1492,9 @@ template<typename T> static void re_delaunay_triangulate(CDTArrangement<T> *cdt,
   if (se->face == cdt->outer_face || sym(se)->face == cdt->outer_face) {
     return;
   }
-  /* 'se' is a diagonal just added, and it is base of area to retriangulate (face on its left) */
+  /* `se` is a diagonal just added, and it is base of area to re-triangulate (face on its left). */
   int count = 1;
-  for (SymEdge<T> *ss = se->next; ss != se; ss = ss->next) {
+  for (const SymEdge<T> *ss = se->next; ss != se; ss = ss->next) {
     count++;
   }
   if (count <= 3) {
@@ -1683,10 +1682,11 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
   switch (isect.kind) {
     case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
 #ifdef WITH_GMP
-      if (!std::is_same<T, mpq_class>::value) {
+      if (!std::is_same_v<T, mpq_class>)
 #else
-      if (true) {
+      if (true)
 #endif
+      {
         double len_ab = distance(va->co.approx, vb->co.approx);
         if (lambda * len_ab <= epsilon) {
           fill_crossdata_for_through_vert(va, se_vcva, cd, cd_next);
@@ -1726,7 +1726,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
     }
     case isect_result<VecBase<T, 2>>::LINE_LINE_NONE: {
 #ifdef WITH_GMP
-      if (std::is_same<T, mpq_class>::value) {
+      if (std::is_same_v<T, mpq_class>) {
         BLI_assert(false);
       }
 #endif
@@ -1836,9 +1836,7 @@ void get_next_crossing_from_edge(CrossData<T> *cd,
   }
 }
 
-constexpr int inline_crossings_size = 128;
-template<typename T>
-void dump_crossings(const Vector<CrossData<T>, inline_crossings_size> &crossings)
+template<typename T> void dump_crossings(const Span<CrossData<T>> crossings)
 {
   std::cout << "CROSSINGS\n";
   for (int i = 0; i < crossings.size(); ++i) {
@@ -1906,7 +1904,7 @@ void add_edge_constraint(
    * Fill crossings array with CrossData points for intersection path from v1 to v2.
    *
    * At every point, the crossings array has the path so far, except that
-   * the .out field of the last element of it may not be known yet -- if that
+   * the `.out` field of the last element of it may not be known yet -- if that
    * last element is a vertex, then we won't know the output edge until we
    * find the next crossing.
    *
@@ -1917,7 +1915,7 @@ void add_edge_constraint(
    * one hop. Saves a bunch of orient2d tests in that common case.
    */
   int visit = ++cdt_state->visit_count;
-  Vector<CrossData<T>, inline_crossings_size> crossings;
+  Vector<CrossData<T>, 128> crossings;
   crossings.append(CrossData<T>(T(0), v1, nullptr, nullptr));
   int n;
   while (!((n = crossings.size()) > 0 && crossings[n - 1].vert == v2)) {
@@ -1949,7 +1947,7 @@ void add_edge_constraint(
   }
 
   if (dbg_level > 0) {
-    dump_crossings(crossings);
+    dump_crossings<T>(crossings);
   }
 
   /*
@@ -2073,7 +2071,7 @@ void add_edge_constraint(
       if (r_edges != nullptr) {
         BLI_linklist_append(&edge_list, edge);
       }
-      /* Now retriangulate upper and lower gaps. */
+      /* Now re-triangulate upper and lower gaps. */
       re_delaunay_triangulate(&cdt_state->cdt, &edge->symedges[0]);
       re_delaunay_triangulate(&cdt_state->cdt, &edge->symedges[1]);
     }

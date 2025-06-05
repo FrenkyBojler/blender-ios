@@ -17,7 +17,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 
@@ -93,7 +93,7 @@ NodeGroup *BlenderFileLoader::Load()
       continue;
     }
 
-    /* Evaluated metaballs will appear as mesh objects in the iterator. */
+    /* Evaluated meta-balls will appear as mesh objects in the iterator. */
     if (ob->type == OB_MBALL) {
       continue;
     }
@@ -423,8 +423,7 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *mesh, int id)
 
   // Compute loop triangles
   int tottri = poly_to_tri_count(mesh->faces_num, mesh->corners_num);
-  blender::int3 *corner_tris = (blender::int3 *)MEM_malloc_arrayN(
-      tottri, sizeof(*corner_tris), __func__);
+  blender::int3 *corner_tris = MEM_malloc_arrayN<blender::int3>(size_t(tottri), __func__);
   blender::bke::mesh::corner_tris_calc(
       vert_positions, mesh_polys, corner_verts, {corner_tris, tottri});
   const blender::Span<int> tri_faces = mesh->corner_tri_faces();
@@ -437,14 +436,14 @@ void BlenderFileLoader::insertShapeNode(Object *ob, Mesh *mesh, int id)
                                                                          CD_FREESTYLE_FACE);
 
   // Compute view matrix
-  Object *ob_camera_eval = DEG_get_evaluated_object(_depsgraph, RE_GetCamera(_re));
+  Object *ob_camera_eval = DEG_get_evaluated(_depsgraph, RE_GetCamera(_re));
   float viewinv[4][4], viewmat[4][4];
   RE_GetCameraModelMatrix(_re, ob_camera_eval, viewinv);
   invert_m4_m4(viewmat, viewinv);
 
   // Compute matrix including camera transform
   float obmat[4][4], nmat[4][4];
-  mul_m4_m4m4(obmat, viewmat, ob->object_to_world);
+  mul_m4_m4m4(obmat, viewmat, ob->object_to_world().ptr());
   invert_m4_m4(nmat, obmat);
   transpose_m4(nmat);
 

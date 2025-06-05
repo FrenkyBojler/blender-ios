@@ -26,7 +26,6 @@
 #include "devices/IHandle.h"
 #include "devices/I3DDevice.h"
 #include "devices/I3DHandle.h"
-#include "devices/DefaultSynchronizer.h"
 #include "util/Buffer.h"
 
 #include <list>
@@ -231,9 +230,9 @@ protected:
 	std::shared_ptr<Mixer> m_mixer;
 
 	/**
-	 * Whether to do high or low quality resampling.
+	 * Resampling quality.
 	 */
-	bool m_quality;
+	ResampleQuality m_quality;
 
 	/**
 	 * Initializes member variables.
@@ -330,7 +329,8 @@ private:
 	int m_flags;
 
 	/// Synchronizer.
-	DefaultSynchronizer m_synchronizer;
+	uint64_t m_synchronizerPosition{0};
+	int m_synchronizerState{0};
 
 	// delete copy constructor and operator=
 	SoftwareDevice(const SoftwareDevice&) = delete;
@@ -347,9 +347,9 @@ public:
 
 	/**
 	 * Sets the resampling quality.
-	 * \param quality Low (false) or high (true) quality.
+	 * \param quality Resampling quality vs performance setting.
 	 */
-	void setQuality(bool quality);
+	void setQuality(ResampleQuality quality);
 
 	virtual DeviceSpecs getSpecs() const;
 	virtual std::shared_ptr<IHandle> play(std::shared_ptr<IReader> reader, bool keep = false);
@@ -359,7 +359,6 @@ public:
 	virtual void unlock();
 	virtual float getVolume() const;
 	virtual void setVolume(float volume);
-	virtual ISynchronizer* getSynchronizer();
 
 	virtual Vector3 getListenerLocation() const;
 	virtual void setListenerLocation(const Vector3& location);
@@ -373,6 +372,13 @@ public:
 	virtual void setDopplerFactor(float factor);
 	virtual DistanceModel getDistanceModel() const;
 	virtual void setDistanceModel(DistanceModel model);
+
+	virtual void seekSynchronizer(double time);
+	virtual double getSynchronizerPosition();
+	virtual void playSynchronizer();
+	virtual void stopSynchronizer();
+	virtual void setSyncCallback(syncFunction function, void* data);
+	virtual int isSynchronizerPlaying();
 };
 
 AUD_NAMESPACE_END

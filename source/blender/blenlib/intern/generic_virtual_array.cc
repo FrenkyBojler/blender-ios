@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include <iostream>
 
 #include "BLI_generic_virtual_array.hh"
@@ -15,7 +19,7 @@ namespace blender {
 void GVArrayImpl::materialize(const IndexMask &mask, void *dst) const
 {
   mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
-    void *elem_dst = POINTER_OFFSET(dst, type_->size() * i);
+    void *elem_dst = POINTER_OFFSET(dst, type_->size * i);
     this->get(i, elem_dst);
   });
 }
@@ -23,7 +27,7 @@ void GVArrayImpl::materialize(const IndexMask &mask, void *dst) const
 void GVArrayImpl::materialize_to_uninitialized(const IndexMask &mask, void *dst) const
 {
   mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
-    void *elem_dst = POINTER_OFFSET(dst, type_->size() * i);
+    void *elem_dst = POINTER_OFFSET(dst, type_->size * i);
     this->get_to_uninitialized(i, elem_dst);
   });
 }
@@ -31,7 +35,7 @@ void GVArrayImpl::materialize_to_uninitialized(const IndexMask &mask, void *dst)
 void GVArrayImpl::materialize_compressed(const IndexMask &mask, void *dst) const
 {
   mask.foreach_index_optimized<int64_t>([&](const int64_t i, const int64_t pos) {
-    void *elem_dst = POINTER_OFFSET(dst, type_->size() * pos);
+    void *elem_dst = POINTER_OFFSET(dst, type_->size * pos);
     this->get(i, elem_dst);
   });
 }
@@ -39,7 +43,7 @@ void GVArrayImpl::materialize_compressed(const IndexMask &mask, void *dst) const
 void GVArrayImpl::materialize_compressed_to_uninitialized(const IndexMask &mask, void *dst) const
 {
   mask.foreach_index_optimized<int64_t>([&](const int64_t i, const int64_t pos) {
-    void *elem_dst = POINTER_OFFSET(dst, type_->size() * pos);
+    void *elem_dst = POINTER_OFFSET(dst, type_->size * pos);
     this->get_to_uninitialized(i, elem_dst);
   });
 }
@@ -88,7 +92,7 @@ void GVMutableArrayImpl::set_all(const void *src)
   }
   else {
     for (int64_t i : IndexRange(size_)) {
-      this->set_by_copy(i, POINTER_OFFSET(src, type_->size() * i));
+      this->set_by_copy(i, POINTER_OFFSET(src, type_->size * i));
     }
   }
 }
@@ -227,14 +231,14 @@ class GVArrayImpl_For_SingleValue : public GVArrayImpl_For_SingleValueRef,
   GVArrayImpl_For_SingleValue(const CPPType &type, const int64_t size, const void *value)
       : GVArrayImpl_For_SingleValueRef(type, size)
   {
-    value_ = MEM_mallocN_aligned(type.size(), type.alignment(), __func__);
+    value_ = MEM_mallocN_aligned(type.size, type.alignment, __func__);
     type.copy_construct(value, (void *)value_);
   }
 
   ~GVArrayImpl_For_SingleValue() override
   {
-    type_->destruct((void *)value_);
-    MEM_freeN((void *)value_);
+    type_->destruct(const_cast<void *>(value_));
+    MEM_freeN(const_cast<void *>(value_));
   }
 };
 
@@ -258,28 +262,40 @@ template<int BufferSize> class GVArrayImpl_For_SmallTrivialSingleValue : public 
                                           const void *value)
       : GVArrayImpl(type, size)
   {
-    BLI_assert(type.is_trivial());
-    BLI_assert(type.alignment() <= 8);
-    BLI_assert(type.size() <= BufferSize);
+    BLI_assert(type.is_trivial);
+    BLI_assert(type.alignment <= 8);
+    BLI_assert(type.size <= BufferSize);
     type.copy_construct(value, &buffer_);
   }
 
  private:
-  void get(const int64_t /*index*/, void *r_value) const override
+  void get(const int64_t index, void *r_value) const final
   {
-    this->copy_value_to(r_value);
+    this->get_to_uninitialized(index, r_value);
   }
-  void get_to_uninitialized(const int64_t /*index*/, void *r_value) const override
+  void get_to_uninitialized(const int64_t /*index*/, void *r_value) const final
   {
-    this->copy_value_to(r_value);
-  }
-
-  void copy_value_to(void *dst) const
-  {
-    memcpy(dst, &buffer_, type_->size());
+    memcpy(r_value, &buffer_, type_->size);
   }
 
-  CommonVArrayInfo common_info() const override
+  void materialize(const IndexMask &mask, void *dst) const final
+  {
+    this->materialize_to_uninitialized(mask, dst);
+  }
+  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const final
+  {
+    type_->fill_construct_indices(buffer_, dst, mask);
+  }
+  void materialize_compressed(const IndexMask &mask, void *dst) const final
+  {
+    this->materialize_compressed_to_uninitialized(mask, dst);
+  }
+  void materialize_compressed_to_uninitialized(const IndexMask &mask, void *dst) const final
+  {
+    type_->fill_construct_n(buffer_, dst, mask.size());
+  }
+
+  CommonVArrayInfo common_info() const final
   {
     return CommonVArrayInfo{CommonVArrayInfo::Type::Single, true, &buffer_};
   }
@@ -306,7 +322,7 @@ GVArraySpan::GVArraySpan(GVArray varray)
     data_ = info.data;
   }
   else {
-    owned_data_ = MEM_mallocN_aligned(type_->size() * size_, type_->alignment(), __func__);
+    owned_data_ = MEM_mallocN_aligned(type_->size * size_, type_->alignment, __func__);
     varray_.materialize_to_uninitialized(IndexRange(size_), owned_data_);
     data_ = owned_data_;
   }
@@ -370,7 +386,7 @@ GMutableVArraySpan::GMutableVArraySpan(GVMutableArray varray, const bool copy_va
     data_ = const_cast<void *>(info.data);
   }
   else {
-    owned_data_ = MEM_mallocN_aligned(type_->size() * size_, type_->alignment(), __func__);
+    owned_data_ = MEM_mallocN_aligned(type_->size * size_, type_->alignment, __func__);
     if (copy_values_to_span) {
       varray_.materialize_to_uninitialized(IndexRange(size_), owned_data_);
     }
@@ -489,7 +505,7 @@ class GVArrayImpl_For_SlicedGVArray : public GVArrayImpl {
       case CommonVArrayInfo::Type::Span: {
         return CommonVArrayInfo(CommonVArrayInfo::Type::Span,
                                 internal_info.may_have_ownership,
-                                POINTER_OFFSET(internal_info.data, type_->size() * offset_));
+                                POINTER_OFFSET(internal_info.data, type_->size * offset_));
       }
       case CommonVArrayInfo::Type::Single: {
         return internal_info;
@@ -499,15 +515,31 @@ class GVArrayImpl_For_SlicedGVArray : public GVArrayImpl {
     return {};
   }
 
+  void materialize(const IndexMask &mask, void *dst) const final
+  {
+    IndexMaskMemory memory;
+    const IndexMask shifted_mask = mask.shift(offset_, memory);
+    void *shifted_dst = POINTER_OFFSET(dst, -offset_ * type_->size);
+    varray_.materialize(shifted_mask, shifted_dst);
+  }
+  void materialize_to_uninitialized(const IndexMask &mask, void *dst) const final
+  {
+    IndexMaskMemory memory;
+    const IndexMask shifted_mask = mask.shift(offset_, memory);
+    void *shifted_dst = POINTER_OFFSET(dst, -offset_ * type_->size);
+    varray_.materialize_to_uninitialized(shifted_mask, shifted_dst);
+  }
+  void materialize_compressed(const IndexMask &mask, void *dst) const final
+  {
+    IndexMaskMemory memory;
+    const IndexMask shifted_mask = mask.shift(offset_, memory);
+    varray_.materialize_compressed(shifted_mask, dst);
+  }
   void materialize_compressed_to_uninitialized(const IndexMask &mask, void *dst) const override
   {
-    IndexMaskFromSegment mask_from_segment;
-    mask.foreach_segment([&](const IndexMaskSegment segment, const int64_t start) {
-      const IndexMask &segment_mask = mask_from_segment.update(
-          {segment.offset() + offset_, segment.base_span()});
-      varray_.materialize_compressed_to_uninitialized(segment_mask,
-                                                      POINTER_OFFSET(dst, type_->size() * start));
-    });
+    IndexMaskMemory memory;
+    const IndexMask shifted_mask = mask.shift(offset_, memory);
+    varray_.materialize_compressed_to_uninitialized(shifted_mask, dst);
   }
 };
 
@@ -655,7 +687,7 @@ GVArray::GVArray(std::shared_ptr<const GVArrayImpl> impl) : GVArrayCommon(std::m
 
 GVArray::GVArray(varray_tag::single /*tag*/, const CPPType &type, int64_t size, const void *value)
 {
-  if (type.is_trivial() && type.size() <= 16 && type.alignment() <= 8) {
+  if (type.is_trivial && type.size <= 16 && type.alignment <= 8) {
     this->emplace<GVArrayImpl_For_SmallTrivialSingleValue<16>>(type, size, value);
   }
   else {

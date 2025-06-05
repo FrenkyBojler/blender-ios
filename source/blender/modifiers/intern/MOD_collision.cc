@@ -8,11 +8,11 @@
 
 #include "BLI_utildefines.h"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_object_force_types.h"
@@ -22,27 +22,16 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_collision.h"
-#include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_lib_id.hh"
+#include "BKE_global.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_runtime.hh"
 #include "BKE_modifier.hh"
-#include "BKE_pointcache.h"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
-#include "MOD_util.hh"
-
-#include "BLO_read_write.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -135,14 +124,13 @@ static void deform_verts(ModifierData *md,
     if (collmd->time_xnew == -1000) { /* first time */
 
       mvert_num = mesh->verts_num;
-      collmd->x = static_cast<float(*)[3]>(
-          MEM_malloc_arrayN(mvert_num, sizeof(float[3]), __func__));
+      collmd->x = MEM_malloc_arrayN<float[3]>(size_t(mvert_num), __func__);
       blender::MutableSpan(reinterpret_cast<blender::float3 *>(collmd->x), mvert_num)
           .copy_from(mesh->vert_positions());
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->x[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->x[i]);
       }
 
       collmd->xnew = static_cast<float(*)[3]>(MEM_dupallocN(collmd->x)); /* Frame end position. */
@@ -155,8 +143,7 @@ static void deform_verts(ModifierData *md,
       {
         const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
         collmd->tri_num = corner_tris.size();
-        int(*vert_tris)[3] = static_cast<int(*)[3]>(
-            MEM_malloc_arrayN(collmd->tri_num, sizeof(int[3]), __func__));
+        int(*vert_tris)[3] = MEM_malloc_arrayN<int[3]>(collmd->tri_num, __func__);
         blender::bke::mesh::vert_tris_from_corner_tris(
             mesh->corner_verts(),
             corner_tris,
@@ -187,7 +174,7 @@ static void deform_verts(ModifierData *md,
 
       for (uint i = 0; i < mvert_num; i++) {
         /* we save global positions */
-        mul_m4_v3(ob->object_to_world, collmd->xnew[i]);
+        mul_m4_v3(ob->object_to_world().ptr(), collmd->xnew[i]);
 
         /* detect motion */
         is_static = is_static && equals_v3v3(collmd->x[i], collmd->xnew[i]);
@@ -246,9 +233,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -266,9 +253,9 @@ static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
   collmd->xnew = newdataadr(fd, collmd->xnew);
   collmd->mfaces = newdataadr(fd, collmd->mfaces);
 
-  collmd->current_x = MEM_calloc_arrayN(collmd->mvert_num, sizeof(float[3]), "current_x");
-  collmd->current_xnew = MEM_calloc_arrayN(collmd->mvert_num, sizeof(float[3]), "current_xnew");
-  collmd->current_v = MEM_calloc_arrayN(collmd->mvert_num, sizeof(float[3]), "current_v");
+  collmd->current_x = MEM_calloc_arrayN<float[3]>(collmd->mvert_num, "current_x");
+  collmd->current_xnew = MEM_calloc_arrayN<float[3]>(collmd->mvert_num, "current_xnew");
+  collmd->current_v = MEM_calloc_arrayN<float[3]>(collmd->mvert_num, "current_v");
 #endif
 
   collmd->x = nullptr;

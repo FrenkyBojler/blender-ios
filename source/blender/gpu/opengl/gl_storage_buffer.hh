@@ -26,6 +26,11 @@ class GLStorageBuf : public StorageBuf {
   GLuint ssbo_id_ = 0;
   /** Usage type. */
   GPUUsageType usage_;
+  /* Read */
+  GLuint read_ssbo_id_ = 0;
+  GLsync read_fence_ = 0;
+  void *persistent_ptr_ = nullptr;
+  size_t alloc_size_in_bytes_ = 0;
 
  public:
   GLStorageBuf(size_t size, GPUUsageType usage, const char *name);

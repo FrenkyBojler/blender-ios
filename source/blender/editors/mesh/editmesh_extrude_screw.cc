@@ -6,14 +6,12 @@
  * \ingroup edmesh
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -36,7 +34,7 @@ using blender::Vector;
 /** \name Screw Operator
  * \{ */
 
-static int edbm_screw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
 {
   BMEdge *eed;
   BMVert *eve, *v1, *v2;
@@ -105,11 +103,11 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    copy_v3_v3(nor, obedit->object_to_world[2]);
+    copy_v3_v3(nor, obedit->object_to_world().ptr()[2]);
 
     /* calculate dvec */
-    mul_v3_m4v3(v1_co_global, obedit->object_to_world, v1->co);
-    mul_v3_m4v3(v2_co_global, obedit->object_to_world, v2->co);
+    mul_v3_m4v3(v1_co_global, obedit->object_to_world().ptr(), v1->co);
+    mul_v3_m4v3(v2_co_global, obedit->object_to_world().ptr(), v2->co);
     sub_v3_v3v3(dvec, v1_co_global, v2_co_global);
     mul_v3_fl(dvec, 1.0f / steps);
 
@@ -129,7 +127,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
             dvec,
             turns * steps,
             DEG2RADF(360.0f * turns),
-            obedit->object_to_world,
+            obedit->object_to_world().ptr(),
             false))
     {
       continue;
@@ -162,7 +160,7 @@ static int edbm_screw_exec(bContext *C, wmOperator *op)
 }
 
 /* get center and axis, in global coords */
-static int edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -190,7 +188,7 @@ void MESH_OT_screw(wmOperatorType *ot)
       "Extrude selected vertices in screw-shaped rotation around the cursor in indicated viewport";
   ot->idname = "MESH_OT_screw";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_screw_invoke;
   ot->exec = edbm_screw_exec;
   ot->poll = ED_operator_editmesh;

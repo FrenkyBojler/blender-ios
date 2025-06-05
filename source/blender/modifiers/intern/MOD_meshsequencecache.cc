@@ -7,39 +7,34 @@
  */
 
 #include <cstring>
-#include <limits>
 
 #include "BLI_math_vector.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_cachefile_types.h"
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_cachefile.h"
-#include "BKE_context.hh"
+#include "BKE_cachefile.hh"
+#include "BKE_geometry_set.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "BLO_read_write.hh"
+#include "RNA_prototypes.hh"
 
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
@@ -50,7 +45,6 @@
 #include "MOD_ui_common.hh"
 
 #if defined(WITH_USD) || defined(WITH_ALEMBIC)
-#  include "BKE_global.h"
 #  include "BKE_lib_id.hh"
 #endif
 
@@ -62,8 +56,7 @@
 #  include "usd.hh"
 #endif
 
-using blender::float3;
-using blender::Span;
+using namespace blender;
 
 static void init_data(ModifierData *md)
 {
@@ -118,7 +111,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
                                              const ModifierEvalContext *ctx,
                                              const Mesh *mesh,
                                              const float time,
-                                             const char **err_str)
+                                             const char **r_err_str)
 {
   if ((ctx->flag & MOD_APPLY_ORCO) == 0) {
     return false;
@@ -129,7 +122,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
   switch (cache_file->type) {
     case CACHEFILE_TYPE_ALEMBIC:
 #  ifdef WITH_ALEMBIC
-      if (!ABC_mesh_topology_changed(mcmd->reader, ctx->object, mesh, time, err_str)) {
+      if (!ABC_mesh_topology_changed(mcmd->reader, ctx->object, mesh, time, r_err_str)) {
         return true;
       }
 #  endif
@@ -137,7 +130,7 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
     case CACHEFILE_TYPE_USD:
 #  ifdef WITH_USD
       if (!blender::io::usd::USD_mesh_topology_changed(
-              mcmd->reader, ctx->object, mesh, time, err_str))
+              mcmd->reader, ctx->object, mesh, time, r_err_str))
       {
         return true;
       }
@@ -150,25 +143,119 @@ static bool can_use_mesh_for_orco_evaluation(MeshSeqCacheModifierData *mcmd,
   return false;
 }
 
-static Mesh *generate_bounding_box_mesh(const Mesh *org_mesh)
+static Mesh *generate_bounding_box_mesh(const std::optional<Bounds<float3>> &bounds,
+                                        Material **mat,
+                                        short totcol)
 {
-  using namespace blender;
-  const std::optional<Bounds<float3>> bounds = org_mesh->bounds_min_max();
   if (!bounds) {
     return nullptr;
   }
 
   Mesh *result = geometry::create_cuboid_mesh(bounds->max - bounds->min, 2, 2, 2);
-  if (org_mesh->mat) {
-    result->mat = static_cast<Material **>(MEM_dupallocN(org_mesh->mat));
-    result->totcol = org_mesh->totcol;
+  if (mat) {
+    result->mat = static_cast<Material **>(MEM_dupallocN(mat));
+    result->totcol = totcol;
   }
-  BKE_mesh_translate(result, math::midpoint(bounds->min, bounds->max), false);
+
+  bke::mesh_translate(*result, math::midpoint(bounds->min, bounds->max), false);
 
   return result;
 }
 
 #endif
+
+static void modify_geometry_set(ModifierData *md,
+                                const ModifierEvalContext *ctx,
+                                bke::GeometrySet *geometry_set)
+{
+#if defined(WITH_USD) || defined(WITH_ALEMBIC)
+  MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);
+
+  Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
+  CacheFile *cache_file = mcmd->cache_file;
+  const float frame = DEG_get_ctime(ctx->depsgraph);
+  const double frame_offset = BKE_cachefile_frame_offset(cache_file, double(frame));
+  const double time = BKE_cachefile_time_offset(cache_file, frame, FPS);
+  const char *err_str = nullptr;
+
+  if (!mcmd->reader || !STREQ(mcmd->reader_object_path, mcmd->object_path)) {
+    STRNCPY(mcmd->reader_object_path, mcmd->object_path);
+    BKE_cachefile_reader_open(cache_file, &mcmd->reader, ctx->object, mcmd->object_path);
+    if (!mcmd->reader) {
+      BKE_modifier_set_error(
+          ctx->object, md, "Could not create cache reader for file %s", cache_file->filepath);
+      return;
+    }
+  }
+
+  if (geometry_set->has_mesh()) {
+    const Mesh *mesh = geometry_set->get_mesh();
+    if (can_use_mesh_for_orco_evaluation(mcmd, ctx, mesh, time, &err_str)) {
+      return;
+    }
+  }
+
+  /* Do not process data if using a render procedural, return a box instead for displaying in the
+   * viewport. */
+  if (BKE_cache_file_uses_render_procedural(cache_file, scene)) {
+    Mesh *bbox = nullptr;
+    if (geometry_set->has_mesh()) {
+      const Mesh *mesh = geometry_set->get_mesh();
+      bbox = generate_bounding_box_mesh(mesh->bounds_min_max(), mesh->mat, mesh->totcol);
+    }
+    else if (geometry_set->has_pointcloud()) {
+      const PointCloud *pointcloud = geometry_set->get_pointcloud();
+      bbox = generate_bounding_box_mesh(
+          pointcloud->bounds_min_max(), pointcloud->mat, pointcloud->totcol);
+    }
+
+    *geometry_set = bke::GeometrySet::from_mesh(bbox);
+    return;
+  }
+
+  /* Time (in frames or seconds) between two velocity samples. Automatically computed to
+   * scale the velocity vectors at render time for generating proper motion blur data. */
+#  ifdef WITH_ALEMBIC
+  float velocity_scale = mcmd->velocity_scale;
+  if (mcmd->cache_file->velocity_unit == CACHEFILE_VELOCITY_UNIT_FRAME) {
+    velocity_scale *= FPS;
+  }
+#  endif
+
+  switch (cache_file->type) {
+    case CACHEFILE_TYPE_ALEMBIC: {
+#  ifdef WITH_ALEMBIC
+      ABCReadParams params;
+      params.time = time;
+      params.read_flags = mcmd->read_flag;
+      params.velocity_name = mcmd->cache_file->velocity_name;
+      params.velocity_scale = velocity_scale;
+      ABC_read_geometry(mcmd->reader, ctx->object, *geometry_set, &params, &err_str);
+#  endif
+      break;
+    }
+    case CACHEFILE_TYPE_USD: {
+#  ifdef WITH_USD
+      const blender::io::usd::USDMeshReadParams params = blender::io::usd::create_mesh_read_params(
+          frame_offset, mcmd->read_flag);
+      blender::io::usd::USD_read_geometry(
+          mcmd->reader, ctx->object, *geometry_set, params, &err_str);
+#  endif
+      break;
+    }
+    case CACHE_FILE_TYPE_INVALID:
+      break;
+  }
+
+  if (err_str) {
+    BKE_modifier_set_error(ctx->object, md, "%s", err_str);
+  }
+
+#else
+  UNUSED_VARS(ctx, md, geometry_set);
+  return;
+#endif
+}
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
@@ -199,7 +286,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* Do not process data if using a render procedural, return a box instead for displaying in the
    * viewport. */
   if (BKE_cache_file_uses_render_procedural(cache_file, scene)) {
-    return generate_bounding_box_mesh(org_mesh);
+    return generate_bounding_box_mesh(org_mesh->bounds_min_max(), org_mesh->mat, org_mesh->totcol);
   }
 
   /* If this invocation is for the ORCO mesh, and the mesh hasn't changed topology, we
@@ -218,7 +305,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
     /* TODO(sybren+bastien): possibly check relevant custom data layers (UV/color depending on
      * flags) and duplicate those too.
-     * XXX(Hans): This probably isn't true anymore with various CoW improvements, etc. */
+     * XXX(Hans): This probably isn't true anymore with various copy-on-eval improvements, etc. */
     if ((me_positions.data() == mesh_positions.data()) || (me_edges.data() == mesh_edges.data()) ||
         (me_faces.data() == mesh_faces.data()))
     {
@@ -232,43 +319,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  Mesh *result = nullptr;
-
-  switch (cache_file->type) {
-    case CACHEFILE_TYPE_ALEMBIC: {
-#  ifdef WITH_ALEMBIC
-      /* Time (in frames or seconds) between two velocity samples. Automatically computed to
-       * scale the velocity vectors at render time for generating proper motion blur data. */
-      float velocity_scale = mcmd->velocity_scale;
-      if (mcmd->cache_file->velocity_unit == CACHEFILE_VELOCITY_UNIT_FRAME) {
-        velocity_scale *= FPS;
-      }
-
-      ABCReadParams params = {};
-      params.time = time;
-      params.read_flags = mcmd->read_flag;
-      params.velocity_name = mcmd->cache_file->velocity_name;
-      params.velocity_scale = velocity_scale;
-
-      result = ABC_read_mesh(mcmd->reader, ctx->object, mesh, &params, &err_str);
-#  endif
-      break;
-    }
-    case CACHEFILE_TYPE_USD: {
-#  ifdef WITH_USD
-      const blender::io::usd::USDMeshReadParams params = blender::io::usd::create_mesh_read_params(
-          time * FPS, mcmd->read_flag);
-      result = blender::io::usd::USD_read_mesh(mcmd->reader, ctx->object, mesh, params, &err_str);
-#  endif
-      break;
-    }
-    case CACHE_FILE_TYPE_INVALID:
-      break;
-  }
-
-  if (err_str) {
-    BKE_modifier_set_error(ctx->object, md, "%s", err_str);
-  }
+  bke::GeometrySet geometry_set = bke::GeometrySet::from_mesh(
+      mesh, bke::GeometryOwnershipType::Editable);
+  modify_geometry_set(md, ctx, &geometry_set);
+  Mesh *result = geometry_set.get_component_for_write<bke::MeshComponent>().release();
 
   if (!ELEM(result, nullptr, mesh) && (mesh != org_mesh)) {
     BKE_id_free(nullptr, mesh);
@@ -328,15 +382,18 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (has_cache_file) {
     uiItemPointerR(
-        layout, ptr, "object_path", &cache_file_ptr, "object_paths", nullptr, ICON_NONE);
+        layout, ptr, "object_path", &cache_file_ptr, "object_paths", std::nullopt, ICON_NONE);
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  else if (RNA_enum_get(&ob_ptr, "type") == OB_CURVES) {
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -353,7 +410,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
-  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -440,7 +497,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*srna*/ &RNA_MeshSequenceCacheModifier,
     /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    static_cast<ModifierTypeFlag>(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */
 
     /*copy_data*/ copy_data,
@@ -450,7 +507,7 @@ ModifierTypeInfo modifierType_MeshSequenceCache = {
     /*deform_verts_EM*/ nullptr,
     /*deform_matrices_EM*/ nullptr,
     /*modify_mesh*/ modify_mesh,
-    /*modify_geometry_set*/ nullptr,
+    /*modify_geometry_set*/ modify_geometry_set,
 
     /*init_data*/ init_data,
     /*required_data_mask*/ nullptr,
