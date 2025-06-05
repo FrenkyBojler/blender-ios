@@ -29,6 +29,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
 #include "ED_image.hh"
 #include "ED_mask.hh"
@@ -871,6 +872,7 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
         /* Don't key sliding feather UW's. */
         if ((data->action == SLIDE_ACTION_FEATHER && data->uw) == false) {
           if (blender::animrig::is_autokey_on(scene)) {
+            ANIM_deselect_keys_in_animation_editors(C);
             ED_mask_layer_shape_auto_key(data->mask_layer, scene->r.cfra);
           }
         }
