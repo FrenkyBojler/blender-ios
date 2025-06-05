@@ -37,9 +37,15 @@ void ED_undosys_type_init()
   BKE_undosys_type_append(ED_lattice_undosys_type);
   BKE_undosys_type_append(ED_mball_undosys_type);
   BKE_undosys_type_append(ED_mesh_undosys_type);
-  BKE_undosys_type_append(curves::undosys_type_register);
-  BKE_undosys_type_append(pointcloud::undosys_type_register);
-  BKE_undosys_type_append(ED_undosys_type_grease_pencil);
+  if (U.uiflag2 & USER_EDITUNDO) {
+    BKE_undosys_type_append(curves::undosys_type_register);
+  }
+  if (U.uiflag2 & USER_EDITUNDO) {
+    BKE_undosys_type_append(pointcloud::undosys_type_register);
+  }
+  if (U.uiflag2 & USER_EDITUNDO) {
+    BKE_undosys_type_append(ED_undosys_type_grease_pencil);
+  }
 
   /* Paint Modes */
   BKE_UNDOSYS_TYPE_IMAGE = BKE_undosys_type_append(ED_image_undosys_type);
