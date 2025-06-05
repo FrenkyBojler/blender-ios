@@ -61,10 +61,14 @@ void main()
     }
   }
   else {
-    float3 v0 = subdiv_position_to_float3(positions[start_loop_index + 0]);
-    float3 v1 = subdiv_position_to_float3(positions[start_loop_index + 1]);
-    float3 v2 = subdiv_position_to_float3(positions[start_loop_index + 2]);
-    float3 v3 = subdiv_position_to_float3(positions[start_loop_index + 3]);
+    Position pos_0 = positions[start_loop_index + 0];
+    Position pos_1 = positions[start_loop_index + 1];
+    Position pos_2 = positions[start_loop_index + 2];
+    Position pos_3 = positions[start_loop_index + 3];
+    float3 v0 = subdiv_position_to_float3(pos_0);
+    float3 v1 = subdiv_position_to_float3(pos_1);
+    float3 v2 = subdiv_position_to_float3(pos_2);
+    float3 v3 = subdiv_position_to_float3(pos_3);
 
     float3 face_normal = float3(0.0f);
     add_newell_cross_v3_v3v3(face_normal, v0, v1);

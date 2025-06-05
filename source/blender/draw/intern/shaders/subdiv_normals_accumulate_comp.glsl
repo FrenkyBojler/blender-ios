@@ -50,7 +50,8 @@ void main()
     /* Compute the face normal using Newell's method. */
     float3 verts[4];
     for (uint j = 0; j < 4; j++) {
-      verts[j] = subdiv_position_to_float3(positions[start_loop_index + j]);
+      Position position = positions[start_loop_index + j];
+      verts[j] = subdiv_position_to_float3(position);
     }
 
     float3 face_normal = float3(0.0f);
