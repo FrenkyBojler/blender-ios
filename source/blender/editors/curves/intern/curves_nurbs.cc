@@ -4,6 +4,7 @@
 
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
+#include "BKE_deform.hh"
 
 #include "BLI_array_utils.hh"
 
@@ -293,6 +294,7 @@ bke::CurvesGeometry insert_knot(const bke::CurvesGeometry &curves,
   /* Create new curves object and update point offsets. */
   const int new_points_added = repeat;
   bke::CurvesGeometry new_curves = bke::curves::copy_only_curve_domain(curves);
+  BKE_defgroup_copy_list(&new_curves.vertex_group_names, &curves.vertex_group_names);
   new_curves.resize(curves.points_num() + new_points_added, curves.curves_num());
   new_curves.nurbs_knots_modes_for_write()[curve] = NURBS_KNOT_MODE_CUSTOM;
   MutableSpan<int> new_offsets = new_curves.offsets_for_write();
