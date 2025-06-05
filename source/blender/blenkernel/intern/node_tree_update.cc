@@ -880,6 +880,8 @@ class NodeTreeMainUpdater {
       case SOCK_COLLECTION:
       case SOCK_TEXTURE:
       case SOCK_MATERIAL:
+      case SOCK_CLOSURE:
+      case SOCK_BUNDLE:
         return true;
       default:
         return false;
@@ -940,58 +942,15 @@ class NodeTreeMainUpdater {
   {
     ntree.ensure_topology_cache();
     if (U.experimental.use_socket_structure_type) {
-      const nodes::StructureTypeInterface &node_interface =
-          *ntree.runtime->structure_type_interface;
-      for (bNode *node : ntree.all_nodes()) {
-        if (node->is_undefined()) {
-          continue;
-        }
-        if (node->is_group_input()) {
-          const Span<bNodeSocket *> sockets = node->output_sockets();
-          for (const int i : node_interface.inputs.index_range()) {
-            sockets[i]->display_shape = get_output_socket_shape(*sockets[i]->runtime->declaration,
-                                                                node_interface.inputs[i]);
-          }
-          continue;
-        }
-        if (node->is_group_output()) {
-          const Span<bNodeSocket *> sockets = node->input_sockets();
-          for (const int i : node_interface.outputs.index_range()) {
-            sockets[i]->display_shape = get_output_socket_shape(*sockets[i]->runtime->declaration,
-                                                                node_interface.outputs[i].type);
-          }
-          continue;
-        }
-        if (node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
-          for (bNodeSocket *socket : node->output_sockets()) {
-            socket->display_shape = get_output_socket_shape(
-                *socket->runtime->declaration,
-                ntree.runtime->closure_socket_structure_types.lookup_default(
-                    socket->index_in_tree(), StructureType::Dynamic));
-          }
-          continue;
-        }
-        if (node->type_legacy == GEO_NODE_CLOSURE_OUTPUT) {
-          for (bNodeSocket *socket : node->input_sockets()) {
-            socket->display_shape = get_input_socket_shape(
-                *socket->runtime->declaration,
-                ntree.runtime->closure_socket_structure_types.lookup_default(
-                    socket->index_in_tree(), StructureType::Dynamic));
-          }
-          continue;
-        }
-        for (bNodeSocket *socket : node->input_sockets()) {
-          if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-            socket->display_shape = get_input_socket_shape(*declaration,
-                                                           declaration->structure_type);
-          }
-        }
-        for (bNodeSocket *socket : node->output_sockets()) {
-          if (const SocketDeclaration *declaration = socket->runtime->declaration) {
-            socket->display_shape = get_output_socket_shape(*declaration,
-                                                            declaration->structure_type);
-          }
-        }
+      for (bNodeSocket *socket : ntree.all_input_sockets()) {
+        socket->display_shape = get_input_socket_shape(
+            *socket->runtime->declaration,
+            ntree.runtime->socket_structure_types[socket->index_in_tree()]);
+      }
+      for (bNodeSocket *socket : ntree.all_output_sockets()) {
+        socket->display_shape = get_output_socket_shape(
+            *socket->runtime->declaration,
+            ntree.runtime->socket_structure_types[socket->index_in_tree()]);
       }
     }
     else {

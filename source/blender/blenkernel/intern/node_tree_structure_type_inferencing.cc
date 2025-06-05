@@ -732,19 +732,26 @@ static void store_group_output_structure_types(
   }
 }
 
-static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interface(
-    const bNodeTree &tree)
+struct StructureTypeInferenceResult {
+  nodes::StructureTypeInterface group_interface;
+  Array<StructureType> socket_structure_types;
+};
+
+static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
   tree.ensure_interface_cache();
 
-  auto derived_interface = std::make_unique<nodes::StructureTypeInterface>();
-  derived_interface->inputs.reinitialize(tree.interface_inputs().size());
-  derived_interface->outputs.reinitialize(tree.interface_outputs().size());
+  StructureTypeInferenceResult result;
+  result.socket_structure_types = Array<StructureType>(tree.all_sockets().size(),
+                                                       StructureType::Dynamic);
+
+  result.group_interface.inputs.reinitialize(tree.interface_inputs().size());
+  result.group_interface.outputs.reinitialize(tree.interface_outputs().size());
   if (tree.has_available_link_cycle()) {
-    derived_interface->inputs.fill(StructureType::Dynamic);
-    derived_interface->outputs.fill({StructureType::Dynamic, {}});
-    return derived_interface;
+    result.group_interface.inputs.fill(StructureType::Dynamic);
+    result.group_interface.outputs.fill({StructureType::Dynamic, {}});
+    return result;
   }
 
   Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
@@ -754,47 +761,26 @@ static std::unique_ptr<nodes::StructureTypeInterface> calc_structure_type_interf
 
   init_input_requirements(tree, data_requirements);
   propagate_right_to_left(tree, node_interfaces, data_requirements);
-  store_group_input_structure_types(tree, data_requirements, *derived_interface);
+  store_group_input_structure_types(tree, data_requirements, result.group_interface);
   store_closure_input_structure_types(tree, data_requirements, structure_types);
-  propagate_left_to_right(tree, node_interfaces, derived_interface->inputs, structure_types);
-  store_group_output_structure_types(tree, node_interfaces, structure_types, *derived_interface);
+  propagate_left_to_right(tree, node_interfaces, result.group_interface.inputs, structure_types);
+  store_group_output_structure_types(
+      tree, node_interfaces, structure_types, result.group_interface);
 
-  const bNodeTreeZones *zones = tree.zones();
-  tree.runtime->closure_socket_structure_types.clear();
-  if (zones) {
-    for (const bNodeTreeZone *zone : zones->zones) {
-      const bNode *input_node = zone->input_node();
-      const bNode *output_node = zone->output_node();
-      if (!input_node || !output_node) {
-        continue;
-      }
-      if (!output_node->is_type("GeometryNodeClosureOutput")) {
-        continue;
-      }
-      for (const bNodeSocket *socket : input_node->output_sockets().drop_back(1)) {
-        tree.runtime->closure_socket_structure_types.add(socket->index_in_tree(),
-                                                         structure_types[socket->index_in_tree()]);
-      }
-      for (const bNodeSocket *socket : output_node->input_sockets().drop_back(1)) {
-        tree.runtime->closure_socket_structure_types.add(socket->index_in_tree(),
-                                                         structure_types[socket->index_in_tree()]);
-      }
-    }
-  }
-
-  return derived_interface;
+  return result;
 }
 
 bool update_structure_type_interface(bNodeTree &tree)
 {
-  std::unique_ptr<nodes::StructureTypeInterface> new_interface = calc_structure_type_interface(
-      tree);
+  StructureTypeInferenceResult result = calc_structure_type_interface(tree);
+  tree.runtime->socket_structure_types = std::move(result.socket_structure_types);
   if (tree.runtime->structure_type_interface &&
-      *tree.runtime->structure_type_interface == *new_interface)
+      *tree.runtime->structure_type_interface == result.group_interface)
   {
     return false;
   }
-  tree.runtime->structure_type_interface = std::move(new_interface);
+  tree.runtime->structure_type_interface = std::make_unique<nodes::StructureTypeInterface>(
+      std::move(result.group_interface));
   return true;
 }
 

@@ -173,12 +173,12 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
   Array<FieldSocketState> field_states;
+  /** Final structure type for every socket, accessed with #bNodeSocket::index_in_tree(). */
+  Array<nodes::StructureType> socket_structure_types;
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
   std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
-  /** TODO: Use more persistent key. */
-  Map<int, nodes::StructureType> closure_socket_structure_types;
 
   /**
    * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this
