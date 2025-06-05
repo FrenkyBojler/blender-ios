@@ -1453,6 +1453,7 @@ const blender::VectorSet<int> &Mesh::material_indices_used() const
       return std::clamp<int>(index, 0, max_material_index);
     };
 
+    /* Find used indices in parallel and then create the vector set in the end. */
     Array<bool> used_indices(max_material_index + 1, false);
     if (use_bmesh_material_indices(*this)) {
       BMesh *bm = this->runtime->edit_mesh->bm;
