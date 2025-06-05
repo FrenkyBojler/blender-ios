@@ -45,6 +45,7 @@ class SPREADSHEET_MT_editor_menus(bpy.types.Menu):
     bl_label = ""
 
     def draw(self, context):
+        del context
         layout = self.layout
         layout.menu("SPREADSHEET_MT_view")
 
@@ -58,6 +59,10 @@ class SPREADSHEET_MT_view(bpy.types.Menu):
 
         layout.prop(sspreadsheet, "show_region_toolbar")
         layout.prop(sspreadsheet, "show_region_ui")
+
+        layout.separator()
+
+        layout.prop(sspreadsheet, "show_internal_attributes", text="Internal Attributes")
 
         layout.separator()
 

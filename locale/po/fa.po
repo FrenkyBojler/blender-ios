@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'd87e0ecb614e')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-19 11:37+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:19+0000\n"
 "Last-Translator: soheil ali-pasha <sapachannel.ir@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -2565,6 +2565,10 @@ msgid "V"
 msgstr "V"
 
 
+msgid "Normalize"
+msgstr "ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
+
+
 msgid "Spot Blend"
 msgstr "ﻪﻄﻘﻧ ﺐﯿﮐﺮﺗ"
 
@@ -2953,6 +2957,14 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
 msgid "Mirror"
 msgstr "ﻪﻨﯾﺁ"
 
@@ -2971,14 +2983,6 @@ msgstr "ﻝﺎﻤﻋﺍ"
 
 msgid "Convert"
 msgstr "ﻞﯾﺪﺒﺗ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
-
-
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
 
 
 msgid "Key"
@@ -3239,10 +3243,6 @@ msgstr "ﯽﻠﺒﻗ ﻢﯾﺮﻓ"
 
 msgid "Double"
 msgstr "ﯽﯾﺎﺗﻭﺩ"
-
-
-msgid "Normalize"
-msgstr "ﯼﺯﺎﺳ ﯼﺩﺎﻋ"
 
 
 msgid "Use Red Channel"
