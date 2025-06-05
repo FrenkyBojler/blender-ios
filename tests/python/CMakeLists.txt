@@ -1291,12 +1291,12 @@ if(WITH_UI_TESTS)
   # This could be generated with:
   # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
-  set(_undo_tests
-    test_sanity_check.check_all_general_workspaces
-    test_sanity_check.check_all_2d_animation_workspaces
-    test_sanity_check.check_all_sculpting_workspaces
-    test_sanity_check.check_all_vfx_workspaces
-    test_sanity_check.check_all_video_editing_workspaces
+  set(_ui_tests
+    test_workspace.sanity_check_general
+    test_workspace.sanity_check_2d_animation
+    test_workspace.sanity_check_sculpting
+    test_workspace.sanity_check_vfx
+    test_workspace.sanity_check_video_editing
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
     test_undo.view3d_edit_mode_multi_window
@@ -1314,7 +1314,7 @@ if(WITH_UI_TESTS)
     test_undo.view3d_texture_paint_complex
     test_undo.view3d_texture_paint_simple
   )
-  foreach(ui_test ${_undo_tests})
+  foreach(ui_test ${_ui_tests})
     add_blender_test_ui(
       "ui_${ui_test}"
       --enable-event-simulate
@@ -1323,7 +1323,7 @@ if(WITH_UI_TESTS)
       --tests "${ui_test}"
     )
   endforeach()
-  unset(_undo_tests)
+  unset(_ui_tests)
 endif()
 
 
