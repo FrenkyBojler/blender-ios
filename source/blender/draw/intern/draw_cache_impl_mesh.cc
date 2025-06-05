@@ -547,8 +547,8 @@ static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache 
   }
   else {
     const VectorSet<int> &used_material_indices = mesh.material_indices_used();
-    for (const int material_index : used_material_indices) {
-      DRW_batch_request(&cache.surface_per_mat[material_index]);
+    for (const int i : used_material_indices) {
+      DRW_batch_request(&cache.surface_per_mat[i]);
     }
   }
 }
