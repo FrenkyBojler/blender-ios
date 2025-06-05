@@ -1463,15 +1463,16 @@ const blender::VectorSet<int> &Mesh::material_indices_used() const
         used_indices[clamp_material_index(efa->mat_nr)] = true;
       }
     }
-    else if (bke::AttributeReader<int> material_indices =
-                 this->attributes().lookup_or_default<int>(
-                     "material_index", bke::AttrDomain::Face, 0))
+    else if (const VArray<int> material_indices =
+                 this->attributes()
+                     .lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0)
+                     .varray)
     {
-      if (material_indices.varray.is_single()) {
-        used_indices[clamp_material_index(material_indices.varray.get_internal_single())] = true;
+      if (const std::optional<int> single_material_index = material_indices.get_if_single()) {
+        used_indices[clamp_material_index(*single_material_index)] = true;
       }
       else {
-        VArraySpan<int> material_indices_span = material_indices.varray;
+        VArraySpan<int> material_indices_span = material_indices;
         threading::parallel_for(
             material_indices_span.index_range(), 1024, [&](const IndexRange range) {
               for (const int i : range) {
