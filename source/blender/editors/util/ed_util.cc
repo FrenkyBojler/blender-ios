@@ -68,7 +68,9 @@ void ED_editors_init_for_undo(Main *bmain)
       BKE_texpaint_slots_refresh_object(scene, ob);
       ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     }
-    if (ob && (ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH)) {
+    if (ob && (ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH) &&
+        (U.uiflag & USER_EDIT_UNDO) == 0)
+    {
       EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
       BMEditMesh *em = BKE_editmesh_from_object(ob);
       if (LIKELY(em)) {
