@@ -773,7 +773,7 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
 bool update_structure_type_interface(bNodeTree &tree)
 {
   StructureTypeInferenceResult result = calc_structure_type_interface(tree);
-  tree.runtime->socket_structure_types = std::move(result.socket_structure_types);
+  tree.runtime->inferred_structure_types = std::move(result.socket_structure_types);
   if (tree.runtime->structure_type_interface &&
       *tree.runtime->structure_type_interface == result.group_interface)
   {
