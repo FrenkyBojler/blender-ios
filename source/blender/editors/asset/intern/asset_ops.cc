@@ -1030,7 +1030,7 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
     BKE_previewimg_ensure(preview_image, size_type);
     int width = image_buffer->x;
     int height = image_buffer->y;
-    int max_size;
+    int max_size = -1;
     switch (size_type) {
       case ICON_SIZE_ICON:
         max_size = ICON_RENDER_DEFAULT_HEIGHT;
@@ -1038,9 +1038,11 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
       case ICON_SIZE_PREVIEW:
         max_size = PREVIEW_RENDER_LARGE_HEIGHT;
         break;
-
-      default:
-        break;
+    }
+    if (max_size < 0) {
+      /* Can only be reached if a new icon size is added. */
+      BLI_assert_unreachable();
+      continue;
     }
 
     /* Scales down the image to `max_size` while maintaining the
