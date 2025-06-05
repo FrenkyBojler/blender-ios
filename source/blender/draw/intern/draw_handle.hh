@@ -146,11 +146,14 @@ struct ObjectRef {
 
   LightLinking *light_linking() const
   {
+    /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
   int recalc_flags(uint64_t last_update) const
   {
+    /* TODO: There should also be a way to get the the min last_update for all objects in the
+     * range.  */
     auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
@@ -171,6 +174,7 @@ struct ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
+    /* TODO: Pass particle systems as a separate ObRef? */
     float4x4 dupli_mat = float4x4::identity();
     if (dupli_parent_ && dupli_object_) {
       if (dupli_object_->type & OB_DUPLICOLLECTION) {
