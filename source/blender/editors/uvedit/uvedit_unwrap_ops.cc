@@ -2697,46 +2697,19 @@ class UVIsland {
  public:
   float cent[2], min[2], max[2];
 };
-/* Assumes UV Map exists, doesn't run update functions. */
-static void uvedit_unwrap(const Scene *scene,
+static void uvedit_unwrap_islands(const Scene *scene,
                           Object *obedit,
+                          BMEditMesh *em,
                           const UnwrapOptions *options,
                           int *r_count_changed,
-                          int *r_count_failed)
-{
-  BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  UvElementMap *element_map = BM_uv_element_map_create(em->bm, scene, true, false, true, true);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
-  blender::Array<std::unique_ptr<UVIsland>> aabbs(element_map->total_islands);
-  if (options->uniform_bounding_box) {
-    if (element_map == nullptr) {
-      return;
-    }
-    if (offsets.uv == -1) {
-      return;
-    }
-    for (int i = 0; i < element_map->total_islands; i++) {
-      UvElement *element = element_map->storage + element_map->island_indices[i];
-      std::unique_ptr<UVIsland> aabb = std::make_unique<UVIsland>();
-      INIT_MINMAX2(aabb->min, aabb->max);
-      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        minmax_v2v2_v2(aabb->min, aabb->max, luv);
-      }
-      aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
-      aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
-      aabbs[i] = std::move(aabb);
-    }
-  }
-  
-  if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
-    return;
-  }
+                          int *r_count_failed){
+
 
   bool use_subsurf;
   modifier_unwrap_state(obedit, options, &use_subsurf);
 
   ParamHandle *handle;
+
   if (use_subsurf) {
     handle = construct_param_handle_subsurfed(scene, obedit, em, options, r_count_failed);
   }
@@ -2756,44 +2729,90 @@ static void uvedit_unwrap(const Scene *scene,
   blender::geometry::uv_parametrizer_average(handle, true, false, false);
 
   blender::geometry::uv_parametrizer_flush(handle);
-  if (options->uniform_bounding_box) {
-    for (int i = 0; i < element_map->total_islands; i++) {
-      UvElement *element = element_map->storage + element_map->island_indices[i];
-      std::unique_ptr<UVIsland> aabb = std::move(aabbs[i]);
-      float cent[2], min[2], max[2];
-
-      INIT_MINMAX2(min, max);
-
-      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        minmax_v2v2_v2(min, max, luv);
-      }
-      cent[0] = (max[0] - min[0]) / 2.0;
-      cent[1] = (max[1] - min[1]) / 2.0;
-      float dx = (max[0] - min[0]);
-      float dy = (max[1] - min[1]);
-      float max_bound = std::max(aabb->cent[0] * 2, aabb->cent[1] * 2);
-
-      if (dx > 0.0f) {
-        dx = max_bound / dx;
-      }
-      if (dy > 0.0f) {
-        dy = max_bound / dy;
-      }
-
-      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        // Resize UVs to fit the island AABB.
-        luv[0] = (luv[0] - (min[0] + cent[0])) * dx + (min[0] + cent[0]);
-        luv[1] = (luv[1] - (max[1] + cent[1])) * dy + (max[1] + cent[1]);
-        // Translate UVs to the AABB center.
-        luv[0] += (aabb->min[0] + aabb->cent[0]) - (min[0] + cent[0]);
-        luv[1] += (aabb->max[1] + aabb->cent[1]) - (max[1] + cent[1]);
-      }
+  delete (handle);
+ }
+static void uvedit_unwrap_uniform(const Scene* scene,
+                                   Object *obedit,
+                                   BMEditMesh *em,
+  const UnwrapOptions* options,
+  int* r_count_changed,
+  int* r_count_failed) {
+  UvElementMap *element_map = BM_uv_element_map_create(em->bm, scene, true, false, true, true);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  blender::Array<std::unique_ptr<UVIsland>> aabbs(element_map->total_islands);
+  if (element_map == nullptr) {
+    return;
+  }
+  if (offsets.uv == -1) {
+    return;
+  }
+  for (int i = 0; i < element_map->total_islands; i++) {
+    UvElement *element = element_map->storage + element_map->island_indices[i];
+    std::unique_ptr<UVIsland> aabb = std::make_unique<UVIsland>();
+    INIT_MINMAX2(aabb->min, aabb->max);
+    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      minmax_v2v2_v2(aabb->min, aabb->max, luv);
     }
+    aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
+    aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
+    aabbs[i] = std::move(aabb);
   }
 
-  delete (handle);
+  uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
+
+  for (int i = 0; i < element_map->total_islands; i++) {
+    UvElement *element = element_map->storage + element_map->island_indices[i];
+    std::unique_ptr<UVIsland> aabb = std::move(aabbs[i]);
+    float cent[2], min[2], max[2];
+
+    INIT_MINMAX2(min, max);
+
+    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      minmax_v2v2_v2(min, max, luv);
+    }
+    cent[0] = (max[0] - min[0]) / 2.0;
+    cent[1] = (max[1] - min[1]) / 2.0;
+    float dx = (max[0] - min[0]);
+    float dy = (max[1] - min[1]);
+    float max_bound = std::max(aabb->cent[0] * 2, aabb->cent[1] * 2);
+
+    if (dx > 0.0f) {
+      dx = max_bound / dx;
+    }
+    if (dy > 0.0f) {
+      dy = max_bound / dy;
+    }
+
+    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      // Resize UVs to fit the island AABB.
+      luv[0] = (luv[0] - (min[0] + cent[0])) * dx + (min[0] + cent[0]);
+      luv[1] = (luv[1] - (max[1] + cent[1])) * dy + (max[1] + cent[1]);
+      // Translate UVs to the AABB center.
+      luv[0] += (aabb->min[0] + aabb->cent[0]) - (min[0] + cent[0]);
+      luv[1] += (aabb->max[1] + aabb->cent[1]) - (max[1] + cent[1]);
+    }
+  }
+}
+  /* Assumes UV Map exists, doesn't run update functions. */
+static void uvedit_unwrap(const Scene *scene,
+                          Object *obedit,
+                          const UnwrapOptions *options,
+                          int *r_count_changed,
+                          int *r_count_failed)
+{
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
+    return;
+  }
+  if (options->uniform_bounding_box) {
+    uvedit_unwrap_uniform(scene, obedit, em, options, r_count_changed, r_count_failed);
+  }
+  else {
+    uvedit_unwrap_islands(scene, obedit, em, options, r_count_changed, r_count_failed);
+  }
 }
 
 static void uvedit_unwrap_multi(const Scene *scene,
