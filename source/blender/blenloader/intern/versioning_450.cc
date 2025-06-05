@@ -15,6 +15,7 @@
 #include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_object_force_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -28,7 +29,10 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
+#include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -37,6 +41,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_paint.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -120,6 +125,49 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
       continue;
     }
     data->offset *= data->size;
+  }
+}
+
+/**
+ * Fixes situation when `CurvesGeometry` instance has curves with `NURBS_KNOT_MODE_CUSTOM`, but has
+ * no custom knots.
+ */
+static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
+{
+  auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
+    if (curves.custom_knots != nullptr) {
+      return;
+    }
+
+    int8_t *knot_modes = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
+        &curves.curve_data, CD_PROP_INT8, "knots_mode", curves.curve_num));
+    if (knot_modes == nullptr) {
+      return;
+    }
+
+    for (const int curve : curves.curves_range()) {
+      int8_t &knot_mode = knot_modes[curve];
+      if (knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+        knot_mode = NURBS_KNOT_MODE_NORMAL;
+      }
+    }
+    curves.nurbs_custom_knots_update_size();
+  };
+
+  LISTBASE_FOREACH (Curves *, curves_id, &bmain->hair_curves) {
+    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    fix_curves(curves);
+  }
+
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+      if (base->type != GP_DRAWING) {
+        continue;
+      }
+      blender::bke::greasepencil::Drawing &drawing =
+          reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+      fix_curves(drawing.strokes_for_write());
+    }
   }
 }
 
@@ -4321,6 +4369,61 @@ static void do_version_blur_node_options_to_inputs_animation(bNodeTree *node_tre
   });
 }
 
+/* Unified paint settings need a default curve for the color jitter options. */
+static void do_init_default_jitter_curves_in_unified_paint_settings(ToolSettings *ts)
+{
+  if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
+    ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
+    ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_value == nullptr) {
+    ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
+/* GP_BRUSH_* settings in gpencil_settings->flag2 were deprecated and replaced with
+ * brush->color_jitter_flag. */
+static void do_convert_gp_jitter_flags(Brush *brush)
+{
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  if (settings->flag2 & GP_BRUSH_USE_HUE_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_AT_STROKE) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_AT_STROKE;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_HUE_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_SAT_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS;
+  }
+  if (settings->flag2 & GP_BRUSH_USE_VAL_RAND_PRESS) {
+    brush->color_jitter_flag |= BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS;
+  }
+}
+
+/* The options were converted into inputs. */
+static void do_version_flip_node_options_to_inputs(bNodeTree *node_tree, bNode *node)
+{
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Flip X")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Flip X", "Flip X");
+    input->default_value_typed<bNodeSocketValueBoolean>()->value = ELEM(node->custom1, 0, 2);
+  }
+
+  if (!blender::bke::node_find_socket(*node, SOCK_IN, "Flip Y")) {
+    bNodeSocket *input = blender::bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Flip Y", "Flip Y");
+    input->default_value_typed<bNodeSocketValueBoolean>()->value = ELEM(node->custom1, 1, 2);
+  }
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -4937,6 +5040,18 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 84)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      do_init_default_jitter_curves_in_unified_paint_settings(scene->toolsettings);
+    }
+
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_convert_gp_jitter_flags(brush);
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -5005,12 +5120,21 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
+    if (!version_node_socket_is_used(
+            bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Profile Curve")))
+    {
+      /* No additional versioning is needed when the profile curve input is unused. */
+      continue;
+    }
+
     if (bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale")) {
       /* Make versioning idempotent. */
       continue;
     }
-    version_node_add_socket_if_not_exist(
+    bNodeSocket *scale_socket = version_node_add_socket_if_not_exist(
         tree, curve_to_mesh, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Scale", "Scale");
+    /* Use a default scale value of 1. */
+    scale_socket->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
 
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
     NodeGeometryInputNamedAttribute *named_attribute_storage =
@@ -5069,6 +5193,8 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
                           *curve_to_mesh,
                           *bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale"));
   }
+
+  version_socket_update_is_used(tree);
 }
 
 static bool strip_effect_overdrop_to_alphaover(Strip *strip, void * /*user_data*/)
@@ -6149,6 +6275,31 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         node_interface_single_value_to_structure_type(ntree->tree_interface.root_panel.item);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 83)) {
+    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
+      if (ob->soft) {
+        ob->soft->fuzzyness = std::max<int>(1, ob->soft->fuzzyness);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 85)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_FLIP) {
+            do_version_flip_node_options_to_inputs(node_tree, node);
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+    fix_curve_nurbs_knot_mode_custom(bmain);
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
