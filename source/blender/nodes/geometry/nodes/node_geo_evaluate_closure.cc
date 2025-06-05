@@ -31,9 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
           item);
       b.add_input(socket_type, item.name, identifier)
-          .structure_type(item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
-                              StructureType(item.structure_type) :
-                              StructureType::Dynamic);
+          .structure_type(StructureType(item.structure_type));
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
@@ -43,9 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       b.add_output(socket_type, item.name, identifier)
           .propagate_all()
           .reference_pass_all()
-          .structure_type(item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
-                              StructureType(item.structure_type) :
-                              StructureType::Dynamic);
+          .structure_type(StructureType(item.structure_type));
     }
   }
 

@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_compute_context_cache.hh"
-
 #include "node_geometry_util.hh"
 
 #include "BLI_string_utf8.h"
@@ -13,6 +11,10 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
+
+#include "BKE_compute_context_cache.hh"
+
+#include "BLO_read_write.hh"
 
 namespace blender::nodes::node_geo_closure_cc {
 
