@@ -34,8 +34,8 @@ class USDHierarchyIterator : public AbstractHierarchyIterator {
   ObjExportMap shape_key_mesh_export_map_;
 
   /* prototype_paths[instancer path] = [(proto_path_1, proto_object_1), (proto_path_2,
-   * proto_object_2)...]  */
-  std::map<std::string, std::set<std::pair<std::string, Object *>>> prototype_paths;
+   * proto_object_2)...] */
+  std::map<pxr::SdfPath, std::set<std::pair<pxr::SdfPath, Object *>>> prototype_paths;
 
  public:
   USDHierarchyIterator(Main *bmain,

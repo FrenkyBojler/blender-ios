@@ -50,8 +50,8 @@
 
 namespace blender::io::usd {
 
-USDPointInstancerWriter::USDPointInstancerWriter(const USDExporterContext &ctx,
-                                                 std::set<std::pair<std::string, Object *>> &paths)
+USDPointInstancerWriter::USDPointInstancerWriter(
+    const USDExporterContext &ctx, std::set<std::pair<pxr::SdfPath, Object *>> &paths)
     : USDAbstractWriter(ctx)
 {
   proto_paths = paths;
@@ -140,19 +140,19 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   if (!proto_paths.empty() && usd_instancer) {
     int iter = 0;
 
-    for (const std::pair<std::string, Object *> &entry : proto_paths) {
-      const std::string &path_str = entry.first;
+    for (const std::pair<pxr::SdfPath, Object *> &entry : proto_paths) {
+      const pxr::SdfPath &source_path = entry.first;
       Object *obj = entry.second;
 
-      if (path_str.empty()) {
+      if (source_path.IsEmpty()) {
         continue;
       }
+
       const pxr::SdfPath proto_path = protoParentPath.AppendChild(
           pxr::TfToken(proto_name + "_" + std::to_string(iter)));
 
       pxr::UsdPrim prim = stage->DefinePrim(proto_path);
-
-      prim.GetReferences().AddReference(pxr::SdfReference("", pxr::SdfPath(path_str)));
+      prim.GetReferences().AddReference(pxr::SdfReference("", source_path));
       new_proto_paths_str.push_back(proto_path);
 
       std::string ob_name = obj->id.name;
@@ -364,6 +364,59 @@ void USDPointInstancerWriter::handle_collection_prototypes(
         [&]() { return usd_instancer.CreateAngularVelocitiesAttr(); },
         copies,
         timecode);
+  }
+
+  ///* Duplicate Other Attributes (Primvars) */
+  const pxr::UsdGeomPrimvarsAPI primvars_api(usd_instancer);
+  std::vector<pxr::UsdGeomPrimvar> primvars = primvars_api.GetPrimvars();
+
+  for (const pxr::UsdGeomPrimvar &primvar : primvars) {
+    if (!primvar.HasAuthoredValue()) {
+      continue;
+    }
+
+    const pxr::TfToken name = primvar.GetPrimvarName();
+    const pxr::SdfValueTypeName type = primvar.GetTypeName();
+    const pxr::TfToken interp = primvar.GetInterpolation();
+
+    auto create = [&]() { return primvars_api.CreatePrimvar(name, type, interp); };
+
+    /* Follow all types in blender::io::usd::convert_blender_type_to_usd */
+    if (type == pxr::SdfValueTypeNames->FloatArray) {
+      DuplicatePerInstanceAttribute<float>([&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->IntArray) {
+      DuplicatePerInstanceAttribute<int>([&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->UCharArray) {
+      DuplicatePerInstanceAttribute<unsigned char>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->Float2Array) {
+      DuplicatePerInstanceAttribute<pxr::GfVec2f>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->Float3Array) {
+      DuplicatePerInstanceAttribute<pxr::GfVec3f>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->Color3fArray ||
+             type == pxr::SdfValueTypeNames->Color4fArray)
+    {
+      DuplicatePerInstanceAttribute<pxr::GfVec4f>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->QuatfArray) {
+      DuplicatePerInstanceAttribute<pxr::GfQuatf>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->BoolArray) {
+      DuplicatePerInstanceAttribute<bool>([&]() { return primvar; }, create, copies, timecode);
+    }
+    else if (type == pxr::SdfValueTypeNames->StringArray) {
+      DuplicatePerInstanceAttribute<std::string>(
+          [&]() { return primvar; }, create, copies, timecode);
+    }
   }
 
   // MARK: Ensure Instance Indices Exist

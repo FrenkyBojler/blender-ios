@@ -10,8 +10,8 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_duplilist.hh"
-#include "BKE_key.hh"
 #include "BKE_geometry_set_instances.hh"
+#include "BKE_key.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -166,8 +166,7 @@ bool HierarchyContext::is_point_instancer() const
     return false;
   }
 
-  const bke::GeometrySet geometry_set =
-      bke::object_get_evaluated_geometry_set(*object);
+  const bke::GeometrySet geometry_set = bke::object_get_evaluated_geometry_set(*object);
 
   return geometry_set.has_instances();
 }

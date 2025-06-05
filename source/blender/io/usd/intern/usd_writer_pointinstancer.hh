@@ -18,9 +18,9 @@ namespace blender::io::usd {
 class USDPointInstancerWriter final : public USDAbstractWriter {
  public:
   USDPointInstancerWriter(const USDExporterContext &ctx,
-                          std::set<std::pair<std::string, Object *>> &paths);
+                          std::set<std::pair<pxr::SdfPath, Object *>> &paths);
   ~USDPointInstancerWriter() final = default;
-  std::set<std::pair<std::string, Object *>> proto_paths;
+  std::set<std::pair<pxr::SdfPath, Object *>> proto_paths;
   const std::string proto_name = "Prototype";
 
  protected:

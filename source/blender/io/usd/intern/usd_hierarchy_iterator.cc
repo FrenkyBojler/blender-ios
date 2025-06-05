@@ -150,18 +150,18 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
   }
 
   if (context->is_point_instancer()) {
-    /* Mark the point instancer's children as a point instance.*/
+    /* Mark the point instancer's children as a point instance. */
     USDExporterContext usd_export_context = create_usd_export_context(context);
     ExportChildren *children = graph_children(context);
 
     bool is_referencing_self = false;
 
-    std::string instancer_path_str;
+    pxr::SdfPath instancer_path;
     if (strlen(params_.root_prim_path) != 0) {
-      instancer_path_str = std::string(params_.root_prim_path) + context->export_path;
+      instancer_path = pxr::SdfPath(std::string(params_.root_prim_path) + context->export_path);
     }
     else {
-      instancer_path_str = context->export_path;
+      instancer_path = pxr::SdfPath(context->export_path);
     }
 
     if (children != nullptr) {
@@ -177,16 +177,17 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
             break;
           }
 
+          pxr::SdfPath prototype_path;
           if (strlen(params_.root_prim_path) != 0) {
-            std::string proto_path_str = std::string(params_.root_prim_path) +
-                                         child_context->original_export_path;
-            prototype_paths[instancer_path_str].insert(
-                std::make_pair(proto_path_str, child_context->object));
+            prototype_path = pxr::SdfPath(std::string(params_.root_prim_path) +
+                                          child_context->original_export_path);
           }
           else {
-            prototype_paths[instancer_path_str].insert(
-                std::make_pair(child_context->original_export_path, child_context->object));
+            prototype_path = pxr::SdfPath(child_context->original_export_path);
           }
+
+          prototype_paths[instancer_path].insert(
+              std::make_pair(prototype_path, child_context->object));
           child_context->is_point_instance = true;
         }
         else {
@@ -196,8 +197,8 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
     }
 
     /* MARK: If the "Instance on Points" node uses an Object as a prototype,
-     but the "Object Info" node has not enabled the "As Instance" option,
-     then the generated reference path is incorrect and refers to itself. */
+     * but the "Object Info" node has not enabled the "As Instance" option,
+     * then the generated reference path is incorrect and refers to itself. */
     if (is_referencing_self) {
       BKE_reportf(
           params_.worker_status->reports,
@@ -207,7 +208,7 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
           "base geometry input itself—both cases prevent valid point instancer export. If it's "
           "the former, enable 'As Instance' to avoid incorrect self-referencing.");
 
-      prototype_paths[instancer_path_str].clear();
+      prototype_paths[instancer_path].clear();
       for (HierarchyContext *child_context : *children) {
         child_context->is_point_instance = false;
         child_context->is_point_proto = false;
@@ -229,8 +230,8 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
 {
   USDExporterContext usd_export_context = create_usd_export_context(context);
   USDAbstractWriter *data_writer = nullptr;
-  std::set<std::pair<std::string, Object *>> proto_paths =
-      prototype_paths[usd_export_context.usd_path.GetParentPath().GetString()];
+  std::set<std::pair<pxr::SdfPath, Object *>> proto_paths =
+      prototype_paths[usd_export_context.usd_path.GetParentPath()];
 
   switch (context->object->type) {
     case OB_MESH:
