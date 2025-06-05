@@ -34,7 +34,6 @@
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
-
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -50,6 +49,7 @@
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
 #include "BKE_uvproject.h"
+#include "BKE_mesh_mapping.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -209,6 +209,7 @@ struct UnwrapOptions {
   bool use_abf;
   bool use_subsurf;
   bool use_weights;
+  bool uniform_bounding_box;
 
   ParamSlimOptions slim;
   char weight_group[MAX_VGROUP_NAME];
@@ -266,6 +267,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
   options.pin_unselected = false;
 
   options.slim.skip_init = false;
+  options.uniform_bounding_box = false;
 
   if (ts) {
     options.method = ts->unwrapper;
@@ -285,6 +287,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
     options.fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
     options.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
+    options.uniform_bounding_box = RNA_boolean_get(op->ptr, "uniform_bounding_box");
 
     options.use_weights = RNA_boolean_get(op->ptr, "use_weights");
     RNA_string_get(op->ptr, "weight_group", options.weight_group);
@@ -1503,7 +1506,6 @@ static void uvedit_pack_islands_multi(const Scene *scene,
 
   for (int index = 0; index < island_vector.size(); index++) {
     FaceIsland *island = island_vector[index];
-
     for (int i = 0; i < island->faces_len; i++) {
       BMFace *f = island->faces[i];
       BM_face_uv_minmax(f, selection_min_co, selection_max_co, island->offsets.uv);
@@ -2691,6 +2693,10 @@ static void uv_map_clip_correct(const Scene *scene,
 /** \name UV Unwrap Operator
  * \{ */
 
+class UVIsland {
+ public:
+  float cent[2], min[2], max[2];
+};
 /* Assumes UV Map exists, doesn't run update functions. */
 static void uvedit_unwrap(const Scene *scene,
                           Object *obedit,
@@ -2699,6 +2705,30 @@ static void uvedit_unwrap(const Scene *scene,
                           int *r_count_failed)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  UvElementMap *element_map = BM_uv_element_map_create(em->bm, scene, true, false, true, true);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
+  blender::Array<std::unique_ptr<UVIsland>> aabbs(element_map->total_islands);
+  if (options->uniform_bounding_box) {
+    if (element_map == nullptr) {
+      return;
+    }
+    if (offsets.uv == -1) {
+      return;
+    }
+    for (int i = 0; i < element_map->total_islands; i++) {
+      UvElement *element = element_map->storage + element_map->island_indices[i];
+      std::unique_ptr<UVIsland> aabb = std::make_unique<UVIsland>();
+      INIT_MINMAX2(aabb->min, aabb->max);
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        minmax_v2v2_v2(aabb->min, aabb->max, luv);
+      }
+      aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
+      aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
+      aabbs[i] = std::move(aabb);
+    }
+  }
+  
   if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
     return;
   }
@@ -2726,6 +2756,42 @@ static void uvedit_unwrap(const Scene *scene,
   blender::geometry::uv_parametrizer_average(handle, true, false, false);
 
   blender::geometry::uv_parametrizer_flush(handle);
+  if (options->uniform_bounding_box) {
+    for (int i = 0; i < element_map->total_islands; i++) {
+      UvElement *element = element_map->storage + element_map->island_indices[i];
+      std::unique_ptr<UVIsland> aabb = std::move(aabbs[i]);
+      float cent[2], min[2], max[2];
+
+      INIT_MINMAX2(min, max);
+
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        minmax_v2v2_v2(min, max, luv);
+      }
+      cent[0] = (max[0] - min[0]) / 2.0;
+      cent[1] = (max[1] - min[1]) / 2.0;
+      float dx = (max[0] - min[0]);
+      float dy = (max[1] - min[1]);
+      float max_bound = std::max(aabb->cent[0] * 2, aabb->cent[1] * 2);
+
+      if (dx > 0.0f) {
+        dx = max_bound / dx;
+      }
+      if (dy > 0.0f) {
+        dy = max_bound / dy;
+      }
+
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        // Resize UVs to fit the island AABB.
+        luv[0] = (luv[0] - (min[0] + cent[0])) * dx + (min[0] + cent[0]);
+        luv[1] = (luv[1] - (max[1] + cent[1])) * dy + (max[1] + cent[1]);
+        // Translate UVs to the AABB center.
+        luv[0] += (aabb->min[0] + aabb->cent[0]) - (min[0] + cent[0]);
+        luv[1] += (aabb->max[1] + aabb->cent[1]) - (max[1] + cent[1]);
+      }
+    }
+  }
 
   delete (handle);
 }
@@ -2853,15 +2919,18 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   int count_failed = 0;
   uvedit_unwrap_multi(scene, objects, &options, &count_changed, &count_failed);
 
-  blender::geometry::UVPackIsland_Params pack_island_params;
-  pack_island_params.setFromUnwrapOptions(options);
-  pack_island_params.rotate_method = ED_UVPACK_ROTATION_ANY;
-  pack_island_params.pin_method = ED_UVPACK_PIN_IGNORE;
-  pack_island_params.margin_method = eUVPackIsland_MarginMethod(
-      RNA_enum_get(op->ptr, "margin_method"));
-  pack_island_params.margin = RNA_float_get(op->ptr, "margin");
+  if (!options.uniform_bounding_box) {
+  
+    blender::geometry::UVPackIsland_Params pack_island_params;
+    pack_island_params.setFromUnwrapOptions(options);
+    pack_island_params.rotate_method = ED_UVPACK_ROTATION_ANY;
+    pack_island_params.pin_method = ED_UVPACK_PIN_IGNORE;
+    pack_island_params.margin_method = eUVPackIsland_MarginMethod(
+        RNA_enum_get(op->ptr, "margin_method"));
+    pack_island_params.margin = RNA_float_get(op->ptr, "margin");
 
-  uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+    uvedit_pack_islands_multi(scene, objects, nullptr, nullptr, false, true, &pack_island_params);
+  }
 
   if (count_failed == 0 && count_changed == 0) {
     BKE_report(op->reports,
@@ -2917,8 +2986,13 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   col->separator();
   col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "uniform_bounding_box", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (!RNA_boolean_get(op->ptr, "uniform_bounding_box")) {
+    col->separator();
+    col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 void UV_OT_unwrap(wmOperatorType *ot)
@@ -2969,6 +3043,13 @@ void UV_OT_unwrap(wmOperatorType *ot)
       false,
       "Use Subdivision Surface",
       "Map UVs taking vertex position after Subdivision Surface modifier has been applied");
+  RNA_def_boolean(
+      ot->srna,
+      "uniform_bounding_box",
+      false,
+      "Uniform Bounding BOx",
+      "Pack islands in unform bonding box of original islands");
+
   RNA_def_enum(ot->srna,
                "margin_method",
                pack_margin_method_items,
