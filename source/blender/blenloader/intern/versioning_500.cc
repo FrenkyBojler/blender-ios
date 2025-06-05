@@ -12,10 +12,12 @@
 #include "DNA_mesh_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
+#include "BKE_colortools.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 
@@ -85,6 +87,44 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
    */
 }
 
+static void do_versions_apply_unified_paint_settings_to_all_modes(Scene &scene)
+{
+  const UnifiedPaintSettings &scene_ups = scene.toolsettings->unified_paint_settings;
+  auto apply_to_paint = [&](Paint *paint) {
+    if (paint == nullptr) {
+      return;
+    }
+    UnifiedPaintSettings &ups = paint->unified_paint_settings;
+
+    ups.size = scene_ups.size;
+    ups.unprojected_radius = scene_ups.unprojected_radius;
+    ups.alpha = scene_ups.alpha;
+    ups.weight = scene_ups.weight;
+    copy_v3_v3(ups.rgb, scene_ups.rgb);
+    copy_v3_v3(ups.secondary_rgb, scene_ups.secondary_rgb);
+    ups.color_jitter_flag = scene_ups.color_jitter_flag;
+    copy_v3_v3(ups.hsv_jitter, scene_ups.hsv_jitter);
+
+    BLI_assert(ups.curve_rand_hue == nullptr);
+    BLI_assert(ups.curve_rand_saturation == nullptr);
+    BLI_assert(ups.curve_rand_value == nullptr);
+    ups.curve_rand_hue = BKE_curvemapping_copy(scene_ups.curve_rand_hue);
+    ups.curve_rand_saturation = BKE_curvemapping_copy(scene_ups.curve_rand_saturation);
+    ups.curve_rand_value = BKE_curvemapping_copy(scene_ups.curve_rand_value);
+    ups.flag = scene_ups.flag;
+  };
+
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->vpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->wpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->sculpt));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_paint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_vertexpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_sculptpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_weightpaint));
+  apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->curves_sculpt));
+  apply_to_paint(reinterpret_cast<Paint *>(&scene.toolsettings->imapaint));
+}
+
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   using namespace blender;
@@ -93,6 +133,12 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       bke::mesh_sculpt_mask_to_generic(*mesh);
       bke::mesh_custom_normals_to_generic(*mesh);
       rename_mesh_uv_seam_attribute(*mesh);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      do_versions_apply_unified_paint_settings_to_all_modes(*scene);
     }
   }
 
