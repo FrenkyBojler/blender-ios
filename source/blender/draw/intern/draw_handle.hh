@@ -168,6 +168,22 @@ struct ObjectRef {
     }
     return dupli_mat;
   }
+
+  int preview_instance_index() const
+  {
+    if (dupli_object) {
+      return dupli_object->preview_instance_index;
+    }
+    return -1;
+  }
+
+  const blender::bke::GeometrySet *preview_base_geometry() const
+  {
+    if (dupli_object) {
+      return dupli_object->preview_base_geometry;
+    }
+    return nullptr;
+  }
 };
 
 /* -------------------------------------------------------------------- */

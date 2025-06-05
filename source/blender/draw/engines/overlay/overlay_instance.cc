@@ -975,9 +975,9 @@ bool Instance::object_is_sculpt_mode(const ObjectRef &ob_ref)
     const Object *active_object = state.object_active;
     const bool is_active_object = ob_ref.object == active_object;
 
-    bool is_geonode_preview = ob_ref.dupli_object && ob_ref.dupli_object->preview_base_geometry;
-    bool is_active_dupli_parent = ob_ref.dupli_parent == active_object;
-    return is_active_object || (is_active_dupli_parent && is_geonode_preview);
+    bool is_active_geonode_preview = ob_ref.preview_base_geometry() != nullptr &&
+                                     ob_ref.is_active(state.object_active);
+    return is_active_object || is_active_geonode_preview;
   }
 
   if (state.object_mode == OB_MODE_SCULPT) {
