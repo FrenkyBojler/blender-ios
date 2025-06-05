@@ -108,7 +108,7 @@ struct uiLayout : uiItem {
   void emboss_set(blender::ui::EmbossType emboss);
 
   wmOperatorCallContext operator_context() const;
-  /** Sets the call context for new operator buttons added in any #root_ sub-layout. */
+  /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
   void operator_context_set(wmOperatorCallContext opcontext);
 
   /** Sub-layout items. */
