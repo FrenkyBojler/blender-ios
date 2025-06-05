@@ -757,15 +757,15 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
   Array<nodes::StructureTypeInterface> node_interfaces = calc_node_interfaces(tree);
 
   Array<DataRequirement> data_requirements(tree.all_input_sockets().size());
-  Array<StructureType> structure_types(tree.all_sockets().size(), StructureType::Dynamic);
 
   init_input_requirements(tree, data_requirements);
   propagate_right_to_left(tree, node_interfaces, data_requirements);
   store_group_input_structure_types(tree, data_requirements, result.group_interface);
-  store_closure_input_structure_types(tree, data_requirements, structure_types);
-  propagate_left_to_right(tree, node_interfaces, result.group_interface.inputs, structure_types);
+  store_closure_input_structure_types(tree, data_requirements, result.socket_structure_types);
+  propagate_left_to_right(
+      tree, node_interfaces, result.group_interface.inputs, result.socket_structure_types);
   store_group_output_structure_types(
-      tree, node_interfaces, structure_types, result.group_interface);
+      tree, node_interfaces, result.socket_structure_types, result.group_interface);
 
   return result;
 }
