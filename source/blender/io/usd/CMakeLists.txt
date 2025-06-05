@@ -84,10 +84,12 @@ set(SRC
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
   intern/usd_writer_points.cc
+  intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
+  intern/usd_reader_domelight.cc
   intern/usd_reader_curve.cc
   intern/usd_reader_geom.cc
   intern/usd_reader_instance.cc
@@ -133,11 +135,13 @@ set(SRC
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
   intern/usd_writer_points.hh
+  intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
   intern/usd_writer_volume.hh
 
   intern/usd_reader_camera.hh
   intern/usd_reader_curve.hh
+  intern/usd_reader_domelight.hh
   intern/usd_reader_geom.hh
   intern/usd_reader_instance.hh
   intern/usd_reader_light.hh

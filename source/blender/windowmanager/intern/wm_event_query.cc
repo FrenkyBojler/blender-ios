@@ -168,8 +168,8 @@ void WM_event_print(const wmEvent *event)
       printf(", tablet: active: %d, pressure %.4f, tilt: (%.4f %.4f)",
              wmtab->active,
              wmtab->pressure,
-             wmtab->x_tilt,
-             wmtab->y_tilt);
+             wmtab->tilt.x,
+             wmtab->tilt.y);
     }
     printf("\n");
   }
@@ -375,8 +375,8 @@ bool WM_event_consecutive_gesture_test_break(const wmWindow *win, const wmEvent 
     }
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    /* Modifiers are excluded because from a user perspective,
-     * releasing a modifier (for e.g.) should not begin a new action. */
+    /* Modifiers are excluded because from a user perspective.
+     * For example, releasing a modifier should not begin a new action. */
     if (!ISKEYMODIFIER(event->type)) {
       return true;
     }
@@ -585,8 +585,7 @@ float wm_pressure_curve(float raw_pressure)
 float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
   if (r_tilt) {
-    r_tilt[0] = event->tablet.x_tilt;
-    r_tilt[1] = event->tablet.y_tilt;
+    copy_v2_v2(r_tilt, event->tablet.tilt);
   }
 
   if (r_pen_flip) {

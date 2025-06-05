@@ -137,6 +137,9 @@
 #  define SPECIALIZATION_CONSTANT(type, name, default_value) \
     .specialization_constant(Type::type##_t, #name, default_value)
 
+#  define COMPILATION_CONSTANT(type, name, value) \
+    .compilation_constant(Type::type##_t, #name, value)
+
 #  define PUSH_CONSTANT(type, name) .push_constant(Type::type##_t, #name)
 #  define PUSH_CONSTANT_ARRAY(type, name, array_size) \
     .push_constant(Type::type##_t, #name, array_size)
@@ -222,6 +225,8 @@
 
 #  define SPECIALIZATION_CONSTANT(type, name, default_value) \
     constexpr type name = type(default_value);
+
+#  define COMPILATION_CONSTANT(type, name, value) constexpr type name = type(value);
 
 #  define PUSH_CONSTANT(type, name) extern const type name;
 #  define PUSH_CONSTANT_ARRAY(type, name, array_size) extern const type name[array_size];
@@ -421,6 +426,10 @@ enum class BuiltinBits {
 
   /* Texture atomics requires usage options to alter compilation flag. */
   TEXTURE_ATOMIC = (1 << 18),
+
+  /* Enable shader patching on GL to remap clip range to 0..1.
+   * Will do nothing if ClipControl is unsupported. */
+  CLIP_CONTROL = (1 << 19),
 
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
@@ -745,6 +754,7 @@ struct ShaderCreateInfo {
   };
   Vector<SubpassIn> subpass_inputs_;
 
+  Vector<CompilationConstant, 0> compilation_constants_;
   Vector<SpecializationConstant> specialization_constants_;
 
   struct Sampler {
@@ -883,7 +893,7 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
-  /* Api-specific parameters. */
+  /* API-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
 #  endif
@@ -981,6 +991,38 @@ struct ShaderCreateInfo {
       int slot, Type type, ImageType img_type, StringRefNull name, int raster_order_group = -1)
   {
     subpass_inputs_.append({slot, type, img_type, name, raster_order_group});
+    return *(Self *)this;
+  }
+
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
+  /** \name Shader compilation constants
+   *
+   * Compilation constants are constants defined in the create info.
+   * They cannot be changed after the shader is created.
+   * It is a replacement to macros with added type safety.
+   * \{ */
+
+  Self &compilation_constant(Type type, StringRefNull name, double default_value)
+  {
+    CompilationConstant constant;
+    constant.type = type;
+    constant.name = name;
+    switch (type) {
+      case Type::int_t:
+        constant.value.i = int(default_value);
+        break;
+      case Type::bool_t:
+      case Type::uint_t:
+        constant.value.u = uint(default_value);
+        break;
+      default:
+        BLI_assert_msg(0, "Only scalar integer and bool types can be used as constants");
+        break;
+    }
+    compilation_constants_.append(constant);
+    interface_names_size_ += name.size() + 1;
     return *(Self *)this;
   }
 

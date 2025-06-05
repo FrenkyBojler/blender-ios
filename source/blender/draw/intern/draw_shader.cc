@@ -34,9 +34,6 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
       return "subdiv_tris_multiple_materials";
 
     case SubdivShaderType::BUFFER_EDGE_FAC:
-      if (GPU_crappy_amd_driver()) {
-        return "subdiv_edge_fac_amd_legacy";
-      }
       return "subdiv_edge_fac";
 
     case SubdivShaderType::BUFFER_SCULPT_DATA:
@@ -208,5 +205,6 @@ GPUShader *DRW_shader_subdiv_custom_data_get(GPUVertCompType comp_type, int dime
 
 void DRW_shaders_free()
 {
+  GPU_shader_unbind();
   ShaderCache::release();
 }

@@ -837,7 +837,7 @@ enum LightingType : uint32_t {
   LIGHT_TRANSMISSION = 2u,
   LIGHT_VOLUME = 3u,
   /* WORKAROUND: Special value used to tag translucent BSDF with thickness.
-   * Fallback to LIGHT_DIFFUSE. */
+   * Fall back to LIGHT_DIFFUSE. */
   LIGHT_TRANSLUCENT_WITH_THICKNESS = 4u,
 };
 
@@ -1903,7 +1903,7 @@ enum GBufferMode : uint32_t {
   /** None mode for pixels not rendered. */
   GBUF_NONE = 0u,
 
-  /* Reflection.  */
+  /* Reflection. */
   GBUF_DIFFUSE = 1u,
   GBUF_REFLECTION = 2u,
   GBUF_REFLECTION_COLORLESS = 3u,

@@ -25,7 +25,8 @@ template<GPUVertCompType comp_type, GPUVertFetchMode fetch_mode, typename ColorT
 static void vertex_buffer_fetch_mode(ColorType color)
 {
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
-  GPUOffScreen *offscreen = GPU_offscreen_create(Size, Size, false, GPU_RGBA32F, usage, nullptr);
+  GPUOffScreen *offscreen = GPU_offscreen_create(
+      Size, Size, false, GPU_RGBA32F, usage, false, nullptr);
   BLI_assert(offscreen != nullptr);
   GPU_offscreen_bind(offscreen, false);
   GPUTexture *color_texture = GPU_offscreen_color_texture(offscreen);
@@ -85,7 +86,14 @@ static void vertex_buffer_fetch_mode(ColorType color)
         BLI_assert_unreachable();
     }
   }
-  EXPECT_EQ(read_data[0], float4(color));
+
+  if (fetch_mode == GPU_FETCH_FLOAT) {
+    EXPECT_EQ(read_data[0], float4(color));
+  }
+  else {
+    /* Do integer comparison to avoid floating point inaccuracies from each conversion steps. */
+    EXPECT_EQ(int4(read_data[0]), int4(float4(color)));
+  }
 
   GPU_batch_discard(batch);
   GPU_offscreen_free(offscreen);
@@ -125,44 +133,6 @@ static void test_vertex_buffer_fetch_mode__GPU_COMP_I10__GPU_FETCH_INT_TO_FLOAT_
       PackedNormal(321, -511, 511, 0));
 }
 GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I10__GPU_FETCH_INT_TO_FLOAT_UNIT);
-
-#ifndef __APPLE__ /* Not supported on metal backend. Also could be phased out eventually. */
-static void test_vertex_buffer_fetch_mode__GPU_COMP_I8__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_I8, GPU_FETCH_INT_TO_FLOAT, char4>(char4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I8__GPU_FETCH_INT_TO_FLOAT);
-
-static void test_vertex_buffer_fetch_mode__GPU_COMP_U8__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_U8, GPU_FETCH_INT_TO_FLOAT, uchar4>(uchar4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U8__GPU_FETCH_INT_TO_FLOAT);
-
-static void test_vertex_buffer_fetch_mode__GPU_COMP_I16__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_I16, GPU_FETCH_INT_TO_FLOAT, short4>(short4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I16__GPU_FETCH_INT_TO_FLOAT);
-
-static void test_vertex_buffer_fetch_mode__GPU_COMP_U16__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_U16, GPU_FETCH_INT_TO_FLOAT, ushort4>(ushort4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U16__GPU_FETCH_INT_TO_FLOAT);
-#endif
-
-static void test_vertex_buffer_fetch_mode__GPU_COMP_I32__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_I32, GPU_FETCH_INT_TO_FLOAT, int4>(int4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_I32__GPU_FETCH_INT_TO_FLOAT);
-
-static void test_vertex_buffer_fetch_mode__GPU_COMP_U32__GPU_FETCH_INT_TO_FLOAT()
-{
-  vertex_buffer_fetch_mode<GPU_COMP_U32, GPU_FETCH_INT_TO_FLOAT, uint4>(uint4(4, 5, 6, 1));
-}
-GPU_TEST(vertex_buffer_fetch_mode__GPU_COMP_U32__GPU_FETCH_INT_TO_FLOAT);
 
 static void test_vertex_buffer_fetch_mode__GPU_COMP_F32__GPU_FETCH_FLOAT()
 {

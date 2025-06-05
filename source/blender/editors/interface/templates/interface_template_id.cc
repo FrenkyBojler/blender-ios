@@ -298,7 +298,8 @@ static void template_id_liboverride_hierarchy_collection_root_find_recursive(
       *r_collection_parent_best = collection;
     }
   }
-  for (CollectionParent *iter = static_cast<CollectionParent *>(collection->runtime.parents.first);
+  for (CollectionParent *iter =
+           static_cast<CollectionParent *>(collection->runtime->parents.first);
        iter != nullptr;
        iter = iter->next)
   {
@@ -319,7 +320,7 @@ static void template_id_liboverride_hierarchy_collections_tag_recursive(
    * linked ones can be replaced by the local overrides in those parents too. */
   if (do_parents) {
     for (CollectionParent *iter =
-             static_cast<CollectionParent *>(root_collection->runtime.parents.first);
+             static_cast<CollectionParent *>(root_collection->runtime->parents.first);
          iter != nullptr;
          iter = iter->next)
     {
@@ -1785,7 +1786,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Start drawing UI Elements using standard defines */
 
   /* NOTE: split amount here needs to be synced with normal labels */
-  uiLayout *split = uiLayoutSplit(layout, 0.33f, false);
+  uiLayout *split = &layout->split(0.33f, false);
 
   /* FIRST PART ................................................ */
   uiLayout *row = &split->row(false);
@@ -1793,11 +1794,11 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Label - either use the provided text, or will become "ID-Block:" */
   if (text) {
     if (!text->is_empty()) {
-      uiItemL(row, *text, ICON_NONE);
+      row->label(*text, ICON_NONE);
     }
   }
   else {
-    uiItemL(row, IFACE_("ID-Block:"), ICON_NONE);
+    row->label(IFACE_("ID-Block:"), ICON_NONE);
   }
 
   /* SECOND PART ................................................ */
@@ -1810,7 +1811,7 @@ void uiTemplateAnyID(uiLayout *layout,
   uiLayout *sub = &row->row(true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
 
-  uiItemFullR(sub, ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* ID-Block Selector - just use pointer widget... */
 
@@ -1819,5 +1820,5 @@ void uiTemplateAnyID(uiLayout *layout,
   sub = &row->row(true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
 
-  uiItemFullR(sub, ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
 }
