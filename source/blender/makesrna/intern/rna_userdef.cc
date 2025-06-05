@@ -6353,10 +6353,10 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(prop,
                            "Max Shader Compilation Workers",
-                           "Number of shader compilation threads or subprocess, "
+                           "Number of shader compilation threads or subprocesses, "
                            "clamped at the max threads supported by the CPU "
                            "(requires restarting Blender for changes to take effect). "
-                           "Higher number increases the RAM usage while reducing "
+                           "A higher number increases the RAM usage while reducing "
                            "compilation time. A value of 0 will use automatic configuration. "
                            "(OpenGL only)");
 
@@ -6366,7 +6366,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Compile shaders using subprocesses instead of threads "
                            "(requires restarting Blender for changes to take effect). "
                            "This option requires more RAM for each worker "
-                           "but might compiles shaders faster. "
+                           "but might compile shaders faster. "
                            "(OpenGL only)");
 
   /* Network. */
