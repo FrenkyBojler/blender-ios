@@ -596,7 +596,7 @@ bool GHOST_SystemX11::processEvents(bool waitForEvent)
   do {
     GHOST_TimerManager *timerMgr = getTimerManager();
 
-    if (waitForEvent && m_dirty_windows.empty() && !XPending(m_display)) {
+    if (m_dirty_windows.empty() && !XPending(m_display)) {
       int64_t sleepDurationMs = getCurrentSleepDurationMs();
 
       if (sleepDurationMs == GHOST_kFireTimeNever) {
