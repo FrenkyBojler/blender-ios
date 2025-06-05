@@ -63,9 +63,9 @@ void main()
   uint start_loop_index = quad_index * 4;
 
   /* First compute the face normal, we need it to compute the bihedral edge angle. */
-  Position pos_0 = positions[start_corner_index_other + 0];
-  Position pos_1 = positions[start_corner_index_other + 1];
-  Position pos_2 = positions[start_corner_index_other + 2];
+  Position pos_0 = positions[start_loop_index + 0];
+  Position pos_1 = positions[start_loop_index + 1];
+  Position pos_2 = positions[start_loop_index + 2];
   float3 v0 = subdiv_position_to_float3(pos_0);
   float3 v1 = subdiv_position_to_float3(pos_1);
   float3 v2 = subdiv_position_to_float3(pos_2);
