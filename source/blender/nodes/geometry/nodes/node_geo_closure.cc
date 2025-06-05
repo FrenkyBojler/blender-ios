@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_compute_context_cache.hh"
+
 #include "node_geometry_util.hh"
 
 #include "BLI_string_utf8.h"
@@ -11,10 +13,6 @@
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
-
-#include "BKE_compute_context_cache.hh"
-
-#include "BLO_read_write.hh"
 
 namespace blender::nodes::node_geo_closure_cc {
 
@@ -147,7 +145,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = ClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, item.name, identifier);
+      b.add_input(socket_type, item.name, identifier).supports_field();
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
