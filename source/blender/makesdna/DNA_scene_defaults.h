@@ -357,8 +357,6 @@
     .sharp_max = DEG2RADF(180.0f), \
   }
 
-// TODO: Do the other unifiedpaintstructs need to be created?
-
 #define _DNA_DEFAULT_ToolSettings \
   { \
     .object_flag = SCE_OBJECT_MODE_LOCK, \
