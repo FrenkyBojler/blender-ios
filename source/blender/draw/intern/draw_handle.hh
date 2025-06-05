@@ -20,12 +20,20 @@
  */
 
 #include "BKE_duplilist.hh"
-#include "BLI_hash.h"
-#include "BLI_math_matrix.hh"
-#include "DEG_depsgraph_query.hh"
-#include "DNA_collection_types.h"
-#include "GPU_material.hh"
 #include "draw_shader_shared.hh"
+
+/* random */
+#include "BLI_hash.h"
+
+/* find_rgba_attribute */
+#include "GPU_material.hh"
+
+/* particles_matrix */
+#include "BLI_math_matrix.hh"
+#include "DNA_collection_types.h"
+
+/* ObjectKey */
+#include "DEG_depsgraph_query.hh"
 
 namespace blender::draw {
 
