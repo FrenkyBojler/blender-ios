@@ -243,7 +243,7 @@
     .smaa_threshold = 1.0f, \
     .smaa_threshold_render = 0.25f, \
     .aa_samples = 8, \
-    .motion_blur_steps = 1, \
+    .motion_blur_steps = 0, \
   }
 
 #define _DNA_DEFAULT_SceneHydra \
