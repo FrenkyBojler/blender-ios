@@ -11,6 +11,10 @@
 
 #include <chrono>
 
+#ifndef WIN32
+#include <thread>
+#endif
+
 /**
  * Return an indication of time, expressed as seconds since some fixed point.
  * Successive calls are guaranteed to generate values greater than or equal to the last call.
