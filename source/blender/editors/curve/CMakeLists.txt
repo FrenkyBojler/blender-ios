@@ -4,12 +4,8 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blentranslation
-  ../../gpu
   ../../makesrna
-  ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -28,21 +24,24 @@ set(SRC
   editfont.cc
   editfont_undo.cc
 
-  curve_intern.h
+  curve_intern.hh
 )
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
+  PRIVATE bf::animrig
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::extern::curve_fit_nd
+  PRIVATE bf::gpu
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::windowmanager
 )
-
 
 blender_add_lib(bf_editor_curve "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_curve bf_rna)

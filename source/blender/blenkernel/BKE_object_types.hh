@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bke
+ */
+
 #pragma once
 
 #include <optional>
@@ -13,8 +17,6 @@
 
 #include "DNA_customdata_types.h" /* #CustomData_MeshMasks. */
 
-struct BoundBox;
-struct bGPdata;
 struct Curve;
 struct CurveCache;
 struct ID;
@@ -27,8 +29,9 @@ struct GeometrySet;
 
 struct ObjectRuntime {
   /** Final transformation matrices with constraints & animsys applied. */
-  float4x4 object_to_world;
-  float4x4 world_to_object;
+  float4x4 object_to_world = float4x4::identity();
+  float4x4 world_to_object = float4x4::identity();
+
   /**
    * The custom data layer mask that was last used
    * to calculate data_eval and mesh_deform_eval.
@@ -99,18 +102,6 @@ struct ObjectRuntime {
    * #eModifierTypeFlag_SupportsMapping.
    */
   Mesh *editmesh_eval_cage = nullptr;
-
-  /**
-   * Original grease pencil bGPdata pointer, before object->data was changed to point
-   * to gpd_eval.
-   * Is assigned by dependency graph's copy-on-evaluation.
-   */
-  bGPdata *gpd_orig = nullptr;
-  /**
-   * bGPdata structure created during object evaluation.
-   * It has all modifiers applied.
-   */
-  bGPdata *gpd_eval = nullptr;
 
   /**
    * This is a mesh representation of corresponding object.

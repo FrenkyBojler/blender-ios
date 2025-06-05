@@ -10,11 +10,21 @@
 # and https://pypi.org/project/blender-asset-tracer/
 # -----------------------------------------------------------------------------
 
+__all__ = (
+    "open_blend",
+
+    # Expose for `wrapper_type` argument to `open_blend`.
+    "BlendFile",
+    "BlendFileRaw",
+)
+
+
 import gzip
 import logging
 import os
 import struct
 import tempfile
+import zstandard as zstd
 
 log = logging.getLogger("blendfile")
 
@@ -101,7 +111,7 @@ class BlendFile:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _type, _value, _traceback):
         self.close()
 
     def find_blocks_from_code(self, code):
@@ -212,7 +222,7 @@ class BlendFile:
             fields_len = d[1]
             dna_offset = 0
 
-            for field_index in range(fields_len):
+            for _field_index in range(fields_len):
                 d2 = shortstruct2.unpack_from(data, offset)
                 field_type_index = d2[0]
                 field_name_index = d2[1]
@@ -538,7 +548,9 @@ class BlendFileBlock:
                 yield (k, "<%s>" % dna_type.dna_type_id.decode('ascii'))
 
 
-########################################################################################################################
+# -----------------------------------------------------------------------------
+# Low Level Blend File Access
+
 # Way more basic access to blend-file data, without any DNA handling.
 
 class BlendFileRaw:
@@ -594,7 +606,7 @@ class BlendFileRaw:
     def __enter__(self):
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, _type, _value, _traceback):
         self.close()
 
     def find_blocks_from_code(self, code):
@@ -772,7 +784,7 @@ class BlendFileHeader:
         elif pointer_size_id == b'_':
             self.pointer_size = 4
         else:
-            assert 0
+            assert False, "unreachable"
         endian_id = values[2]
         if endian_id == b'v':
             self.is_little_endian = True
@@ -783,7 +795,7 @@ class BlendFileHeader:
             self.endian_index = 1
             self.endian_str = b'>'
         else:
-            assert 0
+            assert False, "unreachable"
 
         version_id = values[3]
         self.version = int(version_id)
@@ -965,7 +977,7 @@ class DNAStruct:
                                     use_str=use_str,
                                     use_str_nil=use_nil,
                                     )
-        except NotImplementedError as e:
+        except NotImplementedError:
             raise NotImplementedError("%r exists, but can't resolve field %r" %
                                       (path, dna_name.name_only), dna_name, dna_type)
 
@@ -1181,21 +1193,10 @@ def open_blend(filename, access="rb", wrapper_type=BlendFile):
     supports 2 kind of blend files. Uncompressed and compressed.
     Known issue: does not support packaged blend files
     """
-    handle = open(filename, access)
-    magic_test = b"BLENDER"
-    magic = handle.read(len(magic_test))
-    if magic == magic_test:
-        log.debug("normal blendfile detected")
-        handle.seek(0, os.SEEK_SET)
-        bfile = wrapper_type(handle)
-        bfile.is_compressed = False
-        bfile.filepath_orig = filename
-        return bfile
-    elif magic[:2] == b'\x1f\x8b':
-        log.debug("gzip blendfile detected")
-        handle.close()
+
+    def decompress(filename, file_open):
         log.debug("decompressing started")
-        fs = gzip.open(filename, "rb")
+        fs = file_open(filename, "rb")
         data = fs.read(FILE_BUFFER_SIZE)
         magic = data[:len(magic_test)]
         if magic == magic_test:
@@ -1211,7 +1212,24 @@ def open_blend(filename, access="rb", wrapper_type=BlendFile):
             bfile.is_compressed = True
             bfile.filepath_orig = filename
             return bfile
-        else:
-            raise BlendFileError("filetype inside gzip not a blend")
+
+    handle = open(filename, access)
+    magic_test = b"BLENDER"
+    magic = handle.read(len(magic_test))
+    if magic == magic_test:
+        log.debug("normal blendfile detected")
+        handle.seek(0, os.SEEK_SET)
+        bfile = wrapper_type(handle)
+        bfile.is_compressed = False
+        bfile.filepath_orig = filename
+        return bfile
+    elif magic[:4] == b'\x28\xb5\x2f\xfd':
+        log.debug("zstd blendfile detected")
+        handle.close()
+        return decompress(filename, zstd.open)
+    elif magic[:2] == b'\x1f\x8b':
+        log.debug("gzip blendfile detected")
+        handle.close()
+        return decompress(filename, gzip.open)
     else:
-        raise BlendFileError("filetype not a blend or a gzip blend")
+        raise BlendFileError(f"filetype not an uncompressed, zstd or gzip blend (starts with '{magic}')")

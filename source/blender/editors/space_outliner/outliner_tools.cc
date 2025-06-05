@@ -29,21 +29,20 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_anim_data.h"
+#include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
-#include "BKE_fcurve.h"
+#include "BKE_fcurve.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
@@ -52,7 +51,9 @@
 #include "BKE_lib_override.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -83,6 +84,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "ANIM_action_legacy.hh"
+
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 
@@ -95,12 +98,6 @@
 namespace blender::ed::outliner {
 
 static CLG_LogRef LOG = {"ed.outliner.tools"};
-
-using namespace blender::ed::outliner;
-
-using blender::Map;
-using blender::Set;
-using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name ID/Library/Data Set/Un-link Utilities
@@ -268,6 +265,14 @@ static void unlink_material_fn(bContext * /*C*/,
     return;
   }
 
+  if (!ID_IS_EDITABLE(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id)) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Cannot unlink the material '%s' from linked object data",
+                tselem->id->name + 2);
+    return;
+  }
+
   Material **matar = nullptr;
   int a, totcol = 0;
 
@@ -340,8 +345,8 @@ static void unlink_texture_fn(bContext * /*C*/,
      * for example) so there's no data to unlink from. */
     BKE_reportf(reports,
                 RPT_WARNING,
-                "Cannot unlink texture '%s'. It's not clear which freestyle line style it should "
-                "be unlinked from, there's no freestyle line style as parent in the Outliner tree",
+                "Cannot unlink texture '%s'. It's not clear which Freestyle line style it should "
+                "be unlinked from, there's no Freestyle line style as parent in the Outliner tree",
                 tselem->id->name + 2);
     return;
   }
@@ -389,7 +394,7 @@ static void unlink_collection_fn(bContext *C,
     return;
   }
 
-  if (tsep && (ID_IS_LINKED(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id))) {
+  if (tsep && (!ID_IS_EDITABLE(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id))) {
     BKE_reportf(reports,
                 RPT_WARNING,
                 "Cannot unlink collection '%s' parented to another linked collection '%s'",
@@ -433,12 +438,14 @@ static void unlink_object_fn(bContext *C,
   if (tsep && tsep->id) {
     Main *bmain = CTX_data_main(C);
     Object *ob = (Object *)tselem->id;
+    const eSpaceOutliner_Mode outliner_mode = eSpaceOutliner_Mode(
+        CTX_wm_space_outliner(C)->outlinevis);
 
     if (GS(tsep->id->name) == ID_OB) {
       /* Parented objects need to find which collection to unlink from. */
       TreeElement *te_parent = te->parent;
       while (tsep && GS(tsep->id->name) == ID_OB) {
-        if (ID_IS_LINKED(tsep->id)) {
+        if (!ID_IS_EDITABLE(tsep->id)) {
           BKE_reportf(reports,
                       RPT_WARNING,
                       "Cannot unlink object '%s' parented to another linked object '%s'",
@@ -452,7 +459,7 @@ static void unlink_object_fn(bContext *C,
     }
 
     if (tsep && tsep->id) {
-      if (ID_IS_LINKED(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id)) {
+      if (!ID_IS_EDITABLE(tsep->id) || ID_IS_OVERRIDE_LIBRARY(tsep->id)) {
         BKE_reportf(reports,
                     RPT_WARNING,
                     "Cannot unlink object '%s' from linked collection or scene '%s'",
@@ -460,29 +467,44 @@ static void unlink_object_fn(bContext *C,
                     tsep->id->name + 2);
         return;
       }
-      if (GS(tsep->id->name) == ID_GR) {
-        Collection *parent = (Collection *)tsep->id;
-        BKE_collection_object_remove(bmain, parent, ob, true);
-        DEG_id_tag_update(&parent->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
-        DEG_id_tag_update(&ob->id, ID_RECALC_HIERARCHY);
-        DEG_relations_tag_update(bmain);
-      }
-      else if (GS(tsep->id->name) == ID_SCE) {
-        /* Following execution is expected to happen exclusively in the Outliner scene view. */
-#ifdef NDEBUG
-        BLI_assert(CTX_wm_space_outliner(C)->outlinevis == SO_SCENES);
-#endif
-
-        Scene *scene = (Scene *)tsep->id;
-        FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
-          if (BKE_collection_has_object(collection, ob)) {
-            BKE_collection_object_remove(bmain, collection, ob, true);
-          }
+      switch (GS(tsep->id->name)) {
+        case ID_GR: {
+          Collection *parent = (Collection *)tsep->id;
+          BKE_collection_object_remove(bmain, parent, ob, true);
+          DEG_id_tag_update(&parent->id, ID_RECALC_SYNC_TO_EVAL);
+          break;
         }
-        FOREACH_SCENE_COLLECTION_END;
-        DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_HIERARCHY);
-        DEG_relations_tag_update(bmain);
+        case ID_SCE: {
+          Scene *scene = reinterpret_cast<Scene *>(tsep->id);
+          /* In Scene view, remove the object from all collections in the scene. */
+          if (outliner_mode == SO_SCENES) {
+            FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
+              if (BKE_collection_has_object(collection, ob)) {
+                BKE_collection_object_remove(bmain, collection, ob, true);
+                DEG_id_tag_update(&collection->id, ID_RECALC_HIERARCHY);
+                DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
+              }
+            }
+            FOREACH_SCENE_COLLECTION_END;
+          }
+          /* Otherwise, remove the object from the scene's main collection. */
+          else {
+            Collection *parent = scene->master_collection;
+            BKE_collection_object_remove(bmain, parent, ob, true);
+            DEG_id_tag_update(&parent->id, ID_RECALC_SYNC_TO_EVAL);
+          }
+          break;
+        }
+        default: {
+          /* Un-handled case, should never be reached. */
+          BLI_assert_unreachable();
+          return;
+        }
       }
+      /* NOTE: Cannot risk tagging the object here, as it may have been deleted if its last usage
+       * was removed by above code. */
+      DEG_id_tag_update(tsep->id, ID_RECALC_HIERARCHY);
+      DEG_relations_tag_update(bmain);
     }
   }
 }
@@ -705,7 +727,7 @@ static bool scene_fn(bContext *C,
   return true;
 }
 
-static int outliner_scene_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_scene_operation_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   const eOutliner_PropSceneOps event = (eOutliner_PropSceneOps)RNA_enum_get(op->ptr, "type");
@@ -827,13 +849,13 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
   /* Clear search on each menu creation */
   *search = '\0';
 
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
   short menu_width = 10 * UI_UNIT_X;
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 10, menu_width, UI_UNIT_Y, 0, 0, "");
+      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, menu_width, UI_UNIT_Y, "");
   UI_but_func_search_set(but,
                          nullptr,
                          merged_element_search_update_fn,
@@ -845,24 +867,13 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for search items */
-  uiDefBut(block,
-           UI_BTYPE_LABEL,
-           0,
-           "",
-           10,
-           10 - UI_searchbox_size_y(),
-           menu_width,
-           UI_searchbox_size_y(),
-           nullptr,
-           0,
-           0,
-           0,
-           0,
-           nullptr);
+  const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
+  uiDefBut(
+      block, UI_BTYPE_LABEL, 0, "", 0, -height, menu_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Center the menu on the cursor */
   const int offset[2] = {-(menu_width / 2), 0};
-  UI_block_bounds_set_popup(block, 6, offset);
+  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, offset);
 
   return block;
 }
@@ -871,7 +882,7 @@ void merged_element_search_menu_invoke(bContext *C,
                                        TreeElement *parent_te,
                                        TreeElement *activate_te)
 {
-  MergedSearchData *select_data = MEM_cnew<MergedSearchData>("merge_search_data");
+  MergedSearchData *select_data = MEM_callocN<MergedSearchData>("merge_search_data");
   select_data->parent_element = parent_te;
   select_data->select_element = activate_te;
 
@@ -892,7 +903,7 @@ static void object_select_fn(bContext *C,
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
   if (base) {
-    ED_object_base_select(base, BA_SELECT);
+    object::base_select(base, object::BA_SELECT);
   }
 }
 
@@ -938,7 +949,7 @@ static void outliner_object_delete_fn(bContext *C, ReportList *reports, Scene *s
 {
   if (ob) {
     Main *bmain = CTX_data_main(C);
-    if (ob->id.tag & LIB_TAG_INDIRECT) {
+    if (ob->id.tag & ID_TAG_INDIRECT) {
       BKE_reportf(
           reports, RPT_WARNING, "Cannot delete indirectly linked object '%s'", ob->id.name + 2);
       return;
@@ -957,7 +968,7 @@ static void outliner_object_delete_fn(bContext *C, ReportList *reports, Scene *s
 
     /* Check also library later. */
     if ((ob->mode & OB_MODE_EDIT) && BKE_object_is_in_editmode(ob)) {
-      ED_object_editmode_exit_ex(bmain, scene, ob, EM_FREEDATA);
+      object::editmode_exit_ex(bmain, scene, ob, object::EM_FREEDATA);
     }
     BKE_id_delete(bmain, ob);
   }
@@ -970,9 +981,9 @@ static void id_local_fn(bContext *C,
                         TreeStoreElem * /*tsep*/,
                         TreeStoreElem *tselem)
 {
-  if (ID_IS_LINKED(tselem->id) && (tselem->id->tag & LIB_TAG_EXTERN)) {
+  if (ID_IS_LINKED(tselem->id) && (tselem->id->tag & ID_TAG_EXTERN)) {
     Main *bmain = CTX_data_main(C);
-    if (BKE_lib_id_make_local(bmain, tselem->id, 0)) {
+    if (BKE_lib_id_make_local(bmain, tselem->id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR)) {
       BKE_id_newptr_and_tag_clear(tselem->id);
     }
   }
@@ -1072,7 +1083,8 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
   ID *id_root_reference = tselem->id;
 
   if (!BKE_idtype_idcode_is_linkable(GS(id_root_reference->name)) ||
-      (id_root_reference->flag & (LIB_EMBEDDED_DATA | LIB_EMBEDDED_DATA_LIB_OVERRIDE)) != 0)
+      (id_root_reference->flag & (ID_FLAG_EMBEDDED_DATA | ID_FLAG_EMBEDDED_DATA_LIB_OVERRIDE)) !=
+          0)
   {
     return;
   }
@@ -1175,7 +1187,7 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
         if (ID_IS_LINKED(id_current_hierarchy_root)) {
           /* No local 'anchor' was found for the hierarchy to override, do not proceed, as this
            * would most likely generate invisible/confusing/hard to use and manage overrides. */
-          BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+          BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
           BKE_reportf(reports,
                       RPT_WARNING,
                       "Invalid anchor ('%s') found, needed to create library override from "
@@ -1194,7 +1206,7 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
       /* If some element in the tree needs to be overridden, but its ID is not overridable,
        * abort. */
       if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id_current_hierarchy_root)) {
-        BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+        BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
         BKE_reportf(reports,
                     RPT_WARNING,
                     "Could not create library override from data-block '%s', one of its parents "
@@ -1203,7 +1215,7 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
                     id_current_hierarchy_root->name);
         return;
       }
-      id_current_hierarchy_root->tag |= LIB_TAG_DOIT;
+      id_current_hierarchy_root->tag |= ID_TAG_DOIT;
       id_hierarchy_root_reference = id_current_hierarchy_root;
     }
 
@@ -1216,7 +1228,7 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
            id_hierarchy_root_reference->override_library->reference->lib ==
                id_root_reference->lib)))
     {
-      BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+      BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
       BKE_reportf(reports,
                   RPT_WARNING,
                   "Invalid hierarchy root ('%s') found, needed to create library override from "
@@ -1271,10 +1283,10 @@ static void id_override_library_create_hierarchy(
     ID *id_iter;
     FOREACH_MAIN_ID_BEGIN (&bmain, id_iter) {
       if (ID_IS_LINKED(id_iter) || ID_IS_OVERRIDE_LIBRARY(id_iter)) {
-        id_iter->tag &= ~LIB_TAG_DOIT;
+        id_iter->tag &= ~ID_TAG_DOIT;
       }
       else {
-        id_iter->tag |= LIB_TAG_DOIT;
+        id_iter->tag |= ID_TAG_DOIT;
       }
     }
     FOREACH_MAIN_ID_END;
@@ -1325,7 +1337,7 @@ static void id_override_library_create_hierarchy(
       }
       /* Cleanup. */
       BKE_main_id_newptr_and_tag_clear(&bmain);
-      BKE_main_id_tag_all(&bmain, LIB_TAG_DOIT, false);
+      BKE_main_id_tag_all(&bmain, ID_TAG_DOIT, false);
     }
     else {
       BLI_assert_unreachable();
@@ -1335,7 +1347,7 @@ static void id_override_library_create_hierarchy(
      * instead. */
     if (success && data_idroot.is_override_instancing_object) {
       BLI_assert(GS(data_idroot.id_instance_hint->name) == ID_OB);
-      ED_object_base_free_and_unlink(
+      object::base_free_and_unlink(
           &bmain, scene, reinterpret_cast<Object *>(data_idroot.id_instance_hint));
     }
 
@@ -1606,7 +1618,7 @@ static void id_select_linked_fn(bContext *C,
 {
   ID *id = tselem->id;
 
-  ED_object_select_linked_by_id(C, id);
+  object::select_linked_by_id(C, id);
 }
 
 static void singleuser_action_fn(bContext *C,
@@ -1628,7 +1640,7 @@ static void singleuser_action_fn(bContext *C,
     IdAdtTemplate *iat = (IdAdtTemplate *)tsep->id;
     PropertyRNA *prop;
 
-    PointerRNA ptr = RNA_pointer_create(&iat->id, &RNA_AnimData, iat->adt);
+    PointerRNA ptr = RNA_pointer_create_discrete(&iat->id, &RNA_AnimData, iat->adt);
     prop = RNA_struct_find_property(&ptr, "action");
 
     id_single_user(C, id, &ptr, prop);
@@ -1826,7 +1838,7 @@ static bool outliner_liboverride_operation_poll(bContext *C)
   return true;
 }
 
-static int outliner_liboverride_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_liboverride_operation_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -2131,27 +2143,27 @@ static void ebone_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
 
 static void sequence_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, void *scene_ptr)
 {
-  TreeElementSequence *te_seq = tree_element_cast<TreeElementSequence>(te);
-  Sequence *seq = &te_seq->get_sequence();
+  TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
+  Strip *strip = &te_strip->get_strip();
   Scene *scene = (Scene *)scene_ptr;
-  Editing *ed = SEQ_editing_get(scene);
-  if (BLI_findindex(ed->seqbasep, seq) != -1) {
+  Editing *ed = seq::editing_get(scene);
+  if (BLI_findindex(ed->seqbasep, strip) != -1) {
     if (event == OL_DOP_SELECT) {
-      ED_sequencer_select_sequence_single(scene, seq, true);
+      vse::select_strip_single(scene, strip, true);
     }
     else if (event == OL_DOP_DESELECT) {
-      seq->flag &= ~SELECT;
+      strip->flag &= ~SELECT;
     }
     else if (event == OL_DOP_HIDE) {
-      if (!(seq->flag & SEQ_MUTE)) {
-        seq->flag |= SEQ_MUTE;
-        SEQ_relations_invalidate_dependent(scene, seq);
+      if (!(strip->flag & SEQ_MUTE)) {
+        strip->flag |= SEQ_MUTE;
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
     else if (event == OL_DOP_UNHIDE) {
-      if (seq->flag & SEQ_MUTE) {
-        seq->flag &= ~SEQ_MUTE;
-        SEQ_relations_invalidate_dependent(scene, seq);
+      if (strip->flag & SEQ_MUTE) {
+        strip->flag &= ~SEQ_MUTE;
+        seq::relations_invalidate_cache(scene, strip);
       }
     }
   }
@@ -2215,7 +2227,7 @@ static void data_select_linked_fn(int event,
       bContext *C = (bContext *)C_v;
       ID *id = static_cast<ID *>(ptr.data);
 
-      ED_object_select_linked_by_id(C, id);
+      object::select_linked_by_id(C, id);
     }
   }
 }
@@ -2229,12 +2241,12 @@ static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/
 
   if (event == OL_CONSTRAINTOP_ENABLE) {
     constraint->flag &= ~CONSTRAINT_OFF;
-    ED_object_constraint_update(bmain, ob);
+    object::constraint_update(bmain, ob);
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
   }
   else if (event == OL_CONSTRAINTOP_DISABLE) {
     constraint->flag |= CONSTRAINT_OFF;
-    ED_object_constraint_update(bmain, ob);
+    object::constraint_update(bmain, ob);
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
   }
   else if (event == OL_CONSTRAINTOP_DELETE) {
@@ -2252,7 +2264,7 @@ static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/
       BKE_constraints_active_set(&ob->constraints, nullptr);
 
       /* Needed to set the flags on pose-bones correctly. */
-      ED_object_constraint_update(bmain, ob);
+      object::constraint_update(bmain, ob);
 
       WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
       te->store_elem->flag &= ~TSE_SELECTED;
@@ -2286,13 +2298,13 @@ static void modifier_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, 
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   }
   else if (event == OL_MODIFIER_OP_DELETE) {
-    ED_object_modifier_remove(data->reports, bmain, scene, ob, md);
+    object::modifier_remove(data->reports, bmain, scene, ob, md);
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
     te->store_elem->flag &= ~TSE_SELECTED;
   }
   else if (event == OL_MODIFIER_OP_APPLY) {
-    ED_object_modifier_apply(
-        bmain, data->reports, depsgraph, scene, ob, md, MODIFIER_APPLY_DATA, false);
+    object::modifier_apply(
+        bmain, data->reports, depsgraph, scene, ob, md, object::MODIFIER_APPLY_DATA, false, false);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);
     WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -2322,10 +2334,10 @@ static void outliner_batch_delete_object_tag(ReportList *reports,
                                              Scene *scene,
                                              Object *object)
 {
-  if (object->id.tag & LIB_TAG_INDIRECT) {
+  if (object->id.tag & ID_TAG_INDIRECT) {
     BKE_reportf(
         reports, RPT_WARNING, "Cannot delete indirectly linked object '%s'", object->id.name + 2);
-    BLI_assert((object->id.tag & LIB_TAG_DOIT) == 0);
+    BLI_assert((object->id.tag & ID_TAG_DOIT) == 0);
   }
   /* FIXME: This code checking object user-count won't work as expected if a same object belongs to
    * more than one collection in the scene. */
@@ -2338,10 +2350,10 @@ static void outliner_batch_delete_object_tag(ReportList *reports,
                 "one user",
                 object->id.name + 2,
                 scene->id.name + 2);
-    BLI_assert((object->id.tag & LIB_TAG_DOIT) == 0);
+    BLI_assert((object->id.tag & ID_TAG_DOIT) == 0);
   }
 
-  object->id.tag |= LIB_TAG_DOIT;
+  object->id.tag |= ID_TAG_DOIT;
 }
 
 static void outliner_batch_delete_object_hierarchy_tag(
@@ -2361,7 +2373,7 @@ static void outliner_batch_delete_object_hierarchy_tag(
     Object *parent_ob_iter;
     for (parent_ob_iter = base_iter->object->parent;
          (parent_ob_iter != nullptr && parent_ob_iter != object &&
-          (parent_ob_iter->id.tag & LIB_TAG_DOIT) == 0);
+          (parent_ob_iter->id.tag & ID_TAG_DOIT) == 0);
          parent_ob_iter = parent_ob_iter->parent)
     {
       /* pass */
@@ -2375,7 +2387,7 @@ static void outliner_batch_delete_object_hierarchy_tag(
        * practice though. */
       for (parent_ob_iter = base_iter->object;
            (parent_ob_iter != nullptr && parent_ob_iter != object &&
-            (parent_ob_iter->id.tag & LIB_TAG_DOIT) == 0);
+            (parent_ob_iter->id.tag & ID_TAG_DOIT) == 0);
            parent_ob_iter = parent_ob_iter->parent)
       {
         outliner_batch_delete_object_tag(reports, bmain, scene, parent_ob_iter);
@@ -2389,7 +2401,7 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
                                                  Scene *scene,
                                                  Object *ob)
 {
-  if (ob->id.tag & LIB_TAG_DOIT) {
+  if (ob->id.tag & ID_TAG_DOIT) {
     /* Object has already been processed and tagged for removal as part of another parenting
      * hierarchy. */
 #ifndef NDEBUG
@@ -2414,7 +2426,7 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
     /* pass */
   }
   if (obedit == base->object) {
-    ED_object_editmode_exit(C, EM_FREEDATA);
+    object::editmode_exit(C, object::EM_FREEDATA);
   }
 
   Main *bmain = CTX_data_main(C);
@@ -2424,7 +2436,7 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
 static void outliner_batch_delete_object_hierarchy(Main *bmain, Scene *scene)
 {
   LISTBASE_FOREACH (Object *, ob_iter, &bmain->objects) {
-    if ((ob_iter->id.tag & LIB_TAG_DOIT) == 0) {
+    if ((ob_iter->id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
 
@@ -2434,7 +2446,7 @@ static void outliner_batch_delete_object_hierarchy(Main *bmain, Scene *scene)
      * from another scene) should not be deleted. They also need to be tagged for depsgraph update.
      */
     if (ob_iter->id.us != 0) {
-      ob_iter->id.tag &= ~LIB_TAG_DOIT;
+      ob_iter->id.tag &= ~ID_TAG_DOIT;
       DEG_id_tag_update_ex(bmain, &ob_iter->id, ID_RECALC_BASE_FLAGS);
     }
   }
@@ -2469,7 +2481,7 @@ static const EnumPropertyItem prop_object_op_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int outliner_object_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2578,7 +2590,7 @@ void OUTLINER_OT_object_operation(wmOperatorType *ot)
 using OutlinerDeleteFn = void (*)(bContext *C, ReportList *reports, Scene *scene, Object *ob);
 
 struct ObjectEditData {
-  GSet *objects_set;
+  Set<Object *> objects_set;
   bool is_liboverride_allowed;
   bool is_liboverride_hierarchy_root_allowed;
 };
@@ -2586,13 +2598,10 @@ struct ObjectEditData {
 static void outliner_do_object_delete(bContext *C,
                                       ReportList *reports,
                                       Scene *scene,
-                                      GSet *objects_to_delete,
+                                      const Set<Object *> &objects_to_delete,
                                       OutlinerDeleteFn delete_fn)
 {
-  GSetIterator objects_to_delete_iter;
-  GSET_ITER (objects_to_delete_iter, objects_to_delete) {
-    Object *ob = (Object *)BLI_gsetIterator_getKey(&objects_to_delete_iter);
-
+  for (Object *ob : objects_to_delete) {
     delete_fn(C, reports, scene, ob);
   }
 }
@@ -2600,7 +2609,6 @@ static void outliner_do_object_delete(bContext *C,
 static TreeTraversalAction outliner_collect_objects_to_delete(TreeElement *te, void *customdata)
 {
   ObjectEditData *data = static_cast<ObjectEditData *>(customdata);
-  GSet *objects_to_delete = data->objects_set;
   TreeStoreElem *tselem = TREESTORE(te);
 
   if (outliner_is_collection_tree_element(te)) {
@@ -2641,12 +2649,12 @@ static TreeTraversalAction outliner_collect_objects_to_delete(TreeElement *te, v
     }
   }
 
-  BLI_gset_add(objects_to_delete, id);
+  data->objects_set.add(reinterpret_cast<Object *>(id));
 
   return TRAVERSE_CONTINUE;
 }
 
-static int outliner_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -2661,7 +2669,6 @@ static int outliner_delete_exec(bContext *C, wmOperator *op)
   /* Get selected objects skipping duplicates to prevent deleting objects linked to multiple
    * collections twice */
   ObjectEditData object_delete_data = {};
-  object_delete_data.objects_set = BLI_gset_ptr_new(__func__);
   object_delete_data.is_liboverride_allowed = false;
   object_delete_data.is_liboverride_hierarchy_root_allowed = delete_hierarchy;
   outliner_tree_traverse(space_outliner,
@@ -2672,7 +2679,7 @@ static int outliner_delete_exec(bContext *C, wmOperator *op)
                          &object_delete_data);
 
   if (delete_hierarchy) {
-    BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+    BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
     BKE_view_layer_synced_ensure(scene, view_layer);
 
@@ -2690,8 +2697,6 @@ static int outliner_delete_exec(bContext *C, wmOperator *op)
     outliner_do_object_delete(
         C, op->reports, scene, object_delete_data.objects_set, outliner_object_delete_fn);
   }
-
-  BLI_gset_free(object_delete_data.objects_set, nullptr);
 
   outliner_collection_delete(C, bmain, scene, op->reports, delete_hierarchy);
 
@@ -2711,7 +2716,7 @@ static int outliner_delete_exec(bContext *C, wmOperator *op)
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
 
-  ED_node_tree_propagate_change(C, bmain, nullptr);
+  BKE_main_ensure_invariants(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
@@ -2845,7 +2850,7 @@ static const EnumPropertyItem *outliner_id_operation_itemf(bContext *C,
   return items;
 }
 
-static int outliner_id_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -2944,9 +2949,10 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
     }
     case OUTLINER_IDOP_DELETE: {
       if (idlevel > 0) {
-        BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+        BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
         outliner_do_libdata_operation(C, op->reports, scene, space_outliner, id_delete_tag_fn);
         BKE_id_multi_tagged_delete(bmain);
+        WM_event_add_notifier(C, NC_OBJECT, nullptr);
         ED_undo_push(C, "Delete");
       }
       break;
@@ -3009,7 +3015,7 @@ static int outliner_id_operation_exec(bContext *C, wmOperator *op)
       break;
   }
 
-  ED_node_tree_propagate_change(C, bmain, nullptr);
+  BKE_main_ensure_invariants(*bmain);
 
   /* wrong notifier still... */
   WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);
@@ -3053,12 +3059,7 @@ enum eOutlinerLibOpTypes {
 };
 
 static const EnumPropertyItem outliner_lib_op_type_items[] = {
-    {OL_LIB_DELETE,
-     "DELETE",
-     ICON_X,
-     "Delete",
-     "Delete this library and all its items.\n"
-     "Warning: No undo"},
+    {OL_LIB_DELETE, "DELETE", ICON_X, "Delete", "Delete this library and all its items"},
     {OL_LIB_RELOCATE,
      "RELOCATE",
      0,
@@ -3068,7 +3069,7 @@ static const EnumPropertyItem outliner_lib_op_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_lib_operation_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -3082,7 +3083,7 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
   eOutlinerLibOpTypes event = (eOutlinerLibOpTypes)RNA_enum_get(op->ptr, "type");
   switch (event) {
     case OL_LIB_DELETE: {
-      BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
+      BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
       outliner_do_libdata_operation(C, op->reports, scene, space_outliner, id_delete_tag_fn);
       BKE_id_multi_tagged_delete(bmain);
       ED_undo_push(C, "Delete Library");
@@ -3104,6 +3105,8 @@ static int outliner_lib_operation_exec(bContext *C, wmOperator *op)
       /* invalid - unhandled */
       break;
   }
+
+  BKE_main_ensure_invariants(*bmain);
 
   /* wrong notifier still... */
   WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);
@@ -3173,7 +3176,7 @@ static void actionset_id_fn(TreeElement * /*te*/,
   /* TODO: other cases not supported yet. */
 }
 
-static int outliner_action_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -3190,7 +3193,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No valid action to add");
     return OPERATOR_CANCELLED;
   }
-  if (act->idroot == 0) {
+  if (act->idroot == 0 && blender::animrig::legacy::action_treat_as_legacy(*act)) {
     /* Hopefully in this case (i.e. library of userless actions),
      * the user knows what they're doing. */
     BKE_reportf(op->reports,
@@ -3213,6 +3216,7 @@ static int outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
+  DEG_id_tag_update(te->store_elem->id, ID_RECALC_ANIMATION);
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
 
@@ -3229,7 +3233,7 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_action_set";
   ot->description = "Change the active action used";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_enum_search_invoke;
   ot->exec = outliner_action_set_exec;
   ot->poll = outliner_operation_tree_element_poll;
@@ -3276,7 +3280,7 @@ static const EnumPropertyItem prop_animdata_op_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int outliner_animdata_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -3371,7 +3375,7 @@ static const EnumPropertyItem prop_constraint_op_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int outliner_constraint_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_constraint_operation_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   eOutliner_PropConstraintOps event = (eOutliner_PropConstraintOps)RNA_enum_get(op->ptr, "type");
@@ -3419,7 +3423,7 @@ static const EnumPropertyItem prop_modifier_op_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int outliner_modifier_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_modifier_operation_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   eOutliner_PropModifierOps event = (eOutliner_PropModifierOps)RNA_enum_get(op->ptr, "type");
@@ -3475,16 +3479,11 @@ static bool outliner_data_operation_poll(bContext *C)
 
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   get_element_operation_type(te, &scenelevel, &objectlevel, &idlevel, &datalevel);
-  return ELEM(datalevel,
-              TSE_POSE_CHANNEL,
-              TSE_BONE,
-              TSE_EBONE,
-              TSE_SEQUENCE,
-              TSE_GP_LAYER,
-              TSE_RNA_STRUCT);
+  return ELEM(
+      datalevel, TSE_POSE_CHANNEL, TSE_BONE, TSE_EBONE, TSE_STRIP, TSE_GP_LAYER, TSE_RNA_STRUCT);
 }
 
-static int outliner_data_operation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op)
 {
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
@@ -3514,7 +3513,7 @@ static int outliner_data_operation_exec(bContext *C, wmOperator *op)
 
       break;
     }
-    case TSE_SEQUENCE: {
+    case TSE_STRIP: {
       Scene *scene = CTX_data_scene(C);
       outliner_do_data_operation(space_outliner, datalevel, event, sequence_fn, scene);
       WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
@@ -3614,7 +3613,7 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 /** \name Context Menu Operator
  * \{ */
 
-static int outliner_operator_menu(bContext *C, const char *opname)
+static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 {
   wmOperatorType *ot = WM_operatortype_find(opname, false);
   uiPopupMenu *pup = UI_popup_menu_begin(C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
@@ -3626,7 +3625,7 @@ static int outliner_operator_menu(bContext *C, const char *opname)
   if (WM_operator_poll(C, ot)) {
     uiItemsEnumO(layout, ot->idname, RNA_property_identifier(ot->prop));
 
-    uiItemS(layout);
+    layout->separator();
   }
 
   uiItemMContents(layout, "OUTLINER_MT_context_menu");
@@ -3636,10 +3635,10 @@ static int outliner_operator_menu(bContext *C, const char *opname)
   return OPERATOR_INTERFACE;
 }
 
-static int do_outliner_operation_event(bContext *C,
-                                       ARegion *region,
-                                       SpaceOutliner *space_outliner,
-                                       TreeElement *te)
+static wmOperatorStatus do_outliner_operation_event(bContext *C,
+                                                    ARegion *region,
+                                                    SpaceOutliner *space_outliner,
+                                                    TreeElement *te)
 {
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   TreeStoreElem *tselem = TREESTORE(te);
@@ -3711,7 +3710,9 @@ static int do_outliner_operation_event(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
-static int outliner_operation_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus outliner_operation_invoke(bContext *C,
+                                                  wmOperator * /*op*/,
+                                                  const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
@@ -3743,7 +3744,7 @@ void OUTLINER_OT_operation(wmOperatorType *ot)
 
   ot->invoke = outliner_operation_invoke;
 
-  ot->poll = ED_operator_outliner_active;
+  ot->poll = ED_operator_region_outliner_active;
 }
 
 /** \} */

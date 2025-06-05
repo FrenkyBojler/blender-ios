@@ -4,8 +4,10 @@
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
+#include "asset_catalog_collection.hh"
+#include "asset_catalog_definition_file.hh"
 
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "testing/testing.h"
 

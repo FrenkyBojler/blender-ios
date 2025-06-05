@@ -6,18 +6,9 @@
  * \ingroup collada
  */
 
-#include "COLLADASWBaseInputElement.h"
 #include "COLLADASWInstanceController.h"
-#include "COLLADASWPrimitves.h"
-#include "COLLADASWSource.h"
 
-#include "DNA_action_types.h"
-#include "DNA_modifier_types.h"
-
-#include "BKE_action.h"
 #include "BKE_armature.hh"
-#include "BKE_global.hh"
-#include "BKE_mesh.hh"
 
 #include "ED_armature.hh"
 
@@ -25,8 +16,9 @@
 #include "BLI_math_matrix.h"
 
 #include "ArmatureExporter.h"
-#include "GeometryExporter.h"
 #include "SceneExporter.h"
+
+#include "collada_utils.h"
 
 void ArmatureExporter::add_bone_collections(Object *ob_arm, COLLADASW::Node &node)
 {
@@ -48,13 +40,13 @@ void ArmatureExporter::add_bone_collections(Object *ob_arm, COLLADASW::Node &nod
 
   std::string collection_names = collection_stream.str();
   if (collection_names.length() > 1) {
-    collection_names.pop_back();  // Pop off the last \n.
+    collection_names.pop_back(); /* Pop off the last `\n`. */
     node.addExtraTechniqueParameter("blender", "collections", collection_names);
   }
 
   std::string visible_names = visible_stream.str();
   if (visible_names.length() > 1) {
-    visible_names.pop_back();  // Pop off the last \n.
+    visible_names.pop_back(); /* Pop off the last `\n`. */
     node.addExtraTechniqueParameter("blender", "visible_collections", visible_names);
   }
 
@@ -190,12 +182,12 @@ void ArmatureExporter::add_bone_node(Bone *bone,
         }
       }
 
-      std::string collection_names = "";
+      std::string collection_names;
       LISTBASE_FOREACH (const BoneCollectionReference *, bcoll_ref, &bone->runtime.collections) {
         collection_names += std::string(bcoll_ref->bcoll->name) + "\n";
       }
       if (collection_names.length() > 1) {
-        collection_names.pop_back();  // Pop off the last \n.
+        collection_names.pop_back(); /* Pop off the last `\n`. */
         node.addExtraTechniqueParameter("blender", "", collection_names, "", "collections");
       }
 

@@ -16,7 +16,7 @@
 #include "BKE_callbacks.hh"
 
 #include "BLI_fileops.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "CLG_log.h"
 
@@ -79,7 +79,7 @@ class AssetLibraryTestBase : public testing::Test {
    * The returned path ends in a slash. */
   std::string use_temp_path()
   {
-    BKE_tempdir_init("");
+    BKE_tempdir_init(nullptr);
     const std::string tempdir = BKE_tempdir_session();
     temp_library_path_ = tempdir + "test-temporary-path" + SEP_STR;
     return temp_library_path_;

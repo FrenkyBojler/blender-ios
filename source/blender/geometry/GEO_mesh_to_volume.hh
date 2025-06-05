@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_bounds.hh"
+#pragma once
+
+#include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -13,10 +15,7 @@
 
 #include "BKE_volume_grid_fwd.hh"
 
-#pragma once
-
 struct Depsgraph;
-struct Mesh;
 struct Volume;
 
 /** \file
@@ -56,15 +55,19 @@ bke::VolumeGridData *fog_volume_grid_add_from_mesh(Volume *volume,
                                                    float voxel_size,
                                                    float interior_band_width,
                                                    float density);
-/**
- * Add a new SDF VolumeGrid to the Volume by converting the supplied mesh.
- */
-bke::VolumeGridData *sdf_volume_grid_add_from_mesh(Volume *volume,
-                                                   StringRefNull name,
-                                                   Span<float3> positions,
-                                                   Span<int> corner_verts,
-                                                   Span<int3> corner_tris,
-                                                   float voxel_size,
-                                                   float half_band_width);
+
+bke::VolumeGrid<float> mesh_to_density_grid(const Span<float3> positions,
+                                            const Span<int> corner_verts,
+                                            const Span<int3> corner_tris,
+                                            const float voxel_size,
+                                            const float interior_band_width,
+                                            const float density);
+
+bke::VolumeGrid<float> mesh_to_sdf_grid(Span<float3> positions,
+                                        Span<int> corner_verts,
+                                        Span<int3> corner_tris,
+                                        float voxel_size,
+                                        float half_band_width);
+
 #endif
 }  // namespace blender::geometry

@@ -24,7 +24,8 @@
  * To create these defaults there is a GDB script which can be handy to get started:
  * `./tools/utils/gdb_struct_repr_c99.py`
  *
- * Magic numbers should be replaced with flags before committing.
+ * Magic numbers should be replaced with human readable values before committing,
+ * typically enums or preprocessor defined values.
  *
  * \note Defaults must be registered by adding the #SDNA_DEFAULT_DECL_STRUCT and
  * #SDNA_DEFAULT_DECL macro calls to the lists below.
@@ -38,7 +39,8 @@
  *
  * These access the struct table #DNA_default_table using the struct number.
  *
- * \note Struct members only define their members (pointers are left as NULL set).
+ * \note Struct defaults only define members stored directly in the struct,
+ * pointers are set to null.
  *
  * Typical Usage
  * -------------
@@ -59,6 +61,7 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+#include <float.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,14 +70,16 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_endian_switch.h"
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
-#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf_enums.h"
+#include "movie/MOV_enums.hh"
 
 #include "DNA_defaults.h"
 
+#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_asset_types.h"
 #include "DNA_brush_types.h"
@@ -86,6 +91,7 @@
 #include "DNA_curves_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_image_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
@@ -108,6 +114,7 @@
 #include "DNA_volume_types.h"
 #include "DNA_world_types.h"
 
+#include "DNA_action_defaults.h"
 #include "DNA_armature_defaults.h"
 #include "DNA_asset_defaults.h"
 #include "DNA_brush_defaults.h"
@@ -118,6 +125,7 @@
 #include "DNA_curves_defaults.h"
 #include "DNA_fluid_defaults.h"
 #include "DNA_gpencil_modifier_defaults.h"
+#include "DNA_grease_pencil_defaults.h"
 #include "DNA_image_defaults.h"
 #include "DNA_lattice_defaults.h"
 #include "DNA_light_defaults.h"
@@ -141,6 +149,11 @@
 
 #define SDNA_DEFAULT_DECL_STRUCT(struct_name) \
   static const struct_name DNA_DEFAULT_##struct_name = _DNA_DEFAULT_##struct_name
+
+/* DNA_action_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(bAction);
+SDNA_DEFAULT_DECL_STRUCT(ActionLayer);
+SDNA_DEFAULT_DECL_STRUCT(ActionStrip);
 
 /* DNA_asset_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(AssetMetaData);
@@ -174,6 +187,9 @@ SDNA_DEFAULT_DECL_STRUCT(Image);
 
 /* DNA_curves_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(Curves);
+
+/* DNA_grease_pencil_defaults.h */
+SDNA_DEFAULT_DECL_STRUCT(GreasePencil);
 
 /* DNA_lattice_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(Lattice);
@@ -227,6 +243,7 @@ SDNA_DEFAULT_DECL_STRUCT(Tex);
 /* DNA_userdef_types.h */
 SDNA_DEFAULT_DECL_STRUCT(bUserAssetLibrary);
 SDNA_DEFAULT_DECL_STRUCT(bUserExtensionRepo);
+SDNA_DEFAULT_DECL_STRUCT(bUserAssetShelfSettings);
 
 /* DNA_view3d_defaults.h */
 SDNA_DEFAULT_DECL_STRUCT(View3D);
@@ -299,6 +316,7 @@ SDNA_DEFAULT_DECL_STRUCT(GreasePencilSubdivModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilNoiseModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilLengthModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilLineartModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilBuildModifierData);
 
 /* Grease Pencil 3.0 modifiers. */
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilSmoothModifierData);
@@ -347,6 +365,13 @@ SDNA_DEFAULT_DECL_STRUCT(GreasePencilArrayModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilWeightProximityModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilHookModifierData);
 SDNA_DEFAULT_DECL_STRUCT(GreasePencilArmatureModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilTimeModifierSegment);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilTimeModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilSimplifyModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilEnvelopeModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilOutlineModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilShrinkwrapModifierData);
+SDNA_DEFAULT_DECL_STRUCT(GreasePencilTextureModifierData);
 
 #undef SDNA_DEFAULT_DECL_STRUCT
 
@@ -375,6 +400,11 @@ extern const bTheme U_theme_default;
 /* NOTE: Keep headers sorted. */
 
 const void *DNA_default_table[SDNA_TYPE_MAX] = {
+
+    /* DNA_anim_defaults.h */
+    SDNA_DEFAULT_DECL(bAction),
+    SDNA_DEFAULT_DECL(ActionLayer),
+    SDNA_DEFAULT_DECL(ActionStrip),
 
     /* DNA_asset_defaults.h */
     SDNA_DEFAULT_DECL(AssetMetaData),
@@ -410,6 +440,9 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
 
     /* DNA_curves_defaults.h */
     SDNA_DEFAULT_DECL(Curves),
+
+    /* DNA_grease_pencil_defaults.h */
+    SDNA_DEFAULT_DECL(GreasePencil),
 
     /* DNA_lattice_defaults.h */
     SDNA_DEFAULT_DECL(Lattice),
@@ -462,6 +495,8 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(PhysicsSettings, Scene.physics_settings),
     SDNA_DEFAULT_DECL_EX(SceneDisplay, Scene.display),
     SDNA_DEFAULT_DECL_EX(SceneEEVEE, Scene.eevee),
+    SDNA_DEFAULT_DECL_EX(RaytraceEEVEE, Scene.eevee.ray_tracing_options),
+    SDNA_DEFAULT_DECL_EX(SceneGpencil, Scene.grease_pencil_settings),
 
     SDNA_DEFAULT_DECL(ToolSettings),
     SDNA_DEFAULT_DECL_EX(CurvePaintSettings, ToolSettings.curve_paint_settings),
@@ -490,6 +525,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(WalkNavigation, UserDef.walk_navigation),
     SDNA_DEFAULT_DECL(bUserAssetLibrary),
     SDNA_DEFAULT_DECL(bUserExtensionRepo),
+    SDNA_DEFAULT_DECL(bUserAssetShelfSettings),
 
     /* DNA_view3d_defaults.h */
     SDNA_DEFAULT_DECL(View3D),
@@ -564,9 +600,9 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL(GreasePencilSubdivModifierData),
     SDNA_DEFAULT_DECL(GreasePencilNoiseModifierData),
     SDNA_DEFAULT_DECL(GreasePencilLengthModifierData),
-    SDNA_DEFAULT_DECL(GreasePencilWeightAngleModifierData),
     SDNA_DEFAULT_DECL(GreasePencilHookModifierData),
     SDNA_DEFAULT_DECL(GreasePencilLineartModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilBuildModifierData),
 
     /* Grease Pencil 3.0 defaults. */
     SDNA_DEFAULT_DECL(GreasePencilSmoothModifierData),
@@ -610,9 +646,17 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL(GreasePencilDashModifierSegment),
     SDNA_DEFAULT_DECL(GreasePencilDashModifierData),
     SDNA_DEFAULT_DECL(GreasePencilMultiModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilWeightAngleModifierData),
     SDNA_DEFAULT_DECL(GreasePencilArrayModifierData),
     SDNA_DEFAULT_DECL(GreasePencilWeightProximityModifierData),
     SDNA_DEFAULT_DECL(GreasePencilArmatureModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilTimeModifierSegment),
+    SDNA_DEFAULT_DECL(GreasePencilTimeModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilSimplifyModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilEnvelopeModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilOutlineModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilShrinkwrapModifierData),
+    SDNA_DEFAULT_DECL(GreasePencilTextureModifierData),
 };
 #undef SDNA_DEFAULT_DECL
 #undef SDNA_DEFAULT_DECL_EX

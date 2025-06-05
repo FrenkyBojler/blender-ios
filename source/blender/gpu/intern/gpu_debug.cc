@@ -14,14 +14,14 @@
 
 #include "gpu_context_private.hh"
 
-#include "GPU_debug.h"
+#include "GPU_debug.hh"
 
 using namespace blender;
 using namespace blender::gpu;
 
 void GPU_debug_group_begin(const char *name)
 {
-  if (!(G.debug & G_DEBUG_GPU)) {
+  if (!(G.debug & G_DEBUG_GPU) && !G.profile_gpu) {
     return;
   }
   Context *ctx = Context::get();
@@ -32,7 +32,7 @@ void GPU_debug_group_begin(const char *name)
 
 void GPU_debug_group_end()
 {
-  if (!(G.debug & G_DEBUG_GPU)) {
+  if (!(G.debug & G_DEBUG_GPU) && !G.profile_gpu) {
     return;
   }
   Context *ctx = Context::get();
@@ -85,9 +85,6 @@ void GPU_debug_capture_begin(const char *title)
   Context *ctx = Context::get();
   if (ctx && !ctx->debug_is_capturing) {
     ctx->debug_is_capturing = ctx->debug_capture_begin(title);
-    if (!ctx->debug_is_capturing) {
-      printf("Failed to start GPU frame capture!\n");
-    }
     /* Call GPU_finish to ensure all desired GPU commands occur within the capture boundary. */
     GPU_finish();
   }

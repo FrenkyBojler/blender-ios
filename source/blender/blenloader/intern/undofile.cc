@@ -6,8 +6,6 @@
  * \ingroup blenloader
  */
 
-#include <cerrno>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -24,7 +22,7 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_implicit_sharing.hh"
 
 #include "BLO_readfile.hh"
 #include "BLO_undofile.hh"
@@ -33,7 +31,7 @@
 #include "BKE_main.hh"
 #include "BKE_undo_system.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* **************** support for memory-write, for undo buffers *************** */
 
@@ -41,11 +39,21 @@ void BLO_memfile_free(MemFile *memfile)
 {
   while (MemFileChunk *chunk = static_cast<MemFileChunk *>(BLI_pophead(&memfile->chunks))) {
     if (chunk->is_identical == false) {
-      MEM_freeN((void *)chunk->buf);
+      MEM_freeN(chunk->buf);
     }
     MEM_freeN(chunk);
   }
+  MEM_delete(memfile->shared_storage);
+  memfile->shared_storage = nullptr;
   memfile->size = 0;
+}
+
+MemFileSharedStorage::~MemFileSharedStorage()
+{
+  for (const blender::ImplicitSharingInfo *sharing_info : map.values()) {
+    /* Removing the user makes sure shared data is freed when the undo step was its last owner. */
+    sharing_info->remove_user_and_delete_if_last();
+  }
 }
 
 void BLO_memfile_merge(MemFile *first, MemFile *second)
@@ -114,7 +122,7 @@ void BLO_memfile_write_init(MemFileWriteData *mem_data,
 
 void BLO_memfile_write_finalize(MemFileWriteData *mem_data)
 {
-  mem_data->id_session_uid_mapping.clear_and_shrink();
+  mem_data->id_session_uid_mapping.clear();
 }
 
 void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t size)
@@ -122,8 +130,7 @@ void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t s
   MemFile *memfile = mem_data->written_memfile;
   MemFileChunk **compchunk_step = &mem_data->reference_current_chunk;
 
-  MemFileChunk *curchunk = static_cast<MemFileChunk *>(
-      MEM_mallocN(sizeof(MemFileChunk), "MemFileChunk"));
+  MemFileChunk *curchunk = MEM_mallocN<MemFileChunk>("MemFileChunk");
   curchunk->size = size;
   curchunk->buf = nullptr;
   curchunk->is_identical = false;
@@ -149,7 +156,7 @@ void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t s
 
   /* not equal... */
   if (curchunk->buf == nullptr) {
-    char *buf_new = static_cast<char *>(MEM_mallocN(size, "Chunk buffer"));
+    char *buf_new = MEM_malloc_arrayN<char>(size, "Chunk buffer");
     memcpy(buf_new, buf, size);
     curchunk->buf = buf_new;
     memfile->size += size;
@@ -169,65 +176,10 @@ Main *BLO_memfile_main_get(MemFile *memfile, Main *bmain, Scene **r_scene)
       *r_scene = bfd->curscene;
     }
 
-    MEM_freeN(bfd);
+    MEM_delete(bfd);
   }
 
   return bmain_undo;
-}
-
-bool BLO_memfile_write_file(MemFile *memfile, const char *filepath)
-{
-  MemFileChunk *chunk;
-  int file, oflags;
-
-  /* NOTE: This is currently used for auto-save and `quit.blend`,
-   * where _not_ following symbolic-links is OK,
-   * however if this is ever executed explicitly by the user,
-   * we may want to allow writing to symbolic-links. */
-
-  oflags = O_BINARY | O_WRONLY | O_CREAT | O_TRUNC;
-#ifdef O_NOFOLLOW
-  /* use O_NOFOLLOW to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
-  oflags |= O_NOFOLLOW;
-#else
-  /* TODO(sergey): How to deal with symlinks on windows? */
-#  ifndef _MSC_VER
-#    warning "Symbolic links will be followed on undo save, possibly causing CVE-2008-1103"
-#  endif
-#endif
-  file = BLI_open(filepath, oflags, 0666);
-
-  if (file == -1) {
-    fprintf(stderr,
-            "Unable to save '%s': %s\n",
-            filepath,
-            errno ? strerror(errno) : "Unknown error opening file");
-    return false;
-  }
-
-  for (chunk = static_cast<MemFileChunk *>(memfile->chunks.first); chunk;
-       chunk = static_cast<MemFileChunk *>(chunk->next))
-  {
-#ifdef _WIN32
-    if (size_t(write(file, chunk->buf, uint(chunk->size))) != chunk->size)
-#else
-    if (size_t(write(file, chunk->buf, chunk->size)) != chunk->size)
-#endif
-    {
-      break;
-    }
-  }
-
-  close(file);
-
-  if (chunk) {
-    fprintf(stderr,
-            "Unable to save '%s': %s\n",
-            filepath,
-            errno ? strerror(errno) : "Unknown error writing file");
-    return false;
-  }
-  return true;
 }
 
 static int64_t undo_read(FileReader *reader, void *buffer, size_t size)
@@ -312,7 +264,7 @@ static void undo_close(FileReader *reader)
 
 FileReader *BLO_memfile_new_filereader(MemFile *memfile, int undo_direction)
 {
-  UndoReader *undo = static_cast<UndoReader *>(MEM_callocN(sizeof(UndoReader), __func__));
+  UndoReader *undo = MEM_callocN<UndoReader>(__func__);
 
   undo->memfile = memfile;
   undo->undo_direction = undo_direction;

@@ -3,11 +3,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#ifndef __UTIL_SIMD_TYPES_H__
-#define __UTIL_SIMD_TYPES_H__
+#pragma once
 
+#include <cstdint>
 #include <limits>
-#include <stdint.h>
 
 #include "util/defines.h"
 
@@ -19,7 +18,7 @@
  * Since we can't avoid including <windows.h>, better only include that */
 #if defined(FREE_WINDOWS64)
 #  include "util/windows.h"
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__KERNEL_NEON__)
 #  include <intrin.h>
 #elif (defined(__x86_64__) || defined(__i386__))
 #  include <x86intrin.h>
@@ -40,10 +39,16 @@
 #    define SIMD_SET_FLUSH_TO_ZERO \
       _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON); \
       _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-#  else
+#  elif !defined(_M_ARM64)
 #    define _MM_FLUSH_ZERO_ON 24
 #    define __get_fpcr(__fpcr) __asm__ __volatile__("mrs %0,fpcr" : "=r"(__fpcr))
 #    define __set_fpcr(__fpcr) __asm__ __volatile__("msr fpcr,%0" : : "ri"(__fpcr))
+#    define SIMD_SET_FLUSH_TO_ZERO set_fz(_MM_FLUSH_ZERO_ON);
+#    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
+#  else
+#    define _MM_FLUSH_ZERO_ON 24
+#    define __get_fpcr(__fpcr) _ReadStatusReg(__fpcr)
+#    define __set_fpcr(__fpcr) _WriteStatusReg(0x5A20, __fpcr)
 #    define SIMD_SET_FLUSH_TO_ZERO set_fz(_MM_FLUSH_ZERO_ON);
 #    define SIMD_GET_FLUSH_TO_ZERO get_fz(_MM_FLUSH_ZERO_ON)
 #  endif
@@ -121,16 +126,17 @@ static struct StepTy {
 
 #endif
 #if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_MM_SET_FLUSH_ZERO_MODE)
-__forceinline int set_fz(uint32_t flag)
+__forceinline int set_fz(const uint32_t flag)
 {
-  uint64_t old_fpcr, new_fpcr;
+  uint64_t old_fpcr;
+  uint64_t new_fpcr;
   __get_fpcr(old_fpcr);
   new_fpcr = old_fpcr | (1ULL << flag);
   __set_fpcr(new_fpcr);
   __get_fpcr(old_fpcr);
   return old_fpcr == new_fpcr;
 }
-__forceinline int get_fz(uint32_t flag)
+__forceinline int get_fz(const uint32_t flag)
 {
   uint64_t cur_fpcr;
   __get_fpcr(cur_fpcr);
@@ -140,7 +146,8 @@ __forceinline int get_fz(uint32_t flag)
 
 /* Utilities used by Neon */
 #if defined(__KERNEL_NEON__)
-template<class type, int i0, int i1, int i2, int i3> type shuffle_neon(const type &a)
+template<class type, const int i0, const int i1, const int i2, const int i3>
+type shuffle_neon(const type &a)
 {
   if (i0 == i1 && i0 == i2 && i0 == i3) {
     return type(vdupq_laneq_s32(int32x4_t(a), i0));
@@ -165,7 +172,7 @@ template<class type, int i0, int i1, int i2, int i3> type shuffle_neon(const typ
   return type(vqtbl1q_s8(int8x16_t(a), *(uint8x16_t *)tbl));
 }
 
-template<class type, int i0, int i1, int i2, int i3>
+template<class type, const int i0, const int i1, const int i2, const int i3>
 type shuffle_neon(const type &a, const type &b)
 {
   if (&a == &b) {
@@ -207,7 +214,11 @@ type shuffle_neon(const type &a, const type &b)
                                     (i3 * 4) + 2 + 16,
                                     (i3 * 4) + 3 + 16};
 
-    return type(vqtbl2q_s8((int8x16x2_t){int8x16_t(a), int8x16_t(b)}, *(uint8x16_t *)tbl));
+    /* NOTE: This cannot all be put in a single line due to how MSVC ARM64
+     * implements the function calls as several layers of macros. */
+    int8x16x2_t t = {int8x16_t(a), int8x16_t(b)};
+    uint8x16_t idx = *(uint8x16_t *)tbl;
+    return type(vqtbl2q_s8(t, idx));
   }
 }
 #endif /* __KERNEL_NEON */
@@ -232,7 +243,7 @@ type shuffle_neon(const type &a, const type &b)
 
 #if defined(_WIN32) && !defined(__MINGW32__) && !defined(__clang__)
 /* Intrinsic functions on Windows. */
-__forceinline uint32_t __bsf(uint32_t v)
+__forceinline uint32_t __bsf(const uint32_t v)
 {
 #  if defined(__KERNEL_AVX2__)
   return _tzcnt_u32(v);
@@ -243,21 +254,21 @@ __forceinline uint32_t __bsf(uint32_t v)
 #  endif
 }
 
-__forceinline uint32_t __bsr(uint32_t v)
+__forceinline uint32_t __bsr(const uint32_t v)
 {
   unsigned long r = 0;
   _BitScanReverse(&r, v);
   return r;
 }
 
-__forceinline uint32_t __btc(uint32_t v, uint32_t i)
+__forceinline uint32_t __btc(const uint32_t v, const uint32_t i)
 {
   long r = v;
   _bittestandcomplement(&r, i);
   return r;
 }
 
-__forceinline uint32_t bitscan(uint32_t v)
+__forceinline uint32_t bitscan(const uint32_t v)
 {
 #  if defined(__KERNEL_AVX2__)
   return _tzcnt_u32(v);
@@ -268,7 +279,7 @@ __forceinline uint32_t bitscan(uint32_t v)
 
 #  if defined(__KERNEL_64_BIT__)
 
-__forceinline uint64_t __bsf(uint64_t v)
+__forceinline uint64_t __bsf(const uint64_t v)
 {
 #    if defined(__KERNEL_AVX2__)
   return _tzcnt_u64(v);
@@ -279,21 +290,21 @@ __forceinline uint64_t __bsf(uint64_t v)
 #    endif
 }
 
-__forceinline uint64_t __bsr(uint64_t v)
+__forceinline uint64_t __bsr(const uint64_t v)
 {
   unsigned long r = 0;
   _BitScanReverse64(&r, v);
   return r;
 }
 
-__forceinline uint64_t __btc(uint64_t v, uint64_t i)
+__forceinline uint64_t __btc(const uint64_t v, const uint64_t i)
 {
   uint64_t r = v;
   _bittestandcomplement64((__int64 *)&r, i);
   return r;
 }
 
-__forceinline uint64_t bitscan(uint64_t v)
+__forceinline uint64_t bitscan(const uint64_t v)
 {
 #    if defined(__KERNEL_AVX2__)
 #      if defined(__KERNEL_64_BIT__)
@@ -325,7 +336,7 @@ __forceinline uint32_t __bsr(const uint32_t v)
   return r;
 }
 
-__forceinline uint32_t __btc(const uint32_t v, uint32_t i)
+__forceinline uint32_t __btc(const uint32_t v, const uint32_t i)
 {
   uint32_t r = 0;
   asm("btc %1,%0" : "=r"(r) : "r"(i), "0"(v) : "flags");
@@ -356,7 +367,7 @@ __forceinline uint64_t __btc(const uint64_t v, const uint64_t i)
   return r;
 }
 
-__forceinline uint32_t bitscan(uint32_t v)
+__forceinline uint32_t bitscan(const uint32_t v)
 {
 #  if defined(__KERNEL_AVX2__)
   return _tzcnt_u32(v);
@@ -367,7 +378,7 @@ __forceinline uint32_t bitscan(uint32_t v)
 
 #  if (defined(__KERNEL_64_BIT__) || defined(__APPLE__)) && \
       !(defined(__ILP32__) && defined(__x86_64__))
-__forceinline uint64_t bitscan(uint64_t v)
+__forceinline uint64_t bitscan(const uint64_t v)
 {
 #    if defined(__KERNEL_AVX2__)
 #      if defined(__KERNEL_64_BIT__)
@@ -405,7 +416,7 @@ __forceinline uint32_t __bsr(const uint32_t x)
 
 __forceinline uint32_t __btc(const uint32_t x, const uint32_t bit)
 {
-  uint32_t mask = 1U << bit;
+  const uint32_t mask = 1U << bit;
   return x & (~mask);
 }
 
@@ -431,11 +442,11 @@ __forceinline uint32_t __bsr(const uint64_t x)
 
 __forceinline uint64_t __btc(const uint64_t x, const uint32_t bit)
 {
-  uint64_t mask = 1UL << bit;
+  const uint64_t mask = 1UL << bit;
   return x & (~mask);
 }
 
-__forceinline uint32_t bitscan(uint32_t value)
+__forceinline uint32_t bitscan(const uint32_t value)
 {
   assert(value != 0);
   uint32_t bit = 0;
@@ -445,7 +456,7 @@ __forceinline uint32_t bitscan(uint32_t value)
   return bit;
 }
 
-__forceinline uint64_t bitscan(uint64_t value)
+__forceinline uint64_t bitscan(const uint64_t value)
 {
   assert(value != 0);
   uint64_t bit = 0;
@@ -471,5 +482,3 @@ __forceinline uint64_t bitscan(uint64_t value)
 #endif
 
 CCL_NAMESPACE_END
-
-#endif /* __UTIL_SIMD_TYPES_H__ */

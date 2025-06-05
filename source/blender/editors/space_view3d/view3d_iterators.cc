@@ -11,14 +11,13 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_DerivedMesh.hh"
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
 #include "BKE_curve.hh"
@@ -26,19 +25,18 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_iterators.hh"
+#include "BKE_mesh_runtime.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 
 #include "bmesh.hh"
 
 #include "ED_armature.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
 /* -------------------------------------------------------------------- */
@@ -221,7 +219,7 @@ struct foreachScreenVert_userData {
   eV3DProjTest clip_flag;
 };
 
-/* user data structures for derived mesh callbacks */
+/** User data structures for evaluated mesh callbacks. */
 struct foreachScreenEdge_userData {
   void (*func)(void *user_data,
                BMEdge *eed,
@@ -284,7 +282,7 @@ static void meshobject_foreachScreenVert__mapFunc(void *user_data,
   data->func(data->user_data, screen_co, index);
 }
 
-void meshobject_foreachScreenVert(ViewContext *vc,
+void meshobject_foreachScreenVert(const ViewContext *vc,
                                   void (*func)(void *user_data,
                                                const float screen_co[2],
                                                int index),
@@ -295,7 +293,7 @@ void meshobject_foreachScreenVert(ViewContext *vc,
   BLI_assert((clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) == 0);
   foreachScreenObjectVert_userData data;
 
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, vc->obact);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(ob_eval);
   const bke::AttributeAccessor attributes = mesh->attributes();
 
@@ -337,14 +335,14 @@ static void mesh_foreachScreenVert__mapFunc(void *user_data,
 }
 
 void mesh_foreachScreenVert(
-    ViewContext *vc,
+    const ViewContext *vc,
     void (*func)(void *user_data, BMVert *eve, const float screen_co[2], int index),
     void *user_data,
     eV3DProjTest clip_flag)
 {
   foreachScreenVert_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -398,7 +396,7 @@ static void mesh_foreachScreenEdge__mapFunc(void *user_data,
   data->func(data->user_data, eed, screen_co_a, screen_co_b, index);
 }
 
-void mesh_foreachScreenEdge(ViewContext *vc,
+void mesh_foreachScreenEdge(const ViewContext *vc,
                             void (*func)(void *user_data,
                                          BMEdge *eed,
                                          const float screen_co_a[2],
@@ -409,7 +407,7 @@ void mesh_foreachScreenEdge(ViewContext *vc,
 {
   foreachScreenEdge_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -488,7 +486,7 @@ static void mesh_foreachScreenEdge_clip_bb_segment__mapFunc(void *user_data,
   data->func(data->user_data, eed, screen_co_a, screen_co_b, index);
 }
 
-void mesh_foreachScreenEdge_clip_bb_segment(ViewContext *vc,
+void mesh_foreachScreenEdge_clip_bb_segment(const ViewContext *vc,
                                             void (*func)(void *user_data,
                                                          BMEdge *eed,
                                                          const float screen_co_a[2],
@@ -499,7 +497,7 @@ void mesh_foreachScreenEdge_clip_bb_segment(ViewContext *vc,
 {
   foreachScreenEdge_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
 
@@ -566,7 +564,7 @@ static void mesh_foreachScreenFace__mapFunc(void *user_data,
 }
 
 void mesh_foreachScreenFace(
-    ViewContext *vc,
+    const ViewContext *vc,
     void (*func)(void *user_data, BMFace *efa, const float screen_co_b[2], int index),
     void *user_data,
     const eV3DProjTest clip_flag)
@@ -574,7 +572,7 @@ void mesh_foreachScreenFace(
   BLI_assert((clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) == 0);
   foreachScreenFace_userData data;
 
-  Mesh *mesh = editbmesh_get_eval_cage_from_orig(
+  Mesh *mesh = blender::bke::editbmesh_get_eval_cage_from_orig(
       vc->depsgraph, vc->scene, vc->obedit, &CD_MASK_BAREMESH);
   mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
   ED_view3d_check_mats_rv3d(vc->rv3d);
@@ -603,7 +601,7 @@ void mesh_foreachScreenFace(
 /** \name Edit-Nurbs: For Each Screen Vertex
  * \{ */
 
-void nurbs_foreachScreenVert(ViewContext *vc,
+void nurbs_foreachScreenVert(const ViewContext *vc,
                              void (*func)(void *user_data,
                                           Nurb *nu,
                                           BPoint *bp,
@@ -702,7 +700,7 @@ void nurbs_foreachScreenVert(ViewContext *vc,
 /** \name Edit-Meta: For Each Screen Meta-Element
  * \{ */
 
-void mball_foreachScreenElem(ViewContext *vc,
+void mball_foreachScreenElem(const ViewContext *vc,
                              void (*func)(void *user_data,
                                           MetaElem *ml,
                                           const float screen_co_b[2]),
@@ -729,7 +727,7 @@ void mball_foreachScreenElem(ViewContext *vc,
 /** \name Edit-Lattice: For Each Screen Vertex
  * \{ */
 
-void lattice_foreachScreenVert(ViewContext *vc,
+void lattice_foreachScreenVert(const ViewContext *vc,
                                void (*func)(void *user_data, BPoint *bp, const float screen_co[2]),
                                void *user_data,
                                const eV3DProjTest clip_flag)
@@ -768,7 +766,7 @@ void lattice_foreachScreenVert(ViewContext *vc,
 /** \name Edit-Armature: For Each Screen Bone
  * \{ */
 
-void armature_foreachScreenBone(ViewContext *vc,
+void armature_foreachScreenBone(const ViewContext *vc,
                                 void (*func)(void *user_data,
                                              EditBone *ebone,
                                              const float screen_co_a[2],
@@ -797,7 +795,7 @@ void armature_foreachScreenBone(ViewContext *vc,
   }
 
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_VISIBLE(arm, ebone)) {
+    if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
       continue;
     }
 
@@ -836,7 +834,7 @@ void armature_foreachScreenBone(ViewContext *vc,
 /** \name Pose: For Each Screen Bone
  * \{ */
 
-void pose_foreachScreenBone(ViewContext *vc,
+void pose_foreachScreenBone(const ViewContext *vc,
                             void (*func)(void *user_data,
                                          bPoseChannel *pchan,
                                          const float screen_co_a[2],
@@ -846,7 +844,7 @@ void pose_foreachScreenBone(ViewContext *vc,
 {
   /* Almost _exact_ copy of #armature_foreachScreenBone */
 
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, vc->obact);
   const bArmature *arm_eval = static_cast<const bArmature *>(ob_eval->data);
   bPose *pose = vc->obact->pose;
 
@@ -869,7 +867,7 @@ void pose_foreachScreenBone(ViewContext *vc,
   }
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    if (!PBONE_VISIBLE(arm_eval, pchan->bone)) {
+    if (!blender::animrig::bone_is_visible_pchan(arm_eval, pchan)) {
       continue;
     }
 

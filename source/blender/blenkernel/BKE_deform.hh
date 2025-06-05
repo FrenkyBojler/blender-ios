@@ -6,7 +6,8 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_virtual_array.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_virtual_array_fwd.hh"
 
 /** \file
  * \ingroup bke
@@ -44,20 +45,21 @@ void BKE_object_defgroup_active_index_set(Object *ob, int new_index);
  */
 const ListBase *BKE_id_defgroup_list_get(const ID *id);
 ListBase *BKE_id_defgroup_list_get_mutable(ID *id);
-int BKE_id_defgroup_name_index(const ID *id, const char *name);
+int BKE_defgroup_name_index(const ListBase *defbase, blender::StringRef name);
+int BKE_id_defgroup_name_index(const ID *id, blender::StringRef name);
 bool BKE_defgroup_listbase_name_find(const ListBase *defbase,
-                                     const char *name,
+                                     blender::StringRef name,
                                      int *r_index,
                                      bDeformGroup **r_group);
 bool BKE_id_defgroup_name_find(const ID *id,
-                               const char *name,
+                               blender::StringRef name,
                                int *r_index,
                                bDeformGroup **r_group);
 
-bDeformGroup *BKE_object_defgroup_new(Object *ob, const char *name);
+bDeformGroup *BKE_object_defgroup_new(Object *ob, blender::StringRef name);
 void BKE_defgroup_copy_list(ListBase *outbase, const ListBase *inbase);
 bDeformGroup *BKE_defgroup_duplicate(const bDeformGroup *ingroup);
-bDeformGroup *BKE_object_defgroup_find_name(const Object *ob, const char *name);
+bDeformGroup *BKE_object_defgroup_find_name(const Object *ob, blender::StringRef name);
 /**
  * Returns flip map for the vertex-groups of `ob`.
  *
@@ -88,8 +90,9 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
                                          int defgroup,
                                          int *r_flip_map_num);
 int BKE_object_defgroup_flip_index(const Object *ob, int index, bool use_default);
-int BKE_object_defgroup_name_index(const Object *ob, const char *name);
+int BKE_object_defgroup_name_index(const Object *ob, blender::StringRef name);
 void BKE_object_defgroup_unique_name(bDeformGroup *dg, Object *ob);
+void BKE_object_defgroup_set_name(bDeformGroup *dg, Object *ob, const char *new_name);
 
 MDeformWeight *BKE_defvert_find_index(const MDeformVert *dv, int defgroup);
 /**
@@ -133,7 +136,10 @@ float BKE_defvert_find_weight(const MDeformVert *dvert, int defgroup);
  *
  * This is a bit confusing, just saves some checks from the caller.
  */
-float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert, int index, int defgroup);
+float BKE_defvert_array_find_weight_safe(const MDeformVert *dvert,
+                                         int index,
+                                         int defgroup,
+                                         bool invert);
 
 /**
  * \return The total weight in all groups marked in the selection mask.
@@ -254,8 +260,6 @@ void BKE_defvert_normalize_lock_map(MDeformVert *dvert,
 void BKE_defvert_extract_vgroup_to_vertweights(
     const MDeformVert *dvert, int defgroup, int verts_num, bool invert_vgroup, float *r_weights);
 
-#ifdef __cplusplus
-
 /**
  * The following three make basic interpolation,
  * using temp vert_weights array to avoid looking up same weight several times.
@@ -283,7 +287,6 @@ void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                blender::OffsetIndices<int> faces,
                                                bool invert_vgroup,
                                                float *r_weights);
-#endif
 
 void BKE_defvert_weight_to_rgb(float r_rgb[3], float weight);
 

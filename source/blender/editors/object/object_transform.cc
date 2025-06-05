@@ -8,13 +8,12 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <limits>
 #include <numeric>
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_collection_types.h"
-#include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
@@ -38,18 +37,18 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_tracking.h"
@@ -67,8 +66,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
+#include "ED_anim_api.hh"
 #include "ED_armature.hh"
 #include "ED_keyframing.hh"
 #include "ED_mesh.hh"
@@ -78,12 +80,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "object_intern.h"
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
-using blender::Array;
-using blender::float2;
-using blender::float3;
-using blender::Vector;
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 /* -------------------------------------------------------------------- */
 /** \name Clear Transformation Utilities
@@ -296,10 +298,11 @@ static void object_clear_scale(Object *ob, const bool clear_delta)
 }
 
 /* generic exec for clear-transform operators */
-static int object_clear_transform_generic_exec(bContext *C,
-                                               wmOperator *op,
-                                               void (*clear_func)(Object *, const bool),
-                                               const char default_ksName[])
+static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
+                                                            wmOperator *op,
+                                                            void (*clear_func)(Object *,
+                                                                               const bool),
+                                                            const char default_ksName[])
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Main *bmain = CTX_data_main(C);
@@ -332,40 +335,44 @@ static int object_clear_transform_generic_exec(bContext *C,
 
   if (use_transform_skip_children) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-    xcs = ED_object_xform_skip_child_container_create();
-    ED_object_xform_skip_child_container_item_ensure_from_array(
+    xcs = xform_skip_child_container_create();
+    xform_skip_child_container_item_ensure_from_array(
         xcs, scene, view_layer, objects.data(), objects.size());
   }
   if (use_transform_data_origin) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-    xds = ED_object_data_xform_container_create();
+    xds = data_xform_container_create();
   }
 
   /* get KeyingSet to use */
-  ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
+  ks = blender::animrig::get_keyingset_for_autokeying(scene, default_ksName);
+
+  if (blender::animrig::is_autokey_on(scene)) {
+    ANIM_deselect_keys_in_animation_editors(C);
+  }
 
   for (Object *ob : objects) {
     if (use_transform_data_origin) {
-      ED_object_data_xform_container_item_ensure(xds, ob);
+      data_xform_container_item_ensure(xds, ob);
     }
 
     /* run provided clearing function */
     clear_func(ob, clear_delta);
 
-    blender::animrig::autokeyframe_object(C, scene, ob, ks);
+    animrig::autokeyframe_object(C, scene, ob, ks);
 
     /* tag for updates */
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
   }
 
   if (use_transform_skip_children) {
-    ED_object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
-    ED_object_xform_skip_child_container_destroy(xcs);
+    object_xform_skip_child_container_update_all(xcs, bmain, depsgraph);
+    object_xform_skip_child_container_destroy(xcs);
   }
 
   if (use_transform_data_origin) {
-    ED_object_data_xform_container_update_all(xds, bmain, depsgraph);
-    ED_object_data_xform_container_destroy(xds);
+    data_xform_container_update_all(xds, bmain, depsgraph);
+    data_xform_container_destroy(xds);
   }
 
   /* this is needed so children are also updated */
@@ -380,7 +387,7 @@ static int object_clear_transform_generic_exec(bContext *C,
 /** \name Clear Location Operator
  * \{ */
 
-static int object_location_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_location_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_loc, ANIM_KS_LOCATION_ID);
 }
@@ -392,7 +399,7 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
   ot->description = "Clear the object's location";
   ot->idname = "OBJECT_OT_location_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_location_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -414,7 +421,7 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
 /** \name Clear Rotation Operator
  * \{ */
 
-static int object_rotation_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_rotation_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_rot, ANIM_KS_ROTATION_ID);
 }
@@ -426,7 +433,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
   ot->description = "Clear the object's rotation";
   ot->idname = "OBJECT_OT_rotation_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_rotation_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -448,7 +455,7 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 /** \name Clear Scale Operator
  * \{ */
 
-static int object_scale_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_scale_clear_exec(bContext *C, wmOperator *op)
 {
   return object_clear_transform_generic_exec(C, op, object_clear_scale, ANIM_KS_SCALING_ID);
 }
@@ -460,7 +467,7 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
   ot->description = "Clear the object's scale";
   ot->idname = "OBJECT_OT_scale_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_scale_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -482,7 +489,7 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
 /** \name Clear Origin Operator
  * \{ */
 
-static int object_origin_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_origin_clear_exec(bContext *C, wmOperator * /*op*/)
 {
   float *v1, *v3;
   float mat[3][3];
@@ -514,7 +521,7 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot)
   ot->description = "Clear the object's origin";
   ot->idname = "OBJECT_OT_origin_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_origin_clear_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -532,17 +539,15 @@ void OBJECT_OT_origin_clear(wmOperatorType *ot)
  * should stay in the same place, e.g. for apply-size-rot or object center */
 static void ignore_parent_tx(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
-  Object workob;
-
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* a change was made, adjust the children to compensate */
   LISTBASE_FOREACH (Object *, ob_child, &bmain->objects) {
     if (ob_child->parent == ob) {
-      Object *ob_child_eval = DEG_get_evaluated_object(depsgraph, ob_child);
+      Object *ob_child_eval = DEG_get_evaluated(depsgraph, ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
-      BKE_object_workob_calc_parent(depsgraph, scene, ob_child_eval, &workob);
-      invert_m4_m4(ob_child->parentinv, workob.object_to_world().ptr());
+      invert_m4_m4(ob_child->parentinv,
+                   BKE_object_calc_parent(depsgraph, scene, ob_child_eval).ptr());
       /* Copy result of BKE_object_apply_mat4(). */
       BKE_object_transform_copy(ob_child, ob_child_eval);
       /* Make sure evaluated object is in a consistent state with the original one.
@@ -566,10 +571,10 @@ static void append_sorted_object_parent_hierarchy(Object *root_object,
     append_sorted_object_parent_hierarchy(
         root_object, object->parent, sorted_objects, object_index);
   }
-  if (object->id.tag & LIB_TAG_DOIT) {
+  if (object->id.tag & ID_TAG_DOIT) {
     sorted_objects[*object_index] = object;
     (*object_index)++;
-    object->id.tag &= ~LIB_TAG_DOIT;
+    object->id.tag &= ~ID_TAG_DOIT;
   }
 }
 
@@ -578,22 +583,22 @@ static Array<Object *> sorted_selected_editable_objects(bContext *C)
   Main *bmain = CTX_data_main(C);
 
   /* Count all objects, but also tag all the selected ones. */
-  BKE_main_id_tag_all(bmain, LIB_TAG_DOIT, false);
-  int num_objects = 0;
+  BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
+  int objects_num = 0;
   CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
-    object->id.tag |= LIB_TAG_DOIT;
-    num_objects++;
+    object->id.tag |= ID_TAG_DOIT;
+    objects_num++;
   }
   CTX_DATA_END;
-  if (num_objects == 0) {
+  if (objects_num == 0) {
     return {};
   }
 
   /* Append all the objects. */
-  Array<Object *> sorted_objects(num_objects);
+  Array<Object *> sorted_objects(objects_num);
   int object_index = 0;
   CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
-    if ((object->id.tag & LIB_TAG_DOIT) == 0) {
+    if ((object->id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
     append_sorted_object_parent_hierarchy(object, object, sorted_objects.data(), &object_index);
@@ -651,10 +656,8 @@ static bool apply_objects_internal_need_single_user(bContext *C)
   return (ID_REAL_USERS(ob->data) > CTX_DATA_COUNT(C, selected_editable_objects));
 }
 
-static void transform_positions(blender::MutableSpan<blender::float3> positions,
-                                const blender::float4x4 &matrix)
+static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
 {
-  using namespace blender;
   threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position = math::transform_point(matrix, position);
@@ -662,15 +665,14 @@ static void transform_positions(blender::MutableSpan<blender::float3> positions,
   });
 }
 
-static int apply_objects_internal(bContext *C,
-                                  ReportList *reports,
-                                  bool apply_loc,
-                                  bool apply_rot,
-                                  bool apply_scale,
-                                  bool do_props,
-                                  bool do_single_user)
+static wmOperatorStatus apply_objects_internal(bContext *C,
+                                               ReportList *reports,
+                                               bool apply_loc,
+                                               bool apply_rot,
+                                               bool apply_scale,
+                                               bool do_props,
+                                               bool do_single_user)
 {
-  using namespace blender;
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -687,9 +689,7 @@ static int apply_objects_internal(bContext *C,
     obact = CTX_data_active_object(C);
     invert_m4_m4(obact_invmat, obact->object_to_world().ptr());
 
-    Object workob;
-    BKE_object_workob_calc_parent(depsgraph, scene, obact, &workob);
-    copy_m4_m4(obact_parent, workob.object_to_world().ptr());
+    copy_m4_m4(obact_parent, BKE_object_calc_parent(depsgraph, scene, obact).ptr());
     copy_m4_m4(obact_parentinv, obact->parentinv);
 
     if (apply_objects_internal_need_single_user(C)) {
@@ -719,9 +719,9 @@ static int apply_objects_internal(bContext *C,
              OB_CURVES_LEGACY,
              OB_SURF,
              OB_FONT,
-             OB_GPENCIL_LEGACY,
              OB_CURVES,
-             OB_POINTCLOUD))
+             OB_POINTCLOUD,
+             OB_GREASE_PENCIL))
     {
       ID *obdata = static_cast<ID *>(ob->data);
       if (!do_multi_user && ID_REAL_USERS(obdata) > 1) {
@@ -734,7 +734,7 @@ static int apply_objects_internal(bContext *C,
         changed = false;
       }
 
-      if (ID_IS_LINKED(obdata) || ID_IS_OVERRIDE_LIBRARY(obdata)) {
+      if (!ID_IS_EDITABLE(obdata) || ID_IS_OVERRIDE_LIBRARY(obdata)) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     R"(Cannot apply to library or override data: Object "%s", %s "%s", aborting)",
@@ -780,46 +780,6 @@ static int apply_objects_internal(bContext *C,
       }
     }
 
-    if (ob->type == OB_GPENCIL_LEGACY) {
-      bGPdata *gpd = static_cast<bGPdata *>(ob->data);
-      if (gpd) {
-        if (gpd->layers.first) {
-          /* Unsupported configuration */
-          bool has_unparented_layers = false;
-
-          LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-            /* Parented layers aren't supported as we can't easily re-evaluate
-             * the scene to sample parent movement */
-            if (gpl->parent == nullptr) {
-              has_unparented_layers = true;
-              break;
-            }
-          }
-
-          if (has_unparented_layers == false) {
-            BKE_reportf(reports,
-                        RPT_ERROR,
-                        "Can't apply to a GP data-block where all layers are parented: Object "
-                        "\"%s\", %s \"%s\", aborting",
-                        ob->id.name + 2,
-                        BKE_idtype_idcode_to_name(ID_GD_LEGACY),
-                        gpd->id.name + 2);
-            changed = false;
-          }
-        }
-        else {
-          /* No layers/data */
-          BKE_reportf(
-              reports,
-              RPT_ERROR,
-              R"(Can't apply to GP data-block with no layers: Object "%s", %s "%s", aborting)",
-              ob->id.name + 2,
-              BKE_idtype_idcode_to_name(ID_GD_LEGACY),
-              gpd->id.name + 2);
-        }
-      }
-    }
-
     if (ob->type == OB_LAMP) {
       Light *la = static_cast<Light *>(ob->data);
       if (la->type == LA_AREA) {
@@ -845,7 +805,7 @@ static int apply_objects_internal(bContext *C,
 
   if (make_single_user) {
     /* Make single user. */
-    ED_object_single_obdata_user(bmain, scene, obact);
+    single_obdata_user_make(bmain, scene, obact);
     BKE_main_id_newptr_and_tag_clear(bmain);
     WM_event_add_notifier(C, NC_WINDOW, nullptr);
     DEG_relations_tag_update(bmain);
@@ -855,6 +815,8 @@ static int apply_objects_internal(bContext *C,
   if (objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
+
+  bool has_non_invertable_matrix = false;
 
   for (Object *ob : objects) {
     /* calculate rotation/scale matrix */
@@ -872,7 +834,16 @@ static int apply_objects_internal(bContext *C,
 
       /* correct for scale, note mul_m3_m3m3 has swapped args! */
       BKE_object_scale_to_mat3(ob, tmat);
-      invert_m3_m3(timat, tmat);
+      if (!invert_m3_m3(timat, tmat)) {
+        BKE_reportf(reports,
+                    RPT_WARNING,
+                    "%s \"%s\" %s",
+                    RPT_("Object"),
+                    ob->id.name + 2,
+                    RPT_("have non-invertable transformation matrix, not applying transform."));
+        has_non_invertable_matrix = true;
+        continue;
+      }
       mul_m3_m3m3(rsmat, timat, rsmat);
       mul_m3_m3m3(rsmat, rsmat, tmat);
     }
@@ -912,7 +883,7 @@ static int apply_objects_internal(bContext *C,
       }
 
       /* adjust data */
-      BKE_mesh_transform(mesh, mat, true);
+      bke::mesh_transform(*mesh, float4x4(mat), true);
     }
     else if (ob->type == OB_ARMATURE) {
       bArmature *arm = static_cast<bArmature *>(ob->data);
@@ -949,14 +920,41 @@ static int apply_objects_internal(bContext *C,
         cu->fsize *= scale;
       }
     }
-    else if (ob->type == OB_GPENCIL_LEGACY) {
-      bGPdata *gpd = static_cast<bGPdata *>(ob->data);
-      BKE_gpencil_transform(gpd, mat);
-    }
     else if (ob->type == OB_CURVES) {
       Curves &curves = *static_cast<Curves *>(ob->data);
       curves.geometry.wrap().transform(float4x4(mat));
       curves.geometry.wrap().calculate_bezier_auto_handles();
+    }
+    else if (ob->type == OB_GREASE_PENCIL) {
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+
+      const float scalef = mat4_to_scale(mat);
+
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+        const float4x4 layer_to_object = layer.to_object_space(*ob);
+        const float4x4 object_to_layer = math::invert(layer_to_object);
+        const Map<bke::greasepencil::FramesMapKeyT, GreasePencilFrame> frames = layer.frames();
+        frames.foreach_item(
+            [&](bke::greasepencil::FramesMapKeyT /*key*/, GreasePencilFrame frame) {
+              GreasePencilDrawingBase *base = grease_pencil.drawing(frame.drawing_index);
+              if (base->type != GP_DRAWING) {
+                return;
+              }
+              bke::greasepencil::Drawing &drawing =
+                  reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+              bke::CurvesGeometry &curves = drawing.strokes_for_write();
+              MutableSpan<float> radii = drawing.radii_for_write();
+              threading::parallel_for(radii.index_range(), 8192, [&](const IndexRange range) {
+                for (const int i : range) {
+                  radii[i] *= scalef;
+                }
+              });
+
+              curves.transform(object_to_layer * float4x4(mat) * layer_to_object);
+              curves.calculate_bezier_auto_handles();
+            });
+      }
     }
     else if (ob->type == OB_POINTCLOUD) {
       PointCloud &pointcloud = *static_cast<PointCloud *>(ob->data);
@@ -990,7 +988,7 @@ static int apply_objects_internal(bContext *C,
        *    sacrifice for having an easy way to do this.
        */
 
-      if ((apply_loc == false) && (apply_rot == false) && (apply_scale == true)) {
+      if (apply_scale) {
         float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
         ob->empty_drawsize *= max_scale;
       }
@@ -1014,6 +1012,11 @@ static int apply_objects_internal(bContext *C,
       la->area_size *= rsmat[0][0];
       la->area_sizey *= rsmat[1][1];
       la->area_sizez *= rsmat[2][2];
+
+      /* Explicit tagging is required for Lamp ID because, unlike Geometry IDs like Mesh,
+       * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
+       * of this loop. */
+      DEG_id_tag_update(&la->id, ID_RECALC_PARAMETERS);
     }
     else {
       continue;
@@ -1035,7 +1038,7 @@ static int apply_objects_internal(bContext *C,
         BKE_object_apply_mat4(ob, _mat, false, true);
       }
       else {
-        Object ob_temp = blender::dna::shallow_copy(*ob);
+        Object ob_temp = dna::shallow_copy(*ob);
         BKE_object_apply_mat4(&ob_temp, _mat, false, true);
 
         if (apply_loc) {
@@ -1073,7 +1076,7 @@ static int apply_objects_internal(bContext *C,
       }
     }
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     BKE_object_transform_copy(ob_eval, ob);
 
     BKE_object_where_is_calc(depsgraph, scene, ob_eval);
@@ -1095,19 +1098,22 @@ static int apply_objects_internal(bContext *C,
     BKE_report(reports, RPT_WARNING, "Objects have no data to transform");
     return OPERATOR_CANCELLED;
   }
+  if (has_non_invertable_matrix) {
+    BKE_report(reports, RPT_WARNING, "Failed to apply rotation to some of the objects");
+  }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static int visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   bool changed = false;
 
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     BKE_object_where_is_calc(depsgraph, scene, ob_eval);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), true, true);
     BKE_object_transform_copy(ob, ob_eval);
@@ -1134,7 +1140,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
   ot->description = "Apply the object's visual transformation to its data";
   ot->idname = "OBJECT_OT_visual_transform_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = visual_transform_apply_exec;
   ot->poll = ED_operator_scene_editable;
 
@@ -1142,7 +1148,7 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_transform_apply_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
 {
   const bool loc = RNA_boolean_get(op->ptr, "location");
   const bool rot = RNA_boolean_get(op->ptr, "rotation");
@@ -1157,9 +1163,11 @@ static int object_transform_apply_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int object_transform_apply_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus object_transform_apply_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent * /*event*/)
 {
-  Object *ob = ED_object_active_context(C);
+  Object *ob = context_active_object(C);
 
   bool can_handle_multiuser = apply_objects_internal_can_multiuser(C);
   bool need_single_user = can_handle_multiuser && apply_objects_internal_need_single_user(C);
@@ -1190,7 +1198,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
   ot->description = "Apply the object's transformation to its data";
   ot->idname = "OBJECT_OT_transform_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_transform_apply_exec;
   ot->invoke = object_transform_apply_invoke;
   ot->poll = ED_operator_objectmode;
@@ -1221,7 +1229,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 /** \name Apply Parent Inverse Operator
  * \{ */
 
-static int object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
 {
   CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->parent == nullptr) {
@@ -1245,7 +1253,7 @@ void OBJECT_OT_parent_inverse_apply(wmOperatorType *ot)
   ot->description = "Apply the object's parent inverse to its data";
   ot->idname = "OBJECT_OT_parent_inverse_apply";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_parent_inverse_apply_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1267,7 +1275,7 @@ enum {
   ORIGIN_TO_CENTER_OF_MASS_VOLUME,
 };
 
-static float3 arithmetic_mean(const blender::Span<blender::float3> values)
+static float3 arithmetic_mean(const Span<float3> values)
 {
   if (values.is_empty()) {
     return float3(0);
@@ -1276,10 +1284,8 @@ static float3 arithmetic_mean(const blender::Span<blender::float3> values)
   return std::accumulate(values.begin(), values.end(), float3(0)) / values.size();
 }
 
-static void translate_positions(blender::MutableSpan<blender::float3> positions,
-                                const blender::float3 &translation)
+static void translate_positions(MutableSpan<float3> positions, const float3 &translation)
 {
-  using namespace blender;
   threading::parallel_for(positions.index_range(), 2048, [&](const IndexRange range) {
     for (float3 &position : positions.slice(range)) {
       position += translation;
@@ -1287,9 +1293,8 @@ static void translate_positions(blender::MutableSpan<blender::float3> positions,
   });
 }
 
-static int object_origin_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 {
-  using namespace blender;
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Object *obact = CTX_data_active_object(C);
@@ -1329,7 +1334,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
   if (obedit) {
     if (obedit->type == OB_MESH) {
       Mesh *mesh = static_cast<Mesh *>(obedit->data);
-      BMEditMesh *em = mesh->edit_mesh;
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
       BMVert *eve;
       BMIter iter;
 
@@ -1386,10 +1391,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
   LISTBASE_FOREACH (Object *, tob, &bmain->objects) {
     if (tob->data) {
-      ((ID *)tob->data)->tag &= ~LIB_TAG_DOIT;
+      ((ID *)tob->data)->tag &= ~ID_TAG_DOIT;
     }
     if (tob->instance_collection) {
-      ((ID *)tob->instance_collection)->tag &= ~LIB_TAG_DOIT;
+      ((ID *)tob->instance_collection)->tag &= ~ID_TAG_DOIT;
     }
   }
 
@@ -1410,7 +1415,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
     if (ob->data == nullptr) {
       /* Special support for instanced collections. */
       if ((ob->transflag & OB_DUPLICOLLECTION) && ob->instance_collection &&
-          (ob->instance_collection->id.tag & LIB_TAG_DOIT) == 0)
+          (ob->instance_collection->id.tag & ID_TAG_DOIT) == 0)
       {
         if (!BKE_id_is_editable(bmain, &ob->instance_collection->id)) {
           tot_lib_error++;
@@ -1420,7 +1425,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
             /* done */
           }
           else {
-            float min[3], max[3];
+            float3 min, max;
             /* only bounds support */
             INIT_MINMAX(min, max);
             BKE_object_minmax_dupli(depsgraph, scene, ob, min, max, true);
@@ -1432,12 +1437,12 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
           add_v3_v3(ob->instance_collection->instance_offset, cent);
 
           tot_change++;
-          ob->instance_collection->id.tag |= LIB_TAG_DOIT;
+          ob->instance_collection->id.tag |= ID_TAG_DOIT;
           do_inverse_offset = true;
         }
       }
     }
-    else if (ID_IS_LINKED(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+    else if (!ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
       tot_lib_error++;
     }
     else if (ob->type == OB_MESH) {
@@ -1463,10 +1468,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         }
 
         negate_v3_v3(cent_neg, cent);
-        BKE_mesh_translate(mesh, cent_neg, true);
+        bke::mesh_translate(*mesh, cent_neg, true);
 
         tot_change++;
-        mesh->id.tag |= LIB_TAG_DOIT;
+        mesh->id.tag |= ID_TAG_DOIT;
         do_inverse_offset = true;
       }
     }
@@ -1477,7 +1482,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         /* done */
       }
       else if (around == V3D_AROUND_CENTER_BOUNDS) {
-        if (std::optional<blender::Bounds<blender::float3>> bounds = BKE_curve_minmax(cu, true)) {
+        if (std::optional<Bounds<float3>> bounds = BKE_curve_minmax(cu, true)) {
           cent = math::midpoint(bounds->min, bounds->max);
         }
       }
@@ -1494,7 +1499,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
       BKE_curve_translate(cu, cent_neg, true);
 
       tot_change++;
-      cu->id.tag |= LIB_TAG_DOIT;
+      cu->id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
 
       if (obedit) {
@@ -1508,7 +1513,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
       /* Get from bounding-box. */
 
       Curve *cu = static_cast<Curve *>(ob->data);
-      std::optional<blender::Bounds<blender::float3>> bounds = BKE_curve_minmax(cu, true);
+      std::optional<Bounds<float3>> bounds = BKE_curve_minmax(cu, true);
 
       if (!bounds && (centermode != ORIGIN_TO_CURSOR)) {
         /* Do nothing. */
@@ -1528,7 +1533,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         cu->yof = cu->yof - cent[1];
 
         tot_change++;
-        cu->id.tag |= LIB_TAG_DOIT;
+        cu->id.tag |= ID_TAG_DOIT;
         do_inverse_offset = true;
       }
     }
@@ -1549,10 +1554,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         ED_armature_origin_set(bmain, ob, cursor, centermode, around);
 
         tot_change++;
-        arm->id.tag |= LIB_TAG_DOIT;
+        arm->id.tag |= ID_TAG_DOIT;
         // do_inverse_offset = true; /* docenter_armature() handles this. */
 
-        Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
         BKE_object_transform_copy(ob_eval, ob);
         BKE_armature_copy_bone_transforms(static_cast<bArmature *>(ob_eval->data),
                                           static_cast<bArmature *>(ob->data));
@@ -1583,7 +1588,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
       BKE_mball_translate(mb, cent_neg);
 
       tot_change++;
-      mb->id.tag |= LIB_TAG_DOIT;
+      mb->id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
 
       if (obedit) {
@@ -1600,7 +1605,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         /* done */
       }
       else if (around == V3D_AROUND_CENTER_BOUNDS) {
-        if (std::optional<blender::Bounds<blender::float3>> bounds = BKE_lattice_minmax(lt)) {
+        if (std::optional<Bounds<float3>> bounds = BKE_lattice_minmax(lt)) {
           cent = math::midpoint(bounds->min, bounds->max);
         }
       }
@@ -1612,88 +1617,10 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
       BKE_lattice_translate(lt, cent_neg, true);
 
       tot_change++;
-      lt->id.tag |= LIB_TAG_DOIT;
+      lt->id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
     }
-    else if (ob->type == OB_GPENCIL_LEGACY) {
-      bGPdata *gpd = static_cast<bGPdata *>(ob->data);
-      float gpcenter[3];
-      if (gpd) {
-        if (centermode == ORIGIN_TO_GEOMETRY) {
-          zero_v3(gpcenter);
-          BKE_gpencil_centroid_3d(gpd, gpcenter);
-          add_v3_v3(gpcenter, ob->object_to_world().location());
-        }
-        if (centermode == ORIGIN_TO_CURSOR) {
-          copy_v3_v3(gpcenter, cursor);
-        }
-        if (ELEM(centermode, ORIGIN_TO_GEOMETRY, ORIGIN_TO_CURSOR)) {
-          bGPDspoint *pt;
-          float imat[3][3], bmat[3][3];
-          float offset_global[3];
-          float offset_local[3];
-          int i;
-
-          sub_v3_v3v3(offset_global, gpcenter, ob->object_to_world().location());
-          copy_m3_m4(bmat, obact->object_to_world().ptr());
-          invert_m3_m3(imat, bmat);
-          mul_m3_v3(imat, offset_global);
-          mul_v3_m3v3(offset_local, imat, offset_global);
-
-          float diff_mat[4][4];
-          float inverse_diff_mat[4][4];
-
-          /* recalculate all strokes
-           * (all layers are considered without evaluating lock attributes) */
-          LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-            /* calculate difference matrix */
-            BKE_gpencil_layer_transform_matrix_get(depsgraph, obact, gpl, diff_mat);
-            /* undo matrix */
-            invert_m4_m4(inverse_diff_mat, diff_mat);
-            LISTBASE_FOREACH (bGPDframe *, gpf, &gpl->frames) {
-              LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-                for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-                  float mpt[3];
-                  mul_v3_m4v3(mpt, inverse_diff_mat, &pt->x);
-                  sub_v3_v3(mpt, offset_local);
-                  mul_v3_m4v3(&pt->x, diff_mat, mpt);
-                }
-
-                /* Apply transform to edit-curve. */
-                if (gps->editcurve != nullptr) {
-                  for (i = 0; i < gps->editcurve->tot_curve_points; i++) {
-                    BezTriple *bezt = &gps->editcurve->curve_points[i].bezt;
-                    for (int j = 0; j < 3; j++) {
-                      float mpt[3];
-                      mul_v3_m4v3(mpt, inverse_diff_mat, bezt->vec[j]);
-                      sub_v3_v3(mpt, offset_local);
-                      mul_v3_m4v3(bezt->vec[j], diff_mat, mpt);
-                    }
-                  }
-                }
-                BKE_gpencil_stroke_geometry_update(gpd, gps);
-              }
-            }
-          }
-          tot_change++;
-          if (centermode == ORIGIN_TO_GEOMETRY) {
-            copy_v3_v3(ob->loc, gpcenter);
-          }
-          DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-          DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-
-          ob->id.tag |= LIB_TAG_DOIT;
-          do_inverse_offset = true;
-        }
-        else {
-          BKE_report(op->reports,
-                     RPT_WARNING,
-                     "Grease Pencil Object does not support this set origin option");
-        }
-      }
-    }
     else if (ob->type == OB_CURVES) {
-      using namespace blender;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
@@ -1704,7 +1631,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (curves.points_num() == 0) {
+      if (curves.is_empty()) {
         continue;
       }
 
@@ -1721,7 +1648,79 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
       tot_change++;
       curves.translate(-cent);
-      curves_id.id.tag |= LIB_TAG_DOIT;
+      curves_id.id.tag |= ID_TAG_DOIT;
+      do_inverse_offset = true;
+    }
+    else if (ob->type == OB_GREASE_PENCIL) {
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+      if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
+          !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
+      {
+        BKE_report(op->reports,
+                   RPT_WARNING,
+                   "Grease Pencil Object does not support this set origin operation");
+        continue;
+      }
+
+      if (centermode == ORIGIN_TO_CURSOR) {
+        /* done */
+      }
+      else if (around == V3D_AROUND_CENTER_BOUNDS) {
+        const int current_frame = scene->r.cfra;
+        const Bounds<float3> bounds = *grease_pencil.bounds_min_max(current_frame);
+        cent = math::midpoint(bounds.min, bounds.max);
+      }
+      else if (around == V3D_AROUND_CENTER_MEDIAN) {
+        const int current_frame = scene->r.cfra;
+        float3 center = float3(0.0f);
+        int total_points = 0;
+
+        for (const int layer_i : grease_pencil.layers().index_range()) {
+          const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+          const float4x4 layer_to_object = layer.local_transform();
+          if (!layer.is_visible()) {
+            continue;
+          }
+          if (const bke::greasepencil::Drawing *drawing = grease_pencil.get_drawing_at(
+                  layer, current_frame))
+          {
+            const bke::CurvesGeometry &curves = drawing->strokes();
+
+            for (const int i : curves.points_range()) {
+              center += math::transform_point(layer_to_object, curves.positions()[i]);
+            }
+            total_points += curves.points_num();
+          }
+        }
+
+        if (total_points != 0) {
+          cent = center / total_points;
+        }
+      }
+
+      tot_change++;
+
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
+        const float4x4 layer_to_object = layer.local_transform();
+        const float4x4 object_to_layer = math::invert(layer_to_object);
+        const Map<bke::greasepencil::FramesMapKeyT, GreasePencilFrame> frames = layer.frames();
+        frames.foreach_item(
+            [&](bke::greasepencil::FramesMapKeyT /*key*/, GreasePencilFrame frame) {
+              GreasePencilDrawingBase *base = grease_pencil.drawing(frame.drawing_index);
+              if (base->type != GP_DRAWING) {
+                return;
+              }
+              bke::greasepencil::Drawing &drawing =
+                  reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+              bke::CurvesGeometry &curves = drawing.strokes_for_write();
+
+              curves.translate(math::transform_direction(object_to_layer, -cent));
+              curves.calculate_bezier_auto_handles();
+            });
+      }
+
+      grease_pencil.id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
     }
     else if (ob->type == OB_POINTCLOUD) {
@@ -1751,7 +1750,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
       tot_change++;
       translate_positions(positions, -cent);
       pointcloud.tag_positions_changed();
-      pointcloud.id.tag |= LIB_TAG_DOIT;
+      pointcloud.id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
     }
 
@@ -1768,7 +1767,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
       add_v3_v3(ob->loc, centn);
 
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
       BKE_object_transform_copy(ob_eval, ob);
       BKE_object_where_is_calc(depsgraph, scene, ob_eval);
       if (ob->type == OB_ARMATURE) {
@@ -1798,7 +1797,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
               centn, ob_other->object_to_world().ptr(), cent); /* omit translation part */
           add_v3_v3(ob_other->loc, centn);
 
-          Object *ob_other_eval = DEG_get_evaluated_object(depsgraph, ob_other);
+          Object *ob_other_eval = DEG_get_evaluated(depsgraph, ob_other);
           BKE_object_transform_copy(ob_other_eval, ob_other);
           BKE_object_where_is_calc(depsgraph, scene, ob_other_eval);
           if (ob_other->type == OB_ARMATURE) {
@@ -1815,12 +1814,12 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
   }
 
   LISTBASE_FOREACH (Object *, tob, &bmain->objects) {
-    if (tob->data && (((ID *)tob->data)->tag & LIB_TAG_DOIT)) {
+    if (tob->data && (((ID *)tob->data)->tag & ID_TAG_DOIT)) {
       BKE_object_batch_cache_dirty_tag(tob);
       DEG_id_tag_update(&tob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     }
     /* Special support for dupli-groups. */
-    else if (tob->instance_collection && tob->instance_collection->id.tag & LIB_TAG_DOIT) {
+    else if (tob->instance_collection && tob->instance_collection->id.tag & ID_TAG_DOIT) {
       DEG_id_tag_update(&tob->id, ID_RECALC_TRANSFORM);
       DEG_id_tag_update(&tob->instance_collection->id, ID_RECALC_SYNC_TO_EVAL);
     }
@@ -1896,7 +1895,7 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
       "cursor";
   ot->idname = "OBJECT_OT_origin_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_origin_set_exec;
 
@@ -2040,13 +2039,13 @@ static void object_apply_rotation(Object *ob, const float rmat[3][3])
 static void object_apply_location(Object *ob, const float loc[3])
 {
   /* quick but weak */
-  Object ob_prev = blender::dna::shallow_copy(*ob);
+  Object ob_prev = dna::shallow_copy(*ob);
   float mat[4][4];
   copy_m4_m4(mat, ob->object_to_world().ptr());
   copy_v3_v3(mat[3], loc);
   BKE_object_apply_mat4(ob, mat, true, true);
   copy_v3_v3(mat[3], ob->loc);
-  *ob = blender::dna::shallow_copy(ob_prev);
+  *ob = dna::shallow_copy(ob_prev);
   copy_v3_v3(ob->loc, mat[3]);
 }
 
@@ -2090,7 +2089,9 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
   object_transform_axis_target_free_data(op);
 }
 
-static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
+                                                            wmOperator *op,
+                                                            const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -2107,7 +2108,7 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
 
   ViewDepths *depths = nullptr;
   ED_view3d_depth_override(
-      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, &depths);
+      vc.depsgraph, vc.region, vc.v3d, nullptr, V3D_DEPTH_NO_GPENCIL, false, &depths);
 
 #ifdef USE_RENDER_OVERRIDE
   vc.v3d->flag2 = flag2_prev;
@@ -2162,12 +2163,14 @@ static int object_transform_axis_target_invoke(bContext *C, wmOperator *op, cons
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
   ARegion *region = xfd->vc.region;
 
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   const bool is_translate = event->modifier & KM_CTRL;
   const bool is_translate_init = is_translate && (xfd->is_translate != is_translate);
@@ -2334,6 +2337,25 @@ static int object_transform_axis_target_modal(bContext *C, wmOperator *op, const
   }
 
   if (is_finished) {
+    Scene *scene = CTX_data_scene(C);
+    /* Perform auto-keying for rotational changes for all objects. */
+    for (XFormAxisItem &item : xfd->object_data) {
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+      const char *rotation_property = "rotation_euler";
+      switch (item.ob->rotmode) {
+        case ROT_MODE_QUAT:
+          rotation_property = "rotation_quaternion";
+          break;
+        case ROT_MODE_AXISANGLE:
+          rotation_property = "rotation_axis_angle";
+          break;
+        default:
+          break;
+      }
+      PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
+      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+    }
+
     object_transform_axis_target_free_data(op);
     return OPERATOR_FINISHED;
   }
@@ -2352,7 +2374,7 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
   ot->description = "Interactively point cameras and lights to a location (Ctrl translates)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_transform_axis_target_invoke;
   ot->cancel = object_transform_axis_target_cancel;
   ot->modal = object_transform_axis_target_modal;
@@ -2365,3 +2387,5 @@ void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 #undef USE_RELATIVE_ROTATION
 
 /** \} */
+
+}  // namespace blender::ed::object

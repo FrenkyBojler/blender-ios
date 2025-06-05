@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 #define _DNA_DEFAULT_ArmatureModifierData \
@@ -53,6 +52,8 @@
     .miter_outer = MOD_BEVEL_MITER_SHARP, \
     .affect_type = MOD_BEVEL_AFFECT_EDGES, \
     .profile = 0.5f, \
+    .edge_weight_name = "bevel_weight_edge", \
+    .vertex_weight_name = "bevel_weight_vert", \
     .bevel_angle = DEG2RADF(30.0f), \
     .spread = 0.1f, \
     .defgrp_name = "", \
@@ -64,7 +65,7 @@
     .collection = NULL, \
     .double_threshold = 1e-6f, \
     .operation = eBooleanModifierOp_Difference, \
-    .solver = eBooleanModifierSolver_Exact, \
+    .solver = eBooleanModifierSolver_Mesh_Arr, \
     .flag = eBooleanModifierFlag_Object, \
     .bm_flag = 0, \
   }
@@ -403,7 +404,7 @@
     .cache_file = NULL, \
     .object_path = "", \
     .read_flag = MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | \
-                 MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES, \
+                 MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES | MOD_MESHSEQ_READ_ATTRIBUTES, \
     .velocity_scale = 1.0f, \
     .reader = NULL, \
     .reader_object_path = "", \
@@ -562,7 +563,9 @@
   }
 
 #define _DNA_DEFAULT_NodesModifierData \
-  { 0 }
+  { \
+    .bake_target = NODES_MODIFIER_BAKE_TARGET_PACKED, \
+  }
 
 #define _DNA_DEFAULT_SkinModifierData \
   { \
@@ -800,7 +803,7 @@
     .flag = MOD_WIREFRAME_REPLACE | MOD_WIREFRAME_OFS_EVEN, \
     .mat_ofs = 0, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilOpacityModifierData \
   { \
     .color_mode = MOD_GREASE_PENCIL_COLOR_BOTH, \
@@ -812,7 +815,7 @@
   { \
     .level = 1, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilColorModifierData \
   { \
     .color_mode = MOD_GREASE_PENCIL_COLOR_BOTH, \
@@ -859,7 +862,7 @@
     .step = 4, \
     .seed = 1, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilMirrorModifierData \
   { \
     .flag = MOD_GREASE_PENCIL_MIRROR_AXIS_X, \
@@ -895,7 +898,7 @@
     .opacity = 1.0f, \
     .mat_nr = -1, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilMultiModifierData \
   { \
     .flag = 0, \
@@ -928,7 +931,7 @@
     .flag = 0, \
     .axis = 1, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilArrayModifierData \
   { \
     .object = NULL, \
@@ -950,7 +953,7 @@
     .dist_start = 0.0f, \
     .dist_end = 20.0f, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilHookModifierData \
   { \
     .object = NULL, \
@@ -987,6 +990,100 @@
   { \
     .deformflag = ARM_DEF_VGROUP, \
     .object = NULL, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilTimeModifierData \
+  { \
+    .flag = MOD_GREASE_PENCIL_TIME_KEEP_LOOP, \
+    .offset = 1, \
+    .frame_scale = 1.0f, \
+    .mode = 0, \
+    .sfra = 1, \
+    .efra = 250, \
+    .segments_array = NULL, \
+    .segments_num = 1, \
+    .segment_active_index = 0, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilTimeModifierSegment \
+  { \
+    .name = "Segment", \
+    .segment_start = 1, \
+    .segment_end = 2, \
+    .segment_mode = 0, \
+    .segment_repeat = 1, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilEnvelopeModifierData \
+  { \
+    .spread = 10, \
+    .mode = MOD_GREASE_PENCIL_ENVELOPE_SEGMENTS, \
+    .mat_nr = -1, \
+    .thickness = 1.0f, \
+    .strength = 1.0f, \
+    .skip = 0, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilOutlineModifierData \
+  { \
+    .flag = MOD_GREASE_PENCIL_OUTLINE_KEEP_SHAPE, \
+    .thickness = 1, \
+    .sample_length = 0.0f, \
+    .subdiv = 3, \
+    .outline_material = NULL, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilShrinkwrapModifierData \
+  { \
+    .target = NULL, \
+    .aux_target = NULL, \
+    .keep_dist = 0.05f, \
+    .shrink_type = MOD_SHRINKWRAP_NEAREST_SURFACE, \
+    .shrink_opts = MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR, \
+    .shrink_mode = MOD_SHRINKWRAP_ON_SURFACE, \
+    .proj_limit = 0.0f, \
+    .proj_axis = MOD_SHRINKWRAP_PROJECT_OVER_NORMAL, \
+    .subsurf_levels = 0, \
+    .smooth_factor = 0.05f, \
+    .smooth_step = 1, \
+  }
+
+/* Here we deliberately set effective range to the half the default
+ * frame-range to have an immediate effect to suggest use-cases. */
+#define _DNA_DEFAULT_GreasePencilBuildModifierData \
+  { \
+    .start_frame = 1, \
+    .end_frame = 125, \
+    .start_delay = 0.0f, \
+    .length = 100.0f, \
+    .flag = 0, \
+    .mode = 0, \
+    .transition = 0, \
+    .time_alignment = 0, \
+    .time_mode = 0, \
+    .speed_fac = 1.2f, \
+    .speed_maxgap = 0.5f, \
+    .percentage_fac = 0.0f, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilSimplifyModifierData \
+  { \
+    .factor = 0.0f, \
+    .mode = MOD_GREASE_PENCIL_SIMPLIFY_FIXED, \
+    .step = 1, \
+    .length = 0.1f, \
+    .distance = 0.1f, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilTextureModifierData \
+  { \
+    .uv_offset = 0.0f, \
+    .uv_scale = 1.0f, \
+    .fill_rotation = 0.0f, \
+    .fill_offset = {0.0f, 0.0f}, \
+    .fill_scale = 1.0f, \
+    .fit_method = GP_TEX_CONSTANT_LENGTH, \
+    .mode = 0, \
   }
 
 /* clang-format off */

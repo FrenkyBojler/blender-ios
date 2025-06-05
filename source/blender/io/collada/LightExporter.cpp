@@ -11,8 +11,11 @@
 #include "COLLADASWColor.h"
 #include "COLLADASWLight.h"
 
+#include "DNA_light_types.h"
 #include "LightExporter.h"
 #include "collada_internal.h"
+
+#include "BKE_light.h"
 
 template<class Functor>
 void forEachLightObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
@@ -46,7 +49,11 @@ void LightsExporter::operator()(Object *ob)
   Light *la = (Light *)ob->data;
   std::string la_id(get_light_id(ob));
   std::string la_name(id_name(la));
-  COLLADASW::Color col(la->r * la->energy, la->g * la->energy, la->b * la->energy);
+  blender::float3 color = BKE_light_power(*la) * BKE_light_color(*la);
+  if (la->mode & LA_UNNORMALIZED) {
+    color *= BKE_light_area(*la, ob->runtime->object_to_world);
+  }
+  COLLADASW::Color col(color[0], color[1], color[2]);
 
   /* sun */
   if (la->type == LA_SUN) {
@@ -90,15 +97,11 @@ bool LightsExporter::exportBlenderProfile(COLLADASW::Light &cla, Light *la)
   cla.addExtraTechniqueParameter("blender", "red", la->r);
   cla.addExtraTechniqueParameter("blender", "green", la->g);
   cla.addExtraTechniqueParameter("blender", "blue", la->b);
-  cla.addExtraTechniqueParameter("blender", "shadow_r", la->shdwr, "blender_shadow_r");
-  cla.addExtraTechniqueParameter("blender", "shadow_g", la->shdwg, "blender_shadow_g");
-  cla.addExtraTechniqueParameter("blender", "shadow_b", la->shdwb, "blender_shadow_b");
   cla.addExtraTechniqueParameter("blender", "energy", la->energy, "blender_energy");
   cla.addExtraTechniqueParameter("blender", "spotsize", RAD2DEGF(la->spotsize));
   cla.addExtraTechniqueParameter("blender", "spotblend", la->spotblend);
   cla.addExtraTechniqueParameter("blender", "clipsta", la->clipsta);
-  cla.addExtraTechniqueParameter("blender", "clipend", la->clipend);
-  cla.addExtraTechniqueParameter("blender", "bias", la->bias);
+  cla.addExtraTechniqueParameter("blender", "clipend", la->att_dist);
   cla.addExtraTechniqueParameter("blender", "radius", la->radius);
   cla.addExtraTechniqueParameter("blender", "area_shape", la->area_shape);
   cla.addExtraTechniqueParameter("blender", "area_size", la->area_size);
