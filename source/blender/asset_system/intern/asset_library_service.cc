@@ -9,6 +9,7 @@
 #include "BKE_blender.hh"
 #include "BKE_preferences.h"
 
+#include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string_ref.hh"
 
