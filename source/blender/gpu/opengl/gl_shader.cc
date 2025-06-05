@@ -593,6 +593,24 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
 
+  ss << "\n/* Compilation Constants (pass-through). */\n";
+  for (const CompilationConstant &sc : info.compilation_constants_) {
+    ss << "const ";
+    switch (sc.type) {
+      case Type::int_t:
+        ss << "int " << sc.name << "=" << std::to_string(sc.value.i) << ";\n";
+        break;
+      case Type::uint_t:
+        ss << "uint " << sc.name << "=" << std::to_string(sc.value.u) << "u;\n";
+        break;
+      case Type::bool_t:
+        ss << "bool " << sc.name << "=" << (sc.value.u ? "true" : "false") << ";\n";
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+  }
   /* NOTE: We define macros in GLSL to trigger compilation error if the resource names
    * are reused for local variables. This is to match other backend behavior which needs accessors
    * macros. */
@@ -1652,6 +1670,17 @@ GLSourcesBaked GLShader::get_sources()
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name GLShaderCompiler
+ * \{ */
+
+void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+{
+  dynamic_cast<GLShader *>(unwrap(specialization.shader))->program_get(&specialization.constants);
+}
+
+/** \} */
+
 #if BLI_SUBPROCESS_SUPPORT
 
 /* -------------------------------------------------------------------- */
@@ -1774,7 +1803,9 @@ bool GLCompilerWorker::load_program_binary(GLint program)
   state_ = COMPILATION_FINISHED;
 
   if (binary->size > 0) {
+    GPU_debug_group_begin("Load Binary");
     glProgramBinary(program, binary->format, binary->data, binary->size);
+    GPU_debug_group_end();
     return true;
   }
 
@@ -1789,10 +1820,10 @@ void GLCompilerWorker::release()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GLShaderCompiler
+/** \name GLSubprocessShaderCompiler
  * \{ */
 
-GLShaderCompiler::~GLShaderCompiler()
+GLSubprocessShaderCompiler::~GLSubprocessShaderCompiler()
 {
   /* Must be called before we destruct the GLCompilerWorkers. */
   destruct_compilation_worker();
@@ -1802,7 +1833,7 @@ GLShaderCompiler::~GLShaderCompiler()
   }
 }
 
-GLCompilerWorker *GLShaderCompiler::get_compiler_worker()
+GLCompilerWorker *GLSubprocessShaderCompiler::get_compiler_worker()
 {
   auto new_worker = [&]() {
     GLCompilerWorker *result = new GLCompilerWorker();
@@ -1826,7 +1857,7 @@ GLCompilerWorker *GLShaderCompiler::get_compiler_worker()
   return worker;
 }
 
-Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
+Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
 {
   const_cast<ShaderCreateInfo *>(&info)->finalize();
   GLShader *shader = static_cast<GLShader *>(compile(info, true));
@@ -1843,6 +1874,8 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   GLCompilerWorker *worker = get_compiler_worker();
   worker->compile(sources);
 
+  GPU_debug_group_begin("Subprocess Compilation");
+
   /* This path is always called for the default shader compilation. Not for specialization.
    * Use the default constant template.*/
   const shader::SpecializationConstants &constants = GPU_shader_get_default_constant_state(
@@ -1856,6 +1889,8 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
     shader = nullptr;
   }
 
+  GPU_debug_group_end();
+
   worker->release();
 
   if (!shader) {
@@ -1865,7 +1900,7 @@ Shader *GLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return shader;
 }
 
-void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
 {
   static std::mutex mutex;
 
@@ -1908,6 +1943,8 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
     }
   }
 
+  GPU_debug_group_begin("Subprocess Specialization");
+
   GLCompilerWorker *worker = get_compiler_worker();
   worker->compile(sources);
   worker->block_until_ready();
@@ -1917,6 +1954,8 @@ void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
   if (!worker->load_program_binary(program_get()->program_id)) {
     program_release();
   }
+
+  GPU_debug_group_end();
 
   worker->release();
 }
