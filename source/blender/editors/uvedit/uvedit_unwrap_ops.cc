@@ -3047,7 +3047,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
       ot->srna,
       "uniform_bounding_box",
       false,
-      "Uniform Bounding BOx",
+      "Uniform Bounding Box",
       "Pack islands in unform bonding box of original islands");
 
   RNA_def_enum(ot->srna,
