@@ -11,6 +11,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_duplilist.hh"
 #include "BKE_key.hh"
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_modifier.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -161,47 +162,14 @@ bool AbstractHierarchyWriter::check_has_deforming_physics(const HierarchyContext
 
 bool HierarchyContext::is_point_instancer() const
 {
-  if (!this->object) {
+  if (!object) {
     return false;
   }
 
-  std::function<bool(bNodeTree *)> has_instance_on_points_node;
-  has_instance_on_points_node = [&](bNodeTree *ntree) -> bool {
-    if (!ntree) {
-      return false;
-    }
+  const bke::GeometrySet geometry_set =
+      bke::object_get_evaluated_geometry_set(*object);
 
-    for (bNode *node : ntree->all_nodes()) {
-      if (node->type_legacy == GEO_NODE_INSTANCE_ON_POINTS) {
-        bNodeSocket *points_socket = bke::node_find_socket(*node, SOCK_IN, "Points");
-        bNodeSocket *instance_socket = bke::node_find_socket(*node, SOCK_IN, "Instance");
-        bNodeSocket *instances_socket = bke::node_find_socket(*node, SOCK_OUT, "Instances");
-
-        if (points_socket && instance_socket && instances_socket) {
-          return true;
-        }
-      }
-      else if (node->type_legacy == NODE_GROUP && node->id) {
-        bNodeTree *subtree = reinterpret_cast<bNodeTree *>(node->id);
-        if (has_instance_on_points_node(subtree)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  };
-
-  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    if (md->type == eModifierType_Nodes) {
-      NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-      if (has_instance_on_points_node(nmd->node_group)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return geometry_set.has_instances();
 }
 
 AbstractHierarchyIterator::AbstractHierarchyIterator(Main *bmain, Depsgraph *depsgraph)
