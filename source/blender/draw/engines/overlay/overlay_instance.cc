@@ -1008,13 +1008,9 @@ bool Instance::object_is_edit_paint_mode(const ObjectRef &ob_ref,
                                          bool in_sculpt_mode)
 {
   bool in_edit_paint_mode = in_edit_mode || in_paint_mode || in_sculpt_mode;
-  if (ob_ref.object->base_flag & BASE_FROM_DUPLI) {
-    /* Disable outlines for objects instanced by an object in sculpt, paint or edit mode. */
-    in_edit_paint_mode |= ob_ref.dupli_parent && (object_is_edit_mode(ob_ref.dupli_parent) ||
-                                                  object_is_sculpt_mode(ob_ref.dupli_parent) ||
-                                                  object_is_paint_mode(ob_ref.dupli_parent));
-  }
-  return in_edit_paint_mode;
+  /* Disable outlines for objects instanced by an object in sculpt, paint or edit mode. */
+  return in_edit_paint_mode || ob_ref.parent_is_in_edit_paint_mode(
+                                   state.object_active, state.object_mode, state.ctx_mode);
 }
 
 bool Instance::object_is_edit_mode(const Object *object)

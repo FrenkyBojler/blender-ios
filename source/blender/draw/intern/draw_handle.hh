@@ -32,6 +32,12 @@
 #include "BLI_math_matrix.hh"
 #include "DNA_collection_types.h"
 
+/* parent_is_in_edit_paint_mode */
+#include "BKE_context.hh"
+#include "BKE_paint.hh"
+#include "DNA_layer_types.h"
+#include "DRW_render.hh"
+
 /* ObjectKey */
 #include "DEG_depsgraph_query.hh"
 
@@ -191,6 +197,61 @@ struct ObjectRef {
       return dupli_object->preview_base_geometry;
     }
     return nullptr;
+  }
+
+  bool parent_is_in_edit_paint_mode(const Object *active_object,
+                                    eObjectMode ob_mode,
+                                    eContextObjectMode ctx_mode) const
+  {
+    /* TODO: Deduplicate code with Overlay engine.
+     * Move to BKE ? Or check if T72490 is still relevant. */
+
+    if (!dupli_parent || active_object != dupli_parent) {
+      return false;
+    }
+
+    if (object->base_flag & BASE_FROM_DUPLI) {
+      /* TODO: Is this code reachable? */
+      return false;
+    }
+
+    if (dupli_parent->sculpt && (dupli_parent->sculpt->mode_type == OB_MODE_SCULPT)) {
+      return true;
+    }
+
+    if (ob_mode & (OB_MODE_ALL_PAINT | OB_MODE_ALL_PAINT_GPENCIL)) {
+      return true;
+    }
+
+    if (DRW_object_is_in_edit_mode(dupli_parent)) {
+      /* Also check for context mode as the object mode is not 100% reliable. (see T72490) */
+      switch (dupli_parent->type) {
+        case OB_MESH:
+          return ctx_mode == CTX_MODE_EDIT_MESH;
+        case OB_ARMATURE:
+          return ctx_mode == CTX_MODE_EDIT_ARMATURE;
+        case OB_CURVES_LEGACY:
+          return ctx_mode == CTX_MODE_EDIT_CURVE;
+        case OB_SURF:
+          return ctx_mode == CTX_MODE_EDIT_SURFACE;
+        case OB_LATTICE:
+          return ctx_mode == CTX_MODE_EDIT_LATTICE;
+        case OB_MBALL:
+          return ctx_mode == CTX_MODE_EDIT_METABALL;
+        case OB_FONT:
+          return ctx_mode == CTX_MODE_EDIT_TEXT;
+        case OB_CURVES:
+          return ctx_mode == CTX_MODE_EDIT_CURVES;
+        case OB_POINTCLOUD:
+          return ctx_mode == CTX_MODE_EDIT_POINTCLOUD;
+        case OB_GREASE_PENCIL:
+          return ctx_mode == CTX_MODE_EDIT_GREASE_PENCIL;
+        case OB_VOLUME:
+          /* No edit mode yet. */
+          return false;
+      }
+    }
+    return false;
   }
 };
 
