@@ -707,15 +707,30 @@ static void loose_data_instantiate_collection_process(
       /* Add collection as child of active collection. */
       BKE_collection_child_add(bmain, active_collection, collection);
       BKE_view_layer_synced_ensure(scene, view_layer);
+    }
+  }
 
-      if ((lapp_context->params->flag & FILE_AUTOSELECT) != 0) {
-        LISTBASE_FOREACH (CollectionObject *, coll_ob, &collection->gobject) {
-          Object *ob = coll_ob->ob;
-          Base *base = BKE_view_layer_base_find(view_layer, ob);
-          if (base) {
-            base->flag |= BASE_SELECTED;
-            BKE_scene_object_base_flag_sync_from_base(base);
-          }
+  /* If selecting was requested, select all added objects that are selectable. Independently of
+   * what was instantiated. */
+  if (!do_instantiate_as_empty && (lapp_context->params->flag & FILE_AUTOSELECT) != 0) {
+    for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+      const ID *id = item.new_id;
+      if (GS(id->name) != ID_GR) {
+        continue;
+      }
+      if (ID_IS_LINKED(id) && !ID_IS_OVERRIDE_LIBRARY(id)) {
+        continue;
+      }
+
+      BKE_view_layer_synced_ensure(scene, view_layer);
+
+      const Collection *collection = reinterpret_cast<const Collection *>(id);
+      LISTBASE_FOREACH (CollectionObject *, coll_ob, &collection->gobject) {
+        Object *ob = coll_ob->ob;
+        Base *base = BKE_view_layer_base_find(view_layer, ob);
+        if (base) {
+          base->flag |= BASE_SELECTED;
+          BKE_scene_object_base_flag_sync_from_base(base);
         }
       }
     }
