@@ -149,6 +149,8 @@ std::optional<blender::StringRef> BKE_id_attributes_default_color_name(const str
 void BKE_id_attributes_active_color_set(struct ID *id, std::optional<blender::StringRef> name);
 void BKE_id_attributes_active_color_clear(struct ID *id);
 void BKE_id_attributes_default_color_set(struct ID *id, std::optional<blender::StringRef> name);
+int BKE_id_attributes_color_index(AttributeOwner &owner, const char *name);
+const blender::StringRef BKE_id_attributes_color_name_from_index(AttributeOwner &owner, int index);
 
 const struct CustomDataLayer *BKE_id_attributes_color_find(const struct ID *id,
                                                            blender::StringRef name);

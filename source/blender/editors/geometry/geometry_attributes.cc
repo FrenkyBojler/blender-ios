@@ -530,6 +530,10 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
 
     switch (mode) {
       case ConvertAttributeMode::Generic: {
+        const int active_color_index = BKE_id_attributes_color_index(owner,
+                                                                     mesh->active_color_attribute);
+        const int default_color_index = BKE_id_attributes_color_index(
+            owner, mesh->default_color_attribute);
         if (!convert_attribute(owner,
                                attributes,
                                name,
@@ -538,6 +542,16 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
                                op->reports))
         {
           return OPERATOR_CANCELLED;
+        }
+        if (name == mesh->active_color_attribute) {
+          const StringRef name = BKE_id_attributes_color_name_from_index(owner,
+                                                                         active_color_index);
+          BKE_id_attributes_active_color_set(&mesh->id, name);
+        }
+        if (mesh->default_color_attribute && STREQ(name.c_str(), mesh->default_color_attribute)) {
+          const StringRef defcolor_name = BKE_id_attributes_color_name_from_index(
+              owner, default_color_index);
+          BKE_id_attributes_default_color_set(&mesh->id, defcolor_name);
         }
         break;
       }

@@ -1028,6 +1028,16 @@ void BKE_id_attributes_default_color_set(ID *id, const std::optional<StringRef> 
   }
 }
 
+int BKE_id_attributes_color_index(AttributeOwner &owner, const char *name)
+{
+  return color_name_to_index(owner, name);
+}
+
+const StringRef BKE_id_attributes_color_name_from_index(AttributeOwner &owner, int index)
+{
+  return color_name_from_index(owner, color_clamp_index(owner, index));
+}
+
 const CustomDataLayer *BKE_id_attributes_color_find(const ID *id, const StringRef name)
 {
   AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(id));
