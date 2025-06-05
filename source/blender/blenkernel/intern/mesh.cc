@@ -1400,7 +1400,7 @@ void Mesh::bounds_set_eager(const blender::Bounds<float3> &bounds)
   this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = bounds; });
 }
 
-static bool use_material_indices_of_bmesh(const Mesh &mesh)
+static bool use_bmesh_material_indices(const Mesh &mesh)
 {
   return mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH && mesh.runtime->edit_mesh &&
          mesh.runtime->edit_mesh->bm;
@@ -1409,7 +1409,7 @@ static bool use_material_indices_of_bmesh(const Mesh &mesh)
 std::optional<int> Mesh::material_index_max() const
 {
   this->runtime->max_material_index.ensure([&](std::optional<int> &value) {
-    if (use_material_indices_of_bmesh(*this)) {
+    if (use_bmesh_material_indices(*this)) {
       BMesh *bm = this->runtime->edit_mesh->bm;
       if (bm->totface == 0) {
         value = std::nullopt;
@@ -1454,7 +1454,7 @@ const blender::VectorSet<int> &Mesh::material_indices_used() const
     };
 
     Array<bool> used_indices(max_material_index + 1, false);
-    if (use_material_indices_of_bmesh(*this)) {
+    if (use_bmesh_material_indices(*this)) {
       BMesh *bm = this->runtime->edit_mesh->bm;
       BMFace *efa;
       BMIter iter;
