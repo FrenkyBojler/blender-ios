@@ -811,7 +811,7 @@ static void rna_NDOFMotionEventData_translation_get(PointerRNA *ptr, float *valu
 {
 #  ifdef WITH_INPUT_NDOF
   const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(ptr->data);
-  WM_event_ndof_pan_get(ndof, values, false);
+  WM_event_ndof_pan_get(ndof, values);
 #  else
   UNUSED_VARS(ptr);
   ARRAY_SET_ITEMS(values, 0, 0, 0);
@@ -3048,7 +3048,7 @@ static void rna_def_keyconfig(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_KeyMapItem_update");
 
   /* this is in fact the operator name, but if the operator can't be found we
-   * fallback on the operator ID */
+   * fall back on the operator ID */
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Name", "Name of operator (translated) to call on input event");
