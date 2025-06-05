@@ -33,7 +33,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -43,13 +42,14 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_mapping.hh"
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
 #include "BKE_uvproject.h"
-#include "BKE_mesh_mapping.hh"
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -2698,12 +2698,12 @@ class UVIsland {
   float cent[2], min[2], max[2];
 };
 static void uvedit_unwrap_islands(const Scene *scene,
-                          Object *obedit,
-                          BMEditMesh *em,
-                          const UnwrapOptions *options,
-                          int *r_count_changed,
-                          int *r_count_failed){
-
+                                  Object *obedit,
+                                  BMEditMesh *em,
+                                  const UnwrapOptions *options,
+                                  int *r_count_changed,
+                                  int *r_count_failed)
+{
 
   bool use_subsurf;
   modifier_unwrap_state(obedit, options, &use_subsurf);
@@ -2730,13 +2730,14 @@ static void uvedit_unwrap_islands(const Scene *scene,
 
   blender::geometry::uv_parametrizer_flush(handle);
   delete (handle);
- }
-static void uvedit_unwrap_uniform(const Scene* scene,
-                                   Object *obedit,
-                                   BMEditMesh *em,
-  const UnwrapOptions* options,
-  int* r_count_changed,
-  int* r_count_failed) {
+}
+static void uvedit_unwrap_uniform(const Scene *scene,
+                                  Object *obedit,
+                                  BMEditMesh *em,
+                                  const UnwrapOptions *options,
+                                  int *r_count_changed,
+                                  int *r_count_failed)
+{
   UvElementMap *element_map = BM_uv_element_map_create(em->bm, scene, true, false, true, true);
   const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
   blender::Array<std::unique_ptr<UVIsland>> aabbs(element_map->total_islands);
@@ -2796,7 +2797,7 @@ static void uvedit_unwrap_uniform(const Scene* scene,
     }
   }
 }
-  /* Assumes UV Map exists, doesn't run update functions. */
+/* Assumes UV Map exists, doesn't run update functions. */
 static void uvedit_unwrap(const Scene *scene,
                           Object *obedit,
                           const UnwrapOptions *options,
@@ -2939,7 +2940,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
   uvedit_unwrap_multi(scene, objects, &options, &count_changed, &count_failed);
 
   if (!options.uniform_bounding_box) {
-  
+
     blender::geometry::UVPackIsland_Params pack_island_params;
     pack_island_params.setFromUnwrapOptions(options);
     pack_island_params.rotate_method = ED_UVPACK_ROTATION_ANY;
@@ -3062,12 +3063,11 @@ void UV_OT_unwrap(wmOperatorType *ot)
       false,
       "Use Subdivision Surface",
       "Map UVs taking vertex position after Subdivision Surface modifier has been applied");
-  RNA_def_boolean(
-      ot->srna,
-      "uniform_bounding_box",
-      false,
-      "Uniform Bounding Box",
-      "Pack islands in unform bonding box of original islands");
+  RNA_def_boolean(ot->srna,
+                  "uniform_bounding_box",
+                  false,
+                  "Uniform Bounding Box",
+                  "Pack islands in unform bonding box of original islands");
 
   RNA_def_enum(ot->srna,
                "margin_method",
