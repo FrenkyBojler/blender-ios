@@ -5700,12 +5700,11 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
       "Global undo works by keeping a full copy of the file itself in memory, "
       "so takes extra memory");
 
-  prop = RNA_def_property(srna, "disable_edit_undo", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "use_global_edit_undo", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "uiflag", USER_EDIT_UNDO);
-  RNA_def_property_ui_text(
-      prop,
-      "Disable Edit Mode Undo",
-      "Instead of using specific edit mode undo systems, fallback to global undo instead");
+  RNA_def_property_ui_text(prop,
+                           "Global Edit Mode Undo",
+                           "Instead of using specific edit mode undo systems, use global undo");
 
   /* auto keyframing */
   prop = RNA_def_property(srna, "use_auto_keying", PROP_BOOLEAN, PROP_NONE);
