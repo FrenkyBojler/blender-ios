@@ -411,7 +411,7 @@ class GHOST_System : public GHOST_ISystem {
   bool m_is_debug_enabled;
 
   /* Time stamp of the next event that has a timer that needs to be fired. */
-  int64_t nextEventTimeout;
+  double nextEventTimeout;
 
   /* Time to sleep while waiting for window events to arrive. */
   int64_t maxSleepDurationUs;

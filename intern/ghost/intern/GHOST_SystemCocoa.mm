@@ -993,7 +993,7 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 /**
  * The event queue polling function
  */
-bool GHOST_SystemCocoa::processEvents(bool /*waitForEvent*/)
+bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 {
   bool anyProcessed = false;
   NSEvent *event;

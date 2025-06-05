@@ -6,6 +6,9 @@
  * \ingroup GHOST
  */
 
+#include <cfloat>
+#include <cmath>
+
 #include "GHOST_System.hh"
 
 #include "GHOST_EventManager.hh"

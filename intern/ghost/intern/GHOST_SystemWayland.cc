@@ -46,6 +46,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <condition_variable>
 #include <optional>
 #include <thread>
 #include <unordered_set>
