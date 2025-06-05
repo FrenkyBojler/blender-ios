@@ -95,11 +95,17 @@ struct ResourceHandleRange {
 
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
 struct ObjectRef {
-  Object *object;
+  friend class ObjectKey;
+  friend struct DupliCacheManager;
+
+ private:
   /** Duplicated object that corresponds to the current object. */
-  DupliObject *dupli_object;
+  DupliObject *dupli_object_;
   /** Object that created the dupli-list the current object is part of. */
-  Object *dupli_parent;
+  Object *dupli_parent_;
+
+ public:
+  Object *object;
   /** Unique handle per object ref. */
   ResourceHandleRange handle;
 
@@ -110,24 +116,22 @@ struct ObjectRef {
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
-    return dupli_object != nullptr;
+    return dupli_object_ != nullptr;
   }
 
   bool is_active(const Object *active_object) const
   {
-    return (dupli_object ? dupli_parent : object) == active_object;
+    return (dupli_object_ ? dupli_parent_ : object) == active_object;
   }
 
   float random() const
   {
-    if (dupli_object == nullptr) {
+    if (dupli_object_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
       return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
     }
-    else {
-      return dupli_object->random_id * (1.0f / (float)0xFFFFFFFF);
-    }
+    return dupli_object_->random_id * (1.0f / (float)0xFFFFFFFF);
   }
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
@@ -135,14 +139,14 @@ struct ObjectRef {
     /* If requesting instance data, check the parent particle system and object. */
     if (attr.use_dupli) {
       return BKE_object_dupli_find_rgba_attribute(
-          object, dupli_object, dupli_parent, attr.name, r_value);
+          object, dupli_object_, dupli_parent_, attr.name, r_value);
     }
     return BKE_object_dupli_find_rgba_attribute(object, nullptr, nullptr, attr.name, r_value);
   }
 
   LightLinking *light_linking() const
   {
-    return dupli_parent ? dupli_parent->light_linking : object->light_linking;
+    return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
   int recalc_flags(uint64_t last_update) const
@@ -156,8 +160,8 @@ struct ObjectRef {
     };
 
     int flags = get_flags(*object->runtime);
-    if (dupli_parent) {
-      flags |= get_flags(*dupli_parent->runtime);
+    if (dupli_parent_) {
+      flags |= get_flags(*dupli_parent_->runtime);
     }
 
     return flags;
@@ -168,16 +172,16 @@ struct ObjectRef {
   float4x4 particles_matrix() const
   {
     float4x4 dupli_mat = float4x4::identity();
-    if (dupli_parent && dupli_object) {
-      if (dupli_object->type & OB_DUPLICOLLECTION) {
-        Collection *collection = dupli_parent->instance_collection;
+    if (dupli_parent_ && dupli_object_) {
+      if (dupli_object_->type & OB_DUPLICOLLECTION) {
+        Collection *collection = dupli_parent_->instance_collection;
         if (collection != nullptr) {
           dupli_mat[3] -= float4(float3(collection->instance_offset), 0.0f);
         }
-        dupli_mat = dupli_parent->object_to_world() * dupli_mat;
+        dupli_mat = dupli_parent_->object_to_world() * dupli_mat;
       }
       else {
-        dupli_mat = object->object_to_world() * math::invert(dupli_object->ob->object_to_world());
+        dupli_mat = object->object_to_world() * math::invert(dupli_object_->ob->object_to_world());
       }
     }
     return dupli_mat;
@@ -185,16 +189,16 @@ struct ObjectRef {
 
   int preview_instance_index() const
   {
-    if (dupli_object) {
-      return dupli_object->preview_instance_index;
+    if (dupli_object_) {
+      return dupli_object_->preview_instance_index;
     }
     return -1;
   }
 
   const blender::bke::GeometrySet *preview_base_geometry() const
   {
-    if (dupli_object) {
-      return dupli_object->preview_base_geometry;
+    if (dupli_object_) {
+      return dupli_object_->preview_base_geometry;
     }
     return nullptr;
   }
@@ -206,7 +210,7 @@ struct ObjectRef {
     /* TODO: Deduplicate code with Overlay engine.
      * Move to BKE ? Or check if T72490 is still relevant. */
 
-    if (!dupli_parent || active_object != dupli_parent) {
+    if (!dupli_parent_ || active_object != dupli_parent_) {
       return false;
     }
 
@@ -215,7 +219,7 @@ struct ObjectRef {
       return false;
     }
 
-    if (dupli_parent->sculpt && (dupli_parent->sculpt->mode_type == OB_MODE_SCULPT)) {
+    if (dupli_parent_->sculpt && (dupli_parent_->sculpt->mode_type == OB_MODE_SCULPT)) {
       return true;
     }
 
@@ -223,9 +227,9 @@ struct ObjectRef {
       return true;
     }
 
-    if (DRW_object_is_in_edit_mode(dupli_parent)) {
+    if (DRW_object_is_in_edit_mode(dupli_parent_)) {
       /* Also check for context mode as the object mode is not 100% reliable. (see T72490) */
-      switch (dupli_parent->type) {
+      switch (dupli_parent_->type) {
         case OB_MESH:
           return ctx_mode == CTX_MODE_EDIT_MESH;
         case OB_ARMATURE:
@@ -282,8 +286,8 @@ class ObjectKey {
     ob_ = DEG_get_original(ob_ref.object);
     hash_value_ = get_default_hash(ob_);
 
-    if (DupliObject *dupli = ob_ref.dupli_object) {
-      parent_ = ob_ref.dupli_parent;
+    if (DupliObject *dupli = ob_ref.dupli_object_) {
+      parent_ = ob_ref.dupli_parent_;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(parent_));
       for (int i : IndexRange(MAX_DUPLI_RECUR)) {
         id_[i] = dupli->persistent_id[i];
