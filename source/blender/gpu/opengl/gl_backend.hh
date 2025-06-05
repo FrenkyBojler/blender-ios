@@ -16,6 +16,8 @@
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
 
+#include "gpu_capabilities_private.hh"
+
 #ifdef WITH_RENDERDOC
 #  include "renderdoc_api.hh"
 #endif
@@ -59,45 +61,11 @@ class GLBackend : public GPUBackend {
 
   void init_resources() override
   {
-    if (GPU_use_parallel_compilation()) {
+    if (GCaps.use_subprocess_shader_compilations) {
       compiler_ = MEM_new<GLSubprocessShaderCompiler>(__func__);
     }
     else {
-      int desired_thread_count = 1;
-      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-        /* Best middle ground between memory usage and speedup as Nvidia context memory footprint
-         * is quite heavy (~25MB). Moreover we have diminishing return after this because of PSO
-         * compilation blocking the main thread.
-         * Can be revisited if we find a way to delete the worker thread context after finishing
-         * compilation, and fix the scheduling bubbles (#139775). */
-        desired_thread_count = 4;
-      }
-      if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OPENSOURCE)) {
-        /* Mesa has very good compilation time and doesn't block the main thread.
-         * The memory footprint of the worker context is rather small (<10MB).
-         * Shader compilation gets much slower as the number of threads increases. */
-        desired_thread_count = 8;
-      }
-      if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
-        /* AMD proprietary driver's context have huge memory footprint (~45MB).
-         * There is also not much gain from parallelization. */
-        desired_thread_count = 1;
-      }
-      if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY)) {
-        /* Intel windows driver offer almost no speedup with parallel compilation. */
-        desired_thread_count = 1;
-      }
-      if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
-        /* Mesa has very good compilation time and doesn't block the main thread.
-         * The memory footprint of the worker context is rather small (<10MB).
-         * Shader compilation gets much slower as the number of threads increases. */
-        desired_thread_count = 8;
-      }
-      /* Allow thread count override option to limit the number of workers.
-       * Also avoid using too much resources on low end systems. */
-      int thread_count = min_ii(desired_thread_count, BLI_system_thread_count());
-
-      compiler_ = MEM_new<GLShaderCompiler>(__func__, thread_count);
+      compiler_ = MEM_new<GLShaderCompiler>(__func__);
     }
   };
 

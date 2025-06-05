@@ -722,7 +722,7 @@ void Instance::draw_viewport()
     }
     if (materials.queued_shaders_count > 0) {
       info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
-      if (!GPU_use_parallel_compilation() &&
+      if (!GPU_use_subprocess_compilation() &&
           GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
       {
         info_append_i18n(

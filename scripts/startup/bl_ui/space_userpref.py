@@ -810,7 +810,9 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
         if sys.platform != "darwin":
             layout.separator()
             col = layout.column()
-            col.prop(system, "max_shader_compilation_subprocesses")
+            col.active = system.gpu_backend != 'VULKAN'
+            col.prop(system, "max_shader_compilation_workers")
+            col.prop(system, "use_shader_compilation_subprocesses", text="Subprocess Workers")
 
 
 class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):

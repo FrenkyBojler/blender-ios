@@ -487,12 +487,16 @@ typedef struct UserDef {
   int gpu_preferred_index;
   uint32_t gpu_preferred_vendor_id;
   uint32_t gpu_preferred_device_id;
-  char _pad16[4];
+
+  /** Max number of parallel shader compilation workers. */
+  short max_shader_compilation_workers;
+  /** Use subprocesses for shader compilation (OpenGL only). */
+  short use_shader_compilation_subprocesses;
+
+  char _pad16[2];
+
   /** #eGPUBackendType */
   short gpu_backend;
-
-  /** Max number of parallel shader compilation subprocesses. */
-  short max_shader_compilation_subprocesses;
 
   /** Number of samples for FPS display calculations. */
   short playback_fps_samples;

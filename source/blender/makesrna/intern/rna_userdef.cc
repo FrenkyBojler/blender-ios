@@ -6349,14 +6349,25 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Preferred device to select during detection (requires restarting "
                            "Blender for changes to take effect)");
 
-  prop = RNA_def_property(srna, "max_shader_compilation_subprocesses", PROP_INT, PROP_NONE);
-  RNA_def_property_range(prop, 0, INT16_MAX);
+  prop = RNA_def_property(srna, "max_shader_compilation_workers", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(prop,
-                           "Max Shader Compilation Subprocesses",
-                           "Max number of parallel shader compilation subprocesses, "
+                           "Max Shader Compilation Workers",
+                           "Number of shader compilation threads or subprocess, "
                            "clamped at the max threads supported by the CPU "
                            "(requires restarting Blender for changes to take effect). "
-                           "Setting it to 0 disables subprocess shader compilation.");
+                           "Higher number increases the RAM usage while reducing "
+                           "compilation time. A value of 0 will use automatic configuration. "
+                           "(OpenGL only)");
+
+  prop = RNA_def_property(srna, "use_shader_compilation_subprocesses", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Use Shader Compilation Subprocesses",
+                           "Compile shaders using subprocesses instead of threads "
+                           "(requires restarting Blender for changes to take effect). "
+                           "This option requires more RAM for each worker "
+                           "but might compiles shaders faster. "
+                           "(OpenGL only)");
 
   /* Network. */
 
