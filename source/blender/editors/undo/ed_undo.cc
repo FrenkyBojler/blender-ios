@@ -406,7 +406,7 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
         CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
         return false;
       }
-      if (obact->mode & OB_MODE_EDIT) {
+      if ((obact->mode & OB_MODE_EDIT) && (U.flag & USER_EDIT_UNDO)) {
         if ((id == nullptr) || (obact->data == nullptr) ||
             (GS(id->name) != GS(((ID *)obact->data)->name)))
         {
