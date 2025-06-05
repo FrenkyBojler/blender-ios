@@ -1601,7 +1601,7 @@ static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *e
     const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'walking
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(C)) {
+    if (!is_undo_pushed && walk_object) {
       ED_undo_push(C, op->type->name);
     }
   }

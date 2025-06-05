@@ -2685,7 +2685,7 @@ static void read_libblock_undo_restore_identical(
    * remapped, so no need to store this info here. */
   oldnewmap_lib_insert(fd, bhead->old, id_old, bhead->code);
 
-  BKE_main_idmap_insert_id(fd->new_idmap_uuid, id_old);
+  BKE_main_idmap_insert_id(fd->new_idmap_uid, id_old);
 
   if (GS(id_old->name) == ID_OB) {
     Object *ob = (Object *)id_old;
