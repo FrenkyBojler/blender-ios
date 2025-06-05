@@ -205,6 +205,10 @@ GHOST_SystemWin32::~GHOST_SystemWin32()
   /* Shutdown COM. */
   OleUninitialize();
 
+  if (timerHandle) {
+    CloseHandle(timerHandle);
+  }
+
   if (isStartedFromCommandPrompt()) {
     setConsoleWindowState(GHOST_kConsoleWindowStateShow);
   }
