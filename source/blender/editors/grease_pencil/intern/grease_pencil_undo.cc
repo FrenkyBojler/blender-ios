@@ -327,6 +327,14 @@ struct GreasePencilUndoStep {
   Array<StepObject> objects;
 };
 
+static bool poll(bContext *C)
+{
+  if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+    return false;
+  }
+  return greasepencil::grease_pencil_edit_poll(C);
+}
+
 static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   GreasePencilUndoStep *us = reinterpret_cast<GreasePencilUndoStep *>(us_p);
@@ -413,7 +421,7 @@ void ED_undosys_type_grease_pencil(UndoType *ut)
   using namespace blender::ed;
 
   ut->name = "Edit GreasePencil";
-  ut->poll = greasepencil::grease_pencil_edit_poll;
+  ut->poll = greasepencil::undo::poll; 
   ut->step_encode = greasepencil::undo::step_encode;
   ut->step_decode = greasepencil::undo::step_decode;
   ut->step_free = greasepencil::undo::step_free;
