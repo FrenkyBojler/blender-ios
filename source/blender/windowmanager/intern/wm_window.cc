@@ -1827,16 +1827,14 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 }
 
 /**
- * \param sleep_us_p: The number of microseconds to sleep which may be reduced by this function
+ * \return sleep_us_p: The number of microseconds to sleep which may be reduced by this function
  * to account for timers that would run during the anticipated sleep period.
  */
-static void wm_window_timers_get_anticipated_sleep_period(const bContext *C, int *sleep_us_p)
+static double wm_window_timers_get_anticipated_sleep_timeout(const bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   const double time = BLI_time_now_seconds();
 
-  const int sleep_us = *sleep_us_p;
   /* The nearest time an active timer is scheduled to run. */
   double ntime_min = DBL_MAX;
 
@@ -1851,26 +1849,12 @@ static void wm_window_timers_get_anticipated_sleep_period(const bContext *C, int
 
     /* Future timer, update nearest time. */
     if (wt->time_next >= time) {
-      if (sleep_us != 0) {
-        /* The timer is not ready to run but may run shortly. */
-        ntime_min = std::min(wt->time_next, ntime_min);
-      }
+      /* The timer is not ready to run but may run shortly. */
+      ntime_min = std::min(wt->time_next, ntime_min);
     }
   }
 
-  if ((sleep_us != 0) && (ntime_min != DBL_MAX)) {
-    /* Clamp the sleep time so next execution runs earlier (if necessary).
-     * Use `ceil` so the timer is guaranteed to be ready to run (not always the case with
-     * rounding). Even though using `floor` or `round` is more responsive, it causes CPU intensive
-     * loops that may run until the timer is reached, see: #111579. */
-    const double microseconds = 1000000.0;
-    const double sleep_sec = double(sleep_us) / microseconds;
-    const double sleep_sec_next = ntime_min - time;
-
-    if (sleep_sec_next < sleep_sec) {
-      *sleep_us_p = int(std::ceil(sleep_sec_next * microseconds));
-    }
-  }
+  return ntime_min;
 }
 
 /**
@@ -1885,9 +1869,6 @@ static bool wm_window_timers_process(const bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
   const double time = BLI_time_now_seconds();
   bool has_event = false;
-
-  /* The nearest time an active timer is scheduled to run. */
-  double ntime_min = DBL_MAX;
 
   /* Mutable in case the timer gets removed. */
   LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
@@ -1950,19 +1931,22 @@ void wm_window_events_process(const bContext *C)
   BLI_assert(BLI_thread_is_main());
   GPU_render_begin();
 
-  int sleep_us = std::numeric_limits<int>::max();
+  double next_event_timeout;
+  int64_t max_sleep_us;
   /* When there was no event in the last event loop iteration, sleep until a new event is
    * avaiable or a timer needs to be fired. This helps to save on CPU cycles when idling.
    * Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
    * events are typically generated from a timer that runs in the main loop. */
   if (has_event || (G.f & G_FLAG_EVENT_SIMULATE) != 0) {
-    sleep_us = 0;
+    next_event_timeout = DBL_MAX;
+    max_sleep_us = 0;
   }
   else {
-    sleep_us = std::numeric_limits<int>::max();
-    wm_window_timers_get_anticipated_sleep_period(C, &sleep_us);
+    next_event_timeout = wm_window_timers_get_anticipated_sleep_timeout(C);
+    /* max_sleep_us may be set to a lower value if the sleep should be interrupted in regular intervals. */
+    max_sleep_us = GHOST_kFireTimeNever;
   }
-  GHOST_SetMaxSleepDurationUs(g_system, sleep_us);
+  GHOST_SetSleepTimeout(g_system, next_event_timeout, max_sleep_us);
   has_event = GHOST_ProcessEvents(g_system, false); /* `false` is no wait. */
 
   if (has_event) {

@@ -227,11 +227,11 @@ GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
   return (GHOST_WindowHandle)window;
 }
 
-void GHOST_SetMaxSleepDurationUs(GHOST_SystemHandle systemhandle, int sleep_us)
+void GHOST_SetSleepTimeout(GHOST_SystemHandle systemhandle, double eventTimeout, int64_t maxSleepUs)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
 
-  system->setMaxSleepDurationUs(sleep_us);
+  system->setSleepTimeout(eventTimeout, maxSleepUs);
 }
 
 bool GHOST_ProcessEvents(GHOST_SystemHandle systemhandle, bool waitForEvent)

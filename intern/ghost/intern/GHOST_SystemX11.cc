@@ -597,16 +597,14 @@ bool GHOST_SystemX11::processEvents(bool waitForEvent)
     GHOST_TimerManager *timerMgr = getTimerManager();
 
     if (waitForEvent && m_dirty_windows.empty() && !XPending(m_display)) {
-      uint64_t next = timerMgr->nextFireTime();
+      int64_t sleepDurationMs = getCurrentSleepDurationMs();
 
-      if (next == GHOST_kFireTimeNever) {
+      if (sleepDurationMs == GHOST_kFireTimeNever) {
         SleepTillEvent(m_display, -1);
       }
       else {
-        const int64_t maxSleep = next - getMilliSeconds();
-
-        if (maxSleep >= 0) {
-          SleepTillEvent(m_display, next - getMilliSeconds());
+        if (sleepDurationMs > 0) {
+          SleepTillEvent(m_display, sleepDurationMs);
         }
       }
     }

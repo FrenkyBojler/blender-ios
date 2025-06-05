@@ -138,7 +138,7 @@ class GHOST_System : public GHOST_ISystem {
    * Sets the maximum sleeping duration when waiting for new window events to arrive.
    * \param sleep_us: Sleeping duration in microseconds.
    */
-  void setMaxSleepDurationUs(int sleep_us) override;
+  void setSleepTimeout(double eventTimeout, int64_t maxSleepUs) override;
 
   /**
    * Inherited from GHOST_ISystem but left pure virtual
@@ -371,6 +371,18 @@ class GHOST_System : public GHOST_ISystem {
    */
   GHOST_TSuccess exit() override;
 
+  /**
+   * Computes how long the thread can be put to sleep, taking into account running timers.
+   * \return Sleep duration in microseconds.
+   */
+  int64_t getCurrentSleepDurationUs();
+
+  /**
+   * Same as \see getCurrentSleepDurationUs, but returns the sleep duration in milliseconds.
+   * \return Sleep duration in milliseconds.
+   */
+  int64_t getCurrentSleepDurationMs();
+
   /** The timer manager. */
   GHOST_TimerManager *m_timerManager;
 
@@ -398,8 +410,11 @@ class GHOST_System : public GHOST_ISystem {
 
   bool m_is_debug_enabled;
 
+  /* Time stamp of the next event that has a timer that needs to be fired. */
+  int64_t nextEventTimeout;
+
   /* Time to sleep while waiting for window events to arrive. */
-  int sleepDurationUs;
+  int64_t maxSleepDurationUs;
 };
 
 inline GHOST_TimerManager *GHOST_System::getTimerManager() const

@@ -317,9 +317,10 @@ class GHOST_ISystem {
 
   /**
    * Sets the maximum sleeping duration when waiting for new window events to arrive.
-   * \param sleep_us: Sleeping duration in microseconds.
+   * \param eventTimeout: BLI time stamp until which the next timer needs to be fired.
+   * \param maxSleepUs: Maximum sleeping duration in microseconds.
    */
-  virtual void setMaxSleepDurationUs(int sleep_us) = 0;
+  virtual void setSleepTimeout(double eventTimeout, int64_t maxSleepUs) = 0;
 
   /**
    * Retrieves events from the system and stores them in the queue.

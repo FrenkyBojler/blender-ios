@@ -1519,6 +1519,8 @@ struct GWL_Display {
   std::vector<const GHOST_IEvent *> events_pending;
   /** Guard against multiple threads accessing `events_pending` at once. */
   std::mutex events_pending_mutex;
+  /** Condition variable for notifying other threads that an event has occured. */
+  std::condition_variable events_cv;
 
   /**
    * A separate timer queue, needed so the WAYLAND thread can lock access.
@@ -7549,7 +7551,10 @@ bool GHOST_SystemWayland::processEvents(bool waitForEvent)
   }
 
   {
-    std::lock_guard lock{display_->events_pending_mutex};
+    std::unique_lock lock{display_->events_pending_mutex};
+    int64_t sleepDurationUs = getCurrentSleepDurationUs();
+    auto timeout_timepoint = std::chrono::high_resolution_clock::now() + std::chrono::microseconds(sleepDurationUs);
+    display_->events_cv.wait_until(lock, timeout_timepoint);
     for (const GHOST_IEvent *event : display_->events_pending) {
 
       /* Perform actions that aren't handled in a thread. */
@@ -9223,8 +9228,11 @@ GHOST_TSuccess GHOST_SystemWayland::pushEvent_maybe_pending(const GHOST_IEvent *
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
   if (main_thread_id != std::this_thread::get_id()) {
-    std::lock_guard lock{display_->events_pending_mutex};
-    display_->events_pending.push_back(event);
+    {
+      std::lock_guard lock{display_->events_pending_mutex};
+      display_->events_pending.push_back(event);
+    }
+    display_->events_cv.notify_all();
     return GHOST_kSuccess;
   }
 #endif

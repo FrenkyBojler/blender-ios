@@ -700,19 +700,13 @@ bool GHOST_SystemSDL::processEvents(bool waitForEvent)
     GHOST_TimerManager *timerMgr = getTimerManager();
 
     if (waitForEvent && m_dirty_windows.empty() && !SDL_HasEvents(SDL_FIRSTEVENT, SDL_LASTEVENT)) {
-      uint64_t next = timerMgr->nextFireTime();
+      int64_t sleepDurationMs = getCurrentSleepDurationMs();
 
-      if (next == GHOST_kFireTimeNever) {
+      if (sleepDurationMs == GHOST_kFireTimeNever) {
         SDL_WaitEventTimeout(nullptr, -1);
-        // SleepTillEvent(m_display, -1);
       }
-      else {
-        int64_t maxSleep = next - getMilliSeconds();
-
-        if (maxSleep >= 0) {
-          SDL_WaitEventTimeout(nullptr, next - getMilliSeconds());
-          // SleepTillEvent(m_display, next - getMilliSeconds()); /* X11. */
-        }
+      else if (sleepDurationMs > 0) {
+          SDL_WaitEventTimeout(nullptr, sleepDurationMs);
       }
     }
 

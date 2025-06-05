@@ -17,6 +17,8 @@
 #  include "GHOST_NDOFManager.hh"
 #endif
 
+#include "BLI_time.h"
+
 GHOST_System::GHOST_System()
     : m_nativePixel(false),
       m_windowFocus(true),
@@ -31,7 +33,8 @@ GHOST_System::GHOST_System()
       m_tabletAPI(GHOST_kTabletAutomatic),
       m_is_debug_enabled(false),
       /* Default sleeping duration is 5000us == 5ms. */
-      sleepDurationUs(5000)
+      nextEventTimeout(DBL_MAX),
+      maxSleepDurationUs(5000)
 {
 }
 
@@ -141,9 +144,41 @@ GHOST_IWindow *GHOST_System::getWindowUnderCursor(int32_t x, int32_t y)
   return nullptr;
 }
 
-void GHOST_System::setMaxSleepDurationUs(int sleep_us)
+void GHOST_System::setSleepTimeout(double eventTimeout, int64_t maxSleepUs)
 {
-  sleepDurationUs = sleep_us;
+  nextEventTimeout = eventTimeout;
+  maxSleepDurationUs = maxSleepUs;
+}
+
+int64_t GHOST_System::getCurrentSleepDurationUs()
+{
+  GHOST_TimerManager *timerMgr = getTimerManager();
+  int64_t sleepDuration = maxSleepDurationUs;
+
+  /* Handle the external timeout time stamp. */
+  if (nextEventTimeout != DBL_MAX) {
+    /* Clamp the sleep time so next execution runs earlier (if necessary).
+     * Use `ceil` so the timer is guaranteed to be ready to run (not always the case with
+     * rounding). Even though using `floor` or `round` is more responsive, it causes CPU intensive
+     * loops that may run until the timer is reached, see: #111579. */
+    const double microseconds = 1000000.0;
+    const double sleep_sec_next = nextEventTimeout - BLI_time_now_seconds();
+    if (sleep_sec_next >= 0.0f) {
+      sleepDuration = std::min(sleepDuration, int64_t(std::ceil(sleep_sec_next * microseconds)));
+    }
+  }
+
+  /* Handle the timerMgr next fire time. */
+  uint64_t next = timerMgr->nextFireTime();
+  if (next != GHOST_kFireTimeNever) {
+    sleepDuration = std::min(sleepDuration, int64_t(next - getMilliSeconds()) * 1000);
+  }
+  return sleepDuration;
+}
+
+int64_t GHOST_System::getCurrentSleepDurationMs()
+{
+  return int(ceil(double(getCurrentSleepDurationUs()) / 1000.0));
 }
 
 void GHOST_System::dispatchEvents()

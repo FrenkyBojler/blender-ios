@@ -433,30 +433,25 @@ bool GHOST_SystemWin32::processEvents(bool waitForEvent)
   do {
     GHOST_TimerManager *timerMgr = getTimerManager();
 
-    int64_t maxSleepUs = sleepDurationUs;
-    uint64_t next = timerMgr->nextFireTime();
-    if (next != GHOST_kFireTimeNever) {
-      maxSleepUs = std::min(maxSleepUs, int64_t(next - getMilliSeconds()));
-    }
-
-    if (next == GHOST_kFireTimeNever && maxSleepUs == std::numeric_limits<int>::max()) {
+    int64_t sleepDurationUs = getCurrentSleepDurationUs();
+    if (sleepDurationUs == GHOST_kFireTimeNever) {
       /* Unlimited sleeping. */
       ::WaitMessage();
     }
-    else if (timerHandle) {
+    else if (timerHandle && sleepDurationUs > 0) {
       /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is only supported since Windows 10, version 1803.
        * Wait time is specified in 100 nanosecond intervals. */
       LARGE_INTEGER waitTime;
-      waitTime.QuadPart = -maxSleepUs * 10;
+      waitTime.QuadPart = -sleepDurationUs * 10;
       if (!SetWaitableTimer(timerHandle, &waitTime, 0, nullptr, nullptr, 0)) {
         printf("GHOST_SystemWin32::processEvents: SetWaitableTimer failed: %d\n", GetLastError());
       }
       int nCount = 1;
       MsgWaitForMultipleObjects(nCount, &timerHandle, false, INFINITE, QS_ALLINPUT);
     }
-    else {
+    else if (sleepDurationUs > 0) {
       /* Fallback code for systems older than Windows 10, version 1803. */
-      int maxSleepMs = int(double(maxSleepUs) / 1000.0);
+      int maxSleepMs = int(ceil(double(sleepDurationUs) / 1000.0));
       ::SetTimer(nullptr, 0, maxSleepMs, nullptr);
       ::WaitMessage();
       ::KillTimer(nullptr, 0);

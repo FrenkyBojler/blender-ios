@@ -998,73 +998,66 @@ bool GHOST_SystemCocoa::processEvents(bool /*waitForEvent*/)
   bool anyProcessed = false;
   NSEvent *event;
 
-  /* TODO: implement timer? */
-#if 0
   do {
     GHOST_TimerManager* timerMgr = getTimerManager();
 
-    if (waitForEvent) {
-      uint64_t next = timerMgr->nextFireTime();
-      double timeOut;
+    int64_t sleepDurationMs = getCurrentSleepDurationMs();
+    double timeOut;
 
-      if (next == GHOST_kFireTimeNever) {
-        timeOut = kEventDurationForever;
-      }
-      else {
-        timeOut = (double)(next - getMilliSeconds())/1000.0;
-        if (timeOut < 0.0)
-          timeOut = 0.0;
-      }
-
-      ::ReceiveNextEvent(0, nullptr, timeOut, false, &event);
+    if (sleepDurationMs == GHOST_kFireTimeNever) {
+      timeOut = kEventDurationForever;
     }
+    else {
+      timeOut = (double)(sleepDurationMs) / 1e6;
+      if (timeOut < 0.0)
+        timeOut = 0.0;
+    }
+
+    ::ReceiveNextEvent(0, nullptr, timeOut, false, &event);
 
     if (timerMgr->fireTimers(getMilliSeconds())) {
       anyProcessed = true;
     }
-#endif
-  do {
-    @autoreleasepool {
-      event = [NSApp nextEventMatchingMask:NSEventMaskAny
-                                 untilDate:[NSDate distantPast]
-                                    inMode:NSDefaultRunLoopMode
-                                   dequeue:YES];
-      if (event == nil) {
-        break;
-      }
+    do {
+      @autoreleasepool {
+        event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                  untilDate:[NSDate distantPast]
+                                      inMode:NSDefaultRunLoopMode
+                                    dequeue:YES];
+        if (event == nil) {
+          break;
+        }
 
-      anyProcessed = true;
+        anyProcessed = true;
 
-      /* Send event to NSApp to ensure Mac wide events are handled,
-       * this will send events to BlenderWindow which will call back
-       * to handleKeyEvent, handleMouseEvent and handleTabletEvent. */
+        /* Send event to NSApp to ensure Mac wide events are handled,
+        * this will send events to BlenderWindow which will call back
+        * to handleKeyEvent, handleMouseEvent and handleTabletEvent. */
 
-      /* There is on special exception for Control+(Shift)+Tab.
-       * We do not get keyDown events delivered to the view because they are
-       * special hotkeys to switch between views, so override directly */
+        /* There is on special exception for Control+(Shift)+Tab.
+        * We do not get keyDown events delivered to the view because they are
+        * special hotkeys to switch between views, so override directly */
 
-      if (event.type == NSEventTypeKeyDown && event.keyCode == kVK_Tab &&
-          (event.modifierFlags & NSEventModifierFlagControl))
-      {
-        handleKeyEvent(event);
-      }
-      else {
-        /* For some reason NSApp is swallowing the key up events when modifier
-         * key is pressed, even if there seems to be no apparent reason to do
-         * so, as a workaround we always handle these up events. */
-        if (event.type == NSEventTypeKeyUp &&
-            (event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagOption)))
+        if (event.type == NSEventTypeKeyDown && event.keyCode == kVK_Tab &&
+            (event.modifierFlags & NSEventModifierFlagControl))
         {
           handleKeyEvent(event);
         }
+        else {
+          /* For some reason NSApp is swallowing the key up events when modifier
+          * key is pressed, even if there seems to be no apparent reason to do
+          * so, as a workaround we always handle these up events. */
+          if (event.type == NSEventTypeKeyUp &&
+              (event.modifierFlags & (NSEventModifierFlagCommand | NSEventModifierFlagOption)))
+          {
+            handleKeyEvent(event);
+          }
 
-        [NSApp sendEvent:event];
+          [NSApp sendEvent:event];
+        }
       }
-    }
-  } while (event != nil);
-#if 0
-  } while (waitForEvent && !anyProcessed); /* Needed only for timer implementation. */
-#endif
+    } while (event != nil);
+  } while (waitForEvent && !anyProcessed);
 
   if (m_needDelayedApplicationBecomeActiveEventProcessing) {
     handleApplicationBecomeActiveEvent();
