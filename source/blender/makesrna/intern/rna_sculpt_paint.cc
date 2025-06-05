@@ -549,10 +549,63 @@ static void rna_UnifiedPaintSettings_radius_update(bContext *C, PointerRNA *ptr)
   rna_UnifiedPaintSettings_update(C, ptr);
 }
 
-// TODO: How should this work?
-static std::optional<std::string> rna_UnifiedPaintSettings_path(const PointerRNA * /*ptr*/)
+static const UnifiedPaintSettings *rna_UnifiedPaintSettings_address_get(const Paint *paint)
 {
-  return "tool_settings.unified_paint_settings";
+  if (!paint) {
+    return nullptr;
+  }
+
+  return &paint->unified_paint_settings;
+}
+
+static std::optional<std::string> rna_UnifiedPaintSettings_path(const PointerRNA *ptr)
+{
+  const Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
+  const ToolSettings *tool_settings = scene ? scene->toolsettings : nullptr;
+  if (tool_settings == nullptr) {
+    return std::nullopt;
+  }
+  if (rna_UnifiedPaintSettings_address_get(reinterpret_cast<Paint *>(tool_settings->vpaint)) ==
+      ptr->data)
+  {
+    return "tool_settings.vertex_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(reinterpret_cast<Paint *>(tool_settings->wpaint)) ==
+      ptr->data)
+  {
+    return "tool_settings.weight_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(reinterpret_cast<Paint *>(tool_settings->sculpt)) ==
+      ptr->data)
+  {
+    return "tool_settings.sculpt.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(reinterpret_cast<Paint *>(tool_settings->gp_paint)) ==
+      ptr->data)
+  {
+    return "tool_settings.gpencil_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(
+          reinterpret_cast<Paint *>(tool_settings->gp_vertexpaint)) == ptr->data)
+  {
+    return "tool_settings.gpencil_vertex_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(
+          reinterpret_cast<Paint *>(tool_settings->gp_sculptpaint)) == ptr->data)
+  {
+    return "tool_settings.gpencil_sculpt_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(
+          reinterpret_cast<Paint *>(tool_settings->gp_weightpaint)) == ptr->data)
+  {
+    return "tool_settings.gpencil_weight_paint.unified_paint_settings";
+  }
+  if (rna_UnifiedPaintSettings_address_get(
+          reinterpret_cast<Paint *>(tool_settings->curves_sculpt)) == ptr->data)
+  {
+    return "tool_settings.curves_sculpt.unified_paint_settings";
+  }
+  return std::nullopt;
 }
 #else
 

@@ -4157,13 +4157,16 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Normal Vector", "Normal vector used to copy, add or multiply");
   RNA_def_property_ui_range(prop, -10000.0, 10000.0, 1, 3);
 
-# if 1 /* Deprecated: to be removed in 5.1 */
+#  if 1 /* Deprecated: to be removed in 5.1 */
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "UnifiedPaintSettings");
-  RNA_def_property_ui_text(prop, "Unified Paint Settings", "Deprecated: use per Paint mode value instead (e.g. tool_settings.sculpt.unified_paint_settings)");
-#endif
+  RNA_def_property_ui_text(prop,
+                           "Unified Paint Settings",
+                           "Deprecated: use per Paint mode value instead (e.g. "
+                           "tool_settings.sculpt.unified_paint_settings)");
+#  endif
 
   /* Curve Paint Settings */
   prop = RNA_def_property(srna, "curve_paint_settings", PROP_POINTER, PROP_NONE);
