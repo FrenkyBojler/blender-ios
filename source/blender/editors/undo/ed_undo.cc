@@ -383,6 +383,24 @@ bool ED_undo_is_valid(const bContext *C, const char *undoname)
   return BKE_undosys_stack_has_undo(wm->undo_stack, undoname);
 }
 
+bool ED_undo_is_memfile_compatible(const bContext *C)
+{
+  /* Some modes don't co-exist with memfile undo, disable their use: #60593
+   * (this matches 2.7x behavior). */
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  if (view_layer != nullptr) {
+    BKE_view_layer_synced_ensure(scene, view_layer);
+    Object *obact = BKE_view_layer_active_object_get(view_layer);
+    if (obact != nullptr) {
+      if ((obact->mode & OB_MODE_EDIT) && (U.uiflag & USER_EDIT_UNDO)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &ptr)
 {
   if (!RNA_struct_undo_check(ptr.type)) {

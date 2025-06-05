@@ -63,6 +63,10 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int arg_unused);
  */
 bool ED_undo_is_valid(const bContext *C, const char *undoname);
 
+bool ED_undo_is_memfile_compatible(const bContext *C);
+
+/* Unfortunate workaround for limits mixing undo systems. */
+
 /**
  * When a property of ID changes, return false.
  *

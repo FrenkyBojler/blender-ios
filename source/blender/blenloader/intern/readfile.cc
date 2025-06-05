@@ -2812,11 +2812,13 @@ static bool read_libblock_undo_restore(
 
     read_libblock_undo_restore_identical(fd, main, id, id_old, bhead, id_tag);
 
-    /* For objects, restore the mode. */
-    if (GS(id->name) == ID_OB && GS(id_old->name) == ID_OB) {
-      const Object *object = reinterpret_cast<const Object *>(id);
-      Object *object_old = reinterpret_cast<Object *>(id_old);
-      object_old->mode = object->mode;
+    if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+      /* For objects, restore the mode. */
+      if (GS(id->name) == ID_OB && GS(id_old->name) == ID_OB) {
+        const Object *object = reinterpret_cast<const Object *>(id);
+        Object *object_old = reinterpret_cast<Object *>(id_old);
+        object_old->mode = object->mode;
+      }
     }
 
     *r_id_old = id_old;

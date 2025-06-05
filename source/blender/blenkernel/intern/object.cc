@@ -601,10 +601,18 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 {
   Object *ob = (Object *)id;
 
+  const bool is_undo = BLO_write_is_undo(writer);
+
   /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
   ob->runtime = nullptr;
   /* #Object::sculpt is also a runtime struct that should be stored in #Object::runtime. */
   ob->sculpt = nullptr;
+
+  if (is_undo && (U.uiflag & USER_EDIT_UNDO)) {
+    /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
+     * well, can help reducing false detection of changed data-blocks. */
+    ob->mode &= ~OB_MODE_EDIT;
+  }
 
   /* write LibData */
   BLO_write_id_struct(writer, Object, id_address, &ob->id);
@@ -691,10 +699,17 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
    * so for now play safe. */
   ob->proxy_from = nullptr;
 
+  const bool is_undo = BLO_read_data_is_undo(reader);
   if (ob->id.tag & (ID_TAG_EXTERN | ID_TAG_INDIRECT)) {
     /* Do not allow any non-object mode for linked data.
      * See #34776, #42780, #81027 for more information. */
     ob->mode &= ~OB_MODE_ALL_MODE_DATA;
+  }
+  else if (is_undo && (U.uiflag & USER_EDIT_UNDO)) {
+    /* For undo we want to stay in object mode during undo presses, so keep some edit modes
+     * disabled.
+     * TODO: Check if we should not disable more edit modes here? */
+    ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
   }
 
   BLO_read_struct(reader, bPose, &ob->pose);

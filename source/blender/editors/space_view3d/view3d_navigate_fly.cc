@@ -1170,7 +1170,7 @@ static wmOperatorStatus fly_modal(bContext *C, wmOperator *op, const wmEvent *ev
     const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'flying
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && fly_object) {
+    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(C)) {
       ED_undo_push(C, op->type->name);
     }
   }
