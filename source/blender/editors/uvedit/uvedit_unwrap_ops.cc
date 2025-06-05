@@ -33,6 +33,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -49,7 +51,6 @@
 #include "BKE_subdiv_mesh.hh"
 #include "BKE_subdiv_modifier.hh"
 #include "BKE_uvproject.h"
-#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 
