@@ -88,8 +88,10 @@ class GLBackend : public GPUBackend {
         desired_thread_count = 1;
       }
       if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
-        /* TODO(fclem): Profile. */
-        desired_thread_count = 16;
+        /* Mesa has very good compilation time and doesn't block the main thread.
+         * The memory footprint of the worker context is rather small (<10MB).
+         * Shader compilation gets much slower as the number of threads increases. */
+        desired_thread_count = 8;
       }
       /* Allow thread count override option to limit the number of workers.
        * Also avoid using too much resources on low end systems. */
