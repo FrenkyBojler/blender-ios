@@ -723,10 +723,12 @@ void Instance::draw_viewport()
     if (materials.queued_shaders_count > 0) {
       info_append_i18n("Compiling shaders ({} remaining)", materials.queued_shaders_count);
       if (!GPU_use_subprocess_compilation() &&
-          GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL))
+          GPU_type_matches_ex(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL) &&
+          GPU_type_matches_ex(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL) &&
+          GPU_type_matches_ex(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL, GPU_BACKEND_OPENGL))
       {
         info_append_i18n(
-            "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve "
+            "Setting Preferences > System > Shader Compilation Method to Subprocess might improve "
             "compilation time.");
       }
     }

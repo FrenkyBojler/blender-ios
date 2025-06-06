@@ -723,7 +723,8 @@ void GLBackend::capabilities_init()
   detect_workarounds();
 
 #if BLI_SUBPROCESS_SUPPORT
-  GCaps.use_subprocess_shader_compilations = U.use_shader_compilation_subprocesses;
+  GCaps.use_subprocess_shader_compilations = U.shader_compilation_method ==
+                                             USER_SHADER_COMPILE_SUBPROCESS;
 #else
   GCaps.use_subprocess_shader_compilations = false;
 #endif
@@ -732,7 +733,7 @@ void GLBackend::capabilities_init()
     GCaps.use_subprocess_shader_compilations = false;
   }
 
-  int thread_count = U.max_shader_compilation_workers;
+  int thread_count = U.gpu_shader_workers;
 
   if (thread_count == 0) {
     /* Good default based on measurements. */
