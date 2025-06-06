@@ -24,8 +24,8 @@ class GPUWorker {
   Vector<std::unique_ptr<std::thread>> threads_;
   std::condition_variable condition_var_;
   std::mutex mutex_;
-  std::atomic<bool> terminate_ = false;
-  int pending_wake_ups_ = 0;
+  bool terminate_ = false;
+  int pending_works_ = 0;
 
  public:
   enum class ContextType {
@@ -48,7 +48,7 @@ class GPUWorker {
   {
     {
       std::unique_lock<std::mutex> lock(mutex_);
-      pending_wake_ups_++;
+      pending_works_++;
     }
     condition_var_.notify_one();
   }
