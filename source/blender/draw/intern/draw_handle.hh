@@ -41,6 +41,8 @@
 /* ObjectKey */
 #include "DEG_depsgraph_query.hh"
 
+struct DupliCacheManager;
+
 namespace blender::draw {
 
 struct ResourceHandle {
@@ -96,7 +98,7 @@ struct ResourceHandleRange {
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
 struct ObjectRef {
   friend class ObjectKey;
-  friend struct DupliCacheManager;
+  friend DupliCacheManager;
 
  private:
   /** Duplicated object that corresponds to the current object. */
