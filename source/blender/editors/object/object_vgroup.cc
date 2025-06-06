@@ -2891,7 +2891,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (ts->auto_normalize) {
     if (ob->type == OB_GREASE_PENCIL) {
-      const int current_frame = CTX_data_scene(C)->r.cfra;
+      const int current_frame = scene.r.cfra;
       vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports, current_frame);
     }
     else {
@@ -3182,9 +3182,14 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
     changed = false;
   }
   else {
-    int frame = CTX_data_scene(C)->r.cfra;
-    changed = vgroup_normalize_all(
-        ob, vgroup_validmap, vgroup_tot, lock_active, op->reports, frame);
+    if (ob->type == OB_GREASE_PENCIL) {
+      int current_frame = CTX_data_scene(C)->r.cfra;
+      changed = vgroup_normalize_all(
+          ob, vgroup_validmap, vgroup_tot, lock_active, op->reports, current_frame);
+    }
+    else {
+      changed = vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, lock_active, op->reports);
+    }
   }
 
   MEM_freeN(vgroup_validmap);
