@@ -1372,44 +1372,11 @@ void draw_subdiv_build_lnor_buffer(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(pos, LOOP_NORMALS_POS_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data,
                            LOOP_NORMALS_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index, LOOP_NORMALS_INPUT_VERT_ORIG_INDEX_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(vert_normals, LOOP_NORMALS_VERT_NORMALS_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(subdiv_corner_verts, LOOP_NORMALS_VERTEX_LOOP_MAP_BUF_SLOT);
 
   /* Outputs */
   GPU_vertbuf_bind_as_ssbo(lnor, LOOP_NORMALS_OUTPUT_LNOR_BUF_SLOT);
-
-  drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
-
-  /* This generates a vertex buffer, so we need to put a barrier on the vertex attribute array. */
-  GPU_memory_barrier(GPU_BARRIER_VERTEX_ATTRIB_ARRAY);
-
-  /* Cleanup. */
-  GPU_shader_unbind();
-}
-
-void draw_subdiv_build_lnor_buffer_from_custom_normals(const DRWSubdivCache &cache,
-                                                       gpu::VertBuf &interpolated_custom_normals,
-                                                       gpu::VertBuf &lnor)
-{
-  if (!draw_subdiv_cache_need_face_data(cache)) {
-    /* Happens on meshes with only loose geometry. */
-    return;
-  }
-
-  GPUShader *shader = DRW_shader_subdiv_get(SubdivShaderType::BUFFER_LNOR);
-  GPU_shader_bind(shader);
-
-  /* Inputs */
-  GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data,
-                           NORMALS_FINALIZE_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(&interpolated_custom_normals, NORMALS_FINALIZE_CUSTOM_NORMALS_BUF_SLOT);
-  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index,
-                           NORMALS_FINALIZE_INPUT_VERT_ORIG_INDEX_BUF_SLOT);
-
-  /* Outputs */
-  GPU_vertbuf_bind_as_ssbo(&lnor, NORMALS_FINALIZE_OUTPUT_LNOR_BUF_SLOT);
 
   drw_subdiv_compute_dispatch(cache, shader, 0, 0, cache.num_subdiv_quads);
 

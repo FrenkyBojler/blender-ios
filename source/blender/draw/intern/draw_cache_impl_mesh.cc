@@ -590,7 +590,7 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
     case BKE_MESH_BATCH_DIRTY_SELECT_PAINT:
       /* Paint mode selection flag is packed inside the nor attribute.
        * Note that it can be slow if auto smooth is enabled. (see #63946) */
-      discard_buffers(cache, {VBOType::CornerNormal}, {IBOType::LinesPaintMask});
+      discard_buffers(cache, {VBOType::PaintOverlayFlag}, {IBOType::LinesPaintMask});
       break;
     case BKE_MESH_BATCH_DIRTY_ALL:
       cache.is_dirty = true;

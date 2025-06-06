@@ -109,6 +109,7 @@ enum class VBOType : int8_t {
   Attr15,
   AttrViewer,
   VertexNormal,
+  PaintOverlayFlag,
 };
 
 /**
