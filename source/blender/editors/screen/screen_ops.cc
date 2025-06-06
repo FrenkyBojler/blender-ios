@@ -5136,7 +5136,7 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Expand/Collapse Header Menus";
   ot->idname = "SCREEN_OT_header_toggle_menus";
-  ot->description = "Expand or collapse the header pulldown menus";
+  ot->description = "Expand or collapse the header pull-down menus";
 
   /* API callbacks. */
   ot->exec = header_toggle_menus_exec;
@@ -5241,7 +5241,7 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
                                                                     IFACE_("Flip to Bottom");
 
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
   layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
@@ -5292,7 +5292,7 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
       uiLayout *layout = UI_popup_menu_layout(pup);
 
       /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
-      uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+      layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
       layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 
       ED_screens_region_flip_menu_create(C, layout, nullptr);
@@ -6090,7 +6090,7 @@ static std::string userpref_show_get_description(bContext *C,
       return fmt::format(fmt::runtime(TIP_("Show {} preferences")), section_name);
     }
   }
-  /* Fallback to default. */
+  /* Fall back to default. */
   return "";
 }
 
