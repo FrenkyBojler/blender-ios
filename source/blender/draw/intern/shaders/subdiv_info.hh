@@ -292,7 +292,7 @@ STORAGE_BUF(NORMALS_FINALIZE_INPUT_VERT_ORIG_INDEX_BUF_SLOT, read, int, input_ve
 STORAGE_BUF(NORMALS_FINALIZE_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
 STORAGE_BUF(NORMALS_FINALIZE_OUTPUT_LNOR_BUF_SLOT, write, LoopNormal, output_lnor[])
 COMPUTE_SOURCE("subdiv_normals_finalize_comp.glsl")
-ADDITIONAL_INFO(subdiv_base)
+ADDITIONAL_INFO(subdiv_polygon_offset_base)
 GPU_SHADER_CREATE_END()
 
 /** \} */
