@@ -268,6 +268,7 @@ static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
   }
   if (KeyBlock *kb = key.refkey) {
     const Span<float3> positions = mesh.vert_positions();
+    MEM_freeN(kb->data);
     kb->data = MEM_malloc_arrayN(positions.size(), sizeof(float3), __func__);
     kb->totelem = positions.size();
     array_utils::copy(positions, MutableSpan(static_cast<float3 *>(kb->data), positions.size()));
