@@ -288,7 +288,8 @@ void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
 void EDBM_mesh_make_from_mesh(Object *ob,
                               Mesh *src_mesh,
                               const int select_mode,
-                              const bool add_key_index)
+                              const bool add_key_index,
+                              const bool select_flush)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   BMeshCreateParams create_params{};
@@ -312,8 +313,10 @@ void EDBM_mesh_make_from_mesh(Object *ob,
   mesh->runtime->edit_mesh->selectmode = mesh->runtime->edit_mesh->bm->selectmode = select_mode;
   mesh->runtime->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
 
-  /* we need to flush selection because the mode may have changed from when last in editmode */
-  EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
+  if (select_flush) {
+    /* we need to flush selection because the mode may have changed from when last in editmode */
+    EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
+  }
 }
 
 void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)

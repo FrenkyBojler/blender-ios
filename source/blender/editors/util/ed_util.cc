@@ -71,11 +71,14 @@ void ED_editors_init_for_undo(Main *bmain)
     if (ob && (ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH) &&
         (U.uiflag & USER_EDIT_UNDO) == 0)
     {
-      EDBM_mesh_make(ob, scene->toolsettings->selectmode, true);
+      Mesh *mesh = static_cast<Mesh *>(ob->data);
+      /* Note: We assume that the selection state is already correctly saved and doesn't need to be
+       * recomputed. */
+      const bool select_flush = false;
+      EDBM_mesh_make_from_mesh(ob, mesh, scene->toolsettings->selectmode, true, select_flush);
       BMEditMesh *em = BKE_editmesh_from_object(ob);
-      if (LIKELY(em)) {
-        BKE_editmesh_looptris_and_normals_calc(em);
-      }
+      BLI_assert(em);
+      BKE_editmesh_looptris_and_normals_calc(em);
     }
 
     /* UI Updates. */
