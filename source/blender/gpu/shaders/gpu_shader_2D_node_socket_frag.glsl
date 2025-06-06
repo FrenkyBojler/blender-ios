@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_node_socket_inst)
 float square_sdf(float2 absCo, float2 half_size)
 {
   float2 extruded_co = absCo - half_size;
-  float2 clamped_extruded_co = float2(max(0.0f, extruded_co.x), max(0.0f, extruded_co.y));
+  float2 clamped_extruded_co = max(float2(0.0f), extruded_co);
 
   float exterior_distance_squared = dot(clamped_extruded_co, clamped_extruded_co);
 
@@ -49,7 +49,7 @@ float2 calculate_thresholds(float threshold)
 void main()
 {
   float2 absUV = abs(uv);
-  float2 co = float2(max(absUV.x - extrusion.x, 0.0f), max(absUV.y - extrusion.y, 0.0f));
+  float2 co = max(absUV.xy - extrusion.xy, float2(0.0f));
 
   float distance_squared = 0.0f;
   float alpha_threshold = 0.0f;
@@ -101,13 +101,12 @@ void main()
       break;
     }
     case SOCK_DISPLAY_SHAPE_VOLUME_GRID: {
-      float size = 0.7;
-      float2 uv = abs(absUV - size * 0.5) - size * 0.4;
-      float radius_out = length(max(uv, 0.0));
-      float radius_in = max(abs(uv).x, abs(uv).y) * -1.0;
-      float radius = mix(radius_in, radius_out, radius_out > 0);
-      distance_squared = max(-1.0, (radius - size * 0.15));
-      alpha_threshold = -0.2;
+      const float2 centred_uv = uv;
+      const float2 mirrored_uv = abs(abs(centred_uv) - float2(0.3f) - extrusion * float2(0.0f, 0.4f)) * 3.0f;
+      const float2 extruded_uv = max(float2(0.0f), mirrored_uv - extrusion * float2(1.0f, 0.7f));
+
+      distance_squared = square_sdf(extruded_uv, float2(0.7f));
+      // alpha_threshold = circle_radius / 3.0f;
       break;
     }
   }
