@@ -14,6 +14,8 @@
 
 #include "BKE_fcurve.hh"
 
+#include "RNA_define.hh"
+
 #include "DNA_anim_types.h"
 #include "DNA_node_types.h"
 
@@ -197,7 +199,7 @@ bNode *version_eevee_output_node_get(bNodeTree *ntree, int16_t node_type);
  * TODO: Will be in `version_500.cc` file. */
 void version_system_idprops_generate(Main *bmain);
 
-/* Allow 4.5 to open 5.0+ files. */
+/* Allow 4.5 to open 5.0+ files and recover their system-defined ID properties. */
 void version_forward_compat_system_idprops(Main *bmain);
 
 bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines);

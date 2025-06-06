@@ -243,6 +243,10 @@ static void armature_foreach_id_bone(Bone *bone, LibraryForeachIDData *data)
 static void armature_foreach_id_editbone(EditBone *edit_bone, LibraryForeachIDData *data)
 {
   BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+      data, IDP_foreach_property(edit_bone->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+        BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+      }));
+  BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
       data,
       IDP_foreach_property(
           edit_bone->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {

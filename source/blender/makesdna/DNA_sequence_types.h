@@ -296,6 +296,7 @@ typedef struct Strip {
   struct Stereo3dFormat *stereo3d_format;
 
   struct IDProperty *prop;
+  /** System-defined custom properties storage. */
   struct IDProperty *system_properties;
 
   /* modifiers */
