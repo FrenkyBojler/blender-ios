@@ -1025,13 +1025,15 @@ const char *WM_drag_get_item_name(wmDrag *drag)
   switch (drag->type) {
     case WM_DRAG_ID: {
       ID *id = WM_drag_get_local_ID(drag, 0);
-      bool single = BLI_listbase_is_single(&drag->ids);
+      const int dragged_ids = BLI_listbase_count(&drag->ids);
 
-      if (single) {
+      if (dragged_ids == 1) {
         return id->name + 2;
       }
       if (id) {
-        return BKE_idtype_idcode_to_name_plural(GS(id->name));
+        const char *plural_name = BLI_sprintfN(
+            "%d %s", dragged_ids, BKE_idtype_idcode_to_name_plural(GS(id->name)));
+        return plural_name;
       }
       break;
     }
