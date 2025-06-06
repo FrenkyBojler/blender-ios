@@ -218,6 +218,7 @@ typedef struct UserDef_Experimental {
   char use_recompute_usercount_on_save_debug;
   char write_large_blend_file_blocks;
   char use_attribute_storage_write;
+  char use_global_undo_edit_mode;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -228,7 +229,7 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
   char use_socket_structure_type;
-  char _pad[4];
+  char _pad[3];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -768,7 +769,7 @@ typedef enum eUserpref_UI_Flag {
   USER_HIDE_DOT = (1 << 16),
   USER_SHOW_GIZMO_NAVIGATE = (1 << 17),
   USER_SHOW_VIEWPORTNAME = (1 << 18),
-  USER_EDIT_UNDO = (1 << 19),
+  USER_UIFLAG_UNUSED_3 = (1 << 19), /* Cleared. */
   USER_ZOOM_TO_MOUSEPOS = (1 << 20),
   USER_SHOW_FPS = (1 << 21),
   USER_REGISTER_ALL_USERS = (1 << 22),

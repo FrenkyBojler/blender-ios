@@ -73,8 +73,8 @@ static bool memfile_undosys_step_encode(bContext * /*C*/, Main *bmain, UndoStep 
   /* Important we only use 'main' from the context (see: BKE_undosys_stack_init_from_main). */
   UndoStack *ustack = ED_undo_stack_get();
 
-  if (bmain->is_memfile_undo_flush_needed || (U.uiflag & USER_EDIT_UNDO) == 0) {
-    ED_editors_flush_edits_ex(bmain, false, (U.uiflag & USER_EDIT_UNDO));
+  if (bmain->is_memfile_undo_flush_needed || U.experimental.use_global_undo_edit_mode) {
+    ED_editors_flush_edits_ex(bmain, false, !U.experimental.use_global_undo_edit_mode);
   }
 
   /* can be null, use when set. */

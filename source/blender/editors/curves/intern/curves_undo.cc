@@ -49,7 +49,7 @@ struct CurvesUndoStep {
 
 static bool poll(bContext *C)
 {
-  if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+  if (U.experimental.use_global_undo_edit_mode) {
     return false;
   }
   return editable_curves_in_edit_mode_poll(C);

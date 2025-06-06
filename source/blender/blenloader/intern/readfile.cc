@@ -3021,7 +3021,7 @@ static bool read_libblock_undo_restore(
 
     read_libblock_undo_restore_identical(fd, main, id, id_old, bhead, id_tag);
 
-    if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+    if (U.experimental.use_global_undo_edit_mode) {
       /* For objects, restore the mode. */
       if (GS(id->name) == ID_OB && GS(id_old->name) == ID_OB) {
         const Object *object = reinterpret_cast<const Object *>(id);

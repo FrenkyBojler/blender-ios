@@ -614,7 +614,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* #Object::sculpt is also a runtime struct that should be stored in #Object::runtime. */
   ob->sculpt = nullptr;
 
-  if (is_undo && (U.uiflag & USER_EDIT_UNDO)) {
+  if (is_undo && !U.experimental.use_global_undo_edit_mode) {
     /* For undo we stay in object mode during undo presses, so keep edit-mode disabled on save as
      * well, can help reducing false detection of changed data-blocks. */
     ob->mode &= ~OB_MODE_EDIT;
@@ -711,7 +711,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
      * See #34776, #42780, #81027 for more information. */
     ob->mode &= ~OB_MODE_ALL_MODE_DATA;
   }
-  else if (is_undo && (U.uiflag & USER_EDIT_UNDO)) {
+  else if (is_undo && !U.experimental.use_global_undo_edit_mode) {
     /* For undo we want to stay in object mode during undo presses, so keep some edit modes
      * disabled.
      * TODO: Check if we should not disable more edit modes here? */

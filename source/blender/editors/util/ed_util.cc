@@ -69,7 +69,7 @@ void ED_editors_init_for_undo(Main *bmain)
       ED_paint_proj_mesh_data_check(*scene, *obact, nullptr, nullptr, nullptr, nullptr);
     }
 
-    if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+    if (U.experimental.use_global_undo_edit_mode) {
       FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
         if ((ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH)) {
           /* Mesh object was saved in edit mode: Recreate the edit mesh. */

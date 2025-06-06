@@ -1118,7 +1118,7 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->pixelsize = 1.0f;
     }
     /* Clear old userdef flag for "Camera Parent Lock". */
-    userdef->uiflag &= ~USER_EDIT_UNDO;
+    userdef->uiflag &= ~USER_UIFLAG_UNUSED_3;
   }
 
   if (!USER_VERSION_ATLEAST(292, 9)) {
@@ -1494,10 +1494,6 @@ void blo_do_versions_userdef(UserDef *userdef)
         do_version_keyframe_jump(kmi);
       }
     }
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 1)) {
-    userdef->uiflag |= USER_EDIT_UNDO;
   }
 
   /**

@@ -789,9 +789,6 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
         col.prop(edit, "undo_steps", text="Undo Steps")
         col.prop(edit, "undo_memory_limit", text="Undo Memory Limit")
         col.prop(edit, "use_global_undo")
-        col = layout.column()
-        col.active = edit.use_global_undo
-        col.prop(edit, "use_global_edit_undo")
 
         layout.separator()
 
@@ -2907,6 +2904,7 @@ class USERPREF_PT_experimental_debugging(ExperimentalPanel, Panel):
                 ({"property": "use_viewport_debug"}, None),
                 ({"property": "use_eevee_debug"}, None),
                 ({"property": "use_extensions_debug"}, ("/blender/blender/issues/119521", "#119521")),
+                ({"property": "use_global_undo_edit_mode"}, ("/blender/blender/issues/139871", "#139871")),
             ),
         )
 

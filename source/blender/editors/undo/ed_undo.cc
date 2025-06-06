@@ -393,7 +393,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
-      if ((obact->mode & OB_MODE_EDIT) && (U.uiflag & USER_EDIT_UNDO)) {
+      if ((obact->mode & OB_MODE_EDIT) && !U.experimental.use_global_undo_edit_mode) {
         return false;
       }
     }
@@ -424,7 +424,7 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
         CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
         return false;
       }
-      if ((obact->mode & OB_MODE_EDIT) && (U.flag & USER_EDIT_UNDO)) {
+      if ((obact->mode & OB_MODE_EDIT) && !U.experimental.use_global_undo_edit_mode) {
         if ((id == nullptr) || (obact->data == nullptr) ||
             (GS(id->name) != GS(((ID *)obact->data)->name)))
         {

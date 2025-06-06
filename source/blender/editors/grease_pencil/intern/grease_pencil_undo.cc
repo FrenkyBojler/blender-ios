@@ -329,7 +329,7 @@ struct GreasePencilUndoStep {
 
 static bool poll(bContext *C)
 {
-  if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+  if (U.experimental.use_global_undo_edit_mode) {
     return false;
   }
   return greasepencil::grease_pencil_edit_poll(C);
