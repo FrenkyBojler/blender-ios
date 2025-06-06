@@ -162,9 +162,9 @@ IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMe
   return IndexMask::from_bools(modified_points, memory);
 }
 
-void select_curve_points_modified_by_weights(const WeightMatrix &point_weights,
-                                             const int curve,
-                                             bke::CurvesGeometry &curves)
+static void select_curve_points_modified_by_weights(const WeightMatrix &point_weights,
+                                                    const int curve,
+                                                    bke::CurvesGeometry &curves)
 {
   foreach_selection_attribute_writer(
       curves, bke::AttrDomain::Point, [&](bke::GSpanAttributeWriter &selection) {
@@ -198,10 +198,10 @@ void gather_modified_positions(const Span<float3> positions,
   mixer.finalize();
 }
 
-void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
-                            const WeightMatrix &point_weights,
-                            const int curve,
-                            bke::CurvesGeometry &dst_curves)
+static void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
+                                   const WeightMatrix &point_weights,
+                                   const int curve,
+                                   bke::CurvesGeometry &dst_curves)
 {
   const IndexRange curve_points = src_curves.points_by_curve()[curve];
   const IndexRange new_curve_points = IndexRange::from_begin_size(curve_points.first(),
