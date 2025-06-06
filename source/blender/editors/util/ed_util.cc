@@ -63,22 +63,27 @@ void ED_editors_init_for_undo(Main *bmain)
     Scene *scene = WM_window_get_active_scene(win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
     BKE_view_layer_synced_ensure(scene, view_layer);
-    Object *ob = BKE_view_layer_active_object_get(view_layer);
-    if (ob && (ob->mode & OB_MODE_TEXTURE_PAINT)) {
-      BKE_texpaint_slots_refresh_object(scene, ob);
-      ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
+    Object *obact = BKE_view_layer_active_object_get(view_layer);
+    if (obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) {
+      BKE_texpaint_slots_refresh_object(scene, obact);
+      ED_paint_proj_mesh_data_check(*scene, *obact, nullptr, nullptr, nullptr, nullptr);
     }
-    if (ob && (ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH) &&
-        (U.uiflag & USER_EDIT_UNDO) == 0)
-    {
-      Mesh *mesh = static_cast<Mesh *>(ob->data);
-      /* Note: We assume that the selection state is already correctly saved and doesn't need to be
-       * recomputed. */
-      const bool select_flush = false;
-      EDBM_mesh_make_from_mesh(ob, mesh, scene->toolsettings->selectmode, true, select_flush);
-      BMEditMesh *em = BKE_editmesh_from_object(ob);
-      BLI_assert(em);
-      BKE_editmesh_looptris_and_normals_calc(em);
+
+    if ((U.uiflag & USER_EDIT_UNDO) == 0) {
+      FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+        if ((ob->mode & OB_MODE_EDIT) && (ob->type == OB_MESH)) {
+          /* Mesh object was saved in edit mode: Recreate the edit mesh. */
+          Mesh *mesh = static_cast<Mesh *>(ob->data);
+          /* Note: We assume that the selection state is already correctly saved and doesn't need
+           * to be recomputed. */
+          const bool select_flush = false;
+          EDBM_mesh_make_from_mesh(ob, mesh, scene->toolsettings->selectmode, true, select_flush);
+          BMEditMesh *em = BKE_editmesh_from_object(ob);
+          BLI_assert(em);
+          BKE_editmesh_looptris_and_normals_calc(em);
+        }
+      }
+      FOREACH_SCENE_OBJECT_END;
     }
 
     /* UI Updates. */
