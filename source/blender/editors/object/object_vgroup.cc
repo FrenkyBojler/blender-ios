@@ -149,8 +149,11 @@ void vgroup_data_clamp_range(ID *id, const int total)
   }
 }
 
-bool vgroup_parray_alloc(
-    ID *id, MDeformVert ***dvert_arr, int *dvert_tot, const bool use_vert_sel, const int at_frame)
+bool vgroup_parray_alloc(ID *id,
+                         MDeformVert ***dvert_arr,
+                         int *dvert_tot,
+                         const bool use_vert_sel,
+                         std::optional<int> current_frame)
 {
   *dvert_tot = 0;
   *dvert_arr = nullptr;
@@ -246,13 +249,16 @@ bool vgroup_parray_alloc(
         return false;
       }
       case ID_GP: {
-        GreasePencil *grease_pencil = (GreasePencil *)id;
+        if (!current_frame) {
+          return false;
+        }
+        GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
         bke::greasepencil::Layer *layer = grease_pencil->get_active_layer();
         if (!layer) {
           return false;
         }
-        bke::greasepencil::Drawing *drawing = grease_pencil->get_editable_drawing_at(*layer,
-                                                                                     at_frame);
+        bke::greasepencil::Drawing *drawing = grease_pencil->get_editable_drawing_at(
+            *layer, *current_frame);
         if (!drawing) {
           return false;
         }
@@ -260,8 +266,7 @@ bool vgroup_parray_alloc(
         MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
 
         if (!dverts.is_empty()) {
-
-          int points_num = curves.points_num();
+          const int points_num = curves.points_num();
           *dvert_tot = points_num;
           *dvert_arr = MEM_malloc_arrayN<MDeformVert *>(points_num, __func__);
 
@@ -1372,7 +1377,7 @@ static bool vgroup_normalize_all(Object *ob,
                                  const int vgroup_tot,
                                  const bool lock_active,
                                  ReportList *reports,
-                                 const int at_frame)
+                                 std::optional<int> current_frame = {})
 {
   MDeformVert *dv, **dvert_array = nullptr;
   int i, dvert_tot = 0;
@@ -1380,7 +1385,7 @@ static bool vgroup_normalize_all(Object *ob,
   const bool use_vert_sel = vertex_group_use_vert_sel(ob);
 
   vgroup_parray_alloc(
-      static_cast<ID *>(ob->data), &dvert_array, &dvert_tot, use_vert_sel, at_frame);
+      static_cast<ID *>(ob->data), &dvert_array, &dvert_tot, use_vert_sel, current_frame);
 
   if (dvert_array) {
     const ListBase *defbase = BKE_object_defgroup_list(ob);
@@ -1446,7 +1451,7 @@ static bool vgroup_normalize_all(Object *ob,
 static void vgroup_normalize_all_deform_if_active_is_deform(Object *ob,
                                                             const bool lock_active,
                                                             ReportList *reports,
-                                                            const int at_frame)
+                                                            std::optional<int> current_frame = {})
 {
   int r_defgroup_tot = BKE_object_defgroup_count(ob);
   bool *defgroup_validmap = BKE_object_defgroup_validmap_get(ob, r_defgroup_tot);
@@ -1458,7 +1463,7 @@ static void vgroup_normalize_all_deform_if_active_is_deform(Object *ob,
     const bool *vgroup_validmap = BKE_object_defgroup_subset_from_select_type(
         ob, WT_VGROUP_BONE_DEFORM, &vgroup_tot, &subset_count);
 
-    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, lock_active, reports, at_frame);
+    vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, lock_active, reports, current_frame);
     MEM_SAFE_FREE(vgroup_validmap);
   }
 
@@ -2777,8 +2782,13 @@ static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
 
   if (ts->auto_normalize) {
-    int frame = CTX_data_scene(C)->r.cfra;
-    vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports, frame);
+    if (ob->type == OB_GREASE_PENCIL) {
+      const int current_frame = scene.r.cfra;
+      vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports, current_frame);
+    }
+    else {
+      vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports);
+    }
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -2880,8 +2890,13 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
 
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (ts->auto_normalize) {
-    int frame = CTX_data_scene(C)->r.cfra;
-    vgroup_normalize_all_deform_if_active_is_deform(ob, false, op->reports, frame);
+    if (ob->type == OB_GREASE_PENCIL) {
+      const int current_frame = CTX_data_scene(C)->r.cfra;
+      vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports, current_frame);
+    }
+    else {
+      vgroup_normalize_all_deform_if_active_is_deform(ob, true, op->reports);
+    }
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
