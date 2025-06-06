@@ -58,9 +58,6 @@ void VKContext::debug_group_end()
   }
 }
 
-VKContext::ScopeTimings::TimePoint VKContext::ScopeTimings::epoch =
-    VKContext::ScopeTimings::Clock::now();
-
 void VKContext::process_frame_timings()
 {
   if (!G.profile_gpu) {
@@ -84,9 +81,9 @@ void VKContext::process_frame_timings()
   }
 
   for (ScopeTimings &query : queries) {
-    ScopeTimings::Nanoseconds begin = query.cpu_start - ScopeTimings::epoch;
-    ScopeTimings::Nanoseconds end = query.cpu_end - ScopeTimings::epoch;
-    ProfileReport::get().add_group_cpu(query.name, begin.count(), end.count());
+    ProfileReport::get().add_group_cpu(query.name,
+                                       query.cpu_start.time_since_epoch().count(),
+                                       query.cpu_end.time_since_epoch().count());
   }
 
   queries.clear();

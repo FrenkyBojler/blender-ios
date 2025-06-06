@@ -62,8 +62,6 @@ class VKContext : public Context, NonCopyable {
     using TimePoint = Clock::time_point;
     using Nanoseconds = std::chrono::nanoseconds;
 
-    static TimePoint epoch;
-
     std::string name;
     bool finished;
     TimePoint cpu_start, cpu_end;
