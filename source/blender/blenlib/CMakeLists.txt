@@ -349,6 +349,7 @@ set(SRC
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
   BLI_probing_strategies.hh
+  BLI_profile_tracy.hh
   BLI_quadric.h
   BLI_radial_tiling.hh
   BLI_rand.h
@@ -430,6 +431,7 @@ set(LIB
   PRIVATE bf::dependencies::zstd
   PRIVATE bf::dependencies::optional::gmp
   PRIVATE bf::dependencies::optional::fftw3
+  PUBLIC bf::dependencies::optional::TracyClient
 )
 
 if(NOT WITH_PYTHON_MODULE)

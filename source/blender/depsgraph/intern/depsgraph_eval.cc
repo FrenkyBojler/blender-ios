@@ -8,6 +8,8 @@
  * Evaluation engine entry-points for Depsgraph Engine.
  */
 
+#include "BLI_profile_tracy.hh"
+
 #include "BKE_scene.hh"
 
 #include "DNA_scene_types.h"
@@ -54,6 +56,7 @@ static void deg_flush_updates_and_refresh(deg::Depsgraph *deg_graph,
 
 void DEG_evaluate_on_refresh(Depsgraph *graph, const DepsgraphEvaluateSyncWriteback sync_writeback)
 {
+  ZoneScoped;
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
   const Scene *scene = DEG_get_input_scene(graph);
   const float frame = BKE_scene_frame_get(scene);
@@ -80,6 +83,8 @@ void DEG_evaluate_on_framechange(Depsgraph *graph,
                                  float frame,
                                  const DepsgraphEvaluateSyncWriteback sync_writeback)
 {
+  ZoneScoped;
+
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
   const Scene *scene = DEG_get_input_scene(graph);
 

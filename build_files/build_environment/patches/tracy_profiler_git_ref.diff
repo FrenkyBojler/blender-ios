@@ -1,0 +1,53 @@
+From 1189a29e0d0fdfac8d100e1ef3bc075c720eee09 Mon Sep 17 00:00:00 2001
+From: Sergey Sharybin <sergey.vfx@gmail.com>
+Date: Fri, 6 Jun 2025 10:06:50 +0200
+Subject: [PATCH] Fix compilation error when building outside of the Git repo
+
+The CMake logic expected that the build always happens from
+within a git worktree, which is not true when building from
+a source archive.
+
+The logic is now is to check whether there is .git folder
+in the project source directory and if not don't attempt
+to parse the Git revision.
+
+It is possible to pass hash used for GitRef file via GIT_REF
+variable.
+---
+ profiler/CMakeLists.txt | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/profiler/CMakeLists.txt b/profiler/CMakeLists.txt
+index 9d026b83..2710be87 100644
+--- a/profiler/CMakeLists.txt
++++ b/profiler/CMakeLists.txt
+@@ -191,7 +191,7 @@ if(NOT DEFINED GIT_REV)
+ endif()
+ 
+ find_package(Git)
+-if(Git_FOUND)
++if(Git_FOUND AND EXISTS ${PROJECT_SOURCE_DIR}/.git)
+     add_custom_target(git-ref
+         COMMAND ${GIT_EXECUTABLE} log -1 "--format=#pragma once %nnamespace tracy { static inline const char* GitRef = %x22%h%x22; }" ${GIT_REV} > GitRef.hpp.tmp
+         COMMAND ${CMAKE_COMMAND} -E copy_if_different GitRef.hpp.tmp GitRef.hpp
+@@ -200,11 +200,15 @@ if(Git_FOUND)
+     )
+     add_dependencies(${PROJECT_NAME} git-ref)
+ else()
+-    message(WARNING "git not found, using 'unknown' as git ref.")
++    if(NOT DEFINED GIT_REF)
++        set(GIT_REF "unknown")
++    endif()
++
++    message(WARNING "git not found, using '${GIT_REF}' as git ref.")
+     add_custom_command(
+         OUTPUT GitRef.hpp
+         COMMAND ${CMAKE_COMMAND} -E echo "#pragma once" > GitRef.hpp
+-        COMMAND ${CMAKE_COMMAND} -E echo "namespace tracy { static inline const char* GitRef = \"unknown\"; }" >> GitRef.hpp
++        COMMAND ${CMAKE_COMMAND} -E echo "namespace tracy { static inline const char* GitRef = \"${GIT_REF}\"; }" >> GitRef.hpp
+         VERBATIM
+     )
+     target_sources(${PROJECT_NAME} PUBLIC GitRef.hpp)
+-- 
+2.49.0
+
