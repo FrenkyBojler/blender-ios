@@ -1083,7 +1083,7 @@ IDTypeInfo IDType_ID_OB = {
     /*main_listbase_index*/ INDEX_ID_OB,
     /*struct_size*/ sizeof(Object),
     /*name*/ "Object",
-    /*name_plural*/ N_("Objects"),
+    /*name_plural*/ N_("objects"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_OBJECT,
     /*flags*/ 0,
     /*asset_type_info*/ &AssetType_OB,
