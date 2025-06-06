@@ -160,8 +160,8 @@ def add_empty_group(layout):
     return props
 
 
-class NODE_MT_category_layout(Menu):
-    bl_idname = "NODE_MT_category_layout"
+class NODE_MT_layout(Menu):
+    bl_idname = "NODE_MT_layout"
     bl_label = "Layout"
 
     def draw(self, _context):
@@ -173,7 +173,7 @@ class NODE_MT_category_layout(Menu):
 
 
 classes = (
-    NODE_MT_category_layout,
+    NODE_MT_layout,
 )
 
 if __name__ == "__main__":  # only for live edit.

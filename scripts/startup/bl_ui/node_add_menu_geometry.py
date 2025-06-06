@@ -11,8 +11,8 @@ from bpy.app.translations import (
 )
 
 
-class NODE_MT_geometry_node_GEO_ATTRIBUTE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_ATTRIBUTE"
+class NODE_MT_geometry_node_attribute(Menu):
+    bl_idname = "NODE_MT_geometry_node_attribute"
     bl_label = "Attribute"
 
     def draw(self, _context):
@@ -27,8 +27,8 @@ class NODE_MT_geometry_node_GEO_ATTRIBUTE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_COLOR(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_COLOR"
+class NODE_MT_geometry_node_utilities_color(Menu):
+    bl_idname = "NODE_MT_geometry_node_color"
     bl_label = "Color"
 
     def draw(self, context):
@@ -43,24 +43,24 @@ class NODE_MT_geometry_node_GEO_COLOR(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Color")
 
 
-class NODE_MT_geometry_node_GEO_CURVE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_CURVE"
+class NODE_MT_geometry_node_curve(Menu):
+    bl_idname = "NODE_MT_geometry_node_curve"
     bl_label = "Curve"
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_WRITE")
+        layout.menu("NODE_MT_geometry_node_curve_read")
+        layout.menu("NODE_MT_geometry_node_curve_sample")
+        layout.menu("NODE_MT_geometry_node_curve_write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE_OPERATIONS")
-        layout.menu("NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE")
+        layout.menu("NODE_MT_geometry_node_curve_operations")
+        layout.menu("NODE_MT_geometry_node_primitives_curve")
         layout.menu("NODE_MT_geometry_node_curve_topology")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_CURVE_READ(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_CURVE_READ"
+class NODE_MT_geometry_node_curve_read(Menu):
+    bl_idname = "NODE_MT_geometry_node_curve_read"
     bl_label = "Read"
 
     def draw(self, _context):
@@ -78,8 +78,8 @@ class NODE_MT_geometry_node_GEO_CURVE_READ(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Read")
 
 
-class NODE_MT_geometry_node_GEO_CURVE_SAMPLE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_CURVE_SAMPLE"
+class NODE_MT_geometry_node_curve_sample(Menu):
+    bl_idname = "NODE_MT_geometry_node_curve_sample"
     bl_label = "Sample"
 
     def draw(self, _context):
@@ -88,8 +88,8 @@ class NODE_MT_geometry_node_GEO_CURVE_SAMPLE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Sample")
 
 
-class NODE_MT_geometry_node_GEO_CURVE_WRITE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_CURVE_WRITE"
+class NODE_MT_geometry_node_curve_write(Menu):
+    bl_idname = "NODE_MT_geometry_node_curve_write"
     bl_label = "Write"
 
     def draw(self, _context):
@@ -105,8 +105,8 @@ class NODE_MT_geometry_node_GEO_CURVE_WRITE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Write")
 
 
-class NODE_MT_geometry_node_GEO_CURVE_OPERATIONS(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_CURVE_OPERATIONS"
+class NODE_MT_geometry_node_curve_operations(Menu):
+    bl_idname = "NODE_MT_geometry_node_curve_operations"
     bl_label = "Operations"
 
     def draw(self, _context):
@@ -125,8 +125,8 @@ class NODE_MT_geometry_node_GEO_CURVE_OPERATIONS(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Curve/Operations")
 
 
-class NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE"
+class NODE_MT_geometry_node_curve_primitives(Menu):
+    bl_idname = "NODE_MT_geometry_node_primitives_curve"
     bl_label = "Primitives"
 
     def draw(self, _context):
@@ -200,25 +200,25 @@ class NODE_MT_geometry_node_grease_pencil(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_GEOMETRY(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GEOMETRY"
+class NODE_MT_geometry_node_geometry(Menu):
+    bl_idname = "NODE_MT_geometry_node_geometry"
     bl_label = "Geometry"
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_WRITE")
+        layout.menu("NODE_MT_geometry_node_geometry_read")
+        layout.menu("NODE_MT_geometry_node_geometry_sample")
+        layout.menu("NODE_MT_geometry_node_geometry_write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS")
+        layout.menu("NODE_MT_geometry_node_geometry_operations")
         layout.separator()
         node_add_menu.add_node_type(layout, "GeometryNodeGeometryToInstance")
         node_add_menu.add_node_type(layout, "GeometryNodeJoinGeometry", search_weight=1.0)
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_GEOMETRY_READ(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GEOMETRY_READ"
+class NODE_MT_geometry_node_geometry_read(Menu):
+    bl_idname = "NODE_MT_geometry_node_geometry_read"
     bl_label = "Read"
 
     def draw(self, context):
@@ -235,8 +235,8 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_READ(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Read")
 
 
-class NODE_MT_geometry_node_GEO_GEOMETRY_WRITE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GEOMETRY_WRITE"
+class NODE_MT_geometry_node_geometry_write(Menu):
+    bl_idname = "NODE_MT_geometry_node_geometry_write"
     bl_label = "Write"
 
     def draw(self, context):
@@ -249,8 +249,8 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_WRITE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Write")
 
 
-class NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS"
+class NODE_MT_geometry_node_geometry_operations(Menu):
+    bl_idname = "NODE_MT_geometry_node_geometry_operations"
     bl_label = "Operations"
 
     def draw(self, _context):
@@ -270,8 +270,8 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Operations")
 
 
-class NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE"
+class NODE_MT_geometry_node_geometry_sample(Menu):
+    bl_idname = "NODE_MT_geometry_node_geometry_sample"
     bl_label = "Sample"
 
     def draw(self, _context):
@@ -284,23 +284,23 @@ class NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Geometry/Sample")
 
 
-class NODE_MT_geometry_node_GEO_INPUT(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INPUT"
+class NODE_MT_geometry_node_input(Menu):
+    bl_idname = "NODE_MT_geometry_node_input"
     bl_label = "Input"
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_CONSTANT")
+        layout.menu("NODE_MT_geometry_node_input_constant")
         if context.space_data.geometry_nodes_type != 'TOOL':
-            layout.menu("NODE_MT_geometry_node_GEO_INPUT_GIZMO")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_GROUP")
-        layout.menu("NODE_MT_category_import")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT_SCENE")
+            layout.menu("NODE_MT_geometry_node_input_gizmo")
+        layout.menu("NODE_MT_geometry_node_input_group")
+        layout.menu("NODE_MT_geometry_node_import")
+        layout.menu("NODE_MT_geometry_node_input_scene")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_INPUT_CONSTANT(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INPUT_CONSTANT"
+class NODE_MT_geometry_node_input_constant(Menu):
+    bl_idname = "NODE_MT_geometry_node_input_constant"
     bl_label = "Constant"
     bl_translation_context = i18n_contexts.id_nodetree
 
@@ -320,8 +320,8 @@ class NODE_MT_geometry_node_GEO_INPUT_CONSTANT(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
 
 
-class NODE_MT_geometry_node_GEO_INPUT_GROUP(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INPUT_GROUP"
+class NODE_MT_geometry_node_input_group(Menu):
+    bl_idname = "NODE_MT_geometry_node_input_group"
     bl_label = "Group"
 
     def draw(self, _context):
@@ -330,8 +330,8 @@ class NODE_MT_geometry_node_GEO_INPUT_GROUP(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Input/Group")
 
 
-class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INPUT_SCENE"
+class NODE_MT_geometry_node_input_scene(Menu):
+    bl_idname = "NODE_MT_geometry_node_input_scene"
     bl_label = "Scene"
 
     def draw(self, context):
@@ -368,8 +368,8 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Input/Scene")
 
 
-class NODE_MT_geometry_node_GEO_INPUT_GIZMO(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INPUT_GIZMO"
+class NODE_MT_geometry_node_input_gizmo(Menu):
+    bl_idname = "NODE_MT_geometry_node_input_gizmo"
     bl_label = "Gizmo"
 
     def draw(self, context):
@@ -380,8 +380,8 @@ class NODE_MT_geometry_node_GEO_INPUT_GIZMO(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Input/Gizmo")
 
 
-class NODE_MT_geometry_node_GEO_INSTANCE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_INSTANCE"
+class NODE_MT_geometry_node_instance(Menu):
+    bl_idname = "NODE_MT_geometry_node_instance"
     bl_label = "Instances"
 
     def draw(self, _context):
@@ -402,8 +402,8 @@ class NODE_MT_geometry_node_GEO_INSTANCE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_MATERIAL(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MATERIAL"
+class NODE_MT_geometry_node_material(Menu):
+    bl_idname = "NODE_MT_geometry_node_material"
     bl_label = "Material"
 
     def draw(self, _context):
@@ -418,25 +418,25 @@ class NODE_MT_geometry_node_GEO_MATERIAL(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_MESH(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MESH"
+class NODE_MT_geometry_node_mesh(Menu):
+    bl_idname = "NODE_MT_geometry_node_mesh"
     bl_label = "Mesh"
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_READ")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_SAMPLE")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_WRITE")
+        layout.menu("NODE_MT_geometry_node_mesh_read")
+        layout.menu("NODE_MT_geometry_node_mesh_sample")
+        layout.menu("NODE_MT_geometry_node_mesh_write")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_MESH_OPERATIONS")
-        layout.menu("NODE_MT_category_PRIMITIVES_MESH")
+        layout.menu("NODE_MT_geometry_node_mesh_operations")
+        layout.menu("NODE_MT_geometry_node_primitives_mesh")
         layout.menu("NODE_MT_geometry_node_mesh_topology")
-        layout.menu("NODE_MT_category_GEO_UV")
+        layout.menu("NODE_MT_geometry_node_uv")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_MESH_READ(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MESH_READ"
+class NODE_MT_geometry_node_mesh_read(Menu):
+    bl_idname = "NODE_MT_geometry_node_mesh_read"
     bl_label = "Read"
 
     def draw(self, context):
@@ -459,8 +459,8 @@ class NODE_MT_geometry_node_GEO_MESH_READ(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Read")
 
 
-class NODE_MT_geometry_node_GEO_MESH_SAMPLE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MESH_SAMPLE"
+class NODE_MT_geometry_node_mesh_sample(Menu):
+    bl_idname = "NODE_MT_geometry_node_mesh_sample"
     bl_label = "Sample"
 
     def draw(self, _context):
@@ -470,8 +470,8 @@ class NODE_MT_geometry_node_GEO_MESH_SAMPLE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Sample")
 
 
-class NODE_MT_geometry_node_GEO_MESH_WRITE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MESH_WRITE"
+class NODE_MT_geometry_node_mesh_write(Menu):
+    bl_idname = "NODE_MT_geometry_node_mesh_write"
     bl_label = "Write"
 
     def draw(self, context):
@@ -483,8 +483,8 @@ class NODE_MT_geometry_node_GEO_MESH_WRITE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Write")
 
 
-class NODE_MT_geometry_node_GEO_MESH_OPERATIONS(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_MESH_OPERATIONS"
+class NODE_MT_geometry_node_mesh_operations(Menu):
+    bl_idname = "NODE_MT_geometry_node_mesh_operations"
     bl_label = "Operations"
 
     def draw(self, context):
@@ -510,8 +510,8 @@ class NODE_MT_geometry_node_GEO_MESH_OPERATIONS(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Operations")
 
 
-class NODE_MT_category_PRIMITIVES_MESH(Menu):
-    bl_idname = "NODE_MT_category_PRIMITIVES_MESH"
+class NODE_MT_geometry_node_mesh_primitives(Menu):
+    bl_idname = "NODE_MT_geometry_node_primitives_mesh"
     bl_label = "Primitives"
 
     def draw(self, _context):
@@ -527,8 +527,8 @@ class NODE_MT_category_PRIMITIVES_MESH(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Primitives")
 
 
-class NODE_MT_category_import(Menu):
-    bl_idname = "NODE_MT_category_import"
+class NODE_MT_geometry_node_input_import(Menu):
+    bl_idname = "NODE_MT_geometry_node_import"
     bl_label = "Import"
 
     def draw(self, _context):
@@ -559,8 +559,8 @@ class NODE_MT_geometry_node_mesh_topology(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/Topology")
 
 
-class NODE_MT_category_GEO_OUTPUT(Menu):
-    bl_idname = "NODE_MT_category_GEO_OUTPUT"
+class NODE_MT_geometry_node_output(Menu):
+    bl_idname = "NODE_MT_geometry_node_output"
     bl_label = "Output"
 
     def draw(self, context):
@@ -571,8 +571,8 @@ class NODE_MT_category_GEO_OUTPUT(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_GEO_POINT(Menu):
-    bl_idname = "NODE_MT_category_GEO_POINT"
+class NODE_MT_geometry_node_point(Menu):
+    bl_idname = "NODE_MT_geometry_node_point"
     bl_label = "Point"
 
     def draw(self, context):
@@ -593,8 +593,8 @@ class NODE_MT_category_GEO_POINT(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_simulation(Menu):
-    bl_idname = "NODE_MT_category_simulation"
+class NODE_MT_geometry_node_simulation(Menu):
+    bl_idname = "NODE_MT_geometry_node_simulation"
     bl_label = "Simulation"
 
     def draw(self, _context):
@@ -603,8 +603,8 @@ class NODE_MT_category_simulation(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_GEO_TEXT(Menu):
-    bl_idname = "NODE_MT_category_GEO_TEXT"
+class NODE_MT_geometry_node_utilities_text(Menu):
+    bl_idname = "NODE_MT_geometry_node_text"
     bl_label = "Text"
 
     def draw(self, _context):
@@ -624,8 +624,8 @@ class NODE_MT_category_GEO_TEXT(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Text")
 
 
-class NODE_MT_category_GEO_TEXTURE(Menu):
-    bl_idname = "NODE_MT_category_GEO_TEXTURE"
+class NODE_MT_geometry_node_texture(Menu):
+    bl_idname = "NODE_MT_geometry_node_texture"
     bl_label = "Texture"
 
     def draw(self, _context):
@@ -643,21 +643,21 @@ class NODE_MT_category_GEO_TEXTURE(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_GEO_UTILITIES(Menu):
-    bl_idname = "NODE_MT_category_GEO_UTILITIES"
+class NODE_MT_geometry_node_utilities(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities"
     bl_label = "Utilities"
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_COLOR")
-        layout.menu("NODE_MT_category_GEO_TEXT")
-        layout.menu("NODE_MT_category_GEO_VECTOR")
+        layout.menu("NODE_MT_geometry_node_color")
+        layout.menu("NODE_MT_geometry_node_text")
+        layout.menu("NODE_MT_geometry_node_vector")
         layout.separator()
-        layout.menu("NODE_MT_category_GEO_UTILITIES_FIELD")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_MATH")
-        layout.menu("NODE_MT_category_utilities_matrix")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_ROTATION")
-        layout.menu("NODE_MT_category_GEO_UTILITIES_DEPRECATED")
+        layout.menu("NODE_MT_geometry_node_utilities_field")
+        layout.menu("NODE_MT_geometry_node_utilities_math")
+        layout.menu("NODE_MT_geometry_node_utilities_matrix")
+        layout.menu("NODE_MT_geometry_node_utilities_rotation")
+        layout.menu("NODE_MT_geometry_node_utilities_deprecated")
         layout.separator()
         if context.preferences.experimental.use_bundle_and_closure_nodes:
             node_add_menu.add_closure_zone(layout, label="Closure")
@@ -674,8 +674,8 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_category_GEO_UTILITIES_DEPRECATED(Menu):
-    bl_idname = "NODE_MT_category_GEO_UTILITIES_DEPRECATED"
+class NODE_MT_geometry_node_utilities_deprecated(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities_deprecated"
     bl_label = "Deprecated"
 
     def draw(self, context):
@@ -685,8 +685,8 @@ class NODE_MT_category_GEO_UTILITIES_DEPRECATED(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Deprecated")
 
 
-class NODE_MT_category_GEO_UTILITIES_FIELD(Menu):
-    bl_idname = "NODE_MT_category_GEO_UTILITIES_FIELD"
+class NODE_MT_geometry_node_utilities_field(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities_field"
     bl_label = "Field"
 
     def draw(self, _context):
@@ -700,8 +700,8 @@ class NODE_MT_category_GEO_UTILITIES_FIELD(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Field")
 
 
-class NODE_MT_category_GEO_UTILITIES_ROTATION(Menu):
-    bl_idname = "NODE_MT_category_GEO_UTILITIES_ROTATION"
+class NODE_MT_geometry_node_utilities_rotation(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities_rotation"
     bl_label = "Rotation"
 
     def draw(self, _context):
@@ -720,8 +720,8 @@ class NODE_MT_category_GEO_UTILITIES_ROTATION(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Rotation")
 
 
-class NODE_MT_category_utilities_matrix(Menu):
-    bl_idname = "NODE_MT_category_utilities_matrix"
+class NODE_MT_geometry_node_utilities_matrix(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities_matrix"
     bl_label = "Matrix"
 
     def draw(self, _context):
@@ -740,8 +740,8 @@ class NODE_MT_category_utilities_matrix(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Matrix")
 
 
-class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
-    bl_idname = "NODE_MT_category_GEO_UTILITIES_MATH"
+class NODE_MT_geometry_node_utilities_math(Menu):
+    bl_idname = "NODE_MT_geometry_node_utilities_math"
     bl_label = "Math"
 
     def draw(self, context):
@@ -761,8 +761,8 @@ class NODE_MT_category_GEO_UTILITIES_MATH(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Math")
 
 
-class NODE_MT_category_GEO_UV(Menu):
-    bl_idname = "NODE_MT_category_GEO_UV"
+class NODE_MT_geometry_node_mesh_uv(Menu):
+    bl_idname = "NODE_MT_geometry_node_uv"
     bl_label = "UV"
 
     def draw(self, _context):
@@ -772,8 +772,8 @@ class NODE_MT_category_GEO_UV(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Mesh/UV")
 
 
-class NODE_MT_category_GEO_VECTOR(Menu):
-    bl_idname = "NODE_MT_category_GEO_VECTOR"
+class NODE_MT_geometry_node_utilities_vector(Menu):
+    bl_idname = "NODE_MT_geometry_node_vector"
     bl_label = "Vector"
 
     def draw(self, context):
@@ -791,25 +791,25 @@ class NODE_MT_category_GEO_VECTOR(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/Vector")
 
 
-class NODE_MT_category_GEO_VOLUME(Menu):
-    bl_idname = "NODE_MT_category_GEO_VOLUME"
+class NODE_MT_geometry_node_volume(Menu):
+    bl_idname = "NODE_MT_geometry_node_volume"
     bl_label = "Volume"
     bl_translation_context = i18n_contexts.id_id
 
     def draw(self, context):
         layout = self.layout
         if context.preferences.experimental.use_new_volume_nodes:
-            layout.menu("NODE_MT_geometry_node_GEO_VOLUME_READ")
+            layout.menu("NODE_MT_geometry_node_volume_read")
             layout.menu("NODE_MT_geometry_node_volume_sample")
-            layout.menu("NODE_MT_geometry_node_GEO_VOLUME_WRITE")
+            layout.menu("NODE_MT_geometry_node_volume_write")
             layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS")
-        layout.menu("NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES")
+        layout.menu("NODE_MT_geometry_node_volume_operations")
+        layout.menu("NODE_MT_geometry_node_volume_primitives")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
-class NODE_MT_geometry_node_GEO_VOLUME_READ(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_VOLUME_READ"
+class NODE_MT_geometry_node_volume_read(Menu):
+    bl_idname = "NODE_MT_geometry_node_volume_read"
     bl_label = "Read"
 
     def draw(self, context):
@@ -819,8 +819,8 @@ class NODE_MT_geometry_node_GEO_VOLUME_READ(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Read")
 
 
-class NODE_MT_geometry_node_GEO_VOLUME_WRITE(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_VOLUME_WRITE"
+class NODE_MT_geometry_node_volume_write(Menu):
+    bl_idname = "NODE_MT_geometry_node_volume_write"
     bl_label = "Write"
 
     def draw(self, context):
@@ -840,8 +840,8 @@ class NODE_MT_geometry_node_volume_sample(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Sample")
 
 
-class NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS"
+class NODE_MT_geometry_node_volume_operations(Menu):
+    bl_idname = "NODE_MT_geometry_node_volume_operations"
     bl_label = "Operations"
 
     def draw(self, context):
@@ -853,8 +853,8 @@ class NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Operations")
 
 
-class NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES(Menu):
-    bl_idname = "NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES"
+class NODE_MT_geometry_node_volume_primitives(Menu):
+    bl_idname = "NODE_MT_geometry_node_volume_primitives"
     bl_label = "Primitives"
 
     def draw(self, context):
@@ -863,8 +863,8 @@ class NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES(Menu):
         node_add_menu.draw_assets_for_catalog(layout, "Volume/Primitives")
 
 
-class NODE_MT_category_GEO_GROUP(Menu):
-    bl_idname = "NODE_MT_category_GEO_GROUP"
+class NODE_MT_geometry_node_group(Menu):
+    bl_idname = "NODE_MT_geometry_node_group"
     bl_label = "Group"
 
     def draw(self, context):
@@ -879,85 +879,85 @@ class NODE_MT_geometry_node_add_all(Menu):
 
     def draw(self, context):
         layout = self.layout
-        layout.menu("NODE_MT_geometry_node_GEO_ATTRIBUTE")
-        layout.menu("NODE_MT_geometry_node_GEO_INPUT")
-        layout.menu("NODE_MT_category_GEO_OUTPUT")
+        layout.menu("NODE_MT_geometry_node_attribute")
+        layout.menu("NODE_MT_geometry_node_input")
+        layout.menu("NODE_MT_geometry_node_output")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_GEOMETRY")
+        layout.menu("NODE_MT_geometry_node_geometry")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_CURVE")
+        layout.menu("NODE_MT_geometry_node_curve")
         layout.menu("NODE_MT_geometry_node_grease_pencil")
-        layout.menu("NODE_MT_geometry_node_GEO_INSTANCE")
-        layout.menu("NODE_MT_geometry_node_GEO_MESH")
-        layout.menu("NODE_MT_category_GEO_POINT")
-        layout.menu("NODE_MT_category_GEO_VOLUME")
+        layout.menu("NODE_MT_geometry_node_instance")
+        layout.menu("NODE_MT_geometry_node_mesh")
+        layout.menu("NODE_MT_geometry_node_point")
+        layout.menu("NODE_MT_geometry_node_volume")
         layout.separator()
-        layout.menu("NODE_MT_category_simulation")
+        layout.menu("NODE_MT_geometry_node_simulation")
         layout.separator()
-        layout.menu("NODE_MT_geometry_node_GEO_MATERIAL")
-        layout.menu("NODE_MT_category_GEO_TEXTURE")
-        layout.menu("NODE_MT_category_GEO_UTILITIES")
+        layout.menu("NODE_MT_geometry_node_material")
+        layout.menu("NODE_MT_geometry_node_texture")
+        layout.menu("NODE_MT_geometry_node_utilities")
         layout.separator()
-        layout.menu("NODE_MT_category_GEO_GROUP")
-        layout.menu("NODE_MT_category_layout")
+        layout.menu("NODE_MT_geometry_node_group")
+        layout.menu("NODE_MT_geometry_node_layout")
         node_add_menu.draw_root_assets(layout)
 
 
 classes = (
     NODE_MT_geometry_node_add_all,
-    NODE_MT_geometry_node_GEO_ATTRIBUTE,
-    NODE_MT_geometry_node_GEO_INPUT,
-    NODE_MT_geometry_node_GEO_INPUT_CONSTANT,
-    NODE_MT_geometry_node_GEO_INPUT_GROUP,
-    NODE_MT_geometry_node_GEO_INPUT_SCENE,
-    NODE_MT_category_GEO_OUTPUT,
-    NODE_MT_geometry_node_GEO_CURVE,
-    NODE_MT_geometry_node_GEO_CURVE_READ,
-    NODE_MT_geometry_node_GEO_CURVE_SAMPLE,
-    NODE_MT_geometry_node_GEO_CURVE_WRITE,
-    NODE_MT_geometry_node_GEO_CURVE_OPERATIONS,
-    NODE_MT_geometry_node_GEO_PRIMITIVES_CURVE,
+    NODE_MT_geometry_node_attribute,
+    NODE_MT_geometry_node_input,
+    NODE_MT_geometry_node_input_constant,
+    NODE_MT_geometry_node_input_gizmo,
+    NODE_MT_geometry_node_input_group,
+    NODE_MT_geometry_node_input_import,
+    NODE_MT_geometry_node_input_scene,
+    NODE_MT_geometry_node_output,
+    NODE_MT_geometry_node_curve,
+    NODE_MT_geometry_node_curve_read,
+    NODE_MT_geometry_node_curve_sample,
+    NODE_MT_geometry_node_curve_write,
+    NODE_MT_geometry_node_curve_operations,
+    NODE_MT_geometry_node_curve_primitives,
     NODE_MT_geometry_node_curve_topology,
     NODE_MT_geometry_node_grease_pencil,
     NODE_MT_geometry_node_grease_pencil_read,
     NODE_MT_geometry_node_grease_pencil_write,
     NODE_MT_geometry_node_grease_pencil_operations,
-    NODE_MT_geometry_node_GEO_GEOMETRY,
-    NODE_MT_geometry_node_GEO_GEOMETRY_READ,
-    NODE_MT_geometry_node_GEO_GEOMETRY_WRITE,
-    NODE_MT_geometry_node_GEO_GEOMETRY_OPERATIONS,
-    NODE_MT_geometry_node_GEO_GEOMETRY_SAMPLE,
-    NODE_MT_geometry_node_GEO_INSTANCE,
-    NODE_MT_geometry_node_GEO_MESH,
-    NODE_MT_geometry_node_GEO_MESH_READ,
-    NODE_MT_geometry_node_GEO_MESH_SAMPLE,
-    NODE_MT_geometry_node_GEO_MESH_WRITE,
-    NODE_MT_geometry_node_GEO_MESH_OPERATIONS,
-    NODE_MT_category_GEO_UV,
-    NODE_MT_category_PRIMITIVES_MESH,
-    NODE_MT_category_import,
+    NODE_MT_geometry_node_geometry,
+    NODE_MT_geometry_node_geometry_read,
+    NODE_MT_geometry_node_geometry_write,
+    NODE_MT_geometry_node_geometry_operations,
+    NODE_MT_geometry_node_geometry_sample,
+    NODE_MT_geometry_node_instance,
+    NODE_MT_geometry_node_mesh,
+    NODE_MT_geometry_node_mesh_read,
+    NODE_MT_geometry_node_mesh_sample,
+    NODE_MT_geometry_node_mesh_write,
+    NODE_MT_geometry_node_mesh_operations,
+    NODE_MT_geometry_node_mesh_primitives,
     NODE_MT_geometry_node_mesh_topology,
-    NODE_MT_category_GEO_POINT,
-    NODE_MT_category_simulation,
-    NODE_MT_category_GEO_VOLUME,
-    NODE_MT_geometry_node_GEO_VOLUME_READ,
+    NODE_MT_geometry_node_mesh_uv,
+    NODE_MT_geometry_node_point,
+    NODE_MT_geometry_node_simulation,
+    NODE_MT_geometry_node_volume,
+    NODE_MT_geometry_node_volume_read,
     NODE_MT_geometry_node_volume_sample,
-    NODE_MT_geometry_node_GEO_VOLUME_WRITE,
-    NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS,
-    NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES,
-    NODE_MT_geometry_node_GEO_MATERIAL,
-    NODE_MT_category_GEO_TEXTURE,
-    NODE_MT_category_GEO_UTILITIES,
-    NODE_MT_geometry_node_GEO_COLOR,
-    NODE_MT_category_GEO_TEXT,
-    NODE_MT_category_GEO_VECTOR,
-    NODE_MT_category_GEO_UTILITIES_FIELD,
-    NODE_MT_category_GEO_UTILITIES_MATH,
-    NODE_MT_category_GEO_UTILITIES_ROTATION,
-    NODE_MT_geometry_node_GEO_INPUT_GIZMO,
-    NODE_MT_category_utilities_matrix,
-    NODE_MT_category_GEO_UTILITIES_DEPRECATED,
-    NODE_MT_category_GEO_GROUP,
+    NODE_MT_geometry_node_volume_write,
+    NODE_MT_geometry_node_volume_operations,
+    NODE_MT_geometry_node_volume_primitives,
+    NODE_MT_geometry_node_material,
+    NODE_MT_geometry_node_texture,
+    NODE_MT_geometry_node_utilities,
+    NODE_MT_geometry_node_utilities_color,
+    NODE_MT_geometry_node_utilities_text,
+    NODE_MT_geometry_node_utilities_vector,
+    NODE_MT_geometry_node_utilities_field,
+    NODE_MT_geometry_node_utilities_math,
+    NODE_MT_geometry_node_utilities_matrix,
+    NODE_MT_geometry_node_utilities_rotation,
+    NODE_MT_geometry_node_utilities_deprecated,
+    NODE_MT_geometry_node_group,
 )
 
 if __name__ == "__main__":  # only for live edit.
