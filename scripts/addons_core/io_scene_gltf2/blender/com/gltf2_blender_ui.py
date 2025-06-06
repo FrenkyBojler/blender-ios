@@ -681,7 +681,7 @@ def export_panel_animation_action_filter(layout, operator):
 
 def register():
     bpy.utils.register_class(NODE_OT_GLTF_SETTINGS)
-    bpy.types.NODE_MT_category_shader_output.append(add_gltf_settings_to_menu)
+    bpy.types.NODE_MT_shader_output.append(add_gltf_settings_to_menu)
     bpy.utils.register_class(SCENE_OT_gltf2_action_filter_refresh)
     bpy.utils.register_class(SCENE_UL_gltf2_filter_action)
 
