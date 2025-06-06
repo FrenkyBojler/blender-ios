@@ -1,2 +1,3 @@
 Referenced by issue #139101, Curves: Edit Mode Proportional Editing not working properly with pivot around Individual Origins
 Referenced by pull request #139849, Fix: uninitialized TransData center for Curves proportional editing
+Referenced by commit ac3afae3802dc8d6b80e0ae249cf219d07c8b4d9, Fix: uninitialized TransData center for Curves proportional editing
