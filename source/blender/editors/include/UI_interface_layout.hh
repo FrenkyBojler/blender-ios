@@ -111,43 +111,19 @@ struct uiLayout : uiItem {
   /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
   void operator_context_set(wmOperatorCallContext opcontext);
 
-  float scale_x() const
-  {
-    return scale_[0];
-  };
-  void scale_x_set(float scale)
-  {
-    scale_[0] = scale;
-  };
+  float scale_x() const;
+  void scale_x_set(float scale);
 
-  float scale_y() const
-  {
-    return scale_[1];
-  };
-  void scale_y_set(float scale)
-  {
-    scale_[1] = scale;
-  };
+  float scale_y() const;
+  void scale_y_set(float scale);
 
-  float ui_units_x() const
-  {
-    return units_[0];
-  };
+  float ui_units_x() const;
   /** Sets a fixed width size for this layout. */
-  void ui_units_x_set(float width)
-  {
-    units_[0] = width;
-  };
+  void ui_units_x_set(float width);
 
-  float ui_units_y() const
-  {
-    return units_[1];
-  };
+  float ui_units_y() const;
   /** Sets a fixed height size for this layout. */
-  void ui_units_y_set(float height)
-  {
-    units_[1] = height;
-  };
+  void ui_units_y_set(float height);
 
   /** Sub-layout items. */
 
@@ -388,6 +364,42 @@ struct uiLayout : uiItem {
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
+};
+
+inline float uiLayout::scale_x() const
+{
+  return scale_[0];
+};
+inline void uiLayout::scale_x_set(float scale)
+{
+  scale_[0] = scale;
+};
+
+inline float uiLayout::scale_y() const
+{
+  return scale_[1];
+};
+inline void uiLayout::scale_y_set(float scale)
+{
+  scale_[1] = scale;
+};
+
+inline float uiLayout::ui_units_x() const
+{
+  return units_[0];
+};
+inline void uiLayout::ui_units_x_set(float width)
+{
+  units_[0] = width;
+};
+
+inline float uiLayout::ui_units_y() const
+{
+  return units_[1];
+};
+inline void uiLayout::ui_units_y_set(float height)
+{
+  units_[1] = height;
 };
 
 enum {
