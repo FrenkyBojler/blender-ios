@@ -508,19 +508,28 @@ void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
 #endif
 }
 
-bool MOV_codec_supports_alpha(const FFMpegCodecData &ff_codec_data)
+bool MOV_codec_supports_alpha(int codec_id, int ffmpeg_profile)
 {
 #ifdef WITH_FFMPEG
-  if (ff_codec_data.codec == AV_CODEC_ID_PRORES) {
-    return ELEM(
-        ff_codec_data.ffmpeg_prores_profile, FFM_PRORES_PROFILE_4444, FFM_PRORES_PROFILE_4444_XQ);
+  if (codec_id == AV_CODEC_ID_PRORES) {
+    return ELEM(ffmpeg_profile, FFM_PRORES_PROFILE_4444, FFM_PRORES_PROFILE_4444_XQ);
   }
-  return ELEM(ff_codec_data.codec,
+  return ELEM(codec_id,
               AV_CODEC_ID_FFV1,
               AV_CODEC_ID_QTRLE,
               AV_CODEC_ID_PNG,
               AV_CODEC_ID_VP9,
               AV_CODEC_ID_HUFFYUV);
+#else
+  UNUSED_VARS(codec_id, ffmpeg_profile);
+  return false;
+#endif
+}
+
+bool MOV_codec_supports_alpha(const FFMpegCodecData &ff_codec_data)
+{
+#ifdef WITH_FFMPEG
+  MOV_codec_supports_alpha(ff_codec_data.codec, ff_codec_data.ffmpeg_prores_profile);
 #else
   UNUSED_VARS(ff_codec_data);
   return false;

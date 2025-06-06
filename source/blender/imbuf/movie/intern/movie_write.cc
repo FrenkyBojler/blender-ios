@@ -232,7 +232,9 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   if (use_float) {
     /* Float image: need to split up the image into a planar format,
      * because `libswscale` does not support RGBA->YUV conversions from
-     * packed float formats. */
+     * packed float formats.
+     * Unpremultiply the image if the output format supports alpha, to
+     * match the format of the byte image. */
     BLI_assert_msg(rgb_frame->linesize[1] == linesize_dst &&
                        rgb_frame->linesize[2] == linesize_dst &&
                        rgb_frame->linesize[3] == linesize_dst,
@@ -245,9 +247,18 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
       float *dst_a = reinterpret_cast<float *>(rgb_frame->data[3] + dst_offset);
       const float *src = pixels_fl + image->x * y * 4;
       for (int x = 0; x < image->x; x++) {
-        *dst_r++ = src[0];
-        *dst_g++ = src[1];
-        *dst_b++ = src[2];
+        if (MOV_codec_supports_alpha(context->ffmpeg_codec, context->ffmpeg_profile) &&
+            src[3] > FLT_EPSILON)
+        {
+          *dst_r++ = src[0] / src[3];
+          *dst_g++ = src[1] / src[3];
+          *dst_b++ = src[2] / src[3];
+        }
+        else {
+          *dst_r++ = src[0];
+          *dst_g++ = src[1];
+          *dst_b++ = src[2];
+        }
         *dst_a++ = src[3];
         src += 4;
       }
