@@ -613,6 +613,26 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
         }
       }
     }
+
+    if (md->type == eModifierType_GreasePencilArmature) {
+      GreasePencilArmatureModifierData *gamd = (GreasePencilArmatureModifierData *)md;
+
+      if (gamd->object && gamd->object->pose) {
+        bPose *pose = gamd->object->pose;
+
+        LISTBASE_FOREACH (bPoseChannel *, chan, &pose->chanbase) {
+          void **val_p;
+          if (chan->bone->flag & BONE_NO_DEFORM) {
+            continue;
+          }
+
+          val_p = BLI_ghash_lookup_p(gh, chan->name);
+          if (val_p) {
+            *val_p = POINTER_FROM_INT(1);
+          }
+        }
+      }
+    }
   }
 
   defgroup_validmap = MEM_malloc_arrayN<bool>(size_t(defbase_tot), "wpaint valid map");
