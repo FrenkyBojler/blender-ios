@@ -116,6 +116,42 @@ static bool contains_extension(const vector<VkExtensionProperties> &extension_li
 };
 
 /* -------------------------------------------------------------------- */
+/** \name Swap-chain resources
+ * \{ */
+
+void GHOST_SwapchainImage::destroy(VkDevice vk_device)
+{
+  vkDestroySemaphore(vk_device, present_semaphore, nullptr);
+  present_semaphore = VK_NULL_HANDLE;
+  vk_image = VK_NULL_HANDLE;
+}
+
+void GHOST_FrameDiscard::destroy(VkDevice vk_device)
+{
+  while (!swapchains.empty()) {
+    VkSwapchainKHR vk_swapchain = swapchains.back();
+    swapchains.pop_back();
+    vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
+  }
+  while (!semaphores.empty()) {
+    VkSemaphore vk_semaphore = semaphores.back();
+    semaphores.pop_back();
+    vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
+  }
+}
+
+void GHOST_Frame::destroy(VkDevice vk_device)
+{
+  vkDestroyFence(vk_device, submission_fence, nullptr);
+  submission_fence = VK_NULL_HANDLE;
+  vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
+  acquire_semaphore = VK_NULL_HANDLE;
+  discard_pile.destroy(vk_device);
+}
+
+/* \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Vulkan Device
  * \{ */
 
@@ -270,6 +306,7 @@ class GHOST_DeviceVK {
     vulkan_12_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan_12_features.shaderOutputLayer = features_12.shaderOutputLayer;
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
+    vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_12_features);
 
@@ -327,6 +364,18 @@ class GHOST_DeviceVK {
     if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&swapchain_maintenance_1);
       use_vk_ext_swapchain_maintenance_1 = true;
+    }
+
+    /* Descriptor buffers */
+    VkPhysicalDeviceDescriptorBufferPropertiesEXT descriptor_buffer = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
+        nullptr,
+        VK_TRUE,
+        VK_FALSE,
+        VK_FALSE,
+        VK_FALSE};
+    if (extension_requested(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&descriptor_buffer);
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -1184,6 +1233,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+  optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {

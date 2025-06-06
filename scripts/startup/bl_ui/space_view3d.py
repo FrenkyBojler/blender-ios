@@ -2638,7 +2638,14 @@ class VIEW3D_MT_empty_add(Menu):
     def draw(self, _context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
-        layout.operator_enum("object.empty_add", "type")
+
+        layout.operator("object.empty_add", text="Plain Axes", icon='EMPTY_AXIS').type = 'PLAIN_AXES'
+        layout.operator("object.empty_add", text="Arrows", icon='EMPTY_ARROWS').type = 'ARROWS'
+        layout.operator("object.empty_add", text="Single Arrow", icon='EMPTY_SINGLE_ARROW').type = 'SINGLE_ARROW'
+        layout.operator("object.empty_add", text="Circle", icon='MESH_CIRCLE').type = 'CIRCLE'
+        layout.operator("object.empty_add", text="Cube", icon='CUBE').type = 'CUBE'
+        layout.operator("object.empty_add", text="Sphere", icon='SPHERE').type = 'SPHERE'
+        layout.operator("object.empty_add", text="Cone", icon='CONE').type = 'CONE'
 
 
 class VIEW3D_MT_add(Menu):
@@ -2740,6 +2747,7 @@ class VIEW3D_MT_image_add(Menu):
         layout.operator("object.empty_image_add", text="Reference", icon='IMAGE_REFERENCE').background = False
         layout.operator("object.empty_image_add", text="Background", icon='IMAGE_BACKGROUND').background = True
         layout.operator("image.import_as_mesh_planes", text="Mesh Plane", icon='MESH_PLANE')
+        layout.operator("object.empty_add", text="Empty Image", icon='FILE_IMAGE').type = 'IMAGE'
 
 
 class VIEW3D_MT_object_relations(Menu):
@@ -5773,6 +5781,7 @@ class VIEW3D_MT_edit_greasepencil(Menu):
         layout.menu("VIEW3D_MT_edit_greasepencil_showhide")
         layout.operator_menu_enum("grease_pencil.separate", "mode", text="Separate")
         layout.menu("VIEW3D_MT_edit_greasepencil_cleanup")
+        layout.operator("grease_pencil.outline", text="Outline")
 
         layout.separator()
 
@@ -5793,6 +5802,7 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
         layout.operator("grease_pencil.stroke_subdivide", text="Subdivide")
         layout.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
         layout.menu("GREASE_PENCIL_MT_stroke_simplify")
+        layout.operator("grease_pencil.outline", text="Outline")
 
         layout.separator()
 
@@ -5821,8 +5831,8 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.separator()
 
-        layout.operator_menu_enum("grease_pencil.set_curve_type", property="type")
-        layout.operator("grease_pencil.set_curve_resolution")
+        layout.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
+        layout.operator("grease_pencil.set_curve_resolution", text="Set Resolution")
 
         layout.separator()
 
@@ -8309,6 +8319,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("grease_pencil.stroke_subdivide", text="Subdivide")
             col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
+            col.operator("grease_pencil.outline", text="Outline")
 
             col.separator()
 
@@ -8342,6 +8353,10 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             col.operator("grease_pencil.separate", text="Separate").mode = 'SELECTED'
+
+            col.separator()
+            col.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
+            layout.operator("grease_pencil.set_curve_resolution", text="Convert Type")
         else:
             col = row.column(align=True)
             col.label(text="Point", icon='GP_SELECT_POINTS')
@@ -8352,6 +8367,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.operator("grease_pencil.stroke_subdivide", text="Subdivide")
             col.operator("grease_pencil.stroke_subdivide_smooth", text="Subdivide and Smooth")
             col.operator("grease_pencil.stroke_simplify", text="Simplify")
+            col.operator("grease_pencil.outline", text="Outline")
 
             col.separator()
 
@@ -8388,6 +8404,9 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
             col.separator()
 
             col.operator_enum("grease_pencil.dissolve", "type")
+
+            col.separator()
+            col.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
 
 
 class GREASE_PENCIL_MT_Layers(Menu):

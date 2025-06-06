@@ -680,7 +680,7 @@ static wmOperatorStatus node_group_separate_invoke(bContext *C,
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Separate"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);
+  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
   uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_COPY);
   uiItemEnumO(layout, "NODE_OT_group_separate", std::nullopt, ICON_NONE, "type", NODE_GS_MOVE);
 
@@ -1383,7 +1383,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
   gnode->id = &wrapper_group->id;
   id_us_plus(gnode->id);
 
-  /* Position node node exactly where the old node was. */
+  /* Position node exactly where the old node was. */
   gnode->parent = src_node.parent;
   gnode->width = src_node.width;
   copy_v2_v2(gnode->location, src_node.location);
