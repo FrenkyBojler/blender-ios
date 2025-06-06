@@ -15,6 +15,7 @@
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "COM_domain.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -58,7 +59,7 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
 {
   NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
-  data->interpolation = CMP_NODE_INTERPOLATION_BILINEAR;
+  data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
   node->storage = data;
 }
 
@@ -92,12 +93,20 @@ class DisplaceOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_displace");
+    GPUShader *shader = context().get_shader(this->get_realization_shader_name());
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
+    const Interpolation interpolation = this->get_interpolation();
+    if (interpolation == Interpolation::Anisotropic) {
+      GPU_texture_anisotropic_filter(input_image, true);
+    }
+    else {
+      const bool use_bilinear = ELEM(
+          interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
+      GPU_texture_filter_mode(input_image, use_bilinear);
+    }
     GPU_texture_mipmap_mode(input_image, true, true);
-    GPU_texture_anisotropic_filter(input_image, true);
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -185,20 +194,18 @@ class DisplaceOperation : public NodeOperation {
                                const float2 &y_gradient) {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
-        float4 displaced_color = image.sample_ewa_zero(coordinates, x_gradient, y_gradient);
-        /* TODO: Add switch for EWA */
         switch (interpolation) {
+          case Interpolation::Anisotropic:
+            output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
+            break;
           case Interpolation::Bicubic:
-            output.store_pixel(texel,
-                               image.sample_cubic_wrap(coordinates, false, false));
+            output.store_pixel(texel, image.sample_cubic_wrap(coordinates, false, false));
             break;
           case Interpolation::Bilinear:
-            output.store_pixel(texel,
-                               image.sample_bilinear_wrap(coordinates, false, false));
+            output.store_pixel(texel, image.sample_bilinear_wrap(coordinates, false, false));
             break;
           case Interpolation::Nearest:
-            output.store_pixel(texel,
-                               image.sample_nearest_wrap(coordinates, false, false));
+            output.store_pixel(texel, image.sample_nearest_wrap(coordinates, false, false));
             break;
         }
       };
@@ -220,9 +227,19 @@ class DisplaceOperation : public NodeOperation {
     });
   }
 
+  const char *get_realization_shader_name() const
+  {
+    if (this->get_interpolation() == Interpolation::Anisotropic) {
+      return "compositor_displace_anisotropic";
+    }
+    return "compositor_displace";
+  }
+
   Interpolation get_interpolation() const
   {
     switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:

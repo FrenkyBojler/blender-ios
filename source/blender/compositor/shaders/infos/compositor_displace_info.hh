@@ -4,7 +4,18 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(compositor_displace)
+GPU_SHADER_CREATE_INFO(compositor_displace_anisotropic)
+LOCAL_GROUP_SIZE(16, 16)
+SAMPLER(0, sampler2D, input_tx)
+SAMPLER(1, sampler2D, displacement_tx)
+SAMPLER(2, sampler2D, x_scale_tx)
+SAMPLER(3, sampler2D, y_scale_tx)
+IMAGE(0, GPU_RGBA16F, write, image2D, output_img)
+COMPUTE_SOURCE("compositor_displace_anisotropic.glsl")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_displace_shared)
 LOCAL_GROUP_SIZE(16, 16)
 SAMPLER(0, sampler2D, input_tx)
 SAMPLER(1, sampler2D, displacement_tx)
@@ -12,5 +23,16 @@ SAMPLER(2, sampler2D, x_scale_tx)
 SAMPLER(3, sampler2D, y_scale_tx)
 IMAGE(0, GPU_RGBA16F, write, image2D, output_img)
 COMPUTE_SOURCE("compositor_displace.glsl")
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_displace)
+ADDITIONAL_INFO(compositor_displace_shared)
+DEFINE_VALUE("SAMPLER_FUNCTION", "texture")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_displace_bicubic)
+ADDITIONAL_INFO(compositor_displace_shared)
+DEFINE_VALUE("SAMPLER_FUNCTION", "texture_bicubic")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
