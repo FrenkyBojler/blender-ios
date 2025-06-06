@@ -177,11 +177,13 @@ struct _mtl_sampler {
      * in the texture. */
     ushort aligned_width;
 
-    int2 to_internal_coord(IntCoord coord) const
+    /* Convert 2D coordinates to the backing 2D texture coordinates. */
+    int2 to_internal_coord(thread TextureT * /*texture*/, IntCoord coord) const
     {
       return coord.xy;
     }
-    uint to_linear_coord(IntCoord coord) const
+    /* Convert 2D coordinates to the memory location in the 2D texture memory buffer. */
+    uint to_linear_coord(thread TextureT * /*texture*/, IntCoord coord) const
     {
       return coord.x + coord.y * aligned_width;
     }
@@ -190,7 +192,22 @@ struct _mtl_sampler {
   template<typename U> struct AtomicEmulation<U, 3, true> {
     /** Buffer to do atomic operations on. */
     device U *buffer;
-    /** Required to pixel location inside the backing texture 2D space, and texture size query. */
+    /**
+     * Required for pixel location inside the backing texture 2D space, and texture size query.
+     *
+     * IMPORTANT: Note that the slices are not contiguous in the backing texture as we simply use
+     * it for linear storage.
+     * For instance, for a [2,2,2] texture store in a [6x4] backing texture:
+     *
+     * \code{.unparsed}
+     * 001122
+     * 334455
+     * 667788
+     * xxxxxx
+     * \endcode
+     *
+     * The numbers are rows in the 3D texture.
+     */
     ushort3 texture_size;
     /* Aligned width matches the number of buffer elements in bytes_per_row. This may be greater
      * than the texture's native width to satisfy device alignment rules. We need to use the padded
@@ -198,14 +215,26 @@ struct _mtl_sampler {
      * in the texture. */
     ushort aligned_width;
 
-    int2 to_internal_coord(IntCoord coord) const
+    /* Convert 3D coordinates to the backing 2D texture coordinates. */
+    int2 to_internal_coord(thread TextureT *texture, IntCoord coord) const
     {
-      return int2(coord.x, coord.y + texture_size.y * coord.z);
+      /* Index of a pixel in the data array. Assuming data layout is scan-line. */
+      uint linear_pixel = uint(coord.x) + uint(coord.y) * texture_size.x +
+                          uint(coord.z) * (texture_size.x * texture_size.y);
+
+      uint backing_tex_width = texture->get_width();
+      /* Coordinate inside the backing texture. */
+      uint y = linear_pixel / backing_tex_width;
+      /* Avoid use of modulo operator for speed. */
+      uint x = linear_pixel - y * backing_tex_width;
+      return int2(x, y);
     }
-    uint to_linear_coord(IntCoord coord) const
+
+    /* Convert 3D coordinates to the memory location in the 2D texture memory buffer. */
+    uint to_linear_coord(thread TextureT *texture, IntCoord coord) const
     {
-      uint row = coord.y + coord.z * texture_size.y;
-      return coord.x + row * aligned_width;
+      uint2 co = uint2(to_internal_coord(texture, coord));
+      return co.x + co.y * uint(aligned_width);
     }
   };
 
@@ -350,29 +379,29 @@ struct _mtl_sampler {
 #undef NON_ARRAY_FN
 
 #ifndef MTL_SUPPORTS_TEXTURE_ATOMICS
-  /* Atomic samplers only support `textureFetch` as the texture layout doesn't allow filtering. */
+  /* Atomic samplers only support `texelFetch` as the texture layout doesn't allow filtering. */
 
 #  define ATOMIC_FN template<bool At = Atomic, ENABLE_IF(At == true)>
 
   ATOMIC_FN DataVec fetch(IntCoord coord) const
   {
-    int2 coord_2d = atomic.to_internal_coord(coord);
+    int2 coord_2d = atomic.to_internal_coord(texture, coord);
     return texture->sample(_mtl_fetch_samp, float2(coord_2d));
   }
   ATOMIC_FN DataVec fetch(IntCoord coord, level lod, IntDeriv offset = {0}) const
   {
-    int2 coord_2d = atomic.to_internal_coord(coord);
+    int2 coord_2d = atomic.to_internal_coord(texture, coord);
     return texture->sample(_mtl_fetch_samp, float2(coord_2d), lod, offset);
   }
 
   ATOMIC_FN DataVec load(IntCoord coord) const
   {
-    int2 coord_2d = atomic.to_internal_coord(coord);
+    int2 coord_2d = atomic.to_internal_coord(texture, coord);
     return texture->read(uint2(coord_2d), 0);
   }
   ATOMIC_FN void store(DataVec data, IntCoord coord) const
   {
-    int2 coord_2d = atomic.to_internal_coord(coord);
+    int2 coord_2d = atomic.to_internal_coord(texture, coord);
     texture->write(data, uint2(coord_2d), 0);
   }
 
@@ -380,31 +409,31 @@ struct _mtl_sampler {
 
   AtomicT atomic_min(IntCoord coord, AtomicT data) const
   {
-    return atomicMin(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicMin(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_max(IntCoord coord, AtomicT data) const
   {
-    return atomicMax(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicMax(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_add(IntCoord coord, AtomicT data) const
   {
-    return atomicAdd(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicAdd(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_and(IntCoord coord, AtomicT data) const
   {
-    return atomicAnd(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicAnd(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_or(IntCoord coord, AtomicT data) const
   {
-    return atomicOr(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicOr(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_xor(IntCoord coord, AtomicT data) const
   {
-    return atomicXor(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicXor(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
   AtomicT atomic_exchange(IntCoord coord, AtomicT data) const
   {
-    return atomicExchange(atomic.buffer[atomic.to_linear_coord(coord)], data);
+    return atomicExchange(atomic.buffer[atomic.to_linear_coord(texture, coord)], data);
   }
 
 #else
@@ -639,30 +668,51 @@ void imageStoreFast(SamplerT texture, IntCoord coord, DataVec data)
 
 IMAGE_FN AtomicT imageAtomicMin(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_min(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicMax(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_max(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicAdd(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_add(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicAnd(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_and(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicOr(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_or(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicXor(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_xor(coord, data);
 }
 IMAGE_FN AtomicT imageAtomicExchange(SamplerT texture, IntCoord coord, AtomicT data)
 {
+  if (any(UintCoord(coord) >= UintCoord(texture.size()))) {
+    return AtomicT(0);
+  }
   return texture.atomic_exchange(coord, data);
 }
 
@@ -670,8 +720,8 @@ IMAGE_FN AtomicT imageAtomicExchange(SamplerT texture, IntCoord coord, AtomicT d
 
 /* Add any types as needed. */
 #define TEMPLATE template<typename T = float, access A = access::sample>
-TEMPLATE using depth2D = _mtl_sampler<T, A, depth2d<T, A>, true, 2, 0, 0>;
-TEMPLATE using depth2DArray = _mtl_sampler<T, A, depth2d_array<T, A>, true, 2, 0, 1>;
+TEMPLATE using sampler2DDepth = _mtl_sampler<T, A, depth2d<T, A>, true, 2, 0, 0>;
+TEMPLATE using sampler2DArrayDepth = _mtl_sampler<T, A, depth2d_array<T, A>, true, 2, 0, 1>;
 TEMPLATE using depthCube = _mtl_sampler<T, A, texturecube<T, A>, true, 2, 1, 1>;
 TEMPLATE using depthCubeArray = _mtl_sampler<T, A, texturecube_array<T, A>, true, 2, 1, 1>;
 TEMPLATE using sampler1D = _mtl_sampler<T, A, texture1d<T, A>, false, 1, 0, 0>;
@@ -688,8 +738,8 @@ TEMPLATE using sampler2DArrayAtomic = _mtl_sampler<T, A, texture2d<T, A>, false,
 TEMPLATE using sampler3DAtomic = _mtl_sampler<T, A, texture2d<T, A>, false, 3, 0, 0, true>;
 
 /* Used by backend to declare the samplers. Could be removed. */
-TEMPLATE using _mtl_sampler_depth_2d = depth2D<T, A>;
-TEMPLATE using _mtl_sampler_depth_2d_array = depth2DArray<T, A>;
+TEMPLATE using _mtl_sampler_depth_2d = sampler2DDepth<T, A>;
+TEMPLATE using _mtl_sampler_depth_2d_array = sampler2DArrayDepth<T, A>;
 TEMPLATE using _mtl_sampler_depth_cube = depthCube<T, A>;
 TEMPLATE using _mtl_sampler_depth_cube_array = depthCubeArray<T, A>;
 TEMPLATE using _mtl_sampler_1d = sampler1D<T, A>;
@@ -745,23 +795,24 @@ struct SStruct {
 #define sampler1D thread _mtl_sampler_1d<float>
 #define sampler1DArray thread _mtl_sampler_1d_array<float>
 #define sampler2D thread _mtl_sampler_2d<float>
-#define depth2D thread _mtl_sampler_depth_2d<float>
+#define sampler2DDepth thread _mtl_sampler_depth_2d<float>
+#define sampler2DShadow thread _mtl_sampler_depth_2d<float>
 #define sampler2DArray thread _mtl_sampler_2d_array<float>
+#define sampler2DArrayDepth thread _mtl_sampler_depth_2d_array<float>
 #define sampler2DArrayShadow thread _mtl_sampler_depth_2d_array<float>
-#define depth2DArray thread _mtl_sampler_depth_2d_array<float>
-#define depth2DArrayShadow thread _mtl_sampler_depth_2d_array<float>
 #define sampler3D thread _mtl_sampler_3d<float>
 #define samplerBuffer thread _mtl_sampler_buffer<float, access::read>
 #define samplerCube thread _mtl_sampler_cube<float>
+#define samplerCubeDepth thread _mtl_sampler_depth_cube<float>
+#define samplerCubeShadow thread _mtl_sampler_depth_cube<float>
 #define samplerCubeArray thread _mtl_sampler_cube_array<float>
+#define samplerCubeArrayDepth thread _mtl_sampler_depth_cube_array<float>
+#define samplerCubeArrayShadow thread _mtl_sampler_depth_cube_array<float>
 
 #define usampler1D thread _mtl_sampler_1d<uint>
 #define usampler1DArray thread _mtl_sampler_1d_array<uint>
 #define usampler2D thread _mtl_sampler_2d<uint>
-#define udepth2D thread _mtl_sampler_depth_2d<uint>
 #define usampler2DArray thread _mtl_sampler_2d_array<uint>
-#define usampler2DArrayShadow thread _mtl_sampler_depth_2d_array<uint>
-#define udepth2DArrayShadow thread _mtl_sampler_depth_2d_array<uint>
 #define usampler3D thread _mtl_sampler_3d<uint>
 #define usamplerBuffer thread _mtl_sampler_buffer<uint, access::read>
 #define usamplerCube thread _mtl_sampler_cube<uint>
@@ -770,10 +821,7 @@ struct SStruct {
 #define isampler1D thread _mtl_sampler_1d<int>
 #define isampler1DArray thread _mtl_sampler_1d_array<int>
 #define isampler2D thread _mtl_sampler_2d<int>
-#define idepth2D thread _mtl_sampler_depth_2d<int>
 #define isampler2DArray thread _mtl_sampler_2d_array<int>
-#define isampler2DArrayShadow thread _mtl_sampler_depth_2d_array<int>
-#define idepth2DArrayShadow thread _mtl_sampler_depth_2d_array<int>
 #define isampler3D thread _mtl_sampler_3d<int>
 #define isamplerBuffer thread _mtl_sampler_buffer<int, access::read>
 #define isamplerCube thread _mtl_sampler_cube<int>
@@ -824,79 +872,8 @@ template<int N, int M> inline bool operator!=(matrix<float, N, M> a, matrix<floa
 /* Matrix unary minus operator. */
 template<int N, int M> inline matrix<float, N, M> operator-(matrix<float, N, M> a)
 {
-  return a * -1.0;
+  return a * -1.0f;
 }
-
-/* SSBO Vertex Fetch Mode. */
-#ifdef MTL_SSBO_VERTEX_FETCH
-/**
- * Enabled when geometry is passed via raw buffer bindings, rather than using
- * vertex assembly in the vertex-descriptor.
- *
- *  To describe the layout of input attribute data, we will generate uniforms (defaulting to 0)
- * with the names per unique input attribute with name `attr`:
- *
- * - uniform_ssbo_stride_##attr  -- Representing the stride between element.
- * - uniform_ssbo_offset_##attr  -- Representing the base offset within the vertex.
- * - uniform_ssbo_fetchmode_##attr - Whether using per-vertex (=0) or per-instance fetch (=1).
- * - uniform_ssbo_vbo_id_##attr - buffer binding index for VBO with data for this attribute.
- * - uniform_ssbo_type_##attr - The type of data in the currently bound buffer.
- *
- * If the uniform_ssbo_type_* does not match with the desired type, then it is the responsibility
- * of the shader to perform the conversion. Types should always be read as the raw attribute type,
- * and then converted. e.g. If the uniform_ssbo_type_* is `int`, but we want to read it to be
- * normalized to a float.
- * The implementation should query the attribute type using vertex_fetch_get_attr_type(attr_name):
- *
- * \code{.cc}
- * float fweight = 0.0;
- * if(vertex_fetch_get_attr_type(in_weight) == GPU_SHADER_ATTR_TYPE_INT) {
- *   int iweight = vertex_fetch_attribute(gl_VertexID, in_weight, int);
- *   fweight = (float)iweight/(float)INT32_MAX;
- * } else {
- *   fweight = = vertex_fetch_attribute(gl_VertexID, in_weight, float);
- * }
- * \endcode
- *
- * Note: These uniforms are generated as part of the same data block used for regular uniforms
- * and attribute data is written prior to each draw call, depending on the configuration of
- * the vertex descriptor for an MTLBatch or MTLImmedaite call. */
-#  define PPCAT_NX(A, B) A##B
-#  define PPCAT(A, B) PPCAT_NX(A, B)
-
-#  define RESOLVE_VERTEX(v_id) \
-    ((UNIFORM_SSBO_USES_INDEXED_RENDERING_STR > 0) ? \
-         (((UNIFORM_SSBO_INDEX_MODE_U16_STR > 0) ? MTL_INDEX_DATA_U16[v_id] : \
-                                                   MTL_INDEX_DATA_U32[v_id]) + \
-          UNIFORM_SSBO_INDEX_BASE_STR) : \
-         v_id)
-#  define ATTR_TYPE(attr) PPCAT(SSBO_ATTR_TYPE_, attr)
-#  define vertex_fetch_attribute_raw(n, attr, type) \
-    (reinterpret_cast<constant type *>( \
-        &MTL_VERTEX_DATA[PPCAT(UNIFORM_SSBO_VBO_ID_STR, attr)] \
-                        [(PPCAT(UNIFORM_SSBO_STRIDE_STR, attr) * \
-                          ((PPCAT(UNIFORM_SSBO_FETCHMODE_STR, attr)) ? gl_InstanceID : n)) + \
-                         PPCAT(UNIFORM_SSBO_OFFSET_STR, attr)]))[0]
-#  define vertex_fetch_attribute(n, attr, type) \
-    vertex_fetch_attribute_raw(RESOLVE_VERTEX(n), attr, type)
-#  define vertex_id_from_index_id(n) RESOLVE_VERTEX(n)
-#  define vertex_fetch_get_input_prim_type() UNIFORM_SSBO_INPUT_PRIM_TYPE_STR
-#  define vertex_fetch_get_input_vert_count() UNIFORM_SSBO_INPUT_VERT_COUNT_STR
-#  define vertex_fetch_get_attr_type(attr) PPCAT(UNIFORM_SSBO_TYPE_STR, attr)
-#  define vertex_fetch_get_index_base() UNIFORM_SSBO_INDEX_BASE_STR
-
-/* Must mirror GPU_primitive.hh. */
-#  define GPU_PRIM_POINTS 0
-#  define GPU_PRIM_LINES 1
-#  define GPU_PRIM_TRIS 2
-#  define GPU_PRIM_LINE_STRIP 3
-#  define GPU_PRIM_LINE_LOOP 4
-#  define GPU_PRIM_TRI_STRIP 5
-#  define GPU_PRIM_TRI_FAN 6
-#  define GPU_PRIM_LINES_ADJ 7
-#  define GPU_PRIM_TRIS_ADJ 8
-#  define GPU_PRIM_LINE_STRIP_ADJ 9
-#endif
 
 /* Common Functions. */
 #define dFdx(x) dfdx(x)
@@ -905,8 +882,8 @@ template<int N, int M> inline matrix<float, N, M> operator-(matrix<float, N, M> 
 #define inversesqrt rsqrt
 
 /* clang-format off */
-inline float radians(float deg) { return deg * 0.01745329251; /* M_PI_F / 180 */ }
-inline float degrees(float rad) { return rad * 57.2957795131; /* 180 / M_PI_F */ }
+inline float radians(float deg) { return deg * 0.01745329251f; /* M_PI_F / 180 */ }
+inline float degrees(float rad) { return rad * 57.2957795131f; /* 180 / M_PI_F */ }
 inline int floatBitsToInt(float f) { return as_type<int>(f); }
 inline int2 floatBitsToInt(float2 f) { return as_type<int2>(f); }
 inline int3 floatBitsToInt(float3 f) { return as_type<int3>(f); }
@@ -1041,7 +1018,7 @@ float4x4 inverse(float4x4 a)
   adjoint[3][3] = a[2][0] * b03 - a[2][1] * b01 + a[2][2] * b00;
   float determinant = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
   /* Multiplying by inverse since matrix types don't have divide operators. */
-  return adjoint * (1.0 / determinant);
+  return adjoint * (1.0f / determinant);
 }
 
 float3x3 inverse(float3x3 m)
@@ -1058,7 +1035,7 @@ float3x3 inverse(float3x3 m)
   adjoint[2][2] = +(m[0][0] * m[1][1] - m[1][0] * m[0][1]);
   float determinant = m[0][0] * adjoint[0][0] + m[1][0] * adjoint[0][1] + m[2][0] * adjoint[0][2];
   /* Multiplying by inverse since matrix types don't have divide operators. */
-  return adjoint * (1.0 / determinant);
+  return adjoint * (1.0f / determinant);
 }
 
 float2x2 inverse(float2x2 m)
@@ -1070,7 +1047,7 @@ float2x2 inverse(float2x2 m)
   adjoint[1][1] = +m[0][0];
   float determinant = m[0][0] * m[1][1] - m[1][0] * m[0][1];
   /* Multiplying by inverse since matrix types don't have divide operators. */
-  return adjoint * (1.0 / determinant);
+  return adjoint * (1.0f / determinant);
 }
 
 /* Additional overloads for builtin functions. */
@@ -1082,7 +1059,7 @@ float distance(float x, float y)
 /* Overload for mix(vec<T>, vec<T>, float). */
 template<typename T, int S> vec<T, S> mix(vec<T, S> a, vec<T, S> b, float fac)
 {
-  return a * (1.0 - fac) + b * fac;
+  return a * (1.0f - fac) + b * fac;
 }
 
 /* Using vec<bool, S> does not appear to work, splitting cases. */
@@ -1096,11 +1073,6 @@ template<typename T> vec<T, 3> mix(vec<T, 3> a, vec<T, 3> b, bool3 mask) SELECT;
 template<typename T> vec<T, 2> mix(vec<T, 2> a, vec<T, 2> b, bool2 mask) SELECT;
 
 #undef SELECT
-
-template<typename T, int Size> bool is_zero(vec<T, Size> a)
-{
-  return all(a == vec<T, Size>(0));
-}
 
 #define in
 #define out thread
@@ -1142,6 +1114,73 @@ RESHAPE(float4x4, float3x3, m[0].x, m[0].y, m[0].z, 0, m[1].x, m[1].y, m[1].z, 0
 RESHAPE(float3x3, float3x4, m[0].xyz, m[1].xyz, m[2].xyz)
 #undef RESHAPE
 
+/* Matrix constructors functions for pyGPU shaders compatibility.
+ * Unfortunately, we have to overload all of most common ones. */
+/* clang-format off */
+/* Scalar constructors. */
+float2x2 __mat2x2(float x1, float x2,
+                  float y1, float y2)
+{
+  return float2x2(x1, x2,
+                  y1, y2);
+}
+
+float3x3 __mat3x3(float x1, float x2, float x3,
+                  float y1, float y2, float y3,
+                  float z1, float z2, float z3)
+{
+  return float3x3(x1, x2, x3,
+                  y1, y2, y3,
+                  z1, z2, z3);
+}
+
+float4x4 __mat4x4(float x1, float x2, float x3, float x4,
+                  float y1, float y2, float y3, float y4,
+                  float z1, float z2, float z3, float z4,
+                  float w1, float w2, float w3, float w4)
+{
+  return float4x4(x1, x2, x3, x4,
+                  y1, y2, y3, y4,
+                  z1, z2, z3, z4,
+                  w1, w2, w3, w4);
+}
+
+/* Diagonal constructors. */
+float2x2 __mat2x2(float x) { return float2x2(x); }
+float3x3 __mat3x3(float x) { return float3x3(x); }
+float4x4 __mat4x4(float x) { return float4x4(x); }
+
+/* Vector constructors. */
+float2x2 __mat2x2(float2 x, float2 y) { return {x, y}; }
+float3x3 __mat3x3(float3 x, float3 y, float3 z) { return {x, y, z}; }
+float4x4 __mat4x4(float4 x, float4 y, float4 z, float4 w) { return {x, y, z, w}; }
+
+/* Reshape constructors. */
+float2x2 __mat2x2(float3x3 a) { return to_float2x2(a); }
+float2x2 __mat2x2(float4x4 a) { return to_float2x2(a); }
+float3x3 __mat3x3(float2x2 a) { return to_float3x3(a); }
+float3x3 __mat3x3(float4x4 a) { return to_float3x3(a); }
+float4x4 __mat4x4(float2x2 a) { return to_float4x4(a); }
+float4x4 __mat4x4(float3x3 a) { return to_float4x4(a); }
+/* clang-format on */
+
+#define METAL_CONSTRUCTOR_1(class_name, t1, m1) \
+  class_name() = default; \
+  class_name(t1 m1##_) : m1(m1##_){};
+
+#define METAL_CONSTRUCTOR_2(class_name, t1, m1, t2, m2) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_) : m1(m1##_), m2(m2##_){};
+
+#define METAL_CONSTRUCTOR_3(class_name, t1, m1, t2, m2, t3, m3) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_) : m1(m1##_), m2(m2##_), m3(m3##_){};
+
+#define METAL_CONSTRUCTOR_4(class_name, t1, m1, t2, m2, t3, m3, t4, m4) \
+  class_name() = default; \
+  class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_) \
+      : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_){};
+
 #undef ENABLE_IF
 
 /* Array syntax compatibility. */
@@ -1176,3 +1215,16 @@ RESHAPE(float3x3, float3x4, m[0].xyz, m[1].xyz, m[2].xyz)
 #define _enum_end \
   } \
   ;
+
+#define TEMPLATE_GLUE1(name, arg1) name##_##arg1##_
+#define TEMPLATE_GLUE2(name, arg1, arg2) name##_##arg1##_##arg2##_
+#define TEMPLATE_GLUE3(name, arg1, arg2, arg3) name##_##arg1##_##arg2##_##arg3##_
+#define TEMPLATE_GLUE4(name, arg1, arg2, arg3, arg4) name##_##arg1##_##arg2##_##arg3##_##arg4##_
+
+/* Stage agnostic builtin function.
+ * MSL allow mixing shader stages inside the same source file.
+ * Leaving the calls untouched makes sure we catch invalid usage during CI testing. */
+#define gpu_discard_fragment() discard
+#define gpu_dfdx(x) dFdx(x)
+#define gpu_dfdy(x) dFdy(x)
+#define gpu_fwidth(x) fwidth(x)

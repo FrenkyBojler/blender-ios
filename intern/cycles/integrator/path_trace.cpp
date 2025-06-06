@@ -6,16 +6,19 @@
 
 #include "device/cpu/device.h"
 #include "device/device.h"
+
 #include "integrator/pass_accessor.h"
 #include "integrator/path_trace_display.h"
 #include "integrator/path_trace_tile.h"
 #include "integrator/render_scheduler.h"
+
 #include "scene/pass.h"
 #include "scene/scene.h"
+
+#include "session/display_driver.h"
 #include "session/tile.h"
-#include "util/algorithm.h"
+
 #include "util/log.h"
-#include "util/math.h"
 #include "util/progress.h"
 #include "util/tbb.h"
 #include "util/time.h"
@@ -41,8 +44,8 @@ PathTrace::PathTrace(Device *device,
     vector<DeviceInfo> cpu_devices;
     device_cpu_info(cpu_devices);
 
-    cpu_device_.reset(
-        device_cpu_create(cpu_devices[0], device->stats, device->profiler, device_->headless));
+    cpu_device_ = device_cpu_create(
+        cpu_devices[0], device->stats, device->profiler, device_->headless);
   }
 
   /* Create path tracing work in advance, so that it can be reused by incremental sampling as much
@@ -159,7 +162,7 @@ void PathTrace::render(const RenderWork &render_work)
 {
   /* Indicate that rendering has started and that it can be requested to cancel. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     if (render_cancel_.is_requested) {
       return;
     }
@@ -171,7 +174,7 @@ void PathTrace::render(const RenderWork &render_work)
   /* Indicate that rendering has finished, making it so thread which requested `cancel()` can carry
    * on. */
   {
-    thread_scoped_lock lock(render_cancel_.mutex);
+    const thread_scoped_lock lock(render_cancel_.mutex);
     render_cancel_.is_rendering = false;
     render_cancel_.condition.notify_one();
   }
@@ -302,7 +305,7 @@ void PathTrace::update_allocated_work_buffer_params()
                                });
 }
 
-static BufferParams scale_buffer_params(const BufferParams &params, int resolution_divider)
+static BufferParams scale_buffer_params(const BufferParams &params, const int resolution_divider)
 {
   BufferParams scaled_params = params;
 
@@ -494,10 +497,15 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
     return;
   }
 
+  GraphicsInteropDevice interop_device;
+  if (display_) {
+    interop_device = display_->graphics_interop_get_device();
+  }
+
   Device *effective_denoise_device;
   Device *cpu_fallback_device = cpu_device_.get();
-  DenoiseParams effective_denoise_params = get_effective_denoise_params(
-      denoise_device_, cpu_fallback_device, params, effective_denoise_device);
+  const DenoiseParams effective_denoise_params = get_effective_denoise_params(
+      denoise_device_, cpu_fallback_device, params, interop_device, effective_denoise_device);
 
   bool need_to_recreate_denoiser = false;
   if (denoiser_) {
@@ -538,19 +546,23 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
 
   if (need_to_recreate_denoiser) {
     denoiser_ = Denoiser::create(
-        effective_denoise_device, cpu_fallback_device, effective_denoise_params);
+        effective_denoise_device, cpu_fallback_device, effective_denoise_params, interop_device);
 
-    /* Only take into account the "immediate" cancel to have interactive rendering responding to
-     * navigation as quickly as possible, but allow to run denoiser after user hit Escape key while
-     * doing offline rendering. */
-    denoiser_->is_cancelled_cb = [this]() { return render_cancel_.is_requested; };
+    if (denoiser_) {
+      /* Only take into account the "immediate" cancel to have interactive rendering responding to
+       * navigation as quickly as possible, but allow to run denoiser after user hit Escape key
+       * while doing offline rendering. */
+      denoiser_->is_cancelled_cb = [this]() { return render_cancel_.is_requested; };
+    }
   }
 
   /* Use actual parameters, if available */
-  if (denoise_device_)
+  if (denoise_device_ && denoiser_) {
     render_scheduler_.set_denoiser_params(denoiser_->get_params());
-  else
+  }
+  else {
     render_scheduler_.set_denoiser_params(effective_denoise_params);
+  }
 }
 
 void PathTrace::set_adaptive_sampling(const AdaptiveSampling &adaptive_sampling)
@@ -642,10 +654,10 @@ void PathTrace::set_display_driver(unique_ptr<DisplayDriver> driver)
   }
 }
 
-void PathTrace::clear_display()
+void PathTrace::zero_display()
 {
   if (display_) {
-    display_->clear();
+    display_->zero();
   }
 }
 
@@ -688,7 +700,7 @@ void PathTrace::update_display(const RenderWork &render_work)
   if (output_driver_) {
     VLOG_WORK << "Invoke buffer update callback.";
 
-    PathTraceTile tile(*this);
+    const PathTraceTile tile(*this);
     output_driver_->update_render_tile(tile);
   }
 
@@ -870,7 +882,7 @@ void PathTrace::tile_buffer_write()
     return;
   }
 
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   output_driver_->write_render_tile(tile);
 }
 
@@ -890,7 +902,7 @@ void PathTrace::tile_buffer_read()
   });
 
   /* Read (subset of) passes from output driver. */
-  PathTraceTile tile(*this);
+  const PathTraceTile tile(*this);
   if (output_driver_->read_render_tile(tile)) {
     /* Copy buffers to device again. */
     parallel_for_each(path_trace_works_, [](unique_ptr<PathTraceWork> &path_trace_work) {
@@ -1002,11 +1014,11 @@ static string get_layer_view_name(const RenderBuffers &buffers)
 {
   string result;
 
-  if (buffers.params.layer.size()) {
+  if (!buffers.params.layer.empty()) {
     result += string(buffers.params.layer);
   }
 
-  if (buffers.params.view.size()) {
+  if (!buffers.params.view.empty()) {
     if (!result.empty()) {
       result += ", ";
     }
@@ -1041,7 +1053,7 @@ void PathTrace::process_full_buffer_from_disk(string_view filename)
 
   render_state_.has_denoised_result = false;
 
-  if (denoise_params.use) {
+  if (denoise_params.use && denoiser_ && !progress_->get_cancel()) {
     progress_set_status(layer_view_name, "Denoising");
 
     /* If GPU should be used is not based on file metadata. */
@@ -1323,7 +1335,7 @@ string PathTrace::full_report() const
 
 void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bool reset)
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   if (guiding_params_.modified(guiding_params)) {
     guiding_params_ = guiding_params;
 
@@ -1423,7 +1435,7 @@ void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bo
 
 void PathTrace::guiding_prepare_structures()
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   const bool train = (guiding_params_.training_samples == 0) ||
                      (guiding_field_->GetIteration() < guiding_params_.training_samples);
 
@@ -1448,7 +1460,7 @@ void PathTrace::guiding_prepare_structures()
 
 void PathTrace::guiding_update_structures()
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   VLOG_WORK << "Update path guiding structures";
 
   VLOG_DEBUG << "Number of surface samples: " << guiding_sample_data_storage_->GetSizeSurface();

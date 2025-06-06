@@ -11,6 +11,8 @@
 #include "BLI_boxpack_2d.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.hh"
+#include "BLI_rect.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 
@@ -92,7 +94,7 @@ static GPUTexture *gpu_texture_create_tile_mapping(Image *ima, const int multivi
 
   /* create image */
   int width = max_tile + 1;
-  float *data = (float *)MEM_callocN(width * 8 * sizeof(float), __func__);
+  float *data = MEM_calloc_arrayN<float>(size_t(width) * 8, __func__);
   for (int i = 0; i < width; i++) {
     data[4 * i] = -1.0f;
   }
@@ -145,7 +147,7 @@ static GPUTexture *gpu_texture_create_tile_array(Image *ima, ImBuf *main_ibuf)
     ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
     if (ibuf) {
-      PackTile *packtile = MEM_cnew<PackTile>(__func__);
+      PackTile *packtile = MEM_callocN<PackTile>(__func__);
       packtile->tile = tile;
       packtile->boxpack.w = ibuf->x;
       packtile->boxpack.h = ibuf->y;
@@ -313,7 +315,7 @@ static void image_gpu_texture_partial_update_changes_available(
 
 static void image_gpu_texture_try_partial_update(Image *image, ImageUser *iuser)
 {
-  PartialUpdateChecker<ImageTileData> checker(image, iuser, image->runtime.partial_update_user);
+  PartialUpdateChecker<ImageTileData> checker(image, iuser, image->runtime->partial_update_user);
   PartialUpdateChecker<ImageTileData>::CollectResult changes = checker.collect_changes();
   switch (changes.get_result_code()) {
     case ePartialUpdateCollectResult::FullUpdateNeeded: {
@@ -333,7 +335,7 @@ static void image_gpu_texture_try_partial_update(Image *image, ImageUser *iuser)
   }
 }
 
-void BKE_image_ensure_gpu_texture(Image *image, ImageUser *image_user)
+void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser)
 {
   if (!image) {
     return;
@@ -341,8 +343,9 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *image_user)
 
   /* Note that the image can cache both stereo views, so we only invalidate the cache if the view
    * index is more than 2. */
-  if (image->gpu_pass != image_user->pass || image->gpu_layer != image_user->layer ||
-      (image->gpu_view != image_user->multi_index && image_user->multi_index >= 2))
+  if (!ELEM(image->gpu_pass, IMAGE_GPU_PASS_NONE, iuser->pass) ||
+      !ELEM(image->gpu_layer, IMAGE_GPU_LAYER_NONE, iuser->layer) ||
+      (!ELEM(image->gpu_view, IMAGE_GPU_VIEW_NONE, iuser->multi_index) && iuser->multi_index >= 2))
   {
     BKE_image_partial_update_mark_full_update(image);
   }
@@ -351,7 +354,8 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *image_user)
 static ImageGPUTextures image_get_gpu_texture(Image *ima,
                                               ImageUser *iuser,
                                               const bool use_viewers,
-                                              const bool use_tile_mapping)
+                                              const bool use_tile_mapping,
+                                              bool try_only)
 {
   ImageGPUTextures result = {};
 
@@ -386,8 +390,8 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   }
 #undef GPU_FLAGS_TO_CHECK
 
-  if (ima->runtime.partial_update_user == nullptr) {
-    ima->runtime.partial_update_user = BKE_image_partial_update_create(ima);
+  if (ima->runtime->partial_update_user == nullptr) {
+    ima->runtime->partial_update_user = BKE_image_partial_update_create(ima);
   }
 
   image_gpu_texture_try_partial_update(ima, iuser);
@@ -409,6 +413,11 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   if (*tex) {
     result.texture = *tex;
     result.tile_mapping = *get_image_gpu_texture_ptr(ima, TEXTARGET_TILE_MAPPING, current_view);
+    return result;
+  }
+
+  if (try_only) {
+    /* If we got this far, it means the texture is not loaded. */
     return result;
   }
 
@@ -475,19 +484,26 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
 
 GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
 {
-  return image_get_gpu_texture(image, iuser, false, false).texture;
+  return image_get_gpu_texture(image, iuser, false, false, false).texture;
 }
 
 GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
 {
-  return image_get_gpu_texture(image, iuser, true, false).texture;
+  return image_get_gpu_texture(image, iuser, true, false, false).texture;
 }
 
 ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
                                                     ImageUser *iuser,
                                                     const bool use_tile_mapping)
 {
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, false);
+}
+
+ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
+                                                        ImageUser *iuser,
+                                                        const bool use_tile_mapping)
+{
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, true);
 }
 
 /** \} */
@@ -500,7 +516,7 @@ ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
  * \{ */
 
 static LinkNode *gpu_texture_free_queue = nullptr;
-static ThreadMutex gpu_texture_queue_mutex = BLI_MUTEX_INITIALIZER;
+static blender::Mutex gpu_texture_queue_mutex;
 
 static void gpu_free_unused_buffers()
 {
@@ -508,14 +524,12 @@ static void gpu_free_unused_buffers()
     return;
   }
 
-  BLI_mutex_lock(&gpu_texture_queue_mutex);
+  std::scoped_lock lock(gpu_texture_queue_mutex);
 
   while (gpu_texture_free_queue != nullptr) {
     GPUTexture *tex = static_cast<GPUTexture *>(BLI_linklist_pop(&gpu_texture_free_queue));
     GPU_texture_free(tex);
   }
-
-  BLI_mutex_unlock(&gpu_texture_queue_mutex);
 }
 
 void BKE_image_free_unused_gpu_textures()
@@ -540,9 +554,8 @@ static void image_free_gpu(Image *ima, const bool immediate)
           GPU_texture_free(ima->gputexture[i][eye]);
         }
         else {
-          BLI_mutex_lock(&gpu_texture_queue_mutex);
+          std::scoped_lock lock(gpu_texture_queue_mutex);
           BLI_linklist_prepend(&gpu_texture_free_queue, ima->gputexture[i][eye]);
-          BLI_mutex_unlock(&gpu_texture_queue_mutex);
         }
 
         ima->gputexture[i][eye] = nullptr;
@@ -693,7 +706,7 @@ static void gpu_texture_update_scaled(GPUTexture *tex,
                                            (void *)(ibuf->byte_buffer.data);
   eGPUDataFormat data_format = (ibuf->float_buffer.data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
 
-  GPU_texture_update_sub(tex, data_format, data, x, y, layer, w, h, 1);
+  GPU_texture_update_sub(tex, data_format, data, x, y, blender::math::max(layer, 0), w, h, 1);
 
   IMB_freeImBuf(ibuf);
 }
@@ -723,7 +736,7 @@ static void gpu_texture_update_unscaled(GPUTexture *tex,
    * subset of a possible larger buffer than what we are updating. */
   GPU_unpack_row_length_set(tex_stride);
 
-  GPU_texture_update_sub(tex, data_format, data, x, y, layer, w, h, 1);
+  GPU_texture_update_sub(tex, data_format, data, x, y, blender::math::max(layer, 0), w, h, 1);
   /* Restore default. */
   GPU_unpack_row_length_set(0);
 }
@@ -764,7 +777,7 @@ static void gpu_texture_update_from_ibuf(
      * convention, no colorspace conversion needed. But we do require 4 channels
      * currently. */
     if (ibuf->channels != 4 || scaled || !store_premultiplied) {
-      rect_float = (float *)MEM_mallocN(sizeof(float[4]) * w * h, __func__);
+      rect_float = MEM_malloc_arrayN<float>(4 * size_t(w) * size_t(h), __func__);
       if (rect_float == nullptr) {
         return;
       }
@@ -787,7 +800,7 @@ static void gpu_texture_update_from_ibuf(
     {
       /* sRGB or scene linear or scaled down non-color data, store as byte texture that the GPU
        * can decode directly. */
-      rect = (uchar *)MEM_mallocN(sizeof(uchar[4]) * w * h, __func__);
+      rect = MEM_malloc_arrayN<uchar>(4 * size_t(w) * size_t(h), __func__);
       if (rect == nullptr) {
         return;
       }
@@ -801,7 +814,7 @@ static void gpu_texture_update_from_ibuf(
     }
     else {
       /* Other colorspace, store as float texture to avoid precision loss. */
-      rect_float = (float *)MEM_mallocN(sizeof(float[4]) * w * h, __func__);
+      rect_float = MEM_malloc_arrayN<float>(4 * size_t(w) * size_t(h), __func__);
       if (rect_float == nullptr) {
         return;
       }

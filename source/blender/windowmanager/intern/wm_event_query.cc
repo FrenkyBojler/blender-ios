@@ -11,14 +11,14 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "DNA_listBase.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "RNA_access.hh"
@@ -91,6 +91,8 @@ void WM_event_print(const wmEvent *event)
           {"CTRL", KM_CTRL},
           {"ALT", KM_ALT},
           {"OS", KM_OSKEY},
+          {"HYPER", KM_HYPER},
+
       };
       event_ids_from_flag(
           modifier_id, sizeof(modifier_id), flag_data, ARRAY_SIZE(flag_data), event->modifier);
@@ -133,11 +135,27 @@ void WM_event_print(const wmEvent *event)
     if (ISNDOF(event->type)) {
       const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
       if (event->type == NDOF_MOTION) {
-        printf(", ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %d",
+        const char *ndof_progress = unknown;
+
+#  define CASE_NDOF_PROGRESS(id) \
+    case P_##id: { \
+      ndof_progress = STRINGIFY(id); \
+      break; \
+    }
+        switch (ndof->progress) {
+          CASE_NDOF_PROGRESS(NOT_STARTED);
+          CASE_NDOF_PROGRESS(STARTING);
+          CASE_NDOF_PROGRESS(IN_PROGRESS);
+          CASE_NDOF_PROGRESS(FINISHING);
+          CASE_NDOF_PROGRESS(FINISHED);
+        }
+#  undef CASE_NDOF_PROGRESS
+
+        printf(", ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %s",
                UNPACK3(ndof->rvec),
                UNPACK3(ndof->tvec),
                ndof->dt,
-               ndof->progress);
+               ndof_progress);
       }
       else {
         /* NDOF buttons printed already. */
@@ -150,8 +168,8 @@ void WM_event_print(const wmEvent *event)
       printf(", tablet: active: %d, pressure %.4f, tilt: (%.4f %.4f)",
              wmtab->active,
              wmtab->pressure,
-             wmtab->x_tilt,
-             wmtab->y_tilt);
+             wmtab->tilt.x,
+             wmtab->tilt.y);
     }
     printf("\n");
   }
@@ -357,8 +375,8 @@ bool WM_event_consecutive_gesture_test_break(const wmWindow *win, const wmEvent 
     }
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    /* Modifiers are excluded because from a user perspective,
-     * releasing a modifier (for e.g.) should not begin a new action. */
+    /* Modifiers are excluded because from a user perspective.
+     * For example, releasing a modifier should not begin a new action. */
     if (!ISKEYMODIFIER(event->type)) {
       return true;
     }
@@ -388,6 +406,14 @@ int WM_event_drag_threshold(const wmEvent *event)
      * The `event->type` would include #MOUSEMOVE which is always the case when dragging
      * and does not help us know which threshold to use. */
     if (WM_event_is_tablet(event)) {
+      /* Decrease threshold as pen pressure is increased. */
+      if (event->tablet.pressure > 0.0f && event->tablet.pressure < 1.0f) {
+        /* Pressure 0 results in max threshold, pressure 0.5 and above results in 0 pixels. */
+        const float bias = 1.0f - std::min(event->tablet.pressure * 2.0f, 1.0f);
+        drag_threshold = std::max(int(bias * float(U.drag_threshold_tablet)), 0);
+        /* Return without multiplying by resolution scale. */
+        return drag_threshold;
+      }
       drag_threshold = U.drag_threshold_tablet;
     }
     else {
@@ -485,12 +511,27 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 
 #ifdef WITH_INPUT_NDOF
 
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom)
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3])
 {
-  int z_flag = use_zoom ? NDOF_ZOOM_INVERT : NDOF_PANZ_INVERT_AXIS;
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign);
+  r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -sign : sign);
+  r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -sign : sign);
+  r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3])
+{
   r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
   r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & z_flag) ? -1.0f : 1.0f);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f);
 }
 
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
@@ -559,8 +600,7 @@ float wm_pressure_curve(float raw_pressure)
 float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
   if (r_tilt) {
-    r_tilt[0] = event->tablet.x_tilt;
-    r_tilt[1] = event->tablet.y_tilt;
+    copy_v2_v2(r_tilt, event->tablet.tilt);
   }
 
   if (r_pen_flip) {

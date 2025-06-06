@@ -15,6 +15,8 @@
 
 #include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
+
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
@@ -137,11 +139,11 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       AssetCatalogSelectorTree &tree = dynamic_cast<AssetCatalogSelectorTree &>(get_tree_view());
       uiBlock *block = uiLayoutGetBlock(&row);
 
-      uiLayoutSetEmboss(&row, UI_EMBOSS);
+      row.emboss_set(blender::ui::EmbossType::Emboss);
 
-      uiLayout *subrow = uiLayoutRow(&row, false);
+      uiLayout *subrow = &row.row(false);
       uiLayoutSetActive(subrow, catalog_path_enabled_);
-      uiItemL(subrow, catalog_item_.get_name().c_str(), ICON_NONE);
+      subrow->label(catalog_item_.get_name(), ICON_NONE);
       UI_block_layout_set_current(block, &row);
 
       uiBut *toggle_but = uiDefButC(block,
@@ -152,7 +154,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
                                     0,
                                     UI_UNIT_X,
                                     UI_UNIT_Y,
-                                    (char *)&catalog_path_enabled_,
+                                    &catalog_path_enabled_,
                                     0,
                                     0,
                                     TIP_("Toggle catalog visibility in the asset shelf"));
@@ -181,14 +183,15 @@ void AssetCatalogSelectorTree::update_shelf_settings_from_enabled_catalogs()
 
 void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shelf)
 {
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  PointerRNA shelf_ptr = RNA_pointer_create(&CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(
+      &CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
 
-  uiLayout *row = uiLayoutRow(layout, true);
-  uiItemR(row, &shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
+  uiLayout *row = &layout->row(true);
+  row->prop(&shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (shelf.settings.asset_library_reference.type != ASSET_LIBRARY_LOCAL) {
-    uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
+    row->op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
   }
 }
 
@@ -226,7 +229,7 @@ void catalog_selector_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_catalog_selector");
   STRNCPY(pt->label, N_("Catalog Selector"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

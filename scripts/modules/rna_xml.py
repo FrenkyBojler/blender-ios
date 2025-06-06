@@ -2,6 +2,11 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "xml_file_run",
+    "xml_file_write",
+)
+
 import bpy
 
 
@@ -80,7 +85,7 @@ def rna2xml(
         bpy.types.ActionGroup,
         bpy.types.PoseBone,
         bpy.types.Node,
-        bpy.types.Sequence,
+        bpy.types.Strip,
     )
 
     def number_to_str(val, val_type):
@@ -234,7 +239,7 @@ def rna2xml(
 # paths "escaping" the intended data types, potentially writing into unexpected settings.
 # This is done because the XML itself defines the attributes which are recursed into,
 # there is a possibility the XML recurse into data that isn't logically owned by "root",
-# out of the theme and into user preferences for e.g. which could change trust settings
+# out of the theme and into user preferences for example, which could change trust settings
 # even executing code.
 #
 # At the time of writing it seems this is not possible with themes (the main user of this functionality),
@@ -345,7 +350,7 @@ def xml2rna(
                         # print(elems)
                         if len(elems) == 1:
                             # sub node named by its type
-                            child_xml_real, = elems
+                            child_xml_real = elems[0]
 
                             # print(child_xml_real, subvalue)
                             xml2rna_node(child_xml_real, subvalue)

@@ -50,16 +50,16 @@ class VIEW3D_MT_brush_context_menu(Menu):
         if brush.library and brush.library.is_editable:
             layout.operator("brush.asset_save_as", text="Duplicate Asset...", icon='DUPLICATE')
             layout.operator("brush.asset_delete", text="Delete Asset")
-
-            layout.separator()
-
-            layout.operator("brush.asset_edit_metadata", text="Edit Metadata...")
-            layout.operator("brush.asset_load_preview", text="Edit Preview Image...")
-            layout.operator("brush.asset_save", text="Save Changes to Asset")
-            layout.operator("brush.asset_revert", text="Revert to Asset")
         else:
             layout.operator("brush.asset_save_as", text="Save As Asset...", icon='FILE_TICK')
             layout.operator("brush.asset_delete", text="Delete")
+
+        layout.separator()
+
+        layout.operator("brush.asset_edit_metadata", text="Edit Metadata...")
+        layout.operator("brush.asset_load_preview", text="Edit Preview Image...")
+        layout.operator("brush.asset_save", text="Save Changes to Asset")
+        layout.operator("brush.asset_revert", text="Revert to Asset")
 
 
 class VIEW3D_MT_brush_gpencil_context_menu(Menu):
@@ -74,7 +74,7 @@ class VIEW3D_MT_brush_gpencil_context_menu(Menu):
             settings = tool_settings.gpencil_paint
         if context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
         elif context.mode == 'VERTEX_GPENCIL':
             settings = tool_settings.gpencil_vertex_paint
@@ -104,17 +104,6 @@ def draw_vpaint_symmetry(layout, vpaint, obj):
     col = layout.column()
     col.active = not obj.data.use_mirror_vertex_groups
     col.prop(vpaint, "radial_symmetry", text="Radial")
-
-
-# Most of these panels should not be visible in GP edit modes
-def is_not_gpencil_edit_mode(context):
-    is_gpmode = (
-        context.active_object and context.active_object.mode in {
-            'EDIT_GPENCIL',
-            'PAINT_GREASE_PENCIL',
-            'SCULPT_GREASE_PENCIL',
-            'WEIGHT_GREASE_PENCIL'})
-    return not is_gpmode
 
 
 # ********** default tools for object mode ****************
@@ -406,7 +395,7 @@ class VIEW3D_PT_tools_brush_settings_advanced(Panel, View3DPaintBrushPanel):
         settings = UnifiedPaintPanel.paint_settings(context)
         brush = settings.brush
 
-        brush_settings_advanced(layout.column(), context, brush, self.is_popover)
+        brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
 
 
 class VIEW3D_PT_tools_brush_color(Panel, View3DPaintPanel):
@@ -605,12 +594,25 @@ class VIEW3D_PT_slots_paint_canvas(SelectPaintSlotHelper, View3DPanel, Panel):
         tool = ToolSelectPanelHelper.tool_active_from_context(context)
         if tool is None:
             return False
-        return tool.use_paint_canvas
+
+        is_paint_tool = False
+        if tool.use_brushes:
+            brush = context.tool_settings.sculpt.brush
+            if brush:
+                is_paint_tool = brush.sculpt_tool in {'PAINT', 'SMEAR'}
+        else:
+            # TODO: The property use_paint_canvas doesn't work anymore since its associated
+            # C++ function 'rna_WorkSpaceTool_use_paint_canvas_get' passes in a nullptr for
+            # the bContext. This property should be fixed in the future, but will require
+            # some extensive refactoring. For now, use the workaround above.
+            is_paint_tool = tool.use_paint_canvas
+
+        return is_paint_tool
 
     def get_mode_settings(self, context):
         return context.tool_settings.paint_mode
 
-    def draw_image_interpolation(self, **kwargs):
+    def draw_image_interpolation(self, **_kwargs):
         pass
 
     def draw_header(self, context):
@@ -893,8 +895,7 @@ class VIEW3D_PT_tools_weight_gradient(Panel, View3DPaintPanel):
         brush = settings.brush
 
         col = layout.column(align=True)
-        row = col.row(align=True)
-        row.prop(brush, "curve_preset", text="")
+        col.prop(brush, "curve_preset", expand=True)
 
         if brush.curve_preset == 'CUSTOM':
             layout.template_curve_mapping(brush, "curve", brush=True)
@@ -942,8 +943,9 @@ class VIEW3D_PT_tools_brush_falloff_frontface(View3DPaintPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout.active = brush.use_frontface_falloff
-        layout.prop(brush, "falloff_angle", text="Angle")
+        row = layout.row()
+        row.active = brush.use_frontface_falloff
+        row.prop(brush, "falloff_angle", text="Angle")
 
 
 class VIEW3D_PT_tools_brush_falloff_normal(View3DPaintPanel, Panel):
@@ -971,8 +973,9 @@ class VIEW3D_PT_tools_brush_falloff_normal(View3DPaintPanel, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        layout.active = ipaint.use_normal_falloff
-        layout.prop(ipaint, "normal_angle", text="Angle")
+        row = layout.row()
+        row.active = ipaint.use_normal_falloff
+        row.prop(ipaint, "normal_angle", text="Angle")
 
 
 # TODO, move to space_view3d.py
@@ -1011,7 +1014,7 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
 
         sub = col.column()
-        sub.active = (brush and brush.sculpt_tool != 'MASK')
+        sub.active = (brush and brush.sculpt_capabilities.has_dyntopo) or sculpt.detail_type_method == 'MANUAL'
         if sculpt.detail_type_method in {'CONSTANT', 'MANUAL'}:
             row = sub.row(align=True)
             row.prop(sculpt, "constant_detail_resolution")
@@ -1426,9 +1429,9 @@ class VIEW3D_PT_tools_imagepaint_options_cavity(Panel):
         tool_settings = context.tool_settings
         ipaint = tool_settings.image_paint
 
-        layout.active = ipaint.use_cavity
-
-        layout.template_curve_mapping(ipaint, "cavity_curve", brush=True, use_negative_slope=True)
+        col = layout.column()
+        col.active = ipaint.use_cavity
+        col.template_curve_mapping(ipaint, "cavity_curve", brush=True, use_negative_slope=True)
 
 
 # TODO, move to space_view3d.py
@@ -1858,7 +1861,7 @@ class VIEW3D_PT_tools_grease_pencil_brush_random(View3DPanel, Panel):
             col.template_curve_mapping(gp_settings, "curve_random_pressure", brush=True, use_negative_slope=True)
 
         row = col.row(align=True)
-        row.prop(gp_settings, "random_strength", text="Strength", slider=True)
+        row.prop(gp_settings, "random_strength", text="Strength", slider=True, text_ctxt=i18n_contexts.id_gpencil)
         row.prop(gp_settings, "use_stroke_random_strength", text="", icon='GP_SELECT_STROKES')
         row.prop(gp_settings, "use_random_press_strength", text="", icon='STYLUS_PRESSURE')
         if gp_settings.use_random_press_strength and self.is_popover is False:
@@ -2068,7 +2071,7 @@ class VIEW3D_PT_tools_grease_pencil_weight_paint_settings(Panel, View3DPanel, Gr
             )
             brush_basic_gpencil_weight_settings(layout, context, brush)
         else:
-            # Grease Pencil v3
+            # Grease Pencil
             from bl_ui.properties_paint_common import (
                 brush_basic_grease_pencil_weight_settings,
             )
@@ -2474,7 +2477,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_advanced(View3DPanel, Panel):
         if ob.type != 'GREASEPENCIL':
             return False
         brush = context.tool_settings.gpencil_paint.brush
-        return brush is not None and brush.gpencil_tool not in {'ERASE', 'TINT'}
+        return brush is not None and brush.gpencil_tool not in {'ERASE', 'TINT', 'FILL'}
 
     def draw(self, context):
         layout = self.layout
@@ -2489,62 +2492,95 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_advanced(View3DPanel, Panel):
         col = layout.column(align=True)
         if brush is None:
             return
-        if brush.gpencil_tool != 'FILL':
+
+        row = col.row(align=True)
+        row.prop(brush, "use_locked_size", expand=True)
+        col.separator()
+
+        col.prop(brush, "spacing", slider=True)
+        col.separator()
+
+        col.prop(gp_settings, "active_smooth_factor")
+        col.separator()
+
+        col.prop(gp_settings, "angle", slider=True)
+        col.prop(gp_settings, "angle_factor", text="Factor", slider=True)
+
+        ob = context.object
+        ma = None
+        if ob and brush.gpencil_settings.use_material_pin is False:
+            ma = ob.active_material
+        elif brush.gpencil_settings.material:
+            ma = brush.gpencil_settings.material
+
+        col.separator()
+        col.prop(gp_settings, "hardness", slider=True)
+        subcol = col.column(align=True)
+        if ma and ma.grease_pencil.mode == 'LINE':
+            subcol.enabled = False
+        subcol.prop(gp_settings, "aspect")
+
+
+class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
+    bl_context = ".greasepencil_paint"
+    bl_label = "Advanced"
+    bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_settings"
+    bl_category = "Tool"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_ui_units_x = 14
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if ob.type != 'GREASEPENCIL':
+            return False
+        brush = context.tool_settings.gpencil_paint.brush
+        return brush is not None and brush.gpencil_tool == 'FILL'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        tool_settings = context.scene.tool_settings
+        gpencil_paint = tool_settings.gpencil_paint
+        brush = gpencil_paint.brush
+        gp_settings = brush.gpencil_settings
+
+        col = layout.column(align=True)
+        if brush is None:
+            return
+
+        row = col.row(align=True)
+        row.prop(gp_settings, "fill_draw_mode", text="Boundary", text_ctxt=i18n_contexts.id_gpencil)
+        row.prop(
+            gp_settings,
+            "show_fill_boundary",
+            icon='HIDE_OFF' if gp_settings.show_fill_boundary else 'HIDE_ON',
+            text="",
+        )
+
+        col.separator()
+        row = col.row(align=True)
+        row.prop(gp_settings, "fill_layer_mode", text="Layers")
+
+        col.separator()
+        col.prop(gp_settings, "fill_simplify_level", text="Simplify")
+        if gp_settings.fill_draw_mode != 'STROKE':
+            col = layout.column(align=False, heading="Ignore Transparent")
+            col.use_property_decorate = False
             row = col.row(align=True)
-            row.prop(brush, "use_locked_size", expand=True)
-            col.separator()
+            sub = row.row(align=True)
+            sub.prop(gp_settings, "show_fill", text="")
+            sub = sub.row(align=True)
+            sub.active = gp_settings.show_fill
+            sub.prop(gp_settings, "fill_threshold", text="")
 
-            col.prop(brush, "spacing", slider=True)
-            col.separator()
-
-            col.prop(gp_settings, "active_smooth_factor")
-            col.separator()
-
-            col.prop(gp_settings, "angle", slider=True)
-            col.prop(gp_settings, "angle_factor", text="Factor", slider=True)
-
-            ob = context.object
-            ma = None
-            if ob and brush.gpencil_settings.use_material_pin is False:
-                ma = ob.active_material
-            elif brush.gpencil_settings.material:
-                ma = brush.gpencil_settings.material
-
-            col.separator()
-            col.prop(gp_settings, "hardness", slider=True)
-            subcol = col.column(align=True)
-            if ma and ma.grease_pencil.mode == 'LINE':
-                subcol.enabled = False
-            subcol.prop(gp_settings, "aspect")
-        elif brush.gpencil_tool == 'FILL':
-            row = col.row(align=True)
-            row.prop(gp_settings, "fill_draw_mode", text="Boundary", text_ctxt=i18n_contexts.id_gpencil)
-            row.prop(
-                gp_settings,
-                "show_fill_boundary",
-                icon='HIDE_OFF' if gp_settings.show_fill_boundary else 'HIDE_ON',
-                text="",
-            )
-
-            col.separator()
-            row = col.row(align=True)
-            row.prop(gp_settings, "fill_layer_mode", text="Layers")
-
-            col.separator()
-            col.prop(gp_settings, "fill_simplify_level", text="Simplify")
-            if gp_settings.fill_draw_mode != 'STROKE':
-                col = layout.column(align=False, heading="Ignore Transparent")
-                col.use_property_decorate = False
-                row = col.row(align=True)
-                sub = row.row(align=True)
-                sub.prop(gp_settings, "show_fill", text="")
-                sub = sub.row(align=True)
-                sub.active = gp_settings.show_fill
-                sub.prop(gp_settings, "fill_threshold", text="")
-
-            col.separator()
-            row = col.row(align=True)
-            row.prop(gp_settings, "use_fill_limit")
+        col.separator()
+        row = col.row(align=True)
+        row.prop(gp_settings, "use_fill_limit")
+        row = col.row(align=True)
+        row.prop(gp_settings, "use_auto_remove_fill_guides")
 
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_stroke(Panel, View3DPanel):
@@ -2669,7 +2705,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
             col.template_curve_mapping(gp_settings, "curve_random_pressure", brush=True, use_negative_slope=True)
 
         row = col.row(align=True)
-        row.prop(gp_settings, "random_strength", text="Strength", slider=True)
+        row.prop(gp_settings, "random_strength", text="Strength", slider=True, text_ctxt=i18n_contexts.id_gpencil)
         row.prop(gp_settings, "use_stroke_random_strength", text="", icon='GP_SELECT_STROKES')
         row.prop(gp_settings, "use_random_press_strength", text="", icon='STYLUS_PRESSURE')
         if gp_settings.use_random_press_strength and self.is_popover is False:
@@ -2891,7 +2927,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_eraser(View3DPanel, Panel):
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
     bl_context = ".grease_pencil_paint"
-    bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_advanced"
+    bl_parent_id = "VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced"
     bl_label = "Gap Closure"
     bl_category = "Tool"
 
@@ -3018,6 +3054,7 @@ classes = (
     VIEW3D_PT_tools_grease_pencil_v3_brush_settings,
     VIEW3D_PT_tools_grease_pencil_v3_brush_eraser,
     VIEW3D_PT_tools_grease_pencil_v3_brush_advanced,
+    VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced,
     VIEW3D_PT_tools_grease_pencil_v3_brush_stroke,
     VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing,
     VIEW3D_PT_tools_grease_pencil_v3_brush_random,

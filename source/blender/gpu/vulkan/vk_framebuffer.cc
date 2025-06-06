@@ -12,6 +12,10 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
+
 namespace blender::gpu {
 
 /**
@@ -38,22 +42,22 @@ VKFrameBuffer::VKFrameBuffer(const char *name)
 
 VKFrameBuffer::~VKFrameBuffer()
 {
-  VKContext &context = *VKContext::get();
-  if (context.active_framebuffer_get() == this) {
-    context.deactivate_framebuffer();
+  VKContext *context = VKContext::get();
+  if (context && context->active_framebuffer_get() == this) {
+    context->deactivate_framebuffer();
   }
   render_pass_free();
 }
 
 void VKFrameBuffer::render_pass_free()
 {
-  VKDevice &device = VKBackend::get().device;
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
   if (vk_framebuffer != VK_NULL_HANDLE) {
-    device.discard_pool_for_current_thread().discard_framebuffer(vk_framebuffer);
+    discard_pool.discard_framebuffer(vk_framebuffer);
     vk_framebuffer = VK_NULL_HANDLE;
   }
   if (vk_render_pass != VK_NULL_HANDLE) {
-    device.discard_pool_for_current_thread().discard_render_pass(vk_render_pass);
+    discard_pool.discard_render_pass(vk_render_pass);
     vk_render_pass = VK_NULL_HANDLE;
   }
 }
@@ -63,22 +67,24 @@ void VKFrameBuffer::render_pass_free()
 void VKFrameBuffer::bind(bool enabled_srgb)
 {
   VKContext &context = *VKContext::get();
-  /* Updating attachments can issue pipeline barriers, this should be done outside the render pass.
-   * When done inside a render pass there should be a self-dependency between sub-passes on the
-   * active render pass. As the active render pass isn't aware of the new render pass (and should
-   * not) it is better to deactivate it before updating the attachments. For more information check
-   * `VkSubpassDependency`. */
+  /* Updating attachments can issue pipeline barriers, this should be done outside the render
+   * pass. When done inside a render pass there should be a self-dependency between sub-passes on
+   * the active render pass. As the active render pass isn't aware of the new render pass (and
+   * should not) it is better to deactivate it before updating the attachments. For more
+   * information check `VkSubpassDependency`. */
   if (context.has_active_framebuffer()) {
     context.deactivate_framebuffer();
   }
 
   context.activate_framebuffer(*this);
+  update_size();
+  viewport_reset();
+  scissor_reset();
+
   enabled_srgb_ = enabled_srgb;
   Shader::set_framebuffer_srgb_target(enabled_srgb && srgb_);
   load_stores.fill(default_load_store());
   attachment_states_.fill(GPU_ATTACHMENT_WRITE);
-  viewport_reset();
-  scissor_reset();
 }
 
 void VKFrameBuffer::vk_viewports_append(Vector<VkViewport> &r_viewports) const
@@ -202,7 +208,7 @@ void VKFrameBuffer::clear(render_graph::VKClearAttachmentsNode::CreateInfo &clea
 {
   VKContext &context = *VKContext::get();
   rendering_ensure(context);
-  context.render_graph.add_node(clear_attachments);
+  context.render_graph().add_node(clear_attachments);
 }
 
 void VKFrameBuffer::clear(const eGPUFrameBufferBits buffers,
@@ -225,8 +231,8 @@ void VKFrameBuffer::clear(const eGPUFrameBufferBits buffers,
       needed_mask |= GPU_WRITE_STENCIL;
     }
 
-    /* Clearing depth via vkCmdClearAttachments requires a render pass with write depth or stencil
-     * enabled. When not enabled, clearing should be done via texture directly. */
+    /* Clearing depth via #vkCmdClearAttachments requires a render pass with write depth or
+     * stencil enabled. When not enabled, clearing should be done via texture directly. */
     /* WORKAROUND: Clearing depth attachment when using dynamic rendering are not working on AMD
      * official drivers.
      * See #129265 */
@@ -331,30 +337,49 @@ static void set_load_store(VkRenderingAttachmentInfo &r_rendering_attachment,
 void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
                                             Span<GPUAttachmentState> color_attachment_states)
 {
-  /* TODO: this is a fallback implementation. We should also provide support for
-   * `VK_EXT_dynamic_rendering_local_read`. This extension is only supported on Windows
-   * platforms (2024Q2), but would reduce the rendering synchronization overhead. */
-  VKContext &context = *VKContext::get();
-  if (is_rendering_) {
-    rendering_end(context);
-
-    /* TODO: this might need a better implementation:
-     * READ -> DONTCARE
-     * WRITE -> LOAD, STORE based on previous value.
-     * IGNORE -> DONTCARE -> IGNORE */
-    load_stores.fill(default_load_store());
-  }
+  const VKDevice &device = VKBackend::get().device;
+  const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
 
   attachment_states_[GPU_FB_DEPTH_ATTACHMENT] = depth_attachment_state;
   attachment_states_.as_mutable_span()
       .slice(GPU_FB_COLOR_ATTACHMENT0, color_attachment_states.size())
       .copy_from(color_attachment_states);
-  for (int index : IndexRange(color_attachment_states.size())) {
-    if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
-      VKTexture *texture = unwrap(unwrap(color_tex(index)));
-      if (texture) {
-        context.state_manager_get().texture_bind(
-            texture, GPUSamplerState::default_sampler(), index);
+
+  if (supports_local_read) {
+    VKContext &context = *VKContext::get();
+
+    for (int index : IndexRange(color_attachment_states.size())) {
+      if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
+        VKTexture *texture = unwrap(unwrap(color_tex(index)));
+        if (texture) {
+          context.state_manager_get().image_bind(texture, index);
+        }
+      }
+    }
+    if (is_rendering_) {
+      is_rendering_ = false;
+      load_stores.fill(default_load_store());
+    }
+  }
+  else {
+    VKContext &context = *VKContext::get();
+    if (is_rendering_) {
+      rendering_end(context);
+
+      /* TODO: this might need a better implementation:
+       * READ -> DONTCARE
+       * WRITE -> LOAD, STORE based on previous value.
+       * IGNORE -> DONTCARE -> IGNORE */
+      load_stores.fill(default_load_store());
+    }
+
+    for (int index : IndexRange(color_attachment_states.size())) {
+      if (color_attachment_states[index] == GPU_ATTACHMENT_READ) {
+        VKTexture *texture = unwrap(unwrap(color_tex(index)));
+        if (texture) {
+          context.state_manager_get().texture_bind(
+              texture, GPUSamplerState::default_sampler(), index);
+        }
       }
     }
   }
@@ -369,7 +394,7 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
 void VKFrameBuffer::read(eGPUFrameBufferBits plane,
                          eGPUDataFormat format,
                          const int area[4],
-                         int /*channel_len*/,
+                         int channel_len,
                          int slot,
                          void *r_data)
 {
@@ -397,9 +422,32 @@ void VKFrameBuffer::read(eGPUFrameBufferBits plane,
   if (texture == nullptr) {
     return;
   }
+
+  /* See #139898: Only RGB can be asked, when more channels are available. */
+  const size_t num_elements = area[2] * area[3];
+  const size_t r_element_size = to_bytesize(format) * channel_len;
+  const size_t r_data_size = r_element_size * num_elements;
+  const size_t element_size = to_bytesize(format) * (plane == GPU_COLOR_BIT ? 4 : 1);
+  const size_t data_size = element_size * num_elements;
+  void *data = r_data;
+  if (r_element_size != element_size && num_elements > 1) {
+    CLOG_ERROR(&LOG,
+               "Trying to readback multiple pixels with different number of components per pixel "
+               "than backed by GPU texture. This is not supported by the Vulkan backend and the "
+               "calling code should be adapted.");
+  }
+  if (r_element_size != element_size && num_elements == 1) {
+    CLOG_WARN(&LOG,
+              "Performance: Reading different number of channels than backed by GPU texture.");
+    data = static_cast<void *>(MEM_malloc_arrayN<char>(data_size, __func__));
+  }
   const int region[6] = {area[0], area[1], 0, area[0] + area[2], area[1] + area[3], 1};
   IndexRange layers(max_ii(attachment->layer, 0), 1);
-  texture->read_sub(0, format, region, layers, r_data);
+  texture->read_sub(0, format, region, layers, data);
+  if (r_data_size != data_size) {
+    memcpy(r_data, data, std::min(r_data_size, data_size));
+    MEM_freeN(data);
+  }
 }
 
 /** \} */
@@ -448,15 +496,16 @@ static void blit_aspect(VKContext &context,
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
   region.dstSubresource.layerCount = 1;
-  region.dstOffsets[0].x = min_ii(dst_offset_x, dst_texture.width_get());
-  region.dstOffsets[0].y = min_ii(dst_offset_y, dst_texture.height_get());
+  region.dstOffsets[0].x = clamp_i(dst_offset_x, 0, dst_texture.width_get());
+  region.dstOffsets[0].y = clamp_i(dst_offset_y, 0, dst_texture.height_get());
   region.dstOffsets[0].z = 0;
-  region.dstOffsets[1].x = min_ii(dst_offset_x + src_texture.width_get(), dst_texture.width_get());
-  region.dstOffsets[1].y = min_ii(dst_offset_y + src_texture.height_get(),
-                                  dst_texture.height_get());
+  region.dstOffsets[1].x = clamp_i(
+      dst_offset_x + src_texture.width_get(), 0, dst_texture.width_get());
+  region.dstOffsets[1].y = clamp_i(
+      dst_offset_y + src_texture.height_get(), 0, dst_texture.height_get());
   region.dstOffsets[1].z = 1;
 
-  context.render_graph.add_node(blit_image);
+  context.render_graph().add_node(blit_image);
 }
 
 void VKFrameBuffer::blit_to(eGPUFrameBufferBits planes,
@@ -593,10 +642,10 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
       continue;
     }
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     GPUAttachmentState attachment_state = attachment_states_[color_attachment_index];
-    VkImageView vk_image_view = VK_NULL_HANDLE;
-    VkImageLayout vk_image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    uint32_t attachment_reference = VK_ATTACHMENT_UNUSED;
     uint32_t layer_base = max_ii(attachment.layer, 0);
     int layer_count = color_texture.layer_count();
     if (attachment.layer == -1 && layer_count != 1) {
@@ -612,23 +661,23 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
         false,
         srgb_ && enabled_srgb_,
         VKImageViewArrayed::DONT_CARE};
-    vk_image_view = color_texture.image_view_get(image_view_info).vk_handle();
+    const VKImageView &image_view = color_texture.image_view_get(image_view_info);
     // TODO: Use VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL for readonly attachments.
-    vk_image_layout = (attachment_state == GPU_ATTACHMENT_READ) ?
-                          VK_IMAGE_LAYOUT_GENERAL :
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    attachment_reference = color_attachment_index - GPU_FB_COLOR_ATTACHMENT0;
+    VkImageLayout vk_image_layout = (attachment_state == GPU_ATTACHMENT_READ) ?
+                                        VK_IMAGE_LAYOUT_GENERAL :
+                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    uint32_t attachment_reference = color_attachment_index - GPU_FB_COLOR_ATTACHMENT0;
     /* Depth attachment should always be right after the last color attachment. If not shaders
-     * cannot be reused between framebuffers with and without depth/stencil attachment*/
+     * cannot be reused between frame-buffers with and without depth/stencil attachment. */
     depth_attachment_reference.attachment = attachment_reference + 1;
 
     VkAttachmentDescription vk_attachment_description = {};
-    vk_attachment_description.format = to_vk_format(color_texture.device_format_get());
+    vk_attachment_description.format = image_view.vk_format();
     vk_attachment_description.samples = VK_SAMPLE_COUNT_1_BIT;
     vk_attachment_description.initialLayout = vk_image_layout;
     vk_attachment_description.finalLayout = vk_image_layout;
     vk_attachment_descriptions.append(std::move(vk_attachment_description));
-    vk_image_views.append(vk_image_view);
+    vk_image_views.append(image_view.vk_handle());
 
     switch (attachment_state) {
       case GPU_ATTACHMENT_WRITE: {
@@ -673,6 +722,9 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
     has_depth_attachment = true;
     bool is_stencil_attachment = depth_attachment_index == GPU_FB_DEPTH_STENCIL_ATTACHMENT;
     VKTexture &depth_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(depth_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     VkImageAspectFlags depth_texture_aspect = to_vk_image_aspect_flag_bits(
         depth_texture.device_format_get());
     bool is_depth_stencil_attachment = depth_texture_aspect & VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -716,7 +768,7 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
     }
   }
 
-  /* Subpass description */
+  /* Sub-pass description. */
   VkSubpassDescription vk_subpass_description = {};
   vk_subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
   vk_subpass_description.colorAttachmentCount = color_attachments.size();
@@ -728,7 +780,7 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
   }
 
   VKDevice &device = VKBackend::get().device;
-  /* Renderpass create info */
+  /* Render-pass create info. */
   VkRenderPassCreateInfo vk_render_pass_create_info = {};
   vk_render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
   vk_render_pass_create_info.subpassCount = 1;
@@ -758,15 +810,16 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
   begin_info.framebuffer = vk_framebuffer;
   render_area_update(begin_info.renderArea);
 
-  context.render_graph.add_node(begin_rendering);
+  context.render_graph().add_node(begin_rendering);
 
-  /* Load store operations are not supported inside a render pass. It requires duplicating render
-   * passes and framebuffers to support suspend/resume rendering. After suspension all the graphics
-   * pipelines needs to be created using the resume handles. Due to command reordering it is
-   * unclear when this switch needs to be made and would require to double the graphics pipelines.
+  /* Load store operations are not supported inside a render pass.
+   * It requires duplicating render passes and frame-buffers to support suspend/resume rendering.
+   * After suspension all the graphics pipelines needs to be created using the resume handles.
+   * Due to command reordering it is unclear when this switch needs to be made and would require
+   * to double the graphics pipelines.
    *
-   * This all adds a lot of complexity just to support clearing ops on legacy platforms. An easier
-   * solution is to use vkCmdClearAttachments right after the begin rendering.
+   * This all adds a lot of complexity just to support clearing ops on legacy platforms. An
+   * easier solution is to use #vkCmdClearAttachments right after the begin rendering.
    */
   if (use_explicit_load_store_) {
     render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};
@@ -790,14 +843,17 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
       render_area_update(clear_attachments.vk_clear_rect.rect);
       clear_attachments.vk_clear_rect.baseArrayLayer = 0;
       clear_attachments.vk_clear_rect.layerCount = 1;
-      context.render_graph.add_node(clear_attachments);
+      context.render_graph().add_node(clear_attachments);
     }
   }
 }
 
 void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
-                                                       const VKWorkarounds &workarounds)
+                                                       const VKExtensions &extensions)
 {
+  const VKDevice &device = VKBackend::get().device;
+  const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
+
   depth_attachment_format_ = VK_FORMAT_UNDEFINED;
   stencil_attachment_format_ = VK_FORMAT_UNDEFINED;
 
@@ -817,6 +873,9 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     }
 
     VKTexture &color_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(color_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     /* To support `gpu_Layer` we need to set the layerCount to the number of layers it can
      * access.
      */
@@ -834,6 +893,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     VkImageView vk_image_view = VK_NULL_HANDLE;
     uint32_t layer_base = max_ii(attachment.layer, 0);
     GPUAttachmentState attachment_state = attachment_states_[color_attachment_index];
+    VkFormat vk_format = to_vk_format(color_texture.device_format_get());
     if (attachment_state == GPU_ATTACHMENT_WRITE) {
       VKImageViewInfo image_view_info = {
           eImageViewUsage::Attachment,
@@ -844,10 +904,13 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
           false,
           srgb_ && enabled_srgb_,
           VKImageViewArrayed::DONT_CARE};
-      vk_image_view = color_texture.image_view_get(image_view_info).vk_handle();
+      const VKImageView &image_view = color_texture.image_view_get(image_view_info);
+      vk_image_view = image_view.vk_handle();
+      vk_format = image_view.vk_format();
     }
     attachment_info.imageView = vk_image_view;
-    attachment_info.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachment_info.imageLayout = supports_local_read ? VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR :
+                                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     set_load_store(attachment_info, load_stores[color_attachment_index]);
 
     access_info.images.append(
@@ -856,9 +919,9 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
          VK_IMAGE_ASPECT_COLOR_BIT,
          layer_base});
     color_attachment_formats_.append(
-        (workarounds.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
+        (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
-            to_vk_format(color_texture.device_format_get()));
+            vk_format);
 
     begin_rendering.node_data.vk_rendering_info.pColorAttachments =
         begin_rendering.node_data.color_attachments;
@@ -873,6 +936,9 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     }
     bool is_stencil_attachment = depth_attachment_index == GPU_FB_DEPTH_STENCIL_ATTACHMENT;
     VKTexture &depth_texture = *unwrap(unwrap(attachment.tex));
+    BLI_assert_msg(depth_texture.usage_get() & GPU_TEXTURE_USAGE_ATTACHMENT,
+                   "Texture is used as an attachment, but doesn't have the "
+                   "GPU_TEXTURE_USAGE_ATTACHMENT flag.");
     bool is_depth_stencil_attachment = to_vk_image_aspect_flag_bits(
                                            depth_texture.device_format_get()) &
                                        VK_IMAGE_ASPECT_STENCIL_BIT;
@@ -891,7 +957,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                          VKImageViewArrayed::DONT_CARE};
       depth_image_view = depth_texture.image_view_get(image_view_info).vk_handle();
     }
-    VkFormat vk_format = (workarounds.dynamic_rendering_unused_attachments &&
+    VkFormat vk_format = (!extensions.dynamic_rendering_unused_attachments &&
                           depth_image_view == VK_NULL_HANDLE) ?
                              VK_FORMAT_UNDEFINED :
                              to_vk_format(depth_texture.device_format_get());
@@ -934,13 +1000,17 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     break;
   }
 
-  context.render_graph.add_node(begin_rendering);
+  context.render_graph().add_node(begin_rendering);
 }
 
 void VKFrameBuffer::rendering_ensure(VKContext &context)
 {
-  if (is_rendering_) {
+  if (!dirty_state_ && is_rendering_) {
     return;
+  }
+
+  if (is_rendering_) {
+    rendering_end(context);
   }
 
 #ifndef NDEBUG
@@ -951,13 +1021,13 @@ void VKFrameBuffer::rendering_ensure(VKContext &context)
   }
 #endif
 
-  const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   is_rendering_ = true;
-  if (workarounds.dynamic_rendering) {
-    rendering_ensure_render_pass(context);
+  if (extensions.dynamic_rendering) {
+    rendering_ensure_dynamic_rendering(context, extensions);
   }
   else {
-    rendering_ensure_dynamic_rendering(context, workarounds);
+    rendering_ensure_render_pass(context);
   }
   dirty_attachments_ = false;
   dirty_state_ = false;
@@ -983,14 +1053,14 @@ void VKFrameBuffer::rendering_end(VKContext &context)
   }
 
   if (is_rendering_) {
-    const VKWorkarounds &workarounds = VKBackend::get().device.workarounds_get();
+    const VKExtensions &extensions = VKBackend::get().device.extensions_get();
     render_graph::VKEndRenderingNode::CreateInfo end_rendering = {};
     end_rendering.vk_render_pass = VK_NULL_HANDLE;
-    if (workarounds.dynamic_rendering) {
+    if (!extensions.dynamic_rendering) {
       BLI_assert(vk_render_pass);
       end_rendering.vk_render_pass = vk_render_pass;
     }
-    context.render_graph.add_node(end_rendering);
+    context.render_graph().add_node(end_rendering);
     is_rendering_ = false;
   }
 }

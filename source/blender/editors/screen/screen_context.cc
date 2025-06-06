@@ -6,11 +6,8 @@
  * \ingroup edscr
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -26,14 +23,15 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_blender.hh"
 #include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_tracking.h"
 
@@ -53,6 +51,7 @@
 #include "UI_interface.hh"
 #include "WM_api.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "screen_intern.hh"
@@ -87,10 +86,10 @@ const char *screen_context_dir[] = {
     "image_paint_object",
     "particle_edit_object",
     "pose_object",
-    "active_sequence_strip",
-    "sequences",
-    "selected_sequences",
-    "selected_editable_sequences", /* sequencer */
+    "active_sequence_strip",       /* DEPRECATED - use "active_strip" */
+    "sequences",                   /* DEPRECATED - use "strips" */
+    "selected_sequences",          /* DEPRECATED - use "selected_strips" */
+    "selected_editable_sequences", /* DEPRECATED - use "selected_editable_strips" */
     "active_nla_track",
     "active_nla_strip",
     "selected_nla_strips", /* nla editor */
@@ -99,7 +98,7 @@ const char *screen_context_dir[] = {
     "annotation_data",
     "annotation_data_owner",
     "active_annotation_layer",
-    /* Grease Pencil v3 */
+    /* Grease Pencil */
     "grease_pencil",
     "active_operator",
     "active_action",
@@ -114,6 +113,10 @@ const char *screen_context_dir[] = {
     "ui_list",
     "property",
     "asset_library_reference",
+    "active_strip",
+    "strips",
+    "selected_strips",
+    "selected_editable_strips",
     nullptr,
 };
 
@@ -277,7 +280,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone)) {
+        if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -304,7 +307,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
             /* only include bones if visible */
             CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
-            if ((flipbone) && EBONE_VISIBLE(arm, flipbone) == 0) {
+            if ((flipbone) && blender::animrig::bone_is_visible_editbone(arm, flipbone) == 0) {
               CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
             }
           }
@@ -347,7 +350,9 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
+        if (blender::animrig::bone_is_visible_editbone(arm, ebone) &&
+            (ebone->flag & BONE_SELECTED))
+        {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -672,9 +677,9 @@ static eContextResult screen_ctx_active_sequence_strip(const bContext *C,
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
-  Sequence *seq = SEQ_select_active_get(scene);
-  if (seq) {
-    CTX_data_pointer_set(result, &scene->id, &RNA_Sequence, seq);
+  Strip *strip = blender::seq::select_active_get(scene);
+  if (strip) {
+    CTX_data_pointer_set(result, &scene->id, &RNA_Strip, strip);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -683,10 +688,10 @@ static eContextResult screen_ctx_sequences(const bContext *C, bContextDataResult
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
+  Editing *ed = blender::seq::editing_get(scene);
   if (ed) {
-    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-      CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
+    LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
     }
     CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
     return CTX_RESULT_OK;
@@ -697,11 +702,11 @@ static eContextResult screen_ctx_selected_sequences(const bContext *C, bContextD
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
+  Editing *ed = blender::seq::editing_get(scene);
   if (ed) {
-    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-      if (seq->flag & SELECT) {
-        CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
+    LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+      if (strip->flag & SELECT) {
+        CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
       }
     }
     CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
@@ -714,15 +719,15 @@ static eContextResult screen_ctx_selected_editable_sequences(const bContext *C,
 {
   wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
+  Editing *ed = blender::seq::editing_get(scene);
   if (ed == nullptr) {
     return CTX_RESULT_NO_DATA;
   }
 
-  ListBase *channels = SEQ_channels_displayed_get(ed);
-  LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    if (seq->flag & SELECT && !SEQ_transform_is_locked(channels, seq)) {
-      CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
+  ListBase *channels = blender::seq::channels_displayed_get(ed);
+  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+    if (strip->flag & SELECT && !blender::seq::transform_is_locked(channels, strip)) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
     }
   }
   CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
@@ -939,10 +944,10 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-  GSet *seen_set = active_only ? nullptr : BLI_gset_ptr_new("seen actions");
+  blender::Set<bAction *> seen_set;
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    /* In dopesheet check selection status of individual items, skipping
+    /* In dope-sheet check selection status of individual items, skipping
      * if not selected or has no selection flag. This is needed so that
      * selecting action or group rows without any channels works. */
     if (check_selected && ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_SELECT) <= 0) {
@@ -963,7 +968,7 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
     }
 
     /* Add the action to the output list if not already added. */
-    if (BLI_gset_add(seen_set, action)) {
+    if (seen_set.add(action)) {
       CTX_data_id_list_add(result, &action->id);
     }
   }
@@ -971,7 +976,6 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
   ANIM_animdata_freelist(&anim_data);
 
   if (!active_only) {
-    BLI_gset_free(seen_set, nullptr);
     CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
   }
 
@@ -1134,6 +1138,67 @@ static eContextResult screen_ctx_ui_list(const bContext *C, bContextDataResult *
   return CTX_RESULT_NO_DATA;
 }
 
+static eContextResult screen_ctx_active_strip(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Strip *strip = blender::seq::select_active_get(scene);
+  if (strip) {
+    CTX_data_pointer_set(result, &scene->id, &RNA_Strip, strip);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_strips(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed) {
+    LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_strips(const bContext *C, bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed) {
+    LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+      if (strip->flag & SELECT) {
+        CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+      }
+    }
+    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_editable_strips(const bContext *C,
+                                                          bContextDataResult *result)
+{
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = WM_window_get_active_scene(win);
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed == nullptr) {
+    return CTX_RESULT_NO_DATA;
+  }
+
+  ListBase *channels = blender::seq::channels_displayed_get(ed);
+  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+    if (strip->flag & SELECT && !blender::seq::transform_is_locked(channels, strip)) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+    }
+  }
+  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  return CTX_RESULT_OK;
+}
+
 /* Registry of context callback functions. */
 
 using context_callback = eContextResult (*)(const bContext *C, bContextDataResult *result);
@@ -1170,10 +1235,11 @@ ensure_ed_screen_context_functions()
     map.add("image_paint_object", screen_ctx_image_paint_object);
     map.add("particle_edit_object", screen_ctx_particle_edit_object);
     map.add("pose_object", screen_ctx_pose_object);
-    map.add("active_sequence_strip", screen_ctx_active_sequence_strip);
-    map.add("sequences", screen_ctx_sequences);
-    map.add("selected_sequences", screen_ctx_selected_sequences);
-    map.add("selected_editable_sequences", screen_ctx_selected_editable_sequences);
+    map.add("active_sequence_strip", screen_ctx_active_sequence_strip); /* DEPRECATED */
+    map.add("sequences", screen_ctx_sequences);                         /* DEPRECATED */
+    map.add("selected_sequences", screen_ctx_selected_sequences);       /* DEPRECATED */
+    map.add("selected_editable_sequences",
+            screen_ctx_selected_editable_sequences); /* DEPRECATED */
     map.add("active_nla_track", screen_ctx_active_nla_track);
     map.add("active_nla_strip", screen_ctx_active_nla_strip);
     map.add("selected_nla_strips", screen_ctx_selected_nla_strips);
@@ -1195,6 +1261,10 @@ ensure_ed_screen_context_functions()
     map.add("asset_library_reference", screen_ctx_asset_library);
     map.add("ui_list", screen_ctx_ui_list);
     map.add("property", screen_ctx_property);
+    map.add("active_strip", screen_ctx_active_strip);
+    map.add("strips", screen_ctx_strips);
+    map.add("selected_strips", screen_ctx_selected_strips);
+    map.add("selected_editable_strips", screen_ctx_selected_editable_strips);
     return map;
   }();
   return screen_context_functions;

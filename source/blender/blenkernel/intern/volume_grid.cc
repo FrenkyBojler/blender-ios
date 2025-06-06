@@ -273,7 +273,7 @@ void VolumeGridData::ensure_grid_loaded() const
     loaded_grid.grid = openvdb::FloatGrid::create();
   }
   BLI_assert(loaded_grid.grid);
-  BLI_assert(loaded_grid.grid.unique());
+  BLI_assert(loaded_grid.grid.use_count() == 1);
 
   if (!loaded_grid.tree_sharing_info) {
     BLI_assert(loaded_grid.grid->isTreeUnique());
@@ -385,29 +385,29 @@ VolumeTreeAccessToken::~VolumeTreeAccessToken()
   token_.reset();
   if (grid) {
     /* Unload immediately when the value is not used anymore. However, the tree may still be cached
-     * at a deeper level and thus usually does not have to be loaded from disk again.*/
+     * at a deeper level and thus usually does not have to be loaded from disk again. */
     grid->unload_tree_if_possible();
   }
 }
 
 #endif /* WITH_OPENVDB */
 
-std::string get_name(const VolumeGridData &volume_grid)
+std::string get_name(const VolumeGridData &grid)
 {
 #ifdef WITH_OPENVDB
-  return volume_grid.name();
+  return grid.name();
 #else
-  UNUSED_VARS(volume_grid);
+  UNUSED_VARS(grid);
   return "density";
 #endif
 }
 
-VolumeGridType get_type(const VolumeGridData &volume_grid)
+VolumeGridType get_type(const VolumeGridData &grid)
 {
 #ifdef WITH_OPENVDB
-  return volume_grid.grid_type();
+  return grid.grid_type();
 #else
-  UNUSED_VARS(volume_grid);
+  UNUSED_VARS(grid);
   return VOLUME_GRID_UNKNOWN;
 #endif
 }
@@ -436,19 +436,7 @@ int get_channels_num(const VolumeGridType type)
 float4x4 get_transform_matrix(const VolumeGridData &grid)
 {
 #ifdef WITH_OPENVDB
-  const openvdb::math::Transform &transform = grid.transform();
-
-  /* Perspective not supported for now, getAffineMap() will leave out the
-   * perspective part of the transform. */
-  openvdb::math::Mat4f matrix = transform.baseMap()->getAffineMap()->getMat4();
-  /* Blender column-major and OpenVDB right-multiplication conventions match. */
-  float4x4 result;
-  for (int col = 0; col < 4; col++) {
-    for (int row = 0; row < 4; row++) {
-      result[col][row] = matrix(col, row);
-    }
-  }
-  return result;
+  return BKE_volume_transform_to_blender(grid.transform());
 #else
   UNUSED_VARS(grid);
   return float4x4::identity();
@@ -458,15 +446,7 @@ float4x4 get_transform_matrix(const VolumeGridData &grid)
 void set_transform_matrix(VolumeGridData &grid, const float4x4 &matrix)
 {
 #ifdef WITH_OPENVDB
-  openvdb::math::Mat4f matrix_openvdb;
-  for (int col = 0; col < 4; col++) {
-    for (int row = 0; row < 4; row++) {
-      matrix_openvdb(col, row) = matrix[col][row];
-    }
-  }
-
-  grid.transform_for_write() = openvdb::math::Transform(
-      std::make_shared<openvdb::math::AffineMap>(matrix_openvdb));
+  grid.transform_for_write() = BKE_volume_transform_to_openvdb(matrix);
 #else
   UNUSED_VARS(grid, matrix);
 #endif

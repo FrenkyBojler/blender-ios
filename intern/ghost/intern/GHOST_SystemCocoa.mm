@@ -4,7 +4,6 @@
 
 #include "GHOST_SystemCocoa.hh"
 
-#include "GHOST_DisplayManagerCocoa.hh"
 #include "GHOST_EventButton.hh"
 #include "GHOST_EventCursor.hh"
 #include "GHOST_EventDragnDrop.hh"
@@ -283,7 +282,7 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar)
 
         /* Get actual character value of the "remappable" keys in international keyboards,
          * if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
-         * then fallback on using the received #charactersIgnoringModifiers. */
+         * then fall back on using the received #charactersIgnoringModifiers. */
         if (uchrHandle) {
           UInt32 deadKeyState = 0;
           UniCharCount actualStrLength = 0;
@@ -541,9 +540,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
   m_modifierMask = 0;
   m_outsideLoopEventProcessed = false;
   m_needDelayedApplicationBecomeActiveEventProcessing = false;
-  m_displayManager = new GHOST_DisplayManagerCocoa();
-  GHOST_ASSERT(m_displayManager, "GHOST_SystemCocoa::GHOST_SystemCocoa(): m_displayManager==0\n");
-  m_displayManager->initialize();
 
   m_ignoreWindowSizedMessages = false;
   m_ignoreMomentumScroll = false;
@@ -888,60 +884,36 @@ GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(int32_t x, int32_t y)
 
 GHOST_TSuccess GHOST_SystemCocoa::getPixelAtCursor(float r_color[3]) const
 {
-  /* NOTE: There are known issues/limitations at the moment:
-   *
-   * - User needs to allow screen capture permission for Blender.
-   * - Blender has no control of the cursor outside its window, so the eyedropper cursor won't be
-   *   available
-   * - GHOST does not report click events from outside the window, so the user needs to press Enter
-   *   instead.
-   *
-   * Ref #111303.
-   */
-
   @autoreleasepool {
-    /* Check for screen capture access permission early to prevent issues.
-     * Without permission, macOS may capture only the Blender window, wallpaper, and taskbar.
-     * This behavior could confuse users, especially when trying to pick a color from another app,
-     * potentially capturing the wallpaper under that app window.
-     */
-    if (!CGPreflightScreenCaptureAccess()) {
-      CGRequestScreenCaptureAccess();
-      return GHOST_kFailure;
+    NSColorSampler *sampler = [[NSColorSampler alloc] init];
+    __block BOOL selectCompleted = NO;
+    __block BOOL samplingSucceeded = NO;
+
+    [sampler showSamplerWithSelectionHandler:^(NSColor *selectedColor) {
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+                     dispatch_get_main_queue(),
+                     ^{
+                       if (selectedColor != nil) {
+                         NSColor *rgbColor = [selectedColor
+                             colorUsingColorSpace:[NSColorSpace deviceRGBColorSpace]];
+                         if (rgbColor) {
+                           r_color[0] = [rgbColor redComponent];
+                           r_color[1] = [rgbColor greenComponent];
+                           r_color[2] = [rgbColor blueComponent];
+                         }
+                         samplingSucceeded = YES;
+                       }
+                       selectCompleted = YES;
+                     });
+    }];
+
+    while (!selectCompleted) {
+      [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                               beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
     }
 
-    const CGEventRef event = CGEventCreate(nil);
-    if (!event) {
-      return GHOST_kFailure;
-    }
-    const CGPoint mouseLocation = CGEventGetLocation(event);
-    CFRelease(event);
-
-    const CGRect rect = CGRectMake(mouseLocation.x, mouseLocation.y, 1, 1);
-    const CGImageRef image = CGWindowListCreateImage(
-        rect, kCGWindowListOptionOnScreenOnly, kCGNullWindowID, kCGWindowImageDefault);
-    if (!image) {
-      return GHOST_kFailure;
-    }
-    NSBitmapImageRep *bitmap = [[[NSBitmapImageRep alloc] initWithCGImage:image] autorelease];
-    CGImageRelease(image);
-
-    NSColor *color = [bitmap colorAtX:0 y:0];
-    if (!color) {
-      return GHOST_kFailure;
-    }
-    NSColor *srgbColor = [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
-    if (!srgbColor) {
-      return GHOST_kFailure;
-    }
-
-    CGFloat red = 0.0, green = 0.0, blue = 0.0;
-    [color getRed:&red green:&green blue:&blue alpha:nil];
-    r_color[0] = red;
-    r_color[1] = green;
-    r_color[2] = blue;
+    return samplingSucceeded ? GHOST_kSuccess : GHOST_kFailure;
   }
-  return GHOST_kSuccess;
 }
 
 GHOST_TSuccess GHOST_SystemCocoa::setMouseCursorPosition(int32_t x, int32_t y)
@@ -1004,10 +976,14 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons &buttons) const
 
 GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
 {
-  return GHOST_TCapabilityFlag(GHOST_CAPABILITY_FLAG_ALL &
-                               ~(
-                                   /* Cocoa has no support for a primary selection clipboard. */
-                                   GHOST_kCapabilityPrimaryClipboard));
+  return GHOST_TCapabilityFlag(
+      GHOST_CAPABILITY_FLAG_ALL &
+      ~(
+          /* Cocoa has no support for a primary selection clipboard. */
+          GHOST_kCapabilityPrimaryClipboard |
+          /* Cocoa doesn't define a Hyper modifier key,
+           * it's possible another modifier could be optionally used in it's place. */
+          GHOST_kCapabilityKeyboardHyperKey));
 }
 
 /* --------------------------------------------------------------------
@@ -1271,7 +1247,7 @@ static NSSize getNSImagePixelSize(NSImage *image)
 static ImBuf *NSImageToImBuf(NSImage *image)
 {
   const NSSize imageSize = getNSImagePixelSize(image);
-  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(imageSize.width, imageSize.height, 32, IB_byte_data);
 
   if (!ibuf) {
     return nullptr;
@@ -1501,8 +1477,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleTabletEvent(void *eventPtr, short eventT
       }
 
       ct.Pressure = event.pressure;
+      /* Range: -1 (left) to 1 (right). */
       ct.Xtilt = event.tilt.x;
-      ct.Ytilt = event.tilt.y;
+      /* On macOS, the y tilt behavior is inverted from what we expect: negative
+       * meaning a tilt toward the user, positive meaning away from the user.
+       * Convert to what Blender expects: -1.0 (away from user) to +1.0 (toward user). */
+      ct.Ytilt = -event.tilt.y;
       break;
 
     case NSEventTypeTabletProximity:
@@ -1665,7 +1645,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 
           GHOST_Rect bounds, windowBounds, correctedBounds;
 
-          /* fallback to window bounds */
+          /* fall back to window bounds */
           if (window->getCursorGrabBounds(bounds) == GHOST_kFailure) {
             window->getClientBounds(bounds);
           }
@@ -1763,17 +1743,16 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
       /* Standard scroll-wheel case, if no swiping happened,
        * and no momentum (kinetic scroll) works. */
       if (!m_multiTouchScroll && momentumPhase == NSEventPhaseNone) {
-        double deltaF = event.deltaY;
-
-        if (deltaF == 0.0) {
-          deltaF = event.deltaX; /* Make blender decide if it's horizontal scroll. */
+        if (event.deltaX != 0.0) {
+          const int32_t delta = event.deltaX > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisHorizontal, delta));
         }
-        if (deltaF == 0.0) {
-          break; /* Discard trackpad delta=0 events. */
+        if (event.deltaY != 0.0) {
+          const int32_t delta = event.deltaY > 0.0 ? 1 : -1;
+          pushEvent(new GHOST_EventWheel(
+              event.timestamp * 1000, window, GHOST_kEventWheelAxisVertical, delta));
         }
-
-        const int32_t delta = deltaF > 0.0 ? 1 : -1;
-        pushEvent(new GHOST_EventWheel(event.timestamp * 1000, window, delta));
       }
       else {
         const NSPoint mousePos = event.locationInWindow;
@@ -1888,12 +1867,12 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
         }
       }
 
-      /* arrow keys should not have utf8 */
+      /* Arrow keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyLeftArrow) && (keyCode <= GHOST_kKeyDownArrow)) {
         utf8_buf[0] = '\0';
       }
 
-      /* F keys should not have utf8 */
+      /* F-keys should not have UTF8. */
       if ((keyCode >= GHOST_kKeyF1) && (keyCode <= GHOST_kKeyF20)) {
         utf8_buf[0] = '\0';
       }

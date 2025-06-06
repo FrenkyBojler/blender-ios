@@ -27,7 +27,8 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
   b.add_input<decl::Vector>("Vector")
-      .default_value({1.0f, 1.0f, 1.0f})
+      .dimensions(2)
+      .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_TRANSLATION)
@@ -45,7 +46,7 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Image");
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DisplaceOperation : public NodeOperation {
  public:
@@ -53,8 +54,10 @@ class DisplaceOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    if (this->is_identity()) {
+      const Result &input = this->get_input("Image");
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -112,7 +115,7 @@ class DisplaceOperation : public NodeOperation {
 
     /* In order to perform EWA sampling, we need to compute the partial derivative of the displaced
      * coordinates along the x and y directions using a finite difference approximation. But in
-     * order to avoid loading multiple neighbouring displacement values for each pixel, we operate
+     * order to avoid loading multiple neighboring displacement values for each pixel, we operate
      * on the image in 2x2 blocks of pixels, where the derivatives are computed horizontally and
      * vertically across the 2x2 block such that odd texels use a forward finite difference
      * equation while even invocations use a backward finite difference equation. */
@@ -133,10 +136,10 @@ class DisplaceOperation : public NodeOperation {
 
         /* Note that the input displacement is in pixel space, so divide by the input size to
          * transform it into the normalized sampler space. */
-        float2 scale = float2(x_scale.load_pixel_extended(texel).x,
-                              y_scale.load_pixel_extended(texel).x);
-        float2 displacement = input_displacement.load_pixel_extended(texel).xy() * scale /
-                              float2(size);
+        float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
+                              y_scale.load_pixel_extended<float, true>(texel));
+        float2 displacement = input_displacement.load_pixel_extended<float3, true>(texel).xy() *
+                              scale / float2(size);
         return coordinates - displacement;
       };
 
@@ -189,15 +192,15 @@ class DisplaceOperation : public NodeOperation {
 
     const Result &input_displacement = get_input("Vector");
     if (input_displacement.is_single_value() &&
-        math::is_zero(input_displacement.get_vector_value()))
+        math::is_zero(input_displacement.get_single_value<float3>().xy()))
     {
       return true;
     }
 
     const Result &input_x_scale = get_input("X Scale");
     const Result &input_y_scale = get_input("Y Scale");
-    if (input_x_scale.is_single_value() && input_x_scale.get_float_value() == 0.0f &&
-        input_y_scale.is_single_value() && input_y_scale.get_float_value() == 0.0f)
+    if (input_x_scale.is_single_value() && input_x_scale.get_single_value<float>() == 0.0f &&
+        input_y_scale.is_single_value() && input_y_scale.get_single_value<float>() == 0.0f)
     {
       return true;
     }
@@ -213,15 +216,20 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_displace_cc
 
-void register_node_type_cmp_displace()
+static void register_node_type_cmp_displace()
 {
   namespace file_ns = blender::nodes::node_composite_displace_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_DISPLACE, "Displace", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeDisplace", CMP_NODE_DISPLACE);
+  ntype.ui_name = "Displace";
+  ntype.ui_description = "Displace pixel position using an offset vector";
+  ntype.enum_name_legacy = "DISPLACE";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_displace_declare;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_displace)

@@ -39,23 +39,33 @@ void MeshPass::init_pass(SceneResources &resources, DRWState state, int clip_pla
 void MeshPass::init_subpasses(ePipelineType pipeline, eLightingType lighting, bool clip)
 {
   texture_subpass_map_.clear();
-
-  static std::string pass_names[geometry_type_len][shader_type_len] = {};
+  pipeline_ = pipeline;
+  lighting_ = lighting;
+  clip_ = clip;
 
   for (auto geom : IndexRange(geometry_type_len)) {
     for (auto shader : IndexRange(shader_type_len)) {
-      eGeometryType geom_type = static_cast<eGeometryType>(geom);
-      eShaderType shader_type = static_cast<eShaderType>(shader);
-      if (pass_names[geom][shader].empty()) {
-        pass_names[geom][shader] = std::string(get_name(geom_type)) +
-                                   std::string(get_name(shader_type));
-      }
-      PassMain::Sub *pass = &sub(pass_names[geom][shader].c_str());
-      pass->shader_set(
-          ShaderCache::get().prepass_get(geom_type, pipeline, lighting, shader_type, clip));
-      passes_[geom][shader] = pass;
+      passes_[geom][shader] = nullptr;
     }
   }
+}
+
+PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type, eShaderType shader_type)
+{
+  static std::string pass_names[geometry_type_len][shader_type_len] = {};
+
+  PassMain::Sub *&sub_pass = passes_[int(geometry_type)][int(shader_type)];
+  if (!sub_pass) {
+    std::string &pass_name = pass_names[int(geometry_type)][int(shader_type)];
+    if (pass_name.empty()) {
+      pass_name = std::string(get_name(geometry_type)) + std::string(get_name(shader_type));
+    }
+    sub_pass = &sub(pass_name.c_str());
+    sub_pass->shader_set(
+        ShaderCache::get().prepass_get(geometry_type, pipeline_, lighting_, shader_type, clip_));
+  }
+
+  return *sub_pass;
 }
 
 PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
@@ -65,7 +75,7 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
 
   if (texture && texture->gpu.texture) {
     auto add_cb = [&] {
-      PassMain::Sub *sub_pass = passes_[int(geometry_type)][int(eShaderType::TEXTURE)];
+      PassMain::Sub *sub_pass = &get_subpass(geometry_type, eShaderType::TEXTURE);
       sub_pass = &sub_pass->sub(texture->name);
       if (texture->gpu.tile_mapping) {
         sub_pass->bind_texture(WB_TILE_ARRAY_SLOT, texture->gpu.texture, texture->sampler_state);
@@ -74,13 +84,13 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
       else {
         sub_pass->bind_texture(WB_TEXTURE_SLOT, texture->gpu.texture, texture->sampler_state);
       }
-      sub_pass->push_constant("isImageTile", texture->gpu.tile_mapping != nullptr);
-      sub_pass->push_constant("imagePremult", texture->premultiplied);
+      sub_pass->push_constant("is_image_tile", texture->gpu.tile_mapping != nullptr);
+      sub_pass->push_constant("image_premult", texture->premultiplied);
       /* TODO(@pragma37): This setting should be exposed on the user side,
        * either as a global parameter (and set it here)
        * or by reading the Material Clipping Threshold (and set it per material) */
       float alpha_cutoff = texture->alpha_cutoff ? 0.1f : -FLT_MAX;
-      sub_pass->push_constant("imageTransparencyCutoff", alpha_cutoff);
+      sub_pass->push_constant("image_transparency_cutoff", alpha_cutoff);
       return sub_pass;
     };
 
@@ -88,7 +98,7 @@ PassMain::Sub &MeshPass::get_subpass(eGeometryType geometry_type,
         TextureSubPassKey(texture->gpu.texture, geometry_type), add_cb);
   }
 
-  return *passes_[int(geometry_type)][int(eShaderType::MATERIAL)];
+  return get_subpass(geometry_type, eShaderType::MATERIAL);
 }
 
 /** \} */
@@ -121,7 +131,7 @@ void OpaquePass::sync(const SceneState &scene_state, SceneResources &resources)
                                                          scene_state.draw_cavity,
                                                          scene_state.draw_curvature,
                                                          scene_state.draw_shadows));
-  deferred_ps_.push_constant("forceShadowing", false);
+  deferred_ps_.push_constant("force_shadowing", false);
   deferred_ps_.bind_ubo(WB_WORLD_SLOT, resources.world_buf);
   deferred_ps_.bind_texture(WB_MATCAP_SLOT, resources.matcap_tx);
   deferred_ps_.bind_texture("normal_tx", &gbuffer_normal_tx);
@@ -189,7 +199,7 @@ void OpaquePass::draw(Manager &manager,
 
     shadow_pass->draw(
         manager, view, resources, **&shadow_depth_stencil_tx, !gbuffer_in_front_ps_.is_empty());
-    deferred_ps_stencil_tx = resources.stencil_view.extract(manager, shadow_depth_stencil_tx);
+    deferred_ps_stencil_tx = shadow_depth_stencil_tx.stencil_view();
   }
   else {
     shadow_depth_stencil_tx.free();
@@ -240,8 +250,8 @@ void TransparentPass::sync(const SceneState &scene_state, SceneResources &resour
   resolve_ps_.init();
   resolve_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
   resolve_ps_.shader_set(ShaderCache::get().transparent_resolve.get());
-  resolve_ps_.bind_texture("transparentAccum", &accumulation_tx);
-  resolve_ps_.bind_texture("transparentRevealage", &reveal_tx);
+  resolve_ps_.bind_texture("transparent_accum", &accumulation_tx);
+  resolve_ps_.bind_texture("transparent_revealage", &reveal_tx);
   resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 

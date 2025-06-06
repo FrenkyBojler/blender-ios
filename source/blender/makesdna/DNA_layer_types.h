@@ -50,6 +50,11 @@ typedef enum eViewLayerEEVEEPassType {
 #define EEVEE_RENDER_PASS_MAX_BIT 21
 ENUM_OPERATORS(eViewLayerEEVEEPassType, 1 << EEVEE_RENDER_PASS_MAX_BIT)
 
+/* #ViewLayer::grease_pencil_flags */
+typedef enum eViewLayerGreasePencilFlags {
+  GREASE_PENCIL_AS_SEPARATE_PASS = (1 << 0),
+} eViewLayerGreasePencilFlags;
+
 /* #ViewLayerAOV.type */
 typedef enum eViewLayerAOVType {
   AOV_TYPE_VALUE = 0,
@@ -93,13 +98,6 @@ typedef struct Base {
   unsigned short local_collections_bits;
   char _pad1[2];
 } Base;
-
-typedef struct ViewLayerEngineData {
-  struct ViewLayerEngineData *next, *prev;
-  struct DrawEngineType *engine_type;
-  void *storage;
-  void (*free)(void *storage);
-} ViewLayerEngineData;
 
 typedef struct LayerCollection {
   struct LayerCollection *next, *prev;
@@ -150,8 +148,7 @@ typedef struct LightgroupMembership {
 
 typedef struct ViewLayer {
   struct ViewLayer *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   short flag;
   char _pad[6];
   /** ObjectBase. */
@@ -173,7 +170,7 @@ typedef struct ViewLayer {
   float pass_alpha_threshold;
   short cryptomatte_flag;
   short cryptomatte_levels;
-  char _pad1[4];
+  int grease_pencil_flags;
 
   int samples;
 
@@ -181,6 +178,13 @@ typedef struct ViewLayer {
   struct World *world_override;
   /** Equivalent to datablocks ID properties. */
   struct IDProperty *id_properties;
+  /**
+   * Equivalent to datablocks system-defined ID properties.
+   *
+   * In Blender 4.5, only used to ensure forward compatibility with 5.x blendfiles, and data
+   * management consistency.
+   */
+  struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
@@ -194,8 +198,6 @@ typedef struct ViewLayer {
   ViewLayerLightgroup *active_lightgroup;
 
   /* Runtime data */
-  /** ViewLayerEngineData. */
-  ListBase drawdata;
   struct Base **object_bases_array;
   struct GHash *object_bases_hash;
 } ViewLayer;

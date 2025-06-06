@@ -99,7 +99,7 @@ static PyObject *vec__apply_to_copy(PyObject *(*vec_func)(VectorObject *), Vecto
   PyObject *ret_dummy = vec_func((VectorObject *)ret);
   if (ret_dummy) {
     Py_DECREF(ret_dummy);
-    return (PyObject *)ret;
+    return ret;
   }
   /* error */
   Py_DECREF(ret);
@@ -764,7 +764,7 @@ PyDoc_STRVAR(
     "   :arg precision: The number to round the value to in [-1, 21].\n"
     "   :type precision: int\n"
     "   :return: the values of the vector rounded by *precision*\n"
-    "   :rtype: tuple[float]\n");
+    "   :rtype: tuple[float, ...]\n");
 static PyObject *Vector_to_tuple(VectorObject *self, PyObject *args)
 {
   int ndigits = 0;
@@ -1186,7 +1186,7 @@ static PyObject *Vector_angle(VectorObject *self, PyObject *args)
 PyDoc_STRVAR(
     /* Wrap. */
     Vector_angle_signed_doc,
-    ".. function:: angle_signed(other, fallback)\n"
+    ".. function:: angle_signed(other, fallback=None)\n"
     "\n"
     "   Return the signed angle between two 2D vectors (clockwise is positive).\n"
     "\n"
@@ -2813,7 +2813,7 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 
     size_from = axis_from;
   }
-  else if ((void)PyErr_Clear(), /* run but ignore the result */
+  else if (PyErr_Clear(), /* run but ignore the result */
            (size_from = size_t(mathutils_array_parse(
                 vec_assign, 2, 4, value, "Vector.**** = swizzle assignment"))) == size_t(-1))
   {
@@ -2898,9 +2898,14 @@ static int Vector_swizzle_set(VectorObject *self, PyObject *value, void *closure
 /** \name Vector Type: Get/Set Item Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyGetSetDef Vector_getseters[] = {
@@ -3314,8 +3319,12 @@ static PyGetSetDef Vector_getseters[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */
@@ -3324,9 +3333,14 @@ static PyGetSetDef Vector_getseters[] = {
 /** \name Vector Type: Method Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Vector_methods[] = {
@@ -3380,8 +3394,12 @@ static PyMethodDef Vector_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */

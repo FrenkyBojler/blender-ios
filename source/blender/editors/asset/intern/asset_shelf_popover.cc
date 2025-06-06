@@ -6,10 +6,13 @@
  * \ingroup edasset
  */
 
+#include "AS_asset_library.hh"
+
 #include "asset_shelf.hh"
 
 #include "BKE_screen.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -55,7 +58,7 @@ void type_popup_unlink(const AssetShelfType &shelf_type)
   }
 }
 
-static AssetShelf *get_shelf_for_popup(const bContext &C, AssetShelfType &shelf_type)
+static AssetShelf *lookup_shelf_for_popup(const bContext &C, const AssetShelfType &shelf_type)
 {
   Vector<AssetShelf *> &popup_shelves = StaticPopupShelves::shelves();
 
@@ -68,6 +71,17 @@ static AssetShelf *get_shelf_for_popup(const bContext &C, AssetShelfType &shelf_
     }
   }
 
+  return nullptr;
+}
+
+static AssetShelf *get_shelf_for_popup(const bContext &C, AssetShelfType &shelf_type)
+{
+  Vector<AssetShelf *> &popup_shelves = StaticPopupShelves::shelves();
+
+  if (AssetShelf *shelf = lookup_shelf_for_popup(C, shelf_type)) {
+    return shelf;
+  }
+
   if (type_poll_for_popup(C, &shelf_type)) {
     AssetShelf *new_shelf = create_shelf_from_type(shelf_type);
     new_shelf->settings.display_flag |= ASSETSHELF_SHOW_NAMES;
@@ -78,6 +92,17 @@ static AssetShelf *get_shelf_for_popup(const bContext &C, AssetShelfType &shelf_
   }
 
   return nullptr;
+}
+
+void ensure_asset_library_fetched(const bContext &C, const AssetShelfType &shelf_type)
+{
+  if (AssetShelf *shelf = lookup_shelf_for_popup(C, shelf_type)) {
+    list::storage_fetch(&shelf->settings.asset_library_reference, &C);
+  }
+  else {
+    AssetLibraryReference library_ref = asset_system::all_library_reference();
+    list::storage_fetch(&library_ref, &C);
+  }
 }
 
 class AssetCatalogTreeView : public ui::AbstractTreeView {
@@ -211,30 +236,29 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   }
 
   bScreen *screen = CTX_wm_screen(C);
-  PointerRNA library_ref_ptr = RNA_pointer_create(
+  PointerRNA library_ref_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
   uiLayoutSetContextPointer(layout, "asset_library_reference", &library_ref_ptr);
 
-  uiLayout *row = uiLayoutRow(layout, false);
-  uiLayout *catalogs_col = uiLayoutColumn(row, false);
+  uiLayout *row = &layout->row(false);
+  uiLayout *catalogs_col = &row->column(false);
   uiLayoutSetUnitsX(catalogs_col, LEFT_COL_WIDTH_UNITS);
   uiLayoutSetFixedSize(catalogs_col, true);
   library_selector_draw(C, catalogs_col, *shelf);
   catalog_tree_draw(*C, *catalogs_col, *shelf);
 
-  uiLayout *right_col = uiLayoutColumn(row, false);
-  uiLayout *sub = uiLayoutRow(right_col, false);
+  uiLayout *right_col = &row->column(false);
+  uiLayout *sub = &right_col->row(false);
   /* Same as file/asset browser header. */
-  PointerRNA shelf_ptr = RNA_pointer_create(&screen->id, &RNA_AssetShelf, shelf);
-  uiItemR(sub,
-          &shelf_ptr,
-          "search_filter",
-          /* Force the button to be active in a semi-modal state. */
-          UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE,
-          "",
-          ICON_VIEWZOOM);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_AssetShelf, shelf);
+  sub->prop(&shelf_ptr,
+            "search_filter",
+            /* Force the button to be active in a semi-modal state. */
+            UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE,
+            "",
+            ICON_VIEWZOOM);
 
-  uiLayout *asset_view_col = uiLayoutColumn(right_col, false);
+  uiLayout *asset_view_col = &right_col->column(false);
   BLI_assert((layout_width_units - LEFT_COL_WIDTH_UNITS) > 0);
   uiLayoutSetUnitsX(asset_view_col, layout_width_units - LEFT_COL_WIDTH_UNITS);
   uiLayoutSetFixedSize(asset_view_col, true);
@@ -260,7 +284,7 @@ void popover_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_cnew<PanelType>(__func__);
+  PanelType *pt = MEM_callocN<PanelType>(__func__);
   STRNCPY(pt->idname, "ASSETSHELF_PT_popover_panel");
   STRNCPY(pt->label, N_("Asset Shelf Panel"));
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

@@ -270,14 +270,12 @@
 
     switch (m_draggedObjectType) {
       case GHOST_kDragnDropTypeBitmap: {
-        if ([NSImage canInitWithPasteboard:draggingPBoard]) {
-          NSImage *droppedImg = [[[NSImage alloc] initWithPasteboard:draggingPBoard] autorelease];
-          data = droppedImg;  // [draggingPBoard dataForType:NSPasteboardTypeTIFF];
-        }
-        else {
+        if (![NSImage canInitWithPasteboard:draggingPBoard]) {
           return NO;
         }
-
+        /* Caller must [release] the returned data in this case. */
+        NSImage *droppedImg = [[NSImage alloc] initWithPasteboard:draggingPBoard];
+        data = droppedImg;
         break;
       }
       case GHOST_kDragnDropTypeFilenames:
@@ -410,7 +408,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
       view = m_metalView;
     }
     else {
-      /* Fallback to OpenGL view if there is no Metal support. */
+      /* Fall back to OpenGL view if there is no Metal support. */
       m_openGLView = [[CocoaOpenGLView alloc] initWithSystemCocoa:systemCocoa
                                                       windowCocoa:this
                                                             frame:rect];
@@ -553,24 +551,48 @@ std::string GHOST_WindowCocoa::getTitle() const
 GHOST_TSuccess GHOST_WindowCocoa::setPath(const char *filepath)
 {
   GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setAssociatedFile(): window invalid");
-  GHOST_TSuccess success = GHOST_kSuccess;
 
   @autoreleasepool {
-    NSString *associatedFileName = [[NSString alloc] initWithCString:filepath
-                                                            encoding:NSUTF8StringEncoding];
-    @try
-    {
-      m_window.representedFilename = associatedFileName;
-    }
-    @catch (NSException *e)
-    {
-      printf("\nInvalid file path given for window");
-      success = GHOST_kFailure;
-    }
+    NSString *associatedFileName = [[[NSString alloc] initWithCString:filepath
+                                                             encoding:NSUTF8StringEncoding]
+        autorelease];
 
-    [associatedFileName release];
+    m_window.representedFilename = associatedFileName;
   }
-  return success;
+
+  return GHOST_kSuccess;
+}
+
+GHOST_TSuccess GHOST_WindowCocoa::applyWindowDecorationStyle()
+{
+  @autoreleasepool {
+    if (m_windowDecorationStyleFlags & GHOST_kDecorationColoredTitleBar) {
+      const float *background_color = m_windowDecorationStyleSettings.colored_titlebar_bg_color;
+
+      /* Title-bar background color. */
+      m_window.backgroundColor = [NSColor colorWithRed:background_color[0]
+                                                 green:background_color[1]
+                                                  blue:background_color[2]
+                                                 alpha:1.0];
+
+      /* Title-bar foreground color.
+       * Use the value component of the title-bar background's HSV representation to determine
+       * whether we should use the macOS dark or light title-bar text appearance. With values below
+       * 0.5 considered as dark themes, and values above 0.5 considered as light themes.
+       */
+      const float hsv_v = MAX(background_color[0], MAX(background_color[1], background_color[2]));
+
+      const NSAppearanceName win_appearance = hsv_v > 0.5 ? NSAppearanceNameVibrantLight :
+                                                            NSAppearanceNameVibrantDark;
+
+      m_window.appearance = [NSAppearance appearanceNamed:win_appearance];
+      m_window.titlebarAppearsTransparent = YES;
+    }
+    else {
+      m_window.titlebarAppearsTransparent = NO;
+    }
+  }
+  return GHOST_kSuccess;
 }
 
 void GHOST_WindowCocoa::getWindowBounds(GHOST_Rect &bounds) const
@@ -981,6 +1003,12 @@ static NSCursor *getImageCursor(GHOST_TStandardCursor shape, NSString *name, NSP
   return cursors[index];
 }
 
+/* busyButClickableCursor is an undocumented NSCursor API, but
+ * has been in use since at least OS X 10.4 and through 10.9. */
+@interface NSCursor (Undocumented)
++ (NSCursor *)busyButClickableCursor;
+@end
+
 NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) const
 {
   @autoreleasepool {
@@ -1024,6 +1052,11 @@ NSCursor *GHOST_WindowCocoa::getStandardCursor(GHOST_TStandardCursor shape) cons
         return [NSCursor pointingHandCursor];
       case GHOST_kStandardCursorDefault:
         return [NSCursor arrowCursor];
+      case GHOST_kStandardCursorWait:
+        if ([NSCursor respondsToSelector:@selector(busyButClickableCursor)]) {
+          return [NSCursor busyButClickableCursor];
+        }
+        return nullptr;
       case GHOST_kStandardCursorKnife:
         return getImageCursor(shape, @"knife.pdf", NSMakePoint(6, 24));
       case GHOST_kStandardCursorEraser:

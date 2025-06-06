@@ -43,6 +43,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_shader_shared.hh"
 #include "GPU_state.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "UI_interface.hh"
 
@@ -219,12 +220,12 @@ void UI_draw_text_underline(int pos_x, int pos_y, int len, int height, const flo
   const int ofs_y = 4 * U.pixelsize;
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(color);
 
-  immRecti(pos, pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
+  immRectf(pos, pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
   immUnbindProgram();
 }
 
@@ -235,10 +236,13 @@ void ui_draw_but_TAB_outline(const rcti *rect,
                              uchar highlight[3],
                              uchar highlight_fade[3])
 {
+  /* NOTE: based on `UI_draw_roundbox` functions
+   * check on making a version which allows us to skip some sides. */
+
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   const uint col = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
   /* add a 1px offset, looks nicer */
   const int minx = rect->xmin + U.pixelsize, maxx = rect->xmax - U.pixelsize;
   const int miny = rect->ymin + U.pixelsize, maxy = rect->ymax - U.pixelsize;
@@ -258,7 +262,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
   immBeginAtMost(GPU_PRIM_LINE_STRIP, 25);
 
-  immAttr3ubv(col, highlight);
+  immAttr4ub(col, UNPACK3(highlight), 255);
 
   /* start with corner left-top */
   if (roundboxtype & UI_CNR_TOP_LEFT) {
@@ -284,7 +288,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
     immVertex2f(pos, maxx, maxy);
   }
 
-  immAttr3ubv(col, highlight_fade);
+  immAttr4ub(col, UNPACK3(highlight_fade), 255);
 
   /* corner right-bottom */
   if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
@@ -310,7 +314,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
     immVertex2f(pos, minx, miny);
   }
 
-  immAttr3ubv(col, highlight);
+  immAttr4ub(col, UNPACK3(highlight), 255);
 
   /* back to corner left-top */
   immVertex2f(pos, minx, (roundboxtype & UI_CNR_TOP_LEFT) ? (maxy - rad) : maxy);
@@ -490,7 +494,7 @@ static void histogram_draw_one(float r,
 
 #define HISTOGRAM_TOT_GRID_LINES 4
 
-void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
+void ui_draw_but_HISTOGRAM(ARegion *region,
                            uiBut *but,
                            const uiWidgetColors * /*wcol*/,
                            const rcti *recti)
@@ -524,10 +528,17 @@ void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
   /* need scissor test, histogram can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -591,6 +602,10 @@ void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
 
 static void waveform_draw_one(const float *waveform, int waveform_num, const float col[3])
 {
+  BLI_assert_msg(
+      !immIsShaderBound(),
+      "It is not allowed to draw a batch when immediate mode has a shader bound. It will "
+      "use the incorrect shader and is hard to discover.");
   GPUVertFormat format = {0};
   const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -642,8 +657,8 @@ static void waveform_draw_rgb(const float *waveform,
 
   blender::gpu::Batch *batch = GPU_batch_create_ex(
       GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_SMOOTH_COLOR);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_FLAT_COLOR);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);
 }
@@ -667,7 +682,7 @@ static void circle_draw_rgb(float *points, int tot_points, const float *col, GPU
   GPU_batch_discard(batch);
 }
 
-void ui_draw_but_WAVEFORM(ARegion * /*region*/,
+void ui_draw_but_WAVEFORM(ARegion *region,
                           uiBut *but,
                           const uiWidgetColors * /*wcol*/,
                           const rcti *recti)
@@ -727,10 +742,17 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
 
   /* need scissor test, waveform can draw outside of boundary */
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   /* draw scale numbers first before binding any shader */
   for (int i = 0; i < 6; i++) {
@@ -818,7 +840,9 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
 
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, col);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_matrix_pop();
 
@@ -839,11 +863,11 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
-
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, colors_alpha[0]);
       waveform_draw_one(scopes->waveform_2, scopes->waveform_tot, colors_alpha[1]);
       waveform_draw_one(scopes->waveform_3, scopes->waveform_tot, colors_alpha[2]);
-
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       GPU_matrix_pop();
     }
     /* PARADE / YCC (3 channels) */
@@ -854,7 +878,7 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
                   SCOPES_WAVEFRM_YCC_JPEG))
     {
       const int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB_PARADE);
-
+      immUnbindProgram();
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w3, h);
@@ -871,6 +895,7 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
           scopes->waveform_3, scopes->waveform_tot, (rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 
       GPU_matrix_pop();
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     }
 
     /* min max */
@@ -926,6 +951,8 @@ static void vectorscope_draw_target(
   const char labelstr[2] = {label, '\0'};
 
   rgb_to_yuv(colf[0], colf[1], colf[2], &y, &u, &v, BLI_YUV_ITU_BT709);
+  u *= SCOPES_VEC_U_SCALE;
+  v *= SCOPES_VEC_V_SCALE;
 
   if (u > 0 && v >= 0) {
     tangle = atanf(v / u);
@@ -973,13 +1000,13 @@ static void vectorscope_draw_target(
   immEnd();
 }
 
-void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
+void ui_draw_but_VECTORSCOPE(ARegion *region,
                              uiBut *but,
                              const uiWidgetColors * /*wcol*/,
                              const rcti *recti)
 {
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
-  Scopes *scopes = (Scopes *)but->poin;
+  const Scopes *scopes = (const Scopes *)but->poin;
 
   const float colors[6][3] = {
       {0.75, 0.0, 0.0},  /* Red */
@@ -1002,7 +1029,7 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   const float h = BLI_rctf_size_y(&rect);
   const float centerx = rect.xmin + w * 0.5f;
   const float centery = rect.ymin + h * 0.5f;
-  const float diam = (w < h) ? w : h;
+  const float diam = ((w < h) ? w : h) * 0.9f;
 
   const float alpha = scopes->vecscope_alpha;
 
@@ -1019,13 +1046,20 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   back_rect.ymax = rect.ymax + 1;
   UI_draw_roundbox_4fv(&back_rect, true, 3.0f, color);
 
-  /* need scissor test, hvectorscope can draw outside of boundary */
+  /* need scissor test, vectorscope can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   GPUVertFormat *format = immVertexFormat();
   const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
@@ -1056,8 +1090,8 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
       const float x = polar_to_x(centerx, diam, r, a);
       const float y = polar_to_y(centery, diam, r, a);
 
-      const float u = polar_to_x(0.0f, 1.0, 1.0f, a);
-      const float v = polar_to_y(0.0f, 1.0, 1.0f, a);
+      const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+      const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
 
       circle_fill_points[(i + 1) * 2] = x;
       circle_fill_points[(i + 1) * 2 + 1] = y;
@@ -1102,8 +1136,8 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
     circle_points[i * 2] = x;
     circle_points[i * 2 + 1] = y;
 
-    const float u = polar_to_x(0.0f, 1.0, 1.0f, a);
-    const float v = polar_to_y(0.0f, 1.0, 1.0f, a);
+    const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+    const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
     float r, g, b;
     yuv_to_rgb(0.5f, u, v, &r, &g, &b, BLI_YUV_ITU_BT709);
 
@@ -1224,7 +1258,7 @@ static void ui_draw_colorband_handle(uint shdr_pos,
                                      const rcti *rect,
                                      float x,
                                      const float rgb[3],
-                                     ColorManagedDisplay *display,
+                                     const ColorManagedDisplay *display,
                                      bool active)
 {
   const float sizey = BLI_rcti_size_y(rect);
@@ -1325,7 +1359,7 @@ static void ui_draw_colorband_handle(uint shdr_pos,
 
 void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
-  ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
+  const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
   uint pos_id, col_id;
 
   uiButColorBand *but_coba = (uiButColorBand *)but;
@@ -2135,7 +2169,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   immUnbindProgram();
 }
 
-void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
+void ui_draw_but_TRACKPREVIEW(ARegion *region,
                               uiBut *but,
                               const uiWidgetColors * /*wcol*/,
                               const rcti *recti)
@@ -2157,10 +2191,17 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
   /* need scissor test, preview image can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   if (scopes->track_disabled) {
     const float color[4] = {0.7f, 0.3f, 0.3f, 0.3f};
@@ -2194,7 +2235,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
                                                  scopes->track_pos);
     if (tmpibuf) {
       if (tmpibuf->float_buffer.data) {
-        IMB_rect_from_float(tmpibuf);
+        IMB_byte_from_float(tmpibuf);
       }
 
       if (tmpibuf->byte_buffer.data) {

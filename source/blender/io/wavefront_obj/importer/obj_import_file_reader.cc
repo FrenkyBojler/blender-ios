@@ -16,9 +16,10 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "IO_string_utils.hh"
+
 #include "obj_export_mtl.hh"
 #include "obj_import_file_reader.hh"
-#include "obj_import_string_utils.hh"
 
 #include <algorithm>
 #include <charconv>
@@ -66,10 +67,6 @@ static Geometry *create_geometry(Geometry *const prev_geometry,
     }
   }
 
-  if (prev_geometry && prev_geometry->geom_type_ == GEOM_CURVE) {
-    return new_geometry();
-  }
-
   return new_geometry();
 }
 
@@ -89,6 +86,10 @@ static void geom_add_vertex(const char *p, const char *end, GlobalVertices &r_gl
       float3 linear;
       srgb_to_linearrgb_v3_v3(linear, srgb);
       r_global_vertices.set_vertex_color(r_global_vertices.vertices.size() - 1, linear);
+    }
+    else if (srgb.x > 0) {
+      /* Treats value in srgb.x as weight. */
+      r_global_vertices.set_vertex_weight(r_global_vertices.vertices.size() - 1, srgb.x);
     }
   }
   UNUSED_VARS(p);
@@ -318,7 +319,7 @@ static Geometry *geom_set_curve_type(Geometry *geom,
                                      Vector<std::unique_ptr<Geometry>> &r_all_geometries)
 {
   p = drop_whitespace(p, end);
-  if (!StringRef(p, end).startswith("bspline")) {
+  if (!StringRef(p, end).startswith("bspline") && !StringRef(p, end).startswith("rat bspline")) {
     CLOG_WARN(&LOG, "Curve type not supported: '%s'", std::string(p, end).c_str());
     return geom;
   }
@@ -415,7 +416,7 @@ static void geom_new_object(const char *p,
 {
   r_state_shaded_smooth = false;
   r_state_group_name = "";
-  /* Reset object-local material index that's used in face infos.
+  /* Reset object-local material index that's used in face information.
    * NOTE: do not reset the material name; that has to carry over
    * into the next object if needed. */
   r_state_material_index = -1;

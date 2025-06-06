@@ -198,7 +198,7 @@ class Instances {
    */
   void remove(const IndexMask &mask, const AttributeFilter &attribute_filter);
   /**
-   * Get an id for every instance. These can be used for e.g. motion blur.
+   * Get an id for every instance. These can be used e.g. motion blur.
    */
   Span<int> almost_unique_ids() const;
 
@@ -237,7 +237,7 @@ const AttributeAccessorFunctions &instance_attribute_accessor_functions();
  * \{ */
 
 inline InstanceReference::InstanceReference(std::unique_ptr<GeometrySet> geometry_set)
-    : type_(Type::GeometrySet), data_(nullptr), geometry_set_(std::move(geometry_set))
+    : type_(Type::GeometrySet), geometry_set_(std::move(geometry_set))
 {
 }
 

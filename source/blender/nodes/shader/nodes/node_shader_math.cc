@@ -11,7 +11,6 @@
 
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
-#include "NOD_multi_function.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_value_elem_eval.hh"
 
@@ -44,8 +43,8 @@ class SocketSearchOp {
 
 static void sh_node_math_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  if (!params.node_tree().typeinfo->validate_link(
-          static_cast<eNodeSocketDatatype>(params.other_socket().type), SOCK_FLOAT))
+  if (!params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                  SOCK_FLOAT))
   {
     return;
   }
@@ -362,7 +361,11 @@ void register_node_type_sh_math()
 
   static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_MATH, "Math", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeMath", SH_NODE_MATH);
+  ntype.ui_name = "Math";
+  ntype.ui_description = "Perform math operations";
+  ntype.enum_name_legacy = "MATH";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_math_declare;
   ntype.labelfunc = node_math_label;
   ntype.gpu_fn = file_ns::gpu_shader_math;
@@ -374,5 +377,5 @@ void register_node_type_sh_math()
   ntype.eval_inverse_elem = file_ns::node_eval_inverse_elem;
   ntype.eval_inverse = file_ns::node_eval_inverse;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

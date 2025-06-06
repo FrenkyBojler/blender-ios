@@ -13,12 +13,14 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"
 
+#include "RNA_types.hh"
+
+struct IDProperty;
 struct wmGizmo;
 struct wmGizmoType;
 struct wmGizmoGroup;
@@ -128,7 +130,7 @@ enum eWM_GizmoFlagGroupTypeFlag {
   WM_GIZMOGROUPTYPE_TOOL_INIT = (1 << 7),
 
   /**
-   * This gizmo type supports using the fallback tools keymap.
+   * This gizmo type supports using the fall back tools keymap.
    * #wmGizmoGroup.use_tool_fallback will need to be set too.
    *
    * Often useful in combination with #WM_GIZMOGROUPTYPE_DELAY_REFRESH_FOR_TWEAK
@@ -341,7 +343,7 @@ struct wmGizmoType {
 
   const char *idname; /* #MAX_NAME. */
 
-  /** Set to 'sizeof(wmGizmo)' or larger for instances of this type,
+  /** Set to `sizeof(wmGizmo)` or larger for instances of this type,
    * use so we can cast to other types without the hassle of a custom-data pointer. */
   uint struct_size;
 

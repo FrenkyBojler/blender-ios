@@ -50,6 +50,11 @@ typedef struct FileHandlerTypeHandle FileHandlerTypeHandle;
 #define AREAMAP_FROM_SCREEN(screen) ((ScrAreaMap *)&(screen)->vertbase)
 
 typedef struct bScreen {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_SCR;
+#endif
+
   ID id;
 
   /* TODO: Should become ScrAreaMap now.
@@ -138,7 +143,12 @@ typedef struct LayoutPanelState {
   /** Identifier of the panel. */
   char *idname;
   uint8_t flag;
-  char _pad[7];
+  char _pad[3];
+  /**
+   * A logical time set from #layout_panel_states_clock when the panel is used by the UI. This is
+   * used to detect the least-recently-used panel states when some panel states should be removed.
+   */
+  uint32_t last_used;
 } LayoutPanelState;
 
 enum LayoutPanelStateFlag {
@@ -155,8 +165,7 @@ typedef struct Panel {
   /** Runtime for drawing. */
   struct uiLayout *layout;
 
-  /** Defined as #BKE_ST_MAXNAME. */
-  char panelname[64];
+  char panelname[/*BKE_ST_MAXNAME*/ 64];
   /** Panel name is identifier for restoring location. */
   char *drawname;
   /** Offset within the region. */
@@ -177,9 +186,17 @@ typedef struct Panel {
 
   /**
    * List of #LayoutPanelState. This stores the open-close-state of layout-panels created with
-   * `layout.panel(...)` in Python. For more information on layout-panels, see `uiLayoutPanelProp`.
+   * `layout.panel(...)` in Python. For more information on layout-panels, see
+   * `uiLayout::panel_prop`.
    */
   ListBase layout_panel_states;
+  /**
+   * This is increased whenever a layout panel state is used by the UI. This is used to allow for
+   * some garbage collection of panel states when #layout_panel_states becomes large. It works by
+   * removing all least-recently-used panel states up to a certain threshold.
+   */
+  uint32_t layout_panel_states_clock;
+  char _pad2[4];
 
   struct Panel_Runtime *runtime;
 } Panel;
@@ -297,8 +314,7 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   /** Runtime. */
   struct uiListType *type;
 
-  /** Defined as UI_MAX_NAME_STR. */
-  char list_id[128];
+  char list_id[/*UI_MAX_NAME_STR*/ 128];
 
   /** How items are laid out in the list. */
   int layout_type;
@@ -310,8 +326,8 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   int list_last_activei;
 
   /* Filtering data. */
-  /** Defined as UI_MAX_NAME_STR. */
-  char filter_byname[128];
+  /** Defined as . */
+  char filter_byname[/*UI_MAX_NAME_STR*/ 128];
   int filter_flag;
   int filter_sort_flag;
 
@@ -329,7 +345,12 @@ typedef struct uiViewState {
    * and the default should be used.
    */
   int custom_height;
-  char _pad[4];
+  /**
+   * Amount of vertical scrolling. View types decide on the unit:
+   * - Tree views: Number of items scrolled out of view (#scroll_offset of 5 means 5 items are
+   *   scrolled out of view).
+   */
+  int scroll_offset;
 } uiViewState;
 
 /**
@@ -342,15 +363,14 @@ typedef struct uiViewState {
 typedef struct uiViewStateLink {
   struct uiViewStateLink *next, *prev;
 
-  char idname[64]; /* #BKE_ST_MAXNAME */
+  char idname[/*BKE_ST_MAXNAME*/ 64];
 
   uiViewState state;
 } uiViewStateLink;
 
 typedef struct TransformOrientation {
   struct TransformOrientation *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   float mat[3][3];
   char _pad[4];
 } TransformOrientation;
@@ -359,8 +379,7 @@ typedef struct TransformOrientation {
 typedef struct uiPreview {
   struct uiPreview *next, *prev;
 
-  /** Defined as #BKE_ST_MAXNAME. */
-  char preview_id[64];
+  char preview_id[/*BKE_ST_MAXNAME*/ 64];
   short height;
 
   /* Unset on file read. */
@@ -423,15 +442,15 @@ typedef struct ScrArea {
   /** Rect bound by v1 v2 v3 v4. */
   rcti totrct;
 
+  /** eSpace_Type (SPACE_FOO). */
+  char spacetype;
   /**
    * eSpace_Type (SPACE_FOO).
    *
    * Temporarily used while switching area type, otherwise this should be SPACE_EMPTY.
-   * Also, versioning uses it to nicely replace deprecated * editors.
+   * Also, versioning uses it to nicely replace deprecated editors.
    * It's been there for ages, name doesn't fit any more.
    */
-  char spacetype;
-  /** #eSpace_Type (SPACE_FOO). */
   char butspacetype;
   short butspacetype_subtype;
 
@@ -485,8 +504,6 @@ typedef struct ARegion {
   View2D v2d;
   /** Coordinates of region. */
   rcti winrct;
-  /** Runtime for partial redraw, same or smaller than winrct. */
-  rcti drawrct;
   /** Size. */
   short winx, winy;
   /**
@@ -494,10 +511,7 @@ typedef struct ARegion {
    * where zero represents no scroll - the first category always shows first at the top.
    */
   int category_scroll;
-  char _pad0[4];
 
-  /** Region is currently visible on screen. */
-  short visible;
   /** Window, header, etc. identifier for drawing. */
   short regiontype;
   /** How it should split. */
@@ -511,20 +525,13 @@ typedef struct ARegion {
    */
   short sizex, sizey;
 
-  /** Private, cached notifier events. */
-  short do_draw;
-  /** Private, cached notifier events. */
-  short do_draw_paintcursor;
   /** Private, set for indicate drawing overlapped. */
   short overlap;
   /** Temporary copy of flag settings for clean full-screen. */
   short flagfullscreen;
 
-  /** Callbacks for this region type. */
-  struct ARegionType *type;
+  char _pad[2];
 
-  /** #uiBlock. */
-  ListBase uiblocks;
   /** Panel. */
   ListBase panels;
   /** Stack of panel categories. */
@@ -533,24 +540,12 @@ typedef struct ARegion {
   ListBase ui_lists;
   /** #uiPreview. */
   ListBase ui_previews;
-  /** #wmEventHandler. */
-  ListBase handlers;
-  /** Panel categories runtime. */
-  ListBase panels_category;
   /**
    * Permanent state storage of #ui::AbstractView instances, so hiding regions with views or
    * loading files remembers the view state.
    */
   ListBase view_states; /* #uiViewStateLink */
 
-  /** Gizmo-map of this region. */
-  struct wmGizmoMap *gizmo_map;
-  /** Blend in/out. */
-  struct wmTimer *regiontimer;
-  struct wmDrawBuffer *draw_buffer;
-
-  /** Use this string to draw info. */
-  char *headerstr;
   /** XXX 2.50, need spacedata equivalent? */
   void *regiondata;
 
@@ -583,7 +578,7 @@ enum {
   AREA_FLAG_OFFSCREEN = (1 << 9),
 };
 
-#define AREAGRID 4
+#define AREAGRID 1
 #define AREAMINX 29
 #define HEADER_PADDING_Y 6
 #define HEADERY (20 + HEADER_PADDING_Y)
@@ -847,7 +842,7 @@ typedef struct AssetShelf {
 
   /** Identifier that matches the #AssetShelfType.idname this shelf was created with. Used to
    * restore the #AssetShelf.type pointer below on file read. */
-  char idname[64]; /* MAX_NAME */
+  char idname[/*MAX_NAME*/ 64];
   /** Runtime. */
   struct AssetShelfType *type;
 

@@ -4,6 +4,16 @@
 
 # Some misc utilities...
 
+__all__ = (
+    "I18n",
+    "I18nMessage",
+    "I18nMessages",
+    "enable_addons",
+    "find_best_isocode_matches",
+    "get_po_files_from_dir",
+    "list_po_dir",
+)
+
 import collections
 import os
 import platform
@@ -65,10 +75,11 @@ def locale_explode(locale):
     m = _locale_explode_re.match(locale)
     if m:
         lang, country, variant = m.groups()
-        return (lang, country, variant,
-                "%s_%s" % (lang, country) if country else None,
-                "%s@%s" % (lang, variant) if variant else None)
-
+        return (
+            lang, country, variant,
+            "{:s}_{:s}".format(lang, country) if country else None,
+            "{:s}@{:s}".format(lang, variant) if variant else None
+        )
     try:
         import bpy.app.translations as bpy_translations
         assert ret == bpy_translations.locale_explode(locale)
@@ -81,19 +92,20 @@ def locale_explode(locale):
 def locale_match(loc1, loc2):
     """
     Return:
-        -n if loc1 is a subtype of loc2 (e.g. 'fr_FR' is a subtype of 'fr').
+        -n if loc1 is a subtype of loc2 (e.g. ``fr_FR`` is a subtype of ``fr``).
         +n if loc2 is a subtype of loc1.
-        n becomes smaller when both locales are more similar (e.g. (sr, sr_SR) are more similar than (sr, sr_SR@latin)).
+        n becomes smaller when both locales are more similar
+        ... (e.g. (``sr, sr_SR``) are more similar than (``sr, sr_SR@latin``)).
         0 if they are exactly the same.
         ... (Ellipsis) if they cannot match!
-    Note: We consider that 'sr_SR@latin' is a subtype of 'sr@latin', 'sr_SR' and 'sr', but 'sr_SR' and 'sr@latin' won't
-          match (will return ...)!
+    Note: We consider that ``sr_SR@latin`` is a subtype of ``sr@latin``, ``sr_SR`` and ``sr``,
+          but ``sr_SR`` and ``sr@latin`` won't match (will return ...)!
     Note: About similarity, diff in variants are more important than diff in countries, currently here are the cases:
-            (sr, sr_SR)             -> 1
-            (sr@latin, sr_SR@latin) -> 1
-            (sr, sr@latin)          -> 2
-            (sr_SR, sr_SR@latin)    -> 2
-            (sr, sr_SR@latin)       -> 3
+            (``sr, sr_SR``)             -> 1
+            (``sr@latin, sr_SR@latin``) -> 1
+            (``sr, sr@latin``)          -> 2
+            (``sr_SR, sr_SR@latin``)    -> 2
+            (``sr, sr_SR@latin``)       -> 3
     """
     if loc1 == loc2:
         return 0
@@ -1431,7 +1443,7 @@ class I18n:
         """
         txts = []
         if os.path.isdir(src):
-            for root, dnames, fnames in os.walk(src):
+            for root, _dnames, fnames in os.walk(src):
                 for fname in fnames:
                     if not fname.endswith(".py"):
                         continue

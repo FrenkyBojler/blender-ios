@@ -67,10 +67,10 @@ Examples using :class:`bpy.types.PoseBone` in Object or Pose-Mode:
 
 .. code-block:: python
 
-   # Gets the name of the first constraint (if it exists)
+   # Gets the name of the first constraint (if it exists).
    bpy.context.object.pose.bones["Bone"].constraints[0].name
 
-   # Gets the last selected pose bone (Pose-Mode only)
+   # Gets the last selected pose bone (Pose-Mode only).
    bpy.context.active_pose_bone
 
 
@@ -97,5 +97,3 @@ clearly separates sections of the code which operate in different modes.
 
 This is mainly an issue with Edit-Mode since pose data can be manipulated without having to be in Pose-Mode,
 yet for operator access you may still need to enter Pose-Mode.
-
-
