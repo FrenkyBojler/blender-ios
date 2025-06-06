@@ -1371,6 +1371,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
   bTheme *btheme = UI_GetTheme();
   const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
+  /* Round all corners when region overlap is on. */
   const int roundboxtype = region->overlap ? UI_CNR_ALL :
                                              (is_left ? (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) :
                                                         (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT));
@@ -1404,9 +1405,6 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   UI_GetThemeColor4fv(TH_TAB_ACTIVE, theme_col_tab_active);
   UI_GetThemeColor4fv(TH_TAB_INACTIVE, theme_col_tab_inactive);
   UI_GetThemeColor4fv(TH_TAB_OUTLINE, theme_col_tab_outline);
-
-  /* Force tab background fully transparent when region overlap is on. */
-  theme_col_tab_bg[3] = region->overlap ? 0 : theme_col_tab_bg[3];
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
