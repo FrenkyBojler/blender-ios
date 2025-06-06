@@ -44,10 +44,10 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"libmv", nullptr},
     {"mod_oceansim", nullptr},
     {"mod_remesh", nullptr},
-    {"collada", nullptr},
     {"io_wavefront_obj", nullptr},
     {"io_ply", nullptr},
     {"io_stl", nullptr},
+    {"io_fbx", nullptr},
     {"io_gpencil", nullptr},
     {"opencolorio", nullptr},
     {"openmp", nullptr},
@@ -59,6 +59,7 @@ static PyStructSequence_Field app_builtopts_info_fields[] = {
     {"potrace", nullptr},
     {"pugixml", nullptr},
     {"haru", nullptr},
+    {"experimental_features", nullptr},
     /* Sentinel (this line prevents `clang-format` wrapping into columns). */
     {nullptr},
 };
@@ -236,12 +237,6 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_COLLADA
-  SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
-
 #ifdef WITH_IO_WAVEFRONT_OBJ
   SetObjIncref(Py_True);
 #else
@@ -260,13 +255,19 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
+#ifdef WITH_IO_FBX
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
 #ifdef WITH_IO_GREASE_PENCIL
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_OCIO
+#ifdef WITH_OPENCOLORIO
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);
@@ -321,6 +322,12 @@ static PyObject *make_builtopts_info()
 #endif
 
 #ifdef WITH_HARU
+  SetObjIncref(Py_True);
+#else
+  SetObjIncref(Py_False);
+#endif
+
+#ifdef WITH_EXPERIMENTAL_FEATURES
   SetObjIncref(Py_True);
 #else
   SetObjIncref(Py_False);

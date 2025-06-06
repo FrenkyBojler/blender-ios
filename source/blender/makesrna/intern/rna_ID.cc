@@ -348,14 +348,14 @@ static bool rna_ID_is_evaluated_get(PointerRNA *ptr)
 {
   ID *id = (ID *)ptr->data;
 
-  return (DEG_get_original_id(id) != id);
+  return DEG_get_original(id) != id;
 }
 
 static PointerRNA rna_ID_original_get(PointerRNA *ptr)
 {
   ID *id = (ID *)ptr->data;
 
-  return RNA_id_pointer_create(DEG_get_original_id(id));
+  return RNA_id_pointer_create(DEG_get_original(id));
 }
 
 short RNA_type_to_ID_code(const StructRNA *type)
@@ -704,7 +704,7 @@ StructRNA *rna_PropertyGroup_refine(PointerRNA *ptr)
 
 static ID *rna_ID_evaluated_get(ID *id, Depsgraph *depsgraph)
 {
-  return DEG_get_evaluated_id(depsgraph, id);
+  return DEG_get_evaluated(depsgraph, id);
 }
 
 static ID *rna_ID_copy(ID *id, Main *bmain)
@@ -1535,6 +1535,13 @@ static void rna_Library_version_get(PointerRNA *ptr, int *value)
   value[0] = lib->runtime->versionfile / 100;
   value[1] = lib->runtime->versionfile % 100;
   value[2] = lib->runtime->subversionfile;
+}
+
+static PointerRNA rna_Library_parent_get(PointerRNA *ptr)
+{
+  Library *lib = ptr->data_as<Library>();
+  Library *parent = lib->runtime->parent;
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(parent));
 }
 
 static void rna_Library_reload(Library *lib, bContext *C, ReportList *reports)
@@ -2616,7 +2623,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Library_filepath_set");
 
   prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "runtime->parent");
+  RNA_def_property_pointer_funcs(prop, "rna_Library_parent_get", nullptr, nullptr, nullptr);
   RNA_def_property_struct_type(prop, "Library");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Parent", "");

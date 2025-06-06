@@ -10,7 +10,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_point_uniform_size_uniform_color_aa)
 
 void main()
 {
-  float dist = length(gl_PointCoord - vec2(0.5f));
+  float dist = length(gl_PointCoord - float2(0.5f));
 
   /* transparent outside of point
    * --- 0 ---
@@ -24,6 +24,6 @@ void main()
   fragColor.a = mix(color.a, 0.0f, smoothstep(radii[1], radii[0], dist));
 
   if (fragColor.a == 0.0f) {
-    discard;
+    gpu_discard_fragment();
   }
 }

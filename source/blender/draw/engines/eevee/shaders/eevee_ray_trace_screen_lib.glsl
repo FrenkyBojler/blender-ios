@@ -18,6 +18,7 @@
 #include "eevee_bxdf_diffuse_lib.glsl"
 #include "eevee_bxdf_microfacet_lib.glsl"
 #include "eevee_ray_types_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_thickness_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_fast_lib.glsl"
@@ -40,9 +41,9 @@ void raytrace_clip_ray_to_near_plane(inout Ray ray)
 
 struct ScreenTraceHitData {
   /* Screen space hit position [0..1]. Last component is the ray depth, not the occluder depth. */
-  vec3 ss_hit_P;
+  float3 ss_hit_P;
   /* View space hit position. */
-  vec3 v_hit_P;
+  float3 v_hit_P;
   /* Tracing time in world space. */
   float time;
   /* True if there was a valid intersection. False if went out of screen without intersection. */
@@ -84,8 +85,8 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
   /* Avoid no iteration. */
   if (!allow_self_intersection && ssray.max_time < 1.1f) {
     /* Still output the clipped ray. */
-    vec3 hit_ssP = ssray.origin.xyz + ssray.direction.xyz * ssray.max_time;
-    vec3 hit_P = drw_point_screen_to_world(vec3(hit_ssP.xy, saturate(hit_ssP.z)));
+    float3 hit_ssP = ssray.origin.xyz + ssray.direction.xyz * ssray.max_time;
+    float3 hit_P = drw_point_screen_to_world(float3(hit_ssP.xy, saturate(hit_ssP.z)));
     ray.direction = hit_P - ray.origin;
 
     ScreenTraceHitData no_hit;
@@ -108,7 +109,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef METAL_AMD_RAYTRACE_WORKAROUND
   bool hit_failsafe = true;
 #endif
-  const int max_steps = 255;
+  constexpr int max_steps = 255;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
     float lod = log2(stride) * lod_fac;
@@ -119,7 +120,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
     time = min(t + stride * stride_rand, ssray.max_time);
     t += stride;
 
-    vec4 ss_p = ssray.origin + ssray.direction * time;
+    float4 ss_p = ssray.origin + ssray.direction * time;
     depth_sample = textureLod(hiz_tx, ss_p.xy * hiz_data.uv_scale, floor(lod)).r;
 
     delta = depth_sample - ss_p.z;
@@ -169,7 +170,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef PLANAR_PROBES
 
 ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
-                                   depth2DArray planar_depth_tx,
+                                   sampler2DArrayDepth planar_depth_tx,
                                    PlanarProbeData planar,
                                    float stride_rand,
                                    Ray ray)
@@ -179,19 +180,20 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
     raytrace_clip_ray_to_near_plane(ray);
   }
 
-  vec2 inv_texture_size = 1.0f / vec2(textureSize(planar_depth_tx, 0).xy);
+  float2 inv_texture_size = 1.0f / float2(textureSize(planar_depth_tx, 0).xy);
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
   /* TODO(@fclem): This uses the main view's projection matrix, not the planar's one.
    * This works fine for reflection, but this prevent the use of any other projection capture. */
   ScreenSpaceRay ssray = raytrace_screenspace_ray_create(ray, 2.0f * inv_texture_size);
 
   float prev_delta = 0.0f, prev_time = 0.0f;
-  float depth_sample = texture(planar_depth_tx, vec3(ssray.origin.xy, planar.layer_id)).r;
+  float depth_sample = reverse_z::read(
+      texture(planar_depth_tx, float3(ssray.origin.xy, planar.layer_id)).r);
   float delta = depth_sample - ssray.origin.z;
 
   float t = 0.0f, time = 0.0f;
   bool hit = false;
-  const int max_steps = 32;
+  constexpr int max_steps = 32;
   for (int iter = 1; !hit && (time < ssray.max_time) && (iter < max_steps); iter++) {
     float stride = 1.0f + float(iter) * rt_data.quality;
 
@@ -201,9 +203,9 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
     time = min(t + stride * stride_rand, ssray.max_time);
     t += stride;
 
-    vec4 ss_ray = ssray.origin + ssray.direction * time;
+    float4 ss_ray = ssray.origin + ssray.direction * time;
 
-    depth_sample = texture(planar_depth_tx, vec3(ss_ray.xy, planar.layer_id)).r;
+    depth_sample = reverse_z::read(texture(planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
 
     delta = depth_sample - ss_ray.z;
     /* Check if the ray is below the surface. */
@@ -230,13 +232,18 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
 /* Modify the ray origin before tracing it. We must do this because ray origin is implicitly
  * reconstructed from gbuffer depth which we cannot modify. */
-Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, vec3 V, float thickness)
+Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, float thickness)
 {
   switch (cl.type) {
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
       return bxdf_ggx_ray_amend_transmission(cl, V, ray, thickness);
     case CLOSURE_BSDF_TRANSLUCENT_ID:
       return bxdf_translucent_ray_amend(cl, V, ray, thickness);
+    case CLOSURE_NONE_ID:
+    case CLOSURE_BSDF_DIFFUSE_ID:
+    case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
+    case CLOSURE_BSSRDF_BURLEY_ID:
+      break;
   }
   return ray;
 }

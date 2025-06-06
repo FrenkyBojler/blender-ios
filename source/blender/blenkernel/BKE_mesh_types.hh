@@ -9,7 +9,6 @@
  */
 
 #include <memory>
-#include <mutex>
 #include <variant>
 
 #include "BLI_array.hh"
@@ -18,6 +17,7 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array_fwd.hh"
@@ -136,10 +136,10 @@ struct MeshRuntime {
    * threads, access and use must be protected by the #eval_mutex lock.
    */
   Mesh *mesh_eval = nullptr;
-  std::mutex eval_mutex;
+  Mutex eval_mutex;
 
   /** Needed to ensure some thread-safety during render data pre-processing. */
-  std::mutex render_mutex;
+  Mutex render_mutex;
 
   /** Implicit sharing user count for #Mesh::face_offset_indices. */
   const ImplicitSharingInfo *face_offsets_sharing_info = nullptr;
@@ -195,8 +195,9 @@ struct MeshRuntime {
   CustomData_MeshMasks cd_mask_extra = {};
 
   /**
-   * Grids representation for multi-resolution sculpting. When this is set, the mesh will be empty,
-   * since it is conceptually replaced with the limited data stored in the grids.
+   * Grids representation for multi-resolution sculpting. When this is set, the mesh data
+   * corresponds to the unsubdivided base mesh; it is conceptually replaced with the limited
+   * data stored in the grids.
    */
   std::unique_ptr<SubdivCCG> subdiv_ccg;
   int subdiv_ccg_tot_level = 0;

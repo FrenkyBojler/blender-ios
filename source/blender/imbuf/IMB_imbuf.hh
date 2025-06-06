@@ -20,11 +20,14 @@ struct ImBuf;
 struct rctf;
 struct rcti;
 
-struct ColorManagedDisplay;
-
 struct GSet;
 struct ImageFormatData;
 struct Stereo3dFormat;
+
+namespace blender::ocio {
+class Display;
+}  // namespace blender::ocio
+using ColorManagedDisplay = blender::ocio::Display;
 
 /**
  * Module init/exit.
@@ -457,14 +460,6 @@ void IMB_buffer_byte_from_byte(unsigned char *rect_to,
                                int stride_to,
                                int stride_from);
 
-/**
- * Change the ordering of the color bytes pointed to by rect from
- * RGBA to ABGR. size * 4 color bytes are reordered.
- *
- * Only this one is used liberally here, and in imbuf.
- */
-void IMB_convert_rgba_to_abgr(ImBuf *ibuf);
-
 void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[3]);
 void IMB_alpha_under_color_byte(unsigned char *rect, int x, int y, const float backcol[3]);
 
@@ -503,8 +498,13 @@ void IMB_rectfill(ImBuf *drect, const float col[4]);
  * order the area between x1 and x2, and y1 and y2 is filled.
  * \param display: color-space reference for display space.
  */
-void IMB_rectfill_area(
-    ImBuf *ibuf, const float col[4], int x1, int y1, int x2, int y2, ColorManagedDisplay *display);
+void IMB_rectfill_area(ImBuf *ibuf,
+                       const float col[4],
+                       int x1,
+                       int y1,
+                       int x2,
+                       int y2,
+                       const ColorManagedDisplay *display);
 /**
  * Replace pixels of image area with solid color.
  * \param ibuf: an image to be filled with color. It must be 4 channel image.
@@ -527,7 +527,7 @@ void buf_rectfill_area(unsigned char *rect,
                        int width,
                        int height,
                        const float col[4],
-                       ColorManagedDisplay *display,
+                       const ColorManagedDisplay *display,
                        int x1,
                        int y1,
                        int x2,

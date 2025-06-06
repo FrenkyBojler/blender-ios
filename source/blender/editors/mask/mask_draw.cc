@@ -659,7 +659,7 @@ void ED_mask_draw_region(
     const bContext *C)
 {
   View2D *v2d = &region->v2d;
-  Mask *mask_eval = (Mask *)DEG_get_evaluated_id(depsgraph, &mask_->id);
+  Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_);
 
   /* aspect always scales vertically in movie and image spaces */
   const float width = width_i, height = float(height_i) * (aspy / aspx);
@@ -740,7 +740,7 @@ void ED_mask_draw_region(
       GPU_blend(GPU_BLEND_NONE);
     }
 
-    MEM_freeN((void *)buffer);
+    MEM_freeN(buffer);
   }
 
   /* apply transformation so mask editing tools will assume drawing from the
@@ -788,8 +788,7 @@ void ED_mask_draw_frames(
   const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
-  uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ub(255, 175, 0, 255);
@@ -802,8 +801,8 @@ void ED_mask_draw_frames(
     // draw_keyframe(i, scene->r.cfra, sfra, framelen, 1);
     int height = (frame == cfra) ? 22 : 10;
     int x = (frame - sfra) * framelen;
-    immVertex2i(pos, x, region_bottom);
-    immVertex2i(pos, x, region_bottom + height * UI_SCALE_FAC);
+    immVertex2f(pos, x, region_bottom);
+    immVertex2f(pos, x, region_bottom + height * UI_SCALE_FAC);
   }
   immEnd();
   immUnbindProgram();

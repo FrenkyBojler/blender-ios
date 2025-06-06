@@ -158,9 +158,22 @@ class Context : public compositor::Context {
 
   int2 get_render_size() const override
   {
-    int width, height;
-    BKE_render_resolution(input_data_.render_data, true, &width, &height);
-    return int2(width, height);
+    Render *render = RE_GetSceneRender(input_data_.scene);
+    RenderResult *render_result = RE_AcquireResultRead(render);
+
+    /* If a render result already exist, use its size, since the compositor operates on the render
+     * settings at which the render happened. Otherwise, use the size from the render data. */
+    int2 size;
+    if (render_result) {
+      size = int2(render_result->rectx, render_result->recty);
+    }
+    else {
+      BKE_render_resolution(input_data_.render_data, true, &size.x, &size.y);
+    }
+
+    RE_ReleaseResult(render);
+
+    return size;
   }
 
   rcti get_compositing_region() const override
@@ -203,10 +216,13 @@ class Context : public compositor::Context {
       {
         return viewer_output_result_;
       }
+
       /* Otherwise, the size or precision changed, so release its data and reset it, then we
        * reallocate it on the new domain below. */
       viewer_output_result_.release();
       viewer_output_result_ = this->create_result(compositor::ResultType::Color);
+      viewer_output_result_.set_transformation(domain.transformation);
+      viewer_output_result_.meta_data.is_non_color_data = is_data;
     }
 
     viewer_output_result_.set_precision(precision);
@@ -453,8 +469,8 @@ class Context : public compositor::Context {
 
     Image *image = BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
     const float2 translation = viewer_output_result_.domain().transformation.location();
-    image->runtime.backdrop_offset[0] = translation.x;
-    image->runtime.backdrop_offset[1] = translation.y;
+    image->runtime->backdrop_offset[0] = translation.x;
+    image->runtime->backdrop_offset[1] = translation.y;
 
     if (viewer_output_result_.meta_data.is_non_color_data) {
       image->flag &= ~IMA_VIEW_AS_RENDER;

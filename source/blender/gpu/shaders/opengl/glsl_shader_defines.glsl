@@ -26,6 +26,10 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 
 #undef RESHAPE
 
+/* constexpr is equivalent to const in GLSL + special chaining rules.
+ * See "GLSL Specification section 4.3.3. Constant Expressions". */
+#define constexpr const
+
 /* Boolean in GLSL are 32bit in interface structs. */
 #define bool32_t bool
 #define bool2 bvec2
@@ -94,13 +98,10 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define imageLoadFast imageLoad
 
 /* Texture format tokens -- Type explicitness required by other Graphics APIs. */
-#define depth2D sampler2D
-#define depth2DArray sampler2DArray
-#define depth2DMS sampler2DMS
-#define depth2DMSArray sampler2DMSArray
-#define depthCube samplerCube
-#define depthCubeArray samplerCubeArray
-#define depth2DArrayShadow sampler2DArrayShadow
+#define sampler2DDepth sampler2D
+#define sampler2DArrayDepth sampler2DArray
+#define samplerCubeDepth sampler2D
+#define samplerCubeArrayDepth sampler2DArray
 
 #define usampler2DArrayAtomic usampler2DArray
 #define usampler2DAtomic usampler2D
@@ -157,5 +158,25 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 
 #define _enum_dummy /* Needed to please `glslang`. */
 #define _enum_type(name) uint
-#define _enum_decl(name) const uint
+#define _enum_decl(name) constexpr uint
 #define _enum_end _enum_dummy;
+
+#define TEMPLATE_GLUE1(name, arg1) name##_##arg1##_
+#define TEMPLATE_GLUE2(name, arg1, arg2) name##_##arg1##_##arg2##_
+#define TEMPLATE_GLUE3(name, arg1, arg2, arg3) name##_##arg1##_##arg2##_##arg3##_
+#define TEMPLATE_GLUE4(name, arg1, arg2, arg3, arg4) name##_##arg1##_##arg2##_##arg3##_##arg4##_
+
+/* Stage agnostic builtin function.
+ * GLSL doesn't allow mixing shader stages inside the same source file.
+ * Make sure builtin functions are stubbed when used in an invalid stage. */
+#ifdef GPU_FRAGMENT_SHADER
+#  define gpu_discard_fragment() discard
+#  define gpu_dfdx(x) dFdx(x)
+#  define gpu_dfdy(x) dFdy(x)
+#  define gpu_fwidth(x) fwidth(x)
+#else
+#  define gpu_discard_fragment()
+#  define gpu_dfdx(x) x
+#  define gpu_dfdy(x) x
+#  define gpu_fwidth(x) x
+#endif

@@ -12,7 +12,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_clip_plane)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
 
-#include "common_hair_lib.glsl"
+#include "draw_curves_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
 #include "eevee_sampling_lib.glsl"
@@ -20,9 +20,9 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_depth)
 #include "eevee_transparency_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
-vec4 closure_to_rgba(Closure cl)
+float4 closure_to_rgba(Closure cl)
 {
-  vec4 out_color;
+  float4 out_color;
   out_color.rgb = g_emission;
   out_color.a = saturate(1.0f - average(g_transmittance));
 
@@ -50,7 +50,7 @@ void main()
 
   float transparency = average(g_transmittance);
   if (transparency > threshold) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 #endif
@@ -60,7 +60,7 @@ void main()
    * This would in turn create a discrepancy between the pre-pass depth and the G-buffer depth
    * which exhibits missing pixels data. */
   if (clip_interp.clip_distance > 0.0f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 #endif

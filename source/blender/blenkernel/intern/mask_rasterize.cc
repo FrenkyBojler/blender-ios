@@ -21,7 +21,7 @@
  *
  * To rasterize the mask its converted into geometry that use a ray-cast for each pixel lookup.
  *
- * Initially 'kdopbvh' was used but this ended up being too slow.
+ * Initially `kdopbvh` was used but this ended up being too slow.
  *
  * To gain some extra speed we take advantage of a few shortcuts
  * that can be made rasterizing masks specifically.
@@ -685,8 +685,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
         if (do_mask_aa == true) {
           if (do_feather == false) {
             tot_diff_feather_points = tot_diff_point;
-            diff_feather_points = MEM_calloc_arrayN<float[2]>(size_t(tot_diff_feather_points),
-                                                              __func__);
+            diff_feather_points = MEM_calloc_arrayN<float[2]>(tot_diff_feather_points, __func__);
             /* add single pixel feather */
             maskrasterize_spline_differentiate_point_outset(
                 diff_feather_points, diff_points, tot_diff_point, pixel_size, false);
