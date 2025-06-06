@@ -239,7 +239,7 @@ ccl_device_inline float2 hash_int2_to_float2(const int2 k)
 {
   int2 h = hash_pcg2d_i(k);
   float2 f = make_float2((float)h.x, (float)h.y);
-  return f * (1.0f / (float)0xFFFFFFFFu);
+  return f * (1.0f / (float)0x7FFFFFFFu);
 }
 
 ccl_device_inline float3 hash_int3_to_float3(const int3 k)
