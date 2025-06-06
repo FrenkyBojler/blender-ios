@@ -80,6 +80,9 @@ using blender::Vector;
 
 #define USE_FACE_CREATE_SEL_EXTEND
 
+//#define TRY_TO_USE_RNA_RUNTIME
+
+
 /* -------------------------------------------------------------------- */
 /** \name Subdivide Operator
  * \{ */
@@ -5841,6 +5844,17 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot)
   RNA_def_property_float_default(prop, DEG2RADF(20.0f));
 }
 
+#ifndef TRY_TO_USE_RNA_RUNTIME
+static void edbm_dissolve_prop__use_select_mode(wmOperatorType *ot)
+{
+  RNA_def_boolean(ot->srna,
+                  "use_select_mode",
+                  true,
+                  "select_mode is caller",
+                  "A property that is never shown in the UI but indicates the caller");
+}
+#endif
+
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
 {
   const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
@@ -5911,6 +5925,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
   const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
   const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
   const float angle_threshold = RNA_float_get(op->ptr, "angle_threshold");
+  const bool use_select_mode = RNA_boolean_get(op->ptr, "use_select_mode");
 
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -5928,11 +5943,12 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
     if (!EDBM_op_callf(
             em,
             op,
-            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f",
+            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f use_select_mode=%b",
             BM_ELEM_SELECT,
             use_verts,
             use_face_split,
-            angle_threshold))
+            angle_threshold,
+            use_select_mode))
     {
       continue;
     }
@@ -6054,6 +6070,18 @@ static wmOperatorStatus edbm_dissolve_mode_exec(bContext *C, wmOperator *op)
     return edbm_dissolve_verts_exec(C, op);
   }
   if (em->selectmode & SCE_SELECT_EDGE) {
+#ifdef TRY_TO_USE_RNA_RUNTIME
+    /* This crashes. */
+    RNA_def_boolean(op->ptr,
+                    "use_select_mode",
+                    true,
+                    "select_mode is caller",
+                    "A property that is never shown in the UI but indicates the caller");
+
+    /* This crashes too. */
+    prop = RNA_def_property(op->ptr, "use_select_mode", PROP_BOOLEAN, PROP_NONE);
+    RNA_property_boolean_set(op->ptr, prop, true);
+#endif
     return edbm_dissolve_edges_exec(C, op);
   }
   return edbm_dissolve_faces_exec(C, op);
@@ -6064,6 +6092,13 @@ static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const
   UNUSED_VARS(op);
 
   const char *prop_id = RNA_property_identifier(prop);
+
+#ifndef TRY_TO_USE_RNA_RUNTIME
+  /* This prop is used to indicate the caller but is never displayed to the user. */
+  if (STREQ(prop_id, "use_select_mode")) {
+    return false;
+  }
+#endif
 
   Object *obedit = CTX_data_edit_object(C);
   const BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -6104,6 +6139,9 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
   edbm_dissolve_prop__use_angle_threshold(ot);
+#ifndef TRY_TO_USE_RNA_RUNTIME
+  edbm_dissolve_prop__use_select_mode(ot);
+#endif
 }
 
 /** \} */

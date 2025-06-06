@@ -1346,6 +1346,9 @@ static BMOpDefine bmo_dissolve_edges_def = {
         {"use_face_split", BMO_OP_SLOT_BOOL},
         /* Do not dissolve verts between 2 edges when their angle exceeds this threshold. */
         {"angle_threshold", BMO_OP_SLOT_FLT},
+        /* When false, dissolve only face pairs.
+         * When true, dissolve more aggressively, using rules which account for what is selected.*/
+        {"use_select_mode", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
