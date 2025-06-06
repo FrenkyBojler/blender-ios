@@ -208,9 +208,9 @@ struct MathLayerInfo {
  * `attached_frep` pointer should have their neighboring UV verts connected.
  */
 struct UVFace {
-  /** BMesh face this UVFace represents. */
+  /** `BMesh` face which this `UVFace` represents. */
   BMFace *f;
-  /** BMFace of the original mesh to which bevel face f is attached in UV space. */
+  /** `BMFace` of the original mesh to which bevel face `f` is attached in UV space. */
   BMFace *attached_frep;
 };
 
@@ -330,16 +330,22 @@ enum AngleKind {
   ANGLE_LARGER = 1,
 };
 
+/** Container for loops representing UV verts which should be merged together in a UV map. */
+using UVVertBucket = Set<BMLoop *>;
+
+/** Mapping of vertex to UV vert buckets (i.e. loops belonging to that key `BMVert`). */
+using UVVertMap = Map<BMVert *, Vector<UVVertBucket>>;
+
 /** Bevel parameters and state. */
 struct BevelParams {
   /** Records BevVerts made: key BMVert*, value BevVert* */
   GHash *vert_hash;
   /** Records new faces: key BMFace*, value one of {VERT/EDGE/RECON}_POLY. */
   GHash *face_hash;
-  /** Records UVFace made: key BMFace*, value UVFace* */
-  GHash *uvface_hash;
+  /** Records `UVFace` made: key `BMFace*`, value `UVFace*`. */
+  GHash *uv_face_hash;
   /** Container which keeps track of UV vert connectivity in different UV maps. */
-  Vector<Map<BMVert *, Vector<Set<BMLoop *>>>> uv_vert_maps;
+  Vector<UVVertMap> uv_vert_maps;
   /**
    * Use for all allocations while bevel runs.
    * \note If we need to free we can switch to `BLI_mempool`.
@@ -556,10 +562,10 @@ static BevVert *find_bevvert(BevelParams *bp, BMVert *bmv)
   return static_cast<BevVert *>(BLI_ghash_lookup(bp->vert_hash, bmv));
 }
 
-/* Find the UVFace corresponding to BMFace bmf. */
-static UVFace *find_uvface(BevelParams *bp, BMFace *bmf)
+/* Find the `UVFace` corresponding to `bmf` face. */
+static UVFace *find_uv_face(BevelParams *bp, BMFace *bmf)
 {
-  return static_cast<UVFace *>(BLI_ghash_lookup(bp->uvface_hash, bmf));
+  return static_cast<UVFace *>(BLI_ghash_lookup(bp->uv_face_hash, bmf));
 }
 
 /**
@@ -629,6 +635,197 @@ static bool edges_face_connected_at_vert(BMEdge *bme1, BMEdge *bme2)
     }
   }
   return false;
+}
+
+/**
+ * Create and register new `UVFace` object based on a new face (`BMFace *fnew`); and assign proper
+ * representative face from either `frep` or `frep_arr` arguments.
+ */
+static UVFace *register_uv_face(BevelParams *bp, BMFace *fnew, BMFace *frep, BMFace **frep_arr)
+{
+  UVFace *uv_face = (UVFace *)BLI_memarena_alloc(bp->mem_arena, sizeof(UVFace));
+  uv_face->f = fnew;
+  uv_face->attached_frep = nullptr;
+  if (frep_arr && frep_arr[0]) {
+    /* Choosing first face from `frep_arr` is an arbitrary choice but for our algorithm it doesn't
+     * matter. Usually the difference in `frep` and `frep_arr` is that the latter is used when
+     * loops' custom data for a new bevel face is interpolated between multiple original mesh faces
+     * on top of which this new bevel face is being constructed; in such case original faces
+     * _should_ be already connected in UV space (i.e. no seam) and we handle such scenarios when
+     * setting proper value for `is_orig_uv_verts_connected` variable. */
+    uv_face->attached_frep = frep_arr[0];
+  }
+  else if (frep) {
+    uv_face->attached_frep = frep;
+  }
+
+  BLI_ghash_insert(bp->uv_face_hash, fnew, uv_face);
+  return uv_face;
+}
+
+/**
+ * Update UV vert map with new loops (`BMLoop`) from a face (`uv_face->f`) to keep track of proper
+ * UV connectivity. This data will help with merging UV verts later. Loops stored in the same UV
+ * vert bucket will be merged together (their UV positions).
+ */
+static void update_uv_vert_map(BevelParams *bp,
+                               UVFace *uv_face,
+                               BMVert *bv,
+                               Map<BMVert *, BMVert *> *nv_bv_map)
+{
+  if (!uv_face || !uv_face->attached_frep) {
+    return;
+  }
+
+  for (UVVertMap &uv_vert_map : bp->uv_vert_maps) {
+    BMIter iter;
+    BMLoop *l;
+    BM_ITER_ELEM (l, &iter, uv_face->f, BM_LOOPS_OF_FACE) {
+      Vector<UVVertBucket> *uv_vert_buckets = uv_vert_map.lookup_ptr(l->v);
+      if (!uv_vert_buckets) {
+        /* New vertex (and a corresponding loop) needs to be registered. No need for further UV
+         * connectivity search, we just create a new bucket and move on. */
+        uv_vert_map.add(l->v, Vector<UVVertBucket>{{l}});
+        continue;
+      }
+
+      /* `orig_v` should always point to a vertex which takes part in a bevel operation and comes
+       * from the original mesh. This vertex is equivalent to what is stored in the `BevVert::v`
+       * field. */
+      BMVert *orig_v = nv_bv_map ? nv_bv_map->lookup(l->v) : bv;
+      BMLoop *orig_l = BM_face_vert_share_loop(uv_face->attached_frep, orig_v);
+      BLI_assert(orig_l != nullptr);
+
+      bool is_bucket_found = false;
+      BMIter iter2;
+      BMLoop *l2;
+      BM_ITER_ELEM (l2, &iter2, l->v, BM_LOOPS_OF_VERT) {
+        if (l == l2) {
+          continue;
+        }
+
+        UVFace *uv_face2 = find_uv_face(bp, l2->f);
+        if (!uv_face2) {
+          continue;
+        }
+
+        BMLoop *orig_l2 = BM_face_vert_share_loop(uv_face2->attached_frep, orig_v);
+        BLI_assert(orig_l2 != nullptr);
+
+        bool is_orig_uv_verts_connected = false;
+        Vector<UVVertBucket> &orig_uv_vert_buckets = uv_vert_map.lookup(orig_v);
+        for (UVVertBucket &orig_uv_vert_bucket : orig_uv_vert_buckets) {
+          if (orig_uv_vert_bucket.contains(orig_l) && orig_uv_vert_bucket.contains(orig_l2)) {
+            is_orig_uv_verts_connected = true;
+            break;
+          }
+        }
+
+        /* Add loop `l` to the existing bucket containing neighboring loop `l2` if either of those
+         * conditions are met:
+         * 1. Neighboring faces (represented by `UVFace` objects) have the same representative face
+         *    attached to them.
+         * 2. If representative faces attached to faces containing both loops (`l` and `l2`) are
+         *    different but otherwise connected in UV space (`orig_l` and `orig_l2` are
+         *    overlapping) for original input mesh. */
+        if (uv_face->attached_frep == uv_face2->attached_frep || is_orig_uv_verts_connected) {
+          for (UVVertBucket &uv_vert_bucket : *uv_vert_buckets) {
+            if (uv_vert_bucket.contains(l2)) {
+              uv_vert_bucket.add(l);
+              is_bucket_found = true;
+              break;
+            }
+          }
+        }
+        if (is_bucket_found) {
+          break;
+        }
+      }
+      if (!is_bucket_found) {
+        uv_vert_buckets->append(UVVertBucket{l});
+      }
+    }
+  }
+}
+
+/**
+ * Determine UV vert connectivity based on provided `BMVert *v`. If UV loop data is available,
+ * iterate through loops of vertex `v`, fetching UV position for each loop and checking against
+ * already evaluated ones. If UV coords are overlapping (delta smaller than `STD_UV_CONNECT_LIMIT`)
+ * then add those loops to the same UV vert bucket. If UV verts are not overlapping they will end
+ * up in separate buckets. Those buckets are later utilized during UV merging process, i.e. UV
+ * verts which will end up in the same bucket will be merged together.
+ */
+static void determine_uv_vert_connectivity(BevelParams *bp, BMesh *bm, BMVert *v)
+{
+  int num_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
+  BLI_assert(bp->uv_vert_maps.size() == num_uv_layers);
+
+  for (int i = 0; i < num_uv_layers; ++i) {
+    int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
+    Vector<UVVertBucket> uv_vert_buckets;
+    BMIter iter;
+    BMLoop *l;
+    BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+      bool is_overlap_found = false;
+      for (UVVertBucket &uv_vert_bucket : uv_vert_buckets) {
+        for (BMLoop *l2 : uv_vert_bucket) {
+          float *luv2 = BM_ELEM_CD_GET_FLOAT_P(l2, uv_data_offset);
+          if (compare_v2v2(luv, luv2, STD_UV_CONNECT_LIMIT)) {
+            uv_vert_bucket.add(l);
+            is_overlap_found = true;
+            break;
+          }
+        }
+        if (is_overlap_found) {
+          break;
+        }
+      }
+      if (!is_overlap_found) {
+        uv_vert_buckets.append(UVVertBucket{l});
+      }
+    }
+
+    /* For now `determine_uv_vert_connectivity` is expected to be run at the beginning of the bevel
+     * operation, determining connectivity for each vertex `v` (from the original mesh). We expect
+     * `bp->uv_vert_maps[i]` to not contain vertex `v` at this point in time. */
+    BLI_assert(bp->uv_vert_maps[i].contains(v) == false);
+    bp->uv_vert_maps[i].add_new(v, uv_vert_buckets);
+  }
+}
+
+/**
+ * Merge UVs based on data gathered in `bm->uv_vert_maps`. If UV verts are in the same bucket,
+ * merge them together. Note that this function exists purely because of imperfections in initial
+ * UV position calculations using interpolation approach (`BM_loop_interp_from_face` function).
+ */
+static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
+{
+  int num_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
+  BLI_assert(bp->uv_vert_maps.size() == num_uv_layers);
+
+  for (int i = 0; i < num_uv_layers; ++i) {
+    int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
+    for (Vector<UVVertBucket> &uv_vert_buckets : bp->uv_vert_maps[i].values()) {
+      for (UVVertBucket &uv_vert_bucket : uv_vert_buckets) {
+        int n = 0;
+        float uv[2] = {0.0f, 0.0f};
+        for (BMLoop *l : uv_vert_bucket) {
+          float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+          add_v2_v2(uv, luv);
+          n++;
+        }
+        if (n > 1) {
+          mul_v2_fl(uv, 1.0f / float(n));
+          for (BMLoop *l : uv_vert_bucket) {
+            float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
+            copy_v2_v2(luv, uv);
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
@@ -702,18 +899,24 @@ static BMFace *boundvert_rep_face(BoundVert *v, BMFace **r_fother)
  *
  * \note ALL face creation goes through this function, this is important to keep!
  */
-static BMFace *bev_create_ngon(BMesh *bm,
+static BMFace *bev_create_ngon(BevelParams *bp,
+                               BMesh *bm,
                                BMVert **vert_arr,
                                const int totv,
                                BMFace **face_arr,
                                BMFace *facerep,
                                BMEdge **snap_edge_arr,
+                               BMVert *bv,
+                               Map<BMVert *, BMVert *> *nv_bv_map,
                                int mat_nr,
                                bool do_interp)
 {
   BMFace *f = BM_face_create_verts(bm, vert_arr, totv, facerep, BM_CREATE_NOP, true);
+  if (!f) {
+    return nullptr;
+  }
 
-  if ((facerep || (face_arr && face_arr[0])) && f) {
+  if ((facerep || (face_arr && face_arr[0]))) {
     BM_elem_attrs_copy(bm, facerep ? facerep : face_arr[0], f);
     if (do_interp) {
       int i = 0;
@@ -749,20 +952,22 @@ static BMFace *bev_create_ngon(BMesh *bm,
     }
   }
 
-  /* Not essential for bevels own internal logic,
-   * this is done so the operator can select newly created geometry. */
-  if (f) {
-    BM_elem_flag_enable(f, BM_ELEM_TAG);
-    BMIter iter;
-    BMEdge *bme;
-    BM_ITER_ELEM (bme, &iter, f, BM_EDGES_OF_FACE) {
-      flag_out_edge(bm, bme);
-    }
+  BM_elem_flag_enable(f, BM_ELEM_TAG);
+  BMIter iter;
+  BMEdge *bme;
+  BM_ITER_ELEM (bme, &iter, f, BM_EDGES_OF_FACE) {
+    /* Not essential for bevels own internal logic, this is done so the operator can select newly
+     * created geometry. */
+    flag_out_edge(bm, bme);
   }
 
   if (mat_nr >= 0) {
     f->mat_nr = short(mat_nr);
   }
+
+  UVFace *uv_face = register_uv_face(bp, f, facerep, face_arr);
+  update_uv_vert_map(bp, uv_face, bv, nv_bv_map);
+
   return f;
 }
 
@@ -853,11 +1058,11 @@ static void uv_vert_map_init(BevelParams *bp, BMesh *bm)
 }
 
 /**
- * Remove `BMVert` from all UV maps in `bp->uv_vert_maps` container.
+ * Remove vertex `v` from all UV maps in `bp->uv_vert_maps`.
  */
 static void uv_vert_map_pop(BevelParams *bp, BMVert *v)
 {
-  for (auto &uv_vert_map : bp->uv_vert_maps) {
+  for (UVVertMap &uv_vert_map : bp->uv_vert_maps) {
     uv_vert_map.pop_try(v);
   }
 }
@@ -1067,189 +1272,6 @@ static BMFace *choose_rep_face(BevelParams *bp, BMFace **face, int nfaces)
   }
   return face[best_f];
 #undef VEC_VALUE_LEN
-}
-
-// TODO: Temp? Find built-in replacement. There should be one(?)
-static BMLoop *find_loop_of_vert_in_face(BMVert *v, BMFace *f)
-{
-  BMIter iter;
-  BMLoop *l;
-  BM_ITER_ELEM (l, &iter, f, BM_LOOPS_OF_FACE) {
-    if (l->v == v) {
-      return l;
-    }
-  }
-  return nullptr;
-}
-
-/**
- * Update UV-related data (`bp->uvface_hash` and `bp->uv_vert_maps`) to keeping track of UV
- * connectivity. This data will help merging UV verts later. Based on ...
- */
-static void update_uv_context(BevelParams *bp,
-                              BMFace *fnew,
-                              BMFace *frep,
-                              BMFace **frep_arr,
-                              BMVert *bv,
-                              Map<BMVert *, BMVert *> *nv_bv_map)
-{
-  UVFace *uvface = (UVFace *)BLI_memarena_alloc(bp->mem_arena, sizeof(UVFace));
-  uvface->f = fnew;
-  uvface->attached_frep = nullptr;
-  if (frep_arr && frep_arr[0]) {
-    /* Choosing first face from `frep_arr` is an arbitrary choice but for the algorithm it doesn't
-     * matter. Usually the difference in `frep` and `frep_arr` is that the latter is used when
-     * loops of a face are interpolated between couple of original mesh faces on top of which new
-     * bevel face is constructed; in such case UV faces _should_ be already fully connected and we
-     * handle such scenarios differently. */
-    uvface->attached_frep = frep_arr[0];
-  }
-  else if (frep) {
-    uvface->attached_frep = frep;
-  }
-  BLI_ghash_insert(bp->uvface_hash, fnew, uvface);
-
-  if (!uvface->attached_frep) {
-    return;
-  }
-
-  //
-
-  for (Map<BMVert *, Vector<Set<BMLoop *>>> &uv_vert_map : bp->uv_vert_maps) {
-    BMIter iter;
-    BMLoop *l;
-    BM_ITER_ELEM (l, &iter, fnew, BM_LOOPS_OF_FACE) {
-      Vector<Set<BMLoop *>> *uv_vert_buckets = uv_vert_map.lookup_ptr(l->v);
-      if (!uv_vert_buckets) {
-        /* New vertex (and a coresponding loop) needs to be registered. No need for further UV
-         * connectivity search, we just create a new "bucket" and call `continue`. */
-        uv_vert_map.add(l->v, Vector<Set<BMLoop *>>{{l}});
-        continue;
-      }
-
-      /* `bmv` should always point to a vertex which takes part in a bevel operation and comes from
-       * original mesh. This vertex is equivalent to what is stored in the `BevVert::v` field. */
-      BMVert *orig_v = nv_bv_map ? nv_bv_map->lookup(l->v) : bv;
-      BLI_assert(orig_v != nullptr);
-
-      BMLoop *orig_l1 = find_loop_of_vert_in_face(orig_v, uvface->attached_frep);
-      bool is_bucket_found = false;
-
-      BMIter iter2;
-      BMLoop *l2;
-      BM_ITER_ELEM (l2, &iter2, l->v, BM_LOOPS_OF_VERT) {
-        if (l == l2) {
-          continue;
-        }
-        UVFace *uvface2 = find_uvface(bp, l2->f);
-        if (!uvface2) {
-          continue;
-        }
-
-        BMLoop *orig_l2 = find_loop_of_vert_in_face(orig_v, uvface2->attached_frep);
-        bool is_orig_uv_verts_connected = false;
-
-        Vector<Set<BMLoop *>> &orig_uv_vert_buckets = uv_vert_map.lookup(orig_v);
-        for (const auto &orig_uv_vert_bucket : orig_uv_vert_buckets) {
-          if (orig_uv_vert_bucket.contains(orig_l1) && orig_uv_vert_bucket.contains(orig_l2)) {
-            is_orig_uv_verts_connected = true;
-            break;
-          }
-        }
-
-        if (uvface->attached_frep == uvface2->attached_frep || is_orig_uv_verts_connected) {
-          for (auto &uv_vert_bucket : *uv_vert_buckets) {
-            if (uv_vert_bucket.contains(l2)) {
-              uv_vert_bucket.add(l);
-              is_bucket_found = true;
-              break;
-            }
-          }
-        }
-        if (is_bucket_found) {
-          break;
-        }
-      }
-      if (!is_bucket_found) {
-        uv_vert_buckets->append(Set<BMLoop *>{l});
-      }
-    }
-  }
-}
-
-/**
- * Determine UV vert connectivity based on provided BMVert v. If UV loop data is avaliable, iterate
- * through loops of vert v, fetching UV position for each loop and checking against already added
- * ones. If UV coords are overlapping (delta smaller than STD_UV_CONNECT_LIMIT) then add those
- * loops to the same bucket. If UV verts are not overlapping they will end up in separate buckets.
- * Those buckets are later utilized during UV merging process, i.e. UV verts which will end up in
- * the same container will be merged together.
- */
-static void determine_uv_vert_connectivity(BevelParams *bp, BMesh *bm, BMVert *v)
-{
-  int num_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
-  BLI_assert(bp->uv_vert_maps.size() == num_uv_layers);
-
-  for (int i = 0; i < num_uv_layers; ++i) {
-    int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
-    BLI_assert(uv_data_offset != -1);
-
-    Vector<Set<BMLoop *>> &uv_vert_buckets = bp->uv_vert_maps[i].lookup_or_add(v, {});
-    BMIter iter;
-    BMLoop *l;
-    BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
-      float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-      bool is_overlap_found = false;
-      for (Set<BMLoop *> &uv_vert_bucket : uv_vert_buckets) {
-        for (BMLoop *l2 : uv_vert_bucket) {
-          float *luv2 = BM_ELEM_CD_GET_FLOAT_P(l2, uv_data_offset);
-          if (compare_v2v2(luv, luv2, STD_UV_CONNECT_LIMIT)) {
-            uv_vert_bucket.add(l);
-            is_overlap_found = true;
-            break;
-          }
-        }
-        if (is_overlap_found) {
-          break;
-        }
-      }
-      if (!is_overlap_found) {
-        uv_vert_buckets.append(Set<BMLoop *>{l});
-      }
-    }
-  }
-}
-
-/**
- * Merge UVs based on data gathered in bm->uv_vert_maps. If UV verts are in the same bucket, merge
- * them together.
- */
-static void bevel_merge_uvs(BevelParams *bp, BMesh *bm)
-{
-  int num_uv_layers = CustomData_number_of_layers(&bm->ldata, CD_PROP_FLOAT2);
-  BLI_assert(bp->uv_vert_maps.size() == num_uv_layers);
-
-  for (int i = 0; i < num_uv_layers; ++i) {
-    int uv_data_offset = CustomData_get_n_offset(&bm->ldata, CD_PROP_FLOAT2, i);
-    for (const Vector<Set<BMLoop *>> &uv_vert_buckets : bp->uv_vert_maps[i].values()) {
-      for (const Set<BMLoop *> &uv_vert_bucket : uv_vert_buckets) {
-        int n = 0;
-        float uv[2] = {0.0f, 0.0f};
-        for (BMLoop *l : uv_vert_bucket) {
-          float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-          add_v2_v2(uv, luv);
-          n++;
-        }
-        if (n > 1) {
-          mul_v2_fl(uv, 1.0f / float(n));
-          for (BMLoop *l : uv_vert_bucket) {
-            float *luv = BM_ELEM_CD_GET_FLOAT_P(l, uv_data_offset);
-            copy_v2_v2(luv, uv);
-          }
-        }
-      }
-    }
-  }
 }
 
 /* Calculate coordinates of a point a distance d from v on e->e and return it in slideco. */
@@ -2806,21 +2828,6 @@ static void set_bound_vert_seams(BevVert *bv, bool mark_seam, bool mark_sharp)
   if (mark_sharp) {
     check_edge_data_seam_sharp_edges(bv, BM_ELEM_SMOOTH);
   }
-}
-
-static int count_bound_vert_seams(BevVert *bv)
-{
-  if (!bv->any_seam) {
-    return 0;
-  }
-
-  int ans = 0;
-  for (int i = 0; i < bv->edgecount; i++) {
-    if (bv->edges[i].is_seam) {
-      ans++;
-    }
-  }
-  return ans;
 }
 
 /* Is e between two faces with a 180 degree angle between their normals? */
@@ -5096,7 +5103,8 @@ static void build_center_ngon(BevelParams *bp, BMesh *bm, BevVert *bv, int mat_n
       ve.append(nullptr);
     }
   } while ((v = v->next) != vm->boundstart);
-  BMFace *f = bev_create_ngon(bm, vv.data(), vv.size(), vf.data(), frep, ve.data(), mat_nr, true);
+  BMFace *f = bev_create_ngon(
+      bp, bm, vv.data(), vv.size(), vf.data(), frep, ve.data(), bv->v, nullptr, mat_nr, true);
   record_face_kind(bp, f, F_VERT);
 }
 
@@ -5686,13 +5694,12 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv, BoundVert
             se[2] = se[1] != nullptr ? se[1] : se[3];
           }
         }
-        BMFace *r_f = bev_create_ngon(bm, bmvs, 4, fr, nullptr, se, mat_nr, true);
-        update_uv_context(bp, r_f, nullptr, fr, bv->v, nullptr);
+        BMFace *r_f = bev_create_ngon(
+            bp, bm, bmvs, 4, fr, nullptr, se, bv->v, nullptr, mat_nr, true);
         record_face_kind(bp, r_f, F_VERT);
       }
     }
   } while ((bndv = bndv->next) != vm->boundstart);
-
 
   /* Center ngon. */
   if (odd) {
@@ -5701,9 +5708,17 @@ static void bevel_build_rings(BevelParams *bp, BMesh *bm, BevVert *bv, BoundVert
       if (bv->any_seam) {
         frep = frep_for_center_poly(bp, bv);
       }
-      BMFace *cen_f = bev_create_ngon(
-          bm, center_verts, n_bndv, center_face_interps, frep, center_edge_snaps, mat_nr, true);
-      update_uv_context(bp, cen_f, frep, center_face_interps, bv->v, nullptr);
+      BMFace *cen_f = bev_create_ngon(bp,
+                                      bm,
+                                      center_verts,
+                                      n_bndv,
+                                      center_face_interps,
+                                      frep,
+                                      center_edge_snaps,
+                                      bv->v,
+                                      nullptr,
+                                      mat_nr,
+                                      true);
       record_face_kind(bp, cen_f, F_VERT);
     }
     else {
@@ -5837,11 +5852,14 @@ static void bevel_build_cutoff(BevelParams *bp, BMesh *bm, BevVert *bv)
 
     /* Create the profile cutoff face for this boundvert. */
     // repface = boundvert_rep_face(bndv, nullptr);
-    bev_create_ngon(bm,
+    bev_create_ngon(bp,
+                    bm,
                     face_bmverts,
                     bp->seg + 2 + build_center_face,
                     nullptr,
                     nullptr,
+                    nullptr,
+                    bv->v,
                     nullptr,
                     bp->mat_nr,
                     true);
@@ -5855,7 +5873,17 @@ static void bevel_build_cutoff(BevelParams *bp, BMesh *bm, BevVert *bv)
       face_bmverts[i] = mesh_vert(bv->vmesh, i, 1, 0)->v;
     }
 
-    bev_create_ngon(bm, face_bmverts, n_bndv, nullptr, nullptr, nullptr, bp->mat_nr, true);
+    bev_create_ngon(bp,
+                    bm,
+                    face_bmverts,
+                    n_bndv,
+                    nullptr,
+                    nullptr,
+                    nullptr,
+                    bv->v,
+                    nullptr,
+                    bp->mat_nr,
+                    true);
   }
 }
 
@@ -5919,9 +5947,17 @@ static BMFace *bevel_build_poly(BevelParams *bp, BMesh *bm, BevVert *bv)
 
   BMFace *f;
   if (n > 2) {
-    f = bev_create_ngon(
-        bm, bmverts.data(), n, bmfaces.data(), repface, bmedges.data(), bp->mat_nr, true);
-    update_uv_context(bp, f, repface, bmfaces.data(), bv->v, nullptr);
+    f = bev_create_ngon(bp,
+                        bm,
+                        bmverts.data(),
+                        n,
+                        bmfaces.data(),
+                        repface,
+                        bmedges.data(),
+                        bv->v,
+                        nullptr,
+                        bp->mat_nr,
+                        true);
     record_face_kind(bp, f, F_VERT);
   }
   else {
@@ -6836,13 +6872,13 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
     else {
       vv.append(l->v);
       ee.append(l->e);
-      nv_bv_map.add(l->v, l->v); // We keep the old vertex, i.e. mapping to itself.
+      nv_bv_map.add(l->v, l->v);  // We keep the old vertex, i.e. mapping to itself.
     }
   }
   if (do_rebuild) {
     const int64_t n = vv.size();
-    BMFace *f_new = bev_create_ngon(bm, vv.data(), n, nullptr, f, nullptr, -1, true);
-    update_uv_context(bp, f_new, f, nullptr, nullptr, &nv_bv_map);
+    BMFace *f_new = bev_create_ngon(
+        bp, bm, vv.data(), n, nullptr, f, nullptr, nullptr, &nv_bv_map, -1, true);
 
     /* Copy attributes from old edges. */
     BLI_assert(n == ee.size());
@@ -6899,7 +6935,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
   return do_rebuild;
 }
 
-/* All polygons touching v need rebuilding because beveling v has made new vertices. */
+/* All polygons touching `v` need rebuilding because beveling `v` has made new vertices. */
 static void bevel_rebuild_existing_polygons(BMesh *bm,
                                             BevelParams *bp,
                                             BMVert *v,
@@ -6908,9 +6944,9 @@ static void bevel_rebuild_existing_polygons(BMesh *bm,
   BMIter iter;
   BMFace *f;
   BM_ITER_ELEM (f, &iter, v, BM_FACES_OF_VERT) {
-    /* Cleanup of original mesh faces which are being rebuild is deferred thus we have to perform a
-     * check against `rebuilt_orig_faces` container because previous calls to
-     * `bevel_rebuild_existing_polygons` could have already rebuilt them. */
+    /* Deletion of original mesh faces that are being rebuild is deferred thus we have to perform
+     * a check against `rebuilt_orig_faces` container - previous calls to
+     * `bevel_rebuild_existing_polygons` could have already rebuilt faces touching vertex `v`. */
     if (!rebuilt_orig_faces.contains(f)) {
       if (bev_rebuild_polygon(bm, bp, f)) {
         rebuilt_orig_faces.add(f);
@@ -7123,13 +7159,13 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
           edges[0] = edges[1] = bme;
           edges[2] = edges[3] = nullptr;
         }
-        r_f = bev_create_ngon(bm, verts, 4, nullptr, f_choice, edges, mat_nr, true);
-        update_uv_context(bp, r_f, f_choice, nullptr, nullptr, &nv_bv_map);
+        r_f = bev_create_ngon(
+            bp, bm, verts, 4, nullptr, f_choice, edges, nullptr, &nv_bv_map, mat_nr, true);
       }
       else {
         /* Straddles but not a seam: interpolate left half in f1, right half in f2. */
-        r_f = bev_create_ngon(bm, verts, 4, faces, f_choice, nullptr, mat_nr, true);
-        update_uv_context(bp, r_f, f_choice, faces, nullptr, &nv_bv_map);
+        r_f = bev_create_ngon(
+            bp, bm, verts, 4, faces, f_choice, nullptr, nullptr, &nv_bv_map, mat_nr, true);
       }
     }
     else if (odd && k == center_adj_k && e1->is_seam) {
@@ -7149,28 +7185,28 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
         edges[2] = edges[3] = nullptr;
         f_interp = f2;
       }
-      r_f = bev_create_ngon(bm, verts, 4, nullptr, f_interp, edges, mat_nr, true);
-      update_uv_context(bp, r_f, f_interp, nullptr, nullptr, &nv_bv_map);
+      r_f = bev_create_ngon(
+          bp, bm, verts, 4, nullptr, f_interp, edges, nullptr, &nv_bv_map, mat_nr, true);
     }
     else if (!odd && k == mid) {
       /* Left poly that touches an even center line on right. */
       BMEdge *edges[4] = {nullptr, nullptr, bme, bme};
-      r_f = bev_create_ngon(bm, verts, 4, nullptr, f1, edges, mat_nr, true);
-      update_uv_context(bp, r_f, f1, nullptr, nullptr, &nv_bv_map);
+      r_f = bev_create_ngon(
+          bp, bm, verts, 4, nullptr, f1, edges, nullptr, &nv_bv_map, mat_nr, true);
       center_bme = BM_edge_exists(verts[2], verts[3]);
       BLI_assert(center_bme != nullptr);
     }
     else if (!odd && k == mid + 1) {
       /* Right poly that touches an even center line on left. */
       BMEdge *edges[4] = {bme, bme, nullptr, nullptr};
-      r_f = bev_create_ngon(bm, verts, 4, nullptr, f2, edges, mat_nr, true);
-      update_uv_context(bp, r_f, f2, nullptr, nullptr, &nv_bv_map);
+      r_f = bev_create_ngon(
+          bp, bm, verts, 4, nullptr, f2, edges, nullptr, &nv_bv_map, mat_nr, true);
     }
     else {
       /* Doesn't cross or touch the center line, so interpolate in appropriate f1 or f2. */
       BMFace *f = (k <= mid) ? f1 : f2;
-      r_f = bev_create_ngon(bm, verts, 4, nullptr, f, nullptr, mat_nr, true);
-      update_uv_context(bp, r_f, f, nullptr, nullptr, &nv_bv_map);
+      r_f = bev_create_ngon(
+          bp, bm, verts, 4, nullptr, f, nullptr, nullptr, &nv_bv_map, mat_nr, true);
     }
     record_face_kind(bp, r_f, F_EDGE);
     /* Tag the long edges: those out of verts[0] and verts[2]. */
@@ -7918,7 +7954,7 @@ void BM_mesh_bevel(BMesh *bm,
 
   bp.face_hash = BLI_ghash_ptr_new(__func__);
   BLI_ghash_flag_set(bp.face_hash, GHASH_FLAG_ALLOW_DUPES);
-  bp.uvface_hash = BLI_ghash_ptr_new(__func__);
+  bp.uv_face_hash = BLI_ghash_ptr_new(__func__);
 
   math_layer_info_init(&bp, bm);
   uv_vert_map_init(&bp, bm);
@@ -7927,10 +7963,10 @@ void BM_mesh_bevel(BMesh *bm,
   BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
     if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
       bv = bevel_vert_construct(bm, &bp, v);
-      determine_uv_vert_connectivity(&bp, bm, v);
       if (!limit_offset && bv) {
         build_boundary(&bp, bv, true);
       }
+      determine_uv_vert_connectivity(&bp, bm, v);
     }
   }
 
@@ -8050,7 +8086,7 @@ void BM_mesh_bevel(BMesh *bm,
   /* Primary free. */
   BLI_ghash_free(bp.vert_hash, nullptr, nullptr);
   BLI_ghash_free(bp.face_hash, nullptr, nullptr);
-  BLI_ghash_free(bp.uvface_hash, nullptr, nullptr);
+  BLI_ghash_free(bp.uv_face_hash, nullptr, nullptr);
   BLI_memarena_free(bp.mem_arena);
 
 #ifdef BEVEL_DEBUG_TIME
