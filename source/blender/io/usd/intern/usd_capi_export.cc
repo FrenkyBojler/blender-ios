@@ -448,8 +448,6 @@ static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &s
       proto_prim.SetDocumentation(doc_message);
     }
   }
-
-  stage->GetRootLayer()->Save();
 }
 
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,

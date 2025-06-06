@@ -14,6 +14,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -155,7 +156,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
       prim.GetReferences().AddReference(pxr::SdfReference("", source_path));
       new_proto_paths_str.push_back(proto_path);
 
-      std::string ob_name = obj->id.name;
+      std::string ob_name = BKE_id_name(obj->id);
       proto_index_map[ob_name] = iter;
       proto_path_map[ob_name] = proto_path;
 
@@ -180,11 +181,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
     switch (reference.type()) {
       case bke::InstanceReference::Type::Object: {
         Object &object = reference.object();
-        std::string raw_name = object.id.name;
-        if (raw_name.rfind("OB", 0) == 0) {
-          raw_name = raw_name.substr(2);
-        }
-        std::string ob_name = "OB" + std::string(raw_name);
+        std::string ob_name = BKE_id_name(object.id);
 
         if (proto_index_map.find(ob_name) != proto_index_map.end()) {
           proto_indices.push_back(proto_index_map[ob_name]);
@@ -194,11 +191,8 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
       case bke::InstanceReference::Type::Collection: {
         Collection &collection = reference.collection();
         FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
-          std::string raw_name = object->id.name;
-          if (raw_name.rfind("OB", 0) == 0) {
-            raw_name = raw_name.substr(2);
-          }
-          std::string ob_name = "OB" + std::string(raw_name);
+          std::string ob_name = BKE_id_name(object->id);
+
           if (proto_index_map.find(ob_name) != proto_index_map.end()) {
             proto_indices.push_back(proto_index_map[ob_name]);
           }
@@ -208,11 +202,8 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
       }
       case bke::InstanceReference::Type::GeometrySet: {
         bke::GeometrySet geometry_set = reference.geometry_set();
-        std::string raw_name = geometry_set.name;
-        if (raw_name.rfind("OB", 0) == 0) {
-          raw_name = raw_name.substr(2);
-        }
-        std::string set_name = "OB" + raw_name;
+        std::string set_name = geometry_set.name;
+
         if (proto_index_map.find(set_name) != proto_index_map.end()) {
           proto_indices.push_back(proto_index_map[set_name]);
 

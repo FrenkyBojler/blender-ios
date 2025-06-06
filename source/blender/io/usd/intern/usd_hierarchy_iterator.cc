@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
@@ -418,16 +419,7 @@ USDExporterContext USDHierarchyIterator::create_point_instancer_context(
     const HierarchyContext *context, const USDExporterContext &usd_export_context)
 {
   BLI_assert(context && context->object);
-
-  std::string raw_name = context->object->id.name;
-
-  /* Blender automatically prefixes object ID names with "OB" (e.g., "OBCube"). To get the actual
-   * object name, we strip the "OB" prefix. */
-  if (raw_name.rfind("OB", 0) == 0) {
-    raw_name = raw_name.substr(2);
-  }
-
-  std::string base_name = raw_name + "_base";
+  std::string base_name = std::string(BKE_id_name(context->object->id)).append("_base");
   std::string safe_name = make_safe_name(base_name,
                                          usd_export_context.export_params.allow_unicode);
 
