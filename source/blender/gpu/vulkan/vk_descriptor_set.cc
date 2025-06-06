@@ -608,7 +608,8 @@ void VKDescriptorBufferUpdator::bind_texel_buffer(VKVertexBuffer &vertex_buffer,
       VK_STRUCTURE_TYPE_DESCRIPTOR_ADDRESS_INFO_EXT,
       nullptr,
       vk_device_address,
-      vertex_buffer.size_used_get()};
+      vertex_buffer.size_used_get(),
+      vertex_buffer.to_vk_format()};
 
   VkDescriptorGetInfoEXT vk_descriptor_get_info{
       VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT, nullptr, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER};
