@@ -55,6 +55,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
@@ -1025,8 +1026,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         bool has_truncated_slot_identifer = false;
         bAction *act = reinterpret_cast<bAction *>(id_iter);
         for (int i = 0; i < act->slot_array_num; i++) {
-          if (!std::memchr(act->slot_array[i]->identifier, '\0', MAX_ID_NAME)) {
-            act->slot_array[i]->identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(act->slot_array[i]->identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long action slot name to '%s'",
@@ -1067,8 +1067,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
             return true;
           }
           bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
-          if (!std::memchr(constraint_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
-            constraint_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(constraint_data->last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long bActionConstraint.last_slot_identifier to '%s'",
@@ -1093,15 +1092,13 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
       default: {
         AnimData *anim_data = BKE_animdata_from_id(id_iter);
         if (anim_data) {
-          if (!std::memchr(anim_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
-            anim_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(anim_data->last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long AnimData.last_slot_identifier to '%s'",
                       anim_data->last_slot_identifier);
           }
-          if (!std::memchr(anim_data->tmp_last_slot_identifier, '\0', MAX_ID_NAME)) {
-            anim_data->tmp_last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(anim_data->tmp_last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long AnimData.tmp_last_slot_identifier to '%s'",
@@ -1109,8 +1106,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           }
 
           blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
-            if (!std::memchr(strip->last_slot_identifier, '\0', MAX_ID_NAME)) {
-              strip->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+            if (BLI_str_utf8_truncate_at_size(strip->last_slot_identifier, MAX_ID_NAME)) {
               CLOG_INFO(&LOG,
                         4,
                         "Truncated too long NlaStrip.last_slot_identifier to '%s'",
@@ -1969,18 +1965,17 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
   if (!id) {
     return id;
   }
-  if (std::memchr(id->name, '\0', MAX_ID_NAME)) {
-    return id;
-  }
 
   /* Invalid ID name (probably from 'too long' ID name from a future Blender version).
    *
    * They can only be truncated here, ensuring that all ID names remain unique happens later, after
    * reading all local IDs, but before linking them, see the call to
    * #long_id_names_ensure_unique_id_names in #blo_read_file_internal. */
-  id->name[MAX_ID_NAME - 1] = '\0';
-  fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
-  CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
+  if (BLI_str_utf8_truncate_at_size(id->name + 2, MAX_ID_NAME - 2)) {
+    fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
+    CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
+  }
+
   return id;
 }
 
