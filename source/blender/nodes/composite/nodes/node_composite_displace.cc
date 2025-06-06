@@ -143,7 +143,6 @@ class DisplaceOperation : public NodeOperation {
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
-    output.get_realization_options().interpolation = interpolation;
 
     /* In order to perform EWA sampling, we need to compute the partial derivative of the displaced
      * coordinates along the x and y directions using a finite difference approximation. But in
