@@ -277,6 +277,10 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   BKE_previewimg_blend_write(writer, brush->preview);
+
+  /* Restore original values after writing, so current working file is not affected. */
+  brush->size /= 2;
+  brush->unprojected_radius /= 2.0;
 }
 
 static void brush_blend_read_data(BlendDataReader *reader, ID *id)

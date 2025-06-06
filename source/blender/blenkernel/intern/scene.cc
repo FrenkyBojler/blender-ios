@@ -1169,6 +1169,10 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
+
+  /* Restore original values after writing, so current working file is not affected. */
+  tos->unified_paint_settings.size /= 2;
+  tos->unified_paint_settings.unprojected_radius /= 2.0f;
 }
 
 static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)
