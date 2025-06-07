@@ -4188,14 +4188,14 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
 
   Vector<PackIsland *> pack_island_vector;
 
-  for (const int index : IndexRange(handle->ncharts)) {
-    PChart *chart = handle->charts[index];
+  for (int i = 0; i < handle->ncharts; i++) {
+    PChart *chart = handle->charts[i];
     if (params.pin_method == ED_UVPACK_PIN_NONE && chart->has_pins) {
       continue;
     }
 
     geometry::PackIsland *pack_island = new geometry::PackIsland();
-    pack_island->caller_index = index;
+    pack_island->caller_index = i;
     pack_island->aspect_y = handle->aspect_y;
     pack_island->pinned = chart->has_pins;
 
@@ -4205,6 +4205,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
       PVert *v2 = f->edge->next->next->vert;
       pack_island->add_triangle(v0->uv, v1->uv, v2->uv);
     }
+
     pack_island_vector.append(pack_island);
   }
 
@@ -4220,6 +4221,7 @@ void uv_parametrizer_pack(ParamHandle *handle, const UVPackIsland_Params &params
     for (PVert *v = chart->verts; v; v = v->nextlink) {
       geometry::mul_v2_m2_add_v2v2(v->uv, matrix, v->uv, pack_island->pre_translate);
     }
+    
     pack_island_vector[i] = nullptr;
     delete pack_island;
   }
