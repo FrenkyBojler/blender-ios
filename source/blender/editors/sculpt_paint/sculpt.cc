@@ -7226,16 +7226,21 @@ void reset_translations_to_original(const MutableSpan<float3> translations,
   }
 }
 
+/** Helper function to assert on translations that attempt to propagate NaN */
+static bool contains_nan(const Span<float> values)
+{
+  return std::any_of(values.begin(), values.end(), [&](const float v) { return std::isnan(v); });
+}
+
 void apply_translations(const Span<float3> translations,
                         const Span<int> verts,
                         const MutableSpan<float3> positions)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
-    BLI_assert(!std::isnan(translations[i].x) && !std::isnan(translations[i].y) &&
-               !std::isnan(translations[i].z));
     positions[vert] += translations[i];
   }
 }
@@ -7247,14 +7252,12 @@ void apply_translations(const Span<float3> translations,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   MutableSpan<float3> positions = subdiv_ccg.positions;
   BLI_assert(grids.size() * key.grid_area == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : grids.index_range()) {
     const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
     MutableSpan<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grids[i]));
     for (const int offset : grid_positions.index_range()) {
-      BLI_assert(!std::isnan(grid_translations[offset].x) &&
-                 !std::isnan(grid_translations[offset].y) &&
-                 !std::isnan(grid_translations[offset].z));
       grid_positions[offset] += grid_translations[offset];
     }
   }
@@ -7263,12 +7266,11 @@ void apply_translations(const Span<float3> translations,
 void apply_translations(const Span<float3> translations, const Set<BMVert *, 0> &verts)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   int i = 0;
   for (BMVert *vert : verts) {
     add_v3_v3(vert->co, translations[i]);
-    BLI_assert(!std::isnan(translations[i].x) && !std::isnan(translations[i].y) &&
-               !std::isnan(translations[i].z));
     i++;
   }
 }
