@@ -439,6 +439,9 @@ enum class BuiltinBits {
   /* Not a builtin but a flag we use to tag shaders that use the debug features. */
   USE_PRINTF = (1 << 28),
   USE_DEBUG_DRAW = (1 << 29),
+
+  /* Shader source needs to be implemented at runtime. */
+  RUNTIME_GENERATED = (1 << 30),
 };
 ENUM_OPERATORS(BuiltinBits, BuiltinBits::USE_DEBUG_DRAW);
 
@@ -622,7 +625,7 @@ struct StageInterfaceInfo {
 
 /** Sources from generated code. Map source name to content. */
 struct GeneratedSource {
-  Vector<std::string> dependencies;
+  Vector<StringRefNull> dependencies;
   std::string content;
 };
 using GeneratedSourceMap = Map<StringRefNull, GeneratedSource>;
@@ -668,7 +671,7 @@ struct ShaderCreateInfo {
   Vector<StringRefNull, 0> dependencies_generated;
 
   /* TODO(fclem): Make it a pointer. */
-  GeneratedSourceMap generated_sources_;
+  GeneratedSourceMap generated_sources;
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \

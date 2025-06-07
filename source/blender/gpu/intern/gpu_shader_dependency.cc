@@ -111,6 +111,8 @@ struct GPUSource {
 #else
         return BuiltinBits::NONE;
 #endif
+      case Builtin::runtime_generated:
+        return BuiltinBits::RUNTIME_GENERATED;
     }
     BLI_assert_unreachable();
     return BuiltinBits::NONE;
@@ -353,13 +355,26 @@ struct GPUSource {
       }
     }
 
-    if (!this->generated) {
+    if (!bool(this->builtins & shader::BuiltinBits::RUNTIME_GENERATED)) {
       result.append(this->source);
       return;
     }
 
-    BLI_assert(generated_sources);
-    const auto &source = generated_sources->lookup(this->filename);
+    if (generated_sources == nullptr) {
+      std::string warn = std::string("warn: Generated source not provided. Using fallback for ") +
+                         this->filename;
+      result.append(this->source);
+      return;
+    }
+
+    const auto &source = generated_sources->lookup_default(this->filename, {});
+
+    if (source.content.empty()) {
+      std::string warn = std::string("warn: Generated source not provided. Using fallback for ") +
+                         this->filename;
+      result.append(this->source);
+      return;
+    }
 
     for (auto dependency_name : source.dependencies) {
       BLI_assert_msg(dependency_name != this->filename, "Recursive include");
@@ -374,7 +389,7 @@ struct GPUSource {
       dependency_source->build(result, generated_sources, dict);
     }
 
-    result.append(this->source);
+    result.append(source.content);
   }
 
   /* Returns the final string with all includes done. */
