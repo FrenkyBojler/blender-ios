@@ -107,8 +107,8 @@ struct uiLayout : uiItem {
   bool active() const;
   /**
    * Sets the active state of the layout and its items.
-   * When false the layout and its buttons are grayed out, buttons are still editable but generally
-   * they will not have an active use.
+   * When false the layout and its buttons are grayed out, user can still interact with them but
+   * generally they will not have an active use.
    */
   void active_set(bool active);
 
