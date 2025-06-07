@@ -105,6 +105,11 @@ struct uiLayout : uiItem {
 
  public:
   bool active() const;
+  /**
+   * Sets the active state of the layout and its items.
+   * When false the layout and its buttons are grayed out, buttons are still editable but generally
+   * they will not have an active use.
+   */
   void active_set(bool active);
 
   blender::ui::EmbossType emboss() const;
