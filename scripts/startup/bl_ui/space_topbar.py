@@ -60,10 +60,6 @@ class TOPBAR_HT_upper_bar(Header):
             row.operator("screen.userpref_show", text="", icon='OUTLINER', depress=True)
             row.operator("screen.userpref_show", text="", icon='ASSET_MANAGER', emboss=False)
             row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
-            row.separator(type='LINE')
-            row.operator("screen.userpref_show", text="", icon='TIME', emboss=False)
-            row.operator("screen.userpref_show", text="", icon='CONSOLE', emboss=False)
-            row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
             return
 
         # Active workspace view-layer is retrieved through window, not through workspace.
