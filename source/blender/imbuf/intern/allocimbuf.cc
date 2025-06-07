@@ -335,11 +335,8 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pi
     return false;
   }
 
-  /* NOTE: Follows the historical code.
-   * Is unclear if it is desired or not to free mipmaps. If mipmaps are to be preserved a simple
-   * `imb_free_buffer(ibuf->float_buffer)` can be used instead. */
   if (ibuf->float_buffer.data) {
-    IMB_free_float_pixels(ibuf); /* frees mipmap too, hrm */
+    IMB_free_float_pixels(ibuf);
   }
 
   if (!imb_alloc_buffer(
@@ -362,8 +359,6 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
-  /* Don't call IMB_free_byte_pixels, it frees mipmaps,
-   * this call is used only too give float buffers display. */
   imb_free_buffer(ibuf->byte_buffer);
 
   if (!imb_alloc_buffer(

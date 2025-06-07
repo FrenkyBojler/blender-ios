@@ -69,8 +69,6 @@
     .cropymin = 0.0, \
     .cropxmax = 1.0, \
     .cropymax = 1.0, \
-    .texfilter = TXF_EWA, \
-    .afmax = 8, \
     .xrepeat = 1, \
     .yrepeat = 1, \
     .sfra = 1, \
