@@ -22,7 +22,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpu_shader_2D_node_socket_inst)
 float square_sdf(float2 absCo, float2 half_size)
 {
   float2 extruded_co = absCo - half_size;
-  float2 clamped_extruded_co = max(float2(0.0f), extruded_co);
+  float2 clamped_extruded_co = float2(max(0.0f, extruded_co.x), max(0.0f, extruded_co.y));
 
   float exterior_distance_squared = dot(clamped_extruded_co, clamped_extruded_co);
 
@@ -49,7 +49,7 @@ float2 calculate_thresholds(float threshold)
 void main()
 {
   float2 absUV = abs(uv);
-  float2 co = max(absUV.xy - extrusion.xy, float2(0.0f));
+  float2 co = float2(max(absUV.x - extrusion.x, 0.0f), max(absUV.y - extrusion.y, 0.0f));
 
   float distance_squared = 0.0f;
   float alpha_threshold = 0.0f;
