@@ -1,3 +1,4 @@
 Referenced by pull request #139965, Fix #139969: Clay Strips brush can corrupt mesh
 Referenced by issue #139980, Blender displays a 'Blender stopped working' error message
 Referenced by pull request #139977, Fix: Silence warning in `BKE_brush_calc_curve_factors`
+Referenced by pull request #133992, Sculpt: Assert when applying a translation that contains NaN
