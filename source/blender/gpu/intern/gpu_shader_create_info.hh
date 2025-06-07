@@ -15,6 +15,7 @@
 
 #if !defined(GPU_SHADER)
 #  include "BLI_hash.hh"
+#  include "BLI_map.hh"
 #  include "BLI_string_ref.hh"
 #  include "BLI_utildefines_variadic.h"
 #  include "BLI_vector.hh"
@@ -285,6 +286,10 @@
   GPU_SHADER_CREATE_END()
 
 #if !defined(GLSL_CPP_STUBS)
+
+namespace blender::gpu {
+struct GPUSource;
+}
 
 namespace blender::gpu::shader {
 
@@ -615,6 +620,13 @@ struct StageInterfaceInfo {
   }
 };
 
+/** Sources from generated code. Map source name to content. */
+struct GeneratedSource {
+  Vector<std::string> dependencies;
+  std::string content;
+};
+using GeneratedSourceMap = Map<StringRefNull, GeneratedSource>;
+
 /**
  * \brief Describe inputs & outputs, stage interfaces, resources and sources of a shader.
  *        If all data is correctly provided, this is all that is needed to create and compile
@@ -654,6 +666,9 @@ struct ShaderCreateInfo {
   std::string typedef_source_generated;
   /** Manually set generated dependencies. */
   Vector<StringRefNull, 0> dependencies_generated;
+
+  /* TODO(fclem): Make it a pointer. */
+  GeneratedSourceMap generated_sources_;
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \

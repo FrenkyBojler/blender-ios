@@ -59,6 +59,9 @@ struct GPUSource {
   Vector<GPUSource *> dependencies;
   bool dependencies_init = false;
   shader::BuiltinBits builtins = shader::BuiltinBits::NONE;
+  /* True if this file content is supposed to be generated at runtime. */
+  bool generated = false;
+  int d[sizeof(shader::ShaderCreateInfo::dependencies_generated)];
 
   /* NOTE: The next few functions are needed to keep isolation of the preprocessor.
    * Eventually, this should be revisited and the preprocessor should output
@@ -297,8 +300,7 @@ struct GPUSource {
   }
 
   /* Return 1 one error. */
-  int init_dependencies(const GPUSourceDictionnary &dict,
-                        const GPUFunctionDictionnary &g_functions)
+  int init_dependencies(const GPUSourceDictionnary &dict)
   {
     if (this->dependencies_init) {
       return 0;
@@ -323,7 +325,7 @@ struct GPUSource {
       }
 
       /* Recursive. */
-      int result = dependency_source->init_dependencies(dict, g_functions);
+      int result = dependency_source->init_dependencies(dict);
       if (result != 0) {
         return 1;
       }
@@ -337,13 +339,53 @@ struct GPUSource {
     return 0;
   }
 
+  void source_get(Vector<StringRefNull> &result,
+                  const shader::GeneratedSourceMap *generated_sources,
+                  const GPUSourceDictionnary &dict) const
+  {
+    /* Check if this file was already included. */
+    for (const StringRefNull &source_content : result) {
+      /* Yes, compare pointer instead of string for speed.
+       * Each source is guaranteed to be unique and non-moving during the building process. */
+      if (source_content.c_str() == this->source.c_str()) {
+        /* Already included. */
+        return;
+      }
+    }
+
+    if (!this->generated) {
+      result.append(this->source);
+      return;
+    }
+
+    BLI_assert(generated_sources);
+    const auto &source = generated_sources->lookup(this->filename);
+
+    for (auto dependency_name : source.dependencies) {
+      BLI_assert_msg(dependency_name != this->filename, "Recursive include");
+
+      GPUSource *dependency_source = dict.lookup_default(dependency_name, nullptr);
+      if (dependency_source == nullptr) {
+        /* Will certainly fail compilation. But avoid crashing the application. */
+        std::string error = std::string("Generated dependency not found : ") + dependency_name;
+        std::cerr << error << std::endl;
+        continue;
+      }
+      dependency_source->build(result, generated_sources, dict);
+    }
+
+    result.append(this->source);
+  }
+
   /* Returns the final string with all includes done. */
-  void build(Vector<StringRefNull> &result) const
+  void build(Vector<StringRefNull> &result,
+             const shader::GeneratedSourceMap *generated_sources,
+             const GPUSourceDictionnary &dict) const
   {
     for (auto *dep : dependencies) {
-      result.append(dep->source);
+      dep->source_get(result, generated_sources, dict);
     }
-    result.append(source);
+    source_get(result, generated_sources, dict);
   }
 
   shader::BuiltinBits builtins_get() const
@@ -422,7 +464,7 @@ void gpu_shader_dependency_init()
 
   int errors = 0;
   for (auto *value : g_sources->values()) {
-    errors += value->init_dependencies(*g_sources, *g_functions);
+    errors += value->init_dependencies(*g_sources);
   }
   BLI_assert_msg(errors == 0, "Dependency errors detected: Aborting");
   UNUSED_VARS_NDEBUG(errors);
@@ -515,14 +557,14 @@ BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull shader_source
 }
 
 Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
-    const StringRefNull shader_source_name)
+    const StringRefNull shader_source_name, const GeneratedSourceMap *generated_sources)
 {
   Vector<StringRefNull> result;
   GPUSource *src = g_sources->lookup_default(shader_source_name, nullptr);
   if (src == nullptr) {
     std::cerr << "Error source not found : " << shader_source_name << std::endl;
   }
-  src->build(result);
+  src->build(result, generated_sources, *g_sources);
   return result;
 }
 
