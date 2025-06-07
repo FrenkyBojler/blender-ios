@@ -946,6 +946,20 @@ class IMAGE_HT_header(Header):
             row.prop(sima, "display_channels", icon_only=True)
 
 
+class IMAGE_MT_render(Menu):
+    bl_label = "Render"
+
+    def draw(self, context):
+        layout = self.layout
+
+        rd = context.scene.render
+
+        layout.operator("render.render", text="Render Image", icon='RENDER_STILL').use_viewport = True
+        props = layout.operator("render.render", text="Render Animation", icon='RENDER_ANIMATION')
+        props.animation = True
+        props.use_viewport = True
+
+
 class IMAGE_MT_editor_menus(Menu):
     bl_idname = "IMAGE_MT_editor_menus"
     bl_label = ""
@@ -959,6 +973,7 @@ class IMAGE_MT_editor_menus(Menu):
         show_maskedit = sima.show_maskedit
 
         layout.menu("IMAGE_MT_view")
+        layout.menu("IMAGE_MT_render")
 
         if show_uvedit:
             layout.menu("IMAGE_MT_select")
@@ -1798,6 +1813,7 @@ classes = (
     IMAGE_MT_view_zoom,
     IMAGE_MT_select,
     IMAGE_MT_select_linked,
+    IMAGE_MT_render,
     IMAGE_MT_image,
     IMAGE_MT_image_transform,
     IMAGE_MT_image_invert,

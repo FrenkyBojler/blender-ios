@@ -162,7 +162,7 @@ class TOPBAR_MT_editor_menus(Menu):
 
             layout.operator("screen.userpref_show", text="", icon='IMAGE', emboss=False)
             layout.operator("screen.userpref_show", text="", icon='VIEW3D', depress=True)
-            layout.menu("TOPBAR_MT_render", text="", icon='RESTRICT_RENDER_OFF')
+            layout.operator("render.render", text="", icon='RESTRICT_RENDER_OFF').use_viewport = True
             layout.operator("screen.userpref_show", text="", icon='PREFERENCES', emboss=False)
             layout.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
 
