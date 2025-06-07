@@ -119,7 +119,6 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   /* Load data */
   const uint dir_offset = node.y;
   const uint out_offset = node.z;
-  const int sky_model = node.w;
 
   const float3 dir = stack_load_float3(stack, dir_offset);
   float3 f;
