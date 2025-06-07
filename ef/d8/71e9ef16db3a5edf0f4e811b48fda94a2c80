@@ -1,2 +1,3 @@
 Referenced by issue #134138, USD: Implement new schemas for DomeLights and Shapes
 Referenced by issue #139670, Regression: Cycles CPU+GPU Crash rendering hair
+Referenced by issue #139869, Blender runs but is permanently stuck at its "loading phase"
