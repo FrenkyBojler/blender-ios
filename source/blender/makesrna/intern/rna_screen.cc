@@ -731,7 +731,8 @@ static void rna_def_screen(BlenderRNA *brna)
 
   func = RNA_def_function(srna, "primary_area", "rna_Screen_primary_area_get");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-  parm = RNA_def_enum(func, "primary_area", rna_enum_space_type_items, SPACE_VIEW3D, "Primary Area", "");
+  parm = RNA_def_enum(
+      func, "primary_area", rna_enum_space_type_items, SPACE_VIEW3D, "Primary Area", "");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
   RNA_def_function_return(func, parm);
 

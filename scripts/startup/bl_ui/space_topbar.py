@@ -59,8 +59,14 @@ class TOPBAR_HT_upper_bar(Header):
             secondary_area = screen.secondary_area()
 
             row = layout.row(align=True)
-            row.operator("screen.userpref_show", text="", icon='PROPERTIES', depress=(secondary_area == 'PROPERTIES'), emboss=(secondary_area == 'PROPERTIES'))
-            row.operator("screen.userpref_show", text="", icon='OUTLINER', depress=(secondary_area == 'OUTLINER'), emboss=(secondary_area == 'OUTLINER'))
+            row.operator(
+                "screen.userpref_show", text="", icon='PROPERTIES', depress=(
+                    secondary_area == 'PROPERTIES'), emboss=(
+                    secondary_area == 'PROPERTIES'))
+            row.operator(
+                "screen.userpref_show", text="", icon='OUTLINER', depress=(
+                    secondary_area == 'OUTLINER'), emboss=(
+                    secondary_area == 'OUTLINER'))
             row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
             return
 
@@ -165,10 +171,19 @@ class TOPBAR_MT_editor_menus(Menu):
 
             primary_area = screen.primary_area()
 
-            layout.operator("screen.userpref_show", text="", icon='IMAGE', depress=(primary_area == 'IMAGE_EDITOR'), emboss=(primary_area == 'IMAGE_EDITOR'))
-            layout.operator("screen.userpref_show", text="", icon='VIEW3D', depress=(primary_area == 'VIEW_3D'), emboss=(primary_area == 'VIEW_3D'))
+            layout.operator(
+                "screen.userpref_show", text="", icon='IMAGE', depress=(
+                    primary_area == 'IMAGE_EDITOR'), emboss=(
+                    primary_area == 'IMAGE_EDITOR'))
+            layout.operator(
+                "screen.userpref_show", text="", icon='VIEW3D', depress=(
+                    primary_area == 'VIEW_3D'), emboss=(
+                    primary_area == 'VIEW_3D'))
             layout.operator("render.render", text="", icon='RESTRICT_RENDER_OFF', emboss=False).use_viewport = True
-            layout.operator("screen.userpref_show", text="", icon='PREFERENCES', depress=(primary_area == 'PREFERENCES'), emboss=(primary_area == 'PREFERENCES'))
+            layout.operator(
+                "screen.userpref_show", text="", icon='PREFERENCES', depress=(
+                    primary_area == 'PREFERENCES'), emboss=(
+                    primary_area == 'PREFERENCES'))
             layout.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
 
 
