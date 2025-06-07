@@ -37,6 +37,8 @@
 
 #include <sys/stat.h>
 
+#include <BLI_set.hh>
+
 using namespace std;
 
 static CLG_LogRef LOG = {"ghost.vulkan"};
@@ -102,19 +104,6 @@ static const char *vulkan_error_as_string(VkResult result)
     } \
   } while (0)
 
-/* Check if the given extension name is in the extension_list.
- */
-static bool contains_extension(const vector<VkExtensionProperties> &extension_list,
-                               const char *extension_name)
-{
-  for (const VkExtensionProperties &extension_properties : extension_list) {
-    if (strcmp(extension_properties.extensionName, extension_name) == 0) {
-      return true;
-    }
-  }
-  return false;
-};
-
 /* -------------------------------------------------------------------- */
 /** \name Swap-chain resources
  * \{ */
@@ -157,7 +146,6 @@ void GHOST_Frame::destroy(VkDevice vk_device)
 
 class GHOST_DeviceVK {
  public:
-  VkInstance instance = VK_NULL_HANDLE;
   VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 
   VkDevice device = VK_NULL_HANDLE;
@@ -170,6 +158,7 @@ class GHOST_DeviceVK {
   VkPhysicalDeviceVulkan12Features features_12 = {};
   VkPhysicalDeviceRobustness2FeaturesEXT features_robustness2 = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
+  blender::Set<const char *> device_ext_available;
 
   int users = 0;
 
@@ -179,8 +168,8 @@ class GHOST_DeviceVK {
   bool use_vk_ext_swapchain_maintenance_1 = false;
 
  public:
-  GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
-      : instance(vk_instance), physical_device(vk_physical_device)
+  GHOST_DeviceVK() {}
+  GHOST_DeviceVK(VkPhysicalDevice vk_physical_device) : physical_device(vk_physical_device)
   {
     vkGetPhysicalDeviceProperties(physical_device, &properties);
 
@@ -192,6 +181,17 @@ class GHOST_DeviceVK {
     features_12.pNext = &features_robustness2;
 
     vkGetPhysicalDeviceFeatures2(physical_device, &features);
+
+    uint32_t ext_count;
+    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, nullptr);
+
+    vector<VkExtensionProperties> available_exts(ext_count);
+    vkEnumerateDeviceExtensionProperties(
+        physical_device, nullptr, &ext_count, available_exts.data());
+
+    for (const auto &ext : available_exts) {
+      device_ext_available.add(ext.extensionName);
+    }
   }
   ~GHOST_DeviceVK()
   {
@@ -209,58 +209,34 @@ class GHOST_DeviceVK {
 
   bool has_extensions(const vector<const char *> &required_extensions)
   {
-    uint32_t ext_count;
-    vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &ext_count, nullptr);
-
-    vector<VkExtensionProperties> available_exts(ext_count);
-    vkEnumerateDeviceExtensionProperties(
-        physical_device, nullptr, &ext_count, available_exts.data());
-
     for (const auto &extension_needed : required_extensions) {
-      bool found = false;
-      for (const auto &extension : available_exts) {
-        if (strcmp(extension_needed, extension.extensionName) == 0) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
+      if (!device_ext_available.contains(extension_needed)) {
         return false;
       }
     }
     return true;
   }
 
-  void ensure_device(vector<const char *> &required_extensions,
-                     vector<const char *> &optional_extensions)
+  GHOST_TSuccess ensure_device(const blender::Set<const char *> &required_extensions,
+                               const blender::Set<const char *> &optional_extensions)
   {
     if (device != VK_NULL_HANDLE) {
-      return;
+      return GHOST_kSuccess;
     }
     init_generic_queue_family();
 
     vector<VkDeviceQueueCreateInfo> queue_create_infos;
-    vector<const char *> device_extensions(required_extensions);
+    blender::Set<const char *> device_extensions(required_extensions);
     for (const char *optional_extension : optional_extensions) {
       const bool extension_found = has_extensions({optional_extension});
       if (extension_found) {
         CLOG_INFO(&LOG, 2, "enable optional extension: `%s`", optional_extension);
-        device_extensions.push_back(optional_extension);
+        device_extensions.add(optional_extension);
       }
       else {
         CLOG_INFO(&LOG, 2, "optional extension not found: `%s`", optional_extension);
       }
     }
-
-    /* Check if the given extension name will be enabled. */
-    auto extension_requested = [=](const char *extension_name) {
-      for (const char *device_extension_name : device_extensions) {
-        if (strcmp(device_extension_name, extension_name) == 0) {
-          return true;
-        }
-      }
-      return false;
-    };
 
     float queue_priorities[] = {1.0f};
     VkDeviceQueueCreateInfo graphic_queue_create_info = {};
@@ -285,12 +261,17 @@ class GHOST_DeviceVK {
     device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.samplerAnisotropy = features.features.samplerAnisotropy;
 
+    vector<const char *> device_extension_array;
+    for (const auto &device_extension : device_extensions) {
+      device_extension_array.push_back(device_extension);
+    }
+
     VkDeviceCreateInfo device_create_info = {};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     device_create_info.queueCreateInfoCount = uint32_t(queue_create_infos.size());
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
-    device_create_info.enabledExtensionCount = uint32_t(device_extensions.size());
-    device_create_info.ppEnabledExtensionNames = device_extensions.data();
+    device_create_info.enabledExtensionCount = uint32_t(device_extension_array.size());
+    device_create_info.ppEnabledExtensionNames = device_extension_array.data();
     device_create_info.pEnabledFeatures = &device_features;
 
     std::vector<void *> feature_struct_ptr;
@@ -360,7 +341,7 @@ class GHOST_DeviceVK {
     /* Swap-chain maintenance 1 is optional. */
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
-    if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+    if (device_extensions.contains(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&swapchain_maintenance_1);
       use_vk_ext_swapchain_maintenance_1 = true;
     }
@@ -381,7 +362,9 @@ class GHOST_DeviceVK {
     }
 
     device_create_info.pNext = feature_struct_ptr[0];
-    vkCreateDevice(physical_device, &device_create_info, nullptr, &device);
+    VK_CHECK(vkCreateDevice(physical_device, &device_create_info, nullptr, &device));
+
+    return GHOST_kSuccess;
   }
 
   void init_generic_queue_family()
@@ -408,114 +391,184 @@ class GHOST_DeviceVK {
   }
 };
 
+/* -------------------------------------------------------------------- */
+/** \name Vulkan Instance
+ * \{ */
+
+class GHOST_InstanceVK {
+ public:
+  uint32_t api_version = 0;
+  VkInstance instance = VK_NULL_HANDLE;
+  VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+  std::optional<GHOST_DeviceVK> device;
+
+ public:
+  GHOST_InstanceVK(uint32_t api_version) : api_version(api_version) {}
+  ~GHOST_InstanceVK()
+  {
+    if (instance != VK_NULL_HANDLE) {
+      vkDestroyInstance(instance, nullptr);
+    }
+  }
+
+  GHOST_TSuccess ensure_instance(const vector<const char *> &extensions)
+  {
+    if (instance != VK_NULL_HANDLE) {
+      return GHOST_kSuccess;
+    }
+
+    VkApplicationInfo app_info = {};
+    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    app_info.pApplicationName = "Blender";
+    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.pEngineName = "Blender";
+    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    app_info.apiVersion = api_version;
+
+    /* Create Instance */
+    VkInstanceCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    create_info.pApplicationInfo = &app_info;
+    create_info.enabledExtensionCount = uint32_t(extensions.size());
+    create_info.ppEnabledExtensionNames = extensions.data();
+
+#ifdef __APPLE__
+    create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+
+    VK_CHECK(vkCreateInstance(&create_info, nullptr, &instance));
+
+    return GHOST_kSuccess;
+  }
+
+  GHOST_TSuccess select_physical_device(VkSurfaceKHR vk_surface,
+                                        const GHOST_GPUDevice &preferred_device,
+                                        const vector<const char *> &required_extensions)
+  {
+    VkPhysicalDevice best_physical_device = VK_NULL_HANDLE;
+
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
+
+    vector<VkPhysicalDevice> physical_devices(device_count);
+    vkEnumeratePhysicalDevices(instance, &device_count, physical_devices.data());
+
+    int best_device_score = -1;
+    int device_index = -1;
+    for (const auto &physical_device : physical_devices) {
+      GHOST_DeviceVK device_vk(physical_device);
+      device_index++;
+
+      if (!device_vk.has_extensions(required_extensions)) {
+        continue;
+      }
+      if (!blender::gpu::GPU_vulkan_is_supported_driver(physical_device)) {
+        continue;
+      }
+
+      if (vk_surface != VK_NULL_HANDLE) {
+        uint32_t format_count;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(
+            device_vk.physical_device, vk_surface, &format_count, nullptr);
+
+        uint32_t present_count;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(
+            device_vk.physical_device, vk_surface, &present_count, nullptr);
+
+        /* For now anything will do. */
+        if (format_count == 0 || present_count == 0) {
+          continue;
+        }
+      }
+
+#ifdef __APPLE__
+      if (!device_vk.features.features.dualSrcBlend || !device_vk.features.features.imageCubeArray)
+      {
+        continue;
+      }
+#else
+      if (!device_vk.features.features.geometryShader ||
+          !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
+          !device_vk.features.features.imageCubeArray)
+      {
+        continue;
+      }
+#endif
+
+      int device_score = 0;
+      switch (device_vk.properties.deviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+          device_score = 400;
+          break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+          device_score = 300;
+          break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+          device_score = 200;
+          break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+          device_score = 100;
+          break;
+        default:
+          break;
+      }
+      /* User has configured a preferred device. Add bonus score when vendor and device match.
+       * Driver id isn't considered as drivers update more frequently and can break the device
+       * selection. */
+      if (device_vk.properties.deviceID == preferred_device.device_id &&
+          device_vk.properties.vendorID == preferred_device.vendor_id)
+      {
+        device_score += 500;
+        if (preferred_device.index == device_index) {
+          device_score += 10;
+        }
+      }
+      if (device_score > best_device_score) {
+        best_physical_device = physical_device;
+        best_device_score = device_score;
+      }
+    }
+
+    if (best_physical_device == VK_NULL_HANDLE) {
+      CLOG_ERROR(&LOG, "Error: No suitable Vulkan Device found!");
+      return GHOST_kFailure;
+    }
+
+    physical_device = best_physical_device;
+
+    return GHOST_kSuccess;
+  }
+
+  GHOST_TSuccess ensure_device(const blender::Set<const char *> &required_extensions,
+                               const blender::Set<const char *> &optional_extensions)
+  {
+    if (device.has_value()) {
+      return GHOST_kSuccess;
+    }
+
+    device.emplace(physical_device);
+
+    if (!device->ensure_device(required_extensions, optional_extensions)) {
+      return GHOST_kFailure;
+    }
+
+    return GHOST_kSuccess;
+  }
+};
+
+/** \} */
+
 /**
  * A shared device between multiple contexts.
  *
  * The logical device needs to be shared as multiple contexts can be created and the logical vulkan
  * device they share should be the same otherwise memory operations might be done on the incorrect
  * device.
+ *
+ * We keep the instance and the device together within the GHOST_InstanceVK.
+ *
  */
-static std::optional<GHOST_DeviceVK> vulkan_device;
-
-static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
-                                           VkSurfaceKHR vk_surface,
-                                           const GHOST_GPUDevice &preferred_device,
-                                           const vector<const char *> &required_extensions)
-{
-  if (vulkan_device.has_value()) {
-    return GHOST_kSuccess;
-  }
-
-  VkPhysicalDevice best_physical_device = VK_NULL_HANDLE;
-
-  uint32_t device_count = 0;
-  vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr);
-
-  vector<VkPhysicalDevice> physical_devices(device_count);
-  vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
-
-  int best_device_score = -1;
-  int device_index = -1;
-  for (const auto &physical_device : physical_devices) {
-    GHOST_DeviceVK device_vk(vk_instance, physical_device);
-    device_index++;
-
-    if (!device_vk.has_extensions(required_extensions)) {
-      continue;
-    }
-    if (!blender::gpu::GPU_vulkan_is_supported_driver(physical_device)) {
-      continue;
-    }
-
-    if (vk_surface != VK_NULL_HANDLE) {
-      uint32_t format_count;
-      vkGetPhysicalDeviceSurfaceFormatsKHR(
-          device_vk.physical_device, vk_surface, &format_count, nullptr);
-
-      uint32_t present_count;
-      vkGetPhysicalDeviceSurfacePresentModesKHR(
-          device_vk.physical_device, vk_surface, &present_count, nullptr);
-
-      /* For now anything will do. */
-      if (format_count == 0 || present_count == 0) {
-        continue;
-      }
-    }
-
-#ifdef __APPLE__
-    if (!device_vk.features.features.dualSrcBlend || !device_vk.features.features.imageCubeArray) {
-      continue;
-    }
-#else
-    if (!device_vk.features.features.geometryShader || !device_vk.features.features.dualSrcBlend ||
-        !device_vk.features.features.logicOp || !device_vk.features.features.imageCubeArray)
-    {
-      continue;
-    }
-#endif
-
-    int device_score = 0;
-    switch (device_vk.properties.deviceType) {
-      case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        device_score = 400;
-        break;
-      case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        device_score = 300;
-        break;
-      case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-        device_score = 200;
-        break;
-      case VK_PHYSICAL_DEVICE_TYPE_CPU:
-        device_score = 100;
-        break;
-      default:
-        break;
-    }
-    /* User has configured a preferred device. Add bonus score when vendor and device match. Driver
-     * id isn't considered as drivers update more frequently and can break the device selection. */
-    if (device_vk.properties.deviceID == preferred_device.device_id &&
-        device_vk.properties.vendorID == preferred_device.vendor_id)
-    {
-      device_score += 500;
-      if (preferred_device.index == device_index) {
-        device_score += 10;
-      }
-    }
-    if (device_score > best_device_score) {
-      best_physical_device = physical_device;
-      best_device_score = device_score;
-    }
-  }
-
-  if (best_physical_device == VK_NULL_HANDLE) {
-    CLOG_ERROR(&LOG, "Error: No suitable Vulkan Device found!");
-    return GHOST_kFailure;
-  }
-
-  vulkan_device.emplace(vk_instance, best_physical_device);
-
-  return GHOST_kSuccess;
-}
+static std::optional<GHOST_InstanceVK> vulkan_instance_device;
 
 /** \} */
 
@@ -566,19 +619,20 @@ GHOST_ContextVK::GHOST_ContextVK(bool stereoVisual,
 
 GHOST_ContextVK::~GHOST_ContextVK()
 {
-  if (vulkan_device.has_value()) {
-    GHOST_DeviceVK &device_vk = *vulkan_device;
+  if (vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value()) {
+    auto &device_vk = *vulkan_instance_device->device;
+
     device_vk.wait_idle();
 
     destroySwapchain();
 
     if (m_surface != VK_NULL_HANDLE) {
-      vkDestroySurfaceKHR(device_vk.instance, m_surface, nullptr);
+      vkDestroySurfaceKHR(vulkan_instance_device->instance, m_surface, nullptr);
     }
 
     device_vk.users--;
     if (device_vk.users == 0) {
-      vulkan_device.reset();
+      vulkan_instance_device.reset();
     }
   }
 }
@@ -589,8 +643,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     return GHOST_kFailure;
   }
 
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
+  assert(vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value() &&
+         vulkan_instance_device->device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_instance_device->device->device;
 
   /* This method is called after all the draw calls in the application, and it signals that
    * we are ready to both (1) submit commands for those draw calls to the device and
@@ -675,7 +730,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
 
   VkResult present_result = VK_SUCCESS;
   {
-    std::scoped_lock lock(vulkan_device->queue_mutex);
+    std::scoped_lock lock(vulkan_instance_device->device->queue_mutex);
     present_result = vkQueuePresentKHR(m_present_queue, &present_info);
   }
   m_render_frame = next_render_frame;
@@ -719,14 +774,14 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
       nullptr,        /* queue_mutex */
   };
 
-  if (vulkan_device.has_value()) {
+  if (vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value()) {
     r_handles = {
-        vulkan_device->instance,
-        vulkan_device->physical_device,
-        vulkan_device->device,
-        vulkan_device->generic_queue_family,
+        vulkan_instance_device->instance,
+        vulkan_instance_device->physical_device,
+        vulkan_instance_device->device->device,
+        vulkan_instance_device->device->generic_queue_family,
         m_graphic_queue,
-        &vulkan_device->queue_mutex,
+        &vulkan_instance_device->device->queue_mutex,
     };
   }
 
@@ -758,7 +813,7 @@ GHOST_TSuccess GHOST_ContextVK::releaseDrawingContext()
   return GHOST_kSuccess;
 }
 
-static vector<VkExtensionProperties> getExtensionsAvailable()
+static blender::Set<const char *> getExtensionSet()
 {
   uint32_t extension_count = 0;
   vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
@@ -766,25 +821,19 @@ static vector<VkExtensionProperties> getExtensionsAvailable()
   vector<VkExtensionProperties> extensions(extension_count);
   vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions.data());
 
-  return extensions;
-}
-
-static bool checkExtensionSupport(const vector<VkExtensionProperties> &extensions_available,
-                                  const char *extension_name)
-{
-  for (const auto &extension : extensions_available) {
-    if (strcmp(extension_name, extension.extensionName) == 0) {
-      return true;
-    }
+  blender::Set<const char *> extension_set;
+  for (const auto &extension : extensions) {
+    extension_set.add(extension.extensionName);
   }
-  return false;
+
+  return extension_set;
 }
 
-static void requireExtension(const vector<VkExtensionProperties> &extensions_available,
+static void requireExtension(const blender::Set<const char *> &extension_set,
                              vector<const char *> &extensions_enabled,
                              const char *extension_name)
 {
-  if (checkExtensionSupport(extensions_available, extension_name)) {
+  if (extension_set.contains(extension_name)) {
     extensions_enabled.push_back(extension_name);
   }
   else {
@@ -856,8 +905,9 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
 
 GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
 {
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
+  assert(vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value() &&
+         vulkan_instance_device->device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_instance_device->device->device;
 
   const VkSemaphoreCreateInfo vk_semaphore_create_info = {
       VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, nullptr, 0};
@@ -889,9 +939,10 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
 
 GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
 {
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
+  assert(vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value() &&
+         vulkan_instance_device->device->device != VK_NULL_HANDLE);
 
-  VkPhysicalDevice physical_device = vulkan_device->physical_device;
+  VkPhysicalDevice physical_device = vulkan_instance_device->physical_device;
 
   m_surface_format = {};
   if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
@@ -917,7 +968,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR, &vk_surface_present_mode, m_surface};
   VkSurfaceCapabilitiesKHR capabilities = {};
 
-  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+  if (vulkan_instance_device->device->use_vk_ext_swapchain_maintenance_1) {
     VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
         physical_device, &vk_physical_device_surface_info, &vk_surface_capabilities));
     capabilities = vk_surface_capabilities.surfaceCapabilities;
@@ -958,7 +1009,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
     }
   }
 
-  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+  if (vulkan_instance_device->device->use_vk_ext_swapchain_maintenance_1) {
     if (vk_surface_present_scaling_capabilities.minScaledImageExtent.width > m_render_extent.width)
     {
       m_render_extent.width = vk_surface_present_scaling_capabilities.minScaledImageExtent.width;
@@ -1018,7 +1069,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
 
   VkSwapchainCreateInfoKHR create_info = {};
   create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  if (vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+  if (vulkan_instance_device->device->use_vk_ext_swapchain_maintenance_1) {
     create_info.pNext = &vk_swapchain_present_scaling;
     create_info.flags = VK_SWAPCHAIN_CREATE_DEFERRED_MEMORY_ALLOCATION_BIT_EXT;
   }
@@ -1038,7 +1089,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   create_info.queueFamilyIndexCount = 0;
   create_info.pQueueFamilyIndices = nullptr;
 
-  VkDevice device = vulkan_device->device;
+  VkDevice device = vulkan_instance_device->device->device;
   VK_CHECK(vkCreateSwapchainKHR(device, &create_info, nullptr, &m_swapchain));
 
   /* image_count may not be what we requested! Getter for final value. */
@@ -1051,7 +1102,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 &&
+    if (!vulkan_instance_device->device->use_vk_ext_swapchain_maintenance_1 &&
         swapchain_image.present_semaphore != VK_NULL_HANDLE)
     {
       discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
@@ -1082,7 +1133,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
   /* Previous handles from the frame data cannot be used and should be discarded. */
-  if (!vulkan_device->use_vk_ext_swapchain_maintenance_1) {
+  if (!vulkan_instance_device->device->use_vk_ext_swapchain_maintenance_1) {
     for (GHOST_Frame &frame : m_frame_data) {
       discard_pile.semaphores.push_back(frame.acquire_semaphore);
       frame.acquire_semaphore = VK_NULL_HANDLE;
@@ -1100,8 +1151,9 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
 
 GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
-  assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
-  VkDevice device = vulkan_device->device;
+  assert(vulkan_instance_device.has_value() && vulkan_instance_device->device.has_value() &&
+         vulkan_instance_device->device->device != VK_NULL_HANDLE);
+  VkDevice device = vulkan_instance_device->device->device;
 
   if (m_swapchain != VK_NULL_HANDLE) {
     vkDestroySwapchainKHR(device, m_swapchain, nullptr);
@@ -1169,19 +1221,19 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
 #endif
 
-  std::vector<VkExtensionProperties> extensions_available = getExtensionsAvailable();
+  blender::Set<const char *> extension_set = getExtensionSet();
   vector<const char *> required_device_extensions;
   vector<const char *> optional_device_extensions;
   vector<const char *> extensions_enabled;
 
   if (m_debug) {
-    requireExtension(extensions_available, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    requireExtension(extension_set, extensions_enabled, VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
 
   if (use_window_surface) {
     const char *native_surface_extension_name = getPlatformSpecificSurfaceExtension();
-    requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
-    requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
+    requireExtension(extension_set, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
+    requireExtension(extension_set, extensions_enabled, native_surface_extension_name);
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
     /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
@@ -1189,14 +1241,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #ifdef WITH_GHOST_X11
         m_platform != GHOST_kVulkanPlatformX11 &&
 #endif
-        contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
-        contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+        extension_set.contains(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
+        extension_set.contains(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
     if (use_swapchain_maintenance1) {
       requireExtension(
-          extensions_available, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
-      requireExtension(extensions_available,
-                       extensions_enabled,
-                       VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
+          extension_set, extensions_enabled, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
+      requireExtension(
+          extension_set, extensions_enabled, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
       optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
     }
   }
@@ -1221,33 +1272,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
 
-  VkInstance instance = VK_NULL_HANDLE;
-  if (!vulkan_device.has_value()) {
-
-    VkApplicationInfo app_info = {};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "Blender";
-    app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.pEngineName = "Blender";
-    app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_MAKE_VERSION(m_context_major_version, m_context_minor_version, 0);
-
-    /* Create Instance */
-    VkInstanceCreateInfo create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    create_info.pApplicationInfo = &app_info;
-    create_info.enabledExtensionCount = uint32_t(extensions_enabled.size());
-    create_info.ppEnabledExtensionNames = extensions_enabled.data();
-
-#ifdef __APPLE__
-    create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-
-    VK_CHECK(vkCreateInstance(&create_info, nullptr, &instance));
+  if (!vulkan_instance_device.has_value()) {
+    vulkan_instance_device.emplace(
+        VK_MAKE_VERSION(m_context_major_version, m_context_minor_version, 0));
   }
-  else {
-    instance = vulkan_device->instance;
-  }
+  if (!vulkan_instance_device->ensure_instance(extensions_enabled)) {
+    return GHOST_kFailure;
+  };
 
   if (use_window_surface) {
 #ifdef _WIN32
@@ -1255,7 +1286,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     surface_create_info.hinstance = GetModuleHandle(nullptr);
     surface_create_info.hwnd = m_hwnd;
-    VK_CHECK(vkCreateWin32SurfaceKHR(instance, &surface_create_info, nullptr, &m_surface));
+    VK_CHECK(vkCreateWin32SurfaceKHR(
+        vulkan_instance_device->instance, &surface_create_info, nullptr, &m_surface));
 #elif defined(__APPLE__)
     VkMetalSurfaceCreateInfoEXT info = {};
     info.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
@@ -1294,19 +1326,35 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #endif
   }
 
-  if (!ensure_vulkan_device(instance, m_surface, m_preferred_device, required_device_extensions)) {
+  if (!vulkan_instance_device->select_physical_device(
+          m_surface, m_preferred_device, required_device_extensions))
+  {
     return GHOST_kFailure;
   }
 
-  vulkan_device->users++;
-  vulkan_device->ensure_device(required_device_extensions, optional_device_extensions);
+  blender::Set<const char *> required_dev_ext_set, optional_dev_ext_set;
+  for (const auto &required_device_extension : required_device_extensions) {
+    required_dev_ext_set.add(required_device_extension);
+  }
+  for (const auto &optional_device_extension : optional_device_extensions) {
+    optional_dev_ext_set.add(optional_device_extension);
+  }
 
-  vkGetDeviceQueue(
-      vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_graphic_queue);
+  if (!vulkan_instance_device->ensure_device(required_dev_ext_set, optional_dev_ext_set)) {
+    return GHOST_kFailure;
+  }
+  vulkan_instance_device->device->users++;
+
+  vkGetDeviceQueue(vulkan_instance_device->device->device,
+                   vulkan_instance_device->device->generic_queue_family,
+                   0,
+                   &m_graphic_queue);
 
   if (use_window_surface) {
-    vkGetDeviceQueue(
-        vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_present_queue);
+    vkGetDeviceQueue(vulkan_instance_device->device->device,
+                     vulkan_instance_device->device->generic_queue_family,
+                     0,
+                     &m_present_queue);
     recreateSwapchain();
   }
 
