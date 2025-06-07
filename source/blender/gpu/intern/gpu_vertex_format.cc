@@ -252,19 +252,6 @@ bool is_fetch_normalized(VertAttrType attr_type)
   }
 };
 
-bool is_fetch_int_to_float(VertAttrType attr_type)
-{
-  switch (attr_type) {
-    case VertAttrType::SINT_TO_FLT_32:
-    case VertAttrType::SINT_TO_FLT_32_32:
-    case VertAttrType::SINT_TO_FLT_32_32_32:
-    case VertAttrType::SINT_TO_FLT_32_32_32_32:
-      return true;
-    default:
-      return false;
-  }
-};
-
 bool is_fetch_float(VertAttrType attr_type)
 {
   switch (attr_type) {
@@ -292,9 +279,6 @@ GPUVertFetchMode GPUVertAttr::Type::fetch_mode() const
   if (is_fetch_normalized(this->format)) {
     return GPU_FETCH_INT_TO_FLOAT_UNIT;
   }
-  if (is_fetch_int_to_float(this->format)) {
-    BLI_assert_msg(0, "Int to float format not supported anymore");
-  }
   return GPU_FETCH_INT;
 }
 
@@ -313,10 +297,6 @@ GPUVertCompType GPUVertAttr::Type::comp_type() const
     case VertAttrType::SINT_32_32:
     case VertAttrType::SINT_32_32_32:
     case VertAttrType::SINT_32_32_32_32:
-    case VertAttrType::SINT_TO_FLT_32:
-    case VertAttrType::SINT_TO_FLT_32_32:
-    case VertAttrType::SINT_TO_FLT_32_32_32:
-    case VertAttrType::SINT_TO_FLT_32_32_32_32:
       return GPU_COMP_I32;
     case VertAttrType::UNORM_8_8_8_8:
     case VertAttrType::UINT_8_8_8_8:

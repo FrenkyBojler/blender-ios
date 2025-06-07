@@ -81,13 +81,6 @@ namespace blender::gpu {
 #define SFLOAT_32_32_32_(impl)          impl(float3,    4 * 3,  3,    SFLOAT_32_32_32,     R32G32B32_SFLOAT,     RGBA32Float,      Float3,              RGB32F,         rgb32_sfloat)
 #define SFLOAT_32_32_32_32_(impl)       impl(float4,    4 * 4,  4,    SFLOAT_32_32_32_32,  R32G32B32A32_SFLOAT,  RGBA32Float,      Float4,              RGBA32F,        rgba32_sfloat)
 
-/* Legacy format unsupported by Metal and Vulkan. To be phased out. */
-/*                                           type       size     comps blender_enum              vk_enum               mtl_pixel_enum  mtl_vertex_enum    gl_pixel_enum   shader_enum  */
-#define SINT_TO_FLT_32_(impl)           impl(int32_t,   4 * 1,   1,    SINT_TO_FLT_32,           R32_SFLOAT,           /* n/a */,      Float1,            R32I,           /* n/a */)
-#define SINT_TO_FLT_32_32_(impl)        impl(int2,      4 * 2,   2,    SINT_TO_FLT_32_32,        R32G32_SFLOAT,        /* n/a */,      Float2,            RG32I,          /* n/a */)
-#define SINT_TO_FLT_32_32_32_(impl)     impl(int3,      4 * 3,   3,    SINT_TO_FLT_32_32_32,     R32G32B32_SFLOAT,     /* n/a */,      Float3,            RGB32I,         /* n/a */)
-#define SINT_TO_FLT_32_32_32_32_(impl)  impl(int4,      4 * 4,   4,    SINT_TO_FLT_32_32_32_32,  R32G32B32A32_SFLOAT,  /* n/a */,      Float4,            RGBA32I,        /* n/a */)
-
 /* clang-format on */
 
 /** \} */
@@ -210,12 +203,6 @@ enum class DataFormat : uint8_t {
   UNORM_24_DEPTH_UINT_8_(impl) \
   SFLOAT_32_DEPTH_(impl) \
   SFLOAT_32_DEPTH_UINT_8_(impl) \
-\
-  /* Legacy format unsupported by Metal and Vulkan. To be phased out. */ \
-  SINT_TO_FLT_32_(impl) \
-  SINT_TO_FLT_32_32_(impl) \
-  SINT_TO_FLT_32_32_32_(impl) \
-  SINT_TO_FLT_32_32_32_32_(impl) \
 \
   SRGBA_8_8_8_(impl) \
   SRGBA_8_8_8_8_(impl) \

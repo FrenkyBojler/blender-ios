@@ -309,7 +309,7 @@ void Immediate::polyline_draw_workaround(uint64_t offset)
       const char *name = GPU_vertformat_attr_name_get(&format, a, 0);
       if (pos_attr_id == -1 && blender::StringRefNull(name) == "pos") {
         int descriptor[2] = {int(format.stride) / 4, int(a->offset) / 4};
-        const bool fetch_int = is_fetch_int_to_float(a->type.format);
+        const bool fetch_int = false;
         BLI_assert(is_fetch_float(a->type.format) || fetch_int);
         BLI_assert_msg((a->offset % 4) == 0, "Only support 4byte aligned attributes");
         GPU_shader_uniform_2iv(imm->shader, "gpu_attr_0", descriptor);
@@ -443,7 +443,7 @@ void immAttr2i(uint attr_id, int x, int y)
 {
   GPUVertAttr *attr = &imm->vertex_format.attrs[attr_id];
   BLI_assert(attr_id < imm->vertex_format.attr_len);
-  BLI_assert(ELEM(attr->type.format, VertAttrType::SINT_32_32, VertAttrType::SINT_TO_FLT_32_32));
+  BLI_assert(ELEM(attr->type.format, VertAttrType::SINT_32_32));
   BLI_assert(imm->vertex_idx < imm->vertex_len);
   BLI_assert(imm->prim_type != GPU_PRIM_NONE); /* make sure we're between a Begin/End pair */
   setAttrValueBit(attr_id);
