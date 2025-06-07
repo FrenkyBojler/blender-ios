@@ -138,6 +138,22 @@ static void rna_Area_type_set(PointerRNA *ptr, int value)
   area->butspacetype = value;
 }
 
+static int rna_Screen_primary_area_get(struct bScreen *_self, bContext *C)
+{
+  wmWindow *win = CTX_wm_window(C);
+  int cursor[2] = {win->posx + 100, win->posy + 100};
+  ScrArea *area = BKE_screen_find_area_xy(_self, SPACE_TYPE_ANY, cursor);
+  return area ? area->spacetype : 0;
+}
+
+static int rna_Screen_secondary_area_get(struct bScreen *_self, bContext *C)
+{
+  wmWindow *win = CTX_wm_window(C);
+  int cursor[2] = {win->posx + win->sizex - 50, win->posy + win->sizey - 100};
+  ScrArea *area = BKE_screen_find_area_xy(_self, SPACE_TYPE_ANY, cursor);
+  return area ? area->spacetype : 0;
+}
+
 static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
 {
   bScreen *screen = (bScreen *)ptr->owner_id;
@@ -712,6 +728,19 @@ static void rna_def_screen(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_funcs(prop, "rna_Screen_fullscreen_get", nullptr);
   RNA_def_property_ui_text(prop, "Maximize", "An area is maximized, filling this screen");
+
+  func = RNA_def_function(srna, "primary_area", "rna_Screen_primary_area_get");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_enum(func, "primary_area", rna_enum_space_type_items, SPACE_VIEW3D, "Primary Area", "");
+  RNA_def_property_clear_flag(parm, PROP_EDITABLE);
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "secondary_area", "rna_Screen_secondary_area_get");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_enum(
+      func, "secondary_area", rna_enum_space_type_items, SPACE_OUTLINER, "Secondary Area", "");
+  RNA_def_property_clear_flag(parm, PROP_EDITABLE);
+  RNA_def_function_return(func, parm);
 
   /* Status Bar. */
 
