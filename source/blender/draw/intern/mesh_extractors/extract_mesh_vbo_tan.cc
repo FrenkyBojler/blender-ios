@@ -238,7 +238,7 @@ gpu::VertBufPtr extract_tangents(const MeshRenderData &mr,
 static const GPUVertFormat &get_coarse_tan_format()
 {
   static GPUVertFormat format = GPU_vertformat_from_attribute(
-      "tan", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      "tan", gpu::VertAttrType::SFLOAT_32_32_32_32);
   return format;
 }
 

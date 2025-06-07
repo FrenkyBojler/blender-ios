@@ -318,9 +318,7 @@ void GPU_vertformat_alias_add(GPUVertFormat *, blender::StringRef alias);
  * The attribute ID is ensured to be 0.
  */
 GPUVertFormat GPU_vertformat_from_attribute(blender::StringRef name,
-                                            const GPUVertCompType comp_type,
-                                            const uint comp_len,
-                                            const GPUVertFetchMode fetch_mode);
+                                            blender::gpu::VertAttrType type);
 
 /**
  * Makes vertex attribute from the next vertices to be accessible in the vertex shader.

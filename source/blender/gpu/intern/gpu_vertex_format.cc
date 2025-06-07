@@ -419,12 +419,10 @@ void GPU_vertformat_alias_add(GPUVertFormat *format, const StringRef alias)
 }
 
 GPUVertFormat GPU_vertformat_from_attribute(const StringRef name,
-                                            const GPUVertCompType comp_type,
-                                            const uint comp_len,
-                                            const GPUVertFetchMode fetch_mode)
+                                            const blender::gpu::VertAttrType type)
 {
   GPUVertFormat format{};
-  GPU_vertformat_attr_add(&format, name, comp_type, comp_len, fetch_mode);
+  format.attribute_add(name, type);
   return format;
 }
 
