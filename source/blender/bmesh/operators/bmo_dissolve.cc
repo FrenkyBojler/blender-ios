@@ -545,10 +545,9 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         continue;
       }
 
-      /* Ensured in the previous loop. */
-      BLI_assert(BM_vert_is_edge_pair(v));
-
-      bm_vert_collapse_edge_and_merge(bm, v, true);
+      if (BM_vert_is_edge_pair(v)) {
+        bm_vert_collapse_edge_and_merge(bm, v, true);
+      }
     }
   }
 }
