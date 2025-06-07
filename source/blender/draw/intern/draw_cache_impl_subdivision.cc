@@ -63,9 +63,9 @@ static const GPUVertFormat &get_patch_handle_format()
 {
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "vertex_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "array_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "patch_index", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "vertex_index", gpu::VertAttrType::SINT_32);
+    GPU_vertformat_attr_add(&format, "array_index", gpu::VertAttrType::SINT_32);
+    GPU_vertformat_attr_add(&format, "patch_index", gpu::VertAttrType::SINT_32);
     return format;
   }();
   return format;
@@ -76,7 +76,7 @@ static const GPUVertFormat &get_quadtree_format()
 {
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "child", GPU_COMP_U32, 4, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "child", gpu::VertAttrType::UINT_32_32_32_32);
     return format;
   }();
   return format;
@@ -103,8 +103,8 @@ static const GPUVertFormat &get_blender_patch_coords_format()
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
     /* WARNING! Adjust #CompressedPatchCoord accordingly. */
-    GPU_vertformat_attr_add(&format, "ptex_face_index", GPU_COMP_U32, 1, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "uv", GPU_COMP_U32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "ptex_face_index", gpu::VertAttrType::UINT_32);
+    GPU_vertformat_attr_add(&format, "uv", gpu::VertAttrType::UINT_32);
     return format;
   }();
   return format;
@@ -116,7 +116,7 @@ static const GPUVertFormat &get_origindex_format()
 {
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "index", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "index", gpu::VertAttrType::SINT_32);
     return format;
   }();
   return format;
@@ -126,8 +126,8 @@ const GPUVertFormat &draw_subdiv_get_pos_nor_format()
 {
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32_32);
     GPU_vertformat_alias_add(&format, "vnor");
     return format;
   }();
@@ -383,7 +383,7 @@ static void draw_subdiv_cache_update_extra_coarse_face_data(DRWSubdivCache &cach
     cache.extra_coarse_face_data = GPU_vertbuf_calloc();
     static const GPUVertFormat format = []() {
       GPUVertFormat format{};
-      GPU_vertformat_attr_add(&format, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_32);
       return format;
     }();
     GPU_vertbuf_init_with_format_ex(*cache.extra_coarse_face_data, format, GPU_USAGE_DYNAMIC);

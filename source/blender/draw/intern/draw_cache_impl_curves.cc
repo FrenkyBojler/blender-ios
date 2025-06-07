@@ -238,14 +238,14 @@ static void create_points_position_time_vbo(const bke::CurvesGeometry &curves,
                                             CurvesEvalCache &cache)
 {
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "posTime", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "posTime", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   cache.proc_point_buf = GPU_vertbuf_create_with_format_ex(
       format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
   GPU_vertbuf_data_alloc(*cache.proc_point_buf, cache.points_num);
 
   GPUVertFormat length_format = {0};
-  GPU_vertformat_attr_add(&length_format, "hairLength", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&length_format, "hairLength", blender::gpu::VertAttrType::SFLOAT_32);
 
   cache.proc_length_buf = GPU_vertbuf_create_with_format_ex(
       length_format, GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
@@ -619,7 +619,7 @@ static void ensure_final_attribute(const Curves &curves,
 
   GPUVertFormat format = {0};
   /* All attributes use float4, see comment below. */
-  GPU_vertformat_attr_add(&format, sampler_name, GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, sampler_name, blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   if (!cache.proc_attributes_buf[index]) {
     gpu::VertBufPtr vbo = ensure_control_point_attribute(
@@ -655,10 +655,11 @@ static void create_curve_offsets_vbos(const OffsetIndices<int> points_by_curve,
   GPUVertBufRaw data_step, seg_step;
 
   GPUVertFormat format_data = {0};
-  uint data_id = GPU_vertformat_attr_add(&format_data, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
+  uint data_id = GPU_vertformat_attr_add(
+      &format_data, "data", blender::gpu::VertAttrType::UINT_32);
 
   GPUVertFormat format_seg = {0};
-  uint seg_id = GPU_vertformat_attr_add(&format_seg, "data", GPU_COMP_U32, 1, GPU_FETCH_INT);
+  uint seg_id = GPU_vertformat_attr_add(&format_seg, "data", blender::gpu::VertAttrType::UINT_32);
 
   /* Curve Data. */
   cache.proc_strand_buf = GPU_vertbuf_create_with_format_ex(
@@ -678,7 +679,7 @@ static void alloc_final_points_vbo(CurvesEvalCache &cache)
 {
   /* Same format as proc_point_buf. */
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   cache.final.proc_buf = GPU_vertbuf_create_with_format_ex(
       format, GPU_USAGE_DEVICE_ONLY | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);

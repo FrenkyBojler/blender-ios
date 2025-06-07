@@ -376,13 +376,20 @@ static uchar copy_attr_name(GPUVertFormat *format, const StringRef name)
   return name_offset;
 }
 
-uint GPU_vertformat_attr_add(GPUVertFormat *format,
-                             const StringRef name,
-                             GPUVertCompType comp_type,
-                             uint comp_len,
-                             GPUVertFetchMode fetch_mode)
+uint GPU_vertformat_attr_add_legacy(GPUVertFormat *format,
+                                    const StringRef name,
+                                    GPUVertCompType comp_type,
+                                    uint comp_len,
+                                    GPUVertFetchMode fetch_mode)
 {
   return format->attribute_add(name, vertex_format_combine(comp_type, fetch_mode, comp_len));
+}
+
+uint GPU_vertformat_attr_add(GPUVertFormat *format,
+                             const StringRef name,
+                             const blender::gpu::VertAttrType type)
+{
+  return format->attribute_add(name, type);
 }
 
 uint GPUVertFormat::attribute_add(blender::StringRef name,

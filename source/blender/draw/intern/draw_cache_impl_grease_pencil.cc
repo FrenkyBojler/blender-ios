@@ -88,9 +88,9 @@ static const GPUVertFormat *grease_pencil_stroke_format()
 {
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "ma", GPU_COMP_I32, 4, GPU_FETCH_INT);
-    GPU_vertformat_attr_add(&format, "uv", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
+    GPU_vertformat_attr_add(&format, "ma", gpu::VertAttrType::SINT_32_32_32_32);
+    GPU_vertformat_attr_add(&format, "uv", gpu::VertAttrType::SFLOAT_32_32_32_32);
     return format;
   }();
   return &format;
@@ -106,8 +106,8 @@ static const GPUVertFormat *grease_pencil_color_format()
 {
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "col", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "fcol", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "col", gpu::VertAttrType::SFLOAT_32_32_32_32);
+    GPU_vertformat_attr_add(&format, "fcol", gpu::VertAttrType::SFLOAT_32_32_32_32);
     return format;
   }();
   return &format;

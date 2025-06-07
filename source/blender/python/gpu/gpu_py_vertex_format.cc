@@ -145,7 +145,7 @@ static PyObject *pygpu_vertformat_attr_add(BPyGPUVertFormat *self, PyObject *arg
                  1);
   }
 
-  uint attr_id = GPU_vertformat_attr_add(&self->fmt, id, comp_type_enum, len, fetch_mode_enum);
+  uint attr_id = GPU_vertformat_attr_add_legacy(&self->fmt, id, comp_type_enum, len, fetch_mode_enum);
 
   return PyLong_FromLong(attr_id);
 }

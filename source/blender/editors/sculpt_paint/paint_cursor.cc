@@ -651,8 +651,9 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
 
     /* Set quad color. Colored overlay does not get blending. */
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint texCoord = GPU_vertformat_attr_add(
+        format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     /* Premultiplied alpha blending. */
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
@@ -745,8 +746,9 @@ static bool paint_draw_cursor_overlay(
     }
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint texCoord = GPU_vertformat_attr_add(
+        format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     GPU_blend(GPU_BLEND_ALPHA_PREMULT);
 
@@ -946,7 +948,8 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
     GPU_blend(GPU_BLEND_ALPHA);
 
     /* Draw the bezier handles and the curve segment between the current and next point. */
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -2123,7 +2126,7 @@ static void paint_cursor_setup_2D_drawing(PaintCursorContext &pcontext)
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
   pcontext.pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 }
 
@@ -2133,7 +2136,7 @@ static void paint_cursor_setup_3D_drawing(PaintCursorContext &pcontext)
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
   pcontext.pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 }
 

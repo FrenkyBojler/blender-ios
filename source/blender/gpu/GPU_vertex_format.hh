@@ -309,8 +309,14 @@ void GPU_vertformat_clear(GPUVertFormat *);
 void GPU_vertformat_copy(GPUVertFormat *dest, const GPUVertFormat &src);
 void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader);
 
-uint GPU_vertformat_attr_add(
+uint GPU_vertformat_attr_add(GPUVertFormat *format,
+                             blender::StringRef name,
+                             blender::gpu::VertAttrType type);
+/* Legacy/unsafe version.
+ * TODO: Replace by vertex_format_combine. */
+uint GPU_vertformat_attr_add_legacy(
     GPUVertFormat *, blender::StringRef name, GPUVertCompType, uint comp_len, GPUVertFetchMode);
+
 void GPU_vertformat_alias_add(GPUVertFormat *, blender::StringRef alias);
 
 /**

@@ -90,7 +90,7 @@ static const GPUVertFormat &get_normals_format()
 {
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32_32);
     GPU_vertformat_alias_add(&format, "lnor");
     return format;
   }();
@@ -101,7 +101,7 @@ static const GPUVertFormat &get_custom_normals_format()
 {
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "nor", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
     GPU_vertformat_alias_add(&format, "lnor");
     return format;
   }();
@@ -196,7 +196,7 @@ gpu::VertBufPtr extract_positions_subdiv(const DRWSubdivCache &subdiv_cache,
 
   static const GPUVertFormat flag_format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "data", GPU_COMP_I32, 1, GPU_FETCH_INT);
+    GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::SINT_32);
     GPU_vertformat_alias_add(&format, "flag");
     return format;
   }();

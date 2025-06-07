@@ -190,8 +190,8 @@ gpu::VertBufPtr extract_edituv_stretch_angle(const MeshRenderData &mr)
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
     /* Waning: adjust #UVStretchAngle struct accordingly. */
-    GPU_vertformat_attr_add(&format, "angle", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_I16, 2, GPU_FETCH_INT_TO_FLOAT_UNIT);
+    GPU_vertformat_attr_add(&format, "angle", gpu::VertAttrType::SFLOAT_32);
+    GPU_vertformat_attr_add(&format, "uv_angles", gpu::VertAttrType::SNORM_16_16);
     return format;
   }();
 
@@ -213,8 +213,8 @@ static const GPUVertFormat &get_edituv_stretch_angle_format_subdiv()
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
     /* Waning: adjust #UVStretchAngle struct accordingly. */
-    GPU_vertformat_attr_add(&format, "angle", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-    GPU_vertformat_attr_add(&format, "uv_angles", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "angle", gpu::VertAttrType::SFLOAT_32);
+    GPU_vertformat_attr_add(&format, "uv_angles", gpu::VertAttrType::SFLOAT_32_32);
     return format;
   }();
   return format;
