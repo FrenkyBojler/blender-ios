@@ -178,7 +178,7 @@ void ED_screen_draw_edges(wmWindow *win)
   const float shader_scale = edge_thickness + EDITORRADIUS;
   const float corner_coverage[10] = {
       0.144f, 0.25f, 0.334f, 0.40f, 0.455, 0.5, 0.538, 0.571, 0.6, 0.625f};
-  const float shader_width = corner_coverage[U.border_width - 1];
+  const float shader_width = U.tablet_mode ? 1.0f : corner_coverage[U.border_width - 1];
 
   GPU_blend(GPU_BLEND_ALPHA);
 

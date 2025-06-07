@@ -75,7 +75,7 @@ enum class AreaDockTarget {
 /**
  * Number of pixels of the area border corner radius.
  */
-#define EDITORRADIUS (6.0f * UI_SCALE_FAC)
+#define EDITORRADIUS (U.tablet_mode ? 0.0f : (6.0f * UI_SCALE_FAC))
 
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)

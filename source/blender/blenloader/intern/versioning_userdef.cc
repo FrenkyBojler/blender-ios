@@ -1511,8 +1511,8 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (userdef->tablet_mode) {
     userdef->uiflag |= USER_SPLASH_DISABLE;
-    userdef->ui_scale = 1.75f;
-    userdef->border_width = 3;
+    userdef->ui_scale = 1.8f;
+    userdef->border_width = 4;
     userdef->gizmo_size = 100;
     userdef->gizmo_size_navigate_v3d = 130;
     userdef->render_display_type = USER_RENDER_DISPLAY_SCREEN;
