@@ -1385,9 +1385,11 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
                                   const blender::MutableSpan<float> factors)
 {
   BLI_assert(factors.size() == distances.size());
-  BLI_assert(std::all_of(distances.begin(), distances.end(), [&](const int i) {
+  const blender::IndexRange indices = distances.index_range();
+  BLI_assert(std::all_of(indices.begin(), indices.end(), [&](const int i) {
     return distances[i] < brush_radius || factors[i] == 0.0f;
   }));
+  UNUSED_VARS(indices);
 
   const float radius_rcp = blender::math::rcp(brush_radius);
   switch (preset) {
