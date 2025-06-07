@@ -161,32 +161,12 @@ auto imb_steal_buffer_data(BufferType &buffer) -> decltype(BufferType::data)
   return nullptr;
 }
 
-void IMB_free_mipmaps(ImBuf *ibuf)
-{
-  int a;
-
-  /* Do not trust ibuf->miptot, in some cases IMB_remakemipmap can leave unfreed unused levels,
-   * leading to memory leaks... */
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    if (ibuf->mipmap[a] != nullptr) {
-      IMB_freeImBuf(ibuf->mipmap[a]);
-      ibuf->mipmap[a] = nullptr;
-    }
-  }
-
-  ibuf->miptot = 0;
-}
-
 void IMB_free_float_pixels(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->float_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_float_data;
 }
 
@@ -195,11 +175,7 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->byte_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_byte_data;
 }
 
@@ -600,7 +576,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
 {
   ImBuf *ibuf2, tbuf;
   int flags = IB_uninitialized_pixels;
-  int a, x, y;
+  int x, y;
 
   if (ibuf1 == nullptr) {
     return nullptr;
@@ -656,9 +632,6 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   tbuf.byte_buffer = ibuf2->byte_buffer;
   tbuf.float_buffer = ibuf2->float_buffer;
   tbuf.encoded_buffer = ibuf2->encoded_buffer;
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    tbuf.mipmap[a] = nullptr;
-  }
   tbuf.dds_data.data = nullptr;
 
   /* Set `malloc` flag. */
@@ -686,7 +659,6 @@ size_t IMB_get_pixel_count(const ImBuf *ibuf)
 
 size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 {
-  int a;
   size_t size = 0, channel_size = 0;
 
   size += sizeof(ImBuf);
@@ -700,14 +672,6 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
   }
 
   size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
-
-  if (ibuf->miptot) {
-    for (a = 0; a < ibuf->miptot; a++) {
-      if (ibuf->mipmap[a]) {
-        size += IMB_get_size_in_memory(ibuf->mipmap[a]);
-      }
-    }
-  }
 
   return size;
 }

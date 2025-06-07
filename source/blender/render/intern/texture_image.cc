@@ -747,31 +747,6 @@ static void ewa_eval(TexResult *texr, ImBuf *ibuf, float fx, float fy, const afd
 
 #undef EWA_MAXIDX
 
-static void image_mipmap_test(Tex *tex, ImBuf *ibuf)
-{
-  if (tex->imaflag & TEX_MIPMAP) {
-    if (ibuf->mipmap[0] && (ibuf->userflags & IB_MIPMAP_INVALID)) {
-      BLI_thread_lock(LOCK_IMAGE);
-      if (ibuf->userflags & IB_MIPMAP_INVALID) {
-        IMB_remakemipmap(ibuf, tex->imaflag & TEX_GAUSS_MIP);
-        ibuf->userflags &= ~IB_MIPMAP_INVALID;
-      }
-      BLI_thread_unlock(LOCK_IMAGE);
-    }
-    if (ibuf->mipmap[0] == nullptr) {
-      BLI_thread_lock(LOCK_IMAGE);
-      if (ibuf->mipmap[0] == nullptr) {
-        IMB_makemipmap(ibuf, tex->imaflag & TEX_GAUSS_MIP);
-      }
-      BLI_thread_unlock(LOCK_IMAGE);
-    }
-    /* if no mipmap could be made, fall back on non-mipmap render */
-    if (ibuf->mipmap[0] == nullptr) {
-      tex->imaflag &= ~TEX_MIPMAP;
-    }
-  }
-}
-
 void image_sample(
     Image *ima, float fx, float fy, float dx, float dy, float result[4], ImagePool *pool)
 {
