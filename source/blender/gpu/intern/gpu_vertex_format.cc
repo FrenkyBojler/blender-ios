@@ -293,7 +293,7 @@ GPUVertFetchMode GPUVertAttr::Type::fetch_mode() const
     return GPU_FETCH_INT_TO_FLOAT_UNIT;
   }
   if (is_fetch_int_to_float(this->format)) {
-    return GPU_FETCH_INT_TO_FLOAT;
+    BLI_assert_msg(0, "Int to float format not supported anymore");
   }
   return GPU_FETCH_INT;
 }
@@ -339,6 +339,7 @@ GPUVertCompType GPUVertAttr::Type::comp_type() const
     case VertAttrType::SNORM_10_10_10_2:
     case VertAttrType::UNORM_10_10_10_2:
       return GPU_COMP_I10;
+    default: /* TODO(fclem): This avoids warning caused by deprecated formats. */
     case VertAttrType::Invalid:
       break;
   }
