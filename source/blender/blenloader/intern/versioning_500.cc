@@ -18,6 +18,8 @@
 
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
+#include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 
 #include "readfile.hh"
 
@@ -94,6 +96,19 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       bke::mesh_custom_normals_to_generic(*mesh);
       rename_mesh_uv_seam_attribute(*mesh);
     }
+
+    /* Change default Sky Texture to Nishita (after removal of old sky models) */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
+            NodeTexSky *tex = (NodeTexSky *)node->storage;
+            tex->sky_model = 0;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
