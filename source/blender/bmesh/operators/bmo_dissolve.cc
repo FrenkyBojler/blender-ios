@@ -460,7 +460,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
       if (BMO_vert_flag_test(bm, e->v1, VERT_MARK) && BM_vert_is_edge_pair(e->v1)) {
         BMO_vert_flag_enable(bm, bmo_find_end_of_chain(e, e->v1), VERT_MARK);
       }
-      if (BMO_vert_flag_test(bm, e->v1, VERT_MARK) && BM_vert_is_edge_pair(e->v2)) {
+      if (BMO_vert_flag_test(bm, e->v2, VERT_MARK) && BM_vert_is_edge_pair(e->v2)) {
         BMO_vert_flag_enable(bm, bmo_find_end_of_chain(e, e->v2), VERT_MARK);
       }
 
