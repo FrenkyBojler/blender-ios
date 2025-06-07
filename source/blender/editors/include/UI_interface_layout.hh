@@ -104,6 +104,9 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  bool active() const;
+  void active_set(bool active);
+
   blender::ui::EmbossType emboss() const;
   void emboss_set(blender::ui::EmbossType emboss);
 
@@ -366,6 +369,15 @@ struct uiLayout : uiItem {
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
+inline bool uiLayout::active() const
+{
+  return active_;
+}
+inline void uiLayout::active_set(bool active)
+{
+  active_ = active;
+}
+
 inline float uiLayout::scale_x() const
 {
   return scale_[0];
@@ -524,7 +536,6 @@ void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 /* Only for convenience. */
 void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
-void uiLayoutSetActive(uiLayout *layout, bool active);
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
@@ -537,7 +548,6 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
 void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
 
-bool uiLayoutGetActive(uiLayout *layout);
 bool uiLayoutGetActiveDefault(uiLayout *layout);
 bool uiLayoutGetActivateInit(uiLayout *layout);
 bool uiLayoutGetEnabled(uiLayout *layout);
