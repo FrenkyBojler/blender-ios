@@ -993,6 +993,10 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
     return;
   }
 
+  if (U.tablet_mode) {
+    return;
+  }
+
   if (U.app_flag & USER_APP_LOCK_CORNER_SPLIT) {
     return;
   }
@@ -2816,6 +2820,10 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
 
 int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
 {
+  if (U.tablet_mode) {
+    return 0;
+  }
+
   ScrArea *area = CTX_wm_area(C);
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;

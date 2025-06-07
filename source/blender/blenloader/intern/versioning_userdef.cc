@@ -1506,6 +1506,60 @@ void blo_do_versions_userdef(UserDef *userdef)
   LISTBASE_FOREACH (bTheme *, btheme, &userdef->themes) {
     do_versions_theme(userdef, btheme);
   }
+
+  userdef->tablet_mode = true;
+
+  if (userdef->tablet_mode) {
+    userdef->uiflag |= USER_SPLASH_DISABLE;
+    userdef->ui_scale = 1.75f;
+    userdef->border_width = 3;
+    userdef->gizmo_size = 100;
+    userdef->gizmo_size_navigate_v3d = 130;
+    userdef->render_display_type = USER_RENDER_DISPLAY_SCREEN;
+    userdef->filebrowser_display_type = USER_TEMP_SPACE_DISPLAY_FULLSCREEN;
+    userdef->statusbar_flag = 0;
+
+    LISTBASE_FOREACH (uiStyle *, style, &userdef->uistyles) {
+      style->paneltitle.points = 10.0f;
+      style->grouplabel.points = 10.0f;
+      style->widget.points = 10.0f;
+      style->tooltip.points = 10.0f;
+    }
+
+    const uchar grey[] = {128, 128, 128, 255};
+    const uchar white_outline[] = {255, 255, 255, 20};
+
+    LISTBASE_FOREACH (bTheme *, btheme, &userdef->themes) {
+      btheme->tui.widget_emboss[3] = 0;
+      btheme->tui.editor_outline_active[3] = 0;
+      btheme->tui.editor_outline[3] = 0;
+      btheme->space_view3d.header[3] = 0;
+      btheme->space_view3d.tab_back[3] = 0;
+      btheme->space_view3d.tab_active[3] = 255;
+      btheme->space_view3d.tab_inactive[3] = 0;
+      copy_v4_v4_uchar(btheme->space_view3d.camera, grey);
+      copy_v4_v4_uchar(btheme->space_view3d.lamp, white_outline);
+
+      btheme->tui.icon_saturation = 0;
+      btheme->tui.wcol_toolbar_item.roundness = 0;
+      btheme->tui.wcol_toolbar_item.outline[3] = 0;
+      btheme->tui.wcol_toolbar_item.inner[3] = 0;
+      btheme->tui.wcol_radio.outline[3] = 0;
+      btheme->tui.wcol_scroll.item[3] = 0;
+
+      btheme->tui.wcol_menu.inner[3] = 0;
+      copy_v4_v4_uchar(btheme->tui.wcol_menu.outline, white_outline);
+      btheme->tui.wcol_regular.inner[3] = 0;
+      copy_v4_v4_uchar(btheme->tui.wcol_regular.outline, white_outline);
+      btheme->tui.wcol_tool.inner[3] = 0;
+      copy_v4_v4_uchar(btheme->tui.wcol_tool.outline, white_outline);
+      btheme->tui.wcol_radio.inner[3] = 0;
+      copy_v4_v4_uchar(btheme->tui.wcol_radio.outline, white_outline);
+      btheme->tui.wcol_toggle.inner[3] = 0;
+      copy_v4_v4_uchar(btheme->tui.wcol_toggle.outline, white_outline);
+    }
+  }
+
 #undef USER_VERSION_ATLEAST
 }
 

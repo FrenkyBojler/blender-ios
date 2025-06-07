@@ -41,7 +41,7 @@
 #define WIDGET_RADIUS ((U.gizmo_size_navigate_v3d / 2.0f) * UI_SCALE_FAC)
 
 /* Sizes of axis spheres containing XYZ characters in relation to above. */
-#define AXIS_HANDLE_SIZE 0.20f
+#define AXIS_HANDLE_SIZE 0.15f
 
 #define AXIS_LINE_WIDTH ((U.gizmo_size_navigate_v3d / 40.0f) * U.pixelsize)
 #define AXIS_RING_WIDTH ((U.gizmo_size_navigate_v3d / 60.0f) * U.pixelsize)

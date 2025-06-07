@@ -5155,6 +5155,9 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
   /* display */
+  prop = RNA_def_property(srna, "tablet_mode", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Tablet Mode", "Simulate how Blender might work on a tablet");
+
   prop = RNA_def_property(srna, "show_tooltips", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TOOLTIPS);
   RNA_def_property_ui_text(

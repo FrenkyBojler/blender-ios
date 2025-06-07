@@ -879,6 +879,26 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
       BKE_screen_header_alignment_reset(screen);
     }
   }
+
+  if (U.tablet_mode) {
+    ScrArea *area = nullptr;
+    LISTBASE_FOREACH_MUTABLE (ScrArea *, ar, &CTX_wm_screen(C)->areabase) {
+      ar->flag |= HEADER_NO_PULLDOWN;
+      if (!screen_area_close(C, nullptr, CTX_wm_screen(C), ar)) {
+        area = ar;
+      }
+    }
+    ED_area_newspace(C, area, SPACE_VIEW3D, true);
+
+    View3D *v3d = static_cast<View3D *>(area->spacedata.first);
+    v3d->overlay.flag |= V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_CURSOR |
+                         V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
+    v3d->overlay.flag &= ~V3D_OVERLAY_STATS;
+
+    ScrArea *newa = area_split(
+        CTX_wm_window(C), CTX_wm_screen(C), area, SCREEN_AXIS_V, 0.75f, true);
+    ED_area_newspace(C, newa, SPACE_OUTLINER, true);
+  }
 }
 
 void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win)

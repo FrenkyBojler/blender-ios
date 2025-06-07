@@ -30,6 +30,10 @@ class TOPBAR_HT_upper_bar(Header):
 
         TOPBAR_MT_editor_menus.draw_collapsible(context, layout)
 
+        prefs = context.preferences
+        if prefs.view.tablet_mode:
+            return
+
         layout.separator(type='LINE')
 
         if not screen.show_fullscreen:
@@ -48,6 +52,19 @@ class TOPBAR_HT_upper_bar(Header):
         if not screen.show_statusbar:
             layout.template_reports_banner()
             layout.template_running_jobs()
+
+        prefs = context.preferences
+        if prefs.view.tablet_mode:
+            row = layout.row(align=True)
+            row.operator("screen.userpref_show", text="", icon='PROPERTIES', emboss=False)
+            row.operator("screen.userpref_show", text="", icon='OUTLINER', depress=True)
+            row.operator("screen.userpref_show", text="", icon='ASSET_MANAGER', emboss=False)
+            row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
+            row.separator(type='LINE')
+            row.operator("screen.userpref_show", text="", icon='TIME', emboss=False)
+            row.operator("screen.userpref_show", text="", icon='CONSOLE', emboss=False)
+            row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
+            return
 
         # Active workspace view-layer is retrieved through window, not through workspace.
         layout.template_ID(window, "scene", new="scene.new", unlink="scene.delete")
@@ -110,19 +127,48 @@ class TOPBAR_MT_editor_menus(Menu):
     def draw(self, context):
         layout = self.layout
 
-        # Allow calling this menu directly (this might not be a header area).
-        if getattr(context.area, "show_menus", False):
-            layout.menu("TOPBAR_MT_blender", text="", icon='BLENDER')
+        prefs = context.preferences
+        if not prefs.view.tablet_mode:
+            # Allow calling this menu directly (this might not be a header area).
+            if getattr(context.area, "show_menus", False):
+                layout.menu("TOPBAR_MT_blender", text="", icon='BLENDER')
+            else:
+                layout.menu("TOPBAR_MT_blender", text="Blender")
+            layout.menu("TOPBAR_MT_file")
+            layout.menu("TOPBAR_MT_edit")
+            layout.menu("TOPBAR_MT_render")
+            layout.menu("TOPBAR_MT_window")
+            layout.menu("TOPBAR_MT_help")
         else:
-            layout.menu("TOPBAR_MT_blender", text="Blender")
+            layout.menu("TOPBAR_MT_blender_tablet", text="", icon='BLENDER')
+            layout.operator_context = 'INVOKE_AREA'
+            layout.menu("TOPBAR_MT_file_new", text="", icon='FILE_NEW')
+            layout.menu("TOPBAR_MT_file_in", text="", icon='IMPORT')
+            layout.menu("TOPBAR_MT_file_out", text="", icon='EXPORT')
+            layout.separator(type='LINE')
 
-        layout.menu("TOPBAR_MT_file")
-        layout.menu("TOPBAR_MT_edit")
+            if context.blend_data.is_saved:
+                layout.operator_context = 'EXEC_AREA'
+                layout.operator("wm.save_mainfile", text="", icon='FILE_TICK', emboss=False)
+            else:
+                layout.operator_context = 'INVOKE_AREA'
+                layout.operator("wm.save_as_mainfile", text="", icon='FILE_TICK', emboss=False)
 
-        layout.menu("TOPBAR_MT_render")
+            layout.operator_context = 'INVOKE_DEFAULT'
 
-        layout.menu("TOPBAR_MT_window")
-        layout.menu("TOPBAR_MT_help")
+            layout.operator("wm.search_menu", text="", icon='VIEWZOOM', emboss=False)
+            layout.operator("ed.undo", icon='LOOP_BACK', text="", emboss=False)
+            layout.operator("ed.redo", icon='LOOP_FORWARDS', text="", emboss=False)
+            layout.menu("TOPBAR_MT_edit", text="", icon='DOWNARROW_HLT')
+
+            layout.separator()
+            layout.separator(type='LINE')
+
+            layout.operator("screen.userpref_show", text="", icon='IMAGE', emboss=False)
+            layout.operator("screen.userpref_show", text="", icon='VIEW3D', depress=True)
+            layout.menu("TOPBAR_MT_render", text="", icon='RESTRICT_RENDER_OFF')
+            layout.operator("screen.userpref_show", text="", icon='PREFERENCES', emboss=False)
+            layout.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
 
 
 class TOPBAR_MT_blender(Menu):
@@ -141,6 +187,37 @@ class TOPBAR_MT_blender(Menu):
         layout.separator()
 
         layout.menu("TOPBAR_MT_blender_system")
+
+
+class TOPBAR_MT_blender_tablet(Menu):
+    bl_label = "Blender"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("wm.splash")
+        layout.operator("wm.splash_about")
+
+        layout.separator()
+
+        layout.operator("preferences.app_template_install", text="Install Application Template...")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_blender_system")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_file_external_data")
+        layout.menu("TOPBAR_MT_file_cleanup")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_file_defaults")
+
+        layout.separator()
+
+        layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 
 
 class TOPBAR_MT_file_cleanup(Menu):
@@ -209,6 +286,60 @@ class TOPBAR_MT_file(Menu):
         layout.separator()
 
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
+
+
+class TOPBAR_MT_file_in(Menu):
+    bl_label = "File"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("wm.open_mainfile", text="Open...", icon='FILE_FOLDER')
+        layout.menu("TOPBAR_MT_file_open_recent")
+        layout.operator("wm.revert_mainfile")
+        layout.menu("TOPBAR_MT_file_recover")
+
+        layout.separator()
+
+        layout.operator_context = 'INVOKE_AREA'
+        layout.operator("wm.link", text="Link...", icon='LINK_BLEND')
+        layout.operator("wm.append", text="Append...", icon='APPEND_BLEND')
+        layout.menu("TOPBAR_MT_file_previews")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_file_import", icon='IMPORT')
+
+
+class TOPBAR_MT_file_out(Menu):
+    bl_label = "File"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'EXEC_AREA' if context.blend_data.is_saved else 'INVOKE_AREA'
+        layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
+
+        layout.operator_context = 'INVOKE_AREA'
+        layout.operator("wm.save_as_mainfile", text="Save As...")
+        layout.operator_context = 'INVOKE_AREA'
+        layout.operator("wm.save_as_mainfile", text="Save Copy...").copy = True
+
+        sub = layout.row()
+        sub.enabled = context.blend_data.is_saved
+        sub.operator_context = 'EXEC_AREA'
+        sub.operator("wm.save_mainfile", text="Save Incremental").incremental = True
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_file_previews")
+
+        layout.separator()
+
+        layout.menu("TOPBAR_MT_file_export", icon='EXPORT')
+        row = layout.row()
+        row.operator("wm.collection_export_all")
+        row.enabled = context.view_layer.has_export_collections
 
 
 class TOPBAR_MT_file_new(Menu):
@@ -823,8 +954,11 @@ classes = (
     TOPBAR_MT_workspace_menu,
     TOPBAR_MT_editor_menus,
     TOPBAR_MT_blender,
+    TOPBAR_MT_blender_tablet,
     TOPBAR_MT_blender_system,
     TOPBAR_MT_file,
+    TOPBAR_MT_file_in,
+    TOPBAR_MT_file_out,
     TOPBAR_MT_file_new,
     TOPBAR_MT_file_recover,
     TOPBAR_MT_file_defaults,

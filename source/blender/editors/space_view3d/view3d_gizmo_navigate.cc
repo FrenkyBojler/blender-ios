@@ -176,7 +176,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     if (i == GZ_INDEX_ROTATE) {
       gz->color[3] = 0.0f;
       copy_v3_fl(gz->color_hi, 0.5f);
-      gz->color_hi[3] = 0.5f;
+      gz->color_hi[3] = 0.1f;
     }
     else {
       uchar icon_color[3];
@@ -185,13 +185,13 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
       if (icon_color[0] > 128) {
         color_tint = -40;
         color_tint_hi = 60;
-        gz->color[3] = 0.5f;
+        gz->color[3] = 0.0f;
         gz->color_hi[3] = 0.5f;
       }
       else {
         color_tint = 60;
         color_tint_hi = 60;
-        gz->color[3] = 0.5f;
+        gz->color[3] = 0.0f;
         gz->color_hi[3] = 0.75f;
       }
       UI_GetThemeColorShade3fv(TH_HEADER, color_tint, gz->color);
