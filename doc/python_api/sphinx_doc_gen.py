@@ -1275,6 +1275,13 @@ context_type_map = {
     "world": [("World", False)],
 }
 
+if bpy.app.build_options.experimental_features:
+    for key, value in {
+        "pointcloud": [("PointCloud", False)],
+    }.items():
+        assert key not in context_type_map, "Duplicate, the member must be removed from one of the dictionaries"
+        context_type_map[key] = value
+
 
 def pycontext2sphinx(basepath):
     # Only use once. very irregular.
