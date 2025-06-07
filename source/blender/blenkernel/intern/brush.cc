@@ -1387,6 +1387,7 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
   BLI_assert(factors.size() == distances.size());
   for (const int i : distances.index_range()) {
     BLI_assert(distances[i] < brush_radius || factors[i] == 0.0f);
+    UNUSED_VARS(i);
   }
 
   const float radius_rcp = blender::math::rcp(brush_radius);
