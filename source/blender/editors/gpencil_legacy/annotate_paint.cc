@@ -712,8 +712,7 @@ static void annotation_stroke_arrow_allocate(bGPDstroke *gps, const int totpoint
   /* Copy appropriate settings for stroke. */
   gps->totpoints = totpoints;
   /* Allocate enough memory for a continuous array for storage points. */
-  gps->points = static_cast<bGPDspoint *>(
-      MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "annotation_stroke_points"));
+  gps->points = MEM_calloc_arrayN<bGPDspoint>(gps->totpoints, "annotation_stroke_points");
 }
 
 static void annotation_arrow_create_open(tGPsdata *p,
@@ -843,7 +842,7 @@ static void annotation_stroke_newfrombuffer(tGPsdata *p)
   }
 
   /* allocate memory for a new stroke */
-  gps = static_cast<bGPDstroke *>(MEM_callocN(sizeof(bGPDstroke), "annotation_stroke"));
+  gps = MEM_callocN<bGPDstroke>("annotation_stroke");
 
   /* copy appropriate settings for stroke */
   gps->totpoints = totelem;
@@ -857,8 +856,7 @@ static void annotation_stroke_newfrombuffer(tGPsdata *p)
   gps->tot_triangles = 0;
 
   /* allocate enough memory for a continuous array for storage points */
-  gps->points = static_cast<bGPDspoint *>(
-      MEM_callocN(sizeof(bGPDspoint) * gps->totpoints, "annotation_stroke_points"));
+  gps->points = MEM_calloc_arrayN<bGPDspoint>(gps->totpoints, "annotation_stroke_points");
   gps->tot_triangles = 0;
 
   /* set pointer to first non-initialized point */
@@ -966,8 +964,7 @@ static void annotation_stroke_newfrombuffer(tGPsdata *p)
       int interp_depth = 0;
       int found_depth = 0;
 
-      depth_arr = static_cast<float *>(
-          MEM_mallocN(sizeof(float) * gpd->runtime.sbuffer_used, "depth_points"));
+      depth_arr = MEM_malloc_arrayN<float>(gpd->runtime.sbuffer_used, "depth_points");
 
       const ViewDepths *depths = p->depths;
       for (i = 0, ptc = static_cast<tGPspoint *>(gpd->runtime.sbuffer);
@@ -1719,7 +1716,10 @@ static void annotation_paint_cleanup(tGPsdata *p)
 /* ------------------------------- */
 
 /* Helper callback for drawing the cursor itself */
-static void annotation_draw_eraser(bContext * /*C*/, int x, int y, void *p_ptr)
+static void annotation_draw_eraser(bContext * /*C*/,
+                                   const blender::int2 &xy,
+                                   const blender::float2 & /*tilt*/,
+                                   void *p_ptr)
 {
   tGPsdata *p = (tGPsdata *)p_ptr;
 
@@ -1732,7 +1732,7 @@ static void annotation_draw_eraser(bContext * /*C*/, int x, int y, void *p_ptr)
     GPU_blend(GPU_BLEND_ALPHA);
 
     immUniformColor4ub(255, 100, 100, 20);
-    imm_draw_circle_fill_2d(shdr_pos, x, y, p->radius, 40);
+    imm_draw_circle_fill_2d(shdr_pos, xy[0], xy[1], p->radius, 40);
 
     immUnbindProgram();
 
@@ -1748,8 +1748,8 @@ static void annotation_draw_eraser(bContext * /*C*/, int x, int y, void *p_ptr)
     immUniform1f("udash_factor", 0.5f);
 
     imm_draw_circle_wire_2d(shdr_pos,
-                            x,
-                            y,
+                            xy.x,
+                            xy.y,
                             p->radius,
                             /* XXX Dashed shader gives bad results with sets of small segments
                              * currently, temp hack around the issue. :( */
@@ -1779,7 +1779,10 @@ static void annotation_draw_toggle_eraser_cursor(tGPsdata *p, short enable)
                                                p);
   }
 }
-static void annotation_draw_stabilizer(bContext *C, int x, int y, void *p_ptr)
+static void annotation_draw_stabilizer(bContext *C,
+                                       const blender::int2 &xy,
+                                       const blender::float2 & /*tilt*/,
+                                       void *p_ptr)
 {
   ARegion *region = CTX_wm_region(C);
   tGPsdata *p = (tGPsdata *)p_ptr;
@@ -1805,18 +1808,18 @@ static void annotation_draw_stabilizer(bContext *C, int x, int y, void *p_ptr)
 
   /* Inner Ring: Color from UI panel */
   immUniformColor4f(color[0], color[1], color[2], 0.8f);
-  imm_draw_circle_wire_2d(pos, x, y, radius, 40);
+  imm_draw_circle_wire_2d(pos, xy.x, xy.y, radius, 40);
 
   /* Outer Ring: Dark color for contrast on light backgrounds (e.g. gray on white) */
   mul_v3_v3fl(darkcolor, color, 0.40f);
   immUniformColor4f(darkcolor[0], darkcolor[1], darkcolor[2], 0.8f);
-  imm_draw_circle_wire_2d(pos, x, y, radius + 1, 40);
+  imm_draw_circle_wire_2d(pos, xy.x, xy.y, radius + 1, 40);
 
   /* Rope Simple. */
   immUniformColor4f(color[0], color[1], color[2], 0.8f);
   immBegin(GPU_PRIM_LINES, 2);
   immVertex2f(pos, pt->m_xy[0] + region->winrct.xmin, pt->m_xy[1] + region->winrct.ymin);
-  immVertex2f(pos, x, y);
+  immVertex2fv(pos, blender::float2(xy));
   immEnd();
 
   /* Returns back all GPU settings */
@@ -2187,18 +2190,17 @@ static void annotation_draw_apply_event(
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
 static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 {
-  tGPsdata *p = nullptr;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   /* try to initialize context data needed while drawing */
   if (!annotation_draw_init(C, op, nullptr)) {
-    if (op->customdata) {
-      MEM_freeN(op->customdata);
-    }
+    tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+    MEM_delete(p);
+    op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
-  p = static_cast<tGPsdata *>(op->customdata);
+  tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
 
   /* loop over the stroke RNA elements recorded (i.e. progress of mouse movement),
    * setting the relevant values in context at each step, then applying
@@ -2254,8 +2256,6 @@ static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 /* start of interactive drawing part of operator */
 static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  tGPsdata *p = nullptr;
-
   /* support for tablets eraser pen */
   if (annotation_is_tablet_eraser_active(event)) {
     RNA_enum_set(op->ptr, "mode", GP_PAINTMODE_ERASER);
@@ -2263,13 +2263,13 @@ static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, cons
 
   /* try to initialize context data needed while drawing */
   if (!annotation_draw_init(C, op, event)) {
-    if (op->customdata) {
-      MEM_freeN(op->customdata);
-    }
+    tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+    MEM_delete(p);
+    op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
-  p = static_cast<tGPsdata *>(op->customdata);
+  tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
 
   /* if empty erase capture and finish */
   if (p->status == GP_STATUS_CAPTURE) {
@@ -2667,6 +2667,9 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
             p->radius = 1;
           }
           break;
+        default: {
+          break;
+        }
       }
 
       /* force refresh */
@@ -2759,7 +2762,7 @@ void GPENCIL_OT_annotate(wmOperatorType *ot)
   ot->idname = "GPENCIL_OT_annotate";
   ot->description = "Make annotations on the active data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = annotation_draw_exec;
   ot->invoke = annotation_draw_invoke;
   ot->modal = annotation_draw_modal;

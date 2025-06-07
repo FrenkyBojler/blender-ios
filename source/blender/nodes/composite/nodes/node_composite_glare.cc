@@ -64,12 +64,12 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
 #ifndef WITH_FFTW3
     const int glare_type = RNA_enum_get(ptr, "glare_type");
     if (glare_type == CMP_NODE_GLARE_FOG_GLOW) {
-      uiItemL(layout, RPT_("Disabled, built without FFTW"), ICON_ERROR);
+      layout->label(RPT_("Disabled, built without FFTW"), ICON_ERROR);
     }
 #endif
 
-    uiItemR(layout, ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "glare_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
 
   b.add_input<decl::Color>("Image")
@@ -93,17 +93,17 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .compositor_expects_single_value();
 
   PanelDeclarationBuilder &supress_highlights_panel =
-      highlights_panel.add_panel("Suppress").default_closed(true);
-  supress_highlights_panel.add_input<decl::Bool>("Suppress", "Suppress Highlights")
+      highlights_panel.add_panel("Clamp").default_closed(true);
+  supress_highlights_panel.add_input<decl::Bool>("Clamp", "Clamp Highlights")
       .default_value(false)
       .panel_toggle()
-      .description("Suppress bright highlights")
+      .description("Clamp bright highlights")
       .compositor_expects_single_value();
   supress_highlights_panel.add_input<decl::Float>("Maximum", "Maximum Highlights")
       .default_value(10.0f)
       .min(0.0f)
       .description(
-          "Suppresses bright highlights such that their brightness are not larger than this value")
+          "Clamp bright highlights such that their brightness are not larger than this value")
       .compositor_expects_single_value();
 
   PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust");
@@ -169,12 +169,10 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description("Modulates colors of streaks and ghosts for a spectral dispersion effect")
       .compositor_expects_single_value();
-  glare_panel.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    const int glare_type = RNA_enum_get(ptr, "glare_type");
-    if (glare_type == CMP_NODE_GLARE_SIMPLE_STAR) {
-      uiItemR(layout, ptr, "use_rotate_45", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    }
-  });
+  glare_panel.add_input<decl::Bool>("Diagonal", "Diagonal Star")
+      .default_value(true)
+      .description("Align the star diagonally")
+      .compositor_expects_single_value();
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -182,7 +180,6 @@ static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
   NodeGlare *ndg = MEM_callocN<NodeGlare>(__func__);
   ndg->quality = 1;
   ndg->type = CMP_NODE_GLARE_STREAKS;
-  ndg->star_45 = true;
   node->storage = ndg;
 }
 
@@ -217,6 +214,35 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *streaks_angle_input = bke::node_find_socket(*node, SOCK_IN, "Streaks Angle");
   blender::bke::node_set_socket_availability(
       *ntree, *streaks_angle_input, glare_type == CMP_NODE_GLARE_STREAKS);
+
+  bNodeSocket *diagonal_star_input = bke::node_find_socket(*node, SOCK_IN, "Diagonal Star");
+  blender::bke::node_set_socket_availability(
+      *ntree, *diagonal_star_input, glare_type == CMP_NODE_GLARE_SIMPLE_STAR);
+}
+
+class SocketSearchOp {
+ public:
+  CMPNodeGlareType type = CMP_NODE_GLARE_SIMPLE_STAR;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("CompositorNodeGlare");
+    node_storage(node).type = this->type;
+    params.update_and_connect_available_socket(node, "Image");
+  }
+};
+
+static void gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const eNodeSocketDatatype from_socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!params.node_tree().typeinfo->validate_link(from_socket_type, SOCK_RGBA)) {
+    return;
+  }
+
+  params.add_item(IFACE_("Simple Star"), SocketSearchOp{CMP_NODE_GLARE_SIMPLE_STAR});
+  params.add_item(IFACE_("Fog Glow"), SocketSearchOp{CMP_NODE_GLARE_FOG_GLOW});
+  params.add_item(IFACE_("Streaks"), SocketSearchOp{CMP_NODE_GLARE_STREAKS});
+  params.add_item(IFACE_("Ghost"), SocketSearchOp{CMP_NODE_GLARE_GHOST});
+  params.add_item(IFACE_("Bloom"), SocketSearchOp{CMP_NODE_GLARE_BLOOM});
 }
 
 using namespace blender::compositor;
@@ -353,8 +379,8 @@ class GlareOperation : public NodeOperation {
 
   float get_maximum_brightness()
   {
-    /* Suppression disabled, return the maximum possible brightness. */
-    if (!this->get_suppress_highlights()) {
+    /* Clamp disabled, return the maximum possible brightness. */
+    if (!this->get_clamp_highlights()) {
       return std::numeric_limits<float>::max();
     }
 
@@ -438,9 +464,9 @@ class GlareOperation : public NodeOperation {
                      this->get_input("Highlights Smoothness").get_single_value_default(0.1f));
   }
 
-  bool get_suppress_highlights()
+  bool get_clamp_highlights()
   {
-    return this->get_input("Suppress Highlights").get_single_value_default(false);
+    return this->get_input("Clamp Highlights").get_single_value_default(false);
   }
 
   float get_max_highlights()
@@ -535,7 +561,7 @@ class GlareOperation : public NodeOperation {
 
   Result execute_simple_star(const Result &highlights)
   {
-    if (node_storage(bnode()).star_45) {
+    if (this->get_diagonal_star()) {
       return execute_simple_star_diagonal(highlights);
     }
     return execute_simple_star_axis_aligned(highlights);
@@ -980,6 +1006,11 @@ class GlareOperation : public NodeOperation {
     });
 
     return diagonal_pass_result;
+  }
+
+  bool get_diagonal_star()
+  {
+    return this->get_input("Diagonal Star").get_single_value_default(true);
   }
 
   /* --------------
@@ -2193,7 +2224,8 @@ class GlareOperation : public NodeOperation {
     output.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      /* Make sure the input is not negative to avoid a subtractive effect when adding the glare.*/
+      /* Make sure the input is not negative
+       * to avoid a subtractive effect when adding the glare. */
       float4 input_color = math::max(float4(0.0f), input.load_pixel<float4>(texel));
 
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(input.domain().size);
@@ -2377,23 +2409,25 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_glare_cc
 
-void register_node_type_cmp_glare()
+static void register_node_type_cmp_glare()
 {
   namespace file_ns = blender::nodes::node_composite_glare_cc;
 
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeGlare", CMP_NODE_GLARE);
-  ntype.ui_name = "Glare ";
+  ntype.ui_name = "Glare";
   ntype.ui_description = "Add lens flares, fog and glows around bright parts of the image";
   ntype.enum_name_legacy = "GLARE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_glare_declare;
   ntype.updatefunc = file_ns::node_update;
   ntype.initfunc = file_ns::node_composit_init_glare;
+  ntype.gather_link_search_ops = file_ns::gather_link_searches;
   blender::bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_glare)

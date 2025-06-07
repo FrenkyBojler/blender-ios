@@ -258,6 +258,9 @@ static wmOperatorStatus solve_camera_modal(bContext *C, wmOperator * /*op*/, con
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_PASS_THROUGH;
@@ -270,7 +273,7 @@ void CLIP_OT_solve_camera(wmOperatorType *ot)
   ot->description = "Solve camera motion from tracks";
   ot->idname = "CLIP_OT_solve_camera";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = solve_camera_exec;
   ot->invoke = solve_camera_invoke;
   ot->modal = solve_camera_modal;
@@ -313,7 +316,7 @@ void CLIP_OT_clear_solution(wmOperatorType *ot)
   ot->description = "Clear all calculated data";
   ot->idname = "CLIP_OT_clear_solution";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_solution_exec;
   ot->poll = ED_space_clip_tracking_poll;
 

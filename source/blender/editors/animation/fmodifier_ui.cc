@@ -160,7 +160,7 @@ static PanelType *fmodifier_panel_register(ARegionType *region_type,
                                            PanelTypePollFn poll,
                                            const char *id_prefix)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   /* Intentionally leave the label field blank. The header is filled with buttons. */
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
@@ -198,7 +198,7 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
                                               PanelTypePollFn poll,
                                               PanelType *parent)
 {
-  PanelType *panel_type = static_cast<PanelType *>(MEM_callocN(sizeof(PanelType), __func__));
+  PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
   SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
@@ -252,14 +252,14 @@ static void delete_fmodifier_cb(bContext *C, void *ctx_v, void *fcm_v)
 static void fmodifier_influence_draw(uiLayout *layout, PointerRNA *ptr)
 {
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
-  uiItemS(layout);
+  layout->separator();
 
-  uiLayout *row = uiLayoutRowWithHeading(layout, true, IFACE_("Influence"));
-  uiItemR(row, ptr, "use_influence", UI_ITEM_NONE, "", ICON_NONE);
-  uiLayout *sub = uiLayoutRow(row, true);
+  uiLayout *row = &layout->row(true, IFACE_("Influence"));
+  row->prop(ptr, "use_influence", UI_ITEM_NONE, "", ICON_NONE);
+  uiLayout *sub = &row->row(true);
 
   uiLayoutSetActive(sub, fcm->flag & FMODIFIER_FLAG_USEINFLUENCE);
-  uiItemR(sub, ptr, "influence", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "influence", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void fmodifier_frame_range_header_draw(const bContext *C, Panel *panel)
@@ -268,7 +268,7 @@ static void fmodifier_frame_range_header_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiItemR(layout, ptr, "use_restricted_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_restricted_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void fmodifier_frame_range_draw(const bContext *C, Panel *panel)
@@ -284,13 +284,13 @@ static void fmodifier_frame_range_draw(const bContext *C, Panel *panel)
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   uiLayoutSetActive(layout, fcm->flag & FMODIFIER_FLAG_RANGERESTRICT);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-  uiItemR(col, ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+  col->prop(ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "blend_in", UI_ITEM_NONE, IFACE_("Blend In"), ICON_NONE);
-  uiItemR(col, ptr, "blend_out", UI_ITEM_NONE, IFACE_("Out"), ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "blend_in", UI_ITEM_NONE, IFACE_("Blend In"), ICON_NONE);
+  col->prop(ptr, "blend_out", UI_ITEM_NONE, IFACE_("Out"), ICON_NONE);
 }
 
 static void fmodifier_panel_header(const bContext *C, Panel *panel)
@@ -304,25 +304,25 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
 
   uiBlock *block = uiLayoutGetBlock(layout);
 
-  uiLayout *sub = uiLayoutRow(layout, true);
+  uiLayout *sub = &layout->row(true);
 
   /* Checkbox for 'active' status (for now). */
-  uiItemR(sub, ptr, "active", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "active", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Name. */
   if (fmi) {
-    uiItemR(sub, ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+    sub->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
-    uiItemL(sub, IFACE_("<Unknown Modifier>"), ICON_NONE);
+    sub->label(IFACE_("<Unknown Modifier>"), ICON_NONE);
   }
   /* Right align. */
-  sub = uiLayoutRow(layout, true);
+  sub = &layout->row(true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+  sub->emboss_set(blender::ui::EmbossType::None);
 
   /* 'Mute' button. */
-  uiItemR(sub, ptr, "mute", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "mute", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Delete button. */
   uiBut *but = uiDefIconBut(block,
@@ -337,15 +337,14 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
                             0.0,
                             0.0,
                             TIP_("Delete Modifier"));
-  FModifierDeleteContext *ctx = static_cast<FModifierDeleteContext *>(
-      MEM_mallocN(sizeof(FModifierDeleteContext), __func__));
+  FModifierDeleteContext *ctx = MEM_mallocN<FModifierDeleteContext>(__func__);
   ctx->owner_id = owner_id;
   ctx->modifiers = fmodifier_list_space_specific(C);
   BLI_assert(ctx->modifiers != nullptr);
 
   UI_but_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
 
-  uiItemS(layout);
+  layout->separator();
 }
 
 /** \} */
@@ -363,17 +362,17 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   FMod_Generator *data = static_cast<FMod_Generator *>(fcm->data);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "poly_order", UI_ITEM_NONE, IFACE_("Order"), ICON_NONE);
+  layout->prop(ptr, "poly_order", UI_ITEM_NONE, IFACE_("Order"), ICON_NONE);
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "coefficients");
-  uiLayout *col = uiLayoutColumn(layout, true);
+  uiLayout *col = &layout->column(true);
   switch (data->mode) {
     case FCM_GENERATOR_POLYNOMIAL: /* Polynomial expression. */
     {
@@ -384,7 +383,7 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
       STRNCPY(xval, N_("Coefficient"));
 
       for (int i = 0; i < data->arraysize; i++) {
-        uiItemFullR(col, ptr, prop, i, 0, UI_ITEM_NONE, IFACE_(xval), ICON_NONE);
+        col->prop(ptr, prop, i, 0, UI_ITEM_NONE, IFACE_(xval), ICON_NONE);
         SNPRINTF(xval, "x^%d", i + 1);
       }
       break;
@@ -394,22 +393,22 @@ static void generator_panel_draw(const bContext *C, Panel *panel)
       {
         /* Add column labels above the buttons to prevent confusion.
          * Fake the property split layout, otherwise the labels use the full row. */
-        uiLayout *split = uiLayoutSplit(col, 0.4f, false);
-        uiLayoutColumn(split, false);
-        uiLayout *title_col = uiLayoutColumn(split, false);
-        uiLayout *title_row = uiLayoutRow(title_col, true);
-        uiItemL(title_row, CTX_IFACE_(BLT_I18NCONTEXT_ID_ACTION, "A"), ICON_NONE);
-        uiItemL(title_row, CTX_IFACE_(BLT_I18NCONTEXT_ID_ACTION, "B"), ICON_NONE);
+        uiLayout *split = &col->split(0.4f, false);
+        split->column(false);
+        uiLayout *title_col = &split->column(false);
+        uiLayout *title_row = &title_col->row(true);
+        title_row->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_ACTION, "A"), ICON_NONE);
+        title_row->label(CTX_IFACE_(BLT_I18NCONTEXT_ID_ACTION, "B"), ICON_NONE);
       }
 
-      uiLayout *first_row = uiLayoutRow(col, true);
-      uiItemFullR(first_row, ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("y = (Ax + B)"), ICON_NONE);
-      uiItemFullR(first_row, ptr, prop, 1, 0, UI_ITEM_NONE, "", ICON_NONE);
+      uiLayout *first_row = &col->row(true);
+      first_row->prop(ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("y = (Ax + B)"), ICON_NONE);
+      first_row->prop(ptr, prop, 1, 0, UI_ITEM_NONE, "", ICON_NONE);
       for (int i = 2; i < data->arraysize - 1; i += 2) {
         /* \u00d7 is the multiplication symbol. */
-        uiLayout *row = uiLayoutRow(col, true);
-        uiItemFullR(row, ptr, prop, i, 0, UI_ITEM_NONE, IFACE_("\u00d7 (Ax + B)"), ICON_NONE);
-        uiItemFullR(row, ptr, prop, i + 1, 0, UI_ITEM_NONE, "", ICON_NONE);
+        uiLayout *row = &col->row(true);
+        row->prop(ptr, prop, i, 0, UI_ITEM_NONE, IFACE_("\u00d7 (Ax + B)"), ICON_NONE);
+        row->prop(ptr, prop, i + 1, 0, UI_ITEM_NONE, "", ICON_NONE);
       }
       break;
     }
@@ -446,19 +445,19 @@ static void fn_generator_panel_draw(const bContext *C, Panel *panel)
 
   PointerRNA *ptr = fmodifier_get_pointers(C, panel, nullptr);
 
-  uiItemR(layout, ptr, "function_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "function_type", UI_ITEM_NONE, "", ICON_NONE);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "use_additive", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "phase_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "phase_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "value_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "phase_multiplier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "phase_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "value_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   fmodifier_influence_draw(layout, ptr);
 }
@@ -495,14 +494,14 @@ static void cycles_panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropDecorate(layout, false);
 
   /* Before. */
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "mode_before", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "cycles_before", UI_ITEM_NONE, IFACE_("Count"), ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "mode_before", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "cycles_before", UI_ITEM_NONE, IFACE_("Count"), ICON_NONE);
 
   /* After. */
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "mode_after", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "cycles_after", UI_ITEM_NONE, IFACE_("Count"), ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "mode_after", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "cycles_after", UI_ITEM_NONE, IFACE_("Count"), ICON_NONE);
 
   fmodifier_influence_draw(layout, ptr);
 }
@@ -538,20 +537,20 @@ static void noise_panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiItemR(layout, ptr, "blend_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "blend_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "phase", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "use_legacy_noise", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "phase", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "depth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_legacy_noise", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_legacy_noise");
   const bool use_legacy_noise = RNA_property_boolean_get(ptr, prop);
   if (!use_legacy_noise) {
-    uiItemR(col, ptr, "lacunarity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "roughness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "lacunarity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "roughness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   fmodifier_influence_draw(layout, ptr);
@@ -603,8 +602,7 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
     }
 
     /* add new */
-    fedn = static_cast<FCM_EnvelopeData *>(
-        MEM_callocN((env->totvert + 1) * sizeof(FCM_EnvelopeData), "FCM_EnvelopeData"));
+    fedn = MEM_calloc_arrayN<FCM_EnvelopeData>((env->totvert + 1), "FCM_EnvelopeData");
 
     /* add the points that should occur before the point to be pasted */
     if (i > 0) {
@@ -626,8 +624,7 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
     env->totvert++;
   }
   else {
-    env->data = static_cast<FCM_EnvelopeData *>(
-        MEM_callocN(sizeof(FCM_EnvelopeData), "FCM_EnvelopeData"));
+    env->data = MEM_callocN<FCM_EnvelopeData>("FCM_EnvelopeData");
     *(env->data) = fed;
 
     env->totvert = 1;
@@ -645,8 +642,7 @@ static void fmod_envelope_deletepoint_cb(bContext * /*C*/, void *fcm_dv, void *i
   /* check that no data exists for the current frame... */
   if (env->totvert > 1) {
     /* allocate a new smaller array */
-    fedn = static_cast<FCM_EnvelopeData *>(
-        MEM_callocN(sizeof(FCM_EnvelopeData) * (env->totvert - 1), "FCM_EnvelopeData"));
+    fedn = MEM_calloc_arrayN<FCM_EnvelopeData>((env->totvert - 1), "FCM_EnvelopeData");
 
     memcpy(fedn, env->data, sizeof(FCM_EnvelopeData) * (index));
     memcpy(fedn + index,
@@ -680,14 +676,14 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropDecorate(layout, false);
 
   /* General settings. */
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "reference_value", UI_ITEM_NONE, IFACE_("Reference"), ICON_NONE);
-  uiItemR(col, ptr, "default_min", UI_ITEM_NONE, IFACE_("Min"), ICON_NONE);
-  uiItemR(col, ptr, "default_max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "reference_value", UI_ITEM_NONE, IFACE_("Reference"), ICON_NONE);
+  col->prop(ptr, "default_min", UI_ITEM_NONE, IFACE_("Min"), ICON_NONE);
+  col->prop(ptr, "default_max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
 
   /* Control points list. */
 
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiBlock *block = uiLayoutGetBlock(row);
 
   uiBut *but = uiDefBut(block,
@@ -704,7 +700,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                         TIP_("Add a new control-point to the envelope on the current frame"));
   UI_but_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
 
-  col = uiLayoutColumn(layout, false);
+  col = &layout->column(false);
   uiLayoutSetPropSep(col, false);
 
   FCM_EnvelopeData *fed = env->data;
@@ -713,12 +709,12 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
         owner_id, &RNA_FModifierEnvelopeControlPoint, fed);
 
     /* get a new row to operate on */
-    row = uiLayoutRow(col, true);
+    row = &col->row(true);
     block = uiLayoutGetBlock(row);
 
-    uiItemR(row, &ctrl_ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(row, &ctrl_ptr, "min", UI_ITEM_NONE, IFACE_("Min"), ICON_NONE);
-    uiItemR(row, &ctrl_ptr, "max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
+    row->prop(&ctrl_ptr, "frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(&ctrl_ptr, "min", UI_ITEM_NONE, IFACE_("Min"), ICON_NONE);
+    row->prop(&ctrl_ptr, "max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
 
     but = uiDefIconBut(block,
                        UI_BTYPE_BUT,
@@ -771,32 +767,32 @@ static void limits_panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropDecorate(layout, false);
 
   /* Minimums. */
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Minimum X"));
-  uiItemR(row, ptr, "use_min_x", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  col = &layout->column(false);
+  row = &col->row(true, IFACE_("Minimum X"));
+  row->prop(ptr, "use_min_x", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min_x"));
-  uiItemR(sub, ptr, "min_x", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "min_x", UI_ITEM_NONE, "", ICON_NONE);
 
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Y"));
-  uiItemR(row, ptr, "use_min_y", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  row = &col->row(true, IFACE_("Y"));
+  row->prop(ptr, "use_min_y", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_min_y"));
-  uiItemR(sub, ptr, "min_y", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "min_y", UI_ITEM_NONE, "", ICON_NONE);
 
   /* Maximums. */
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Maximum X"));
-  uiItemR(row, ptr, "use_max_x", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  col = &layout->column(false);
+  row = &col->row(true, IFACE_("Maximum X"));
+  row->prop(ptr, "use_max_x", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max_x"));
-  uiItemR(sub, ptr, "max_x", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "max_x", UI_ITEM_NONE, "", ICON_NONE);
 
-  row = uiLayoutRowWithHeading(col, true, IFACE_("Y"));
-  uiItemR(row, ptr, "use_max_y", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  row = &col->row(true, IFACE_("Y"));
+  row->prop(ptr, "use_max_y", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_max_y"));
-  uiItemR(sub, ptr, "max_y", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "max_y", UI_ITEM_NONE, "", ICON_NONE);
 
   fmodifier_influence_draw(layout, ptr);
 }
@@ -833,23 +829,23 @@ static void stepped_panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropDecorate(layout, false);
 
   /* Stepping Settings. */
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "frame_step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "frame_step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "frame_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   /* Start range settings. */
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Start Frame"));
-  uiItemR(row, ptr, "use_frame_start", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  row = &layout->row(true, IFACE_("Start Frame"));
+  row->prop(ptr, "use_frame_start", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_frame_start"));
-  uiItemR(sub, ptr, "frame_start", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "frame_start", UI_ITEM_NONE, "", ICON_NONE);
 
   /* End range settings. */
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("End Frame"));
-  uiItemR(row, ptr, "use_frame_end", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutColumn(row, true);
+  row = &layout->row(true, IFACE_("End Frame"));
+  row->prop(ptr, "use_frame_end", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->column(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_frame_end"));
-  uiItemR(sub, ptr, "frame_end", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "frame_end", UI_ITEM_NONE, "", ICON_NONE);
 
   fmodifier_influence_draw(layout, ptr);
 }

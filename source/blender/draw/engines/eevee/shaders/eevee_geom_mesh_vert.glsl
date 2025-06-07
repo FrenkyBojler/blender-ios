@@ -10,6 +10,7 @@ VERTEX_SHADER_CREATE_INFO(eevee_geom_mesh)
 #include "draw_model_lib.glsl"
 #include "eevee_attributes_mesh_lib.glsl"
 #include "eevee_nodetree_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_surf_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 
@@ -25,7 +26,7 @@ void main()
   interp.P = drw_point_object_to_world(pos);
   interp.N = normalize(drw_normal_object_to_world(nor));
 #ifdef MAT_VELOCITY
-  vec3 prv, nxt;
+  float3 prv, nxt;
   velocity_local_pos_get(pos, gl_VertexID, prv, nxt);
   /* FIXME(fclem): Evaluating before displacement avoid displacement being treated as motion but
    * ignores motion from animated displacement. Supporting animated displacement motion vectors
@@ -41,15 +42,15 @@ void main()
   interp.P += nodetree_displacement();
 
 #ifdef MAT_CLIP_PLANE
-  clip_interp.clip_distance = dot(clip_plane.plane, vec4(interp.P, 1.0));
+  clip_interp.clip_distance = dot(clip_plane.plane, float4(interp.P, 1.0f));
 #endif
 
 #ifdef MAT_SHADOW
-  vec3 vs_P = drw_point_world_to_view(interp.P);
+  float3 vs_P = drw_point_world_to_view(interp.P);
   ShadowRenderView view = render_view_buf[drw_view_id];
   shadow_clip.position = shadow_position_vector_get(vs_P, view);
   shadow_clip.vector = shadow_clip_vector_get(vs_P, view.clip_distance_inv);
 #endif
 
-  gl_Position = drw_point_world_to_homogenous(interp.P);
+  gl_Position = reverse_z::transform(drw_point_world_to_homogenous(interp.P));
 }

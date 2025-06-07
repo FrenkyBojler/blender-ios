@@ -136,6 +136,11 @@ bool GPU_use_parallel_compilation()
   return GCaps.max_parallel_compilations > 0;
 }
 
+int GPU_max_parallel_compilations()
+{
+  return GCaps.max_parallel_compilations;
+}
+
 bool GPU_mip_render_workaround()
 {
   return GCaps.mip_render_workaround;
@@ -192,14 +197,14 @@ bool GPU_hdr_support()
   return GCaps.hdr_viewport_support;
 }
 
-bool GPU_texture_view_support()
-{
-  return GCaps.texture_view_support;
-}
-
 bool GPU_stencil_export_support()
 {
   return GCaps.stencil_export_support;
+}
+
+bool GPU_clip_control_support()
+{
+  return GCaps.clip_control_support;
 }
 
 int GPU_max_shader_storage_buffer_bindings()

@@ -799,14 +799,6 @@ PACKAGES_ALL = (
                                   DISTRO_ID_ARCH: "usd",  # No official package, in AUR only currently.
                                   },
             ),
-    Package(name="OpenCollada Library", is_mandatory=False,
-            version="1.6.68", version_short="1.6", version_min="1.6.68", version_mex="1.7",
-            distro_package_names={DISTRO_ID_DEBIAN: "opencollada-dev",  # Useless, very old!
-                                  DISTRO_ID_FEDORA: "openCOLLADA-devel",
-                                  DISTRO_ID_SUSE: "libopenCOLLADA-devel",
-                                  DISTRO_ID_ARCH: "opencollada",
-                                  },
-            ),
     Package(name="Embree Library", is_mandatory=False,
             version="4.3.3", version_short="4.3", version_min="4.3", version_mex="5.0",
             sub_packages=(),
@@ -928,8 +920,8 @@ class PackageInstaller:
         return cls._instance
 
     def run_command(self, command):
-        """Basic wrapper around `subprocess.Popen`, mimicking  `subprocess.run` with a basic progress bar."""
-        # First dummy call to get user password for sudo. Otherwise the progress bar on actuall commands
+        """Basic wrapper around ``subprocess.Popen``, mimicking ``subprocess.run`` with a basic progress bar."""
+        # First dummy call to get user password for `sudo`. Otherwise the progress bar on actual commands
         # makes it impossible for users to enter their password.
         if not self.settings.no_sudo:
             subprocess.run([MAYSUDO, "echo"], capture_output=True)

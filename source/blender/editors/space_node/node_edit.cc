@@ -31,6 +31,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
+#include "BKE_screen.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -262,8 +263,7 @@ static void compo_initjob(void *cjv)
    * evaluate_on_framechange. */
   DEG_evaluate_on_refresh(cj->compositor_depsgraph);
 
-  bNodeTree *ntree_eval = (bNodeTree *)DEG_get_evaluated_id(cj->compositor_depsgraph,
-                                                            &cj->ntree->id);
+  bNodeTree *ntree_eval = DEG_get_evaluated(cj->compositor_depsgraph, cj->ntree);
 
   cj->localtree = bke::node_tree_localize(ntree_eval, nullptr);
 
@@ -627,10 +627,10 @@ void ED_node_shader_default(const bContext *C, ID *id)
                                   *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
     }
 
-    shader->location[0] = 10.0f;
-    shader->location[1] = 300.0f;
-    output->location[0] = 300.0f;
-    output->location[1] = 300.0f;
+    shader->location[0] = -200.0f;
+    shader->location[1] = 100.0f;
+    output->location[0] = 200.0f;
+    output->location[1] = 100.0f;
     blender::bke::node_set_active(*ntree, *output);
     BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
   }
@@ -651,21 +651,44 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   }
 
   sce->nodetree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
+      nullptr, &sce->id, "Compositing Node Tree", ntreeType_Composite->idname);
 
-  bNode *out = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
-  out->location[0] = 200.0f;
-  out->location[1] = 200.0f;
+  bNode *composite = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
+  composite->location[0] = 200.0f;
+  composite->location[1] = 0.0f;
 
   bNode *in = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_R_LAYERS);
-  in->location[0] = -200.0f;
-  in->location[1] = 200.0f;
+  in->location[0] = -150.0f - in->width;
+  in->location[1] = 0.0f;
   blender::bke::node_set_active(*sce->nodetree, *in);
 
-  /* Links from color to color. */
-  bNodeSocket *fromsock = (bNodeSocket *)in->outputs.first;
-  bNodeSocket *tosock = (bNodeSocket *)out->inputs.first;
-  blender::bke::node_add_link(*sce->nodetree, *in, *fromsock, *out, *tosock);
+  bNode *reroute = blender::bke::node_add_static_node(C, *sce->nodetree, NODE_REROUTE);
+  reroute->location[0] = 100.0f;
+  reroute->location[1] = -35.0f;
+
+  bNode *viewer = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_VIEWER);
+  viewer->location[0] = 200.0f;
+  viewer->location[1] = -60.0f;
+
+  /* Viewer and Composite nodes are linked to Render Layer's output image socket through a reroute
+   * node. */
+  blender::bke::node_add_link(*sce->nodetree,
+                              *in,
+                              *(bNodeSocket *)in->outputs.first,
+                              *reroute,
+                              *(bNodeSocket *)reroute->inputs.first);
+
+  blender::bke::node_add_link(*sce->nodetree,
+                              *reroute,
+                              *(bNodeSocket *)reroute->outputs.first,
+                              *composite,
+                              *(bNodeSocket *)composite->inputs.first);
+
+  blender::bke::node_add_link(*sce->nodetree,
+                              *reroute,
+                              *(bNodeSocket *)reroute->outputs.first,
+                              *viewer,
+                              *(bNodeSocket *)viewer->inputs.first);
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *sce->nodetree);
 }
@@ -738,7 +761,9 @@ void snode_set_context(const bContext &C)
   if (snode->nodetree != ntree || snode->id != id || snode->from != from ||
       (snode->treepath.last == nullptr && ntree))
   {
-    ED_node_tree_start(snode, ntree, id, from);
+    ScrArea *area = CTX_wm_area(&C);
+    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+    ED_node_tree_start(region, snode, ntree, id, from);
   }
 }
 
@@ -969,13 +994,14 @@ static void node_resize_init(
 
 static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
 {
+  NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
+
   WM_cursor_modal_restore(CTX_wm_window(C));
 
   /* Restore old data on cancel. */
   if (cancel) {
     SpaceNode *snode = CTX_wm_space_node(C);
     bNode *node = bke::node_get_active(*snode->edittree);
-    NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
     node->location[0] = nsw->oldlocx;
     node->location[1] = nsw->oldlocy;
@@ -983,7 +1009,7 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
     node->height = nsw->oldheight;
   }
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(nsw);
   op->customdata = nullptr;
 }
 
@@ -1060,11 +1086,12 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
       UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
-      float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
+      const float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
       if (node) {
         float *pwidth = &node->width;
+        float *pheight = &node->height;
         float oldwidth = nsw->oldwidth;
         float widthmin = node->typeinfo->minwidth;
         float widthmax = node->typeinfo->maxwidth;
@@ -1080,13 +1107,13 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           }
           if (nsw->directions & NODE_RESIZE_LEFT) {
             float locmax = nsw->oldlocx + oldwidth;
+            *pwidth = oldwidth - dx;
 
             if (nsw->snap_to_grid) {
-              dx = nearest_node_grid_coord(dx);
+              *pwidth = nearest_node_grid_coord(*pwidth);
             }
-            node->location[0] = nsw->oldlocx + dx;
-            CLAMP(node->location[0], locmax - widthmax, locmax - widthmin);
-            *pwidth = locmax - node->location[0];
+            CLAMP(*pwidth, widthmin, widthmax);
+            node->location[0] = locmax - *pwidth;
           }
         }
 
@@ -1096,14 +1123,21 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
           float heightmax = UI_SCALE_FAC * node->typeinfo->maxheight;
           if (nsw->directions & NODE_RESIZE_TOP) {
             float locmin = nsw->oldlocy - nsw->oldheight;
+            *pheight = nsw->oldheight + dy;
 
-            node->location[1] = nsw->oldlocy + dy;
-            CLAMP(node->location[1], locmin + heightmin, locmin + heightmax);
-            node->height = node->location[1] - locmin;
+            if (nsw->snap_to_grid) {
+              *pheight = nearest_node_grid_coord(*pheight);
+            }
+            CLAMP(*pheight, heightmin, heightmax);
+            node->location[1] = locmin + *pheight;
           }
           if (nsw->directions & NODE_RESIZE_BOTTOM) {
-            node->height = nsw->oldheight - dy;
-            CLAMP(node->height, heightmin, heightmax);
+            *pheight = nsw->oldheight - dy;
+
+            if (nsw->snap_to_grid) {
+              *pheight = nearest_node_grid_coord(*pheight);
+            }
+            CLAMP(*pheight, heightmin, heightmax);
           }
         }
       }
@@ -1121,6 +1155,9 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
 
         return OPERATOR_FINISHED;
       }
+      break;
+    }
+    default: {
       break;
     }
   }
@@ -1164,7 +1201,7 @@ void NODE_OT_resize(wmOperatorType *ot)
   ot->idname = "NODE_OT_resize";
   ot->description = "Resize a node";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = node_resize_invoke;
   ot->modal = node_resize_modal;
   ot->poll = ED_operator_node_active;
@@ -1233,7 +1270,8 @@ bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const b
     return false;
   }
   if (ntree.type == NTREE_SHADER) {
-    return USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && !node.is_frame();
+    return USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) && !node.is_frame() &&
+           snode.shaderfrom == SNODE_SHADER_OBJECT;
   }
   return node.typeinfo->flag & NODE_PREVIEW;
 }
@@ -1300,7 +1338,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_IN) {
       for (bNodeSocket *sock : node->input_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;
@@ -1318,7 +1356,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_OUT) {
       for (bNodeSocket *sock : node->output_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;
@@ -1557,7 +1595,7 @@ void NODE_OT_duplicate(wmOperatorType *ot)
   ot->description = "Duplicate selected nodes";
   ot->idname = "NODE_OT_duplicate";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_duplicate_exec;
   ot->poll = ED_operator_node_editable;
 
@@ -1683,9 +1721,10 @@ void NODE_OT_render_changed(wmOperatorType *ot)
 
 /**
  * Toggles the flag on all selected nodes. If the flag is set on all nodes it is unset.
- * If the flag is not set on all nodes, it is set.
+ * If the flag is not set on all nodes, it is set. If tag_update is true, the nodes will be tagged
+ * for a property change update.
  */
-static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
+static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag, const bool tag_update = false)
 {
   int tot_eq = 0, tot_neq = 0;
 
@@ -1726,6 +1765,10 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
       }
       else {
         node->flag &= ~toggle_flag;
+      }
+
+      if (tag_update) {
+        BKE_ntree_update_tag_node_property(snode->edittree, node);
       }
     }
   }
@@ -1771,7 +1814,10 @@ static wmOperatorStatus node_preview_toggle_exec(bContext *C, wmOperator * /*op*
     return OPERATOR_CANCELLED;
   }
 
-  node_flag_toggle_exec(snode, NODE_PREVIEW);
+  node_flag_toggle_exec(snode, NODE_PREVIEW, true);
+
+  WM_event_add_notifier(C, NC_NODE | NA_EDITED, &snode->edittree->id);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, &snode->edittree->id);
 
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
@@ -2057,7 +2103,7 @@ void NODE_OT_delete(wmOperatorType *ot)
   ot->description = "Remove selected nodes";
   ot->idname = "NODE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_delete_exec;
   ot->poll = ED_operator_node_editable;
 
@@ -2104,7 +2150,7 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot)
   ot->description = "Remove nodes and reconnect nodes as if deletion was muted";
   ot->idname = "NODE_OT_delete_reconnect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_delete_reconnect_exec;
   ot->poll = ED_operator_node_editable;
 
@@ -2334,7 +2380,7 @@ void NODE_OT_node_copy_color(wmOperatorType *ot)
   ot->description = "Copy color to all selected nodes";
   ot->idname = "NODE_OT_node_copy_color";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_copy_color_exec;
   ot->poll = ED_operator_node_editable;
 
@@ -2350,8 +2396,7 @@ void NODE_OT_node_copy_color(wmOperatorType *ot)
 
 static bool node_shader_script_update_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  const RenderEngineType *type = RE_engines_find(scene->r.engine);
+  RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
 
   /* Test if we have a render engine that supports shaders scripts. */
@@ -2374,55 +2419,16 @@ static bool node_shader_script_update_poll(bContext *C)
     }
   }
 
-  /* See if we have a text datablock in context. */
-  Text *text = (Text *)CTX_data_pointer_get_type(C, "edit_text", &RNA_Text).data;
-  if (text) {
-    return true;
-  }
-
-  /* We don't check if text datablock is actually in use, too slow for poll. */
-
   return false;
-}
-
-/* recursively check for script nodes in groups using this text and update */
-static bool node_shader_script_update_text_recursive(RenderEngine *engine,
-                                                     RenderEngineType *type,
-                                                     bNodeTree *ntree,
-                                                     Text *text,
-                                                     VectorSet<bNodeTree *> &done_trees)
-{
-  bool found = false;
-
-  done_trees.add_new(ntree);
-
-  /* Update each script that is using this text datablock. */
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->type_legacy == NODE_GROUP) {
-      bNodeTree *ngroup = (bNodeTree *)node->id;
-      if (ngroup && !done_trees.contains(ngroup)) {
-        found |= node_shader_script_update_text_recursive(engine, type, ngroup, text, done_trees);
-      }
-    }
-    else if (node->type_legacy == SH_NODE_SCRIPT && node->id == &text->id) {
-      type->update_script_node(engine, ntree, node);
-      found = true;
-    }
-  }
-
-  return found;
 }
 
 static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript);
-  bool found = false;
 
   /* setup render engine */
-  RenderEngineType *type = RE_engines_find(scene->r.engine);
   RenderEngine *engine = RE_engine_create(type);
   engine->reports = op->reports;
 
@@ -2437,39 +2443,12 @@ static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *
     node = bke::node_get_active(*snode->edittree);
   }
 
-  if (node) {
-    /* Update single node. */
-    type->update_script_node(engine, ntree_base, node);
-
-    found = true;
-  }
-  else {
-    /* Update all nodes using text datablock. */
-    Text *text = (Text *)CTX_data_pointer_get_type(C, "edit_text", &RNA_Text).data;
-
-    if (text) {
-
-      VectorSet<bNodeTree *> done_trees;
-
-      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-        if (ntree->type == NTREE_SHADER) {
-          if (!done_trees.contains(ntree)) {
-            found |= node_shader_script_update_text_recursive(
-                engine, type, ntree, text, done_trees);
-          }
-        }
-      }
-      FOREACH_NODETREE_END;
-
-      if (!found) {
-        BKE_report(op->reports, RPT_INFO, "Text not used by any node, no update done");
-      }
-    }
-  }
+  /* Update node. */
+  type->update_script_node(engine, ntree_base, node);
 
   RE_engine_free(engine);
 
-  return (found) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return OPERATOR_FINISHED;
 }
 
 void NODE_OT_shader_script_update(wmOperatorType *ot)
@@ -2479,7 +2458,7 @@ void NODE_OT_shader_script_update(wmOperatorType *ot)
   ot->description = "Update shader script node with new sockets and options from the script";
   ot->idname = "NODE_OT_shader_script_update";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_shader_script_update_exec;
   ot->poll = node_shader_script_update_poll;
 
@@ -2572,7 +2551,7 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
   ot->description = "Set the boundaries for viewer operations";
   ot->idname = "NODE_OT_viewer_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = viewer_border_exec;
   ot->modal = WM_gesture_box_modal;
@@ -2605,7 +2584,7 @@ void NODE_OT_clear_viewer_border(wmOperatorType *ot)
   ot->description = "Clear the boundaries for viewer operations";
   ot->idname = "NODE_OT_clear_viewer_border";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_viewer_border_exec;
   ot->poll = composite_node_active;
 

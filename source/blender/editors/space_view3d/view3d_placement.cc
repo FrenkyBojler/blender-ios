@@ -368,7 +368,7 @@ static void draw_line_bounds(const BoundBox *bounds, const float color[4])
 
 static bool calc_bbox(InteractivePlaceData *ipd, BoundBox *bounds)
 {
-  memset(bounds, 0x0, sizeof(*bounds));
+  *bounds = BoundBox{};
 
   if (compare_v3v3(ipd->co_src, ipd->step[0].co_dst, FLT_EPSILON)) {
     return false;
@@ -745,7 +745,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
       /* Be sure to also compute the #V3DSnapCursorData.plane_omat. */
       snap_state->draw_plane = true;
 
-      ED_view3d_cursor_snap_data_update(snap_state_new, C, ipd->region, mval[0], mval[1]);
+      ED_view3d_cursor_snap_data_update(snap_state_new, C, ipd->region, mval);
     }
   }
 
@@ -1023,11 +1023,16 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
     switch (event->type) {
       case EVT_ESCKEY:
       case RIGHTMOUSE: {
+        /* Restore snap mode. */
+        *ipd->snap_to_ptr = ipd->snap_to_restore;
         view3d_interactive_add_exit(C, op);
         return OPERATOR_CANCELLED;
       }
       case MOUSEMOVE: {
         do_cursor_update = true;
+        break;
+      }
+      default: {
         break;
       }
     }
@@ -1287,7 +1292,7 @@ void VIEW3D_OT_interactive_add(wmOperatorType *ot)
   ot->description = "Interactively add an object";
   ot->idname = "VIEW3D_OT_interactive_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = view3d_interactive_add_invoke;
   ot->modal = view3d_interactive_add_modal;
   ot->cancel = view3d_interactive_add_cancel;

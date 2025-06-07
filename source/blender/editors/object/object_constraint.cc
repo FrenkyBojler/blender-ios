@@ -155,99 +155,6 @@ bConstraint *constraint_active_get(Object *ob)
 /** \} */
 
 /* ------------------------------------------------------------------- */
-/** \name PyConstraints (Unused)
- * \{ */
-
-#ifdef WITH_PYTHON
-
-/* this callback sets the text-file to be used for selected menu item */
-static void validate_pyconstraint_cb(Main *bmain, void *arg1, void *arg2)
-{
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(arg1);
-  Text *text = nullptr;
-  int index = *((int *)arg2);
-  int i;
-
-  /* exception for no script */
-  if (index) {
-    /* innovative use of a for...loop to search */
-    for (text = static_cast<Text *>(bmain->texts.first), i = 1; text && index != i;
-         i++, text = static_cast<Text *>(text->id.next))
-    {
-      /* pass */
-    }
-  }
-  data->text = text;
-}
-
-/* this returns a string for the list of usable pyconstraint script names */
-static char *buildmenu_pyconstraints(Main *bmain, Text *con_text, int *pyconindex)
-{
-  DynStr *pupds = BLI_dynstr_new();
-  Text *text;
-  char *str;
-  char buf[64];
-  int i;
-
-  /* add title first */
-  STRNCPY(buf, "Scripts: %t|[None]%x0|");
-  BLI_dynstr_append(pupds, buf);
-
-  /* init active-index first */
-  if (con_text == nullptr) {
-    *pyconindex = 0;
-  }
-
-  /* loop through markers, adding them */
-  for (text = static_cast<Text *>(bmain->texts.first), i = 1; text;
-       i++, text = static_cast<Text *>(text->id.next))
-  {
-    /* this is important to ensure that right script is shown as active */
-    if (text == con_text) {
-      *pyconindex = i;
-    }
-
-    /* only include valid pyconstraint scripts */
-    if (BPY_is_pyconstraint(text)) {
-      BLI_dynstr_append(pupds, text->id.name + 2);
-
-      SNPRINTF(buf, "%%x%d", i);
-      BLI_dynstr_append(pupds, buf);
-
-      if (text->id.next) {
-        BLI_dynstr_append(pupds, "|");
-      }
-    }
-  }
-
-  /* convert to normal MEM_malloc'd string */
-  str = BLI_dynstr_get_cstring(pupds);
-  BLI_dynstr_free(pupds);
-
-  return str;
-}
-#endif /* WITH_PYTHON */
-
-#if 0 /* UNUSED, until pyconstraints are added back. */
-/* this callback gets called when the 'refresh' button of a pyconstraint gets pressed */
-static void update_pyconstraint_cb(void *arg1, void *arg2)
-{
-#  ifndef WITH_PYTHON
-  (void)arg1; /* unused */
-  (void)arg2; /* unused */
-#  else
-  Object *owner = (Object *)arg1;
-  bConstraint *con = (bConstraint *)arg2;
-  if (owner && con) {
-    BPY_pyconstraint_update(owner, con);
-  }
-#  endif /* WITH_PYTHON */
-}
-#endif   /* UNUSED */
-
-/** \} */
-
-/* ------------------------------------------------------------------- */
 /** \name Add Constraint Utilities
  * \{ */
 
@@ -1852,7 +1759,7 @@ void CONSTRAINT_OT_copy_to_selected(wmOperatorType *ot)
   ot->idname = "CONSTRAINT_OT_copy_to_selected";
   ot->description = "Copy constraint to other selected objects/bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = constraint_copy_to_selected_exec;
   ot->invoke = constraint_copy_to_selected_invoke;
   ot->poll = constraint_copy_to_selected_poll;
@@ -2174,7 +2081,7 @@ void POSE_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "POSE_OT_constraints_copy";
   ot->description = "Copy constraints to other selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_constraint_copy_exec;
   ot->poll = ED_operator_posemode_exclusive;
 
@@ -2219,7 +2126,7 @@ void OBJECT_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_constraints_copy";
   ot->description = "Copy constraints to other selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_constraint_copy_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -2440,34 +2347,6 @@ static wmOperatorStatus constraint_add_exec(
     }
   }
 
-  /* Do type-specific tweaking to the constraint settings. */
-  switch (type) {
-    case CONSTRAINT_TYPE_PYTHON: /* FIXME: this code is not really valid anymore */
-    {
-#ifdef WITH_PYTHON
-      char *menustr;
-      int scriptint = 0;
-      /* popup a list of usable scripts */
-      menustr = buildmenu_pyconstraints(bmain, nullptr, &scriptint);
-      // scriptint = pupmenu(menustr); /* XXX */
-      MEM_freeN(menustr);
-
-      /* only add constraint if a script was chosen */
-      if (scriptint) {
-        /* add constraint */
-        validate_pyconstraint_cb(bmain, con->data, &scriptint);
-
-        /* make sure target allowance is set correctly */
-        BPY_pyconstraint_update(ob, con);
-      }
-#endif
-      break;
-    }
-
-    default:
-      break;
-  }
-
   /* make sure all settings are valid - similar to above checks, but sometimes can be wrong */
   object_test_constraints(bmain, ob);
 
@@ -2572,7 +2451,7 @@ void OBJECT_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active object";
   ot->idname = "OBJECT_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2603,7 +2482,7 @@ void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
       "selected objects/bones";
   ot->idname = "OBJECT_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2624,7 +2503,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active bone";
   ot->idname = "POSE_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2645,7 +2524,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
       "Objects/Bones";
   ot->idname = "POSE_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2706,20 +2585,20 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      * - the only thing that matters is that we want a target...
      */
     if (tar_pchan) {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Bone"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Bone"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Object"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-    uiItemBooleanO(
-        layout, IFACE_("To New Empty Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
-    uiItemBooleanO(
-        layout, IFACE_("Without Targets"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 0);
+    PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To New Empty Object"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", true);
+    op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Targets"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */
@@ -2747,7 +2626,7 @@ void POSE_OT_ik_add(wmOperatorType *ot)
   ot->description = "Add IK Constraint to the active Bone";
   ot->idname = "POSE_OT_ik_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = pose_ik_add_invoke;
   ot->exec = pose_ik_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2811,7 +2690,7 @@ void POSE_OT_ik_clear(wmOperatorType *ot)
   ot->description = "Remove all IK Constraints from selected bones";
   ot->idname = "POSE_OT_ik_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_ik_clear_exec;
   ot->poll = ED_operator_object_active_local_editable_posemode_exclusive;
 

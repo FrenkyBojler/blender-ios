@@ -223,10 +223,12 @@ void GPU_batch_resource_id_buf_set(Batch *batch, GPUStorageBuf *resource_id_buf)
  *
  * \{ */
 
-void GPU_batch_set_shader(Batch *batch, GPUShader *shader)
+void GPU_batch_set_shader(Batch *batch,
+                          GPUShader *shader,
+                          const shader::SpecializationConstants *constants_state)
 {
   batch->shader = shader;
-  GPU_shader_bind(batch->shader);
+  GPU_shader_bind(batch->shader, constants_state);
 }
 
 static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
@@ -245,6 +247,15 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
   uint16_t bound_attr = 0u;
   for (uint a_idx = 0; a_idx < format->attr_len; a_idx++) {
     const GPUVertAttr *a = &format->attrs[a_idx];
+
+    if (format->deinterleaved) {
+      offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * vbo->vertex_len;
+      stride = a->size;
+    }
+    else {
+      offset = a->offset;
+    }
+
     for (uint n_idx = 0; n_idx < a->name_len; n_idx++) {
       const char *name = GPU_vertformat_attr_name_get(format, a, n_idx);
       const ShaderInput *input = interface->ssbo_get(name);
@@ -257,14 +268,6 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
       /* WORKAROUND: This is to support complex format. But ideally this should not be supported.
        */
       uniform_name[9] = '0' + input->location;
-
-      if (format->deinterleaved) {
-        offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].size) * vbo->vertex_len;
-        stride = a->size;
-      }
-      else {
-        offset = a->offset;
-      }
 
       /* Only support 4byte aligned attributes. */
       BLI_assert((stride % 4) == 0);
@@ -281,7 +284,9 @@ static uint16_t bind_attribute_as_ssbo(const ShaderInterface *interface,
   return bound_attr;
 }
 
-void GPU_batch_bind_as_resources(Batch *batch, GPUShader *shader)
+void GPU_batch_bind_as_resources(Batch *batch,
+                                 GPUShader *shader,
+                                 const shader::SpecializationConstants *constants)
 {
   const ShaderInterface *interface = unwrap(shader)->interface;
   if (interface->ssbo_attr_mask_ == 0) {
@@ -292,7 +297,7 @@ void GPU_batch_bind_as_resources(Batch *batch, GPUShader *shader)
 
   if (ssbo_attributes & (1 << GPU_SSBO_INDEX_BUF_SLOT)) {
     /* Ensure binding for setting uniforms. This is required by the OpenGL backend. */
-    GPU_shader_bind(shader);
+    GPU_shader_bind(shader, constants);
     if (batch->elem) {
       GPU_indexbuf_bind_as_ssbo(batch->elem, GPU_SSBO_INDEX_BUF_SLOT);
       GPU_shader_uniform_1b(shader, "gpu_index_no_buffer", false);
@@ -322,7 +327,7 @@ void GPU_batch_bind_as_resources(Batch *batch, GPUShader *shader)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Drawing / Drawcall functions
+/** \name Drawing / Draw-call functions
  * \{ */
 
 void GPU_batch_draw_parameter_get(Batch *batch,
@@ -379,6 +384,10 @@ blender::IndexRange GPU_batch_draw_expanded_parameter_get(GPUPrimType input_prim
 static void polyline_draw_workaround(
     Batch *batch, int vertex_first, int vertex_count, int instance_first, int instance_count)
 {
+  /* Early out as this can cause crashes on some backend (see #136831). */
+  if (vertex_count == 0) {
+    return;
+  }
   /* Check compatible input primitive. */
   BLI_assert(ELEM(batch->prim_type, GPU_PRIM_LINES, GPU_PRIM_LINE_STRIP, GPU_PRIM_LINE_LOOP));
 

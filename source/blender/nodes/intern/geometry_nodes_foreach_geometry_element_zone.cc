@@ -142,7 +142,7 @@ class ForeachGeometryElementNodeExecuteWrapper : public lf::GraphExecutorNodeExe
                     lf::Params &params,
                     const lf::Context &context) const override
   {
-    GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     const int index = lf_body_nodes_->index_of_try(const_cast<lf::FunctionNode *>(&node));
     const LazyFunction &fn = node.function();
     if (index == -1) {
@@ -154,12 +154,12 @@ class ForeachGeometryElementNodeExecuteWrapper : public lf::GraphExecutorNodeExe
     /* Setup context for the loop body evaluation. */
     bke::ForeachGeometryElementZoneComputeContext body_compute_context{
         user_data.compute_context, *output_bnode_, index};
-    GeoNodesLFUserData body_user_data = user_data;
+    GeoNodesUserData body_user_data = user_data;
     body_user_data.compute_context = &body_compute_context;
     body_user_data.log_socket_values = should_log_socket_values_for_context(
         user_data, body_compute_context.hash());
 
-    GeoNodesLFLocalUserData body_local_user_data{body_user_data};
+    GeoNodesLocalUserData body_local_user_data{body_user_data};
     lf::Context body_context{context.storage, &body_user_data, &body_local_user_data};
     fn.execute(params, body_context);
   }
@@ -177,7 +177,7 @@ class ForeachGeometryElementZoneSideEffectProvider : public lf::GraphExecutorSid
   Vector<const lf::FunctionNode *> get_nodes_with_side_effects(
       const lf::Context &context) const override
   {
-    GeoNodesLFUserData &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+    GeoNodesUserData &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     const GeoNodesCallData &call_data = *user_data.call_data;
     if (!call_data.side_effect_nodes) {
       return {};
@@ -263,13 +263,13 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
                                             const ZoneBodyFunction &body_fn)
       : btree_(btree),
         zone_(zone),
-        output_bnode_(*zone.output_node),
+        output_bnode_(*zone.output_node()),
         zone_info_(zone_info),
         body_fn_(body_fn)
   {
     debug_name_ = "Foreach Geometry Element";
 
-    initialize_zone_wrapper(zone, zone_info, body_fn, inputs_, outputs_);
+    initialize_zone_wrapper(zone, zone_info, body_fn, true, inputs_, outputs_);
     /* All main inputs are always used for now. */
     for (const int i : zone_info.indices.inputs.main) {
       inputs_[i].usage = lf::ValueUsage::Used;
@@ -278,7 +278,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
     const auto &node_storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
         output_bnode_.storage);
     const AttrDomain iteration_domain = AttrDomain(node_storage.domain);
-    BLI_assert(zone_.input_node->output_socket(1).is_available() ==
+    BLI_assert(zone_.input_node()->output_socket(1).is_available() ==
                (iteration_domain != AttrDomain::Corner));
 
     const int input_items_num = node_storage.input_items.items_num;
@@ -324,8 +324,8 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
   {
     const ScopedNodeTimer node_timer{context, output_bnode_};
 
-    auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
-    auto &local_user_data = *static_cast<GeoNodesLFLocalUserData *>(context.local_user_data);
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
 
     const auto &node_storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
         output_bnode_.storage);
@@ -341,8 +341,8 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
           if (!eval_storage.main_geometry.is_empty()) {
             tree_logger->node_warnings.append(
                 *tree_logger->allocator,
-                {zone_.input_node->identifier,
-                 {geo_eval_log::NodeWarningType::Info,
+                {zone_.input_node()->identifier,
+                 {NodeWarningType::Info,
                   N_("Input geometry has no elements in the iteration domain.")}});
           }
         }
@@ -403,8 +403,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
         eval_storage.allocator);
 
     /* Log graph for debugging purposes. */
-    bNodeTree &btree_orig = *reinterpret_cast<bNodeTree *>(
-        DEG_get_original_id(const_cast<ID *>(&btree_.id)));
+    const bNodeTree &btree_orig = *DEG_get_original(&btree_);
     if (btree_orig.runtime->logged_zone_graphs) {
       std::lock_guard lock{btree_orig.runtime->logged_zone_graphs->mutex};
       btree_orig.runtime->logged_zone_graphs->graph_by_zone_id.lookup_or_add_cb(
@@ -421,7 +420,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
     /* TODO: Get propagation info from input, but that's not necessary for correctness for now. */
     bke::AttributeFilter attribute_filter;
 
-    const bNodeSocket &element_geometry_bsocket = zone_.input_node->output_socket(1);
+    const bNodeSocket &element_geometry_bsocket = zone_.input_node()->output_socket(1);
     const bool create_element_geometries = element_geometry_bsocket.is_available() &&
                                            element_geometry_bsocket.is_directly_linked();
 
@@ -660,7 +659,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
       }
     }
 
-    const bNodeSocket &element_geometry_bsocket = zone_.input_node->output_socket(1);
+    const bNodeSocket &element_geometry_bsocket = zone_.input_node()->output_socket(1);
 
     static const GeometrySet empty_geometry;
     for (const ForeachElementComponent &component_info : eval_storage.components) {
@@ -853,7 +852,7 @@ void LazyFunctionForReduceForeachGeometryElement::execute_impl(lf::Params &param
 void LazyFunctionForReduceForeachGeometryElement::handle_main_items_and_geometry(
     lf::Params &params, const lf::Context &context) const
 {
-  auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+  auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
   const auto &node_storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(
       parent_.output_bnode_.storage);
   const int body_main_outputs_num = node_storage.main_items.items_num +
@@ -957,7 +956,7 @@ int LazyFunctionForReduceForeachGeometryElement::handle_invalid_generation_items
     if (!params.output_was_set(lf_socket_i)) {
       const int bsocket_i = parent_.indices_.generation.bsocket_outer[item_i];
       set_default_value_for_output_socket(
-          params, lf_socket_i, parent_.zone_.output_node->output_socket(bsocket_i));
+          params, lf_socket_i, parent_.zone_.output_node()->output_socket(bsocket_i));
     }
   }
   return item_i;
@@ -1000,7 +999,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
     const int geometry_item_i,
     const IndexRange generation_items_range) const
 {
-  auto &user_data = *static_cast<GeoNodesLFUserData *>(context.user_data);
+  auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
   const auto &node_storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(
       parent_.output_bnode_.storage);
   const int body_main_outputs_num = node_storage.main_items.items_num +

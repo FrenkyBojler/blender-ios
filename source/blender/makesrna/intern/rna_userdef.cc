@@ -155,7 +155,7 @@ static const EnumPropertyItem rna_enum_key_insert_channels[] = {
 static const EnumPropertyItem rna_enum_preference_gpu_backend_items[] = {
     {GPU_BACKEND_OPENGL, "OPENGL", 0, "OpenGL", "Use OpenGL backend"},
     {GPU_BACKEND_METAL, "METAL", 0, "Metal", "Use Metal backend"},
-    {GPU_BACKEND_VULKAN, "VULKAN", 0, "Vulkan (experimental)", "Use Vulkan backend"},
+    {GPU_BACKEND_VULKAN, "VULKAN", 0, "Vulkan", "Use Vulkan backend"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 static const EnumPropertyItem rna_enum_preference_gpu_preferred_device_items[] = {
@@ -898,19 +898,6 @@ static void rna_Userdef_memcache_update(Main * /*bmain*/, Scene * /*scene*/, Poi
   const int64_t new_limit = int64_t(U.memcachelimit) * 1024 * 1024;
   MEM_CacheLimiter_set_maximum(new_limit);
   blender::memory_cache::set_approximate_size_limit(new_limit);
-  USERDEF_TAG_DIRTY;
-}
-
-static void rna_Userdef_disk_cache_dir_update(Main * /*bmain*/,
-                                              Scene * /*scene*/,
-                                              PointerRNA * /*ptr*/)
-{
-  if (U.sequencer_disk_cache_dir[0] != '\0') {
-    BLI_path_abs(U.sequencer_disk_cache_dir, BKE_main_blendfile_path_from_global());
-    BLI_path_slash_ensure(U.sequencer_disk_cache_dir, sizeof(U.sequencer_disk_cache_dir));
-    BLI_path_make_safe(U.sequencer_disk_cache_dir);
-  }
-
   USERDEF_TAG_DIRTY;
 }
 
@@ -3500,6 +3487,12 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "For Each Geometry Element Zone", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "closure_zone", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "node_zone_closure");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Closure Zone", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
@@ -3868,7 +3861,7 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
   prop = RNA_def_property(srna, "selected_text", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "selected_text");
   RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Selected text", "Text strip editing selection");
+  RNA_def_property_ui_text(prop, "Selected Text", "Text strip editing selection");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
@@ -4448,6 +4441,12 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "metadatatext");
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Metadata Text", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "preview_range", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "anim_preview_range");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Preview Range", "Color of preview range overlay");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_curves(srna, false, false, false, true);
@@ -5142,6 +5141,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, 0.5f, 3.0f, 1, 2);
   RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
 
+  prop = RNA_def_property(srna, "border_width", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Border Width", "Size of the padding around each editor.");
+  RNA_def_property_range(prop, 1.0f, 10.0f);
+  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+
   prop = RNA_def_property(srna, "ui_line_width", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, line_width);
   RNA_def_property_ui_text(
@@ -5268,7 +5272,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Open on Mouse Over",
-      "Open menu buttons and pulldowns automatically when the mouse is hovering");
+      "Open menu buttons and pull-downs automatically when the mouse is hovering");
 
   prop = RNA_def_property(srna, "open_toplevel_delay", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "menuthreshold1");
@@ -6127,25 +6131,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem seq_disk_cache_compression_levels[] = {
-      {USER_SEQ_DISK_CACHE_COMPRESSION_NONE,
-       "NONE",
-       0,
-       "None",
-       "Requires fast storage, but uses minimum CPU resources"},
-      {USER_SEQ_DISK_CACHE_COMPRESSION_LOW,
-       "LOW",
-       0,
-       "Low",
-       "Doesn't require fast storage and uses less CPU resources"},
-      {USER_SEQ_DISK_CACHE_COMPRESSION_HIGH,
-       "HIGH",
-       0,
-       "High",
-       "Works on slower storage devices and uses most CPU resources"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem seq_proxy_setup_options[] = {
       {USER_SEQ_PROXY_SETUP_MANUAL, "MANUAL", 0, "Manual", "Set up proxies manually"},
       {USER_SEQ_PROXY_SETUP_AUTOMATIC,
@@ -6196,31 +6181,6 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, max_memory_in_megabytes_int());
   RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit (in megabytes)");
   RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
-
-  /* Sequencer disk cache */
-
-  prop = RNA_def_property(srna, "use_sequencer_disk_cache", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "sequencer_disk_cache_flag", SEQ_CACHE_DISK_CACHE_ENABLE);
-  RNA_def_property_ui_text(prop, "Use Disk Cache", "Store cached images to disk");
-
-  prop = RNA_def_property(srna, "sequencer_disk_cache_dir", PROP_STRING, PROP_DIRPATH);
-  RNA_def_property_string_sdna(prop, nullptr, "sequencer_disk_cache_dir");
-  RNA_def_property_update(prop, 0, "rna_Userdef_disk_cache_dir_update");
-  RNA_def_property_ui_text(prop, "Disk Cache Directory", "Override default directory");
-
-  prop = RNA_def_property(srna, "sequencer_disk_cache_size_limit", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "sequencer_disk_cache_size_limit");
-  RNA_def_property_range(prop, 0, INT_MAX);
-  RNA_def_property_ui_text(prop, "Disk Cache Limit", "Disk cache limit (in gigabytes)");
-
-  prop = RNA_def_property(srna, "sequencer_disk_cache_compression", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, seq_disk_cache_compression_levels);
-  RNA_def_property_enum_sdna(prop, nullptr, "sequencer_disk_cache_compression");
-  RNA_def_property_ui_text(
-      prop,
-      "Disk Cache Compression Level",
-      "Smaller compression will result in larger files, but less decoding overhead");
 
   /* Sequencer proxy setup */
 
@@ -6510,18 +6470,33 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
 #  ifdef WITH_INPUT_NDOF
   static const EnumPropertyItem ndof_view_navigation_items[] = {
-      {0, "FREE", 0, "Free", "Use full 6 degrees of freedom by default"},
-      {NDOF_MODE_ORBIT, "ORBIT", 0, "Orbit", "Orbit about the view center by default"},
+      {NDOF_NAVIGATION_MODE_OBJECT,
+       "OBJECT",
+       0,
+       "Object",
+       "This mode is like reaching into the screen and holding the model in your hand. "
+       "Push the 3D Mouse cap left, and the model moves left. Push right and the model "
+       "moves right"},
+      {NDOF_NAVIGATION_MODE_FLY,
+       "FLY",
+       0,
+       "Fly",
+       "Enables using the 3D Mouse as if it is a camera. Push into the scene and the camera "
+       "moves forward into the scene. You are entering the scene as if flying around in it"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem ndof_view_rotation_items[] = {
-      {NDOF_TURNTABLE,
-       "TURNTABLE",
+  static const EnumPropertyItem ndof_zoom_direction_items[] = {
+      {0,
+       "NDOF_ZOOM_FORWARD",
        0,
-       "Turntable",
-       "Use turntable style rotation in the viewport"},
-      {0, "TRACKBALL", 0, "Trackball", "Use trackball style rotation in the viewport"},
+       "Forward/Backward",
+       "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
+      {NDOF_PAN_YZ_SWAP_AXIS,
+       "NDOF_ZOOM_UP",
+       0,
+       "Up/Down",
+       "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 #  endif /* WITH_INPUT_NDOF */
@@ -6754,14 +6729,11 @@ static void rna_def_userdef_input(BlenderRNA *brna)
       prop, "Deadzone", "Threshold of initial movement needed from the device's rest position");
   RNA_def_property_update(prop, 0, "rna_userdef_ndof_deadzone_update");
 
-  prop = RNA_def_property(srna, "ndof_pan_yz_swap_axis", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_PAN_YZ_SWAP_AXIS);
+  prop = RNA_def_property(srna, "ndof_zoom_direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
+  RNA_def_property_enum_items(prop, ndof_zoom_direction_items);
   RNA_def_property_ui_text(
-      prop, "Y/Z Swap Axis", "Pan using up/down on the device (otherwise forward/backward)");
-
-  prop = RNA_def_property(srna, "ndof_zoom_invert", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ZOOM_INVERT);
-  RNA_def_property_ui_text(prop, "Invert Zoom", "Zoom using opposite direction");
+      prop, "Zoom direction", "Which axis of the 3D Mouse cap zooms the view");
 
   /* 3D view */
   prop = RNA_def_property(srna, "ndof_show_guide_orbit_axis", PROP_BOOLEAN, PROP_NONE);
@@ -6778,15 +6750,16 @@ static void rna_def_userdef_input(BlenderRNA *brna)
       prop, "Show Orbit Center Guide", "Display the orbit center during rotation");
 
   /* 3D view */
-  prop = RNA_def_property(srna, "ndof_view_navigate_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
+  prop = RNA_def_property(srna, "ndof_navigation_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, ndof_view_navigation_items);
-  RNA_def_property_ui_text(prop, "NDOF View Navigate", "Navigation style in the viewport");
+  RNA_def_property_ui_text(prop, "NDOF View Navigate", "3D Mouse Navigation Mode");
 
-  prop = RNA_def_property(srna, "ndof_view_rotate_method", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "ndof_flag");
-  RNA_def_property_enum_items(prop, ndof_view_rotation_items);
-  RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
+  prop = RNA_def_property(srna, "ndof_lock_horizon", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_LOCK_HORIZON);
+  RNA_def_property_ui_text(
+      prop,
+      "NDOF Lock Horizon",
+      "Lock Horizon forces the horizon to be kept leveled as it currently is");
 
   prop = RNA_def_property(srna, "ndof_orbit_center_auto", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_AUTO);
@@ -6801,8 +6774,8 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   prop = RNA_def_property(srna, "ndof_orbit_center_selected", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_ORBIT_CENTER_SELECTED);
   RNA_def_property_ui_text(prop,
-                           "Use Selected Items",
-                           "Use selected item forces the orbit center "
+                           "Selected Items",
+                           "Selected Item forces the orbit center "
                            "to only take the currently selected objects into account.");
 
   /* 3D view: yaw */
@@ -6836,10 +6809,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Invert Z Axis", "");
 
   /* 3D view: fly */
-  prop = RNA_def_property(srna, "ndof_lock_horizon", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_LOCK_HORIZON);
-  RNA_def_property_ui_text(prop, "Lock Horizon", "Keep horizon level while flying with 3D Mouse");
-
   prop = RNA_def_property(srna, "ndof_fly_helicopter", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_FLY_HELICOPTER);
   RNA_def_property_ui_text(prop,
@@ -6850,7 +6819,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "ndof_flag", NDOF_CAMERA_PAN_ZOOM);
   RNA_def_property_ui_text(
       prop,
-      "Lock Camera Pan/Zoom",
+      "Pan / Zoom Camera View",
       "Pan/zoom the camera view instead of leaving the camera view when orbiting");
 #  endif /* WITH_INPUT_NDOF */
 
@@ -7312,22 +7281,25 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Online Access",
-      "The user has been shown the \"Online Access\" prompt and make a choice");
+      "The user has been shown the \"Online Access\" prompt and made a choice");
 
   /* Directories. */
 
   prop = RNA_def_property(srna, "font_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "fontdir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Fonts Directory", "The default directory to search for loading fonts");
 
   prop = RNA_def_property(srna, "texture_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "textudir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(
       prop, "Textures Directory", "The default directory to search for textures");
 
   prop = RNA_def_property(srna, "render_output_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "renderdir");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop,
                            "Render Output Directory",
                            "The default directory for rendering output, for new scenes");
@@ -7350,6 +7322,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "sound_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "sounddir");
   RNA_def_property_ui_text(prop, "Sounds Directory", "The default directory to search for sounds");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
 
   prop = RNA_def_property(srna, "temporary_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "tempdir");
@@ -7362,6 +7335,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   prop = RNA_def_property(srna, "render_cache_directory", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_sdna(prop, nullptr, "render_cachedir");
   RNA_def_property_ui_text(prop, "Render Cache Path", "Where to cache raw render results");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
 
   prop = RNA_def_property(srna, "image_editor", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "image_editor");
@@ -7465,7 +7439,7 @@ static void rna_def_userdef_extensions(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Online Access",
-      "The user has been shown the \"Online Access\" prompt and make a choice");
+      "The user has been shown the \"Online Access\" prompt and made a choice");
 
   rna_def_userdef_filepaths_extension_repo(brna);
 
@@ -7539,13 +7513,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "file load (can be useful to help fixing broken files). Also see the "
                            "`--disable-liboverride-auto-resync` command line option");
 
-  /* The DNA doesn't match the RNA name. This is intentional, and a side-effect of a massive
-   * renaming of `point_cloud` > `pointclout` which didn't want to affect people's DNA. */
-  prop = RNA_def_property(srna, "use_new_pointcloud_type", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_new_point_cloud_type", 1);
-  RNA_def_property_ui_text(
-      prop, "New Point Cloud Type", "Enable the new point cloud type in the ui");
-
   prop = RNA_def_property(srna, "use_new_curves_tools", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_new_curves_tools", 1);
   RNA_def_property_ui_text(
@@ -7560,11 +7527,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "use_eevee_debug", 1);
   RNA_def_property_ui_text(prop, "EEVEE Debug", "Enable EEVEE debugging options for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-  prop = RNA_def_property(srna, "use_sculpt_tools_tilt", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_sculpt_tools_tilt", 1);
-  RNA_def_property_ui_text(
-      prop, "Sculpt Mode Tilt Support", "Support for pen tablet tilt events in Sculpt Mode");
 
   prop = RNA_def_property(srna, "use_sculpt_texture_paint", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_sculpt_texture_paint", 1);
@@ -7599,6 +7561,14 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "pop-over");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
+  prop = RNA_def_property(srna, "write_large_blend_file_blocks", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "write_large_blend_file_blocks", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Write Large Blend File Blocks",
+      "Enables support for writing .blend files that contain buffers larger than 2 GB. If "
+      "enabled, any saved files can not be opened by older Blender versions");
+
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -7615,6 +7585,16 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Shader Node Previews", "Enables previews in the shader node editor");
   RNA_def_property_update(prop, 0, "rna_userdef_ui_update");
 
+  prop = RNA_def_property(srna, "use_bundle_and_closure_nodes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Bundle and Closure Nodes", "Enables bundle and closure nodes in Geometry Nodes");
+
+  prop = RNA_def_property(srna, "use_socket_structure_type", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop,
+      "Node Structure Types",
+      "Enables new visualization of socket data compatibility in Geometry Nodes");
+
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
@@ -7628,6 +7608,12 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
+
+  prop = RNA_def_property(srna, "use_attribute_storage_write", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "Write New Attribute Storage Format",
+                           "Instead of writing with the older \"CustomData\" format for forward "
+                           "compatibility, use the new \"AttributeStorage\" format");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)

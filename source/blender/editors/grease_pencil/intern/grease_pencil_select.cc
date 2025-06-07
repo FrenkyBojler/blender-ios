@@ -217,7 +217,7 @@ bool selection_update(const ViewContext *vc,
   using namespace blender;
 
   Object *object = (vc->obedit ? vc->obedit : vc->obact);
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, object);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   /* Get selection domain from tool settings. */
@@ -889,7 +889,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     const GVArray src = *attributes.lookup(".selection", domain);
     if (src) {
       const CPPType &type = src.type();
-      void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size(), __func__);
+      void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size, __func__);
       src.materialize(dst);
 
       attributes.remove(".selection");

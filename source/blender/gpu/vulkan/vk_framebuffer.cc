@@ -12,6 +12,10 @@
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
+
 namespace blender::gpu {
 
 /**
@@ -63,11 +67,11 @@ void VKFrameBuffer::render_pass_free()
 void VKFrameBuffer::bind(bool enabled_srgb)
 {
   VKContext &context = *VKContext::get();
-  /* Updating attachments can issue pipeline barriers, this should be done outside the render pass.
-   * When done inside a render pass there should be a self-dependency between sub-passes on the
-   * active render pass. As the active render pass isn't aware of the new render pass (and should
-   * not) it is better to deactivate it before updating the attachments. For more information check
-   * `VkSubpassDependency`. */
+  /* Updating attachments can issue pipeline barriers, this should be done outside the render
+   * pass. When done inside a render pass there should be a self-dependency between sub-passes on
+   * the active render pass. As the active render pass isn't aware of the new render pass (and
+   * should not) it is better to deactivate it before updating the attachments. For more
+   * information check `VkSubpassDependency`. */
   if (context.has_active_framebuffer()) {
     context.deactivate_framebuffer();
   }
@@ -227,8 +231,8 @@ void VKFrameBuffer::clear(const eGPUFrameBufferBits buffers,
       needed_mask |= GPU_WRITE_STENCIL;
     }
 
-    /* Clearing depth via #vkCmdClearAttachments requires a render pass with write depth or stencil
-     * enabled. When not enabled, clearing should be done via texture directly. */
+    /* Clearing depth via #vkCmdClearAttachments requires a render pass with write depth or
+     * stencil enabled. When not enabled, clearing should be done via texture directly. */
     /* WORKAROUND: Clearing depth attachment when using dynamic rendering are not working on AMD
      * official drivers.
      * See #129265 */
@@ -390,7 +394,7 @@ void VKFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
 void VKFrameBuffer::read(eGPUFrameBufferBits plane,
                          eGPUDataFormat format,
                          const int area[4],
-                         int /*channel_len*/,
+                         int channel_len,
                          int slot,
                          void *r_data)
 {
@@ -418,9 +422,32 @@ void VKFrameBuffer::read(eGPUFrameBufferBits plane,
   if (texture == nullptr) {
     return;
   }
+
+  /* See #139898: Only RGB can be asked, when more channels are available. */
+  const size_t num_elements = area[2] * area[3];
+  const size_t r_element_size = to_bytesize(format) * channel_len;
+  const size_t r_data_size = r_element_size * num_elements;
+  const size_t element_size = to_bytesize(format) * (plane == GPU_COLOR_BIT ? 4 : 1);
+  const size_t data_size = element_size * num_elements;
+  void *data = r_data;
+  if (r_element_size != element_size && num_elements > 1) {
+    CLOG_ERROR(&LOG,
+               "Trying to readback multiple pixels with different number of components per pixel "
+               "than backed by GPU texture. This is not supported by the Vulkan backend and the "
+               "calling code should be adapted.");
+  }
+  if (r_element_size != element_size && num_elements == 1) {
+    CLOG_WARN(&LOG,
+              "Performance: Reading different number of channels than backed by GPU texture.");
+    data = static_cast<void *>(MEM_malloc_arrayN<char>(data_size, __func__));
+  }
   const int region[6] = {area[0], area[1], 0, area[0] + area[2], area[1] + area[3], 1};
   IndexRange layers(max_ii(attachment->layer, 0), 1);
-  texture->read_sub(0, format, region, layers, r_data);
+  texture->read_sub(0, format, region, layers, data);
+  if (r_data_size != data_size) {
+    memcpy(r_data, data, std::min(r_data_size, data_size));
+    MEM_freeN(data);
+  }
 }
 
 /** \} */
@@ -469,12 +496,13 @@ static void blit_aspect(VKContext &context,
   region.dstSubresource.mipLevel = 0;
   region.dstSubresource.baseArrayLayer = 0;
   region.dstSubresource.layerCount = 1;
-  region.dstOffsets[0].x = min_ii(dst_offset_x, dst_texture.width_get());
-  region.dstOffsets[0].y = min_ii(dst_offset_y, dst_texture.height_get());
+  region.dstOffsets[0].x = clamp_i(dst_offset_x, 0, dst_texture.width_get());
+  region.dstOffsets[0].y = clamp_i(dst_offset_y, 0, dst_texture.height_get());
   region.dstOffsets[0].z = 0;
-  region.dstOffsets[1].x = min_ii(dst_offset_x + src_texture.width_get(), dst_texture.width_get());
-  region.dstOffsets[1].y = min_ii(dst_offset_y + src_texture.height_get(),
-                                  dst_texture.height_get());
+  region.dstOffsets[1].x = clamp_i(
+      dst_offset_x + src_texture.width_get(), 0, dst_texture.width_get());
+  region.dstOffsets[1].y = clamp_i(
+      dst_offset_y + src_texture.height_get(), 0, dst_texture.height_get());
   region.dstOffsets[1].z = 1;
 
   context.render_graph().add_node(blit_image);
@@ -790,8 +818,8 @@ void VKFrameBuffer::rendering_ensure_render_pass(VKContext &context)
    * Due to command reordering it is unclear when this switch needs to be made and would require
    * to double the graphics pipelines.
    *
-   * This all adds a lot of complexity just to support clearing ops on legacy platforms. An easier
-   * solution is to use #vkCmdClearAttachments right after the begin rendering.
+   * This all adds a lot of complexity just to support clearing ops on legacy platforms. An
+   * easier solution is to use #vkCmdClearAttachments right after the begin rendering.
    */
   if (use_explicit_load_store_) {
     render_graph::VKClearAttachmentsNode::CreateInfo clear_attachments = {};

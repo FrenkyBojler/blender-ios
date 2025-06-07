@@ -31,7 +31,7 @@
  *       Global screen level regions, e.g. popups, popovers, menus.
  *
  *   - #wmWindow.global_areas -> #ScrAreaMap <br>
- *     Global screen via 'areabase', e.g. top-bar & status-bar.
+ *     Global screen via `areabase`, e.g. top-bar & status-bar.
  *
  *
  * Window Layout
@@ -271,7 +271,7 @@ enum eOperatorPropTags {
  * - #wmEvent.modifier.
  * - #WM_keymap_add_item & #WM_modalkeymap_add_item
  */
-enum {
+enum wmEventModifierFlag : uint8_t {
   KM_SHIFT = (1 << 0),
   KM_CTRL = (1 << 1),
   KM_ALT = (1 << 2),
@@ -288,13 +288,10 @@ enum {
    */
   KM_HYPER = (1 << 4),
 };
+ENUM_OPERATORS(wmEventModifierFlag, KM_HYPER);
 
 /** The number of modifiers #wmKeyMapItem & #wmEvent can use. */
 #define KM_MOD_NUM 5
-
-/* `KM_MOD_*` flags for #wmKeyMapItem and `wmEvent.alt/shift/oskey/ctrl`. */
-/* Note that #KM_ANY and #KM_NOTHING are used with these defines too. */
-#define KM_MOD_HELD 1
 
 /**
  * #wmKeyMapItem.type
@@ -318,6 +315,12 @@ enum {
    */
   KM_CLICK_DRAG = 5,
 };
+/**
+ * Alternate define for #wmKeyMapItem::shift and other modifiers.
+ * While this matches the value of #KM_PRESS, modifiers should only be compared with:
+ * (#KM_ANY, #KM_NOTHING, #KM_MOD_HELD).
+ */
+#define KM_MOD_HELD 1
 
 /**
  * #wmKeyMapItem.direction
@@ -697,10 +700,11 @@ struct wmTabletData {
   int active;
   /** Range 0.0 (not touching) to 1.0 (full pressure). */
   float pressure;
-  /** Range 0.0 (upright) to 1.0 (tilted fully against the tablet surface). */
-  float x_tilt;
-  /** As above. */
-  float y_tilt;
+  /**
+   * X axis range: -1.0 (left) to +1.0 (right).
+   * Y axis range: -1.0 (away from user) to +1.0 (toward user).
+   */
+  blender::float2 tilt;
   /** Interpret mouse motion as absolute as typical for tablets. */
   char is_motion_absolute;
 };
@@ -747,7 +751,7 @@ struct wmEvent {
   wmEvent *next, *prev;
 
   /** Event code itself (short, is also in key-map). */
-  short type;
+  wmEventType type;
   /** Press, release, scroll-value. */
   short val;
   /** Mouse pointer position, screen coord. */
@@ -764,7 +768,7 @@ struct wmEvent {
   char utf8_buf[6];
 
   /** Modifier states: #KM_SHIFT, #KM_CTRL, #KM_ALT, #KM_OSKEY & #KM_HYPER. */
-  uint8_t modifier;
+  wmEventModifierFlag modifier;
 
   /** The direction (for #KM_CLICK_DRAG events only). */
   int8_t direction;
@@ -773,7 +777,7 @@ struct wmEvent {
    * Raw-key modifier (allow using any key as a modifier).
    * Compatible with values in `type`.
    */
-  short keymodifier;
+  wmEventType keymodifier;
 
   /** Tablet info, available for mouse move and button events. */
   wmTabletData tablet;
@@ -802,7 +806,7 @@ struct wmEvent {
   /* Previous State. */
 
   /** The previous value of `type`. */
-  short prev_type;
+  wmEventType prev_type;
   /** The previous value of `val`. */
   short prev_val;
   /**
@@ -815,16 +819,16 @@ struct wmEvent {
   /* Previous Press State (when `val == KM_PRESS`). */
 
   /** The `type` at the point of the press action. */
-  short prev_press_type;
+  wmEventType prev_press_type;
   /**
    * The location when the key is pressed.
    * used to enforce drag threshold & calculate the `direction`.
    */
   int prev_press_xy[2];
   /** The `modifier` at the point of the press action. */
-  uint8_t prev_press_modifier;
+  wmEventModifierFlag prev_press_modifier;
   /** The `keymodifier` at the point of the press action. */
-  short prev_press_keymodifier;
+  wmEventType prev_press_keymodifier;
 };
 
 /**
@@ -951,7 +955,7 @@ struct wmTimer {
   /** Set by timer user. */
   double time_step;
   /** Set by timer user, goes to event system. */
-  int event_type;
+  wmEventType event_type;
   /** Various flags controlling timer options, see below. */
   wmTimerFlags flags;
   /** Set by timer user, to allow custom values. */
@@ -1167,12 +1171,10 @@ struct wmOperatorCallParams {
  * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
-  size_t result_len, composite_len;
-
   /** UTF8 encoding. */
-  char *str_result;
+  std::string result;
   /** UTF8 encoding. */
-  char *str_composite;
+  std::string composite;
 
   /** Cursor position in the IME composition. */
   int cursor_pos;
@@ -1185,7 +1187,10 @@ struct wmIMEData {
 
 /* **************** Paint Cursor ******************* */
 
-using wmPaintCursorDraw = void (*)(bContext *C, int, int, void *customdata);
+using wmPaintCursorDraw = void (*)(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 &tilt,
+                                   void *customdata);
 
 /* *************** Drag and drop *************** */
 
@@ -1214,6 +1219,7 @@ enum eWM_DragDataType {
   WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
+  WM_DRAG_SHAPE_KEY,
 };
 
 enum eWM_DragFlags {

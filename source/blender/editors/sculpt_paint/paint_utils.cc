@@ -194,7 +194,7 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(ot->srna,
                       "mode",
@@ -203,13 +203,13 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
                       "Stroke Mode",
                       "Action taken when a paint stroke is made");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   /* TODO: Pen flip logic should likely be combined into the stroke mode logic instead of being
    * an entirely separate concept. */
   prop = RNA_def_boolean(
       ot->srna, "pen_flip", false, "Pen Flip", "Whether a tablet's eraser mode is being used");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* 3D Paint */
@@ -338,7 +338,7 @@ void paint_sample_color(
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
     bool use_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
 
@@ -761,7 +761,7 @@ void PAINT_OT_vert_select_ungrouped(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vert_select_ungrouped";
   ot->description = "Select vertices without a group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vert_select_ungrouped_exec;
   ot->poll = vert_paint_poll;
 

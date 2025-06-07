@@ -337,14 +337,16 @@ static void fluid_bake_endjob(void *customdata)
   if (job->success) {
     /* Show bake info. */
     WM_global_reportf(
-        RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
+        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_global_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(
+          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
     }
     else { /* User canceled the bake. */
-      WM_global_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(
+          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
     }
   }
 }
@@ -445,14 +447,16 @@ static void fluid_free_endjob(void *customdata)
   if (job->success) {
     /* Show free job info */
     WM_global_reportf(
-        RPT_INFO, "Fluid: %s complete (%.2f)", job->name, BLI_time_now_seconds() - job->start);
+        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_global_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(
+          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
     }
     else { /* User canceled the free job */
-      WM_global_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(
+          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
     }
   }
 }
@@ -510,7 +514,7 @@ static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
 static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 {
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   char error_msg[256] = "\0";
 
   if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
@@ -537,7 +541,7 @@ static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
   Scene *scene = CTX_data_scene(C);
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   char error_msg[256] = "\0";
 
   if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
@@ -585,6 +589,9 @@ static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
   return OPERATOR_PASS_THROUGH;
 }
@@ -618,7 +625,7 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   job->bmain = CTX_data_main(C);
   job->scene = scene;
   job->depsgraph = CTX_data_depsgraph_pointer(C);
@@ -686,7 +693,7 @@ void FLUID_OT_bake_all(wmOperatorType *ot)
   ot->description = "Bake Entire Fluid Simulation";
   ot->idname = FLUID_JOB_BAKE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -700,7 +707,7 @@ void FLUID_OT_free_all(wmOperatorType *ot)
   ot->description = "Free Entire Fluid Simulation";
   ot->idname = FLUID_JOB_FREE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -712,7 +719,7 @@ void FLUID_OT_bake_data(wmOperatorType *ot)
   ot->description = "Bake Fluid Data";
   ot->idname = FLUID_JOB_BAKE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -726,7 +733,7 @@ void FLUID_OT_free_data(wmOperatorType *ot)
   ot->description = "Free Fluid Data";
   ot->idname = FLUID_JOB_FREE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -738,7 +745,7 @@ void FLUID_OT_bake_noise(wmOperatorType *ot)
   ot->description = "Bake Fluid Noise";
   ot->idname = FLUID_JOB_BAKE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -752,7 +759,7 @@ void FLUID_OT_free_noise(wmOperatorType *ot)
   ot->description = "Free Fluid Noise";
   ot->idname = FLUID_JOB_FREE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -764,7 +771,7 @@ void FLUID_OT_bake_mesh(wmOperatorType *ot)
   ot->description = "Bake Fluid Mesh";
   ot->idname = FLUID_JOB_BAKE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -778,7 +785,7 @@ void FLUID_OT_free_mesh(wmOperatorType *ot)
   ot->description = "Free Fluid Mesh";
   ot->idname = FLUID_JOB_FREE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -790,7 +797,7 @@ void FLUID_OT_bake_particles(wmOperatorType *ot)
   ot->description = "Bake Fluid Particles";
   ot->idname = FLUID_JOB_BAKE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -804,7 +811,7 @@ void FLUID_OT_free_particles(wmOperatorType *ot)
   ot->description = "Free Fluid Particles";
   ot->idname = FLUID_JOB_FREE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -816,7 +823,7 @@ void FLUID_OT_bake_guides(wmOperatorType *ot)
   ot->description = "Bake Fluid Guiding";
   ot->idname = FLUID_JOB_BAKE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -830,7 +837,7 @@ void FLUID_OT_free_guides(wmOperatorType *ot)
   ot->description = "Free Fluid Guiding";
   ot->idname = FLUID_JOB_FREE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -842,7 +849,7 @@ void FLUID_OT_pause_bake(wmOperatorType *ot)
   ot->description = "Pause Bake";
   ot->idname = FLUID_JOB_BAKE_PAUSE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_pause_exec;
   ot->poll = ED_operator_object_active_editable;
 }

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "DNA_brush_types.h"
 #include "DNA_cachefile_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -40,6 +41,8 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+
+#include "SEQ_relations.hh"
 
 #include "ED_node.hh"
 #include "ED_node_preview.hh"
@@ -256,6 +259,12 @@ static void texture_changed(Main *bmain, Tex *tex)
       }
     }
   }
+
+  LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+    if (ELEM(tex, brush->mtex.tex, brush->mask_mtex.tex)) {
+      BKE_brush_tag_unsaved_changes(brush);
+    }
+  }
 }
 
 static void world_changed(Main *bmain, World *wo)
@@ -298,6 +307,26 @@ static void scene_changed(Main *bmain, Scene *scene)
   }
 }
 
+static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bmain, ID *id)
+{
+  if (ELEM(id->recalc,
+           0,
+           ID_RECALC_SELECT,
+           ID_RECALC_FRAME_CHANGE,
+           ID_RECALC_AUDIO_FPS,
+           ID_RECALC_AUDIO_VOLUME,
+           ID_RECALC_AUDIO_MUTE,
+           ID_RECALC_AUDIO_LISTENER,
+           ID_RECALC_AUDIO))
+  {
+    return;
+  }
+
+  if (GS(id->name) != ID_SCE) {
+    blender::seq::relations_invalidate_scene_strips(bmain, update_ctx->scene);
+  }
+}
+
 void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
 {
   /* this can be called from render or baking thread when a python script makes
@@ -333,6 +362,8 @@ void ED_render_id_flush_update(const DEGEditorUpdateContext *update_ctx, ID *id)
     default:
       break;
   }
+
+  update_sequencer(update_ctx, bmain, id);
 }
 
 /** \} */

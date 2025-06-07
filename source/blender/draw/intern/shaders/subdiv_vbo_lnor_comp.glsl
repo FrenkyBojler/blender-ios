@@ -20,12 +20,12 @@ bool is_face_hidden(uint coarse_quad_index)
 float get_loop_flag(uint coarse_quad_index, int vert_origindex)
 {
   if (is_face_hidden(coarse_quad_index) || (shader_data.is_edit_mode && vert_origindex == -1)) {
-    return -1.0;
+    return -1.0f;
   }
   if (is_face_selected(coarse_quad_index)) {
-    return 1.0;
+    return 1.0f;
   }
-  return 0.0;
+  return 0.0f;
 }
 
 void main()
@@ -45,25 +45,32 @@ void main()
   if ((extra_coarse_face_data[coarse_quad_index] & shader_data.coarse_face_smooth_mask) != 0) {
     /* Face is smooth, use vertex normals. */
     for (int i = 0; i < 4; i++) {
-      PosNorLoop pos_nor_loop = pos_nor[start_loop_index + i];
+      uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
+      Normal vert_normal = vert_normals[subdiv_vert_index];
+
       int origindex = input_vert_origindex[start_loop_index + i];
-      LoopNormal loop_normal = subdiv_get_normal_and_flag(pos_nor_loop);
-      loop_normal.flag = get_loop_flag(coarse_quad_index, origindex);
+      float flag = get_loop_flag(coarse_quad_index, origindex);
+
+      LoopNormal loop_normal;
+      loop_normal.nx = vert_normal.x;
+      loop_normal.ny = vert_normal.y;
+      loop_normal.nz = vert_normal.z;
+      loop_normal.flag = flag;
 
       output_lnor[start_loop_index + i] = loop_normal;
     }
   }
   else {
-    PosNorLoop pos_nor0 = pos_nor[start_loop_index + 0];
-    PosNorLoop pos_nor1 = pos_nor[start_loop_index + 1];
-    PosNorLoop pos_nor2 = pos_nor[start_loop_index + 2];
-    PosNorLoop pos_nor3 = pos_nor[start_loop_index + 3];
-    vec3 v0 = subdiv_get_vertex_pos(pos_nor0);
-    vec3 v1 = subdiv_get_vertex_pos(pos_nor1);
-    vec3 v2 = subdiv_get_vertex_pos(pos_nor2);
-    vec3 v3 = subdiv_get_vertex_pos(pos_nor3);
+    Position pos_0 = positions[start_loop_index + 0];
+    Position pos_1 = positions[start_loop_index + 1];
+    Position pos_2 = positions[start_loop_index + 2];
+    Position pos_3 = positions[start_loop_index + 3];
+    float3 v0 = subdiv_position_to_float3(pos_0);
+    float3 v1 = subdiv_position_to_float3(pos_1);
+    float3 v2 = subdiv_position_to_float3(pos_2);
+    float3 v3 = subdiv_position_to_float3(pos_3);
 
-    vec3 face_normal = vec3(0.0);
+    float3 face_normal = float3(0.0f);
     add_newell_cross_v3_v3v3(face_normal, v0, v1);
     add_newell_cross_v3_v3v3(face_normal, v1, v2);
     add_newell_cross_v3_v3v3(face_normal, v2, v3);

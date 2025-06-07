@@ -417,9 +417,10 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact != nullptr) {
-      if (obact->mode & (OB_MODE_ALL_PAINT & ~OB_MODE_WEIGHT_PAINT)) {
+      if (obact->mode & (OB_MODE_ALL_PAINT & ~(OB_MODE_WEIGHT_PAINT | OB_MODE_VERTEX_PAINT))) {
         /* For all non-weight-paint paint modes: Don't store property changes when painting.
-         * Weight Paint uses global undo, and thus doesn't need to be special-cased here. */
+         * Weight Paint and Vertex Paint use global undo, and thus don't need to be special-cased
+         * here. */
         CLOG_INFO(&LOG, 1, "skipping undo for paint-mode");
         return false;
       }
@@ -560,7 +561,7 @@ void ED_OT_undo(wmOperatorType *ot)
   ot->description = "Undo previous action";
   ot->idname = "ED_OT_undo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_undo_exec;
   ot->poll = ed_undo_poll;
 }
@@ -572,7 +573,7 @@ void ED_OT_undo_push(wmOperatorType *ot)
   ot->description = "Add an undo state (internal use only)";
   ot->idname = "ED_OT_undo_push";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_undo_push_exec;
   /* Unlike others undo operators this initializes undo stack. */
   ot->poll = ED_operator_screenactive;
@@ -603,7 +604,7 @@ void ED_OT_redo(wmOperatorType *ot)
   ot->description = "Redo previous action";
   ot->idname = "ED_OT_redo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_redo_exec;
   ot->poll = ed_redo_poll;
 }
@@ -615,7 +616,7 @@ void ED_OT_undo_redo(wmOperatorType *ot)
   ot->description = "Undo and redo previous action";
   ot->idname = "ED_OT_undo_redo";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = ed_undo_redo_exec;
   ot->poll = ed_undo_redo_poll;
 }
@@ -756,7 +757,7 @@ void ED_OT_undo_history(wmOperatorType *ot)
   ot->description = "Redo specific action in history";
   ot->idname = "ED_OT_undo_history";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = undo_history_invoke;
   ot->exec = undo_history_exec;
   ot->poll = ed_undo_is_init_and_screenactive_poll;

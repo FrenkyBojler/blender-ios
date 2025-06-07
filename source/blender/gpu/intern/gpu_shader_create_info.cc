@@ -132,6 +132,7 @@ void ShaderCreateInfo::finalize(const bool recursive)
     geometry_out_interfaces_.extend_non_duplicates(info.geometry_out_interfaces_);
     subpass_inputs_.extend_non_duplicates(info.subpass_inputs_);
     specialization_constants_.extend_non_duplicates(info.specialization_constants_);
+    compilation_constants_.extend_non_duplicates(info.compilation_constants_);
 
     validate_vertex_attributes(&info);
 
@@ -316,6 +317,16 @@ std::string ShaderCreateInfo::check_error() const
     }
   }
 
+  /* Validate compilation constants. */
+  for (int i = 0; i < compilation_constants_.size(); i++) {
+    for (int j = i + 1; j < compilation_constants_.size(); j++) {
+      if (compilation_constants_[i].name == compilation_constants_[j].name) {
+        error += this->name_ + " contains two compilation constants with the name: " +
+                 std::string(compilation_constants_[i].name);
+      }
+    }
+  }
+
   return error;
 }
 
@@ -398,7 +409,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
   for (auto &attr : vertex_inputs_) {
     if (attr.index >= 16 || attr.index < 0) {
       std::cout << name_ << ": \"" << attr.name
-                << "\" : Type::MAT3 unsupported as vertex attribute." << std::endl;
+                << "\" : Type::float3x3_t unsupported as vertex attribute." << std::endl;
       BLI_assert(0);
     }
     if (attr.index >= 16 || attr.index < 0) {
@@ -406,7 +417,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
       BLI_assert(0);
     }
     uint32_t attr_new = 0;
-    if (attr.type == Type::MAT4) {
+    if (attr.type == Type::float4x4_t) {
       for (int i = 0; i < 4; i++) {
         attr_new |= 1 << (attr.index + i);
       }
@@ -481,7 +492,7 @@ void gpu_shader_create_info_init()
   if (GPU_stencil_clasify_buffer_workaround()) {
     /* WORKAROUND: Adding a dummy buffer that isn't used fixes a bug inside the Qualcomm driver. */
     eevee_deferred_tile_classify.storage_buf(
-        12, Qualifier::READ_WRITE, "uint", "dummy_workaround_buf[]");
+        12, Qualifier::read_write, "uint", "dummy_workaround_buf[]");
   }
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {

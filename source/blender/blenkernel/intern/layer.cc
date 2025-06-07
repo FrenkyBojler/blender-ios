@@ -78,7 +78,7 @@ static LayerCollection *layer_collection_add(ListBase *lb_parent, Collection *co
 {
   LayerCollection *lc = MEM_callocN<LayerCollection>("Collection Base");
   lc->collection = collection;
-  lc->local_collections_bits = ~(0);
+  lc->local_collections_bits = ~0;
   BLI_addtail(lb_parent, lc);
 
   return lc;
@@ -101,7 +101,7 @@ static Base *object_base_new(Object *ob)
 {
   Base *base = MEM_callocN<Base>("Object Base");
   base->object = ob;
-  base->local_view_bits = ~(0);
+  base->local_view_bits = ~0;
   if (ob->base_flag & BASE_SELECTED) {
     base->flag |= BASE_SELECTED;
   }
@@ -270,6 +270,9 @@ void BKE_view_layer_free_ex(ViewLayer *view_layer, const bool do_id_user)
   if (view_layer->id_properties) {
     IDP_FreeProperty_ex(view_layer->id_properties, do_id_user);
   }
+  if (view_layer->system_properties) {
+    IDP_FreeProperty_ex(view_layer->system_properties, do_id_user);
+  }
 
   MEM_SAFE_FREE(view_layer->object_bases_array);
 
@@ -346,10 +349,10 @@ ViewLayer *BKE_view_layer_find_from_collection(const Scene *scene, LayerCollecti
 
 static void view_layer_bases_hash_create(ViewLayer *view_layer, const bool do_base_duplicates_fix)
 {
-  static ThreadMutex hash_lock = BLI_MUTEX_INITIALIZER;
+  static blender::Mutex hash_lock;
 
   if (view_layer->object_bases_hash == nullptr) {
-    BLI_mutex_lock(&hash_lock);
+    std::scoped_lock lock(hash_lock);
 
     if (view_layer->object_bases_hash == nullptr) {
       GHash *hash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
@@ -383,8 +386,6 @@ static void view_layer_bases_hash_create(ViewLayer *view_layer, const bool do_ba
       /* Assign pointer only after hash is complete. */
       view_layer->object_bases_hash = hash;
     }
-
-    BLI_mutex_unlock(&hash_lock);
   }
 }
 
@@ -505,6 +506,10 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   if (view_layer_dst->id_properties != nullptr) {
     view_layer_dst->id_properties = IDP_CopyProperty_ex(view_layer_dst->id_properties, flag);
   }
+  if (view_layer_dst->system_properties != nullptr) {
+    view_layer_dst->system_properties = IDP_CopyProperty_ex(view_layer_dst->system_properties,
+                                                            flag);
+  }
   BKE_freestyle_config_copy(
       &view_layer_dst->freestyle_config, &view_layer_src->freestyle_config, flag);
 
@@ -515,7 +520,7 @@ void BKE_view_layer_copy_data(Scene *scene_dst,
   view_layer_dst->object_bases_hash = nullptr;
 
   /* Copy layer collections and object bases. */
-  /* Inline 'BLI_duplicatelist' and update the active base. */
+  /* Inline #BLI_duplicatelist and update the active base. */
   BLI_listbase_clear(&view_layer_dst->object_bases);
   BLI_assert_msg((view_layer_src->flag & VIEW_LAYER_OUT_OF_SYNC) == 0,
                  "View Layer Object Base out of sync, invoke BKE_view_layer_synced_ensure.");
@@ -633,7 +638,7 @@ static bool layer_collection_hidden(ViewLayer *view_layer, LayerCollection *lc)
 
   /* Restriction flags stay set, so we need to check parents */
   CollectionParent *parent = static_cast<CollectionParent *>(
-      lc->collection->runtime.parents.first);
+      lc->collection->runtime->parents.first);
 
   if (parent) {
     lc = BKE_layer_collection_first_from_scene_collection(view_layer, parent->collection);
@@ -668,7 +673,7 @@ bool BKE_layer_collection_activate(ViewLayer *view_layer, LayerCollection *lc)
 LayerCollection *BKE_layer_collection_activate_parent(ViewLayer *view_layer, LayerCollection *lc)
 {
   CollectionParent *parent = static_cast<CollectionParent *>(
-      lc->collection->runtime.parents.first);
+      lc->collection->runtime->parents.first);
 
   if (parent) {
     lc = BKE_layer_collection_first_from_scene_collection(view_layer, parent->collection);
@@ -1380,7 +1385,7 @@ void BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
                         parent_exclude,
                         parent_restrict,
                         parent_layer_restrict,
-                        ~(0));
+                        ~0);
 
   layer_collection_resync_unused_layers_free(view_layer, master_layer_resync);
   BLI_mempool_destroy(layer_resync_mempool);
@@ -2397,6 +2402,8 @@ void BKE_view_layer_blend_write(BlendWriter *writer, const Scene *scene, ViewLay
   if (view_layer->id_properties) {
     IDP_BlendWrite(writer, view_layer->id_properties);
   }
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+   * the matching call to #BLO_read_struct). */
 
   LISTBASE_FOREACH (FreestyleModuleConfig *, fmc, &view_layer->freestyle_config.modules) {
     BLO_write_struct(writer, FreestyleModuleConfig, fmc);
@@ -2456,6 +2463,8 @@ void BKE_view_layer_blend_read_data(BlendDataReader *reader, ViewLayer *view_lay
 
   BLO_read_struct(reader, IDProperty, &view_layer->id_properties);
   IDP_BlendDataRead(reader, &view_layer->id_properties);
+  BLO_read_struct(reader, IDProperty, &view_layer->system_properties);
+  IDP_BlendDataRead(reader, &view_layer->system_properties);
 
   BLO_read_struct_list(reader, FreestyleModuleConfig, &(view_layer->freestyle_config.modules));
   BLO_read_struct_list(reader, FreestyleLineSet, &(view_layer->freestyle_config.linesets));

@@ -101,7 +101,8 @@ int find_next_available_id(Object &object)
       const int cd_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
       if (cd_offset == -1) {
-        return 1;
+        /* Default face set ID is 1, so the next available id should never be 1 */
+        return 2;
       }
       int next_face_set = 1;
       BMIter iter;
@@ -141,8 +142,8 @@ int active_update_and_get(bContext *C, Object &ob, const float mval[2])
     return SCULPT_FACE_SET_NONE;
   }
 
-  SculptCursorGeometryInfo gi;
-  if (!SCULPT_cursor_geometry_info_update(C, &gi, mval, false)) {
+  CursorGeometryInfo gi;
+  if (!cursor_geometry_info_update(C, &gi, mval, false)) {
     return SCULPT_FACE_SET_NONE;
   }
 
@@ -1100,10 +1101,10 @@ static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, co
 
   /* Update the active vertex and Face Set using the cursor position to avoid relying on the paint
    * cursor updates. */
-  SculptCursorGeometryInfo sgi;
+  CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  SCULPT_vertex_random_access_ensure(ob);
-  SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+  vert_random_access_ensure(ob);
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   return change_visibility_exec(C, op);
 }
@@ -1565,9 +1566,9 @@ static wmOperatorStatus edit_op_invoke(bContext *C, wmOperator *op, const wmEven
 
   /* Update the current active Face Set and Vertex as the operator can be used directly from the
    * tool without brush cursor. */
-  SculptCursorGeometryInfo sgi;
+  CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false)) {
+  if (!cursor_geometry_info_update(C, &cgi, mval_fl, false)) {
     /* The cursor is not over the mesh. Cancel to avoid editing the last updated Face Set ID. */
     return OPERATOR_CANCELLED;
   }
@@ -1739,11 +1740,9 @@ static void gesture_apply_bmesh(gesture::GestureData &gesture_data, const IndexM
   FaceSetOperation *face_set_operation = (FaceSetOperation *)gesture_data.operation;
   const Depsgraph &depsgraph = *gesture_data.vc.depsgraph;
   const int new_face_set = face_set_operation->new_face_set_id;
-  SculptSession &ss = *gesture_data.ss;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*gesture_data.vc.obact);
   MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-  BMesh *bm = ss.bm;
-  const int offset = CustomData_get_offset_named(&bm->pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int offset = face_set::ensure_face_sets_bmesh(*gesture_data.vc.obact);
 
   Array<bool> node_changed(node_mask.min_array_size(), false);
 

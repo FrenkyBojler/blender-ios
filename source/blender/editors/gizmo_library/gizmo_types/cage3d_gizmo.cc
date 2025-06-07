@@ -429,11 +429,15 @@ static int gizmo_cage3d_get_cursor(wmGizmo *gz)
   return WM_CURSOR_DEFAULT;
 }
 
+namespace {
+
 struct RectTransformInteraction {
   float orig_mouse[3];
   float orig_matrix_offset[4][4];
   float orig_matrix_final_no_offset[4][4];
 };
+
+}  // namespace
 
 static void gizmo_cage3d_setup(wmGizmo *gz)
 {
@@ -443,8 +447,7 @@ static void gizmo_cage3d_setup(wmGizmo *gz)
 
 static wmOperatorStatus gizmo_cage3d_invoke(bContext *C, wmGizmo *gz, const wmEvent *event)
 {
-  RectTransformInteraction *data = static_cast<RectTransformInteraction *>(
-      MEM_callocN(sizeof(RectTransformInteraction), "cage_interaction"));
+  RectTransformInteraction *data = MEM_callocN<RectTransformInteraction>("cage_interaction");
 
   copy_m4_m4(data->orig_matrix_offset, gz->matrix_offset);
   gizmo_calc_matrix_final_no_offset(gz, data->orig_matrix_final_no_offset, true);
@@ -631,7 +634,7 @@ static void GIZMO_GT_cage_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_cage_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_cage3d_draw;
   gzt->draw_select = gizmo_cage3d_draw_select;
   gzt->setup = gizmo_cage3d_setup;

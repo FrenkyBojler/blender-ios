@@ -30,6 +30,256 @@
 #  include <stdio.h>
 #endif
 
+namespace blender::gpu {
+
+/* Used to combine legacy enums into new vertex attribute type. */
+static VertAttrType vertex_format_combine(GPUVertCompType component_type,
+                                          GPUVertFetchMode fetch_mode,
+                                          uint32_t component_len)
+{
+  switch (component_type) {
+    case GPU_COMP_I8: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SNORM_8_DEPRECATED;
+            case 2:
+              return VertAttrType::SNORM_8_8_DEPRECATED;
+            case 3:
+              return VertAttrType::SNORM_8_8_8_DEPRECATED;
+            case 4:
+              return VertAttrType::SNORM_8_8_8_8;
+          }
+          break;
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SINT_8_DEPRECATED;
+            case 2:
+              return VertAttrType::SINT_8_8_DEPRECATED;
+            case 3:
+              return VertAttrType::SINT_8_8_8_DEPRECATED;
+            case 4:
+              return VertAttrType::SINT_8_8_8_8;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_U8: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::UNORM_8_DEPRECATED;
+            case 2:
+              return VertAttrType::UNORM_8_8_DEPRECATED;
+            case 3:
+              return VertAttrType::UNORM_8_8_8_DEPRECATED;
+            case 4:
+              return VertAttrType::UNORM_8_8_8_8;
+          }
+          break;
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::UINT_8_DEPRECATED;
+            case 2:
+              return VertAttrType::UINT_8_8_DEPRECATED;
+            case 3:
+              return VertAttrType::UINT_8_8_8_DEPRECATED;
+            case 4:
+              return VertAttrType::UINT_8_8_8_8;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_I16: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SNORM_16_DEPRECATED;
+            case 2:
+              return VertAttrType::SNORM_16_16;
+            case 3:
+              return VertAttrType::SNORM_16_16_16_DEPRECATED;
+            case 4:
+              return VertAttrType::SNORM_16_16_16_16;
+          }
+          break;
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SINT_16_DEPRECATED;
+            case 2:
+              return VertAttrType::SINT_16_16;
+            case 3:
+              return VertAttrType::SINT_16_16_16_DEPRECATED;
+            case 4:
+              return VertAttrType::SINT_16_16_16_16;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_U16: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::UNORM_16_DEPRECATED;
+            case 2:
+              return VertAttrType::UNORM_16_16;
+            case 3:
+              return VertAttrType::UNORM_16_16_16_DEPRECATED;
+            case 4:
+              return VertAttrType::UNORM_16_16_16_16;
+          }
+          break;
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::UINT_16_DEPRECATED;
+            case 2:
+              return VertAttrType::UINT_16_16;
+            case 3:
+              return VertAttrType::UINT_16_16_16_DEPRECATED;
+            case 4:
+              return VertAttrType::UINT_16_16_16_16;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_I32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SINT_32;
+            case 2:
+              return VertAttrType::SINT_32_32;
+            case 3:
+              return VertAttrType::SINT_32_32_32;
+            case 4:
+              return VertAttrType::SINT_32_32_32_32;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_U32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::UINT_32;
+            case 2:
+              return VertAttrType::UINT_32_32;
+            case 3:
+              return VertAttrType::UINT_32_32_32;
+            case 4:
+              return VertAttrType::UINT_32_32_32_32;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_F32: {
+      switch (fetch_mode) {
+        case GPU_FETCH_FLOAT:
+          switch (component_len) {
+            case 1:
+              return VertAttrType::SFLOAT_32;
+            case 2:
+              return VertAttrType::SFLOAT_32_32;
+            case 3:
+              return VertAttrType::SFLOAT_32_32_32;
+            case 4:
+              return VertAttrType::SFLOAT_32_32_32_32;
+          }
+          break;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_I10: {
+      switch (fetch_mode) {
+        case GPU_FETCH_INT_TO_FLOAT_UNIT:
+          return VertAttrType::SNORM_10_10_10_2;
+        default:
+          break;
+      }
+      break;
+    }
+    case GPU_COMP_MAX:
+      break;
+  }
+
+  return VertAttrType::Invalid;
+};
+
+bool is_fetch_normalized(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SNORM_8_8_8_8:
+    case VertAttrType::SNORM_16_16:
+    case VertAttrType::SNORM_16_16_16_16:
+    case VertAttrType::UNORM_8_8_8_8:
+    case VertAttrType::UNORM_16_16:
+    case VertAttrType::UNORM_16_16_16_16:
+    case VertAttrType::SNORM_10_10_10_2:
+    case VertAttrType::UNORM_10_10_10_2:
+      return true;
+    default:
+      return false;
+  }
+};
+
+bool is_fetch_int_to_float(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SINT_TO_FLT_32:
+    case VertAttrType::SINT_TO_FLT_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32:
+    case VertAttrType::SINT_TO_FLT_32_32_32_32:
+      return true;
+    default:
+      return false;
+  }
+};
+
+bool is_fetch_float(VertAttrType attr_type)
+{
+  switch (attr_type) {
+    case VertAttrType::SFLOAT_32:
+    case VertAttrType::SFLOAT_32_32:
+    case VertAttrType::SFLOAT_32_32_32:
+    case VertAttrType::SFLOAT_32_32_32_32:
+      return true;
+    default:
+      return false;
+  }
+};
+
+}  // namespace blender::gpu
+
 using blender::StringRef;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
@@ -154,6 +404,8 @@ uint GPU_vertformat_attr_add(GPUVertFormat *format,
   attr->size = attr_size(attr);
   attr->offset = 0; /* offsets & stride are calculated later (during pack) */
   attr->fetch_mode = fetch_mode;
+  attr->format = vertex_format_combine(comp_type, fetch_mode, comp_len);
+  BLI_assert(attr->format != blender::gpu::VertAttrType::Invalid);
 
   return attr_id;
 }
@@ -369,21 +621,21 @@ void VertexFormat_texture_buffer_pack(GPUVertFormat *format)
 static uint component_size_get(const Type gpu_type)
 {
   switch (gpu_type) {
-    case Type::VEC2:
-    case Type::IVEC2:
-    case Type::UVEC2:
+    case Type::float2_t:
+    case Type::int2_t:
+    case Type::uint2_t:
       return 2;
-    case Type::VEC3:
-    case Type::IVEC3:
-    case Type::UVEC3:
+    case Type::float3_t:
+    case Type::int3_t:
+    case Type::uint3_t:
       return 3;
-    case Type::VEC4:
-    case Type::IVEC4:
-    case Type::UVEC4:
+    case Type::float4_t:
+    case Type::int4_t:
+    case Type::uint4_t:
       return 4;
-    case Type::MAT3:
+    case Type::float3x3_t:
       return 12;
-    case Type::MAT4:
+    case Type::float4x4_t:
       return 16;
     default:
       return 1;
@@ -395,26 +647,26 @@ static void recommended_fetch_mode_and_comp_type(Type gpu_type,
                                                  GPUVertFetchMode *r_fetch_mode)
 {
   switch (gpu_type) {
-    case Type::FLOAT:
-    case Type::VEC2:
-    case Type::VEC3:
-    case Type::VEC4:
-    case Type::MAT3:
-    case Type::MAT4:
+    case Type::float_t:
+    case Type::float2_t:
+    case Type::float3_t:
+    case Type::float4_t:
+    case Type::float3x3_t:
+    case Type::float4x4_t:
       *r_comp_type = GPU_COMP_F32;
       *r_fetch_mode = GPU_FETCH_FLOAT;
       break;
-    case Type::INT:
-    case Type::IVEC2:
-    case Type::IVEC3:
-    case Type::IVEC4:
+    case Type::int_t:
+    case Type::int2_t:
+    case Type::int3_t:
+    case Type::int4_t:
       *r_comp_type = GPU_COMP_I32;
       *r_fetch_mode = GPU_FETCH_INT;
       break;
-    case Type::UINT:
-    case Type::UVEC2:
-    case Type::UVEC3:
-    case Type::UVEC4:
+    case Type::uint_t:
+    case Type::uint2_t:
+    case Type::uint3_t:
+    case Type::uint4_t:
       *r_comp_type = GPU_COMP_U32;
       *r_fetch_mode = GPU_FETCH_INT;
       break;

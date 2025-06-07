@@ -39,7 +39,6 @@
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
 #include "BKE_brush.hh"
-#include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
@@ -85,10 +84,6 @@
 
 #ifdef __FreeBSD__
 #  include <floatingpoint.h>
-#endif
-
-#ifdef _OPENMP
-#  include <omp.h>
 #endif
 
 #ifdef WITH_BINRELOC
@@ -302,18 +297,6 @@ int main(int argc,
   setvbuf(stdout, nullptr, _IONBF, 0);
 #endif
 
-#ifdef _OPENMP
-#  if defined(WIN32) && defined(_MSC_VER)
-  /* We delay loading of OPENMP so we can set the policy here. */
-  _putenv_s("OMP_WAIT_POLICY", "PASSIVE");
-#  endif
-  /* Ensure the OpenMP runtime is initialized as soon as possible to make sure duplicate
-   * `libomp/libiomp5` runtime conflicts are detected as soon as a second runtime is initialized.
-   * Initialization must be done after setting any relevant environment variables, but before
-   * installing signal handlers. */
-  omp_get_max_threads();
-#endif
-
 #ifdef WIN32
 #  ifdef USE_WIN32_UNICODE_ARGS
   /* Win32 Unicode Arguments. */
@@ -437,7 +420,6 @@ int main(int argc,
 
   BKE_cpp_types_init();
   BKE_idtype_init();
-  BKE_cachefiles_init();
   BKE_modifier_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
