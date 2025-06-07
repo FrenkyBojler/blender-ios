@@ -528,12 +528,7 @@ bool MOV_codec_supports_alpha(int codec_id, int ffmpeg_profile)
 
 bool MOV_codec_supports_alpha(const FFMpegCodecData &ff_codec_data)
 {
-#ifdef WITH_FFMPEG
-  MOV_codec_supports_alpha(ff_codec_data.codec, ff_codec_data.ffmpeg_prores_profile);
-#else
-  UNUSED_VARS(ff_codec_data);
-  return false;
-#endif
+  return MOV_codec_supports_alpha(ff_codec_data.codec, ff_codec_data.ffmpeg_prores_profile);
 }
 
 bool MOV_codec_supports_crf(int av_codec_id)
