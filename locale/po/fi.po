@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-05 08:47+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:20+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7316,6 +7316,30 @@ msgid "Mask"
 msgstr "Maski"
 
 
+msgid "Text"
+msgstr "Teksti"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
+
+
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
+msgid "Names"
+msgstr "Nimet"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
+msgid "Select More/Less"
+msgstr "Valitse enemmän/vähemmän"
+
+
 msgid "Select Similar"
 msgstr "Valitse samankaltainen"
 
@@ -7324,16 +7348,8 @@ msgid "Select All by Trait"
 msgstr "Valitse kaikki piirteen mukaan"
 
 
-msgid "Select More/Less"
-msgstr "Valitse enemmän/vähemmän"
-
-
 msgid "Select Loops"
 msgstr "Valitse silmukat"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
 
 
 msgid "Light"
@@ -7352,10 +7368,6 @@ msgid "Track"
 msgstr "Raide"
 
 
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
 msgid "Hooks"
 msgstr "Koukut"
 
@@ -7364,20 +7376,8 @@ msgid "Random Mask"
 msgstr "Satunnainen maski"
 
 
-msgid "Names"
-msgstr "Nimet"
-
-
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Text"
-msgstr "Teksti"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
 
 
 msgid "Basic"
@@ -7958,6 +7958,10 @@ msgstr "Avainkehysvalinta"
 
 msgid "Custom Color"
 msgstr "Mukautettu väli"
+
+
+msgid "Starting"
+msgstr "Käynnistää"
 
 
 msgid "Sound Clip"
@@ -8568,12 +8572,12 @@ msgid "And"
 msgstr "Ja"
 
 
-msgid "True when both inputs are true"
-msgstr "Tosi, kun molemmat syötteet ovat tosia"
-
-
 msgid "Or"
 msgstr "Tai"
+
+
+msgid "True when both inputs are true"
+msgstr "Tosi, kun molemmat syötteet ovat tosia"
 
 
 msgid "True when at least one input is true"
@@ -8616,6 +8620,14 @@ msgid "Float to Integer"
 msgstr "Liukuluku kokonaisluvuksi"
 
 
+msgid "Active Item Index"
+msgstr "Aktiivinen esineindeksi"
+
+
+msgid "Index of the active item"
+msgstr "Aktiivisen esineen indeksi"
+
+
 msgctxt "NodeTree"
 msgid "Modulo"
 msgstr "Jakojäännös"
@@ -8651,14 +8663,6 @@ msgstr "Attribuuttistatistiikka"
 
 msgid "Bake"
 msgstr "Paista"
-
-
-msgid "Active Item Index"
-msgstr "Aktiivinen esineindeksi"
-
-
-msgid "Index of the active item"
-msgstr "Aktiivisen esineen indeksi"
 
 
 msgid "Blur Attribute"
@@ -9697,6 +9701,14 @@ msgid "Only Channel"
 msgstr "Vain kanava"
 
 
+msgid "Point 1"
+msgstr "Piste 1"
+
+
+msgid "Point 2"
+msgstr "Piste 2"
+
+
 msgctxt "Operator"
 msgid "Export"
 msgstr "Vie"
@@ -10298,6 +10310,10 @@ msgstr "Lisää segmentti"
 
 msgid "Palette"
 msgstr "Paletti"
+
+
+msgid "Parents"
+msgstr "Isännät"
 
 
 msgctxt "Operator"
@@ -10917,16 +10933,8 @@ msgid "Scene size"
 msgstr "Kohtauksen koko"
 
 
-msgid "Use Backdrop"
-msgstr "Käytä taustaa"
-
-
 msgid "Tool Gizmo"
 msgstr "Työkalu Gizmo"
-
-
-msgid "Columns"
-msgstr "Sarakkeet"
 
 
 msgid "Use Filter"
@@ -11248,6 +11256,10 @@ msgstr "8-Bittinen Kokonaislukuarvo"
 
 msgid "Text Value"
 msgstr "Tekstiarvo"
+
+
+msgid "Columns"
+msgstr "Sarakkeet"
 
 
 msgid "Use Annotations"
@@ -11802,11 +11814,6 @@ msgstr "Teema"
 msgctxt "View3D"
 msgid "World"
 msgstr "Maailma"
-
-
-msgctxt "View3D"
-msgid "Viewport"
-msgstr "Näkymä"
 
 
 msgctxt "View3D"
@@ -13906,10 +13913,6 @@ msgid "Locations"
 msgstr "Sijainnit"
 
 
-msgid "Parents"
-msgstr "Isännät"
-
-
 msgid "No Textures"
 msgstr "Ei tekstuureja"
 
@@ -14415,10 +14418,6 @@ msgid "Swap Areas"
 msgstr "Vaihda alueet"
 
 
-msgid "Close"
-msgstr "Sulje"
-
-
 msgid "Can't overwrite export file"
 msgstr "Vientitiedostoa ei voida päällekirjoittaa"
 
@@ -14478,6 +14477,10 @@ msgstr "Pallo"
 msgctxt "Mesh"
 msgid "Icosphere"
 msgstr "Icopallo"
+
+
+msgid "Close"
+msgstr "Sulje"
 
 
 msgid "No face selected"
@@ -15821,28 +15824,8 @@ msgid "Multires"
 msgstr "Moniresoluutio"
 
 
-msgid "Bake Path"
-msgstr "Paista polku"
-
-
-msgid "Warnings ({})"
-msgstr "Varoitukset ({})"
-
-
-msgid "Output Attributes"
-msgstr "Tulosteen attribuutit"
-
-
-msgid "Manage"
-msgstr "Hallitse"
-
-
 msgid "Cannot load the baked data"
 msgstr "Paistettua dataa ei voida ladata"
-
-
-msgid "No named attributes used"
-msgstr "Nimettyjä attribuutteja ei käytetty"
 
 
 msgid "NormalEdit"
@@ -16305,14 +16288,6 @@ msgid "Length of the arc"
 msgstr "Kaaren pituus"
 
 
-msgid "Point 1"
-msgstr "Piste 1"
-
-
-msgid "Point 2"
-msgstr "Piste 2"
-
-
 msgid "Point 3"
 msgstr "Piste 3"
 
@@ -16734,6 +16709,26 @@ msgstr "Käyräinstanssit"
 
 msgid "Remainder"
 msgstr "Jakojäännös"
+
+
+msgid "Warnings ({})"
+msgstr "Varoitukset ({})"
+
+
+msgid "Bake Path"
+msgstr "Paista polku"
+
+
+msgid "Output Attributes"
+msgstr "Tulosteen attribuutit"
+
+
+msgid "Manage"
+msgstr "Hallitse"
+
+
+msgid "No named attributes used"
+msgstr "Nimettyjä attribuutteja ei käytetty"
 
 
 msgid "Not a shader node tree"
@@ -18041,10 +18036,6 @@ msgstr "Valmis"
 
 msgid "In Progress"
 msgstr "Käynnissä"
-
-
-msgid "Starting"
-msgstr "Käynnistää"
 
 
 msgid "Add & Subtract"

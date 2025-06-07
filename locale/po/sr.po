@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-05 08:47+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:40+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -1189,6 +1189,34 @@ msgstr "Наследници"
 
 msgid "Bones which are children of this bone"
 msgstr "Кости које су наследници ове кости"
+
+
+msgid "Stick"
+msgstr "Лепљив"
+
+
+msgid "Display bones as simple 2D lines with dots"
+msgstr "Прикажи кости као једноставне 2D линије и тачке"
+
+
+msgid "B-Bone"
+msgstr "Б-кост"
+
+
+msgid "Display bones as boxes, showing subdivision and B-Splines"
+msgstr "Приказује кости као коцке, приказујући поделе и Б-криве"
+
+
+msgid "Envelope"
+msgstr "Коверат"
+
+
+msgid "Display bones as extruded spheres, showing deformation influence volume"
+msgstr "Приказује кости као извучене облике, приказујући утицај деформације"
+
+
+msgid "Wire"
+msgstr "Жица"
 
 
 msgid "Head"
@@ -4868,34 +4896,6 @@ msgid "Layers"
 msgstr "Слојеви"
 
 
-msgid "Stick"
-msgstr "Лепљив"
-
-
-msgid "Display bones as simple 2D lines with dots"
-msgstr "Прикажи кости као једноставне 2D линије и тачке"
-
-
-msgid "B-Bone"
-msgstr "Б-кост"
-
-
-msgid "Display bones as boxes, showing subdivision and B-Splines"
-msgstr "Приказује кости као коцке, приказујући поделе и Б-криве"
-
-
-msgid "Envelope"
-msgstr "Коверат"
-
-
-msgid "Display bones as extruded spheres, showing deformation influence volume"
-msgstr "Приказује кости као извучене облике, приказујући утицај деформације"
-
-
-msgid "Wire"
-msgstr "Жица"
-
-
 msgid "Edit Bones"
 msgstr "Уреди кости"
 
@@ -6028,6 +6028,10 @@ msgstr "Путања до .blend датотеке збирке"
 
 msgid "Light color"
 msgstr "Боја светлости"
+
+
+msgid "Normalize"
+msgstr "Нормализуј"
 
 
 msgid "Omnidirectional point light source"
@@ -8581,84 +8585,20 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Select Linked"
-msgstr "Изабери повезано"
+msgid "Special Characters"
+msgstr "Специјални знаци"
 
 
 msgid "Metaball"
 msgstr "Мета лопта"
 
 
-msgid "Light"
-msgstr "Светлост"
-
-
-msgid "Relations"
-msgstr "Односи"
-
-
-msgid "Rigid Body"
-msgstr "Круто тело"
-
-
-msgid "Apply"
-msgstr "Примени"
-
-
-msgid "Track"
-msgstr "Стаза"
-
-
-msgid "Quick Effects"
-msgstr "Брзи ефекти"
-
-
 msgid "Show/Hide"
 msgstr "Прикажи/сакриј"
 
 
-msgid "Hooks"
-msgstr "Удице"
-
-
-msgid "Clear Transform"
-msgstr "Очисти трансформације"
-
-
-msgid "In-Betweens"
-msgstr "У међувремену"
-
-
-msgid "Propagate"
-msgstr "Пренеси"
-
-
 msgid "Names"
 msgstr "Имена"
-
-
-msgid "Toggle Bone Options"
-msgstr "Мање/више информација"
-
-
-msgid "Enable Bone Options"
-msgstr "Омогући опције костију"
-
-
-msgid "Disable Bone Options"
-msgstr "Онемогући опције костију"
-
-
-msgid "Mesh Select Mode"
-msgstr "Мод избора мреже"
-
-
-msgid "Merge"
-msgstr "Сједини"
-
-
-msgid "Special Characters"
-msgstr "Специјални знаци"
 
 
 msgid "Bone Roll"
@@ -8687,6 +8627,70 @@ msgstr "Навигација"
 
 msgid "Align View"
 msgstr "Поравнај поглед"
+
+
+msgid "Select Linked"
+msgstr "Изабери повезано"
+
+
+msgid "Light"
+msgstr "Светлост"
+
+
+msgid "Relations"
+msgstr "Односи"
+
+
+msgid "Rigid Body"
+msgstr "Круто тело"
+
+
+msgid "Apply"
+msgstr "Примени"
+
+
+msgid "Track"
+msgstr "Стаза"
+
+
+msgid "Quick Effects"
+msgstr "Брзи ефекти"
+
+
+msgid "Hooks"
+msgstr "Удице"
+
+
+msgid "Clear Transform"
+msgstr "Очисти трансформације"
+
+
+msgid "In-Betweens"
+msgstr "У међувремену"
+
+
+msgid "Propagate"
+msgstr "Пренеси"
+
+
+msgid "Toggle Bone Options"
+msgstr "Мање/више информација"
+
+
+msgid "Enable Bone Options"
+msgstr "Омогући опције костију"
+
+
+msgid "Disable Bone Options"
+msgstr "Онемогући опције костију"
+
+
+msgid "Mesh Select Mode"
+msgstr "Мод избора мреже"
+
+
+msgid "Merge"
+msgstr "Сједини"
 
 
 msgid "Basic"
@@ -10471,10 +10475,6 @@ msgid "Use Mask"
 msgstr "Користи маску"
 
 
-msgid "Normalize"
-msgstr "Нормализуј"
-
-
 msgid "Use Red Channel"
 msgstr "Користи црвени канал"
 
@@ -10549,6 +10549,10 @@ msgstr "Изабери мустру"
 
 msgid "Custom Color"
 msgstr "Прилагођена боја"
+
+
+msgid "Starting"
+msgstr "Започињем"
 
 
 msgid "Action End Frame"
@@ -10907,6 +10911,10 @@ msgid "Flip X & Y"
 msgstr "Изврни X и Y"
 
 
+msgid "Glare"
+msgstr "Бљесак"
+
+
 msgid "Glare Type"
 msgstr "Врста бљеска"
 
@@ -11047,16 +11055,12 @@ msgid "Render Layers"
 msgstr "Рендеруј слојеве"
 
 
+msgid "Greater"
+msgstr "Веће"
+
+
 msgid "Rotate"
 msgstr "Ротирање"
-
-
-msgid "Offset image horizontally (factor of image size)"
-msgstr "Водоравно померање слике од центра сцене"
-
-
-msgid "Offset image vertically (factor of image size)"
-msgstr "Водоравно померање слике од центра сцене"
 
 
 msgid "Set Alpha"
@@ -13658,10 +13662,6 @@ msgid "Select Control Point Row"
 msgstr "Изабери низ контролних тачака"
 
 
-msgid "Greater"
-msgstr "Веће"
-
-
 msgid "Less"
 msgstr "Мање"
 
@@ -15351,10 +15351,6 @@ msgstr "За прво"
 
 msgid "At Last"
 msgstr "За последње"
-
-
-msgid "Fill Holes"
-msgstr "Попуни рупе"
 
 
 msgid "Median"
@@ -17456,6 +17452,10 @@ msgid "Clear Pose Scale"
 msgstr "Очисти увећање позе"
 
 
+msgid "Parents"
+msgstr "Родитељи"
+
+
 msgctxt "Operator"
 msgid "Select Connected"
 msgstr "Изабери повезано"
@@ -17871,6 +17871,10 @@ msgid "Custom Curve"
 msgstr "Прилагођена крива"
 
 
+msgid "Fill Holes"
+msgstr "Попуни рупе"
+
+
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Једноставна детаљност"
@@ -17895,11 +17899,6 @@ msgstr "Користи Лапласов метод за опуштање"
 
 
 msgctxt "Operator"
-msgid "Change Effect Input"
-msgstr "Измени улаз ефекта"
-
-
-msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "Измени врсту ефеката"
 
@@ -17909,21 +17908,9 @@ msgid "Type"
 msgstr "Врста"
 
 
-msgid "Sequencer effect type"
-msgstr "Тип секвенцер ефекта"
-
-
-msgid "Crossfade effect strip type"
-msgstr "Ефекат претапања тип траке"
-
-
 msgctxt "Sequence"
 msgid "Add"
 msgstr "Додај"
-
-
-msgid "Add effect strip type"
-msgstr "Ефекат додавања тип траке"
 
 
 msgctxt "Sequence"
@@ -17931,17 +17918,9 @@ msgid "Subtract"
 msgstr "Одузимање"
 
 
-msgid "Subtract effect strip type"
-msgstr "Ефекат одузимања тип траке"
-
-
 msgctxt "Sequence"
 msgid "Alpha Over"
 msgstr "Провидност преко"
-
-
-msgid "Alpha Over effect strip type"
-msgstr "Ефекат провидно изнад тип траке"
 
 
 msgctxt "Sequence"
@@ -17949,22 +17928,9 @@ msgid "Alpha Under"
 msgstr "Провидност испод"
 
 
-msgid "Alpha Under effect strip type"
-msgstr "Ефекат провидно испод тип траке"
-
-
-msgctxt "Sequence"
-msgid "Gamma Cross"
-msgstr "Укрштање гаме"
-
-
 msgctxt "Sequence"
 msgid "Multiply"
 msgstr "Умножено"
-
-
-msgid "Multiply effect strip type"
-msgstr "Ефекат множења тип траке"
 
 
 msgctxt "Sequence"
@@ -17972,17 +17938,9 @@ msgid "Wipe"
 msgstr "Брисање"
 
 
-msgid "Wipe effect strip type"
-msgstr "Ефекат брисање тип траке"
-
-
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "Исијавање"
-
-
-msgid "Glow effect strip type"
-msgstr "Ефекат исијавања тип траке"
 
 
 msgctxt "Sequence"
@@ -17990,17 +17948,9 @@ msgid "Transform"
 msgstr "Трансформација"
 
 
-msgid "Transform effect strip type"
-msgstr "Ефекат трансформације тип траке"
-
-
 msgctxt "Sequence"
 msgid "Color"
 msgstr "Боја"
-
-
-msgid "Color effect strip type"
-msgstr "Ефекат бојења тип траке"
 
 
 msgctxt "Sequence"
@@ -18057,6 +18007,10 @@ msgstr "Не исправљај преклапање за нове траке с
 
 msgid "Replace Selection"
 msgstr "Замени избор"
+
+
+msgid "Sequencer effect type"
+msgstr "Тип секвенцер ефекта"
 
 
 msgid "All Gaps"
@@ -19311,10 +19265,6 @@ msgstr "Назив менија"
 
 msgid "Remove"
 msgstr "Уклони"
-
-
-msgid "Save a Collada file"
-msgstr "Сачувај као Collada датотеку"
 
 
 msgid "Only export deforming bones with armatures"
@@ -22109,11 +22059,6 @@ msgid "Sound"
 msgstr "Звук"
 
 
-msgctxt "Sequence"
-msgid "Cross"
-msgstr "Укрштење"
-
-
 msgid "Use Linear Modifiers"
 msgstr "Користи линеарни модификатор"
 
@@ -24049,16 +23994,6 @@ msgstr "Сцена..."
 
 
 msgctxt "Operator"
-msgid "Cross"
-msgstr "Укрштење"
-
-
-msgctxt "Operator"
-msgid "Gamma Cross"
-msgstr "Укрштање гаме"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "Брисање"
 
@@ -24638,10 +24573,6 @@ msgstr "Уклони из активне групе"
 msgctxt "Operator"
 msgid "Remove from All"
 msgstr "Уклони из свих"
-
-
-msgid "Parents"
-msgstr "Родитељи"
 
 
 msgid "Multi-Paint"
@@ -26003,10 +25934,6 @@ msgid "Layer:"
 msgstr "Слојеви:"
 
 
-msgid "Glare"
-msgstr "Бљесак"
-
-
 msgid "Use feather information from the mask"
 msgstr "Користи информације умекшавања са маске"
 
@@ -26396,8 +26323,4 @@ msgstr "Завршено"
 
 msgid "In Progress"
 msgstr "У току"
-
-
-msgid "Starting"
-msgstr "Започињем"
 

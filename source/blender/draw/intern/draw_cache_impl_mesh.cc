@@ -202,7 +202,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
     ListBase gpu_attrs = GPU_material_attributes(gpumat);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
       StringRef name = gpu_attr->name;
-      eCustomDataType type = static_cast<eCustomDataType>(gpu_attr->type);
+      eCustomDataType type = eCustomDataType(gpu_attr->type);
       int layer = -1;
       std::optional<bke::AttrDomain> domain;
 
@@ -267,7 +267,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
                         CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
 
-            /* Only fallback to orco (below) when we have no UV layers, see: #56545 */
+            /* Only fall back to orco (below) when we have no UV layers, see: #56545 */
             if (layer == -1 && !name.is_empty()) {
               layer = CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
             }
@@ -1262,7 +1262,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
   bool do_cage = false;
   const Mesh *edit_data_mesh = nullptr;
   if (is_editmode) {
-    const Mesh *eval_cage = BKE_object_get_editmesh_eval_cage(&ob);
+    const Mesh *eval_cage = DRW_object_get_editmesh_cage_for_drawing(ob);
     if (eval_cage && eval_cage != &mesh) {
       /* Extract "cage" data separately when it exists and it's not just the same mesh as the
        * regular evaluated mesh. Otherwise edit data will be extracted from the final evaluated
