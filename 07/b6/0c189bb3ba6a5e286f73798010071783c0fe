@@ -1,1 +1,2 @@
 Referenced by issue #139071, Cycles HIP: Volumes render with tile artifacts on RDNA2
+Referenced by pull request #139836, Cycles: Revert non-essential kernel changes to fix HIP bugs
