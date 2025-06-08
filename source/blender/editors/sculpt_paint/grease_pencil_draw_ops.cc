@@ -350,7 +350,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  if (!grease_pencil.has_active_layer()) {
+  if (!grease_pencil.has_active_layer() && blender::animrig::is_autokey_on(scene)) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
     return OPERATOR_CANCELLED;
   }
@@ -362,7 +362,9 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
 
   bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
-  if (!active_layer.is_editable()) {
+  /* When auto-keying is off allow the active layer to locked, because other layers can sill be
+   * modified. */
+  if (!active_layer.is_editable() && blender::animrig::is_autokey_on(scene)) {
     BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
     return OPERATOR_CANCELLED;
   }
@@ -557,13 +559,15 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   }
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  if (!grease_pencil.has_active_layer()) {
+  if (!grease_pencil.has_active_layer() && blender::animrig::is_autokey_on(scene)) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
     return OPERATOR_CANCELLED;
   }
 
   bke::greasepencil::Layer &active_layer = *grease_pencil.get_active_layer();
-  if (!active_layer.is_editable()) {
+  /* When auto-keying is off allow the active layer to locked, because other layers can sill be
+   * modified. */
+  if (!active_layer.is_editable() && blender::animrig::is_autokey_on(scene)) {
     BKE_report(op->reports, RPT_ERROR, "Active layer is locked or hidden");
     return OPERATOR_CANCELLED;
   }
