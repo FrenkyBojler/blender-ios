@@ -55,9 +55,6 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 /* Multiplication */
-#ifndef M_TAU_F
-#  define M_TAU_F (6.28318530717958647692f) /* `tau = 2*pi` */
-#endif
 #ifndef M_2PI_F
 #  define M_2PI_F (6.2831853071795864f) /* `2*pi` */
 #endif
@@ -89,16 +86,6 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 /* Scalar */
-
-ccl_device_inline float squaref(float a)
-{
-  return a * a;
-}
-
-ccl_device_inline float mixf(const float to_min, const float to_max, float factor)
-{
-  return to_min + factor * (to_max - to_min);
-}
 
 #if !defined(__HIP__) && !defined(__KERNEL_ONEAPI__)
 #  ifdef _WIN32

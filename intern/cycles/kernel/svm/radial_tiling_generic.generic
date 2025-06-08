@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -17,16 +17,16 @@
 #  define fmaxf math::max
 #  define fminf math::min
 #  define fractf math::fract
-#  define mixf math::mix
+#  define mix math::mix
 #  define sinf math::sin
 #  define sqrtf math::sqrt
-#  define squaref math::square
+#  define sqr math::square
 #  define tanf math::tan
 
 #  define make_float2 float2
 #  define make_float4 float4
 #  define M_PI_F M_PI
-#  define M_TAU_F M_TAU
+#  define M_2PI_F M_TAU
 #  define ccl_device
 #else
 #  ifdef ADAPT_TO_OSL
@@ -39,10 +39,10 @@
 #    define fmaxf max
 #    define fminf min
 #    define fractf fract
-#    define mixf mix
+#    define mix mix
 #    define sinf sin
 #    define sqrtf sqrt
-#    define squaref square
+#    define sqr square
 #    define tanf tan
 
 #    define bool int
@@ -51,7 +51,7 @@
 #    define make_float2 vector2
 #    define make_float4 vector4
 #    define M_PI_F M_PI
-#    define M_TAU_F M_TAU
+#    define M_2PI_F M_2PI
 #    define ccl_device
 
 #    define false 0
@@ -70,16 +70,16 @@
 #      define fmaxf max
 #      define fminf min
 #      define fractf fract
-#      define mixf mix
+#      define mix mix
 #      define sinf sin
 #      define sqrtf sqrt
-#      define squaref square
+#      define sqr square
 #      define tanf tan
 
 #      define make_float2 float2
 #      define make_float4 float4
 #      define M_PI_F M_PI
-#      define M_TAU_F M_TAU
+#      define M_2PI_F M_TAU
 #      define ccl_device
 #    endif
 #  endif
@@ -117,7 +117,7 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
                                                           float2 coord,
                                                           float l_coord)
 {
-  float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
+  float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_2PI_F;
   float segment_divider_A_angle_bisector = M_PI_F / r_gon_sides;
   float segment_divider_A_next_segment_divider = float(2.0) * segment_divider_A_angle_bisector;
   float segment_id = floorf(x_axis_A_coord / segment_divider_A_next_segment_divider);
@@ -145,10 +145,10 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
                                                   x_axis_A_outer_last_bevel_start;
 
   if ((x_axis_A_coord >= x_axis_A_outer_last_bevel_start) &&
-      (x_axis_A_coord < M_TAU_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start))
+      (x_axis_A_coord < M_2PI_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start))
   {
     if ((x_axis_A_coord >=
-         M_TAU_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
+         M_2PI_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
         (x_axis_A_coord < segment_divider_A_angle_bisector))
     {
       /* Regular straight part. */
@@ -213,8 +213,8 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
      * to avoid a case distinction. */
     float nearest_segment_divider_MSA_coord = atan2f(coord.y, coord.x);
     if ((x_axis_A_coord >=
-         M_TAU_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start) &&
-        (x_axis_A_coord < M_TAU_F - last_angle_bisector_A_x_axis))
+         M_2PI_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start) &&
+        (x_axis_A_coord < M_2PI_F - last_angle_bisector_A_x_axis))
     {
       nearest_segment_divider_MSA_coord += last_segment_divider_A_x_axis;
       nearest_segment_divider_MSA_coord *= -float(1.0);
@@ -227,10 +227,9 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
     float l_coord_R_l_last_angle_bisector =
         sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
         cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x +
-        sqrtf(squaref(sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
-                      cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x) +
-              squaref(l_last_circle_radius) - squaref(last_circle_center.x) -
-              squaref(last_circle_center.y));
+        sqrtf(sqr(sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
+                  cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x) +
+              sqr(l_last_circle_radius) - sqr(last_circle_center.x) - sqr(last_circle_center.y));
     float l_angle_bisector_R_l_last_angle_bisector = cosf(segment_divider_A_angle_bisector) /
                                                      cosf(last_angle_bisector_A_x_axis);
 
@@ -273,7 +272,7 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
           r_gon_parameter +=
               l_coord * cosf(outer_last_bevel_start_A_angle_bisector) * coord_A_bevel_start +
               float(0.5) * (float(1.0) - l_coord * cosf(outer_last_bevel_start_A_angle_bisector)) *
-                  squaref(coord_A_bevel_start) / spline_start_outer_last_bevel_start;
+                  sqr(coord_A_bevel_start) / spline_start_outer_last_bevel_start;
         }
         else {
           r_gon_parameter += spline_start_outer_last_bevel_start *
@@ -299,9 +298,9 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
 
           /* For effective_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
            * normalize_based_on_l_coord field converge against the same scalar field. */
-          r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
-                                  normalize_based_on_l_coord,
-                                  coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
+          r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
+                                 normalize_based_on_l_coord,
+                                 coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
         }
       }
       max_unit_parameter = segment_divider_A_angle_bisector;
@@ -322,7 +321,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                                              float2 coord,
                                                              float l_coord)
 {
-  float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
+  float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_2PI_F;
   float segment_divider_A_angle_bisector = M_PI_F / r_gon_sides;
   float segment_divider_A_next_segment_divider = float(2.0) * segment_divider_A_angle_bisector;
   float segment_id = floorf(x_axis_A_coord / segment_divider_A_next_segment_divider);
@@ -358,7 +357,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                                   x_axis_A_outer_last_bevel_start;
 
   if ((x_axis_A_coord >= x_axis_A_outer_last_bevel_start) &&
-      (x_axis_A_coord < M_TAU_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start))
+      (x_axis_A_coord < M_2PI_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start))
   {
     float bevel_start_A_angle_bisector = segment_divider_A_angle_bisector -
                                          segment_divider_A_bevel_start;
@@ -367,7 +366,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
          (segment_divider_A_coord <
           segment_divider_A_next_segment_divider - segment_divider_A_bevel_start)) ||
         (x_axis_A_coord >=
-         M_TAU_F - last_segment_divider_A_x_axis - segment_divider_A_bevel_start) ||
+         M_2PI_F - last_segment_divider_A_x_axis - segment_divider_A_bevel_start) ||
         (x_axis_A_coord < segment_divider_A_bevel_start))
     {
       /* Regular straight part. */
@@ -383,7 +382,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                          segment_divider_A_bevel_start;
 
       if ((x_axis_A_coord >=
-           M_TAU_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
+           M_2PI_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
           (x_axis_A_coord < segment_divider_A_angle_bisector))
       {
         /* Irregular rounded outer part. */
@@ -443,7 +442,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
         if (normalize_r_gon_parameter) {
           if ((x_axis_A_coord >=
-               M_TAU_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
+               M_2PI_F - last_segment_divider_A_x_axis - segment_divider_A_angle_bisector) ||
               (x_axis_A_coord < segment_divider_A_angle_bisector))
           {
             /* Irregular rounded outer part. */
@@ -503,9 +502,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
       float l_circle_center = (float(1.0) - r_gon_roundness) /
                               cosf(segment_divider_A_angle_bisector);
       float l_coord_R_l_bevel_start = cosf(nearest_segment_divider_SA_coord) * l_circle_center +
-                                      sqrtf(squaref(cosf(nearest_segment_divider_SA_coord) *
-                                                    l_circle_center) +
-                                            squaref(r_gon_roundness) - squaref(l_circle_center));
+                                      sqrtf(sqr(cosf(nearest_segment_divider_SA_coord) *
+                                                l_circle_center) +
+                                            sqr(r_gon_roundness) - sqr(l_circle_center));
 
       l_angle_bisector = l_coord / l_coord_R_l_bevel_start;
 
@@ -521,7 +520,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
           r_gon_parameter += l_coord * cosf(bevel_start_A_angle_bisector) * coord_A_bevel_start +
                              float(0.5) *
                                  (float(1.0) - l_coord * cosf(bevel_start_A_angle_bisector)) *
-                                 squaref(coord_A_bevel_start) / spline_start_A_bevel_start;
+                                 sqr(coord_A_bevel_start) / spline_start_A_bevel_start;
         }
         else {
           r_gon_parameter += spline_start_A_bevel_start *
@@ -545,9 +544,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
           /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
            * normalize_based_on_l_coord field converge against the same scalar field. */
-          r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
-                                  normalize_based_on_l_coord,
-                                  coord_A_bevel_start / segment_divider_A_bevel_start);
+          r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
+                                 normalize_based_on_l_coord,
+                                 coord_A_bevel_start / segment_divider_A_bevel_start);
         }
       }
       if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -566,8 +565,8 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                                                          inner_last_bevel_start_A_x_axis;
 
     if ((x_axis_A_coord >=
-         M_TAU_F - last_segment_divider_A_x_axis + inner_last_bevel_start_A_x_axis) &&
-        (x_axis_A_coord < M_TAU_F - inner_last_bevel_start_A_x_axis))
+         M_2PI_F - last_segment_divider_A_x_axis + inner_last_bevel_start_A_x_axis) &&
+        (x_axis_A_coord < M_2PI_F - inner_last_bevel_start_A_x_axis))
     {
       /* Irregular straight part. */
 
@@ -622,8 +621,8 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
        * to avoid a case distinction. */
       float nearest_segment_divider_MSA_coord = atan2f(coord.y, coord.x);
       if ((x_axis_A_coord >=
-           M_TAU_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start) &&
-          (x_axis_A_coord < M_TAU_F - last_angle_bisector_A_x_axis))
+           M_2PI_F - last_segment_divider_A_x_axis - x_axis_A_outer_last_bevel_start) &&
+          (x_axis_A_coord < M_2PI_F - last_angle_bisector_A_x_axis))
       {
         nearest_segment_divider_MSA_coord += last_segment_divider_A_x_axis;
         nearest_segment_divider_MSA_coord *= -float(1.0);
@@ -636,10 +635,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
       float l_coord_R_l_last_angle_bisector =
           sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
           cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x +
-          sqrtf(squaref(sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
-                        cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x) +
-                squaref(l_last_circle_radius) - squaref(last_circle_center.x) -
-                squaref(last_circle_center.y));
+          sqrtf(sqr(sinf(nearest_segment_divider_MSA_coord) * last_circle_center.y +
+                    cosf(nearest_segment_divider_MSA_coord) * last_circle_center.x) +
+                sqr(l_last_circle_radius) - sqr(last_circle_center.x) - sqr(last_circle_center.y));
       float l_angle_bisector_R_l_last_angle_bisector = cosf(segment_divider_A_angle_bisector) /
                                                        cosf(last_angle_bisector_A_x_axis);
       float l_last_angle_bisector = l_coord / l_coord_R_l_last_angle_bisector;
@@ -665,7 +663,7 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
                      coord_A_bevel_start +
                  float(0.5) *
                      (float(1.0) - l_coord * cosf(inner_last_bevel_start_A_last_angle_bisector)) *
-                     squaref(coord_A_bevel_start) / spline_start_A_bevel_start);
+                     sqr(coord_A_bevel_start) / spline_start_A_bevel_start);
           }
           else {
             r_gon_parameter += l_angle_bisector_R_l_last_angle_bisector *
@@ -693,9 +691,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
             /* For r_gon_roundness -> 1.0 the normalize_based_on_l_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
             r_gon_parameter /= l_angle_bisector_R_l_last_angle_bisector *
-                               mixf(normalize_based_on_l_l_angle_bisector,
-                                    normalize_based_on_l_coord,
-                                    coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
+                               mix(normalize_based_on_l_l_angle_bisector,
+                                   normalize_based_on_l_coord,
+                                   coord_A_bevel_start / inner_last_bevel_start_A_x_axis);
           }
         }
         if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -724,11 +722,12 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
           r_gon_parameter = l_coord * sinf(outer_last_bevel_start_A_angle_bisector);
 
           if (coord_A_bevel_start < spline_start_outer_last_bevel_start) {
-            r_gon_parameter +=
-                l_coord * cosf(outer_last_bevel_start_A_angle_bisector) * coord_A_bevel_start +
-                float(0.5) *
-                    (float(1.0) - l_coord * cosf(outer_last_bevel_start_A_angle_bisector)) *
-                    squaref(coord_A_bevel_start) / spline_start_outer_last_bevel_start;
+            r_gon_parameter += l_coord * cosf(outer_last_bevel_start_A_angle_bisector) *
+                                   coord_A_bevel_start +
+                               float(0.5) *
+                                   (float(1.0) -
+                                    l_coord * cosf(outer_last_bevel_start_A_angle_bisector)) *
+                                   sqr(coord_A_bevel_start) / spline_start_outer_last_bevel_start;
           }
           else {
             r_gon_parameter += spline_start_outer_last_bevel_start *
@@ -755,9 +754,9 @@ ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_go
 
             /* For effective_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
-            r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
-                                    normalize_based_on_l_coord,
-                                    coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
+            r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
+                                   normalize_based_on_l_coord,
+                                   coord_A_bevel_start / x_axis_A_outer_last_bevel_start);
           }
         }
         if (KERNEL_METAL_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -785,11 +784,11 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                           float r_gon_roundness,
                                           float2 coord)
 {
-  float l_coord = sqrtf(squaref(coord.x) + squaref(coord.y));
+  float l_coord = sqrtf(sqr(coord.x) + sqr(coord.y));
   float4 out_variables;
 
   if (fractf(r_gon_sides) == float(0.0)) {
-    float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
+    float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_2PI_F;
     float segment_divider_A_angle_bisector = M_PI_F / r_gon_sides;
     float segment_divider_A_next_segment_divider = float(2.0) * segment_divider_A_angle_bisector;
     float segment_id = floorf(x_axis_A_coord / segment_divider_A_next_segment_divider);
@@ -871,9 +870,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
         float l_circle_center = (float(1.0) - r_gon_roundness) /
                                 cosf(segment_divider_A_angle_bisector);
         float l_coord_R_l_bevel_start = cosf(nearest_segment_divider_SA_coord) * l_circle_center +
-                                        sqrtf(squaref(cosf(nearest_segment_divider_SA_coord) *
-                                                      l_circle_center) +
-                                              squaref(r_gon_roundness) - squaref(l_circle_center));
+                                        sqrtf(sqr(cosf(nearest_segment_divider_SA_coord) *
+                                                  l_circle_center) +
+                                              sqr(r_gon_roundness) - sqr(l_circle_center));
 
         l_angle_bisector = l_coord / l_coord_R_l_bevel_start;
 
@@ -889,7 +888,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
             r_gon_parameter += l_coord * cosf(bevel_start_A_angle_bisector) * coord_A_bevel_start +
                                float(0.5) *
                                    (float(1.0) - l_coord * cosf(bevel_start_A_angle_bisector)) *
-                                   squaref(coord_A_bevel_start) / spline_start_A_bevel_start;
+                                   sqr(coord_A_bevel_start) / spline_start_A_bevel_start;
           }
           else {
             r_gon_parameter += spline_start_A_bevel_start *
@@ -913,9 +912,9 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 
             /* For r_gon_roundness -> 1.0 the normalize_based_on_l_angle_bisector field and
              * normalize_based_on_l_coord field converge against the same scalar field. */
-            r_gon_parameter /= mixf(normalize_based_on_l_angle_bisector,
-                                    normalize_based_on_l_coord,
-                                    coord_A_bevel_start / segment_divider_A_bevel_start);
+            r_gon_parameter /= mix(normalize_based_on_l_angle_bisector,
+                                   normalize_based_on_l_coord,
+                                   coord_A_bevel_start / segment_divider_A_bevel_start);
           }
         }
         if (KERNEL_GPU_REPLACE_WITH_TRUE(calculate_max_unit_parameter)) {
@@ -970,7 +969,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
   }
   else {
     if (r_gon_roundness == float(0.0)) {
-      float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_TAU_F;
+      float x_axis_A_coord = atan2f(coord.y, coord.x) + float(coord.y < float(0.0)) * M_2PI_F;
       float segment_divider_A_angle_bisector = M_PI_F / r_gon_sides;
       float segment_divider_A_next_segment_divider = float(2.0) * segment_divider_A_angle_bisector;
       float segment_id = floorf(x_axis_A_coord / segment_divider_A_next_segment_divider);
@@ -981,7 +980,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
                                            floorf(r_gon_sides) * segment_divider_A_angle_bisector;
       float last_segment_divider_A_x_axis = float(2.0) * last_angle_bisector_A_x_axis;
 
-      if (x_axis_A_coord < M_TAU_F - last_segment_divider_A_x_axis) {
+      if (x_axis_A_coord < M_2PI_F - last_segment_divider_A_x_axis) {
         /* Regular straight part. */
 
         float l_angle_bisector = float(0.0);
@@ -1074,7 +1073,7 @@ ccl_device float4 calculate_out_variables(bool calculate_r_gon_parameter_field,
 ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 {
   return floorf(r_gon_sides *
-                ((atan2f(coord.y, coord.x) / M_TAU_F) + float(coord.y < float(0.0))));
+                ((atan2f(coord.y, coord.x) / M_2PI_F) + float(coord.y < float(0.0))));
 }
 
 /* Undefine macros used for code adaption. */
@@ -1088,10 +1087,10 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #  undef fmaxf
 #  undef fminf
 #  undef fractf
-#  undef mixf
+#  undef mix
 #  undef sinf
 #  undef sqrtf
-#  undef squaref
+#  undef sqr
 #  undef tanf
 
 #  undef make_float2
@@ -1108,10 +1107,10 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef fmaxf
 #    undef fminf
 #    undef fractf
-#    undef mixf
+#    undef mix
 #    undef sinf
 #    undef sqrtf
-#    undef squaref
+#    undef sqr
 #    undef tanf
 
 #    undef bool
@@ -1120,7 +1119,7 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #    undef make_float2
 #    undef make_float4
 #    undef M_PI_F
-#    undef M_TAU_F
+#    undef M_2PI_F
 #    undef ccl_device
 
 #    undef false
@@ -1139,16 +1138,16 @@ ccl_device float calculate_out_segment_id(float r_gon_sides, float2 coord)
 #      undef fmaxf
 #      undef fminf
 #      undef fractf
-#      undef mixf
+#      undef mix
 #      undef sinf
 #      undef sqrtf
-#      undef squaref
+#      undef sqr
 #      undef tanf
 
 #      undef make_float2
 #      undef make_float4
 #      undef M_PI_F
-#      undef M_TAU_F
+#      undef M_2PI_F
 #      undef ccl_device
 #    endif
 #  endif

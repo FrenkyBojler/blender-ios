@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Blender Authors
  *
  * SPDX-License-Identifier: Apache-2.0 */
 

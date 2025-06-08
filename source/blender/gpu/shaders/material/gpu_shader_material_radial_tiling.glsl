@@ -1,6 +1,6 @@
-/* SPDX-FileCopyrightText: 2024-2025 Tenkai Raiko
+/* SPDX-FileCopyrightText: 2024-2025 Blender Authors
  *
- * SPDX-License-Identifier: Apache-2.0 */
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_math_base_lib.glsl"
 
