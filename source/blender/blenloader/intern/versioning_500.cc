@@ -10,7 +10,6 @@
 
 #include "DNA_ID.h"
 #include "DNA_mesh_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
