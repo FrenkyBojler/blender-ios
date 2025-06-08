@@ -34,7 +34,7 @@ float safe_floored_modulo(float a, float b)
   return (b != 0.0) ? a - floor(a / b) * b : 0.0;
 }
 
-float square(float a)
+float sqr(float a)
 {
   return a * a;
 }

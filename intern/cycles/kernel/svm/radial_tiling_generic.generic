@@ -42,7 +42,7 @@
 #    define mix mix
 #    define sinf sin
 #    define sqrtf sqrt
-#    define sqr square
+#    define sqr sqr
 #    define tanf tan
 
 #    define bool int
