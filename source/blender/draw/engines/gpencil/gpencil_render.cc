@@ -247,6 +247,7 @@ static void render_result_separated_pass(float *data, Instance &instance, const 
                              data);
 }
 
+/* This is taken from blender::eevee::Sampling::cdf_from_curvemapping. */
 static void cdf_from_curvemapping(const CurveMapping &curve, Array<float> &cdf)
 {
   BLI_assert(cdf.size() > 1);
@@ -264,6 +265,7 @@ static void cdf_from_curvemapping(const CurveMapping &curve, Array<float> &cdf)
   cdf.last() = 1.0f;
 }
 
+/* This is taken from blender::eevee::Sampling::cdf_invert. */
 static void cdf_invert(Array<float> &cdf, Array<float> &inverted_cdf)
 {
   BLI_assert(cdf.first() == 0.0f && cdf.last() == 1.0f);
@@ -279,6 +281,7 @@ static void cdf_invert(Array<float> &cdf, Array<float> &inverted_cdf)
   }
 }
 
+/* This is taken from blender::eevee::MotionBlurModule::shutter_time_to_scene_time. */
 static float shutter_time_to_scene_time(const int shutter_position,
                                         const float shutter_time,
                                         const float frame_time,
