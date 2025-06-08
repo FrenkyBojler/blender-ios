@@ -432,6 +432,23 @@ static BMVert *bmo_find_end_of_chain(BMEdge *e, BMVert *v)
   return v;
 }
 
+/**
+ * Given an edge that is part of a chain, if either vert is tagged with VERT_MARK, copy those tags
+ * to the end verts at the matching end of the chain.
+ */
+static void bmo_copy_vert_mark_to_ends_of_chain(BMesh *bm, BMEdge *e)
+{
+  for (int i = 0; i < 2; i++) {
+    BMVert *v = *((&e->v1) + i);
+    /* This is almost certainly `always`, not just `LIKELY`, but the `if()` is defensive. */
+    if (LIKELY(BMO_vert_flag_test(bm, v, VERT_MARK))) {
+      /* `bmo_find_end_of_chain(e, v)` may just return v, re-applying VERT_MARK where already set.
+       * When that happens, the redundant bitwise or is still faster than an if/else and a jump. */
+      BMO_vert_flag_enable(bm, bmo_find_end_of_chain(e, v), VERT_MARK);
+    }
+  }
+}
+
 void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 {
   // BMOperator fop;
@@ -569,18 +586,9 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
       }
 
-      /* When #VERT_MARK is set on a vert in the middle of a chain, the flag needs to be moved to
-       * the end of the chain, because when all the chain edges between the two faces get cleaned
-       * up as part of #BM_faces_join_pair, the flagged vert would otherwise be lost.
-       * Find the end of the chain, where the dissolve test should be done, move the flag there. */
-      for (int i = 0; i < 2; i++) {
-        BMVert *v_edge = *((&e->v1) + i);
-        if (BMO_vert_flag_test(bm, v_edge, VERT_MARK)) {
-          BMVert *v_edge_chain_end = bmo_find_end_of_chain(e, v_edge);
-          if (v_edge != v_edge_chain_end) {
-            BMO_vert_flag_enable(bm, v_edge_chain_end, VERT_MARK);
-          }
-        }
+      /* If an edge chain, copy EDGE_MARK so it will not be lost in garbage collection.*/
+      if (BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
+        bmo_copy_vert_mark_to_ends_of_chain(bm, e);
       }
 
       /* and at last, remove the edge. */
