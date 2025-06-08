@@ -498,7 +498,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
      *    and face pairs should be dissolved only if they are *not* chains. */
     bool should_dissolve_face_pairs = (use_select_mode == false || is_edge_chain == false);
 
-    /* Mark edge chains for collapse. */
+    /* In dissolve selection mode, mark edge chains for collapse. */
     if (is_edge_chain && use_select_mode) {
       /* ensure the vert dissolve logic will run later. */
       found_chains = true;
@@ -520,10 +520,8 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
       }
     }
 
-    /* Mark non-chain boundary or wire edges for removal. */
-    if (!is_edge_chain && use_select_mode &&
-        (BM_edge_is_wire(e) || BM_edge_is_boundary(e)))
-    {
+    /* In dissolve selection mode, mark non-chain boundary or wire edges for removal. */
+    if (!is_edge_chain && (BM_edge_is_wire(e) || BM_edge_is_boundary(e)) && use_select_mode) {
       /* Tag the edge for removal. */
       BMO_edge_flag_enable(bm, e, EDGE_MARK);
       /* Tag the ends for possible garbage collection. */
