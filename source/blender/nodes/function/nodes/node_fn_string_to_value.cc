@@ -33,7 +33,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
     });
 
   static auto str_to_int_fn = mf::build::SI1_SO<std::string, int>(
-    "String to Value", [](const std::string& a) {
+    "String to Value", [](const std::string &a) {
       try {
         return std::stoi(a);
       }
