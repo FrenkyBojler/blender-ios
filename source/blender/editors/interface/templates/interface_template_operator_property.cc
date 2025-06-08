@@ -350,9 +350,10 @@ static void draw_export_controls(
   layout->label(label, ICON_NONE);
   if (valid) {
     uiLayout *row = &layout->row(false);
-    uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
+    row->emboss_set(blender::ui::EmbossType::None);
     uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
-    uiItemIntO(row, "", ICON_EXPORT, "COLLECTION_OT_exporter_export", "index", index);
+    PointerRNA op_ptr = row->op("COLLECTION_OT_exporter_export", "", ICON_EXPORT);
+    RNA_int_set(&op_ptr, "index", index);
   }
 }
 
@@ -402,7 +403,7 @@ static void draw_exporter_item(uiList * /*ui_list*/,
                                int /*flt_flag*/)
 {
   uiLayout *row = &layout->row(false);
-  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
+  row->emboss_set(blender::ui::EmbossType::None);
   row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -441,7 +442,8 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
 
   uiLayout *col = &row->column(true);
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
-  uiItemIntO(col, "", ICON_REMOVE, "COLLECTION_OT_exporter_remove", "index", index);
+  PointerRNA op_ptr = col->op("COLLECTION_OT_exporter_remove", "", ICON_REMOVE);
+  RNA_int_set(&op_ptr, "index", index);
 
   col = &layout->column(true);
   col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);

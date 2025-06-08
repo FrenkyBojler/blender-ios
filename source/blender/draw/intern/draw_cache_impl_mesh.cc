@@ -202,7 +202,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
     ListBase gpu_attrs = GPU_material_attributes(gpumat);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
       StringRef name = gpu_attr->name;
-      eCustomDataType type = static_cast<eCustomDataType>(gpu_attr->type);
+      eCustomDataType type = eCustomDataType(gpu_attr->type);
       int layer = -1;
       std::optional<bke::AttrDomain> domain;
 
@@ -267,7 +267,7 @@ static DRW_MeshCDMask mesh_cd_calc_used_gpu_layers(const Object &object,
                         CustomData_get_named_layer(&cd_ldata, CD_PROP_FLOAT2, name) :
                         CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
 
-            /* Only fallback to orco (below) when we have no UV layers, see: #56545 */
+            /* Only fall back to orco (below) when we have no UV layers, see: #56545 */
             if (layer == -1 && !name.is_empty()) {
               layer = CustomData_get_render_layer(&cd_ldata, CD_PROP_FLOAT2);
             }
@@ -1449,10 +1449,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                               GPU_PRIM_LINES,
                               list,
                               IBOType::Lines,
-                              {VBOType::Position, VBOType::EditData}};
-        if (!do_subdivision || do_cage) {
-          batch.vbos.append(VBOType::VertexNormal);
-        }
+                              {VBOType::CornerNormal, VBOType::Position, VBOType::EditData}};
         batch_info.append(std::move(batch));
       }
       else {
