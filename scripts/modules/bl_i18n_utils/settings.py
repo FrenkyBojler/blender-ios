@@ -45,8 +45,8 @@ LANGUAGES = (
     (9, "Spanish (Español)", "es"),
     (10, "Catalan (Català)", "ca_AD"),
     (11, "Czech (Čeština)", "cs_CZ"),
-    (12, "Portuguese (Portugal) - Português", "pt_PT"),
-    (13, "Chinise (Simplified) - 简体中文", "zh_HANS"),
+    (12, "Portuguese (Portugal) - Português europeu", "pt_PT"),
+    (13, "Chinese (Simplified) - 简体中文", "zh_HANS"),
     (14, "Chinese (Traditional) - 繁體中文", "zh_HANT"),
     (15, "Russian (Русский)", "ru_RU"),
     (16, "Croatian (Hrvatski)", "hr_HR"),
@@ -67,7 +67,7 @@ LANGUAGES = (
     (29, "Kyrgyz (Кыргыз тили)", "ky_KG"),
     (30, "Turkish (Türkçe)", "tr_TR"),
     (31, "Hungarian (Magyar)", "hu_HU"),
-    (32, "Portuguese (Brazil) - Português do Brasil", "pt_BR"),
+    (32, "Portuguese (Brazil) - Português Brasileiro", "pt_BR"),
     # Using the utf8 flipped form of Hebrew (עִבְרִית)).
     (33, "Hebrew (תירִבְעִ)", "he_IL"),
     (34, "Estonian (Eesti keel)", "et_EE"),
@@ -94,7 +94,7 @@ LANGUAGES = (
     # Using the utf8 flipped form of Urdu (اُردُو).
     (55, "Urdu (وُدرُا)", "ur"),
     (56, "Lithuanian (Lietuviškai)", "lt"),
-    (57, "English (UK) - Britsh English", "en_GB"),
+    (57, "English (UK) - British English", "en_GB"),
 )
 
 # Default context, in py (keep in sync with `BLT_translation.hh`)!
