@@ -541,11 +541,10 @@ enum eUVAlignIslandAxis {
   Y,
 };
 enum eUVAlignIsland {
-  LEFT,
-  RIGHT,
+  MAX,
+  MIN,
   CENTER,
-  TOP,
-  BOTTOM,
+  NONE,
 };
 enum eUVAlignIslandOrder {
   LARGE_TO_SMALL,
@@ -607,11 +606,11 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
     UvElement *element = island_vector[aabbs[i]->index];
     for (int j = 0; j < element_map->island_total_uvs[aabbs[i]->index]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-      if (align == RIGHT && i > 0) {
+      if (align == MAX && axis == Y) {
         luv[0] += position[0] - aabbs[i]->max[0];
         luv[1] += position[1] - aabbs[i]->max[1] - offset;
       }
-      else if (align == CENTER && i > 0) {
+      else if (align == CENTER) {
         if (axis == Y) {
           luv[0] += position[0] - aabbs[i]->min[0] - aabbs[i]->cent[0];
           luv[1] += position[1] - aabbs[i]->max[1] - offset;
@@ -621,7 +620,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
           luv[1] += position[1] - aabbs[i]->min[1] - aabbs[i]->cent[1];
         }
       }
-      else if (align == BOTTOM && i > 0) {
+      else if (align == MIN && axis == X) {
         luv[1] += position[1] - aabbs[i]->min[1];
         luv[0] += position[0] - aabbs[i]->min[0] + offset;
       }
@@ -637,7 +636,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       changed = true;
     }
     if (axis == Y) {
-      if (align == RIGHT && i == 0) {
+      if (align == MAX && i == 0) {
         position[0] = (aabbs[i]->max[0] - aabbs[i]->min[0]) + offset;
       }
       else if (align == CENTER && i == 0) {
@@ -646,7 +645,7 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       position[1] -= aabbs[i]->max[1] - aabbs[i]->min[1] + offset;
     }
     else {
-      if (align == BOTTOM && i == 0) {
+      if (align == MIN && i == 0) {
         position[1] -= (aabbs[i]->max[1] - aabbs[i]->min[1]) + offset;
       }
       else if (align == CENTER && i == 0) {
@@ -689,7 +688,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
 
     position = uvedit_uv_island_arrange(
         scene, obedit, em->bm, axis, align, order, offset, position);
-    if (ELEM(align, RIGHT, CENTER, BOTTOM)) {
+    if (ELEM(align, MAX, CENTER, MIN)) {
       if (axis == Y) {
         position[0] = 0;
       }
@@ -721,12 +720,8 @@ static void uv_align_island_draw(bContext * /*C*/, wmOperator *op)
   col->prop(&ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->separator();
 
-  if (RNA_enum_get(op->ptr, "axis") == Y) {
-    col->prop(&ptr, "align_y", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  else {
-    col->prop(&ptr, "align_x", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
+  col->prop(&ptr, "align", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+ 
   col->separator();
   col->prop(&ptr, "order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->separator();
@@ -740,18 +735,14 @@ static void UV_OT_align_island(wmOperatorType *ot)
       {Y, "Y", 0, "Y", "Align UV islands along the Y axis"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  static const EnumPropertyItem align_Y_items[] = {
-      {RIGHT, "RIGHT", 0, "Right", "Align the islands to the right side of the largest island"},
-      {LEFT, "LEFT", 0, "Left", "Align the islands to the left side of the largest island"},
+  static const EnumPropertyItem align_items[] = {
+      {MIN, "MIN", 0, "Min", "Align the islands to the min of the island"},
+      {MAX, "MAX", 0, "Max", "Align the islands to the left side of the island"},
       {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
+      {NONE, "NONE", 0, "Do not align", "Do not Align the islands"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  static const EnumPropertyItem align_X_items[] = {
-      {TOP, "TOP", 0, "Top", "Align the islands to the top of the largest island"},
-      {BOTTOM, "BOTTOM", 0, "Bottom", "Align the islands to the bottom of the largest island"},
-      {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
+
   static const EnumPropertyItem sort_items[] = {
       {LARGE_TO_SMALL,
        "Largest to Smallest",
@@ -763,6 +754,11 @@ static void UV_OT_align_island(wmOperatorType *ot)
        0,
        "Smallest to Largest",
        "Sort Islands from Smallest to Largest"},
+      {NONE,
+       "NONE",
+       0,
+       "Do not arrange",
+       "Do not Sort Islands"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -779,8 +775,7 @@ static void UV_OT_align_island(wmOperatorType *ot)
 
   /* properties */
   RNA_def_enum(ot->srna, "axis", axis_items, Y, "Axis", "Axis to arrange UV islands on");
-  RNA_def_enum(ot->srna, "align_y", align_Y_items, LEFT, "Align", "Location to align islands on");
-  RNA_def_enum(ot->srna, "align_x", align_X_items, TOP, "Align", "Location to align islands on");
+  RNA_def_enum(ot->srna, "align", align_items, MIN, "Align", "Location to align islands on");
   RNA_def_enum(
       ot->srna, "order", sort_items, LARGE_TO_SMALL, "Size order", "Location to align islands on");
 
