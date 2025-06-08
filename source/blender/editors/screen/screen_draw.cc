@@ -747,6 +747,9 @@ void screen_area_animate_out(bContext *C, ScrArea *area, eScreenDir dir, float d
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
+  if (BLI_rcti_size_x(&area->totrct) < 2 || BLI_rcti_size_y(&area->totrct) < 2) {
+    return;
+  }
   int win_size[2];
   if (uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size)) {
     SpaceOutData *data = MEM_callocN<SpaceOutData>("ED_area_newspace");

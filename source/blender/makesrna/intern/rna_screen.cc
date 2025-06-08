@@ -141,7 +141,7 @@ static void rna_Area_type_set(PointerRNA *ptr, int value)
 static int rna_Screen_primary_area_get(struct bScreen *_self, bContext *C)
 {
   wmWindow *win = CTX_wm_window(C);
-  int pos[2] = {20, 100};
+  int pos[2] = {0, 100};
   ScrArea *area = BKE_screen_find_area_xy(_self, SPACE_TYPE_ANY, pos);
   return area ? area->spacetype : 0;
 }
@@ -149,7 +149,7 @@ static int rna_Screen_primary_area_get(struct bScreen *_self, bContext *C)
 static int rna_Screen_secondary_area_get(struct bScreen *_self, bContext *C)
 {
   wmWindow *win = CTX_wm_window(C);
-  int pos[2] = {win->sizex - 20, win->sizey - 100};
+  int pos[2] = {win->sizex - 1, win->sizey - 100};
   ScrArea *area = BKE_screen_find_area_xy(_self, SPACE_TYPE_ANY, pos);
   return area ? area->spacetype : 0;
 }
