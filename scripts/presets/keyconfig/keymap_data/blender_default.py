@@ -1383,8 +1383,8 @@ def km_uv_editor(params):
             ("uv.select_box", {"type": 'B', "value": 'PRESS'},
              {"properties": [("pinned", False)]}),
             (op_tool, "builtin.select_box"), params),
-        # ("uv.select_box", {"type": 'B', "value": 'PRESS', "ctrl": True},
-        # {"properties": [("pinned", True)]}),
+        ("uv.select_box", {"type": 'B', "value": 'PRESS', "alt": True},
+        {"properties": [("pinned", True)]}),
         op_tool_optional(
             ("uv.select_circle", {"type": 'C', "value": 'PRESS'}, None),
             (op_tool, "builtin.select_circle"), params),
@@ -1415,7 +1415,7 @@ def km_uv_editor(params):
         ("uv.copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("uv.paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
         ("uv.box_region", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
-        ("uv.disable_box_region", {"type": 'B', "value": 'PRESS', "alt": True}, None),
+        ("uv.disable_box_region", {"type": 'B', "value": 'PRESS', "ctrl": True, "alt": True}, None),
 
         op_menu("IMAGE_MT_uvs_unwrap", {"type": 'U', "value": 'PRESS'}),
         (
