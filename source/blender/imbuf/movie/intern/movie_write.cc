@@ -24,6 +24,7 @@
 #  include "BLI_endian_defines.h"
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_threads.h"
@@ -246,21 +247,26 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
       float *dst_r = reinterpret_cast<float *>(rgb_frame->data[2] + dst_offset);
       float *dst_a = reinterpret_cast<float *>(rgb_frame->data[3] + dst_offset);
       const float *src = pixels_fl + image->x * y * 4;
-      for (int x = 0; x < image->x; x++) {
-        if (MOV_codec_supports_alpha(context->ffmpeg_codec, context->ffmpeg_profile) &&
-            src[3] > FLT_EPSILON)
-        {
-          *dst_r++ = src[0] / src[3];
-          *dst_g++ = src[1] / src[3];
-          *dst_b++ = src[2] / src[3];
+
+      if (MOV_codec_supports_alpha(context->ffmpeg_codec, context->ffmpeg_profile)) {
+        for (int x = 0; x < image->x; x++) {
+          float tmp[4];
+          premul_to_straight_v4_v4(tmp, src);
+          *dst_r++ = tmp[0];
+          *dst_g++ = tmp[1];
+          *dst_b++ = tmp[2];
+          *dst_a++ = tmp[3];
+          src += 4;
         }
-        else {
+      }
+      else {
+        for (int x = 0; x < image->x; x++) {
           *dst_r++ = src[0];
           *dst_g++ = src[1];
           *dst_b++ = src[2];
+          *dst_a++ = src[3];
+          src += 4;
         }
-        *dst_a++ = src[3];
-        src += 4;
       }
     }
   }
