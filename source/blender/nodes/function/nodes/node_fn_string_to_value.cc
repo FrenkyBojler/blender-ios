@@ -20,7 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static const mf::MultiFunction* get_multi_function(const bNode &bnode)
+static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   static auto str_to_float_fn = mf::build::SI1_SO<std::string, float>(
     "String to Value", [](const std::string &a) {
