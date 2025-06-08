@@ -9,8 +9,8 @@ from bpy.app.translations import (
 from bl_ui import node_add_menu
 
 
-class NODE_MT_category_texture_input(Menu):
-    bl_idname = "NODE_MT_category_texture_input"
+class NODE_MT_texture_input(Menu):
+    bl_idname = "NODE_MT_texture_input"
     bl_label = "Input"
 
     def draw(self, _context):
@@ -21,8 +21,8 @@ class NODE_MT_category_texture_input(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeTexture")
 
 
-class NODE_MT_category_texture_output(Menu):
-    bl_idname = "NODE_MT_category_texture_output"
+class NODE_MT_texture_output(Menu):
+    bl_idname = "NODE_MT_texture_output"
     bl_label = "Output"
 
     def draw(self, _context):
@@ -31,8 +31,8 @@ class NODE_MT_category_texture_output(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeViewer")
 
 
-class NODE_MT_category_texture_color(Menu):
-    bl_idname = "NODE_MT_category_texture_color"
+class NODE_MT_texture_color(Menu):
+    bl_idname = "NODE_MT_texture_color"
     bl_label = "Color"
 
     def draw(self, _context):
@@ -46,8 +46,8 @@ class NODE_MT_category_texture_color(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeSeparateColor")
 
 
-class NODE_MT_category_texture_converter(Menu):
-    bl_idname = "NODE_MT_category_texture_converter"
+class NODE_MT_texture_converter(Menu):
+    bl_idname = "NODE_MT_texture_converter"
     bl_label = "Converter"
 
     def draw(self, _context):
@@ -59,8 +59,8 @@ class NODE_MT_category_texture_converter(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeValToNor")
 
 
-class NODE_MT_category_texture_distort(Menu):
-    bl_idname = "NODE_MT_category_texture_distort"
+class NODE_MT_texture_distort(Menu):
+    bl_idname = "NODE_MT_texture_distort"
     bl_label = "Distort"
 
     def draw(self, _context):
@@ -71,8 +71,8 @@ class NODE_MT_category_texture_distort(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeTranslate")
 
 
-class NODE_MT_category_texture_pattern(Menu):
-    bl_idname = "NODE_MT_category_texture_pattern"
+class NODE_MT_texture_pattern(Menu):
+    bl_idname = "NODE_MT_texture_pattern"
     bl_label = "Pattern"
     bl_translation_context = i18n_contexts.id_texture
 
@@ -82,8 +82,8 @@ class NODE_MT_category_texture_pattern(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeChecker")
 
 
-class NODE_MT_category_texture_texture(Menu):
-    bl_idname = "NODE_MT_category_texture_texture"
+class NODE_MT_texture_texture(Menu):
+    bl_idname = "NODE_MT_texture_texture"
     bl_label = "Texture"
 
     def draw(self, _context):
@@ -100,8 +100,8 @@ class NODE_MT_category_texture_texture(Menu):
         node_add_menu.add_node_type(layout, "TextureNodeTexWood")
 
 
-class NODE_MT_category_texture_group(Menu):
-    bl_idname = "NODE_MT_category_texture_group"
+class NODE_MT_texture_group(Menu):
+    bl_idname = "NODE_MT_texture_group"
     bl_label = "Group"
 
     def draw(self, context):
@@ -116,29 +116,29 @@ class NODE_MT_texture_node_add_all(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        layout.menu("NODE_MT_category_texture_input")
-        layout.menu("NODE_MT_category_texture_output")
+        layout.menu("NODE_MT_texture_input")
+        layout.menu("NODE_MT_texture_output")
         layout.separator()
-        layout.menu("NODE_MT_category_texture_color")
-        layout.menu("NODE_MT_category_texture_converter")
-        layout.menu("NODE_MT_category_texture_distort")
-        layout.menu("NODE_MT_category_texture_pattern")
-        layout.menu("NODE_MT_category_texture_texture")
+        layout.menu("NODE_MT_texture_color")
+        layout.menu("NODE_MT_texture_converter")
+        layout.menu("NODE_MT_texture_distort")
+        layout.menu("NODE_MT_texture_pattern")
+        layout.menu("NODE_MT_texture_texture")
         layout.separator()
-        layout.menu("NODE_MT_category_texture_group")
+        layout.menu("NODE_MT_texture_group")
         layout.menu("NODE_MT_category_layout")
 
 
 classes = (
     NODE_MT_texture_node_add_all,
-    NODE_MT_category_texture_input,
-    NODE_MT_category_texture_output,
-    NODE_MT_category_texture_color,
-    NODE_MT_category_texture_converter,
-    NODE_MT_category_texture_distort,
-    NODE_MT_category_texture_pattern,
-    NODE_MT_category_texture_texture,
-    NODE_MT_category_texture_group,
+    NODE_MT_texture_input,
+    NODE_MT_texture_output,
+    NODE_MT_texture_color,
+    NODE_MT_texture_converter,
+    NODE_MT_texture_distort,
+    NODE_MT_texture_pattern,
+    NODE_MT_texture_texture,
+    NODE_MT_texture_group,
 )
 
 
