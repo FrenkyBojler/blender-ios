@@ -199,7 +199,7 @@ static void bm_collapse_if_single_chain_edge(BMesh *bm, BMEdge *e)
     static_cast<BMEdge **>(edge_buf)[0] = e;
     BMO_op_exec(bm, &op_collapse);
     BMO_op_finish(bm, &op_collapse);
-#else // REMOVE_SINGLE_EDGE_ENTIRELY
+#else  // REMOVE_SINGLE_EDGE_ENTIRELY
     bm_vert_collapse_edge_and_merge(bm, e->v1, true);
     bm_vert_collapse_edge_and_merge(bm, e->v2, true);
 #endif
@@ -505,7 +505,6 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
       BMO_vert_flag_enable(bm, e->v1, VERT_ISGC);
       BMO_vert_flag_enable(bm, e->v2, VERT_ISGC);
     }
-
   }
 
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
@@ -520,8 +519,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
      * The edge is taken out of the two faces and left loose, and the two faces on either side are
      * combined into a single face. The edge will be garbage collected soon.*/
     BMLoop *l_a, *l_b;
-    if (BMO_edge_flag_test(bm, e, EDGE_MARK) && BM_edge_loop_pair(e, &l_a, &l_b))
-    {
+    if (BMO_edge_flag_test(bm, e, EDGE_MARK) && BM_edge_loop_pair(e, &l_a, &l_b)) {
       BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
     }
   }

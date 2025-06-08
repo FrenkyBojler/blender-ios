@@ -80,8 +80,7 @@ using blender::Vector;
 
 #define USE_FACE_CREATE_SEL_EXTEND
 
-//#define TRY_TO_USE_RNA_RUNTIME
-
+// #define TRY_TO_USE_RNA_RUNTIME
 
 /* -------------------------------------------------------------------- */
 /** \name Subdivide Operator
@@ -5940,15 +5939,15 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 
     BM_custom_loop_normals_to_vector_layer(em->bm);
 
-    if (!EDBM_op_callf(
-            em,
-            op,
-            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f use_select_mode=%b",
-            BM_ELEM_SELECT,
-            use_verts,
-            use_face_split,
-            angle_threshold,
-            use_select_mode))
+    if (!EDBM_op_callf(em,
+                       op,
+                       "dissolve_edges edges=%he use_verts=%b use_face_split=%b "
+                       "angle_threshold=%f use_select_mode=%b",
+                       BM_ELEM_SELECT,
+                       use_verts,
+                       use_face_split,
+                       angle_threshold,
+                       use_select_mode))
     {
       continue;
     }
