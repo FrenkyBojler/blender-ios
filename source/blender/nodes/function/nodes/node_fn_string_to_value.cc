@@ -42,7 +42,7 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
       }
     });
 
-  switch (bnode.custom1) {
+  switch (eNodeSocketDatatype(bnode.custom1)) {
     case SOCK_FLOAT:
       return &str_to_float_fn;
     case SOCK_INT:
