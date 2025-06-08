@@ -5755,4 +5755,40 @@ void UV_OT_select_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
+static wmOperatorStatus uv_box_region_exec(bContext *C, wmOperator *op)
+{
+  ARegion *region = CTX_wm_region(C);
+
+  rctf *rectf = &region->v2d.box_region;
+
+  /* get rectangle from operator */
+  WM_operator_properties_border_to_rctf(op, rectf);
+  UI_view2d_region_to_view_rctf(&region->v2d, rectf, rectf);
+
+  region->v2d.flag |= V2D_BOX_REGION;
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_box_region(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Box Region";
+  ot->description = "Set the boundaries of the box region";
+  ot->idname = "UV_OT_box_region";
+
+  /* API callbacks. */
+  ot->invoke = WM_gesture_box_invoke;
+  ot->exec = uv_box_region_exec;
+  ot->modal = WM_gesture_box_modal;
+  ot->poll = ED_operator_uvedit_space_image; /* requires space image */
+  ot->cancel = WM_gesture_box_cancel;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
+
+  /* properties */
+
+  WM_operator_properties_gesture_box(ot);
+}
 /** \} */
