@@ -493,6 +493,8 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.reset")
 
         layout.separator()
+        layout.operator("uv.box_region")
+
 
 
 class IMAGE_MT_uvs_select_mode(Menu):

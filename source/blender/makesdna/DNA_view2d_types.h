@@ -66,6 +66,9 @@ typedef struct View2D {
   /* animated smooth view */
   struct SmoothView2DStore *sms;
   struct wmTimer *smooth_timer;
+
+  rctf box_region;
+
 } View2D;
 
 /* ---------------------------------- */
@@ -127,6 +130,8 @@ enum {
   /* Ignore keepofs flags only during zoom.
    * Allows for different behavior between zooming and area resize. */
   V2D_ZOOM_IGNORE_KEEPOFS = (1 << 12),
+
+  V2D_BOX_REGION = (1 << 13),
 };
 
 /** Scroller flags for View2D (#View2D.scroll). */
