@@ -494,6 +494,11 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
 
   GHOST_WindowHandle handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
 
+  if (U.tablet_mode) {
+    GHOST_SetTitle(handle, "");
+    return;
+  }
+
   if (title) {
     GHOST_SetTitle(handle, title);
     return;
@@ -919,6 +924,11 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
       else {
         win->windowstate = GHOST_WINDOW_STATE_DEFAULT;
       }
+    }
+
+    if (U.tablet_mode) {
+      win->sizex = 780;
+      win->sizey = 560;
     }
 
     if (wm_init_state.override_flag & WIN_OVERRIDE_WINSTATE) {

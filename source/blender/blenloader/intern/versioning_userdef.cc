@@ -1513,10 +1513,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->flag |= USER_FILENOUI;
     userdef->flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
     userdef->uiflag |= USER_SPLASH_DISABLE;
-    userdef->ui_scale = 1.8f;
+    userdef->ui_scale = 1.5f;
     userdef->border_width = 4;
-    userdef->gizmo_size = 100;
-    userdef->gizmo_size_navigate_v3d = 130;
+    userdef->gizmo_size = 80;
+    userdef->gizmo_size_navigate_v3d = 100;
     userdef->render_display_type = USER_RENDER_DISPLAY_SCREEN;
     userdef->filebrowser_display_type = USER_TEMP_SPACE_DISPLAY_FULLSCREEN;
     userdef->statusbar_flag = 0;

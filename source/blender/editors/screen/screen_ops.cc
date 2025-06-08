@@ -1537,7 +1537,7 @@ static wmOperatorStatus area_secondary_exec(bContext *C, wmOperator *op)
   }
 
   if ((primary_area && !secondary_area) || (primary_area == secondary_area)) {
-    secondary_area = area_split(win, screen, primary_area, SCREEN_AXIS_V, 0.75f, true);
+    secondary_area = area_split(win, screen, primary_area, SCREEN_AXIS_V, 0.6f, true);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
   }
 
