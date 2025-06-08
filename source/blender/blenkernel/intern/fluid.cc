@@ -4947,7 +4947,11 @@ void BKE_fluid_modifier_copy(const FluidModifierData *fmd, FluidModifierData *tf
     tfds->cache_data_format = fds->cache_data_format;
     tfds->cache_particle_format = fds->cache_particle_format;
     tfds->cache_noise_format = fds->cache_noise_format;
-    STRNCPY(tfds->cache_directory, fds->cache_directory);
+    /* Create unique cache directory to avoid simulation output override */
+    char cache_name[64];
+    BKE_fluid_cache_new_name_for_current_session(sizeof(cache_name), cache_name);
+    BKE_modifier_path_init(
+        tfds->cache_directory, sizeof(tfds->cache_directory), cache_name);
 
     /* time options */
     tfds->time_scale = fds->time_scale;
