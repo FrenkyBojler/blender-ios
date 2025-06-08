@@ -32,9 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-  b.add_input(data_type, "Grid")
-      .hide_value()
-      .structure_type(StructureType::Grid);
+  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
 
   b.add_output(data_type, "Min");
   b.add_output(data_type, "Max");
@@ -69,11 +67,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
           bke::VolumeTreeAccessToken tree_token;
-          const auto bounds = openvdb::tools::minMax<TreeType>(grid.typed<ValueT>().grid(tree_token).tree());
-          
-          params.set_output<ValueT>("Min", bke::VolumeGridTraits<ValueT>::to_blender(bounds.min()));
-          params.set_output<ValueT>("Max", bke::VolumeGridTraits<ValueT>::to_blender(bounds.max()));
-        } else {
+          const auto bounds = openvdb::tools::minMax<TreeType>(
+              grid.typed<ValueT>().grid(tree_token).tree());
+
+          params.set_output<ValueT>("Min",
+                                    bke::VolumeGridTraits<ValueT>::to_blender(bounds.min()));
+          params.set_output<ValueT>("Max",
+                                    bke::VolumeGridTraits<ValueT>::to_blender(bounds.max()));
+        }
+        else {
           BLI_assert(false);
         }
       });
