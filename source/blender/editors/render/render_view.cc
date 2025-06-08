@@ -130,6 +130,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
+  bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = nullptr;
   SpaceImage *sima;
   bool area_was_image = false;
@@ -138,7 +139,20 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     return nullptr;
   }
 
-  if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
+  if (U.tablet_mode) {
+    LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
+      if (ar->totrct.xmin < 2) {
+        area = ar;
+        break;
+      }
+    }
+    if (area) {
+      area->butspacetype_subtype = 0;
+      // screen_area_animate_out(C, primary_area, SCREEN_DIR_S, 0.3f);
+      ED_area_newspace(C, area, SPACE_IMAGE, true);
+    }
+  }
+  else if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
     int sizex, sizey;
     BKE_render_resolution(&scene->r, false, &sizex, &sizey);
 

@@ -1510,6 +1510,8 @@ void blo_do_versions_userdef(UserDef *userdef)
   userdef->tablet_mode = true;
 
   if (userdef->tablet_mode) {
+    userdef->flag |= USER_FILENOUI;
+    userdef->flag |= USER_SCRIPT_AUTOEXEC_DISABLE;
     userdef->uiflag |= USER_SPLASH_DISABLE;
     userdef->ui_scale = 1.8f;
     userdef->border_width = 4;
