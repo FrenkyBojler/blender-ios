@@ -7,7 +7,11 @@
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
 #  include <openvdb/tools/Count.h>
+#  include <openvdb/tree/NodeManager.h>
 #endif
+
+#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 
 #include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
@@ -52,6 +56,72 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 #ifdef WITH_OPENVDB
 
+template<typename T> static Bounds<T> largest_bound()
+{
+  if constexpr (std::is_same_v<T, bool>) {
+    return Bounds<T>(false, true);
+  }
+  else if constexpr (std::is_same_v<T, float3>) {
+    return Bounds<T>(-float3(std::numeric_limits<float>::max()),
+                     float3(std::numeric_limits<float>::max()));
+  }
+  else {
+    return Bounds<T>(-std::numeric_limits<T>::max(), std::numeric_limits<T>::max());
+  }
+}
+
+template<typename T> static Bounds<T> smallest_bound()
+{
+  if constexpr (std::is_same_v<T, bool>) {
+    return Bounds<T>(true, false);
+  }
+  else if constexpr (std::is_same_v<T, float3>) {
+    return Bounds<T>(float3(std::numeric_limits<float>::max()),
+                     -float3(std::numeric_limits<float>::max()));
+  }
+  else {
+    return Bounds<T>(std::numeric_limits<T>::max(), -std::numeric_limits<T>::max());
+  }
+}
+
+template<typename T> struct ValuesBoundVDBOp {
+ public:
+  Bounds<T> bounds = smallest_bound<T>();
+
+  ValuesBoundVDBOp() = default;
+  ValuesBoundVDBOp(const ValuesBoundVDBOp &, tbb::split) : ValuesBoundVDBOp() {}
+
+  template<typename NodeType> bool operator()(const NodeType &node, const size_t /* node_size */)
+  {
+    for (auto iter = node.cbeginValueOn(); iter; ++iter) {
+      this->bounds = bounds::merge<T>(bounds, bke::VolumeGridTraits<T>::to_blender(*iter));
+    }
+
+    return true;
+  }
+
+  bool join(const ValuesBoundVDBOp &other)
+  {
+    this->bounds = bounds::merge<T>(this->bounds, other.bounds);
+    return true;
+  }
+};
+
+template<typename T, typename TreeT = bke::VolumeGridTraits<T>::TreeType>
+Bounds<T> value_bounds(const TreeT &tree)
+{
+  ValuesBoundVDBOp<T> op;
+  openvdb::tree::DynamicNodeManager<const TreeT> node_manager(tree);
+  constexpr bool always_parallel = true;
+  node_manager.reduceTopDown(op, always_parallel);
+
+  if (op.bounds.min == smallest_bound<T>().min && op.bounds.max == smallest_bound<T>().max) {
+    return largest_bound<T>();
+  }
+
+  return op.bounds;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
@@ -62,18 +132,14 @@ static void node_geo_exec(GeoNodeExecParams params)
       *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
         using ValueT = decltype(type_tag);
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
-        using TreeType = typename type_traits::TreeType;
-        using GridType = openvdb::Grid<TreeType>;
 
         if constexpr (!std::is_same_v<typename type_traits::BlenderType, void>) {
           bke::VolumeTreeAccessToken tree_token;
-          const auto bounds = openvdb::tools::minMax<TreeType>(
+          const Bounds<ValueT> bounds = value_bounds<ValueT>(
               grid.typed<ValueT>().grid(tree_token).tree());
 
-          params.set_output<ValueT>("Min",
-                                    bke::VolumeGridTraits<ValueT>::to_blender(bounds.min()));
-          params.set_output<ValueT>("Max",
-                                    bke::VolumeGridTraits<ValueT>::to_blender(bounds.max()));
+          params.set_output("Min", bounds.min);
+          params.set_output("Max", bounds.max);
         }
         else {
           BLI_assert(false);
