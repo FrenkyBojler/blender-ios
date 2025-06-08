@@ -1543,6 +1543,7 @@ static wmOperatorStatus area_secondary_exec(bContext *C, wmOperator *op)
 
   if (secondary_area) {
     if (area_value == secondary_area->spacetype) {
+      screen_area_animate_out(C, secondary_area, SCREEN_DIR_E, 0.3f);
       screen_area_close(C, op->reports, screen, secondary_area);
       CTX_wm_window_set(C, nullptr);
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);

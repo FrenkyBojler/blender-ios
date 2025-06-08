@@ -10,6 +10,29 @@ from bpy.app.translations import (
     contexts as i18n_contexts,
 )
 
+class TOPBAR_MT_tablet_primary(Menu):
+    bl_idname = "TOPBAR_MT_tablet_primary"
+    bl_label = ""
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("screen.area_primary", text="Video Sequencer", icon='SEQUENCE').area = 'SEQUENCE_EDITOR'
+        prop = layout.operator("screen.area_primary", text="UV Editor", icon='UV')
+        prop.area = 'IMAGE_EDITOR'
+        prop.subtype = 3
+        layout.operator("screen.area_primary", text="Nonlinear Animation", icon='GRAPH').area = 'GRAPH_EDITOR'
+
+
+class TOPBAR_MT_tablet_secondary(Menu):
+    bl_idname = "TOPBAR_MT_tablet_secondary"
+    bl_label = ""
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("screen.area_secondary", text="Text Editor", icon='TEXT').area = 'TEXT_EDITOR'
+        layout.operator("screen.area_secondary", text="Spreadsheet", icon='SPREADSHEET').area = 'SPREADSHEET'
+        prop = layout.operator("screen.area_secondary", text="Asset Browser", icon='ASSET_MANAGER')
+        prop.area = 'FILE_BROWSER'
+        prop.subtype = 1
+
 
 class TOPBAR_HT_upper_bar(Header):
     bl_space_type = 'TOPBAR'
@@ -59,15 +82,9 @@ class TOPBAR_HT_upper_bar(Header):
             secondary_area = screen.secondary_area()
 
             row = layout.row(align=True)
-            row.operator(
-                "screen.area_secondary", text="", icon='PROPERTIES', depress=(
-                    secondary_area == 'PROPERTIES'), emboss=(
-                    secondary_area == 'PROPERTIES')).area = 'PROPERTIES'
-            row.operator(
-                "screen.area_secondary", text="", icon='OUTLINER', depress=(
-                    secondary_area == 'OUTLINER'), emboss=(
-                    secondary_area == 'OUTLINER')).area = 'OUTLINER'
-            row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
+            row.operator("screen.area_secondary", text="", icon='PROPERTIES', depress=(secondary_area == 'PROPERTIES'), emboss=(secondary_area == 'PROPERTIES')).area = 'PROPERTIES'
+            row.operator("screen.area_secondary", text="", icon='OUTLINER', depress=(secondary_area == 'OUTLINER'), emboss=(secondary_area == 'OUTLINER')).area = 'OUTLINER'
+            layout.menu("TOPBAR_MT_tablet_secondary", text="", icon='DOWNARROW_HLT')
             return
 
         # Active workspace view-layer is retrieved through window, not through workspace.
@@ -172,20 +189,10 @@ class TOPBAR_MT_editor_menus(Menu):
 
             primary_area = screen.primary_area()
 
-            layout.operator(
-                "screen.area_primary", text="", icon='VIEW3D', depress=(
-                    primary_area == 'VIEW_3D'), emboss=(
-                    primary_area == 'VIEW_3D')).area = 'VIEW_3D'
-            layout.operator(
-                "screen.area_primary", text="", icon='IMAGE', depress=(
-                    primary_area == 'IMAGE_EDITOR'), emboss=(
-                    primary_area == 'IMAGE_EDITOR')).area = 'IMAGE_EDITOR'
-            layout.operator(
-                "screen.area_primary", text="", icon='PREFERENCES', depress=(
-                    primary_area == 'PREFERENCES'), emboss=(
-                    primary_area == 'PREFERENCES')).area = 'PREFERENCES'
-
-            layout.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
+            layout.operator("screen.area_primary", text="", icon='VIEW3D', depress=(primary_area == 'VIEW_3D'), emboss=(primary_area == 'VIEW_3D')).area = 'VIEW_3D'
+            layout.operator("screen.area_primary", text="", icon='IMAGE', depress=(primary_area == 'IMAGE_EDITOR'), emboss=(primary_area == 'IMAGE_EDITOR')).area = 'IMAGE_EDITOR'
+            layout.operator("screen.area_primary", text="", icon='PREFERENCES', depress=(primary_area == 'PREFERENCES'), emboss=(primary_area == 'PREFERENCES')).area = 'PREFERENCES'
+            layout.menu("TOPBAR_MT_tablet_primary", text="", icon='DOWNARROW_HLT')
 
 
 class TOPBAR_MT_blender(Menu):
@@ -972,6 +979,8 @@ classes = (
     TOPBAR_MT_editor_menus,
     TOPBAR_MT_blender,
     TOPBAR_MT_blender_tablet,
+    TOPBAR_MT_tablet_primary,
+    TOPBAR_MT_tablet_secondary,
     TOPBAR_MT_blender_system,
     TOPBAR_MT_file,
     TOPBAR_MT_file_in,
