@@ -903,10 +903,6 @@ if(TEST_SRC_DIR_EXISTS)
     output
     color
     filter
-    keying
-    mask
-    tracking
-    transform
     texture
     utilities    
     vector
@@ -916,7 +912,7 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests distort matte anisotropic_filtering)
+    list(APPEND compositor_tests keying mask tracking transform)
   endif()
 
   foreach(comp_test ${compositor_tests})
@@ -943,10 +939,6 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     output
     color
     filter
-    keying
-    mask
-    tracking
-    transform
     texture
     utilities    
     vector
@@ -956,7 +948,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests distort matte)
+    list(APPEND compositor_tests keying mask tracking transform)
   endif()
 
   if(WITH_OPENGL_BACKEND)
