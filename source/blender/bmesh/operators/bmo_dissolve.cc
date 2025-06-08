@@ -171,7 +171,7 @@ static BMEdge *bm_vert_collapse_edge_and_merge(BMesh *bm, BMVert *v, const bool 
   return e_new;
 }
 
-/* Collapses edges if they are a chain edge, and the chain doesn't continue in either direction. */
+/* Collapses a single edge chain edge, if the selection doesn't continue in either direction. */
 static void bm_collapse_if_single_chain_edge(BMesh *bm, BMEdge *e)
 {
   bool chain_continues_past_v1 = BM_vert_is_edge_pair(e->v1) &&
@@ -186,6 +186,7 @@ static void bm_collapse_if_single_chain_edge(BMesh *bm, BMEdge *e)
   bool is_chain_at_both_ends = BM_vert_is_edge_pair(e->v1) && BM_vert_is_edge_pair(e->v2);
 
   if (is_chain_at_both_ends) {
+
 #define COLLAPSE_SINGLE_EDGE_TO_CENTER
 #ifdef COLLAPSE_SINGLE_EDGE_TO_CENTER
     /* Select both neighbors */
@@ -488,15 +489,8 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     /* Is either end of this edge wire connected to only a single other edge, making a chain? */
     const bool is_edge_chain = (BM_vert_is_edge_pair(e->v1) || BM_vert_is_edge_pair(e->v2));
 
-    /* In edge chains, the behavior is to dissolve verts in the middle of the chain but not its
-     * ends. This happens regardless of whether use_verts is set. Nothing is done to the edge
-     * itself, but its verts are marked for evaluation later. */
-    if (use_select_mode && is_edge_chain) {
-      BMO_edge_flag_enable(bm, e, EDGE_CHAIN);
-      found_chains = true;
-      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
-      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
-    }
+    /* Is it a face pair? Manifold edges have 2 faces, so this is the same test. */
+    bool is_face_pair = BM_edge_is_manifold(e);
 
     /* If use_select_mode is false then we are doing dissolve_edges directly...
      *    and face pairs should be dissolved, no matter whether they are chains or not.
@@ -504,47 +498,71 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
      *    and face pairs should be dissolved only if they are *not* chains. */
     bool should_dissolve_face_pairs = (use_select_mode == false || is_edge_chain == false);
 
-    /* Handle face pairs. */
-    BMFace *f_pair[2];
-    if (should_dissolve_face_pairs && BM_edge_face_pair(e, &f_pair[0], &f_pair[1]) == true) {
-      /* Mark the edge for removal. */
-      BMO_edge_flag_enable(bm, e, EDGE_MARK);
+    /* Mark edge chains for collapse. */
+    if (is_edge_chain && use_select_mode) {
+      /* ensure the vert dissolve logic will run later. */
+      found_chains = true;
+      /* Tag the edge, so verts can determine later whether they're between two selected edges. */
+      BMO_edge_flag_enable(bm, e, EDGE_CHAIN);
+      /* Tag the ends for dissolve check.*/
+      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
+      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
+    }
 
-      /* Tag the ends for dissolve check since this edge will be going away. */
+    /* Mark face pairs for merge. */
+    if (is_face_pair && should_dissolve_face_pairs) {
+      /* Tag the edge for removal. */
+      BMO_edge_flag_enable(bm, e, EDGE_MARK);
+      /* Tag the ends for dissolve check. */
       if (use_verts) {
         BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
         BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
       }
     }
 
-    /* Tag all the edges and verts of any faces touching this edge.
-     * This edge is going to be dissolved, and after that happens, some of those elements of the
-     * surrounding faces might end up as loose geometry, depending on how the dissolve affected
-     * geometry near them. Tag them `*_ISGC`, to be checked later, and cleaned up if loose. */
-    BM_ITER_ELEM (l, &iter, e, BM_LOOPS_OF_EDGE) {
-      BMLoop *l_iter = l;
-      do {
-        BMO_vert_flag_enable(bm, l_iter->v, VERT_ISGC);
-        BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
-      } while ((l_iter = l_iter->next) != l);
-    }
-
-    /* non-chain edges that are wire can be dissolved.
-     * non-chain edges that are boundary can also be dissolved, even though this *will* change the
-     * boundary. If the user selects a boundary edge and dissolves it, then do what they ask. */
-    if (use_select_mode && is_edge_chain == false &&
+    /* Mark non-chain boundary or wire edges for removal. */
+    if (!is_edge_chain && use_select_mode &&
         (BM_edge_is_wire(e) || BM_edge_is_boundary(e)))
     {
+      /* Tag the edge for removal. */
       BMO_edge_flag_enable(bm, e, EDGE_MARK);
+      /* Tag the ends for possible garbage collection. */
       BMO_vert_flag_enable(bm, e->v1, VERT_ISGC);
       BMO_vert_flag_enable(bm, e->v2, VERT_ISGC);
+      /* Tag the ends for dissolve check. */
+      if (use_verts) {
+        BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
+        BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
+      }
+    }
+
+    /* Validate that everything has been tagged in some way or another.*/
+    BLI_assert(BMO_edge_flag_test(bm, e, EDGE_MARK) || BMO_edge_flag_test(bm, e, EDGE_CHAIN));
+    BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
+               BMO_vert_flag_test(bm, e->v1, VERT_ISGC));
+    BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
+               BMO_vert_flag_test(bm, e->v2, VERT_ISGC));
+
+    /* Tag face geometry near edges that will be removed, for possible garbage collection.
+     *
+     * EDGE_MARK edges will be dissolved, and after that happens, some of those elements of the
+     * surrounding faces might end up as loose geometry, depending on how the dissolve affected
+     * geometry near them. Tag them `*_ISGC`, to be checked later, and cleaned up if loose. */
+    if (BMO_edge_flag_test(bm, e, EDGE_MARK)) {
+      BM_ITER_ELEM (l, &iter, e, BM_LOOPS_OF_EDGE) {
+        BMLoop *l_iter = l;
+        do {
+          BMO_vert_flag_enable(bm, l_iter->v, VERT_ISGC);
+          BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
+        } while ((l_iter = l_iter->next) != l);
+      }
     }
   }
 
   /* Perform the dissolve function on edges. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
 
-    /* Remove any marked edges, merging faces if necessary.*/
+    /* Remove any marked edges.*/
     if (BMO_edge_flag_test(bm, e, EDGE_MARK)) {
 
       /* merge a face pair if present, leaving the edge intact, but now wire. */
@@ -567,13 +585,15 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         }
       }
 
-      /* and at last, dissolve the edge. */
+      /* and at last, remove the edge. */
       BM_edge_kill(bm, e);
+      continue;
     }
 
     /* Collapse any chain edges if they stand alone with no connection to other chain edges. */
-    else if (BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
+    if (BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
       bm_collapse_if_single_chain_edge(bm, e);
+      continue;
     }
   }
 
@@ -593,7 +613,16 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     }
   }
 
-  /* If dissolving verts, then evaluate each VERT_MARK vert. */
+  /* Evaluate each vert that is an edge pair and tagged for dissove with VERT_MARK.
+   * This case can be reached via one of two different ways.
+   * - Where edges were dissolved, an edge loop that crosses that edge endpoint might be reduced
+   *   from a "T" or "+" to an edge chain.  such a chain can be combined into a single edge by
+   *   dissolving its middle vert.  This is subject to the angle test.
+   *   In this case, yhe edges that combine *are not* edges that were originally selected.
+   * - Where edges were found in chains, the verts between them (but not at their ends) can be
+   *   dissolved, collapsing their neighbors.
+   *   In this case, the edges that combine *are* the ones that were originally selected.
+   * Despite the differences, either case is resolved the same way, by dissolving the vert. */
   if (use_verts || found_chains) {
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 
@@ -602,28 +631,14 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         continue;
       }
 
-      /* First, check if the topology allows removal because the vert is an edge pair.
-       * Edge pair happens in two different cases:
-       * - Where edges were dissolved between faces, this can combine the two edges of the face
-       *   into a single edge. The edges that combine *are not* the ones that were selected.
-       * - Where edges were found in chains, this can combine edges with their neighbors. In
-       *   this case, the edges that combine *are* the ones that were selected.
-       * Despite the differences, either case is resolved the same way, by dissolving the vert.
-       *
-       * If it is not an edge pair, it cannot be merged. */
+      /* Verts that are not edge pairs, cannot be dissolved. */
       BMEdge *e_pair[2];
       if (BM_vert_edge_pair(v, &e_pair[0], &e_pair[1]) == false) {
         BMO_vert_flag_disable(bm, v, VERT_MARK);
         continue;
       }
 
-      /* At an angle threshold of 180, dissolve everything, skip the math of the angle test. */
-      if (dissolve_all) {
-        /* VERT_MARK remains enabled. */
-        continue;
-      }
-
-      /* verts in the *middle* of edge chains (but not at their ends) skip the angle test. */
+      /* Verts in the *middle* of edge chains always dissolve. */
       if (BMO_edge_flag_test(bm, e_pair[0], EDGE_CHAIN) &&
           BMO_edge_flag_test(bm, e_pair[1], EDGE_CHAIN))
       {
@@ -631,11 +646,17 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         continue;
       }
 
-      /* verts in the *ends* of edge chains are not dissolved. */
+      /* verts at the *ends* of edge chains never dissolve. */
       if (BMO_edge_flag_test(bm, e_pair[0], EDGE_CHAIN) ||
           BMO_edge_flag_test(bm, e_pair[1], EDGE_CHAIN))
       {
         BMO_vert_flag_disable(bm, v, VERT_MARK);
+        continue;
+      }
+
+      /* At an angle threshold of 180, dissolve everything, skip the math of the angle test. */
+      if (dissolve_all) {
+        /* VERT_MARK remains enabled. */
         continue;
       }
 
