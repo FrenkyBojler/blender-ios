@@ -192,6 +192,13 @@ static void bm_collapse_if_single_chain_edge(BMesh *bm, BMEdge *e)
     BM_edge_select_set(bm, BM_DISK_EDGE_NEXT(e, e->v1), true);
     BM_edge_select_set(bm, BM_DISK_EDGE_NEXT(e, e->v2), true);
 
+    /* Propagate ISGC to ensure it isn't lost. */
+    bool was_edge_isgc = BMO_edge_flag_test(bm, e, EDGE_ISGC);
+    if (was_edge_isgc) {
+      BMO_edge_flag_enable(bm, BM_DISK_EDGE_NEXT(e, e->v1), EDGE_ISGC);
+      BMO_edge_flag_enable(bm, BM_DISK_EDGE_NEXT(e, e->v2), EDGE_ISGC);
+    }
+
     /* Collapse this edge to a point*/
     BMOperator op_collapse;
     BMO_op_init(bm, &op_collapse, 0, "collapse");
@@ -208,7 +215,16 @@ static void bm_collapse_if_single_chain_edge(BMesh *bm, BMEdge *e)
   else {
     /* Chain at one end but not the other. Merge into whichever neighbor is a chain.*/
     BMVert *vert_to_collapse = (BM_vert_is_edge_pair(e->v1) ? e->v1 : e->v2);
-    bm_vert_collapse_edge_and_merge(bm, vert_to_collapse, true);
+
+    bool was_edge_isgc = BMO_edge_flag_test(bm, e, EDGE_ISGC) ||
+                         BMO_edge_flag_test(bm, BM_DISK_EDGE_NEXT(e, vert_to_collapse), EDGE_ISGC);
+
+    BMEdge *result = bm_vert_collapse_edge_and_merge(bm, vert_to_collapse, true);
+
+    /* Propagate ISGC to ensure it isn't lost. */
+    if (was_edge_isgc) {
+      BMO_edge_flag_enable(bm, result, EDGE_ISGC);
+    }
   }
 }
 
@@ -422,6 +438,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   BMIter iter;
   BMEdge *e, *e_next;
   BMVert *v, *v_next;
+  BMLoop *l;
 
   /* Even when geometry has exact angles like 0 or 90 or 180 deg, `angle_on_axis_v3v3v3_v3`
    * can return slightly incorrect values due to cos/sin functions, floating point error, etc.
@@ -498,20 +515,18 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
         BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
       }
+    }
 
-      /* Tag all the edges and verts of the two faces on either side of this edge.
-       * This edge is going to be dissolved, and after that happens, some of those elements of the
-       * surrounding faces might end up as loose geometry, depending on how the dissolve affected
-       * geometry near them. Tag them `*_ISGC`, to be checked later, and cleaned up if loose. */
-      uint j;
-      for (j = 0; j < 2; j++) {
-        BMLoop *l_first, *l_iter;
-        l_iter = l_first = BM_FACE_FIRST_LOOP(f_pair[j]);
-        do {
-          BMO_vert_flag_enable(bm, l_iter->v, VERT_ISGC);
-          BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
-        } while ((l_iter = l_iter->next) != l_first);
-      }
+    /* Tag all the edges and verts of any faces touching this edge.
+     * This edge is going to be dissolved, and after that happens, some of those elements of the
+     * surrounding faces might end up as loose geometry, depending on how the dissolve affected
+     * geometry near them. Tag them `*_ISGC`, to be checked later, and cleaned up if loose. */
+    BM_ITER_ELEM (l, &iter, e, BM_LOOPS_OF_EDGE) {
+      BMLoop *l_iter = l;
+      do {
+        BMO_vert_flag_enable(bm, l_iter->v, VERT_ISGC);
+        BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
+      } while ((l_iter = l_iter->next) != l);
     }
 
     /* non-chain edges that are wire can be dissolved.
