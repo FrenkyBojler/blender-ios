@@ -536,6 +536,260 @@ static bool uvedit_uv_straighten(Scene *scene, BMesh *bm, eUVWeldAlign tool)
   return changed;
 }
 
+enum eUVAlignIslandAxis {
+  X,
+  Y,
+};
+enum eUVAlignIsland {
+  MAX,
+  MIN,
+  CENTER,
+  NONE,
+};
+enum eUVAlignIslandOrder {
+  LARGE_TO_SMALL,
+  SMALL_TO_LARGE,
+};
+
+class UVAABBIsland {
+ public:
+  float cent[2], min[2], max[2];
+  int64_t index;
+};
+
+static float2 uvedit_uv_island_arrange(Scene *scene,
+                                      Object *obedit,
+                                      BMesh *bm,
+                                      eUVAlignIslandAxis axis,
+                                      eUVAlignIsland align,
+                                      eUVAlignIslandOrder order,
+                                      float offset,
+                                      float2 position)
+{
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  if (offsets.uv == -1) {
+    return position;
+  }
+  UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+
+  if (element_map == nullptr) {
+    return position;
+  }
+
+  Vector<UvElement *> island_vector;
+  Array<std::unique_ptr<UVAABBIsland>> aabbs(element_map->total_islands);
+  for (int i = 0; i < element_map->total_islands; i++) {
+    UvElement *element = element_map->storage + element_map->island_indices[i];
+    island_vector.append(element);
+    std::unique_ptr<UVAABBIsland> aabb = std::make_unique<UVAABBIsland>();
+    INIT_MINMAX2(aabb->min, aabb->max);
+    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      minmax_v2v2_v2(aabb->min, aabb->max, luv);
+    }
+    aabb->cent[0] = (aabb->max[0] - aabb->min[0]) / 2.0;
+    aabb->cent[1] = (aabb->max[1] - aabb->min[1]) / 2.0;
+    aabb->index = i;
+    aabbs[i] = std::move(aabb);
+  }
+  std::stable_sort(
+      aabbs.begin(),
+      aabbs.end(),
+      [&](const std::unique_ptr<UVAABBIsland> &a, const std::unique_ptr<UVAABBIsland> &b) {
+        float size_a = (a->cent[0] * a->cent[1]);
+        float size_b = (b->cent[0] * b->cent[1]);
+        return (order == LARGE_TO_SMALL) ? (size_a > size_b) : (size_a < size_b);
+      });
+  bool changed = false;
+
+  for (int i = 0; i < aabbs.size(); i++) {
+    UvElement *element = island_vector[aabbs[i]->index];
+    for (int j = 0; j < element_map->island_total_uvs[aabbs[i]->index]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      if (align == MAX && axis == Y) {
+        luv[0] += position[0] - aabbs[i]->max[0];
+        luv[1] += position[1] - aabbs[i]->max[1] - offset;
+      }
+      else if (align == CENTER) {
+        if (axis == Y) {
+          luv[0] += position[0] - aabbs[i]->min[0] - aabbs[i]->cent[0];
+          luv[1] += position[1] - aabbs[i]->max[1] - offset;
+        }
+        else {
+          luv[0] += position[0] - aabbs[i]->min[0] + offset;
+          luv[1] += position[1] - aabbs[i]->min[1] - aabbs[i]->cent[1];
+        }
+      }
+      else if (align == MIN && axis == X) {
+        luv[1] += position[1] - aabbs[i]->min[1];
+        luv[0] += position[0] - aabbs[i]->min[0] + offset;
+      }
+      else {
+        luv[0] += position[0] - aabbs[i]->min[0] + offset;
+        if (axis == Y) {
+          luv[1] += position[1] - aabbs[i]->max[1] - offset;
+        }
+        else {
+          luv[1] -= aabbs[i]->max[1] - position[1] + offset;
+        }
+      }
+      changed = true;
+    }
+    if (axis == Y) {
+      if (align == MAX && i == 0) {
+        position[0] = (aabbs[i]->max[0] - aabbs[i]->min[0]) + offset;
+      }
+      else if (align == CENTER && i == 0) {
+        position[0] = aabbs[i]->cent[0] + offset;
+      }
+      position[1] -= aabbs[i]->max[1] - aabbs[i]->min[1] + offset;
+    }
+    else {
+      if (align == MIN && i == 0) {
+        position[1] -= (aabbs[i]->max[1] - aabbs[i]->min[1]) + offset;
+      }
+      else if (align == CENTER && i == 0) {
+        position[1] -= aabbs[i]->cent[1] + offset;
+      }
+      position[0] += aabbs[i]->max[0] - aabbs[i]->min[0] + offset;
+    }
+  }
+
+  BM_uv_element_map_free(element_map);
+  return position;
+}
+
+static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
+
+  float2 position = {0, (float)sima->tile_grid_shape[1]};
+  eUVAlignIslandAxis axis = eUVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
+  eUVAlignIsland align;
+  if (axis == Y) {
+    align = eUVAlignIsland(RNA_enum_get(op->ptr, "align_y"));
+  }
+  else {
+    align = eUVAlignIsland(RNA_enum_get(op->ptr, "align_x"));
+  }
+  eUVAlignIslandOrder order = eUVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
+  float offset = RNA_float_get(op->ptr, "offset");
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (em->bm->totvertsel == 0) {
+      continue;
+    }
+
+    position = uvedit_uv_island_arrange(
+        scene, obedit, em->bm, axis, align, order, offset, position);
+    if (ELEM(align, MAX, CENTER, MIN)) {
+      if (axis == Y) {
+        position[0] = 0;
+      }
+      else {
+        position[1] = (float)sima->tile_grid_shape[1];
+      }
+    }
+
+    uvedit_live_unwrap_update(sima, scene, obedit);
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  }
+  return OPERATOR_FINISHED;
+}
+
+static void uv_align_island_draw(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  /* Main draw call */
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
+
+  uiLayout *col;
+
+  col = &layout->column(true);
+  col->prop(&ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+
+  col->prop(&ptr, "align", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+ 
+  col->separator();
+  col->prop(&ptr, "order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+static void UV_OT_align_island(wmOperatorType *ot)
+{
+
+  static const EnumPropertyItem axis_items[] = {
+      {X, "X", 0, "X", "Align UV islands along the X axis"},
+      {Y, "Y", 0, "Y", "Align UV islands along the Y axis"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  static const EnumPropertyItem align_items[] = {
+      {MIN, "MIN", 0, "Min", "Align the islands to the min of the island"},
+      {MAX, "MAX", 0, "Max", "Align the islands to the left side of the island"},
+      {CENTER, "CENTER", 0, "Center", "Align the islands to the center of the largest island"},
+      {NONE, "NONE", 0, "Do not align", "Do not Align the islands"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem sort_items[] = {
+      {LARGE_TO_SMALL,
+       "Largest to Smallest",
+       0,
+       "Largest to Smallest",
+       "Sort Islands from Largest to Smallest"},
+      {SMALL_TO_LARGE,
+       "Smallest to Largest",
+       0,
+       "Smallest to Largest",
+       "Sort Islands from Smallest to Largest"},
+      {NONE,
+       "NONE",
+       0,
+       "Do not arrange",
+       "Do not Sort Islands"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  /* identifiers */
+  ot->name = "Arrange/Align Island";
+  ot->description = "Arrange selected islands vertices on a line";
+  ot->idname = "UV_OT_align_island";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_align_island_exec;
+  ot->poll = ED_operator_uvedit;
+
+  ot->ui = uv_align_island_draw;
+
+  /* properties */
+  RNA_def_enum(ot->srna, "axis", axis_items, Y, "Axis", "Axis to arrange UV islands on");
+  RNA_def_enum(ot->srna, "align", align_items, MIN, "Align", "Location to align islands on");
+  RNA_def_enum(
+      ot->srna, "order", sort_items, LARGE_TO_SMALL, "Size order", "Location to align islands on");
+
+  RNA_def_float(ot->srna,
+                "offset",
+                0.05,
+                0,
+                FLT_MAX,
+                "Offset",
+                "Distance between islands and the edge of the UV Map",
+                0,
+                FLT_MAX);
+}
+
 static void uv_weld_align(bContext *C, eUVWeldAlign tool)
 {
   Scene *scene = CTX_data_scene(C);
@@ -2010,6 +2264,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_snap_selected);
 
   WM_operatortype_append(UV_OT_align);
+  WM_operatortype_append(UV_OT_align_island);
 
   WM_operatortype_append(UV_OT_rip);
   WM_operatortype_append(UV_OT_stitch);
