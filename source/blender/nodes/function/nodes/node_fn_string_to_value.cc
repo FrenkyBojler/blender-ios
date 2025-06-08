@@ -83,7 +83,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Value");
       });
     }
-    else {
+    else if (params.node_tree().typeinfo->validate_link(SOCK_FLOAT, socket_type)) {
       params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("FunctionNodeStringToValue");
         node.custom1 = SOCK_FLOAT;
@@ -95,7 +95,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_layout(uiLayout *layout, bContext *, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_rna(StructRNA *srna)
