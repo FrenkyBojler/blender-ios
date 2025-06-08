@@ -173,11 +173,11 @@ class TOPBAR_MT_editor_menus(Menu):
         else:
             layout.menu("TOPBAR_MT_blender_tablet", text="", icon='BLENDER')
             layout.operator_context = 'INVOKE_AREA'
-            layout.menu("TOPBAR_MT_file_new", text="", icon='FILE_NEW')
             layout.menu("TOPBAR_MT_file_in", text="", icon='IMPORT')
             layout.menu("TOPBAR_MT_file_out", text="", icon='EXPORT')
             layout.separator(type='LINE')
 
+            layout.operator("wm.read_homefile", text="", icon='FILE_NEW').app_template = ""
             if context.blend_data.is_saved:
                 layout.operator_context = 'EXEC_AREA'
                 layout.operator("wm.save_mainfile", text="", icon='FILE_TICK', emboss=False)

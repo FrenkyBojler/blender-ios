@@ -148,7 +148,6 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     }
     if (area) {
       area->butspacetype_subtype = 0;
-      // screen_area_animate_out(C, primary_area, SCREEN_DIR_S, 0.3f);
       ED_area_newspace(C, area, SPACE_IMAGE, true);
     }
   }
