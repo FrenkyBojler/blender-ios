@@ -526,19 +526,17 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     }
   }
 
+  /* Perform the dissolve function on edges. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
 
-    /* Dissolve chain edges if they stand alone with no connection to other chain edges.
-     * These edges will be dissolved into their neighbors. */
-    if (BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
-      bm_collapse_if_single_chain_edge(bm, e);
-    }
+    /* Remove any marked edges, merging faces if necessary.*/
+    if (BMO_edge_flag_test(bm, e, EDGE_MARK)) {
 
-    /* Merge any face pairs that straddle a selected and marked edge.
-     * The edge is taken out of the two faces and left loose, and the two faces on either side are
-     * combined into a single face. The edge will be garbage collected soon.*/
-    BMLoop *l_a, *l_b;
-    if (BMO_edge_flag_test(bm, e, EDGE_MARK) && BM_edge_loop_pair(e, &l_a, &l_b)) {
+      /* merge a face pair if present, leaving the edge intact, but now wire. */
+      BMLoop *l_a, *l_b;
+      if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+        BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
+      }
 
       /* When #VERT_MARK is set on a vert in the middle of a chain, the flag needs to be moved to
        * the end of the chain, because when all the chain edges between the two faces get cleaned
@@ -554,24 +552,26 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         }
       }
 
-      BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
+      /* and at last, dissolve the edge. */
+      BM_edge_kill(bm, e);
+    }
+
+    /* Collapse any chain edges if they stand alone with no connection to other chain edges. */
+    else if (BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
+      bm_collapse_if_single_chain_edge(bm, e);
     }
   }
 
   /* Cleanup geometry. Remove any edges that were EDGE_ISGC tagged, and that started as or became
-   * loose (no faces). This cleans up the edges that were isolated by `BM_faces_join_pair`.
-   * This also, with a separate test for EDGE_MARK dissolves any boundary or wire edges, if they're
-   * not chain edges, but the user explicitly selected them. */
+   * loose (no faces) after we removed EDGE_MARK tagged edges. */
   BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
-    if (((e->l == nullptr) && BMO_edge_flag_test(bm, e, EDGE_ISGC)) ||
-        BMO_edge_flag_test(bm, e, EDGE_MARK))
-    {
+    if ((e->l == nullptr) && BMO_edge_flag_test(bm, e, EDGE_ISGC)) {
       BM_edge_kill(bm, e);
     }
   }
 
   /* Cleanup geometry. Remove any verts that ware VERT_ISGC tagged, and then became loose verts
-   * (no edges) because of edge dissolves and `BM_edge_kill` as part of the previous step. */
+   * (no edges) after we removed EDGE_ISGC tagged edges. */
   BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
     if ((v->e == nullptr) && BMO_vert_flag_test(bm, v, VERT_ISGC)) {
       BM_vert_kill(bm, v);
