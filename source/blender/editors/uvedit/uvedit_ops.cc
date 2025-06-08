@@ -634,10 +634,14 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
   }
   else {
     if (align == MAX) {
-      position[1] = bound_max[1];
+      position[1] = bound_min[1];
     }
     else if (align == CENTER) {
       position[1] = bound_min[1]+ ((bound_max[1] - bound_min[1]) / 2.0);
+    }
+    else {
+      position[1] = bound_max[1];
+
     }
     position[0] = bound_min[0];
   }
