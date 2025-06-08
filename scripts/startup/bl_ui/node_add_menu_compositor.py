@@ -43,9 +43,12 @@ class NODE_MT_category_compositor_input_constant(Menu):
 
     def draw(self, _context):
         layout = self.layout
+        node_add_menu.add_node_type(layout, "FunctionNodeInputBool")
+        node_add_menu.add_node_type(layout, "FunctionNodeInputInt")
         node_add_menu.add_node_type(layout, "CompositorNodeRGB")
         node_add_menu.add_node_type(layout, "ShaderNodeValue")
         node_add_menu.add_node_type(layout, "CompositorNodeNormal")
+        node_add_menu.add_node_type(layout, "FunctionNodeInputVector")
 
         node_add_menu.draw_assets_for_catalog(layout, "Input/Constant")
 

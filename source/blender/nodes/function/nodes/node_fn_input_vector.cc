@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 #include "NOD_geometry_nodes_gizmos.hh"
 
@@ -22,6 +22,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   });
 }
 
+static int gpu_shader_vector(GPUMaterial *mat,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack * /*in*/,
+                             GPUNodeStack *out)
+{
+  NodeInputVector *node_storage = static_cast<NodeInputVector *>(node->storage);
+  return GPU_link(mat, "set_rgb", GPU_uniform(node_storage->vector), &out->link);
+}
+
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  vector = static_cast<NodeInputVector *>(node_->storage)->vector;
+  return create_node("constant", NodeItem::Type::Vector3, {{"value", vector}});
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &bnode = builder.node();
@@ -40,12 +59,13 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  fn_node_type_base(&ntype, "FunctionNodeInputVector", FN_NODE_INPUT_VECTOR);
+  common_node_type_base(&ntype, "FunctionNodeInputVector", FN_NODE_INPUT_VECTOR);
   ntype.ui_name = "Vector";
   ntype.enum_name_legacy = "INPUT_VECTOR";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
+  ntype.gpu_fn = gpu_shader_vector;
   blender::bke::node_type_storage(
       ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;

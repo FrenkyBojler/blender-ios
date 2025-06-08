@@ -58,6 +58,7 @@ class NODE_MT_category_shader_input(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeAmbientOcclusion")
         node_add_menu.add_node_type(layout, "ShaderNodeAttribute")
         node_add_menu.add_node_type(layout, "ShaderNodeBevel")
+        node_add_menu.add_node_type(layout, "FunctionNodeInputBool")
         node_add_menu.add_node_type_with_outputs(
             context, layout, "ShaderNodeCameraData", [
                 "View Vector", "View Z Depth", "View Distance"])
@@ -78,6 +79,7 @@ class NODE_MT_category_shader_input(Menu):
                                                   "Backfacing",
                                                   "Pointiness",
                                                   "Random Per Island"])
+        node_add_menu.add_node_type(layout, "FunctionNodeInputInt")
         node_add_menu.add_node_type(layout, "ShaderNodeLayerWeight")
         node_add_menu.add_node_type_with_outputs(context,
                                                  layout,
@@ -111,6 +113,7 @@ class NODE_MT_category_shader_input(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeUVAlongStroke", poll=line_style_shader_nodes_poll(context))
         node_add_menu.add_node_type(layout, "ShaderNodeUVMap")
         node_add_menu.add_node_type(layout, "ShaderNodeValue")
+        node_add_menu.add_node_type(layout, "FunctionNodeInputVector")
         node_add_menu.add_node_type_with_outputs(context, layout, "ShaderNodeVolumeInfo",
                                                  ["Color", "Density", "Flame", "Temperature"])
         node_add_menu.add_node_type(layout, "ShaderNodeWireframe")
