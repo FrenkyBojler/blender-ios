@@ -250,9 +250,6 @@ class SubdivisionSet(Operator):
         if relative and level == 0:
             return {'CANCELLED'}  # nothing to do
 
-        if relative and ensure_modifier:
-            return {'CANCELLED'}  # invalid combination
-
         if not ensure_modifier:
             any_object_has_relevant_modifier = False
             for obj in context.selected_editable_objects:
@@ -264,6 +261,12 @@ class SubdivisionSet(Operator):
                     break
 
             if not any_object_has_relevant_modifier:
+                mod_name = ""
+                if obj.mode == 'SCULPT':
+                    mod_name = "Multiresolution"
+                else:
+                    mod_name = "Subdivision Surface"
+                self.report({'WARNING'}, "No {0} modifiers found".format(mod_name))
                 return {'CANCELLED'}
 
         if not relative and level < 0:
@@ -307,11 +310,10 @@ class SubdivisionSet(Operator):
             if ensure_modifier:
                 try:
                     if obj.mode == 'SCULPT':
-                        if not relative:
-                            mod = obj.modifiers.new("Multires", 'MULTIRES')
-                            if level > 0:
-                                for _ in range(level):
-                                    bpy.ops.object.multires_subdivide(modifier="Multires")
+                        mod = obj.modifiers.new("Multires", 'MULTIRES')
+                        if level > 0:
+                            for _ in range(level):
+                                bpy.ops.object.multires_subdivide(modifier="Multires")
                     else:
                         mod = obj.modifiers.new("Subdivision", 'SUBSURF')
                         mod.levels = level
