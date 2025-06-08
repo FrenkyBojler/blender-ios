@@ -803,6 +803,7 @@ class NODE_MT_category_GEO_VOLUME(Menu):
             layout.menu("NODE_MT_geometry_node_volume_sample")
             layout.menu("NODE_MT_geometry_node_GEO_VOLUME_WRITE")
             layout.separator()
+            node_add_menu.add_node_type(layout, "GeometryNodeGridStatistic")
         layout.menu("NODE_MT_geometry_node_GEO_VOLUME_OPERATIONS")
         layout.menu("NODE_MT_geometry_node_GEO_VOLUME_PRIMITIVES")
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
