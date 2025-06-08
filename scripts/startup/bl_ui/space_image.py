@@ -494,7 +494,9 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
         layout.operator("uv.box_region")
+        layout.operator("uv.disable_box_region")
 
+        layout.separator()
 
 
 class IMAGE_MT_uvs_select_mode(Menu):

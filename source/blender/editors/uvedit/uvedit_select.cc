@@ -5781,14 +5781,37 @@ void UV_OT_box_region(wmOperatorType *ot)
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = uv_box_region_exec;
   ot->modal = WM_gesture_box_modal;
-  ot->poll = ED_operator_uvedit_space_image; /* requires space image */
+  ot->poll = ED_operator_uvedit_space_image;
   ot->cancel = WM_gesture_box_cancel;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER;
 
   /* properties */
-
   WM_operator_properties_gesture_box(ot);
+}
+
+static wmOperatorStatus uv_disable_box_region_exec(bContext *C, wmOperator *op)
+{
+  ARegion *region = CTX_wm_region(C);
+
+  region->v2d.flag &= ~V2D_BOX_REGION;
+
+  return OPERATOR_FINISHED;
+}
+
+void UV_OT_disable_box_region(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Clear Box Region";
+  ot->description = "Disables the box region";
+  ot->idname = "UV_OT_disable_box_region";
+
+  /* API callbacks. */
+  ot->exec = uv_disable_box_region_exec;
+  ot->poll = ED_operator_uvedit_space_image;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER;
 }
 /** \} */

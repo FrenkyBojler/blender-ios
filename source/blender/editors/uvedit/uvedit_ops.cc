@@ -2006,6 +2006,8 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_select_overlap);
   WM_operatortype_append(UV_OT_select_mode);
   WM_operatortype_append(UV_OT_box_region);
+  WM_operatortype_append(UV_OT_disable_box_region);
+
   WM_operatortype_append(UV_OT_snap_cursor);
   WM_operatortype_append(UV_OT_snap_selected);
 

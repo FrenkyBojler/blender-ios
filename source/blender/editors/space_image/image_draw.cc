@@ -451,6 +451,12 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
+
+  if (region->v2d.flag & V2D_BOX_REGION) {
+    float zoomx, zoomy;
+    ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
+    draw_box_region(region, &region->v2d, zoomx, zoomy);
+  }
 }
 
 bool ED_space_image_show_cache(const SpaceImage *sima)
@@ -606,4 +612,32 @@ float ED_space_image_increment_snap_value(const int grid_dimensions,
 
   /* Fallback */
   return grid_steps[0];
+}
+
+void draw_box_region(ARegion *region, View2D *v2d, float xzoom, float yzoom)
+{
+  /* use the same program for everything */
+  const uint shdr_pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+
+  GPU_line_width(1.0f);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+
+  float viewport_size[4];
+  GPU_viewport_size_get_f(viewport_size);
+  immUniform2f("viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
+
+  immUniform1i("colors_len", 0); /* "simple" mode */
+  immUniform4f("color", 1.0f, 0.25f, 0.25f, 1.0f);
+  immUniform1f("dash_width", 6.0f);
+  immUniform1f("udash_factor", 0.5f);
+  int xmin, ymin, xmax, ymax;
+
+  UI_view2d_view_to_region(&region->v2d, v2d->box_region.xmin, v2d->box_region.ymin, &xmin, &ymin);
+  UI_view2d_view_to_region(&region->v2d, v2d->box_region.xmax, v2d->box_region.ymax, &xmax, &ymax);
+
+  imm_draw_box_wire_2d(shdr_pos, xmin, ymin, xmax, ymax);
+
+  immUnbindProgram();
 }
