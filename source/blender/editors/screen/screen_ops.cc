@@ -1482,6 +1482,91 @@ static void SCREEN_OT_area_swap(wmOperatorType *ot)
       ot->srna, "cursor", 2, nullptr, INT_MIN, INT_MAX, "Cursor", "", INT_MIN, INT_MAX);
 }
 
+static wmOperatorStatus area_primary_exec(bContext *C, wmOperator *op)
+{
+  const int area_value = RNA_enum_get(op->ptr, "area");
+  const int subtype = RNA_int_get(op->ptr, "subtype");
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+
+  ScrArea *primary_area = nullptr;
+  LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
+    if (ar->totrct.xmin < 2) {
+      primary_area = ar;
+      break;
+    }
+  }
+
+  if (primary_area) {
+    primary_area->butspacetype_subtype = subtype;
+    screen_area_animate_out(C, primary_area, SCREEN_DIR_S, 0.3f);
+    ED_area_newspace(C, primary_area, area_value, true);
+    return OPERATOR_FINISHED;
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void SCREEN_OT_area_primary(wmOperatorType *ot)
+{
+  ot->name = "Primary Area";
+  ot->description = "Change primary area";
+  ot->idname = "SCREEN_OT_area_primary";
+  ot->exec = area_primary_exec;
+  /* rna */
+
+  RNA_def_enum(ot->srna, "area", rna_enum_space_type_items, SPACE_VIEW3D, "Area", "");
+  RNA_def_int(ot->srna, "subtype", 0, 0, 100, "Area", "", 0, 100);
+}
+
+static wmOperatorStatus area_secondary_exec(bContext *C, wmOperator *op)
+{
+  const int area_value = RNA_enum_get(op->ptr, "area");
+  const int subtype = RNA_int_get(op->ptr, "subtype");
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+
+  ScrArea *primary_area = nullptr;
+  ScrArea *secondary_area = nullptr;
+  LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
+    if (ar->totrct.xmin < 2) {
+      primary_area = ar;
+    }
+    else if (ar->totrct.xmax > (win->sizex - 2)) {
+      secondary_area = ar;
+    }
+  }
+
+  if ((primary_area && !secondary_area) || (primary_area == secondary_area)) {
+    secondary_area = area_split(win, screen, primary_area, SCREEN_AXIS_V, 0.75f, true);
+  }
+
+  if (secondary_area) {
+    if (area_value == secondary_area->spacetype) {
+      screen_area_close(C, op->reports, screen, secondary_area);
+      CTX_wm_window_set(C, nullptr);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      return OPERATOR_FINISHED;
+    }
+    secondary_area->butspacetype_subtype = subtype;
+    screen_area_animate_out(C, secondary_area, SCREEN_DIR_E, 0.3f);
+    ED_area_newspace(C, secondary_area, area_value, true);
+    return OPERATOR_FINISHED;
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void SCREEN_OT_area_secondary(wmOperatorType *ot)
+{
+  ot->name = "Secondary Area";
+  ot->description = "Change secondary area";
+  ot->idname = "SCREEN_OT_area_secondary";
+  ot->exec = area_secondary_exec;
+  /* rna */
+
+  RNA_def_enum(ot->srna, "area", rna_enum_space_type_items, SPACE_VIEW3D, "Area", "");
+  RNA_def_int(ot->srna, "subtype", 0, 0, 100, "Area", "", 0, 100);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -6717,6 +6802,8 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_area_options);
   WM_operatortype_append(SCREEN_OT_area_dupli);
   WM_operatortype_append(SCREEN_OT_area_swap);
+  WM_operatortype_append(SCREEN_OT_area_primary);
+  WM_operatortype_append(SCREEN_OT_area_secondary);
   WM_operatortype_append(SCREEN_OT_region_quadview);
   WM_operatortype_append(SCREEN_OT_region_scale);
   WM_operatortype_append(SCREEN_OT_region_toggle);

@@ -894,10 +894,6 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
     v3d->overlay.flag |= V3D_OVERLAY_HIDE_TEXT | V3D_OVERLAY_HIDE_CURSOR |
                          V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
     v3d->overlay.flag &= ~V3D_OVERLAY_STATS;
-
-    ScrArea *newa = area_split(
-        CTX_wm_window(C), CTX_wm_screen(C), area, SCREEN_AXIS_V, 0.75f, true);
-    ED_area_newspace(C, newa, SPACE_OUTLINER, true);
   }
 }
 

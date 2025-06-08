@@ -60,13 +60,13 @@ class TOPBAR_HT_upper_bar(Header):
 
             row = layout.row(align=True)
             row.operator(
-                "screen.userpref_show", text="", icon='PROPERTIES', depress=(
+                "screen.area_secondary", text="", icon='PROPERTIES', depress=(
                     secondary_area == 'PROPERTIES'), emboss=(
-                    secondary_area == 'PROPERTIES'))
+                    secondary_area == 'PROPERTIES')).area = 'PROPERTIES'
             row.operator(
-                "screen.userpref_show", text="", icon='OUTLINER', depress=(
+                "screen.area_secondary", text="", icon='OUTLINER', depress=(
                     secondary_area == 'OUTLINER'), emboss=(
-                    secondary_area == 'OUTLINER'))
+                    secondary_area == 'OUTLINER')).area = 'OUTLINER'
             row.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
             return
 
@@ -162,6 +162,7 @@ class TOPBAR_MT_editor_menus(Menu):
             layout.operator_context = 'INVOKE_DEFAULT'
 
             layout.operator("wm.search_menu", text="", icon='VIEWZOOM', emboss=False)
+            layout.operator("render.render", text="", icon='RESTRICT_RENDER_OFF', emboss=False).use_viewport = True
             layout.operator("ed.undo", icon='LOOP_BACK', text="", emboss=False)
             layout.operator("ed.redo", icon='LOOP_FORWARDS', text="", emboss=False)
             layout.menu("TOPBAR_MT_edit", text="", icon='DOWNARROW_HLT')
@@ -172,18 +173,18 @@ class TOPBAR_MT_editor_menus(Menu):
             primary_area = screen.primary_area()
 
             layout.operator(
-                "screen.userpref_show", text="", icon='IMAGE', depress=(
-                    primary_area == 'IMAGE_EDITOR'), emboss=(
-                    primary_area == 'IMAGE_EDITOR'))
-            layout.operator(
-                "screen.userpref_show", text="", icon='VIEW3D', depress=(
+                "screen.area_primary", text="", icon='VIEW3D', depress=(
                     primary_area == 'VIEW_3D'), emboss=(
-                    primary_area == 'VIEW_3D'))
-            layout.operator("render.render", text="", icon='RESTRICT_RENDER_OFF', emboss=False).use_viewport = True
+                    primary_area == 'VIEW_3D')).area = 'VIEW_3D'
             layout.operator(
-                "screen.userpref_show", text="", icon='PREFERENCES', depress=(
+                "screen.area_primary", text="", icon='IMAGE', depress=(
+                    primary_area == 'IMAGE_EDITOR'), emboss=(
+                    primary_area == 'IMAGE_EDITOR')).area = 'IMAGE_EDITOR'
+            layout.operator(
+                "screen.area_primary", text="", icon='PREFERENCES', depress=(
                     primary_area == 'PREFERENCES'), emboss=(
-                    primary_area == 'PREFERENCES'))
+                    primary_area == 'PREFERENCES')).area = 'PREFERENCES'
+
             layout.operator("screen.userpref_show", text="", icon='DOWNARROW_HLT', emboss=False)
 
 
