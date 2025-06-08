@@ -10,9 +10,11 @@ from bpy.app.translations import (
     contexts as i18n_contexts,
 )
 
+
 class TOPBAR_MT_tablet_primary(Menu):
     bl_idname = "TOPBAR_MT_tablet_primary"
     bl_label = ""
+
     def draw(self, context):
         layout = self.layout
         layout.operator("screen.area_primary", text="Video Sequencer", icon='SEQUENCE').area = 'SEQUENCE_EDITOR'
@@ -25,6 +27,7 @@ class TOPBAR_MT_tablet_primary(Menu):
 class TOPBAR_MT_tablet_secondary(Menu):
     bl_idname = "TOPBAR_MT_tablet_secondary"
     bl_label = ""
+
     def draw(self, context):
         layout = self.layout
         layout.operator("screen.area_secondary", text="Text Editor", icon='TEXT').area = 'TEXT_EDITOR'
@@ -82,8 +85,14 @@ class TOPBAR_HT_upper_bar(Header):
             secondary_area = screen.secondary_area()
 
             row = layout.row(align=True)
-            row.operator("screen.area_secondary", text="", icon='PROPERTIES', depress=(secondary_area == 'PROPERTIES'), emboss=(secondary_area == 'PROPERTIES')).area = 'PROPERTIES'
-            row.operator("screen.area_secondary", text="", icon='OUTLINER', depress=(secondary_area == 'OUTLINER'), emboss=(secondary_area == 'OUTLINER')).area = 'OUTLINER'
+            row.operator(
+                "screen.area_secondary", text="", icon='PROPERTIES', depress=(
+                    secondary_area == 'PROPERTIES'), emboss=(
+                    secondary_area == 'PROPERTIES')).area = 'PROPERTIES'
+            row.operator(
+                "screen.area_secondary", text="", icon='OUTLINER', depress=(
+                    secondary_area == 'OUTLINER'), emboss=(
+                    secondary_area == 'OUTLINER')).area = 'OUTLINER'
             layout.menu("TOPBAR_MT_tablet_secondary", text="", icon='DOWNARROW_HLT')
             return
 
@@ -189,9 +198,18 @@ class TOPBAR_MT_editor_menus(Menu):
 
             primary_area = screen.primary_area()
 
-            layout.operator("screen.area_primary", text="", icon='VIEW3D', depress=(primary_area == 'VIEW_3D'), emboss=(primary_area == 'VIEW_3D')).area = 'VIEW_3D'
-            layout.operator("screen.area_primary", text="", icon='IMAGE', depress=(primary_area == 'IMAGE_EDITOR'), emboss=(primary_area == 'IMAGE_EDITOR')).area = 'IMAGE_EDITOR'
-            layout.operator("screen.area_primary", text="", icon='PREFERENCES', depress=(primary_area == 'PREFERENCES'), emboss=(primary_area == 'PREFERENCES')).area = 'PREFERENCES'
+            layout.operator(
+                "screen.area_primary", text="", icon='VIEW3D', depress=(
+                    primary_area == 'VIEW_3D'), emboss=(
+                    primary_area == 'VIEW_3D')).area = 'VIEW_3D'
+            layout.operator(
+                "screen.area_primary", text="", icon='IMAGE', depress=(
+                    primary_area == 'IMAGE_EDITOR'), emboss=(
+                    primary_area == 'IMAGE_EDITOR')).area = 'IMAGE_EDITOR'
+            layout.operator(
+                "screen.area_primary", text="", icon='PREFERENCES', depress=(
+                    primary_area == 'PREFERENCES'), emboss=(
+                    primary_area == 'PREFERENCES')).area = 'PREFERENCES'
             layout.menu("TOPBAR_MT_tablet_primary", text="", icon='DOWNARROW_HLT')
 
 
