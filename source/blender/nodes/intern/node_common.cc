@@ -89,7 +89,7 @@ void node_group_label(const bNodeTree * /*ntree*/,
 
 int node_group_ui_class(const bNode *node)
 {
-  const bNodeTree *group = blender::id_cast<const bNodeTree *>(node->id);
+  const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
   if (!group) {
     return NODE_CLASS_GROUP;
   }
@@ -139,7 +139,7 @@ bool node_group_poll_instance(const bNode *node,
   if (!node->typeinfo->poll(node->typeinfo, nodetree, r_disabled_hint)) {
     return false;
   }
-  const bNodeTree *grouptree = blender::id_cast<const bNodeTree *>(node->id);
+  const bNodeTree *grouptree = reinterpret_cast<const bNodeTree *>(node->id);
   if (!grouptree) {
     return true;
   }
@@ -151,7 +151,7 @@ std::string node_group_ui_description(const bNode &node)
   if (!node.id) {
     return "";
   }
-  const bNodeTree *group = blender::id_cast<const bNodeTree *>(node.id);
+  const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node.id);
   if (group->id.asset_data) {
     if (group->id.asset_data->description) {
       return group->id.asset_data->description;
@@ -213,7 +213,7 @@ static std::function<ID *(const bNode &node)> get_default_id_getter(
     if (GS(node.id->name) != ID_NT) {
       return nullptr;
     }
-    const bNodeTree &ntree = *id_cast<const bNodeTree *>(node.id);
+    const bNodeTree &ntree = *reinterpret_cast<const bNodeTree *>(node.id);
     const bNodeTreeInterfaceItem *io_item = ntree.tree_interface.get_item_at_index(item_index);
     const bNodeTreeInterfaceSocket *io_socket =
         node_interface::get_item_as<bNodeTreeInterfaceSocket>(io_item);
@@ -238,7 +238,7 @@ get_init_socket_fn(const bNodeTreeInterface &interface, const bNodeTreeInterface
     if (GS(node.id->name) != ID_NT) {
       return;
     }
-    bNodeTree &ntree = *id_cast<bNodeTree *>(node.id);
+    bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node.id);
     const bNodeTreeInterfaceItem *io_item = ntree.tree_interface.get_item_at_index(item_index);
     if (io_item == nullptr || io_item->item_type != NODE_INTERFACE_SOCKET) {
       return;
@@ -451,7 +451,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
     return;
   }
   NodeDeclaration &r_declaration = b.declaration();
-  const bNodeTree *group = id_cast<const bNodeTree *>(node->id);
+  const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
   if (!group) {
     return;
   }

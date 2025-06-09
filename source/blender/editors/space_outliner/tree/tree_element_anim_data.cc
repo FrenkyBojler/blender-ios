@@ -34,7 +34,7 @@ void TreeElementAnimData::expand(SpaceOutliner & /*space_outliner*/) const
   if (anim_data_.action) {
     /* Animation data-block itself. */
     add_element(&legacy_te_.subtree,
-                id_cast<ID *>(anim_data_.action),
+                reinterpret_cast<ID *>(anim_data_.action),
                 nullptr,
                 &legacy_te_,
                 TSE_SOME_ID,

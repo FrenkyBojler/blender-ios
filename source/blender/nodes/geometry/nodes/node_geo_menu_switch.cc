@@ -364,7 +364,7 @@ class LazyFunctionForMenuSwitchSocketUsage : public lf::LazyFunction {
 
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
-  bNodeTree &tree = *id_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);

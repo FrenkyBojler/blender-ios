@@ -277,7 +277,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 {
   ListBase anim_basepaths = {nullptr, nullptr};
   Vector<bNode *> nodes_delayed_free;
-  const bNodeTree *ngroup = id_cast<const bNodeTree *>(gnode->id);
+  const bNodeTree *ngroup = reinterpret_cast<const bNodeTree *>(gnode->id);
 
   /* `wgroup` is a temporary copy of the #NodeTree we're merging in
    * - All of wgroup's nodes are copied across to their new home.
@@ -347,7 +347,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   if (wgroup->adt) {
     /* firstly, wgroup needs to temporary dummy action
      * that can be destroyed, as it shares copies */
-    bAction *waction = id_cast<bAction *>(BKE_id_copy(bmain, &wgroup->adt->action->id));
+    bAction *waction = reinterpret_cast<bAction *>(BKE_id_copy(bmain, &wgroup->adt->action->id));
     const bool assign_ok = animrig::assign_action(waction, {wgroup->id, *wgroup->adt});
     BLI_assert_msg(assign_ok, "assigning a copy of an already-assigned Action should work");
     UNUSED_VARS_NDEBUG(assign_ok);
@@ -935,7 +935,7 @@ static void node_group_make_insert_selected(const bContext &C,
                                             const VectorSet<bNode *> &nodes_to_move)
 {
   Main *bmain = CTX_data_main(&C);
-  bNodeTree &group = *id_cast<bNodeTree *>(gnode->id);
+  bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
   BLI_assert(!nodes_to_move.contains(gnode));
 
   node_deselect_all(group);
@@ -1537,7 +1537,7 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeTree *ngroup = id_cast<bNodeTree *>(gnode->id);
+  bNodeTree *ngroup = reinterpret_cast<bNodeTree *>(gnode->id);
   VectorSet<bNode *> nodes_to_group = get_nodes_to_group(*ntree, gnode);
 
   /* Make sure that there won't be a node group containing itself afterwards. */
@@ -1545,7 +1545,7 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
     if (!group->is_group() || group->id == nullptr) {
       continue;
     }
-    if (bke::node_tree_contains_tree(*id_cast<bNodeTree *>(group->id), *ngroup)) {
+    if (bke::node_tree_contains_tree(*reinterpret_cast<bNodeTree *>(group->id), *ngroup)) {
       BKE_reportf(
           op->reports, RPT_WARNING, "Cannot insert group '%s' in '%s'", group->name, gnode->name);
       return OPERATOR_CANCELLED;

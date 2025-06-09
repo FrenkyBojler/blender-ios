@@ -7,7 +7,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
 
-#include "DNA_collection_types.h"
 #include "DNA_space_types.h"
 
 #include "BKE_instances.hh"
@@ -312,10 +311,10 @@ static IndexMask apply_row_filter(const SpreadsheetRowFilter &row_filter,
         [&](const bke::InstanceReference cell) {
           switch (cell.type()) {
             case bke::InstanceReference::Type::Object: {
-              return value == (id_cast<ID &>(cell.object()).name + 2);
+              return value == (reinterpret_cast<ID &>(cell.object()).name + 2);
             }
             case bke::InstanceReference::Type::Collection: {
-              return value == (id_cast<ID &>(cell.collection()).name + 2);
+              return value == (reinterpret_cast<ID &>(cell.collection()).name + 2);
             }
             case bke::InstanceReference::Type::GeometrySet: {
               return value == cell.geometry_set().name;

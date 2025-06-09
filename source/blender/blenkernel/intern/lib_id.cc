@@ -2380,7 +2380,7 @@ IDNewNameResult BKE_id_rename(Main &bmain,
     DEG_id_tag_update(&id, ID_RECALC_SYNC_TO_EVAL);
     switch (GS(id.name)) {
       case ID_OB: {
-        Object &ob = blender::id_cast<Object &>(id);
+        Object &ob = reinterpret_cast<Object &>(id);
         if (ob.type == OB_MBALL) {
           DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
         }
