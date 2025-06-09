@@ -236,7 +236,8 @@ struct GPUVertFormat {
 };
 
 #define GPU_VERTEX_FORMAT_ADD_ATTR(attr) \
-  format.attribute_add(#attr, blender::gpu::AttrType<typeof(attr)>::type, offsetof(VertT, attr)); \
+  format.attribute_add( \
+      #attr, blender::gpu::AttrType<decltype(attr)>::type, offsetof(VertT, attr)); \
   BLI_STATIC_ASSERT(offsetof(VertT, attr) < 255, #attr " has offset greater than 255") \
   BLI_STATIC_ASSERT(offsetof(VertT, attr) % 4 == 0, #attr " is not aligned to 4 bytes")
 
