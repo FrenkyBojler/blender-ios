@@ -4,3 +4,4 @@ Referenced by issue #137321, VSE Regression: Vertical Scrollbar Top is Locked
 Referenced by issue #137395, Vulkan: UI flickering with area resize
 Referenced by issue #139856, 4.5 Elipse mask size inconsistency with 4.4.3, size was clamped at image width
 Referenced by issue #139884, Blender 4.5b - Customized filtering of UIList in Python is not working anymore
+Referenced by issue #140001, When loading or updating a texture, the model displays blank until you interact with the viewport
