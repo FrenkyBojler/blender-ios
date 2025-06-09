@@ -955,6 +955,20 @@ class SEQUENCER_MT_strip_show_hide(Menu):
         layout.operator("sequencer.mute", text="Hide Selected").unselected = False
         layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
 
+class SEQUENCER_MT_strip_animation(Menu):
+    bl_label = "Animation"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("anim.keyframe_insert", text="Insert Keyframe")
+        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
+        layout.operator("anim.keyframe_delete_v3d", text="Delete Keyframes...")
+        layout.operator("anim.keyframe_clear_v3d", text="Clear Keyframes...")
+        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+
+        layout.separator()
+
 
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
@@ -1075,6 +1089,8 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.separator()
+            layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_show_hide")
             layout.separator()
@@ -3126,6 +3142,7 @@ classes = (
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
     SEQUENCER_MT_strip_show_hide,
+    SEQUENCER_MT_strip_animation,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,
