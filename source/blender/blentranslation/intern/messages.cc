@@ -114,9 +114,11 @@ class Info {
           std::string region = buf;
           if (locale_name == "zh") {
             if (region == "TW" || region == "HK" || region == "MO") {
+              /* Traditional for Taiwan, Hong Kong, Macau. */
               locale_name += "_HANT";
             }
             else {
+              /* Simplified for all other areas. */
               locale_name += "_HANS";
             }
           }
