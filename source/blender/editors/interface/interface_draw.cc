@@ -606,6 +606,10 @@ void ui_draw_but_HISTOGRAM(ARegion *region,
 
 static void waveform_draw_one(const float *waveform, int waveform_num, const float col[3])
 {
+  BLI_assert_msg(
+      !immIsShaderBound(),
+      "It is not allowed to draw a batch when immediate mode has a shader bound. It will "
+      "use the incorrect shader and is hard to discover.");
   GPUVertFormat format = {0};
   const uint pos_id = GPU_vertformat_attr_add(
       &format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
@@ -658,8 +662,8 @@ static void waveform_draw_rgb(const float *waveform,
 
   blender::gpu::Batch *batch = GPU_batch_create_ex(
       GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_SMOOTH_COLOR);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_FLAT_COLOR);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);
 }
@@ -844,7 +848,9 @@ void ui_draw_but_WAVEFORM(ARegion *region,
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
 
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, col);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_matrix_pop();
 
@@ -865,11 +871,11 @@ void ui_draw_but_WAVEFORM(ARegion *region,
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
-
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, colors_alpha[0]);
       waveform_draw_one(scopes->waveform_2, scopes->waveform_tot, colors_alpha[1]);
       waveform_draw_one(scopes->waveform_3, scopes->waveform_tot, colors_alpha[2]);
-
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       GPU_matrix_pop();
     }
     /* PARADE / YCC (3 channels) */
@@ -880,7 +886,7 @@ void ui_draw_but_WAVEFORM(ARegion *region,
                   SCOPES_WAVEFRM_YCC_JPEG))
     {
       const int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB_PARADE);
-
+      immUnbindProgram();
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w3, h);
@@ -897,6 +903,7 @@ void ui_draw_but_WAVEFORM(ARegion *region,
           scopes->waveform_3, scopes->waveform_tot, (rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 
       GPU_matrix_pop();
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     }
 
     /* min max */

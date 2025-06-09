@@ -29,7 +29,13 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
+#include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_fcurve.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
@@ -52,6 +58,60 @@
 
 // static CLG_LogRef LOG = {"blo.readfile.doversion"};
 
+void version_forward_compat_system_idprops(Main *bmain)
+{
+  auto idprops_process = [](IDProperty **idprops, IDProperty *system_idprops) -> void {
+    if (system_idprops) {
+      /* Other ID pointers have not yet been relinked,
+       * do not try to access them for reference-counting. */
+      if (*idprops) {
+        IDP_MergeGroup_ex(*idprops, system_idprops, true, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+      else {
+        *idprops = IDP_CopyProperty_ex(system_idprops, LIB_ID_CREATE_NO_USER_REFCOUNT);
+      }
+    }
+  };
+
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    idprops_process(&id_iter->properties, id_iter->system_properties);
+  }
+  FOREACH_MAIN_ID_END;
+
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+      idprops_process(&view_layer->id_properties, view_layer->system_properties);
+    }
+
+    if (scene->ed != nullptr) {
+      blender::seq::for_each_callback(&scene->ed->seqbase,
+                                      [&idprops_process](Strip *strip) -> bool {
+                                        idprops_process(&strip->prop, strip->system_properties);
+                                        return true;
+                                      });
+    }
+  }
+
+  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+    if (!object->pose) {
+      continue;
+    }
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+      idprops_process(&pchan->prop, pchan->system_properties);
+    }
+  }
+
+  LISTBASE_FOREACH (bArmature *, armature, &bmain->armatures) {
+    for (BoneCollection *bcoll : armature->collections_span()) {
+      idprops_process(&bcoll->prop, bcoll->system_properties);
+    }
+    LISTBASE_FOREACH (Bone *, bone, &armature->bonebase) {
+      idprops_process(&bone->prop, bone->system_properties);
+    }
+  }
+}
+
 static void version_fix_fcurve_noise_offset(FCurve &fcurve)
 {
   LISTBASE_FOREACH (FModifier *, fcurve_modifier, &fcurve.modifiers) {
@@ -65,6 +125,49 @@ static void version_fix_fcurve_noise_offset(FCurve &fcurve)
       continue;
     }
     data->offset *= data->size;
+  }
+}
+
+/**
+ * Fixes situation when `CurvesGeometry` instance has curves with `NURBS_KNOT_MODE_CUSTOM`, but has
+ * no custom knots.
+ */
+static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
+{
+  auto fix_curves = [](blender::bke::CurvesGeometry &curves) {
+    if (curves.custom_knots != nullptr) {
+      return;
+    }
+
+    int8_t *knot_modes = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
+        &curves.curve_data, CD_PROP_INT8, "knots_mode", curves.curve_num));
+    if (knot_modes == nullptr) {
+      return;
+    }
+
+    for (const int curve : curves.curves_range()) {
+      int8_t &knot_mode = knot_modes[curve];
+      if (knot_mode == NURBS_KNOT_MODE_CUSTOM) {
+        knot_mode = NURBS_KNOT_MODE_NORMAL;
+      }
+    }
+    curves.nurbs_custom_knots_update_size();
+  };
+
+  LISTBASE_FOREACH (Curves *, curves_id, &bmain->hair_curves) {
+    blender::bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    fix_curves(curves);
+  }
+
+  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+    for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
+      if (base->type != GP_DRAWING) {
+        continue;
+      }
+      blender::bke::greasepencil::Drawing &drawing =
+          reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
+      fix_curves(drawing.strokes_for_write());
+    }
   }
 }
 
@@ -4957,55 +5060,6 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
    */
 }
 
-static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
-{
-  for (CustomDataLayer &layer : blender::MutableSpan(custom_data.layers, custom_data.totlayer)) {
-    if (layer.name == name) {
-      return &layer;
-    }
-  }
-  return nullptr;
-}
-
-static void rename_mesh_uv_seam_attribute(Mesh &mesh)
-{
-  using namespace blender;
-  CustomDataLayer *old_seam_layer = find_old_seam_layer(mesh.edge_data, ".uv_seam");
-  if (!old_seam_layer) {
-    return;
-  }
-  Set<StringRef> names;
-  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.face_data.layers, mesh.face_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &mesh.vertex_group_names) {
-    names.add(vertex_group->name);
-  }
-
-  /* If the new UV name is already taken, still rename the attribute so it becomes visible in the
-   * list. Then the user can deal with the name conflict themselves. */
-  const std::string new_name = BLI_uniquename_cb(
-      [&](const StringRef name) { return names.contains(name); }, '.', "uv_seam");
-  STRNCPY(old_seam_layer->name, new_name.c_str());
-}
-
 static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
 {
   using namespace blender;
@@ -5017,12 +5071,21 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
   }
 
   for (bNode *curve_to_mesh : curve_to_mesh_nodes) {
+    if (!version_node_socket_is_used(
+            bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Profile Curve")))
+    {
+      /* No additional versioning is needed when the profile curve input is unused. */
+      continue;
+    }
+
     if (bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale")) {
       /* Make versioning idempotent. */
       continue;
     }
-    version_node_add_socket_if_not_exist(
+    bNodeSocket *scale_socket = version_node_add_socket_if_not_exist(
         tree, curve_to_mesh, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Scale", "Scale");
+    /* Use a default scale value of 1. */
+    scale_socket->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
 
     bNode &named_attribute = version_node_add_empty(*tree, "GeometryNodeInputNamedAttribute");
     NodeGeometryInputNamedAttribute *named_attribute_storage =
@@ -5081,6 +5144,8 @@ static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
                           *curve_to_mesh,
                           *bke::node_find_socket(*curve_to_mesh, SOCK_IN, "Scale"));
   }
+
+  version_socket_update_is_used(tree);
 }
 
 static bool strip_effect_overdrop_to_alphaover(Strip *strip, void * /*user_data*/)
@@ -6184,13 +6249,8 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
-   * legacy format which always needs to be converted to the new format on file load. To be moved
-   * to a subversion check in 5.0. */
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    blender::bke::mesh_sculpt_mask_to_generic(*mesh);
-    blender::bke::mesh_custom_normals_to_generic(*mesh);
-    rename_mesh_uv_seam_attribute(*mesh);
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
+    fix_curve_nurbs_knot_mode_custom(bmain);
   }
 
   /**
