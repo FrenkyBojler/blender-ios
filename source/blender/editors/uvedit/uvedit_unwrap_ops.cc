@@ -1960,7 +1960,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
        0,
        "Original bounding box",
        "Pack to starting bounding box of islands"},
-      {PACK_BOX_REGION, "BOX_REGION", 0, "box bounding region", "Pack islands to box region"},
+      {PACK_BOX_REGION, "BOX_REGION", 0, "Box Bounding Region", "Pack islands to box region"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
