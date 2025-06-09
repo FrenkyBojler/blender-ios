@@ -129,36 +129,38 @@ static StructureType data_requirement_to_auto_structure_type(const DataRequireme
 static void init_input_requirements(const bNodeTree &tree,
                                     MutableSpan<DataRequirement> input_requirements)
 {
-  const Span<const bNodeSocket *> input_sockets = tree.all_input_sockets();
-  for (const int i : input_sockets.index_range()) {
-    const bNodeSocket &socket = *input_sockets[i];
-    const nodes::SocketDeclaration *declaration = socket.runtime->declaration;
-    if (!declaration) {
-      input_requirements[i] = DataRequirement::None;
+  for (const bNode *node : tree.all_nodes()) {
+    if (ELEM(node->type_legacy, NODE_GROUP_OUTPUT, GEO_NODE_CLOSURE_OUTPUT)) {
+      for (const bNodeSocket *socket : node->input_sockets()) {
+        /* Inputs of these nodes have no requirements. */
+        input_requirements[socket->index_in_all_inputs()] = DataRequirement::None;
+      }
       continue;
     }
-    const bNode &node = socket.owner_node();
-    if (ELEM(node.type_legacy, NODE_GROUP_OUTPUT, GEO_NODE_CLOSURE_OUTPUT)) {
-      /* Inputs of these nodes have no requirements. */
-      input_requirements[i] = DataRequirement::None;
-      continue;
-    }
-    switch (declaration->structure_type) {
-      case StructureType::Dynamic: {
-        input_requirements[i] = DataRequirement::None;
-        break;
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      DataRequirement &requirement = input_requirements[socket->index_in_all_inputs()];
+      const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
+      if (!declaration) {
+        requirement = DataRequirement::None;
+        continue;
       }
-      case StructureType::Single: {
-        input_requirements[i] = DataRequirement::Single;
-        break;
-      }
-      case StructureType::Grid: {
-        input_requirements[i] = DataRequirement::Grid;
-        break;
-      }
-      case StructureType::Field: {
-        input_requirements[i] = DataRequirement::Field;
-        break;
+      switch (declaration->structure_type) {
+        case StructureType::Dynamic: {
+          requirement = DataRequirement::None;
+          break;
+        }
+        case StructureType::Single: {
+          requirement = DataRequirement::Single;
+          break;
+        }
+        case StructureType::Grid: {
+          requirement = DataRequirement::Grid;
+          break;
+        }
+        case StructureType::Field: {
+          requirement = DataRequirement::Field;
+          break;
+        }
       }
     }
   }
