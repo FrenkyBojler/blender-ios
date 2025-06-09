@@ -20,18 +20,23 @@
 
 #include "ED_mesh.hh"
 
-EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh)
-    : em(em), mesh_data(mesh_data), bmesh(bmesh), symmetry_active(false)
+std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(BMEditMesh *em,
+                                                                               Mesh *mesh_data,
+                                                                               BMesh *bmesh)
 {
   if (!em || !mesh_data || !bmesh || mesh_data->symmetry == 0) {
-    return;
+    return std::nullopt;
   }
-  symmetry_active = true;
+  return EditMeshSymmetryHelper(em, mesh_data, bmesh);
+}
+
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh)
+    : em(em), mesh_data(mesh_data), bmesh(bmesh)
+{
   use_topology_mirror = (mesh_data->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
-  BMEdge *current_edge;
   BMIter iter;
-
+  BMEdge *current_edge;
   for (int axis = 0; axis < 3; ++axis) {
     if (mesh_data->symmetry & (ME_SYMMETRY_X << axis)) {
       EDBM_verts_mirror_cache_begin(em, axis, false, true, false, use_topology_mirror);
@@ -46,14 +51,9 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, 
   }
 }
 
-bool EditMeshSymmetryHelper::is_active() const
+bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge) const
 {
-  return symmetry_active;
-}
-
-bool EditMeshSymmetryHelper::is_any_mirror_selected(BMEdge *edge) const
-{
-  if (!symmetry_active || edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
+  if (edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
     return false;
   }
   for (BMEdge *mirror_edge : edge_to_mirrors_map.at(edge)) {
@@ -66,27 +66,16 @@ bool EditMeshSymmetryHelper::is_any_mirror_selected(BMEdge *edge) const
   return false;
 }
 
-template<typename Func>
-void EditMeshSymmetryHelper::apply_on_mirrors(BMEdge *edge, Func operation_lambda) const
+void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, int flag, bool value) const
 {
-  if (!symmetry_active || edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
-    return;
-  }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.at(edge)) {
-    if (!BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
-      operation_lambda(mirror_edge);
-    }
-  }
-}
-
-void EditMeshSymmetryHelper::set_seam_on_mirrors(BMEdge *edge, bool clear_seam) const
-{
-  apply_on_mirrors(edge, [clear_seam](BMEdge *e_mir) {
-    if (clear_seam) {
-      BM_elem_flag_disable(e_mir, BM_ELEM_SEAM);
-    }
-    else {
-      BM_elem_flag_enable(e_mir, BM_ELEM_SEAM);
+  apply_on_mirror_edges(edge, [flag, value](BMEdge *e_mir) {
+    if (!BM_elem_flag_test(e_mir, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(e_mir, flag);
+      }
+      else {
+        BM_elem_flag_disable(e_mir, flag);
+      }
     }
   });
 }

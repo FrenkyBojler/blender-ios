@@ -49,21 +49,35 @@ struct UvElementMap;
 
 class EditMeshSymmetryHelper {
  public:
-  EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh);
+  static std::optional<EditMeshSymmetryHelper> create_if_needed(BMEditMesh *em,
+                                                                Mesh *mesh_data,
+                                                                BMesh *bmesh);
 
-  bool is_active() const;
-  bool is_any_mirror_selected(BMEdge *edge) const;
-  template<typename Func> void apply_on_mirrors(BMEdge *edge, Func operation_lambda) const;
-  void set_seam_on_mirrors(BMEdge *edge, bool clear_seam) const;
+  bool is_any_mirror_edge_selected(BMEdge *edge) const;
+  void set_flag_on_mirror_edges(BMEdge *edge, int flag, bool value) const;
 
  private:
+  EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh);
+
   BMEditMesh *em;
   Mesh *mesh_data;
   BMesh *bmesh;
-  bool symmetry_active;
   bool use_topology_mirror;
   std::unordered_map<BMEdge *, std::vector<BMEdge *>> edge_to_mirrors_map;
+
+  template<typename Func> void apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const;
 };
+
+template<typename Func>
+void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const
+{
+  if (edge_to_mirrors_map.find(edge) == edge_to_mirrors_map.end()) {
+    return;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.at(edge)) {
+    operation_lambda(mirror_edge);
+  }
+}
 
 /**
  * \param em: Edit-mesh used for generating mirror data.

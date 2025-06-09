@@ -1038,7 +1038,8 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
     BMesh *bm = em->bm;
     Mesh *me = static_cast<Mesh *>(obedit->data);
 
-    EditMeshSymmetryHelper symmetry_helper(em, me, bm);
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
 
     BMIter iter;
     BMEdge *eed;
@@ -1050,8 +1051,9 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 
       const bool is_locally_selected = BM_elem_flag_test(eed, BM_ELEM_SELECT);
       bool is_mirror_relevant = false;
-      if (symmetry_helper.is_active() && !is_locally_selected) {
-        is_mirror_relevant = symmetry_helper.is_any_mirror_selected(eed);
+
+      if (symmetry_helper && !is_locally_selected) {
+        is_mirror_relevant = symmetry_helper->is_any_mirror_edge_selected(eed);
       }
 
       const bool should_process_this_edge_group = is_locally_selected || is_mirror_relevant;
@@ -1064,8 +1066,8 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
           BM_elem_flag_enable(eed, BM_ELEM_SEAM);
         }
 
-        if (symmetry_helper.is_active()) {
-          symmetry_helper.set_seam_on_mirrors(eed, clear);
+        if (symmetry_helper) {
+          symmetry_helper->set_flag_on_mirror_edges(eed, BM_ELEM_SEAM, !clear);
         }
       }
     }
@@ -1078,6 +1080,7 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
   }
   return OPERATOR_FINISHED;
 }
+
 void MESH_OT_mark_seam(wmOperatorType *ot)
 {
   PropertyRNA *prop;
