@@ -342,7 +342,7 @@ struct GPUSource {
   }
 
   void source_get(Vector<StringRefNull> &result,
-                  const shader::GeneratedSourceMap *generated_sources,
+                  const shader::GeneratedSourceList *generated_sources,
                   const GPUSourceDictionnary &dict) const
   {
     /* Check if this file was already included. */
@@ -367,7 +367,16 @@ struct GPUSource {
       return;
     }
 
-    const auto &source = generated_sources->lookup_default(this->filename, {});
+    const shader::GeneratedSource &source = [&]() {
+      /* Linear lookup since we won't have more than a few per shaders.
+       * Also avoid the complexity of a Map in create infos. */
+      for (const shader::GeneratedSource &generated_src : *generated_sources) {
+        if (generated_src.filename == this->filename) {
+          return generated_src;
+        }
+      }
+      return shader::GeneratedSource();
+    }();
 
     if (source.content.empty()) {
       std::string warn = std::string("warn: Generated source not provided. Using fallback for ") +
@@ -394,7 +403,7 @@ struct GPUSource {
 
   /* Returns the final string with all includes done. */
   void build(Vector<StringRefNull> &result,
-             const shader::GeneratedSourceMap *generated_sources,
+             const shader::GeneratedSourceList *generated_sources,
              const GPUSourceDictionnary &dict) const
   {
     for (auto *dep : dependencies) {
@@ -572,7 +581,7 @@ BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull shader_source
 }
 
 Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
-    const StringRefNull shader_source_name, const GeneratedSourceMap *generated_sources)
+    const StringRefNull shader_source_name, const shader::GeneratedSourceList *generated_sources)
 {
   Vector<StringRefNull> result;
   GPUSource *src = g_sources->lookup_default(shader_source_name, nullptr);

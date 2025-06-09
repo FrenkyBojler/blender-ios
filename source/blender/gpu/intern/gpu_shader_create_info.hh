@@ -15,7 +15,6 @@
 
 #if !defined(GPU_SHADER)
 #  include "BLI_hash.hh"
-#  include "BLI_map.hh"
 #  include "BLI_string_ref.hh"
 #  include "BLI_utildefines_variadic.h"
 #  include "BLI_vector.hh"
@@ -625,10 +624,13 @@ struct StageInterfaceInfo {
 
 /** Sources from generated code. Map source name to content. */
 struct GeneratedSource {
+  /* Associated filename this source replaces. */
+  StringRefNull filename;
   Vector<StringRefNull> dependencies;
   std::string content;
 };
-using GeneratedSourceMap = Map<StringRefNull, GeneratedSource>;
+
+using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
 
 /**
  * \brief Describe inputs & outputs, stage interfaces, resources and sources of a shader.
@@ -670,8 +672,7 @@ struct ShaderCreateInfo {
   /** Manually set generated dependencies. */
   Vector<StringRefNull, 0> dependencies_generated;
 
-  /* TODO(fclem): Make it a pointer. */
-  GeneratedSourceMap generated_sources;
+  GeneratedSourceList generated_sources;
 
 #  define TEST_EQUAL(a, b, _member) \
     if (!((a)._member == (b)._member)) { \

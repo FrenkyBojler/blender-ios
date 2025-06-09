@@ -907,8 +907,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return float3(0);\n");
     vert_gen << "}\n\n";
 
-    info.generated_sources.add("eevee_nodetree_vert_lib.glsl",
-                               {{"eevee_nodetree_lib.glsl"}, deps_concat + vert_gen.str()});
+    info.generated_sources.append({"eevee_nodetree_vert_lib.glsl",
+                                   {"eevee_nodetree_lib.glsl"},
+                                   deps_concat + vert_gen.str()});
   }
 
   if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY) {
@@ -969,8 +970,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << (!codegen.volume.empty() ? codegen.volume : "return Closure(0);\n");
     frag_gen << "}\n\n";
 
-    info.generated_sources.add("eevee_nodetree_frag_lib.glsl",
-                               {{"eevee_nodetree_lib.glsl"}, deps_concat + frag_gen.str()});
+    info.generated_sources.append({"eevee_nodetree_frag_lib.glsl",
+                                   {"eevee_nodetree_lib.glsl"},
+                                   deps_concat + frag_gen.str()});
   }
 
   /* Geometry Info. */
