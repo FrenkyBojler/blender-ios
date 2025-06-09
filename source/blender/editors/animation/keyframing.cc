@@ -238,6 +238,24 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
     Object *ob = static_cast<Object *>(ptr->data);
     rotation_mode = eRotationModes(ob->rotmode);
   }
+  else if (ptr->type == &RNA_Strip || RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+    eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
+    if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
+      paths.append({"transform.offset_x"});
+      paths.append({"transform.offset_y"});
+    }
+    if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_ROTATION) {
+      paths.append({"transform.rotation"});
+    }
+    if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_SCALE) {
+      paths.append({"transform.scale_x"});
+      paths.append({"transform.scale_y"});
+    }
+    if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_CUSTOM_PROPERTIES) {
+      paths.extend(blender::animrig::get_keyable_id_property_paths(*ptr));
+    }
+    return paths;
+  }
   else {
     /* Pointer type not supported. */
     return paths;
@@ -286,7 +304,13 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 
   switch (context_mode) {
     case CTX_MODE_OBJECT: {
-      CTX_data_selected_objects(C, r_selection);
+      ARegion *region = CTX_wm_region(C);
+      if (region->regiontype == RGN_TYPE_PREVIEW) {
+        CTX_data_selected_strips(C, r_selection);
+      }
+      else {
+        CTX_data_selected_objects(C, r_selection);
+      }
       break;
     }
     case CTX_MODE_POSE: {
