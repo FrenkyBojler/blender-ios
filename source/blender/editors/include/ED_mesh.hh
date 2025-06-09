@@ -56,6 +56,12 @@ class EditMeshSymmetryHelper {
   bool is_any_mirror_edge_selected(BMEdge *edge) const;
   void set_flag_on_mirror_edges(BMEdge *edge, int flag, bool value) const;
 
+  bool is_any_mirror_vert_selected(BMVert *vert) const;
+  void set_flag_on_mirror_verts(BMVert *vert, int flag, bool value) const;
+
+  bool is_any_mirror_face_selected(BMFace *face) const;
+  void set_flag_on_mirror_faces(BMFace *face, int flag, bool value) const;
+
  private:
   EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh);
 
@@ -63,10 +69,26 @@ class EditMeshSymmetryHelper {
   Mesh *mesh_data;
   BMesh *bmesh;
   bool use_topology_mirror;
-  std::unordered_map<BMEdge *, std::vector<BMEdge *>> edge_to_mirrors_map;
 
+  std::unordered_map<BMVert *, std::vector<BMVert *>> vert_to_mirrors_map;
+  std::unordered_map<BMEdge *, std::vector<BMEdge *>> edge_to_mirrors_map;
+  std::unordered_map<BMFace *, std::vector<BMFace *>> face_to_mirrors_map;
+
+  template<typename Func> void apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const;
   template<typename Func> void apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const;
+  template<typename Func> void apply_on_mirror_faces(BMFace *face, Func operation_lambda) const;
 };
+
+template<typename Func>
+void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const
+{
+  if (vert_to_mirrors_map.find(vert) == vert_to_mirrors_map.end()) {
+    return;
+  }
+  for (BMVert *mirror_vert : vert_to_mirrors_map.at(vert)) {
+    operation_lambda(mirror_vert);
+  }
+}
 
 template<typename Func>
 void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const
@@ -79,6 +101,16 @@ void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge, Func operation_
   }
 }
 
+template<typename Func>
+void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face, Func operation_lambda) const
+{
+  if (face_to_mirrors_map.find(face) == face_to_mirrors_map.end()) {
+    return;
+  }
+  for (BMFace *mirror_face : face_to_mirrors_map.at(face)) {
+    operation_lambda(mirror_face);
+  }
+}
 /**
  * \param em: Edit-mesh used for generating mirror data.
  * \param use_self: Allow a vertex to point to itself (middle verts).

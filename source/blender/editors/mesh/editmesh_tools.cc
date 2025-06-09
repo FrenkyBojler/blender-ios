@@ -2639,12 +2639,11 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   int tot_selected = 0, tot_locked = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+
   for (Object *obedit : objects) {
-    Mesh *mesh = static_cast<Mesh *>(obedit->data);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    bool mirrx = false, mirry = false, mirrz = false;
-    float clip_dist = 0.0f;
-    const bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+    BMesh *bm = em->bm;
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totvertsel == 0) {
       continue;
@@ -2657,10 +2656,8 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
     tot_selected++;
 
-    /* mirror before smooth */
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_cache_begin(em, 0, false, true, false, use_topology);
-    }
+    bool mirrx = false, mirry = false, mirrz = false;
+    float clip_dist = 0.0f;
 
     /* if there is a mirror modifier with clipping, flag the verts that
      * are within tolerance of the plane(s) of reflection
@@ -2685,13 +2682,32 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
+
+    int hflag_smooth = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_smooth = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_smooth);
+
+      BMIter v_iter;
+      BMVert *v;
+      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(v, hflag_smooth);
+          symmetry_helper->set_flag_on_mirror_verts(v, hflag_smooth, true);
+        }
+      }
+    }
+
     for (int i = 0; i < repeat; i++) {
       if (!EDBM_op_callf(
               em,
               op,
               "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b "
               "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-              BM_ELEM_SELECT,
+              hflag_smooth,
               fac,
               mirrx,
               mirry,
@@ -2705,19 +2721,13 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       }
     }
 
-    /* NOTE: redundant calculation could be avoided if the EDBM API could skip calculation. */
-    bool calc_normals = false;
-
-    /* apply mirror */
-    if (((Mesh *)obedit->data)->symmetry & ME_SYMMETRY_X) {
-      EDBM_verts_mirror_apply(em, BM_ELEM_SELECT, 0);
-      EDBM_verts_mirror_cache_end(em);
-      calc_normals = true;
+    if (hflag_smooth != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_smooth);
     }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
-    params.calc_normals = calc_normals;
+    params.calc_normals = true;
     params.is_destructive = false;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
@@ -5196,11 +5206,33 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totfacesel == 0) {
       continue;
+    }
+
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
+
+    int hflag_poke = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag_poke = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag_poke);
+
+      BMIter f_iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag_poke);
+          symmetry_helper->set_flag_on_mirror_faces(f, hflag_poke, true);
+        }
+      }
     }
 
     BMOperator bmop;
@@ -5208,11 +5240,15 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
                  &bmop,
                  op,
                  "poke faces=%hf offset=%f use_relative_offset=%b center_mode=%i",
-                 BM_ELEM_SELECT,
+                 hflag_poke,
                  offset,
                  use_relative_offset,
                  center_mode);
     BMO_op_exec(em->bm, &bmop);
+
+    if (hflag_poke != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag_poke);
+    }
 
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
