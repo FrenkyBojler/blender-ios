@@ -232,8 +232,8 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
   }
 
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
-  GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
+  GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  GPU_vertformat_attr_add(&format, "nor", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, model_data.count_vertices);
