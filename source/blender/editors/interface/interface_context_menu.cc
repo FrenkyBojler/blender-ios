@@ -376,15 +376,15 @@ static bUserMenuItem *ui_but_user_menu_find(bContext *C, uiBut *but, bUserMenu *
   MenuType *mt = UI_but_menutype_get(but);
   if (mt != nullptr) {
     IDProperty *context_props = CTX_store_as_idprop(CTX_store_get(C));
-    return (bUserMenuItem *)ED_screen_user_menu_item_find_menu(&um->items, mt, context_props);
+    bUserMenuItem *umi = (bUserMenuItem *)ED_screen_user_menu_item_find_menu(
+        &um->items, mt, context_props);
+    IDP_FreeProperty(context_props);
+    return umi;
   }
   return nullptr;
 }
 
-static void ui_but_user_menu_add(bContext *C,
-                                 uiBut *but,
-                                 bUserMenu *um,
-                                 const bContextStore *context_store)
+static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
 {
   BLI_assert(ui_but_is_user_menu_compatible(C, but));
 
@@ -457,7 +457,7 @@ static void ui_but_user_menu_add(bContext *C,
     }
   }
   else if ((mt = UI_but_menutype_get(but))) {
-    ED_screen_user_menu_item_add_menu(&um->items, drawstr.c_str(), mt, context_store);
+    ED_screen_user_menu_item_add_menu(&um->items, drawstr.c_str(), mt, but->context);
   }
   else if ((ot = UI_but_operatortype_get_from_enum_menu(but, &prop))) {
     ED_screen_user_menu_item_add_operator(&um->items,
@@ -1103,11 +1103,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
 
     if (!item_found) {
-      const bContextStore *context_store = CTX_store_get(C);
-      std::shared_ptr<bContextStore> context_store_copy = context_store ?
-                                                              std::make_shared<bContextStore>(
-                                                                  *context_store) :
-                                                              nullptr;
       uiBut *but2 = uiDefIconTextBut(
           block,
           UI_BTYPE_BUT,
@@ -1122,10 +1117,10 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           0,
           0,
           TIP_("Add to a user defined context menu (stored in the user preferences)"));
-      UI_but_func_set(but2, [but, store = std::move(context_store_copy)](bContext &C) {
+      UI_but_func_set(but2, [but](bContext &C) {
         bUserMenu *um = ED_screen_user_menu_ensure(&C);
         U.runtime.is_dirty = true;
-        ui_but_user_menu_add(&C, but, um, store.get());
+        ui_but_user_menu_add(&C, but, um);
       });
     }
 

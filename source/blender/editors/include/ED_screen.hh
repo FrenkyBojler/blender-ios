@@ -647,7 +647,7 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
                                                          wmOperatorCallContext opcontext);
 bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb,
                                                        const MenuType *mt,
-                                                       IDProperty *context_props);
+                                                       const IDProperty *context_props);
 bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBase *lb,
                                                        const char *context_data_path,
                                                        const char *prop_id,

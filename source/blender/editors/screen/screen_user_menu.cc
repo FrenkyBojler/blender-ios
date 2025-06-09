@@ -117,7 +117,7 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
 
 bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb,
                                                        const MenuType *mt,
-                                                       IDProperty *context_props)
+                                                       const IDProperty *context_props)
 {
   LISTBASE_FOREACH (bUserMenuItem *, umi, lb) {
     if (umi->type == USER_MENU_TYPE_MENU) {

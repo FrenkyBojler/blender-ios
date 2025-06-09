@@ -243,25 +243,30 @@ IDProperty *CTX_store_as_idprop(const bContextStore *store)
   if (!store) {
     return nullptr;
   }
-  IDProperty *group = nullptr;
+
+  using IDPropertyPtr = std::unique_ptr<IDProperty, blender::bke::idprop::IDPropertyDeleter>;
+  blender::Map<std::string, IDPropertyPtr> props_by_name;
   for (const bContextStoreEntry &entry : store->entries) {
-    IDProperty *prop = nullptr;
+    IDPropertyPtr prop;
     if (const std::string *value_str = std::get_if<std::string>(&entry.value)) {
-      prop = blender::bke::idprop::create(entry.name, *value_str, IDP_FLAG_STATIC_TYPE).release();
+      prop = blender::bke::idprop::create(entry.name, *value_str, IDP_FLAG_STATIC_TYPE);
     }
     else if (const int64_t *value_int = std::get_if<int64_t>(&entry.value)) {
       if (std::clamp<int64_t>(*value_int, INT32_MIN, INT32_MAX)) {
-        prop = blender::bke::idprop::create(entry.name, int(*value_int), IDP_FLAG_STATIC_TYPE)
-                   .release();
+        prop = blender::bke::idprop::create(entry.name, int(*value_int), IDP_FLAG_STATIC_TYPE);
       }
     }
     if (prop) {
-      if (!group) {
-        group =
-            blender::bke::idprop::create_group("Context Props", IDP_FLAG_STATIC_TYPE).release();
-      }
-      IDP_AddToGroup(group, prop);
+      props_by_name.add_overwrite(prop->name, std::move(prop));
     }
+  }
+  if (props_by_name.is_empty()) {
+    return nullptr;
+  }
+  IDProperty *group =
+      blender::bke::idprop::create_group("Context Props", IDP_FLAG_STATIC_TYPE).release();
+  for (IDPropertyPtr &prop : props_by_name.values()) {
+    IDP_AddToGroup(group, prop.release());
   }
   return group;
 }
