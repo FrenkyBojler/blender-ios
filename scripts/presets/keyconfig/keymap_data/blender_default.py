@@ -1384,7 +1384,7 @@ def km_uv_editor(params):
              {"properties": [("pinned", False)]}),
             (op_tool, "builtin.select_box"), params),
         ("uv.select_box", {"type": 'B', "value": 'PRESS', "alt": True},
-        {"properties": [("pinned", True)]}),
+         {"properties": [("pinned", True)]}),
         op_tool_optional(
             ("uv.select_circle", {"type": 'C', "value": 'PRESS'}, None),
             (op_tool, "builtin.select_circle"), params),

@@ -1912,7 +1912,7 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void uv_pack_islands_ui(bContext * C, wmOperator *op)
+static void uv_pack_islands_ui(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
   uiLayout *layout = op->layout;
