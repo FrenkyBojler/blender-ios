@@ -33,7 +33,7 @@ WeightMatrix calc_knot_insertion_weights(Span<float> knots,
  */
 Span<float> prepare_curve_weights(const Span<float> all_weights,
                                   const IndexRange curve_points,
-                                  Array<float> weights_buffer);
+                                  Array<float> &weights_buffer);
 
 IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMemory &memory);
 

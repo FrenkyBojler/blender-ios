@@ -139,7 +139,7 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
 
 Span<float> prepare_curve_weights(const Span<float> all_weights,
                                   const IndexRange curve_points,
-                                  Array<float> weights_buffer)
+                                  Array<float> &weights_buffer)
 {
   if (!all_weights.is_empty()) {
     return all_weights.slice(curve_points);
