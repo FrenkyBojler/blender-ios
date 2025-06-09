@@ -3805,12 +3805,10 @@ void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_defau
       if (prop->arraydimension) {
         /* Not supported yet. */
         BLI_assert_unreachable();
+        CLOG_ERROR(&LOG, "enums don't support arrays");
+        return;
       }
-      else {
-        if (get_default) {
-          eprop->get_default = (PropEnumGetFuncEx)get_default;
-        }
-      }
+      eprop->get_default = (PropEnumGetFuncEx)get_default;
       break;
     }
     default: {
