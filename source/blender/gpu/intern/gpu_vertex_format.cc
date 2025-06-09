@@ -651,7 +651,7 @@ void GPU_vertformat_from_shader(GPUVertFormat *format, const GPUShader *shader)
 
     int comp_len = component_size_get(gpu_type);
 
-    GPU_vertformat_attr_add(format, name, comp_type, comp_len, fetch_mode);
+    GPU_vertformat_attr_add_legacy(format, name, comp_type, comp_len, fetch_mode);
     attrs_added++;
   }
 }
