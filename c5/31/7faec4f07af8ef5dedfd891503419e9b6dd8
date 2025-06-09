@@ -1,1 +1,2 @@
 Referenced by issue #139968, Vulkan: Crash when using a knife tool
+Referenced by commit 1ad6749a8513e71613309037f2c1ea918c8a476b, Revert "Fix #139898: Vulkan: Asan issue during color picking"
