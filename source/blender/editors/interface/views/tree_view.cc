@@ -470,7 +470,7 @@ void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
 
   view_item_but_->view_item = this;
   view_item_but_->draw_height = unpadded_item_height();
-  UI_but_func_set(view_item_but_, tree_row_click_fn, view_item_but_, nullptr);
+  //UI_but_func_set(view_item_but_, tree_row_click_fn, view_item_but_, nullptr);
 }
 
 int AbstractTreeViewItem::indent_width() const
