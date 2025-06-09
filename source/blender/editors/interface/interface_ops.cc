@@ -2758,11 +2758,14 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 
 static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator * /*op*/)
 {
-  wmWindow &win = *CTX_wm_window(C);
-  ARegion &region = *CTX_wm_region(C);
-  AbstractViewItem *active_item = UI_region_views_find_item_at(region, win.eventstate->xy);
-  active_item->activate(*C);
-  return OPERATOR_FINISHED;
+  const wmWindow &win = *CTX_wm_window(C);
+  const ARegion &region = *CTX_wm_region(C);
+
+  if (AbstractViewItem *active_item = UI_region_views_find_item_at(region, win.eventstate->xy)) {
+    active_item->activate(*C);
+    return OPERATOR_FINISHED;
+  }
+  return OPERATOR_CANCELLED;
 }
 
 static void UI_OT_view_item_select(wmOperatorType *ot)
