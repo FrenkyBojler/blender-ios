@@ -25,10 +25,6 @@
 #  define M_LN2 0.69314718055994530942f     /* log_e 2 */
 #  define M_LN10 2.30258509299404568402f    /* log_e 10 */
 
-#  define FLT_EPSILON 1.192092896e-07f /* smallest such that 1.0+FLT_EPSILON != 1.0 */
-#  define FLT_MAX 3.402823466e+38f     /* max value */
-#  define FLT_MIN 1.175494351e-38f     /* min normalized positive value */
-
 /* `powf` is really slow for raising to integer powers. */
 
 float pow2f(float x)
