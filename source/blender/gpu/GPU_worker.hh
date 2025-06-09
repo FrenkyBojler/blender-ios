@@ -23,7 +23,7 @@ class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
   std::condition_variable condition_var_;
-  std::mutex mutex_;
+  std::mutex &mutex_;
   bool terminate_ = false;
 
  public:
@@ -41,6 +41,7 @@ class GPUWorker {
    */
   GPUWorker(uint32_t threads_count,
             ContextType context_type,
+            std::mutex &mutex,
             std::function<void *()> pop_work,
             std::function<void(void *)> do_work);
   ~GPUWorker();

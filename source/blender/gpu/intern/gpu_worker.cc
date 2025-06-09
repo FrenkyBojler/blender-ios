@@ -8,8 +8,10 @@ namespace blender::gpu {
 
 GPUWorker::GPUWorker(uint32_t threads_count,
                      ContextType context_type,
+                     std::mutex &mutex,
                      std::function<void *()> pop_work,
                      std::function<void(void *)> do_work)
+    : mutex_(mutex)
 {
   for (int i : IndexRange(threads_count)) {
     UNUSED_VARS(i);

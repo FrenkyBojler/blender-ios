@@ -950,6 +950,7 @@ ShaderCompiler::ShaderCompiler(uint32_t threads_count,
     compilation_worker_ = std::make_unique<GPUWorker>(
         threads_count,
         context_type,
+        mutex_,
         [this]() -> void * { return this->pop_work(); },
         [this](void *work) { this->do_work(work); });
   }
@@ -1083,7 +1084,7 @@ bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &ha
 
 void *ShaderCompiler::pop_work()
 {
-  std::lock_guard lock(mutex_);
+  /* NOTE: Already under mutex lock when GPUWorker calls this function. */
 
   if (compilation_queue_.is_empty()) {
     return nullptr;
