@@ -63,6 +63,7 @@ typedef struct bUserMenuItem_Op {
 typedef struct bUserMenuItem_Menu {
   bUserMenuItem item;
   char mt_idname[64];
+  struct IDProperty *context_props;
 } bUserMenuItem_Menu;
 
 typedef struct bUserMenuItem_Prop {

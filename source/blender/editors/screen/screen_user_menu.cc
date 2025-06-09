@@ -115,12 +115,16 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
   return nullptr;
 }
 
-bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb, const MenuType *mt)
+bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb,
+                                                       const MenuType *mt,
+                                                       IDProperty *context_props)
 {
   LISTBASE_FOREACH (bUserMenuItem *, umi, lb) {
     if (umi->type == USER_MENU_TYPE_MENU) {
       bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)umi;
-      if (STREQ(mt->idname, umi_mt->mt_idname)) {
+      if (STREQ(mt->idname, umi_mt->mt_idname) &&
+          IDP_EqualsProperties(umi_mt->context_props, context_props))
+      {
         return umi_mt;
       }
     }
@@ -164,7 +168,10 @@ void ED_screen_user_menu_item_add_operator(ListBase *lb,
   umi_op->prop = prop ? IDP_CopyProperty(prop) : nullptr;
 }
 
-void ED_screen_user_menu_item_add_menu(ListBase *lb, const char *ui_name, const MenuType *mt)
+void ED_screen_user_menu_item_add_menu(ListBase *lb,
+                                       const char *ui_name,
+                                       const MenuType *mt,
+                                       const bContextStore *context_store)
 {
   bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)BKE_blender_user_menu_item_add(
       lb, USER_MENU_TYPE_MENU);
@@ -172,6 +179,7 @@ void ED_screen_user_menu_item_add_menu(ListBase *lb, const char *ui_name, const 
     STRNCPY(umi_mt->item.ui_name, ui_name);
   }
   STRNCPY(umi_mt->mt_idname, mt->idname);
+  umi_mt->context_props = CTX_store_as_idprop(context_store);
 }
 
 void ED_screen_user_menu_item_add_prop(ListBase *lb,
@@ -251,7 +259,16 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)umi;
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          menu->layout->menu(mt, ui_name, ICON_NONE);
+          uiLayout &col = menu->layout->column(false);
+          IDP_foreach_property(umi_mt->context_props, 0, [&](IDProperty *context_prop) {
+            if (context_prop->type == IDP_STRING) {
+              uiLayoutSetContextString(&col, context_prop->name, IDP_String(context_prop));
+            }
+            else if (context_prop->type == IDP_INT) {
+              uiLayoutSetContextInt(&col, context_prop->name, IDP_Int(context_prop));
+            }
+          });
+          col.menu(mt, ui_name, ICON_NONE);
           is_empty = false;
         }
         else {

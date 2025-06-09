@@ -30,6 +30,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_scene.hh"
@@ -235,6 +236,34 @@ std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store,
     return *value;
   }
   return {};
+}
+
+IDProperty *CTX_store_as_idprop(const bContextStore *store)
+{
+  if (!store) {
+    return nullptr;
+  }
+  IDProperty *group = nullptr;
+  for (const bContextStoreEntry &entry : store->entries) {
+    IDProperty *prop = nullptr;
+    if (const std::string *value_str = std::get_if<std::string>(&entry.value)) {
+      prop = blender::bke::idprop::create(entry.name, *value_str, IDP_FLAG_STATIC_TYPE).release();
+    }
+    else if (const int64_t *value_int = std::get_if<int64_t>(&entry.value)) {
+      if (std::clamp<int64_t>(*value_int, INT32_MIN, INT32_MAX)) {
+        prop = blender::bke::idprop::create(entry.name, int(*value_int), IDP_FLAG_STATIC_TYPE)
+                   .release();
+      }
+    }
+    if (prop) {
+      if (!group) {
+        group =
+            blender::bke::idprop::create_group("Context Props", IDP_FLAG_STATIC_TYPE).release();
+      }
+      IDP_AddToGroup(group, prop);
+    }
+  }
+  return group;
 }
 
 /* is python initialized? */

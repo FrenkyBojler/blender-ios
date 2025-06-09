@@ -3641,6 +3641,11 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
         BLO_read_struct(reader, IDProperty, &umi_op->prop);
         IDP_BlendDataRead(reader, &umi_op->prop);
       }
+      else if (umi->type == USER_MENU_TYPE_MENU) {
+        bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(umi);
+        BLO_read_struct(reader, IDProperty, &umi_mt->context_props);
+        IDP_BlendDataRead(reader, &umi_mt->context_props);
+      }
     }
   }
 

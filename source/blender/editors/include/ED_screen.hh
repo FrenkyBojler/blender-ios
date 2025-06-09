@@ -645,7 +645,9 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
                                                          IDProperty *prop,
                                                          const char *op_prop_enum,
                                                          wmOperatorCallContext opcontext);
-bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb, const MenuType *mt);
+bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb,
+                                                       const MenuType *mt,
+                                                       IDProperty *context_props);
 bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBase *lb,
                                                        const char *context_data_path,
                                                        const char *prop_id,
@@ -657,7 +659,10 @@ void ED_screen_user_menu_item_add_operator(ListBase *lb,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
                                            wmOperatorCallContext opcontext);
-void ED_screen_user_menu_item_add_menu(ListBase *lb, const char *ui_name, const MenuType *mt);
+void ED_screen_user_menu_item_add_menu(ListBase *lb,
+                                       const char *ui_name,
+                                       const MenuType *mt,
+                                       const bContextStore *context_store);
 void ED_screen_user_menu_item_add_prop(ListBase *lb,
                                        const char *ui_name,
                                        const char *context_data_path,

@@ -1062,6 +1062,9 @@ static void write_userdef(BlendWriter *writer, const UserDef *userdef)
       else if (umi->type == USER_MENU_TYPE_MENU) {
         const bUserMenuItem_Menu *umi_mt = (const bUserMenuItem_Menu *)umi;
         BLO_write_struct(writer, bUserMenuItem_Menu, umi_mt);
+        if (umi_mt->context_props) {
+          IDP_BlendWrite(writer, umi_mt->context_props);
+        }
       }
       else if (umi->type == USER_MENU_TYPE_PROP) {
         const bUserMenuItem_Prop *umi_pr = (const bUserMenuItem_Prop *)umi;

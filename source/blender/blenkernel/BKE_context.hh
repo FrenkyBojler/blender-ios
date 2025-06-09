@@ -30,6 +30,7 @@ struct Collection;
 struct Depsgraph;
 struct EditBone;
 struct ID;
+struct IDProperty;
 struct Image;
 struct LayerCollection;
 struct ListBase;
@@ -174,6 +175,7 @@ const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
 std::optional<blender::StringRefNull> CTX_store_string_lookup(const bContextStore *store,
                                                               blender::StringRef name);
 std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, blender::StringRef name);
+IDProperty *CTX_store_as_idprop(const bContextStore *store);
 
 /* need to store if python is initialized or not */
 bool CTX_py_init_get(bContext *C);

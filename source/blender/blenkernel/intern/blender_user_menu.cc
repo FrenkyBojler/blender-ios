@@ -87,6 +87,12 @@ void BKE_blender_user_menu_item_free(bUserMenuItem *umi)
       IDP_FreeProperty(umi_op->prop);
     }
   }
+  else if (umi->type == USER_MENU_TYPE_MENU) {
+    bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(umi);
+    if (umi_mt->context_props) {
+      IDP_FreeProperty(umi_mt->context_props);
+    }
+  }
   MEM_freeN(umi);
 }
 
