@@ -912,7 +912,7 @@ class RENDER_PT_grease_pencil_render(RenderButtonsPanel, Panel):
 
         col = layout.column()
         col.active = scene.render.use_motion_blur
-        col.prop(props, "motion_blur_steps", text="Motion Blur Steps")
+        col.prop(props, "motion_blur_steps")
 
 
 class RENDER_PT_opengl_sampling(RenderButtonsPanel, Panel):
