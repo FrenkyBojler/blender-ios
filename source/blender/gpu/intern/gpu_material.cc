@@ -77,6 +77,12 @@ struct GPUMaterial {
   /* Number of generated function. */
   int generated_function_len = 0;
 
+  /* Texture loading "timestamp". Set for each time the material has all its texture loaded.
+   * Reset to 0 if at least a texture is detected as not loaded. */
+  uint64_t texture_loaded_timestamp = 0;
+  /* Monotonically increasing counter for each material with loaded texture. */
+  static inline std::atomic<uint64_t> texture_loaded_count = 0;
+
   /* Source material, might be null. */
   Material *source_material = nullptr;
   /* 1D Texture array containing all color bands. */
@@ -333,6 +339,26 @@ eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat
 uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat)
 {
   return GPU_pass_compilation_timestamp(mat->pass);
+}
+
+uint64_t GPU_material_texture_load_timestamp(GPUMaterial *mat)
+{
+  return mat->texture_loaded_timestamp;
+}
+
+void GPU_material_textures_set_loaded_status(GPUMaterial *mat, bool loaded)
+{
+  if (loaded == false) {
+    mat->texture_loaded_timestamp = 0;
+  }
+  else if (mat->texture_loaded_timestamp == 0) {
+    mat->texture_loaded_timestamp = ++GPUMaterial::texture_loaded_count;
+  }
+}
+
+uint64_t GPU_material_global_texture_loaded_count()
+{
+  return GPUMaterial::texture_loaded_count;
 }
 
 bool GPU_material_has_surface_output(GPUMaterial *mat)

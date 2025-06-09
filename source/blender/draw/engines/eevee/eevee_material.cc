@@ -160,13 +160,25 @@ MaterialModule::~MaterialModule()
 
 void MaterialModule::begin_sync()
 {
+  if (inst_.is_viewport() && queued_textures_count > 0) {
+    /* Avoid ghosting of textures. */
+    inst_.sampling.reset();
+  }
+
   queued_shaders_count = 0;
   queued_textures_count = 0;
   queued_optimize_shaders_count = 0;
 
-  uint64_t next_update = GPU_pass_global_compilation_count();
-  gpu_pass_last_update_ = gpu_pass_next_update_;
-  gpu_pass_next_update_ = next_update;
+  {
+    uint64_t next_update = GPU_pass_global_compilation_count();
+    gpu_pass_last_update_ = gpu_pass_next_update_;
+    gpu_pass_next_update_ = next_update;
+  }
+  {
+    uint64_t next_update = GPU_material_global_texture_loaded_count();
+    gpu_texture_last_update_ = gpu_texture_next_update_;
+    gpu_texture_next_update_ = next_update;
+  }
 
   texture_loading_queue_.clear();
   material_map_.clear();
@@ -177,6 +189,9 @@ bool MaterialModule::queue_texture_loading(GPUMaterial *material)
 {
   if (inst_.is_viewport_image_render) {
     /* Do not delay image loading for viewport render as it would produce invalid frames. */
+    /* Do not call GPU_material_textures_set_loaded_status as it would consider the texture always
+     * loading. Keeping the timestamp to 0 is given to pass the update test. This is fine since we
+     * will block until the texture are loaded. */
     return true;
   }
 
@@ -193,11 +208,13 @@ bool MaterialModule::queue_texture_loading(GPUMaterial *material)
         continue;
       }
       if (gputex.texture == nullptr) {
+        queued_textures_count++;
         texture_loading_queue_.append(tex);
         loaded = false;
       }
     }
   }
+  GPU_material_textures_set_loaded_status(material, loaded);
   return loaded;
 }
 
@@ -269,6 +286,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   matpass.gpumat = inst_.shaders.material_shader_get(
       blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation, default_mat);
 
+  bool texture_loaded = queue_texture_loading(matpass.gpumat);
+
   const bool is_forward = ELEM(pipeline_type,
                                MAT_PIPE_FORWARD,
                                MAT_PIPE_PREPASS_FORWARD,
@@ -277,8 +296,7 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
   switch (GPU_material_status(matpass.gpumat)) {
     case GPU_MAT_SUCCESS: {
-      if (!queue_texture_loading(matpass.gpumat)) {
-        queued_textures_count++;
+      if (!texture_loaded) {
         matpass.gpumat = inst_.shaders.material_shader_get(
             default_mat, default_mat->nodetree, pipeline_type, geometry_type, false, nullptr);
       }
@@ -308,8 +326,10 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   const bool is_transparent = GPU_material_flag_get(matpass.gpumat, GPU_MATFLAG_TRANSPARENT);
 
   bool pass_updated = GPU_material_compilation_timestamp(matpass.gpumat) > gpu_pass_last_update_;
+  bool texture_updated = GPU_material_texture_load_timestamp(matpass.gpumat) >
+                         gpu_texture_last_update_;
 
-  if (inst_.is_viewport() && use_deferred_compilation && pass_updated) {
+  if (inst_.is_viewport() && ((use_deferred_compilation && pass_updated) || texture_updated)) {
     inst_.sampling.reset();
 
     const bool has_displacement = GPU_material_has_displacement_output(matpass.gpumat) &&

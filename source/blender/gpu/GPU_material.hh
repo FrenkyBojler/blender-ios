@@ -143,6 +143,14 @@ eGPUMaterialStatus GPU_material_status(GPUMaterial *mat);
 eGPUMaterialOptimizationStatus GPU_material_optimization_status(GPUMaterial *mat);
 
 uint64_t GPU_material_compilation_timestamp(GPUMaterial *mat);
+uint64_t GPU_material_texture_load_timestamp(GPUMaterial *mat);
+void GPU_material_textures_set_loaded_status(GPUMaterial *mat, bool loaded);
+
+/**
+ * Return the counter used to set GPU_material_compilation_timestamp.
+ * Used to detect update.
+ */
+uint64_t GPU_material_global_texture_loaded_count();
 
 GPUUniformBuf *GPU_material_uniform_buffer_get(GPUMaterial *material);
 /**

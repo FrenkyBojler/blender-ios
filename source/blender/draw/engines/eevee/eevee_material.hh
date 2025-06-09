@@ -374,6 +374,9 @@ class MaterialModule {
   uint64_t gpu_pass_last_update_ = 0;
   uint64_t gpu_pass_next_update_ = 0;
 
+  uint64_t gpu_texture_last_update_ = 0;
+  uint64_t gpu_texture_next_update_ = 0;
+
   Vector<GPUMaterialTexture *> texture_loading_queue_;
 
  public:
