@@ -77,6 +77,27 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
   STRNCPY(old_seam_layer->name, new_name.c_str());
 }
 
+static void initialize_closure_input_structure_types(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->type_legacy == GEO_NODE_EVALUATE_CLOSURE) {
+      auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node->storage);
+      for (const int i : blender::IndexRange(storage->input_items.items_num)) {
+        NodeGeometryEvaluateClosureInputItem &item = storage->input_items.items[i];
+        if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+        }
+      }
+      for (const int i : blender::IndexRange(storage->output_items.items_num)) {
+        NodeGeometryEvaluateClosureOutputItem &item = storage->output_items.items[i];
+        if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+        }
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -100,23 +121,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy == GEO_NODE_EVALUATE_CLOSURE) {
-          auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node->storage);
-          for (const int i : IndexRange(storage->input_items.items_num)) {
-            NodeGeometryEvaluateClosureInputItem &item = storage->input_items.items[i];
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
-            }
-          }
-          for (const int i : IndexRange(storage->output_items.items_num)) {
-            NodeGeometryEvaluateClosureOutputItem &item = storage->output_items.items[i];
-            if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-              item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
-            }
-          }
-        }
-      }
+      initialize_closure_input_structure_types(*ntree);
     }
     FOREACH_NODETREE_END;
   }
