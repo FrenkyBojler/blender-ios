@@ -307,7 +307,7 @@ static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
   if (retval & (OPERATOR_CANCELLED | OPERATOR_INTERFACE)) {
     if (md && (md->retval & OPERATOR_FINISHED)) {
       retval |= OPERATOR_FINISHED;
-      retval &= ~OPERATOR_CANCELLED;
+      retval &= ~(OPERATOR_CANCELLED | OPERATOR_INTERFACE);
     }
   }
 
