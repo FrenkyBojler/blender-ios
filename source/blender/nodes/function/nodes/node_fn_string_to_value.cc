@@ -23,12 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
-
-    auto &integer = b.add_output<decl::Int>("Value");
-    integer.available(data_type == SOCK_INT);
-
-    auto &value = b.add_output<decl::Float>("Value", "Value_001");
-    value.available(data_type == SOCK_FLOAT);
+    b.add_output(data_type, "Value");
   }
 
   b.add_output<decl::Bool>("Is Valid")
