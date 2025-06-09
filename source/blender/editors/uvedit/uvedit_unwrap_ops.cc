@@ -1912,8 +1912,9 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
+static void uv_pack_islands_ui(bContext * C, wmOperator *op)
 {
+  ARegion *region = CTX_wm_region(C);
   uiLayout *layout = op->layout;
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -1938,11 +1939,17 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   }
   layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  const int udim_source = RNA_enum_get(op->ptr, "udim_source");
+  if (udim_source == PACK_BOX_REGION && !(region->v2d.flag & V2D_BOX_REGION)) {
+    region->v2d.flag |= V2D_BOX_REGION;
+    ED_region_tag_redraw(region);
+  }
   layout->separator();
 }
 
 static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+
   return WM_operator_props_popup_confirm_ex(C, op, event, IFACE_("Pack Islands"), IFACE_("Pack"));
 }
 
