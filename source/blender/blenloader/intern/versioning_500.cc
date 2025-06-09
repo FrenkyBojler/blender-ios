@@ -121,7 +121,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      initialize_closure_input_structure_types(*ntree);
+      if (ntree->type == NTREE_GEOMETRY) {
+        initialize_closure_input_structure_types(*ntree);
+      }
     }
     FOREACH_NODETREE_END;
   }
