@@ -4297,9 +4297,6 @@ static void wm_block_foreign_file_warning_ok(bContext *C, void *arg_block, void 
 
 static uiBlock *block_create_foreign_file_warning(bContext *C, ARegion *region, void * /*arg1*/)
 {
-  const char *blendfile_path = BKE_main_blendfile_path_from_global();
-  wmWindowManager *wm = CTX_wm_manager(C);
-
   uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
@@ -4331,15 +4328,15 @@ static uiBlock *block_create_foreign_file_warning(bContext *C, ARegion *region, 
   layout->separator(2.0f);
 
   /* Buttons. */
-  uiBut *but;
+
   uiLayout *split = &layout->split(0.0f, true);
-  uiLayoutSetScaleY(split, 1.2f);
+  split->scale_y_set(1.2f);
 
   /* Empty space. */
   col = &split->column(false);
   col->separator();
   col = &split->column(false);
-  but = uiDefIconTextBut(
+  uiBut *but = uiDefIconTextBut(
       block, UI_BTYPE_BUT, 0, ICON_NONE, IFACE_("Ok"), 0, 0, 50, UI_UNIT_Y, nullptr, 0, 0, "");
   UI_but_func_set(but, wm_block_foreign_file_warning_ok, block, nullptr);
   UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
