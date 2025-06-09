@@ -25,7 +25,6 @@ class GPUWorker {
   std::condition_variable condition_var_;
   std::mutex mutex_;
   bool terminate_ = false;
-  int pending_works_ = 0;
 
  public:
   enum class ContextType {
@@ -40,21 +39,22 @@ class GPUWorker {
    * \param context_type: The type of context each thread uses.
    * \param run_cb: The callback function that will be called by a thread on `wake_up()`.
    */
-  GPUWorker(uint32_t threads_count, ContextType context_type, std::function<void()> run_cb);
+  GPUWorker(uint32_t threads_count,
+            ContextType context_type,
+            std::function<void *()> pop_work,
+            std::function<void(void *)> do_work);
   ~GPUWorker();
 
   /* Wake up a single thread. */
   void wake_up()
   {
-    {
-      std::unique_lock<std::mutex> lock(mutex_);
-      pending_works_++;
-    }
     condition_var_.notify_one();
   }
 
  private:
-  void run(std::shared_ptr<GPUSecondaryContext> context, std::function<void()> run_cb);
+  void run(std::shared_ptr<GPUSecondaryContext> context,
+           std::function<void *()> pop_work,
+           std::function<void(void *)> do_work);
 };
 
 }  // namespace blender::gpu
