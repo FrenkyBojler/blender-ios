@@ -246,14 +246,15 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_MESH:
       if (usd_export_context.export_params.export_meshes) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
-          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
-          data_writer = pi_writer;
+          auto *point_instancer_writer = new USDPointInstancerWriter(usd_export_context,
+                                                                     proto_paths);
+          data_writer = point_instancer_writer;
 
           USDExporterContext mesh_context = create_point_instancer_context(context,
                                                                            usd_export_context);
           std::unique_ptr<USDMeshWriter> mesh_writer = std::make_unique<USDMeshWriter>(
               mesh_context);
-          pi_writer->set_base_writer(std::move(mesh_writer));
+          point_instancer_writer->set_base_writer(std::move(mesh_writer));
         }
         else {
           data_writer = new USDMeshWriter(usd_export_context);
@@ -289,14 +290,15 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_CURVES:
       if (usd_export_context.export_params.export_curves) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
-          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
-          data_writer = pi_writer;
+          auto *point_instancer_writer = new USDPointInstancerWriter(usd_export_context,
+                                                                     proto_paths);
+          data_writer = point_instancer_writer;
 
           USDExporterContext curves_context = create_point_instancer_context(context,
                                                                              usd_export_context);
           std::unique_ptr<USDCurvesWriter> curves_writer = std::make_unique<USDCurvesWriter>(
               curves_context);
-          pi_writer->set_base_writer(std::move(curves_writer));
+          point_instancer_writer->set_base_writer(std::move(curves_writer));
         }
         else {
           data_writer = new USDCurvesWriter(usd_export_context);
@@ -325,14 +327,15 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_POINTCLOUD:
       if (usd_export_context.export_params.export_points) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
-          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
-          data_writer = pi_writer;
+          auto *point_instancer_writer = new USDPointInstancerWriter(usd_export_context,
+                                                                     proto_paths);
+          data_writer = point_instancer_writer;
 
-          USDExporterContext pc_context = create_point_instancer_context(context,
-                                                                         usd_export_context);
-          std::unique_ptr<USDPointsWriter> pc_writer = std::make_unique<USDPointsWriter>(
-              pc_context);
-          pi_writer->set_base_writer(std::move(pc_writer));
+          USDExporterContext point_cloud_context = create_point_instancer_context(
+              context, usd_export_context);
+          std::unique_ptr<USDPointsWriter> point_cloud_writer = std::make_unique<USDPointsWriter>(
+              point_cloud_context);
+          point_instancer_writer->set_base_writer(std::move(point_cloud_writer));
         }
         else {
           data_writer = new USDPointsWriter(usd_export_context);
