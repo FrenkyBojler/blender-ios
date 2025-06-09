@@ -170,6 +170,9 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
           pxr::TfToken(proto_name + "_" + std::to_string(iter)));
 
       pxr::UsdPrim prim = stage->DefinePrim(proto_path);
+      
+      /* To avoid USD error of Unresolved reference prim path, make sure the referenced path exists.  */
+      stage->DefinePrim(source_path);
       prim.GetReferences().AddReference(pxr::SdfReference("", source_path));
       new_proto_paths_str.push_back(proto_path);
 
