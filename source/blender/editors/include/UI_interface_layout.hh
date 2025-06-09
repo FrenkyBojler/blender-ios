@@ -104,6 +104,29 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  blender::ui::EmbossType emboss() const;
+  void emboss_set(blender::ui::EmbossType emboss);
+
+  wmOperatorCallContext operator_context() const;
+  /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
+  void operator_context_set(wmOperatorCallContext opcontext);
+
+  float scale_x() const;
+  void scale_x_set(float scale);
+
+  float scale_y() const;
+  void scale_y_set(float scale);
+
+  float ui_units_x() const;
+  /** Sets a fixed width size for this layout. */
+  void ui_units_x_set(float width);
+
+  float ui_units_y() const;
+  /** Sets a fixed height size for this layout. */
+  void ui_units_y_set(float height);
+
+  /** Sub-layout items. */
+
   uiLayout &absolute(bool align);
   uiBlock *absolute_block();
 
@@ -274,14 +297,49 @@ struct uiLayout : uiItem {
    * freed with the menu button.
    */
   void menu_fn_argN_free(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *argN);
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot, std::optional<blender::StringRef> name, int icon);
 
   /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param opname: Operator id name.
    * \param name: Text to show in the layout.
+   * \returns Operator pointer to write properties, might be #PointerRNA_NULL if operator does not
+   * exists.
    */
-  void op(blender::StringRefNull opname, std::optional<blender::StringRef> name, int icon);
+  PointerRNA op(blender::StringRefNull opname, std::optional<blender::StringRef> name, int icon);
 
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param opname: Operator id name.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \returns Operator pointer to write properties, might be #PointerRNA_NULL if operator does not
+   * exists.
+   */
+  PointerRNA op(blender::StringRefNull opname,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag);
   /**
    * Adds a RNA property item, and exposes it into the layout.
    * \param ptr: RNA pointer to the struct owner of \a prop.
@@ -306,6 +364,42 @@ struct uiLayout : uiItem {
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
+};
+
+inline float uiLayout::scale_x() const
+{
+  return scale_[0];
+};
+inline void uiLayout::scale_x_set(float scale)
+{
+  scale_[0] = scale;
+};
+
+inline float uiLayout::scale_y() const
+{
+  return scale_[1];
+};
+inline void uiLayout::scale_y_set(float scale)
+{
+  scale_[1] = scale;
+};
+
+inline float uiLayout::ui_units_x() const
+{
+  return units_[0];
+};
+inline void uiLayout::ui_units_x_set(float width)
+{
+  units_[0] = width;
+};
+
+inline float uiLayout::ui_units_y() const
+{
+  return units_[1];
+};
+inline void uiLayout::ui_units_y_set(float height)
+{
+  units_[1] = height;
 };
 
 enum {
@@ -430,7 +524,6 @@ void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 /* Only for convenience. */
 void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
-void uiLayoutSetOperatorContext(uiLayout *layout, wmOperatorCallContext opcontext);
 void uiLayoutSetActive(uiLayout *layout, bool active);
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
@@ -439,17 +532,11 @@ void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
 void uiLayoutSetAlignment(uiLayout *layout, char alignment);
 void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size);
 void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect);
-void uiLayoutSetScaleX(uiLayout *layout, float scale);
-void uiLayoutSetScaleY(uiLayout *layout, float scale);
-void uiLayoutSetUnitsX(uiLayout *layout, float unit);
-void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
 void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
 
-wmOperatorCallContext uiLayoutGetOperatorContext(uiLayout *layout);
 bool uiLayoutGetActive(uiLayout *layout);
 bool uiLayoutGetActiveDefault(uiLayout *layout);
 bool uiLayoutGetActivateInit(uiLayout *layout);
@@ -459,11 +546,6 @@ int uiLayoutGetAlignment(uiLayout *layout);
 bool uiLayoutGetFixedSize(uiLayout *layout);
 bool uiLayoutGetKeepAspect(uiLayout *layout);
 int uiLayoutGetWidth(uiLayout *layout);
-float uiLayoutGetScaleX(uiLayout *layout);
-float uiLayoutGetScaleY(uiLayout *layout);
-float uiLayoutGetUnitsX(uiLayout *layout);
-float uiLayoutGetUnitsY(uiLayout *layout);
-blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
@@ -508,52 +590,11 @@ void uiItemEnumO_string(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout,
                   blender::StringRefNull opname,
                   blender::StringRefNull propname);
-void uiItemBooleanO(uiLayout *layout,
-                    std::optional<blender::StringRef> name,
-                    int icon,
-                    blender::StringRefNull opname,
-                    blender::StringRefNull propname,
-                    int value);
-void uiItemIntO(uiLayout *layout,
-                std::optional<blender::StringRef> name,
-                int icon,
-                blender::StringRefNull opname,
-                blender::StringRefNull propname,
-                int value);
-void uiItemFloatO(uiLayout *layout,
-                  std::optional<blender::StringRef> name,
-                  int icon,
-                  blender::StringRefNull opname,
-                  blender::StringRefNull propname,
-                  float value);
-void uiItemStringO(uiLayout *layout,
-                   std::optional<blender::StringRef> name,
-                   int icon,
-                   blender::StringRefNull opname,
-                   blender::StringRefNull propname,
-                   const char *value);
 
-void uiItemFullO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<blender::StringRef> name,
-                     int icon,
-                     IDProperty *properties,
-                     wmOperatorCallContext context,
-                     eUI_Item_Flag flag,
-                     PointerRNA *r_opptr);
-void uiItemFullO(uiLayout *layout,
-                 blender::StringRefNull opname,
-                 std::optional<blender::StringRef> name,
-                 int icon,
-                 IDProperty *properties,
-                 wmOperatorCallContext context,
-                 eUI_Item_Flag flag,
-                 PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
                              std::optional<blender::StringRef> name,
                              int icon,
-                             IDProperty *properties,
                              wmOperatorCallContext context,
                              eUI_Item_Flag flag,
                              const char *menu_id, /* extra menu arg. */

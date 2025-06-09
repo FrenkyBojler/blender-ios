@@ -19,6 +19,7 @@
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
+#include "gpu_profile_report.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
 #include "gpu_shader_dependency_private.hh"
@@ -59,6 +60,8 @@ Shader::Shader(const char *sh_name)
 
 Shader::~Shader()
 {
+  BLI_assert_msg(Context::get() == nullptr || Context::get()->shader != this,
+                 "Shader must be unbound from context before being freed");
   delete interface;
 }
 
@@ -130,6 +133,10 @@ GPUShader *GPU_shader_create_ex(const std::optional<StringRefNull> vertcode,
               computecode.has_value()));
 
   Shader *shader = GPUBackend::get()->shader_alloc(shname.c_str());
+  /* Needs to be called before init as GL uses the default specialization constants state to insert
+   * default shader inside a map. */
+  shader->constants = std::make_unique<const shader::SpecializationConstants>();
+  shader->init();
 
   if (vertcode) {
     Vector<StringRefNull> sources;
@@ -361,12 +368,13 @@ GPUShader *GPU_shader_create_from_python(std::optional<StringRefNull> vertcode,
   return sh;
 }
 
-BatchHandle GPU_shader_batch_create_from_infos(Span<const GPUShaderCreateInfo *> infos)
+BatchHandle GPU_shader_batch_create_from_infos(Span<const GPUShaderCreateInfo *> infos,
+                                               CompilationPriority priority)
 {
   using namespace blender::gpu::shader;
   Span<const ShaderCreateInfo *> &infos_ = reinterpret_cast<Span<const ShaderCreateInfo *> &>(
       infos);
-  return GPUBackend::get()->get_compiler()->batch_compile(infos_);
+  return GPUBackend::get()->get_compiler()->batch_compile(infos_, priority);
 }
 
 bool GPU_shader_batch_is_ready(BatchHandle handle)
@@ -383,6 +391,11 @@ Vector<GPUShader *> GPU_shader_batch_finalize(BatchHandle &handle)
 void GPU_shader_batch_cancel(BatchHandle &handle)
 {
   GPUBackend::get()->get_compiler()->batch_cancel(handle);
+}
+
+void GPU_shader_batch_wait_for_all()
+{
+  GPUBackend::get()->get_compiler()->wait_for_all();
 }
 
 void GPU_shader_compile_static()
@@ -437,13 +450,16 @@ void GPU_shader_bind(GPUShader *gpu_shader, const shader::SpecializationConstant
 
 void GPU_shader_unbind()
 {
-#ifndef NDEBUG
   Context *ctx = Context::get();
+  if (ctx == nullptr) {
+    return;
+  }
+#ifndef NDEBUG
   if (ctx->shader) {
     ctx->shader->unbind();
   }
-  ctx->shader = nullptr;
 #endif
+  ctx->shader = nullptr;
 }
 
 GPUShader *GPU_shader_get_bound()
@@ -511,9 +527,9 @@ void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
 }
 
 SpecializationBatchHandle GPU_shader_batch_specializations(
-    blender::Span<ShaderSpecialization> specializations)
+    blender::Span<ShaderSpecialization> specializations, CompilationPriority priority)
 {
-  return GPUBackend::get()->get_compiler()->precompile_specializations(specializations);
+  return GPUBackend::get()->get_compiler()->precompile_specializations(specializations, priority);
 }
 
 bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle)
@@ -790,12 +806,21 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 
 Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
 {
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = Clock::time_point;
+
   using namespace blender::gpu::shader;
   const_cast<ShaderCreateInfo &>(info).finalize();
+
+  TimePoint start_time;
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
+    GPU_debug_group_begin(info.name_.c_str());
+  }
+  else {
+    start_time = Clock::now();
   }
 
   const std::string error = info.check_error();
@@ -918,6 +943,17 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_end();
+    GPU_debug_group_end();
+  }
+  else {
+    TimePoint end_time = Clock::now();
+    /* Note: Used by the vulkan backend. Use the same time_since_epoch as process_frame_timings. */
+    ProfileReport::get().add_group_cpu(GPU_DEBUG_SHADER_COMPILATION_GROUP,
+                                       start_time.time_since_epoch().count(),
+                                       end_time.time_since_epoch().count());
+    ProfileReport::get().add_group_cpu(info.name_.c_str(),
+                                       start_time.time_since_epoch().count(),
+                                       end_time.time_since_epoch().count());
   }
 
   return shader;
@@ -948,7 +984,8 @@ Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return compile(info, false);
 }
 
-BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos)
+BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
+                                          CompilationPriority priority)
 {
   std::unique_lock lock(mutex_);
 
@@ -963,7 +1000,7 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
     batch->shaders.resize(infos.size(), nullptr);
     batch->pending_compilations = infos.size();
     for (int i : infos.index_range()) {
-      compilation_queue_.push_back({batch, i});
+      compilation_queue_.push({batch, i}, priority);
       compilation_worker_->wake_up();
     }
   }
@@ -981,18 +1018,7 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
   std::unique_lock lock(mutex_);
 
   Batch *batch = batches_.pop(handle);
-
-  for (ParallelWork &work : compilation_queue_) {
-    if (work.batch == batch) {
-      work = {};
-      batch->pending_compilations--;
-    }
-  }
-
-  compilation_queue_.erase(std::remove_if(compilation_queue_.begin(),
-                                          compilation_queue_.end(),
-                                          [](const ParallelWork &work) { return !work.batch; }),
-                           compilation_queue_.end());
+  compilation_queue_.remove_batch(batch);
 
   if (batch->is_specialization_batch()) {
     /* For specialization batches, we block until ready, since base shader compilation may be
@@ -1022,6 +1048,7 @@ bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
+  /* TODO: Move to be first on the queue. */
   compilation_finished_notification_.wait(lock,
                                           [&]() { return batches_.lookup(handle)->is_ready(); });
 
@@ -1034,7 +1061,7 @@ Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 }
 
 SpecializationBatchHandle ShaderCompiler::precompile_specializations(
-    Span<ShaderSpecialization> specializations)
+    Span<ShaderSpecialization> specializations, CompilationPriority priority)
 {
   if (!compilation_worker_ || !support_specializations_) {
     return 0;
@@ -1050,7 +1077,7 @@ SpecializationBatchHandle ShaderCompiler::precompile_specializations(
 
   batch->pending_compilations = specializations.size();
   for (int i : specializations.index_range()) {
-    compilation_queue_.push_back({batch, i});
+    compilation_queue_.push({batch, i}, priority);
     compilation_worker_->wake_up();
   }
 
@@ -1078,14 +1105,13 @@ void ShaderCompiler::run_thread()
     {
       std::lock_guard lock(mutex_);
 
-      if (compilation_queue_.empty()) {
+      if (compilation_queue_.is_empty()) {
         return;
       }
 
-      ParallelWork &work = compilation_queue_.front();
+      ParallelWork work = compilation_queue_.pop();
       batch = work.batch;
       shader_index = work.shader_index;
-      compilation_queue_.pop_front();
     }
 
     /* Compile */
@@ -1107,6 +1133,24 @@ void ShaderCompiler::run_thread()
 
     compilation_finished_notification_.notify_all();
   }
+}
+
+void ShaderCompiler::wait_for_all()
+{
+  std::unique_lock lock(mutex_);
+  compilation_finished_notification_.wait(lock, [&]() {
+    if (!compilation_queue_.is_empty()) {
+      return false;
+    }
+
+    for (Batch *batch : batches_.values()) {
+      if (!batch->is_ready()) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 }
 
 /** \} */

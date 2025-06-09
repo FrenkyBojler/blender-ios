@@ -1535,26 +1535,14 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 
           /* The weight group paste function */
           icon = (locked) ? ICON_BLANK1 : ICON_PASTEDOWN;
-          uiItemFullO(row,
-                      "OBJECT_OT_vertex_weight_paste",
-                      "",
-                      icon,
-                      nullptr,
-                      WM_OP_INVOKE_DEFAULT,
-                      UI_ITEM_NONE,
-                      &op_ptr);
+          op_ptr = row->op(
+              "OBJECT_OT_vertex_weight_paste", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           /* The weight entry delete function */
           icon = (locked) ? ICON_LOCKED : ICON_X;
-          uiItemFullO(row,
-                      "OBJECT_OT_vertex_weight_delete",
-                      "",
-                      icon,
-                      nullptr,
-                      WM_OP_INVOKE_DEFAULT,
-                      UI_ITEM_NONE,
-                      &op_ptr);
+          op_ptr = row->op(
+              "OBJECT_OT_vertex_weight_delete", "", icon, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
           yco -= UI_UNIT_Y;
@@ -1616,7 +1604,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   colsub = &split->column(true);
   colsub->prop(ptr, "location", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   colsub = &split->column(true);
-  uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
+  colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
   colsub->label("", ICON_NONE);
   colsub->prop(
       ptr, "lock_location", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);
@@ -1628,7 +1616,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
       colsub = &split->column(true);
       colsub->prop(ptr, "rotation_quaternion", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
-      uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
+      colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
       colsub->prop(ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
         colsub->prop(ptr,
@@ -1650,7 +1638,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
       colsub = &split->column(true);
       colsub->prop(ptr, "rotation_axis_angle", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
-      uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
+      colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
       colsub->prop(ptr, "lock_rotations_4d", UI_ITEM_R_TOGGLE, IFACE_("4L"), ICON_NONE);
       if (RNA_boolean_get(ptr, "lock_rotations_4d")) {
         colsub->prop(ptr,
@@ -1672,7 +1660,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
       colsub = &split->column(true);
       colsub->prop(ptr, "rotation_euler", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
       colsub = &split->column(true);
-      uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
+      colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
       colsub->label("", ICON_NONE);
       colsub->prop(ptr,
                    "lock_rotation",
@@ -1687,7 +1675,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
   colsub = &split->column(true);
   colsub->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   colsub = &split->column(true);
-  uiLayoutSetEmboss(colsub, blender::ui::EmbossType::NoneOrStatus);
+  colsub->emboss_set(blender::ui::EmbossType::NoneOrStatus);
   colsub->label("", ICON_NONE);
   colsub->prop(
       ptr, "lock_scale", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_DECORATE_UNLOCKED);

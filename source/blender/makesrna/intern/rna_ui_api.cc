@@ -376,9 +376,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   const float prev_weight = uiLayoutGetSearchWeight(layout);
   uiLayoutSetSearchWeight(layout, search_weight);
 
-  PointerRNA opptr;
-  uiItemFullO_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, &opptr);
+  PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag);
 
   uiLayoutSetSearchWeight(layout, prev_weight);
   return opptr;
@@ -416,8 +414,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
   }
 
   PointerRNA opptr;
-  uiItemFullOMenuHold_ptr(
-      layout, ot, text, icon, nullptr, uiLayoutGetOperatorContext(layout), flag, menu, &opptr);
+  uiItemFullOMenuHold_ptr(layout, ot, text, icon, layout->operator_context(), flag, menu, &opptr);
   return opptr;
 }
 
@@ -427,7 +424,7 @@ static void rna_uiItemsEnumO(uiLayout *layout,
                              const bool icon_only)
 {
   eUI_Item_Flag flag = icon_only ? UI_ITEM_R_ICON_ONLY : UI_ITEM_NONE;
-  uiItemsFullEnumO(layout, opname, propname, nullptr, uiLayoutGetOperatorContext(layout), flag);
+  uiItemsFullEnumO(layout, opname, propname, nullptr, layout->operator_context(), flag);
 }
 
 static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
@@ -1611,63 +1608,6 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* useful in C but not in python */
-#  if 0
-
-  func = RNA_def_function(srna, "operator_enum_single", "uiItemEnumO_string");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(func, "value", nullptr, 0, "", "Enum property value");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_boolean", "uiItemBooleanO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_boolean(
-      func, "value", false, "", "Value of the property to call the operator with");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_int", "uiItemIntO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_int(func,
-                     "value",
-                     0,
-                     INT_MIN,
-                     INT_MAX,
-                     "",
-                     "Value of the property to call the operator with",
-                     INT_MIN,
-                     INT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_float", "uiItemFloatO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_float(func,
-                       "value",
-                       0,
-                       -FLT_MAX,
-                       FLT_MAX,
-                       "",
-                       "Value of the property to call the operator with",
-                       -FLT_MAX,
-                       FLT_MAX);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-
-  func = RNA_def_function(srna, "operator_string", "uiItemStringO");
-  api_ui_item_op_common(func);
-  parm = RNA_def_string(func, "property", nullptr, 0, "", "Identifier of property in operator");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_string(
-      func, "value", nullptr, 0, "", "Value of the property to call the operator with");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-#  endif
-
   func = RNA_def_function(srna, "label", "rna_uiItemL");
   RNA_def_function_ui_description(func, "Item. Displays text and/or icon in the layout.");
   api_ui_item_common(func);
@@ -2517,6 +2457,11 @@ void RNA_api_ui_layout(StructRNA *srna)
       func, "properties", "OperatorProperties", "", "Operator properties to fill in");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
   RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(
+      srna, "template_shape_key_tree", "blender::ed::object::shapekey::template_tree");
+  RNA_def_function_ui_description(func, "Shape Key tree view");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 }
 
 #endif

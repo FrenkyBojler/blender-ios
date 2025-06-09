@@ -1588,7 +1588,7 @@ class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 13
+    bl_ui_units_x = 14
 
     def draw(self, context):
         pass
@@ -1704,7 +1704,7 @@ class IMAGE_PT_overlay_uv_display(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and not (sima.show_uvedit or sima.show_render))
+        return (sima and sima.mode in {'UV', 'PAINT'} and not (sima.show_uvedit or sima.show_render))
 
     def draw(self, context):
         layout = self.layout
@@ -1735,6 +1735,40 @@ class IMAGE_PT_overlay_image(Panel):
         layout.prop(uvedit, "show_metadata")
 
 
+class IMAGE_PT_overlay_render_guides(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Guides"
+    bl_parent_id = "IMAGE_PT_overlay"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (
+            (sima.mode in {'MASK', 'VIEW'}) and
+            (image := sima.image) is not None and
+            (image.source == 'VIEWER') and
+            (image.type == 'COMPOSITING')
+        )
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        overlay = sima.overlay
+
+        layout.active = overlay.show_overlays
+
+        row = layout.row(align=True)
+        layout.prop(overlay, "show_text_info")
+
+        row = layout.row(align=True)
+        row.prop(overlay, "show_render_size")
+        subrow = row.row()
+        subrow.active = overlay.show_render_size
+        subrow.prop(overlay, "passepartout_alpha", text="Passepartout")
+
+
 # Grease Pencil properties
 class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1753,7 +1787,6 @@ class ImageAssetShelf(BrushAssetShelf):
 class IMAGE_AST_brush_paint(ImageAssetShelf, AssetShelf):
     mode_prop = "use_paint_image"
     brush_type_prop = "image_brush_type"
-    tool_prop = "image_tool"
 
     @classmethod
     def poll(cls, context):
@@ -1830,6 +1863,7 @@ classes = (
     IMAGE_PT_overlay_uv_edit_geometry,
     IMAGE_PT_overlay_uv_display,
     IMAGE_PT_overlay_image,
+    IMAGE_PT_overlay_render_guides,
     IMAGE_AST_brush_paint,
 )
 

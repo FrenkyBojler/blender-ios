@@ -583,7 +583,7 @@ void outliner_collection_isolate_flag(Scene *scene,
   else {
     CollectionParent *parent;
     Collection *child = collection;
-    while ((parent = static_cast<CollectionParent *>(child->runtime.parents.first))) {
+    while ((parent = static_cast<CollectionParent *>(child->runtime->parents.first))) {
       if (parent->collection->flag & COLLECTION_IS_MASTER) {
         break;
       }
@@ -2480,9 +2480,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       return ICON_OUTLINER_DATA_MESH;
     case ID_CU_LEGACY: {
       const Curve *cu = (Curve *)id;
-      const short obtype = BKE_curve_type_get(cu);
-
-      switch (obtype) {
+      switch (cu->ob_type) {
         case OB_FONT:
           return ICON_OUTLINER_DATA_FONT;
         case OB_SURF:

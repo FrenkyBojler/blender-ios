@@ -100,12 +100,16 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
+    if (ID_IS_LINKED(&nodetree_)) {
+      uiLayoutSetEnabled(&row, false);
+    }
+
     uiLayoutSetPropDecorate(&row, false);
 
     uiLayout *input_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(input_socket_layout, blender::ui::EmbossType::Emboss);
+      input_socket_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(input_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -119,7 +123,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(output_socket_layout, blender::ui::EmbossType::Emboss);
+      output_socket_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(output_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -142,7 +146,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
   bool supports_renaming() const override
   {
-    return true;
+    return !ID_IS_LINKED(&nodetree_);
   }
   bool rename(const bContext &C, StringRefNull new_name) override
   {
@@ -186,11 +190,14 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
+    if (ID_IS_LINKED(&nodetree_)) {
+      uiLayoutSetEnabled(&row, false);
+    }
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
       uiLayout *toggle_layout = &row.row(true);
       /* XXX Socket template only draws in embossed layouts (Julian). */
-      uiLayoutSetEmboss(toggle_layout, blender::ui::EmbossType::Emboss);
+      toggle_layout->emboss_set(blender::ui::EmbossType::Emboss);
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
@@ -214,7 +221,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
   bool supports_renaming() const override
   {
-    return true;
+    return !ID_IS_LINKED(&nodetree_);
   }
   bool rename(const bContext &C, StringRefNull new_name) override
   {

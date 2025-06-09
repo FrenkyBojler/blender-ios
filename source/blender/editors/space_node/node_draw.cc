@@ -115,6 +115,7 @@ namespace blender::ed::space_node {
 
 #define NODE_ZONE_PADDING UI_UNIT_X
 #define ZONE_ZONE_PADDING 0.3f * UI_UNIT_X
+#define EXTRA_INFO_ROW_HEIGHT (20.0f * UI_SCALE_FAC)
 
 /**
  * This is passed to many functions which draw the node editor.
@@ -152,6 +153,12 @@ struct TreeDrawContext {
    * Label for reroute nodes that is derived from upstream reroute nodes.
    */
   Map<const bNode *, StringRef> reroute_auto_labels;
+
+  /**
+   * Precomputed extra info rows for each node. This avoids having to compute them multiple times
+   * during drawing. The array is indexed by `bNode::index()`.
+   */
+  Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
 };
 
 float grid_size_get()
@@ -1009,6 +1016,12 @@ static void mark_sockets_collapsed_recursive(bNode &node,
 {
   const bke::bNodePanelRuntime &visible_panel_runtime =
       node.runtime->panels[visible_panel_decl.index];
+
+  /* If the panel runtime is not initialized, then it is not visible. */
+  if (!visible_panel_runtime.header_center_y.has_value()) {
+    return;
+  }
+
   for (const nodes::ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
       bNodeSocket &socket = node.socket_by_decl(*socket_decl);
@@ -1029,9 +1042,7 @@ static void update_collapsed_sockets_recursive(bNode &node,
                                                const nodes::PanelDeclaration &panel_decl)
 {
   const bNodePanelState &panel_state = node.panel_states_array[panel_decl.index];
-  const bke::bNodePanelRuntime &panel_runtime = node.runtime->panels[panel_decl.index];
-  const bool is_open = panel_runtime.header_center_y.has_value() && !panel_state.is_collapsed();
-  if (!is_open) {
+  if (panel_state.is_collapsed()) {
     mark_sockets_collapsed_recursive(node, node_left_x, panel_decl, panel_decl);
     return;
   }
@@ -1483,7 +1494,7 @@ void node_socket_color_get(const bContext &C,
                            float r_color[4])
 {
   if (!sock.typeinfo->draw_color) {
-    /* Fallback to the simple variant. If not defined either, fallback to a magenta color. */
+    /* Fall back to the simple variant. If not defined either, fall back to a magenta color. */
     if (sock.typeinfo->draw_color_simple) {
       sock.typeinfo->draw_color_simple(sock.typeinfo, r_color);
     }
@@ -2133,7 +2144,7 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
   TreeDrawContext tree_draw_ctx;
   if (snode != nullptr) {
     if (ntree.type == NTREE_GEOMETRY) {
-      tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
+      tree_draw_ctx.tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
     }
   }
 
@@ -2162,6 +2173,24 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
   }
   if (std::optional<std::string> info = create_declaration_inspection_string(socket)) {
     inspection_strings.append(std::move(*info));
+  }
+  if (U.experimental.use_socket_structure_type) {
+    if (socket.runtime->declaration) {
+      switch (socket.runtime->declaration->structure_type) {
+        case nodes::StructureType::Single:
+          inspection_strings.append("(Single Value)");
+          break;
+        case nodes::StructureType::Dynamic:
+          inspection_strings.append("(Dynamic Structure Type)");
+          break;
+        case nodes::StructureType::Field:
+          inspection_strings.append("(Field)");
+          break;
+        case nodes::StructureType::Grid:
+          inspection_strings.append("(Volume Grid)");
+          break;
+      }
+    }
   }
 
   std::stringstream output;
@@ -2440,7 +2469,7 @@ static void node_draw_sockets(const bContext &C,
   nodesocket_batch_start();
   /* Input sockets. */
   for (const bNodeSocket *sock : node.input_sockets()) {
-    if (!node.is_socket_icon_drawn(*sock)) {
+    if (!sock->is_icon_visible()) {
       continue;
     }
     const bool selected = (sock->flag & SELECT);
@@ -2450,7 +2479,7 @@ static void node_draw_sockets(const bContext &C,
 
   /* Output sockets. */
   for (const bNodeSocket *sock : node.output_sockets()) {
-    if (!node.is_socket_icon_drawn(*sock)) {
+    if (!sock->is_icon_visible()) {
       continue;
     }
     const bool selected = (sock->flag & SELECT);
@@ -2530,7 +2559,7 @@ static bool panel_has_only_inactive_inputs(const bNode &node,
         return false;
       }
       const bNodeSocket &socket = node.socket_by_decl(*socket_decl);
-      if (socket.affects_node_output()) {
+      if (!socket.is_inactive()) {
         return false;
       }
     }
@@ -2629,11 +2658,14 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     }
 
     /* Panel label. */
+    const char *panel_translation_context = (panel_decl.translation_context.has_value() ?
+                                                 panel_decl.translation_context->c_str() :
+                                                 nullptr);
     uiBut *label_but = uiDefBut(
         &block,
         UI_BTYPE_LABEL,
         0,
-        IFACE_(panel_decl.name),
+        CTX_IFACE_(panel_translation_context, panel_decl.name),
         offsetx,
         int(*panel_runtime.header_center_y - NODE_DYS),
         short(draw_bounds.xmax - draw_bounds.xmin - (30.0f * UI_SCALE_FAC)),
@@ -2650,10 +2682,10 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
   }
 }
 
-static geo_log::NodeWarningType node_error_highest_priority(Span<geo_log::NodeWarning> warnings)
+static nodes::NodeWarningType node_error_highest_priority(Span<geo_log::NodeWarning> warnings)
 {
   int highest_priority = 0;
-  geo_log::NodeWarningType highest_priority_type = geo_log::NodeWarningType::Info;
+  nodes::NodeWarningType highest_priority_type = nodes::NodeWarningType::Info;
   for (const geo_log::NodeWarning &warning : warnings) {
     const int priority = node_warning_type_severity(warning.type);
     if (priority > highest_priority) {
@@ -2740,14 +2772,14 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
     return;
   }
 
-  const geo_log::NodeWarningType display_type = node_error_highest_priority(warnings);
+  const nodes::NodeWarningType display_type = node_error_highest_priority(warnings);
 
   icon_offset -= NODE_HEADER_ICON_SIZE;
   UI_block_emboss_set(&block, blender::ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&block,
                             UI_BTYPE_BUT,
                             0,
-                            geo_log::node_warning_type_icon(display_type),
+                            nodes::node_warning_type_icon(display_type),
                             icon_offset,
                             rect.ymax - NODE_DY,
                             NODE_HEADER_ICON_SIZE,
@@ -3152,7 +3184,7 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  extra_info_row.icon,
                                  int(but_icon_left),
-                                 int(rect.ymin + row * (20.0f * UI_SCALE_FAC)),
+                                 int(rect.ymin + row * EXTRA_INFO_ROW_HEIGHT),
                                  but_icon_width,
                                  UI_UNIT_Y,
                                  nullptr,
@@ -3176,7 +3208,7 @@ static void node_draw_extra_info_row(const bNode &node,
                              0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
-                             int(rect.ymin + row * (20.0f * UI_SCALE_FAC)),
+                             int(rect.ymin + row * EXTRA_INFO_ROW_HEIGHT),
                              short(but_text_width),
                              NODE_DY,
                              nullptr,
@@ -3240,7 +3272,8 @@ static void node_draw_extra_info_panel(const bContext &C,
     /* If the preview has an non-drawable size, just don't draw it. */
     preview = nullptr;
   }
-  Vector<NodeExtraInfoRow> extra_info_rows = node_get_extra_info(C, tree_draw_ctx, snode, node);
+  const Span<NodeExtraInfoRow> extra_info_rows =
+      tree_draw_ctx.extra_info_rows_per_node[node.index()];
   if (extra_info_rows.is_empty() && !preview) {
     return;
   }
@@ -3260,7 +3293,7 @@ static void node_draw_extra_info_panel(const bContext &C,
     extra_info_rect.xmin = rct.xmin + padding;
     extra_info_rect.xmax = rct.xmax - padding;
     extra_info_rect.ymin = rct.ymax;
-    extra_info_rect.ymax = rct.ymax + extra_info_rows.size() * (20.0f * UI_SCALE_FAC);
+    extra_info_rect.ymax = rct.ymax + extra_info_rows.size() * EXTRA_INFO_ROW_HEIGHT;
 
     float preview_height = 0.0f;
     rctf preview_rect;
@@ -4113,14 +4146,33 @@ static FrameNodeLayout frame_node_layout(const bNode &frame_node)
  * since the frame node automatic size depends on the size of each node which is only calculated
  * while drawing.
  */
-static rctf calc_node_frame_dimensions(bNode &node)
+static rctf calc_node_frame_dimensions(const bContext &C,
+                                       TreeDrawContext &tree_draw_ctx,
+                                       const SpaceNode &snode,
+                                       bNode &node)
 {
   if (!node.is_frame()) {
     rctf node_bounds = node.runtime->draw_bounds;
+
+    float zone_padding = 0;
+    float extra_row_padding = 0;
+
+    /* Pad if the node type is a zone input or output. */
     if (bke::zone_type_by_node_type(node.type_legacy) != nullptr) {
-      node_bounds.ymax += NODE_ZONE_PADDING;
-      node_bounds.ymin -= NODE_ZONE_PADDING;
+      zone_padding = NODE_ZONE_PADDING;
     }
+
+    /* Compute the height of the info row for each node, which may vary per child node.
+     * This has to get the full extra_rows information (including all the text strings), even
+     * though all that's actually needed is the count of how many info_rows there are. */
+    if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS) {
+      extra_row_padding = tree_draw_ctx.extra_info_rows_per_node[node.index()].size() *
+                          EXTRA_INFO_ROW_HEIGHT;
+    }
+
+    node_bounds.ymax += std::max(zone_padding, extra_row_padding);
+    node_bounds.ymin -= zone_padding;
+
     return node_bounds;
   }
 
@@ -4139,7 +4191,8 @@ static rctf calc_node_frame_dimensions(bNode &node)
   /* Fit bounding box to all children. */
   for (bNode *child : node.direct_children_in_frame()) {
     /* Add margin to node rect. */
-    rctf noderect = calc_node_frame_dimensions(*child);
+    rctf noderect = calc_node_frame_dimensions(C, tree_draw_ctx, snode, *child);
+
     noderect.xmin -= frame_layout.margin;
     noderect.xmax += frame_layout.margin;
     noderect.ymin -= frame_layout.margin;
@@ -4218,7 +4271,7 @@ static void node_update_nodetree(const bContext &C,
 
   /* Now calculate the size of frame nodes, which can depend on the size of other nodes. */
   for (bNode *frame : ntree.root_frames()) {
-    calc_node_frame_dimensions(*frame);
+    calc_node_frame_dimensions(C, tree_draw_ctx, *snode, *frame);
   }
 }
 
@@ -4261,8 +4314,8 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   /* Draw text body. */
   if (node.id) {
     const Text *text = (const Text *)node.id;
-    const float line_spacing = BLF_height_max(fontid);
-    const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin);
+    const float line_spacing = BLF_height_max(fontid) * aspect;
+    const float line_width = (BLI_rctf_size_x(&rct) - 2 * frame_layout.margin) / aspect;
 
     const float x = rct.xmin + frame_layout.margin;
     float y = rct.ymax - frame_layout.label_height -
@@ -5236,10 +5289,11 @@ static void draw_nodetree(const bContext &C,
   tree_draw_ctx.scene = CTX_data_scene(&C);
   tree_draw_ctx.region = CTX_wm_region(&C);
   tree_draw_ctx.depsgraph = CTX_data_depsgraph_pointer(&C);
+  tree_draw_ctx.extra_info_rows_per_node.reinitialize(nodes.size());
 
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
-    tree_draw_ctx.tree_logs = geo_log::GeoModifierLog::get_contextual_tree_logs(*snode);
+    tree_draw_ctx.tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
     tree_draw_ctx.tree_logs.foreach_tree_log([&](geo_log::GeoTreeLog &log) {
       log.ensure_node_warnings(*tree_draw_ctx.bmain);
       log.ensure_execution_times();
@@ -5264,6 +5318,12 @@ static void draw_nodetree(const bContext &C,
            snode->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS)
   {
     tree_draw_ctx.nested_group_infos = get_nested_previews(C, *snode);
+  }
+
+  for (const int i : nodes.index_range()) {
+    const bNode &node = *nodes[i];
+    tree_draw_ctx.extra_info_rows_per_node[node.index()] = node_get_extra_info(
+        C, tree_draw_ctx, *snode, node);
   }
 
   node_update_nodetree(C, tree_draw_ctx, ntree, nodes, blocks);

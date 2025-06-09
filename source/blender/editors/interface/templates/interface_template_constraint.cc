@@ -47,9 +47,9 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
   uiLayoutSetContextPointer(layout, "constraint", &ptr);
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  uiLayoutSetUnitsX(layout, 4.0f);
+  layout->ui_units_x_set(4.0f);
 
   /* Apply. */
   layout->op("CONSTRAINT_OT_apply",
@@ -69,14 +69,11 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 
   /* Move to first. */
   row = &layout->column(false);
-  uiItemFullO(row,
-              "CONSTRAINT_OT_move_to_index",
-              IFACE_("Move to First"),
-              ICON_TRIA_UP,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("CONSTRAINT_OT_move_to_index",
+                   IFACE_("Move to First"),
+                   ICON_TRIA_UP,
+                   WM_OP_INVOKE_DEFAULT,
+                   UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!con->prev) {
     uiLayoutSetEnabled(row, false);
@@ -84,14 +81,11 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 
   /* Move to last. */
   row = &layout->column(false);
-  uiItemFullO(row,
-              "CONSTRAINT_OT_move_to_index",
-              IFACE_("Move to Last"),
-              ICON_TRIA_DOWN,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("CONSTRAINT_OT_move_to_index",
+                   IFACE_("Move to Last"),
+                   ICON_TRIA_DOWN,
+                   WM_OP_INVOKE_DEFAULT,
+                   UI_ITEM_NONE);
   ListBase *constraint_list = blender::ed::object::constraint_list_from_constraint(
       ob, con, nullptr);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(constraint_list) - 1);
@@ -121,7 +115,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Constraint type icon. */
   uiLayout *sub = &layout->row(false);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::Emboss);
+  sub->emboss_set(blender::ui::EmbossType::Emboss);
   uiLayoutSetRedAlert(sub, (con->flag & CONSTRAINT_DISABLE));
   sub->label("", RNA_struct_ui_icon(ptr.type));
 
@@ -139,8 +133,8 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
 
   /* Close 'button' - emboss calls here disable drawing of 'button' behind X */
   sub = &row->row(false);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
-  uiLayoutSetOperatorContext(sub, WM_OP_INVOKE_DEFAULT);
+  sub->emboss_set(blender::ui::EmbossType::None);
+  sub->operator_context_set(WM_OP_INVOKE_DEFAULT);
   sub->op("CONSTRAINT_OT_delete", "", ICON_X);
 
   /* Some extra padding at the end, so the 'x' icon isn't too close to drag button. */
