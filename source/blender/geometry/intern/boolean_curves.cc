@@ -138,7 +138,7 @@ class Segment {
      * all of the points are. */
     if (point_1 == point_2) {
       if (alpha_1 > alpha_2) {
-        return points.shift(point_1 + 1);
+        return points.shift(point_1 - points.first() + 1);
       }
       return IndexRange(0);
     }
