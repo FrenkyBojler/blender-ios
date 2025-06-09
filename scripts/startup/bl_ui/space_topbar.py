@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: 2009-2023 Blender Authors
+# SPDX-FileCopyrightText: 2009-2023 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -639,7 +640,7 @@ class TOPBAR_MT_workspace_menu(Menu):
         if len(bpy.data.workspaces) <= 1:
             return
 
-        layout.operator("workspace.delete", text="Close", icon='REMOVE')
+        layout.operator("workspace.delete", text="Delete", icon='REMOVE')
 
         layout.separator()
 
