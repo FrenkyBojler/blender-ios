@@ -404,6 +404,7 @@ static void render_frame(RenderEngine *engine,
   }
 
   if (motion_blur_enabled) {
+    /* Restore original frame number. This is because the render pipeline expects it. */
     RE_engine_frame_set(engine, initial_frame, initial_subframe);
   }
 }
