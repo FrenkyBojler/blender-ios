@@ -669,6 +669,7 @@ class USERPREF_PT_system_cycles_devices(SystemPanel, CenterAlignMixIn, Panel):
             addon = prefs.addons.get("cycles")
             if addon is None:
                 layout.label(text="Enable Cycles Render Engine add-on to use Cycles", icon='INFO')
+                layout.operator("preferences.addon_enable", icon='CHECKMARK').module = "cycles"
             else:
                 addon.preferences.draw_impl(col, context)
             del addon
