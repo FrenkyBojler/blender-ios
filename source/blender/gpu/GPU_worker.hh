@@ -16,8 +16,12 @@
 
 namespace blender::gpu {
 
-/**
- * Abstracts the creation and management of secondary threads with GPU contexts.
+enum class WorkPriority { Low, Medium, High };
+
+using WorkCB = void (*)(void *);
+using work_id = int64_t;
+
+/* Abstracts the creation and management of secondary threads with GPU contexts.
  * Must be created from the main thread.
  * Threads and their context remain alive until destruction.
  */
@@ -25,8 +29,10 @@ class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
   std::condition_variable condition_var_;
-  std::mutex &mutex_;
+  std::mutex mutex_;
   bool terminate_ = false;
+
+  std::unique_ptr<class WorkQueue> work_queue_;
 
  public:
   enum class ContextType {
@@ -36,35 +42,15 @@ class GPUWorker {
     PerThread,
   };
 
-  /**
-   * \param threads_count: Number of threads to span.
-   * \param context_type: The type of context each thread uses.
-   * \param mutex: Mutex used when trying to acquire the next work
-   *               (and reused internally for termination).
-   * \param pop_work: The callback function that will be called to acquire the next work,
-   *                  should return a void pointer.
-   *                  NOTE: The mutex is locked when this function is called.
-   * \param do_work: The callback function that will be called for each acquired work
-   *                 (passed as a void pointer).
-   *                 NOTE: The mutex is unlocked when this function is called.
-   */
-  GPUWorker(uint32_t threads_count,
-            ContextType context_type,
-            std::mutex &mutex,
-            std::function<void *()> pop_work,
-            std::function<void(void *)> do_work);
+  GPUWorker(uint32_t threads_count, ContextType context_type);
   ~GPUWorker();
 
-  /* Wake up a single thread. */
-  void wake_up()
-  {
-    condition_var_.notify_one();
-  }
+  work_id push_work(WorkCB callback, void *payload, WorkPriority priority);
+  void remove_work(work_id id);
+  bool is_empty();
 
  private:
-  void run(std::shared_ptr<GPUSecondaryContext> context,
-           std::function<void *()> pop_work,
-           std::function<void(void *)> do_work);
+  void run(std::shared_ptr<GPUSecondaryContext> context);
 };
 
 }  // namespace blender::gpu

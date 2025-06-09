@@ -996,12 +996,7 @@ ShaderCompiler::ShaderCompiler(uint32_t threads_count,
   support_specializations_ = support_specializations;
 
   if (!GPU_use_main_context_workaround()) {
-    compilation_worker_ = std::make_unique<GPUWorker>(
-        threads_count,
-        context_type,
-        mutex_,
-        [this]() -> void * { return this->pop_work(); },
-        [this](void *work) { this->do_work(work); });
+    compilation_worker_ = std::make_unique<GPUWorker>(threads_count, context_type);
   }
 }
 
@@ -1032,10 +1027,12 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
 
   if (compilation_worker_) {
     batch->shaders.resize(infos.size(), nullptr);
+    batch->works.reserve(infos.size());
     batch->pending_compilations = infos.size();
     for (int i : infos.index_range()) {
-      compilation_queue_.push({batch, i}, priority);
-      compilation_worker_->wake_up();
+      batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+      batch->works.last()->id = compilation_worker_->push_work(
+          do_work_static_cb, batch->works.last().get(), WorkPriority(priority));
     }
   }
   else {
@@ -1052,7 +1049,12 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
   std::unique_lock lock(mutex_);
 
   Batch *batch = batches_.pop(handle);
-  compilation_queue_.remove_batch(batch);
+  for (std::unique_ptr<ParallelWork> &work : batch->works) {
+    if (work->id) {
+      batch->pending_compilations--;
+      compilation_worker_->remove_work(work->id);
+    }
+  }
 
   if (batch->is_specialization_batch()) {
     /* For specialization batches, we block until ready, since base shader compilation may be
@@ -1082,6 +1084,7 @@ bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
+
   /* TODO: Move to be first on the queue. */
   compilation_finished_notification_.wait(lock,
                                           [&]() { return batches_.lookup(handle)->is_ready(); });
@@ -1105,14 +1108,16 @@ SpecializationBatchHandle ShaderCompiler::precompile_specializations(
 
   Batch *batch = MEM_new<Batch>(__func__);
   batch->specializations = specializations;
+  batch->works.reserve(specializations.size());
+  batch->pending_compilations = specializations.size();
 
   BatchHandle handle = next_batch_handle_++;
   batches_.add(handle, batch);
 
-  batch->pending_compilations = specializations.size();
   for (int i : specializations.index_range()) {
-    compilation_queue_.push({batch, i}, priority);
-    compilation_worker_->wake_up();
+    batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+    batch->works.last()->id = compilation_worker_->push_work(
+        do_work_static_cb, batch->works.last().get(), WorkPriority(priority));
   }
 
   return handle;
@@ -1131,24 +1136,16 @@ bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &ha
   return handle == 0;
 }
 
-void *ShaderCompiler::pop_work()
+void ShaderCompiler::do_work_static_cb(void *payload)
 {
-  /* NOTE: Already under mutex lock when GPUWorker calls this function. */
-
-  if (compilation_queue_.is_empty()) {
-    return nullptr;
-  }
-
-  ParallelWork work = compilation_queue_.pop();
-  return MEM_new<ParallelWork>(__func__, work);
+  ParallelWork *work = reinterpret_cast<ParallelWork *>(payload);
+  work->compiler->do_work(*work);
 }
 
-void ShaderCompiler::do_work(void *work_payload)
+void ShaderCompiler::do_work(ParallelWork &work)
 {
-  ParallelWork *work = reinterpret_cast<ParallelWork *>(work_payload);
-  Batch *batch = work->batch;
-  int shader_index = work->shader_index;
-  MEM_delete(work);
+  Batch *batch = work.batch;
+  int shader_index = work.shader_index;
 
   /* Compile */
   if (!batch->is_specialization_batch()) {
@@ -1160,6 +1157,7 @@ void ShaderCompiler::do_work(void *work_payload)
 
   {
     std::lock_guard lock(mutex_);
+    work.id = 0;
     batch->pending_compilations--;
     if (batch->is_ready() && batch->is_cancelled) {
       batch->free_shaders();
@@ -1174,7 +1172,7 @@ void ShaderCompiler::wait_for_all()
 {
   std::unique_lock lock(mutex_);
   compilation_finished_notification_.wait(lock, [&]() {
-    if (!compilation_queue_.is_empty()) {
+    if (!compilation_worker_->is_empty()) {
       return false;
     }
 
