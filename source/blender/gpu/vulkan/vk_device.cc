@@ -39,17 +39,21 @@ void VKExtensions::log() const
             " - [%c] shader output layer\n"
             " - [%c] fragment shader barycentric\n"
             "Device extensions\n"
+            " - [%c] descriptor buffer\n"
             " - [%c] dynamic rendering\n"
             " - [%c] dynamic rendering local read\n"
             " - [%c] dynamic rendering unused attachments\n"
-            " - [%c] external memory",
+            " - [%c] external memory\n"
+            " - [%c] shader stencil export",
             shader_output_viewport_index ? 'X' : ' ',
             shader_output_layer ? 'X' : ' ',
             fragment_shader_barycentric ? 'X' : ' ',
+            descriptor_buffer ? 'X' : ' ',
             dynamic_rendering ? 'X' : ' ',
             dynamic_rendering_local_read ? 'X' : ' ',
             dynamic_rendering_unused_attachments ? 'X' : ' ',
-            external_memory ? 'X' : ' ');
+            external_memory ? 'X' : ' ',
+            GPU_stencil_export_support() ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
@@ -124,10 +128,10 @@ void VKDevice::init(void *ghost_context)
   vk_queue_ = handles.queue;
   queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
 
+  init_physical_device_extensions();
   init_physical_device_properties();
   init_physical_device_memory_properties();
   init_physical_device_features();
-  init_physical_device_extensions();
   VKBackend::platform_init(*this);
   VKBackend::capabilities_init(*this);
   init_functions();
@@ -175,6 +179,14 @@ void VKDevice::init_functions()
 #endif
   }
 
+  /* VK_EXT_descriptor_buffer */
+  functions.vkGetDescriptorSetLayoutSize = LOAD_FUNCTION(vkGetDescriptorSetLayoutSizeEXT);
+  functions.vkGetDescriptorSetLayoutBindingOffset = LOAD_FUNCTION(
+      vkGetDescriptorSetLayoutBindingOffsetEXT);
+  functions.vkGetDescriptor = LOAD_FUNCTION(vkGetDescriptorEXT);
+  functions.vkCmdBindDescriptorBuffers = LOAD_FUNCTION(vkCmdBindDescriptorBuffersEXT);
+  functions.vkCmdSetDescriptorBufferOffsets = LOAD_FUNCTION(vkCmdSetDescriptorBufferOffsetsEXT);
+
 #undef LOAD_FUNCTION
 }
 
@@ -194,6 +206,15 @@ void VKDevice::init_physical_device_properties()
   vk_physical_device_id_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties_;
   vk_physical_device_driver_properties_.pNext = &vk_physical_device_id_properties_;
+
+  if (supports_extension(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+    vk_physical_device_descriptor_buffer_properties_ = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT};
+    vk_physical_device_descriptor_buffer_properties_.pNext =
+        vk_physical_device_driver_properties_.pNext;
+    vk_physical_device_driver_properties_.pNext =
+        &vk_physical_device_descriptor_buffer_properties_;
+  }
 
   vkGetPhysicalDeviceProperties2(vk_physical_device_, &vk_physical_device_properties);
   vk_physical_device_properties_ = vk_physical_device_properties.properties;
@@ -249,6 +270,9 @@ void VKDevice::init_memory_allocator()
   info.physicalDevice = vk_physical_device_;
   info.device = vk_device_;
   info.instance = vk_instance_;
+  if (extensions_.descriptor_buffer) {
+    info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
   vmaCreateAllocator(&info, &mem_allocator_);
 
   if (!extensions_.external_memory) {

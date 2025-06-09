@@ -1894,7 +1894,7 @@ void WM_draw_cb_exit(wmWindow *win, void *handle);
  * because drawing relies on the event system & depsgraph preparing data for display.
  * An explicit call to draw is error prone since it may attempt to show stale data.
  *
- * With some rare exceptions which require a redraw (screen-shot & sample screen color for e.g.)
+ * With some rare exceptions which require a redraw (e.g. screen-shot & sample screen color)
  * explicitly redrawing should be avoided, see: #92704, #93950, #97627 & #98462.
  */
 void WM_redraw_windows(bContext *C);
@@ -2011,7 +2011,9 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3]);
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3]);
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3]);
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
 
 float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);

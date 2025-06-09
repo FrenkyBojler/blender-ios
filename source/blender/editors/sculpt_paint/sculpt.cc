@@ -4039,6 +4039,9 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
+  if (BKE_brush_color_jitter_get_settings(CTX_data_scene(C), &sd.paint, brush)) {
+    cache->initial_hsv_jitter = seed_hsv_jitter();
+  }
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 
@@ -7096,7 +7099,7 @@ void calc_brush_cube_distances(const Brush &brush,
     const T local = math::abs(positions[i]);
 
     if (math::reduce_max(local) > 1.0f) {
-      r_distances[i] = std::numeric_limits<float>::max();
+      r_distances[i] = 1.0f;
       continue;
     }
     if (std::min(local.x, local.y) > hardness) {

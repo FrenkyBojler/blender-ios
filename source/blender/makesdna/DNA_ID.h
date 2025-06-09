@@ -442,6 +442,16 @@ typedef struct ID {
 
   IDProperty *properties;
 
+  /**
+   * System-defined custom properties storage.
+   *
+   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
+   * management consistency.
+   */
+  IDProperty *system_properties;
+
+  void *_pad1;
+
   /** Reference linked ID which this one overrides. */
   IDOverrideLibrary *override_library;
 
@@ -464,7 +474,8 @@ typedef struct ID {
    *   so accessing it from Python raises an exception instead of crashing.
    *
    *   This is of limited benefit though, as it doesn't apply to non #ID data
-   *   that references this ID (the bones of an armature or the modifiers of an object for e.g.).
+   *   that references this ID (the bones of an armature or the modifiers of an object for
+   *   example).
    */
   void *py_instance;
 
