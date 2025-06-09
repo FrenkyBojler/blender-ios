@@ -58,8 +58,25 @@ USDPointInstancerWriter::USDPointInstancerWriter(
   proto_paths = paths;
 }
 
+void USDPointInstancerWriter::set_base_writer(std::unique_ptr<USDAbstractWriter> writer)
+{
+  base_writer_ = std::move(writer);
+}
+
 void USDPointInstancerWriter::do_write(HierarchyContext &context)
 {
+  /* Write the base data first (e.g., mesh, curves, points) */
+  if (base_writer_) {
+    base_writer_->write(context);
+
+    if (usd_export_context_.add_skel_mapping_fn &&
+        (usd_export_context_.export_params.export_armatures ||
+         usd_export_context_.export_params.export_shapekeys))
+    {
+      usd_export_context_.add_skel_mapping_fn(context.object, base_writer_->usd_path());
+    }
+  }
+
   const pxr::UsdStageRefPtr stage = usd_export_context_.stage;
   Object *object_eval = context.object;
   bke::GeometrySet instance_geometry_set = bke::object_get_evaluated_geometry_set(*object_eval);

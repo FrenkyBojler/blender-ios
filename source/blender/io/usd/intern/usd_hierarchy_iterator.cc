@@ -136,8 +136,16 @@ USDExporterContext USDHierarchyIterator::create_usd_export_context(const Hierarc
   const std::string export_file_path = root_layer->GetRealPath();
   auto get_time_code = [this]() { return this->export_time_; };
 
-  return USDExporterContext{
-      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path};
+  USDExporterContext exporter_context = USDExporterContext{
+      bmain_, depsgraph_, stage_, path, get_time_code, params_, export_file_path, nullptr};
+
+  /* Provides optional skel mapping hook. Now it's been used in USDPointInstancerWriter for write
+   * base layer. */
+  exporter_context.add_skel_mapping_fn = [this](const Object *obj, const pxr::SdfPath &path) {
+    this->add_usd_skel_export_mapping(obj, path);
+  };
+
+  return exporter_context;
 }
 
 void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *context)
@@ -238,17 +246,14 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_MESH:
       if (usd_export_context.export_params.export_meshes) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
+          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+          data_writer = pi_writer;
 
-          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
-
-          /* Handle Mesh base data */
           USDExporterContext mesh_context = create_point_instancer_context(context,
                                                                            usd_export_context);
-          USDMeshWriter *mesh_writer = new USDMeshWriter(mesh_context);
-          mesh_writer->write(const_cast<HierarchyContext &>(*context));
-          if (mesh_writer && (params_.export_armatures || params_.export_shapekeys)) {
-            add_usd_skel_export_mapping(context->object, mesh_writer->usd_path());
-          }
+          std::unique_ptr<USDMeshWriter> mesh_writer = std::make_unique<USDMeshWriter>(
+              mesh_context);
+          pi_writer->set_base_writer(std::move(mesh_writer));
         }
         else {
           data_writer = new USDMeshWriter(usd_export_context);
@@ -284,16 +289,14 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_CURVES:
       if (usd_export_context.export_params.export_curves) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
-          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+          data_writer = pi_writer;
 
-          /* Handle Curve base data */
           USDExporterContext curves_context = create_point_instancer_context(context,
                                                                              usd_export_context);
-          USDCurvesWriter *curves_writer = new USDCurvesWriter(curves_context);
-          curves_writer->write(const_cast<HierarchyContext &>(*context));
-          if (curves_writer && (params_.export_armatures || params_.export_shapekeys)) {
-            add_usd_skel_export_mapping(context->object, curves_writer->usd_path());
-          }
+          std::unique_ptr<USDCurvesWriter> curves_writer = std::make_unique<USDCurvesWriter>(
+              curves_context);
+          pi_writer->set_base_writer(std::move(curves_writer));
         }
         else {
           data_writer = new USDCurvesWriter(usd_export_context);
@@ -322,16 +325,14 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_POINTCLOUD:
       if (usd_export_context.export_params.export_points) {
         if (context->is_point_instancer() && !proto_paths.empty()) {
-          data_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+          auto *pi_writer = new USDPointInstancerWriter(usd_export_context, proto_paths);
+          data_writer = pi_writer;
 
-          /* Handle Point Cloud base data */
-          USDExporterContext pointcloud_context = create_point_instancer_context(
-              context, usd_export_context);
-          USDPointsWriter *pointcloud_writer = new USDPointsWriter(pointcloud_context);
-          pointcloud_writer->write(const_cast<HierarchyContext &>(*context));
-          if (pointcloud_writer && (params_.export_armatures || params_.export_shapekeys)) {
-            add_usd_skel_export_mapping(context->object, pointcloud_writer->usd_path());
-          }
+          USDExporterContext pc_context = create_point_instancer_context(context,
+                                                                         usd_export_context);
+          std::unique_ptr<USDPointsWriter> pc_writer = std::make_unique<USDPointsWriter>(
+              pc_context);
+          pi_writer->set_base_writer(std::move(pc_writer));
         }
         else {
           data_writer = new USDPointsWriter(usd_export_context);

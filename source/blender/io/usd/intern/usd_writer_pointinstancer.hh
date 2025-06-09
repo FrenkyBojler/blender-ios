@@ -23,10 +23,14 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
   std::set<std::pair<pxr::SdfPath, Object *>> proto_paths;
   const std::string proto_name = "Prototype";
 
+  void set_base_writer(std::unique_ptr<USDAbstractWriter> writer);
+
  protected:
   virtual void do_write(HierarchyContext &context) override;
 
  private:
+  std::unique_ptr<USDAbstractWriter> base_writer_;
+
   void write_attribute_data(const bke::AttributeIter &attr,
                             const pxr::UsdGeomPointInstancer &usd_instancer,
                             const pxr::UsdTimeCode timecode);
