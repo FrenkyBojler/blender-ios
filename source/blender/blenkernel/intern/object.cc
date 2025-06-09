@@ -392,7 +392,7 @@ static void library_foreach_particlesystemsObjectLooper(ParticleSystem * /*psys*
 
 static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Object *object = reinterpret_cast<Object *>(id);
+  Object *object = blender::id_cast<Object *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   /* object data special case */
@@ -537,7 +537,7 @@ static void object_foreach_path_pointcache(ListBase *ptcache_list,
 
 static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  Object *ob = reinterpret_cast<Object *>(id);
+  Object *ob = blender::id_cast<Object *>(id);
 
   LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
     /* TODO: Move that to #ModifierTypeInfo. */
@@ -591,7 +591,7 @@ static void object_foreach_cache(ID *id,
                                  IDTypeForeachCacheFunctionCallback function_callback,
                                  void *user_data)
 {
-  Object *ob = reinterpret_cast<Object *>(id);
+  Object *ob = blender::id_cast<Object *>(id);
   LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
     if (const ModifierTypeInfo *info = BKE_modifier_get_info(ModifierType(md->type))) {
       if (info->foreach_cache) {
@@ -912,7 +912,7 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
 
 static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 {
-  Object *ob = reinterpret_cast<Object *>(id);
+  Object *ob = blender::id_cast<Object *>(id);
 
   Main *bmain = BLO_read_lib_get_main(reader);
   BlendFileReadReport *reports = BLO_read_lib_reports(reader);
@@ -1632,7 +1632,7 @@ void BKE_object_free_derived_caches(Object *ob)
   object_update_from_subsurf_ccg(ob);
 
   if (ob->runtime->editmesh_eval_cage &&
-      ob->runtime->editmesh_eval_cage != reinterpret_cast<Mesh *>(ob->runtime->data_eval))
+      ob->runtime->editmesh_eval_cage != blender::id_cast<Mesh *>(ob->runtime->data_eval))
   {
     BKE_id_free(nullptr, ob->runtime->editmesh_eval_cage);
   }
@@ -2058,7 +2058,7 @@ int BKE_object_obdata_to_type(const ID *id)
     case ID_ME:
       return OB_MESH;
     case ID_CU_LEGACY:
-      return reinterpret_cast<const Curve *>(id)->ob_type;
+      return blender::id_cast<const Curve *>(id)->ob_type;
     case ID_MB:
       return OB_MBALL;
     case ID_LA:
@@ -4182,7 +4182,7 @@ Mesh *BKE_object_get_evaluated_mesh_no_subsurf_unchecked(const Object *object)
    * object types use #geometry_set_eval. */
   ID *data_eval = object->runtime->data_eval;
   if (data_eval && GS(data_eval->name) == ID_ME) {
-    return reinterpret_cast<Mesh *>(data_eval);
+    return blender::id_cast<Mesh *>(data_eval);
   }
 
   return nullptr;
@@ -4225,7 +4225,7 @@ const Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
     if (GS(data_orig->name) != ID_ME) {
       return nullptr;
     }
-    return reinterpret_cast<const Mesh *>(data_orig);
+    return blender::id_cast<const Mesh *>(data_orig);
   }
   BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   return static_cast<const Mesh *>(object->data);
@@ -4259,7 +4259,7 @@ const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
     return nullptr;
   }
 
-  return reinterpret_cast<Mesh *>(object->runtime->data_eval);
+  return blender::id_cast<Mesh *>(object->runtime->data_eval);
 }
 
 const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)

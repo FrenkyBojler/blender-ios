@@ -375,17 +375,17 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
                                  flag;
     BLI_assert(bmain != nullptr);
     BLI_assert(dadt->action == nullptr || dadt->action != dadt->tmpact);
-    dadt->action = reinterpret_cast<bAction *>(
+    dadt->action = blender::id_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
-                           reinterpret_cast<ID *>(dadt->action),
+                           blender::id_cast<ID *>(dadt->action),
                            std::nullopt,
                            nullptr,
                            id_copy_flag));
-    dadt->tmpact = reinterpret_cast<bAction *>(
+    dadt->tmpact = blender::id_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
-                           reinterpret_cast<ID *>(dadt->tmpact),
+                           blender::id_cast<ID *>(dadt->tmpact),
                            std::nullopt,
                            nullptr,
                            id_copy_flag));

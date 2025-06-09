@@ -85,7 +85,7 @@ static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata);
 
 static void mesh_init_data(ID *id)
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
 
   BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mesh, id));
 
@@ -109,8 +109,8 @@ static void mesh_copy_data(Main *bmain,
                            const ID *id_src,
                            const int flag)
 {
-  Mesh *mesh_dst = reinterpret_cast<Mesh *>(id_dst);
-  const Mesh *mesh_src = reinterpret_cast<const Mesh *>(id_src);
+  Mesh *mesh_dst = blender::id_cast<Mesh *>(id_dst);
+  const Mesh *mesh_src = blender::id_cast<const Mesh *>(id_src);
 
   mesh_dst->runtime = new blender::bke::MeshRuntime();
   mesh_dst->runtime->deformed_only = mesh_src->runtime->deformed_only;
@@ -238,7 +238,7 @@ static void mesh_copy_data(Main *bmain,
 
 static void mesh_free_data(ID *id)
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
 
   CustomData_free(&mesh->vert_data);
   CustomData_free(&mesh->edge_data);
@@ -260,7 +260,7 @@ static void mesh_free_data(ID *id)
 
 static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
   const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, mesh->texcomesh, IDWALK_CB_NEVER_SELF);
@@ -276,7 +276,7 @@ static void mesh_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void mesh_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
   if (mesh->corner_data.external) {
     BKE_bpath_foreach_path_fixed_process(bpath_data,
                                          mesh->corner_data.external->filepath,
@@ -335,7 +335,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 {
   using namespace blender;
   using namespace blender::bke;
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
   const bool is_undo = BLO_write_is_undo(writer);
 
   ResourceScope scope;
@@ -430,7 +430,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
 static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Mesh *mesh = reinterpret_cast<Mesh *>(id);
+  Mesh *mesh = blender::id_cast<Mesh *>(id);
   BLO_read_pointer_array(reader, mesh->totcol, (void **)&mesh->mat);
   /* This check added for python created meshes. */
   if (!mesh->mat) {
@@ -1004,7 +1004,7 @@ Mesh *BKE_mesh_new_nomain_from_template(const Mesh *me_src,
 
 Mesh *BKE_mesh_copy_for_eval(const Mesh &source)
 {
-  return reinterpret_cast<Mesh *>(
+  return blender::id_cast<Mesh *>(
       BKE_id_copy_ex(nullptr, &source.id, nullptr, LIB_ID_COPY_LOCALIZE));
 }
 

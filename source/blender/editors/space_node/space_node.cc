@@ -328,7 +328,7 @@ std::optional<ObjectAndModifier> get_modifier_for_node_editor(const SpaceNode &s
   if (GS(snode.id->name) != ID_OB) {
     return std::nullopt;
   }
-  const Object *object = reinterpret_cast<Object *>(snode.id);
+  const Object *object = id_cast<Object *>(snode.id);
   const NodesModifierData *used_modifier = nullptr;
   if (snode.flag & SNODE_PIN) {
     LISTBASE_FOREACH (const ModifierData *, md, &object->modifiers) {
@@ -513,7 +513,7 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
             socket.context, node->identifier, &node->owner_tree(), source_location);
       }
       if (node->is_group()) {
-        if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id)) {
+        if (const bNodeTree *group = id_cast<const bNodeTree *>(node->id)) {
           group->ensure_topology_cache();
           const ComputeContext &group_compute_context = compute_context_cache.for_group_node(
               socket.context, node->identifier, &node->owner_tree());
@@ -1074,8 +1074,7 @@ static bool node_group_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
   }
 
   if (drag->type == WM_DRAG_ID) {
-    const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(
-        WM_drag_get_local_ID(drag, ID_NT));
+    const bNodeTree *node_tree = id_cast<const bNodeTree *>(WM_drag_get_local_ID(drag, ID_NT));
     if (!node_tree) {
       return false;
     }
@@ -1623,7 +1622,7 @@ static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
 
     if (snode->geometry_nodes_tool_tree) {
       if (&snode->geometry_nodes_tool_tree->id == old_id) {
-        snode->geometry_nodes_tool_tree = reinterpret_cast<bNodeTree *>(new_id);
+        snode->geometry_nodes_tool_tree = id_cast<bNodeTree *>(new_id);
       }
     }
 

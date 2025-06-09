@@ -26,12 +26,8 @@ void TreeElementIDAction::expand(SpaceOutliner & /* space_outliner */) const
 {
   blender::animrig::Action &action = action_.wrap();
   for (blender::animrig::Slot *slot : action.slots()) {
-    add_element(&legacy_te_.subtree,
-                reinterpret_cast<ID *>(&action_),
-                slot,
-                &legacy_te_,
-                TSE_ACTION_SLOT,
-                0);
+    add_element(
+        &legacy_te_.subtree, id_cast<ID *>(&action_), slot, &legacy_te_, TSE_ACTION_SLOT, 0);
   }
 }
 

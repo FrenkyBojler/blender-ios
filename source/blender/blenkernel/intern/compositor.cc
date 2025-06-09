@@ -51,7 +51,7 @@ static void add_passes_used_by_cryptomatte_node(const bNode *node,
     return;
   }
 
-  Scene *scene = reinterpret_cast<Scene *>(node->id);
+  Scene *scene = id_cast<Scene *>(node->id);
   if (!scene) {
     return;
   }
@@ -125,7 +125,7 @@ static void add_used_passes_recursive(const bNodeTree *node_tree,
     switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
-        const bNodeTree *node_group_tree = reinterpret_cast<const bNodeTree *>(node->id);
+        const bNodeTree *node_group_tree = id_cast<const bNodeTree *>(node->id);
         if (node_trees_already_searched.add(node_group_tree)) {
           add_used_passes_recursive(
               node_group_tree, view_layer, node_trees_already_searched, used_passes);

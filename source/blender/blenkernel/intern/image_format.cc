@@ -116,7 +116,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
   }
 
   if (owner_id && GS(owner_id->name) == ID_SCE) {
-    Scene *scene = reinterpret_cast<Scene *>(owner_id);
+    Scene *scene = blender::id_cast<Scene *>(owner_id);
     RenderData *rd = &scene->r;
     MOV_validate_output_settings(rd, imf);
   }

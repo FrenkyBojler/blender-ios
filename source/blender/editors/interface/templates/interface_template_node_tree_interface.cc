@@ -541,7 +541,7 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
   if (!RNA_struct_is_a(ptr->type, &RNA_NodeTreeInterface)) {
     return;
   }
-  bNodeTree &nodetree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  bNodeTree &nodetree = *blender::id_cast<bNodeTree *>(ptr->owner_id);
   bNodeTreeInterface &interface = *static_cast<bNodeTreeInterface *>(ptr->data);
 
   uiBlock *block = uiLayoutGetBlock(layout);
