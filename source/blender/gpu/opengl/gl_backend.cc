@@ -748,7 +748,7 @@ void GLBackend::capabilities_init()
           GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY))
       {
         /* Subprocess is too costly in memory (>150MB per worker) to have better defaults. */
-        thread_count = std::max(1, std::min(4, BLI_system_thread_count() - 1));
+        thread_count = std::max(1, std::min(4, BLI_system_thread_count() / 2));
       }
     }
     else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
