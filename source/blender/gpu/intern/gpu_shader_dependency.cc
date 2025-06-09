@@ -342,7 +342,7 @@ struct GPUSource {
   }
 
   void source_get(Vector<StringRefNull> &result,
-                  const shader::GeneratedSourceList *generated_sources,
+                  const shader::GeneratedSourceList &generated_sources,
                   const GPUSourceDictionnary &dict) const
   {
     /* Check if this file was already included. */
@@ -360,50 +360,36 @@ struct GPUSource {
       return;
     }
 
-    if (generated_sources == nullptr) {
-      std::string warn = std::string("warn: Generated source not provided. Using fallback for ") +
-                         this->filename;
-      result.append(this->source);
-      return;
-    }
+    /* Linear lookup since we won't have more than a few per shaders.
+     * Also avoid the complexity of a Map in create infos. */
+    for (const shader::GeneratedSource &generated_src : generated_sources) {
+      if (generated_src.filename == this->filename) {
+        /* Include dependencies before the generated file. */
+        for (auto dependency_name : generated_src.dependencies) {
+          BLI_assert_msg(dependency_name != this->filename, "Recursive include");
 
-    const shader::GeneratedSource &source = [&]() {
-      /* Linear lookup since we won't have more than a few per shaders.
-       * Also avoid the complexity of a Map in create infos. */
-      for (const shader::GeneratedSource &generated_src : *generated_sources) {
-        if (generated_src.filename == this->filename) {
-          return generated_src;
+          GPUSource *dependency_source = dict.lookup_default(dependency_name, nullptr);
+          if (dependency_source == nullptr) {
+            /* Will certainly fail compilation. But avoid crashing the application. */
+            std::cerr << "Generated dependency not found : " + dependency_name << std::endl;
+            return;
+          }
+          dependency_source->build(result, generated_sources, dict);
         }
-      }
-      return shader::GeneratedSource();
-    }();
 
-    if (source.content.empty()) {
-      std::string warn = std::string("warn: Generated source not provided. Using fallback for ") +
-                         this->filename;
-      result.append(this->source);
-      return;
+        result.append(generated_src.content);
+        return;
+      }
     }
 
-    for (auto dependency_name : source.dependencies) {
-      BLI_assert_msg(dependency_name != this->filename, "Recursive include");
-
-      GPUSource *dependency_source = dict.lookup_default(dependency_name, nullptr);
-      if (dependency_source == nullptr) {
-        /* Will certainly fail compilation. But avoid crashing the application. */
-        std::string error = std::string("Generated dependency not found : ") + dependency_name;
-        std::cerr << error << std::endl;
-        continue;
-      }
-      dependency_source->build(result, generated_sources, dict);
-    }
-
-    result.append(source.content);
+    std::cerr << "warn: Generated source not provided. Using fallback for : " << this->filename
+              << std::endl;
+    result.append(this->source);
   }
 
   /* Returns the final string with all includes done. */
   void build(Vector<StringRefNull> &result,
-             const shader::GeneratedSourceList *generated_sources,
+             const shader::GeneratedSourceList &generated_sources,
              const GPUSourceDictionnary &dict) const
   {
     for (auto *dep : dependencies) {
@@ -581,7 +567,7 @@ BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull shader_source
 }
 
 Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
-    const StringRefNull shader_source_name, const shader::GeneratedSourceList *generated_sources)
+    const StringRefNull shader_source_name, const shader::GeneratedSourceList &generated_sources)
 {
   Vector<StringRefNull> result;
   GPUSource *src = g_sources->lookup_default(shader_source_name, nullptr);
