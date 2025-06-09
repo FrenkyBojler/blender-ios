@@ -1049,16 +1049,9 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      const bool is_locally_selected = BM_elem_flag_test(eed, BM_ELEM_SELECT);
-      bool is_mirror_relevant = false;
-
-      if (symmetry_helper && !is_locally_selected) {
-        is_mirror_relevant = symmetry_helper->is_any_mirror_edge_selected(eed);
-      }
-
-      const bool should_process_this_edge_group = is_locally_selected || is_mirror_relevant;
-
-      if (should_process_this_edge_group) {
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+          (symmetry_helper && symmetry_helper->is_any_mirror_edge_selected(eed)))
+      {
         if (clear) {
           BM_elem_flag_disable(eed, BM_ELEM_SEAM);
         }
