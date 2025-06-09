@@ -175,9 +175,7 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
 
     if (children != nullptr) {
       for (HierarchyContext *child_context : *children) {
-        if (child_context->is_instance() && child_context->duplicator != nullptr &&
-            !child_context->original_export_path.empty())
-        {
+        if (child_context->is_instance() && child_context->duplicator != nullptr) {
           const pxr::SdfPath parent_export_path(context->export_path);
           const pxr::SdfPath children_original_export_path(child_context->original_export_path);
 
