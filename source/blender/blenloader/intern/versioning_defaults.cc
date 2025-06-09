@@ -214,6 +214,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       /* Disable Curve Normals. */
       v3d->overlay.edit_flag &= ~V3D_OVERLAY_EDIT_CU_NORMALS;
       v3d->overlay.normals_constant_screen_size = 7.0f;
+      /* Always enable Grease Pencil vertex color overlay by default. */
+      v3d->overlay.gpencil_vertex_paint_opacity = 1.0f;
 
       /* Level out the 3D Viewport camera rotation, see: #113751. */
       constexpr float viewports_to_level[][4] = {
@@ -345,6 +347,8 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
+  ToolSettings *ts = scene->toolsettings;
+
   STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
 
   scene->r.cfra = 1.0f;
@@ -380,14 +384,13 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
-  scene->toolsettings->snap_angle_increment_2d = default_snap_angle_increment;
-  scene->toolsettings->snap_angle_increment_3d = default_snap_angle_increment;
+  ts->snap_angle_increment_2d = default_snap_angle_increment;
+  ts->snap_angle_increment_3d = default_snap_angle_increment;
   const float default_snap_angle_increment_precision = DEG2RADF(1.0f);
-  scene->toolsettings->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
-  scene->toolsettings->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_2d_precision = default_snap_angle_increment_precision;
+  ts->snap_angle_increment_3d_precision = default_snap_angle_increment_precision;
 
   /* Be sure `curfalloff` and primitive are initialized. */
-  ToolSettings *ts = scene->toolsettings;
   if (ts->gp_sculpt.cur_falloff == nullptr) {
     ts->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
     CurveMapping *gp_falloff_curve = ts->gp_sculpt.cur_falloff;
@@ -451,6 +454,16 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   ts->unified_paint_settings.flag = default_ups.flag;
   copy_v3_v3(ts->unified_paint_settings.rgb, default_ups.rgb);
   copy_v3_v3(ts->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  if (ts->unified_paint_settings.curve_rand_hue == nullptr) {
+    ts->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_saturation == nullptr) {
+    ts->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (ts->unified_paint_settings.curve_rand_value == nullptr) {
+    ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)

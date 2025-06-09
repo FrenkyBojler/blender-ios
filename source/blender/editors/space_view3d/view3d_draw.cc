@@ -64,7 +64,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
-#include "GPU_material.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
@@ -1290,7 +1289,7 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   int name_array_len = 1;
 
   /* 6 is the maximum size of the axis roll text. */
-  /* increase size for unicode languages (Chinese in utf-8...) */
+  /* increase size for unicode languages (Chinese in UTF8...). */
   char tmpstr[96 + 6];
 
   if (RV3D_VIEW_IS_AXIS(rv3d->view) && (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
@@ -1527,7 +1526,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_CENTER) {
     /* Draw this only when orbiting and auto orbit-center is enabled */
-    if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO)) {
+    if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO)) {
       if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
         /* When the center is locked, the auto-center is not used. */
         if (!(v3d->ob_center_cursor || v3d->ob_center)) {
@@ -1683,7 +1682,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);
   BKE_image_free_old_gputextures(bmain);
-  GPU_pass_cache_garbage_collect();
 
   /* No depth test for drawing action zones afterwards. */
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -2031,6 +2029,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                                true,
                                desired_format,
                                GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
+                               false,
                                err_out);
     if (ofs == nullptr) {
       DRW_gpu_context_disable();

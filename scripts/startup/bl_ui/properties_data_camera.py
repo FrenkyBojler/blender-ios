@@ -7,7 +7,7 @@ from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bl_ui.utils import PresetPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class CameraButtonsPanel:
@@ -128,7 +128,7 @@ class DATA_PT_lens(CameraButtonsPanel, Panel):
                     sub.prop(cam, "central_cylindrical_range_u_min", text="Longitude Min")
                     sub.prop(cam, "central_cylindrical_range_u_max", text="Max")
                     sub = col.column(align=True)
-                    sub.prop(cam, "central_cylindrical_radius", text="Cylinder radius")
+                    sub.prop(cam, "central_cylindrical_radius", text="Cylinder Radius")
 
             elif engine in {'BLENDER_RENDER', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}:
                 if cam.lens_unit == 'MILLIMETERS':

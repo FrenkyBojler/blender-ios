@@ -1171,12 +1171,10 @@ struct wmOperatorCallParams {
  * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
-  size_t result_len, composite_len;
-
   /** UTF8 encoding. */
-  char *str_result;
+  std::string result;
   /** UTF8 encoding. */
-  char *str_composite;
+  std::string composite;
 
   /** Cursor position in the IME composition. */
   int cursor_pos;
@@ -1189,8 +1187,10 @@ struct wmIMEData {
 
 /* **************** Paint Cursor ******************* */
 
-using wmPaintCursorDraw =
-    void (*)(bContext *C, int x, int y, float x_tilt, float y_tilt, void *customdata);
+using wmPaintCursorDraw = void (*)(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 &tilt,
+                                   void *customdata);
 
 /* *************** Drag and drop *************** */
 
@@ -1219,6 +1219,7 @@ enum eWM_DragDataType {
   WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
+  WM_DRAG_SHAPE_KEY,
 };
 
 enum eWM_DragFlags {
