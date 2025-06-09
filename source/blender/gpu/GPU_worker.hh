@@ -37,7 +37,12 @@ class GPUWorker {
   /**
    * \param threads_count: Number of threads to span.
    * \param context_type: The type of context each thread uses.
-   * \param run_cb: The callback function that will be called by a thread on `wake_up()`.
+   * \param mutex: Mutex used when trying to acquire the next work
+   *               (and reused internally for termation).
+   * \param pop_work: The callback function that will be called to acquire the next work,
+   *                  should return a void pointer.
+   * \param do_work: The callback function that will be called for each acquired work
+   *                 (passed as a void pointer).
    */
   GPUWorker(uint32_t threads_count,
             ContextType context_type,
