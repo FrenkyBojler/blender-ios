@@ -323,7 +323,7 @@ inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
 
 inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)
 {
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
+  bool is_active_object = ref.is_active(object_active);
   matrix_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object, inflate_bounds);
   infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
@@ -335,7 +335,6 @@ inline ResourceHandle Manager::resource_handle(const ObjectRef &ref,
                                                const float3 *bounds_center,
                                                const float3 *bounds_half_extent)
 {
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
   if (model_matrix) {
     matrix_buf.current().get_or_resize(resource_len_).sync(*model_matrix);
   }
@@ -348,7 +347,7 @@ inline ResourceHandle Manager::resource_handle(const ObjectRef &ref,
   else {
     bounds_buf.current().get_or_resize(resource_len_).sync(*ref.object);
   }
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
@@ -373,10 +372,9 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
 inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef &ref,
                                                         const float4x4 &model_matrix)
 {
-  bool is_active_object = (ref.dupli_object ? ref.dupli_parent : ref.object) == object_active;
   matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
   bounds_buf.current().get_or_resize(resource_len_).sync();
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, is_active_object);
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
