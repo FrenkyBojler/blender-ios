@@ -21,17 +21,17 @@
 #include "ED_mesh.hh"
 
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(BMEditMesh *em,
-                                                                               Mesh *mesh_data,
+                                                                               Mesh *mesh,
                                                                                BMesh *bmesh)
 {
-  if (!em || !mesh_data || !bmesh || mesh_data->symmetry == 0) {
+  if (!em || !mesh || !bmesh || mesh->symmetry == 0) {
     return std::nullopt;
   }
-  return EditMeshSymmetryHelper(em, mesh_data, bmesh);
+  return EditMeshSymmetryHelper(em, mesh, bmesh);
 }
 
 EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh)
-    : em(em), mesh_data(mesh_data), bmesh(bmesh)
+    : em(em), mesh(mesh), bmesh(bmesh)
 {
   use_topology_mirror = (mesh_data->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
@@ -40,7 +40,7 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, 
   BMEdge *current_edge;
   BMFace *current_face;
 
-  for (int axis = 0; axis < 3; ++axis) {
+  for (int axis = 0; axis < 3; axis++) {
     if (mesh_data->symmetry & (ME_SYMMETRY_X << axis)) {
       EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology_mirror);
 
