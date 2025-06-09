@@ -117,6 +117,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
 
   blender::geometry::UVPackIsland_Params params;
   params.margin = margin;
+  params.rotate_method = ED_UVPACK_ROTATION_ANY;
 
   /* TODO: once field input nodes are able to emit warnings (#94039), emit a
    * warning if we fail to solve an island. */
