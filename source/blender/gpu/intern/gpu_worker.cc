@@ -40,20 +40,22 @@ void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context,
     context->activate();
   }
 
+  std::unique_lock<std::mutex> lock(mutex_);
+
   /* Loop until we get the terminate signal. */
-  while (true) {
-    void *work = nullptr;
-    {
-      std::unique_lock<std::mutex> lock(mutex_);
-      condition_var_.wait(lock, [&]() {
-        work = pop_work();
-        return work || terminate_;
-      });
+  while (!terminate_) {
+    void *work = pop_work();
+    if (!work) {
+      condition_var_.wait(lock);
       if (terminate_) {
         break;
       }
+      continue;
     }
+
+    lock.unlock();
     do_work(work);
+    lock.lock();
   }
 }
 
