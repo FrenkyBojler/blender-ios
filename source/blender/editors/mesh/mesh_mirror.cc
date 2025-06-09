@@ -20,10 +20,8 @@
 
 #include "ED_mesh.hh"
 
-EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em_in,
-                                               Mesh *mesh_data_in,
-                                               BMesh *bmesh_in)
-    : em(em_in), mesh_data(mesh_data_in), bmesh(bmesh_in), symmetry_active(false)
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh)
+    : em(em), mesh_data(mesh_data), bmesh(bmesh), symmetry_active(false)
 {
   if (!em || !mesh_data || !bmesh || mesh_data->symmetry == 0) {
     return;

@@ -49,7 +49,7 @@ struct UvElementMap;
 
 class EditMeshSymmetryHelper {
  public:
-  EditMeshSymmetryHelper(BMEditMesh *em_in, Mesh *mesh_data_in, BMesh *bmesh_in);
+  EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh);
 
   bool is_active() const;
   bool is_any_mirror_selected(BMEdge *edge) const;
