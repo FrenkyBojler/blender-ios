@@ -905,14 +905,18 @@ bool check_and_join_segments(Segment &first, const Segment &second)
     return false;
   }
 
-  if (first.intersection_index[1] == second.intersection_index[0]) {
+  if (first.intersection_index[1] == second.intersection_index[0] &&
+      first.intersection_index[1] != -1)
+  {
     first.point_2 = second.point_2;
     first.alpha_2 = second.alpha_2;
 
     first.intersection_index[1] = second.intersection_index[1];
     return true;
   }
-  if (first.intersection_index[0] == second.intersection_index[1]) {
+  if (first.intersection_index[0] == second.intersection_index[1] &&
+      first.intersection_index[0] != -1)
+  {
     first.point_1 = second.point_1;
     first.alpha_1 = second.alpha_1;
 
