@@ -232,14 +232,6 @@ set(SDL_HOMEPAGE https://www.libsdl.org)
 set(SDL_LICENSE SPDX:Zlib)
 set(SDL_COPYRIGHT "Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>")
 
-set(OPENCOLLADA_VERSION dfc341ab0b3b23ee307ab8660c0213e64da1eac6)
-set(OPENCOLLADA_URI https://github.com/aras-p/OpenCOLLADA/archive/${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_HASH 2120c8c02aab840e81cb87e625a608f7)
-set(OPENCOLLADA_HASH_TYPE MD5)
-set(OPENCOLLADA_FILE opencollada-${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_LICENSE SPDX:MIT)
-set(OPENCOLLADA_COPYRIGHT "Copyright (c) 2008-2009 NetAllied Systems GmbH")
-
 set(OPENCOLORIO_VERSION 2.4.1)
 set(OPENCOLORIO_URI https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/v${OPENCOLORIO_VERSION}.tar.gz)
 set(OPENCOLORIO_HASH a11368ef8f001837f29b7dd18dbd2290)
@@ -1005,9 +997,9 @@ Copyright (C) 1999-2006 Takeshi Kanno.
 Copyright (C) 2007-2009 Antony Dovgal.
 ]=])
 
-set(ZSTD_VERSION 1.5.0)
+set(ZSTD_VERSION 1.5.6)
 set(ZSTD_URI https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz)
-set(ZSTD_HASH 5194fbfa781fcf45b98c5e849651aa7b3b0a008c6b72d4a0db760f3002291e94)
+set(ZSTD_HASH 8c29e06cf42aacc1eafc4077ae2ec6c6fcb96a626157e0593d5e82a34fd403c1)
 set(ZSTD_HASH_TYPE SHA256)
 set(ZSTD_FILE zstd-${ZSTD_VERSION}.tar.gz)
 set(ZSTD_CPE "cpe:2.3:a:facebook:zstandard:${ZSTD_VERSION}:*:*:*:*:*:*:*")
@@ -1117,15 +1109,15 @@ set(MP11_HOMEPAGE https://github.com/boostorg/mp11)
 set(MP11_LICENSE SPDX:BSL-1.0)
 
 # Source llvm-spirv/CMakeLists.txt (repo)
-# Source llvm-spirv/spirv-headers-tag.conf (commit/version)
-set(SPIRV_HEADERS_VERSION efb6b4099ddb8fa60f62956dee592c4b94ec6a49)
-set(SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/${SPIRV_HEADERS_VERSION}.tar.gz)
-set(SPIRV_HEADERS_HASH cb1f5b929f95169493f924f5aacf50ff9ce91e9470c28c5830a5ff4fca47062c)
-set(SPIRV_HEADERS_HASH_TYPE SHA256)
-set(SPIRV_HEADERS_FILE SPIR-V-Headers-${SPIRV_HEADERS_VERSION}.tar.gz)
-set(SPIRV_HEADERS_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Headers)
-set(SPIRV_HEADERS_LICENSE SPDX:MIT-Khronos-old)
-set(SPIRV_HEADERS_COPYRIGHT "Copyright (c) 2015-2024 The Khronos Group Inc.")
+# Source llvm-spirv/spirv-headers-tag.conf (hash)
+set(DPCPP_SPIRV_HEADERS_VERSION efb6b4099ddb8fa60f62956dee592c4b94ec6a49)
+set(DPCPP_SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/${DPCPP_SPIRV_HEADERS_VERSION}.tar.gz)
+set(DPCPP_SPIRV_HEADERS_HASH cb1f5b929f95169493f924f5aacf50ff9ce91e9470c28c5830a5ff4fca47062c)
+set(DPCPP_SPIRV_HEADERS_HASH_TYPE SHA256)
+set(DPCPP_SPIRV_HEADERS_FILE DPCPP-SPIR-V-Headers-${DPCPP_SPIRV_HEADERS_VERSION}.tar.gz)
+set(DPCPP_SPIRV_HEADERS_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Headers)
+set(DPCPP_SPIRV_HEADERS_LICENSE SPDX:MIT-Khronos-old)
+set(DPCPP_SPIRV_HEADERS_COPYRIGHT "Copyright (c) 2015-2024 The Khronos Group Inc.")
 
 # Source sycl/cmake/modules/FetchUnifiedRuntime.cmake (repo)
 # Source sycl/cmake/modules/UnifiedRuntimeTag.cmake (commit/version)
@@ -1178,7 +1170,7 @@ set(IGC_LLVM_HOMEPAGE https://github.com/llvm/llvm-project/)
 set(IGC_LLVM_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
 set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana-Champaign. All rights reserved.")
 
-# WARNING WARNING WARNING
+# ******* WARNING *******
 #
 # IGC_OPENCL_CLANG contains patches for some of its dependencies.
 #
@@ -1186,7 +1178,7 @@ set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana
 # IGC_OPENCL_CLANG's patches folder and update igc.cmake to account for
 # any added or removed patches.
 #
-# WARNING WARNING WARNING
+# ******* WARNING *******
 
 set(IGC_OPENCL_CLANG_VERSION v14.0.1)
 set(IGC_OPENCL_CLANG_URI https://github.com/intel/opencl-clang/archive/${IGC_OPENCL_CLANG_VERSION}.tar.gz)
@@ -1348,11 +1340,11 @@ Copyright 2020 The Khronos Group Inc.
 Copyright (C) 2015-2018 Google, Inc.
 ]=])
 
-set(VULKAN_VERSION v1.3.296)
+set(VULKAN_VERSION 1.3.296)
 
 set(VULKAN_HEADERS_VERSION ${VULKAN_VERSION})
 set(VULKAN_HEADERS_NAME Vulkan-Headers)
-set(VULKAN_HEADERS_URI https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/${VULKAN_HEADERS_VERSION}.tar.gz)
+set(VULKAN_HEADERS_URI https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v${VULKAN_HEADERS_VERSION}.tar.gz)
 set(VULKAN_HEADERS_HASH 3f4cd229d8f7c24c9b5a6ead3d674803)
 set(VULKAN_HEADERS_HASH_TYPE MD5)
 set(VULKAN_HEADERS_FILE Vulkan-Headers-${VULKAN_HEADERS_VERSION}.tar.gz)
@@ -1362,7 +1354,7 @@ set(VULKAN_HEADERS_COPYRIGHT "Copyright 2015-2023 The Khronos Group Inc.")
 
 set(VULKAN_LOADER_VERSION ${VULKAN_VERSION})
 set(VULKAN_LOADER_NAME Vulkan-Loader)
-set(VULKAN_LOADER_URI https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/${VULKAN_LOADER_VERSION}.tar.gz)
+set(VULKAN_LOADER_URI https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v${VULKAN_LOADER_VERSION}.tar.gz)
 set(VULKAN_LOADER_HASH bca05ec4914888990c92fa9c3e2738ff)
 set(VULKAN_LOADER_HASH_TYPE MD5)
 set(VULKAN_LOADER_FILE Vulkan-Loader-${VULKAN_LOADER_VERSION}.tar.gz)
@@ -1374,6 +1366,45 @@ Copyright (c) 2019 Valve Corporation.
 Copyright (c) 2019 LunarG, Inc.
 Copyright (c) 2019 Google Inc.
 ]=])
+
+set(VULKAN_UTILITY_LIBRARIES_VERSION ${VULKAN_VERSION})
+set(VULKAN_UTILITY_LIBRARIES_URI https://github.com/KhronosGroup/Vulkan-Utility-Libraries/archive/refs/tags/v${VULKAN_UTILITY_LIBRARIES_VERSION}.tar.gz)
+set(VULKAN_UTILITY_LIBRARIES_HASH 02091bdc2b5862685da83b37a6c48821)
+set(VULKAN_UTILITY_LIBRARIES_HASH_TYPE MD5)
+set(VULKAN_UTILITY_LIBRARIES_FILE Vulkan-Utility-Libraries-${VULKAN_UTILITY_LIBRARIES_VERSION}.tar.gz)
+set(VULKAN_UTILITY_LIBRARIES_HOMEPAGE https://github.com/KhronosGroup/Vulkan-Utility-Libraries)
+set(VULKAN_UTILITY_LIBRARIES_LICENSE SPDX:Apache-2.0)
+set(VULKAN_UTILITY_LIBRARIES_COPYRIGHT "Copyright 2015-2025 The Khronos Group Inc.")
+
+set(VULKAN_MEMORY_ALLOCATOR_VERSION 3.2.1)
+set(VULKAN_MEMORY_ALLOCATOR_NAME Vulkan-Memory-Allocator)
+set(VULKAN_MEMORY_ALLOCATOR_URI
+https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v${VULKAN_MEMORY_ALLOCATOR_VERSION}.tar.gz)
+set(VULKAN_MEMORY_ALLOCATOR_HASH f32b8374858566854e5f77564ea2e16d)
+set(VULKAN_MEMORY_ALLOCATOR_HASH_TYPE MD5)
+set(VULKAN_MEMORY_ALLOCATOR_FILE Vulkan-Memory-Allocator-${VULKAN_MEMORY_ALLOCATOR_VERSION}.tar.gz)
+set(VULKAN_MEMORY_ALLOCATOR_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
+set(VULKAN_MEMORY_ALLOCATOR_LICENSE SPDX:MIT)
+
+set(SPIRV_HEADERS_VERSION ${VULKAN_VERSION})
+set(SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-${SPIRV_HEADERS_VERSION}.0.tar.gz)
+set(SPIRV_HEADERS_HASH adee3d432b63f345c8ee6d625d0c8e6c)
+set(SPIRV_HEADERS_HASH_TYPE MD5)
+set(SPIRV_HEADERS_FILE SPIRV-Headers-${SPIRV_HEADERS_VERSION}.tar.gz)
+set(SPIRV_HEADERS_NAME SPIR-V Headers)
+set(SPIRV_HEADERS_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Headers/)
+set(SPIRV_HEADERS_LICENSE SPDX:Apache-2.0)
+set(SPIRV_HEADERS_COPYRIGHT "Copyright (c) 2015-2014 The Khronos Group Inc.")
+
+set(SPIRV_REFLECT_VERSION 1.4.309.0)
+set(SPIRV_REFLECT_NAME SPIRV-Reflect)
+set(SPIRV_REFLECT_URI
+https://github.com/KhronosGroup/SPIRV-Reflect/archive/refs/tags/vulkan-sdk-${SPIRV_REFLECT_VERSION}.tar.gz)
+set(SPIRV_REFLECT_HASH 11234b7d7895f69c3955e458c7b98914)
+set(SPIRV_REFLECT_HASH_TYPE MD5)
+set(SPIRV_REFLECT_FILE SPIRV-Reflect-${SPIRV_REFLECT_VERSION}.tar.gz)
+set(SPIRV_REFLECT_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Reflect)
+set(SPIRV_REFLECT_LICENSE SPDX:Apache-2.0)
 
 set(PYBIND11_VERSION 2.10.1)
 set(PYBIND11_URI https://github.com/pybind/pybind11/archive/refs/tags/v${PYBIND11_VERSION}.tar.gz)

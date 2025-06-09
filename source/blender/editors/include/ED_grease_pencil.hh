@@ -175,6 +175,7 @@ class DrawingPlacement {
   /**
    * Projects a screen space coordinate to the local drawing space.
    */
+  float3 project(float2 co, bool &clipped) const;
   float3 project(float2 co) const;
   void project(Span<float2> src, MutableSpan<float3> dst) const;
   /**
@@ -1006,5 +1007,10 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
                                    int eval_frame,
                                    const IndexMask &orig_layers,
                                    GreasePencil &orig_grease_pencil);
+
+/**
+ * Remove all the strokes that are marked as fill guides.
+ */
+bool remove_fill_guides(bke::CurvesGeometry &curves);
 
 }  // namespace blender::ed::greasepencil
