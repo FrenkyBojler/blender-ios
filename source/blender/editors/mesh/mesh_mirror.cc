@@ -21,27 +21,26 @@
 #include "ED_mesh.hh"
 
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(BMEditMesh *em,
-                                                                               Mesh *mesh,
-                                                                               BMesh *bmesh)
+                                                                               Mesh *mesh)
 {
-  if (!em || !mesh || !bmesh || mesh->symmetry == 0) {
+  if (!em || !em->bm || !mesh || mesh->symmetry == 0) {
     return std::nullopt;
   }
-  return EditMeshSymmetryHelper(em, mesh, bmesh);
+  return EditMeshSymmetryHelper(em, mesh);
 }
 
-EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh_data, BMesh *bmesh)
-    : em(em), mesh(mesh), bmesh(bmesh)
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh) : em(em), mesh(mesh)
 {
-  use_topology_mirror = (mesh_data->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+  BMesh *bmesh = em->bm;
+  use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
   BMIter v_iter, e_iter, f_iter;
   BMVert *current_vert;
   BMEdge *current_edge;
   BMFace *current_face;
 
-  for (int axis = 0; axis < 3; axis++) {
-    if (mesh_data->symmetry & (ME_SYMMETRY_X << axis)) {
+  for (int axis = 0; axis < 3; ++axis) {
+    if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
       EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology_mirror);
 
       BM_ITER_MESH (current_vert, &v_iter, bmesh, BM_VERTS_OF_MESH) {

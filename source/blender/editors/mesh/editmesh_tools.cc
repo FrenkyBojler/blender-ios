@@ -1035,16 +1035,15 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
     Mesh *me = static_cast<Mesh *>(obedit->data);
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
+        EditMeshSymmetryHelper::create_if_needed(em, me);
 
     BMIter iter;
     BMEdge *eed;
 
-    BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
       if (BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
         continue;
       }
@@ -1057,10 +1056,6 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
         }
         else {
           BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-        }
-
-        if (symmetry_helper) {
-          symmetry_helper->set_flag_on_mirror_edges(eed, BM_ELEM_SEAM, !clear);
         }
       }
     }
@@ -2639,10 +2634,8 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   int tot_selected = 0, tot_locked = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
-
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
     Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totvertsel == 0) {
@@ -2665,7 +2658,6 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     LISTBASE_FOREACH (ModifierData *, md, &obedit->modifiers) {
       if (md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
         MirrorModifierData *mmd = (MirrorModifierData *)md;
-
         if (mmd->flag & MOD_MIR_CLIPPING) {
           if (mmd->flag & MOD_MIR_AXIS_X) {
             mirrx = true;
@@ -2676,14 +2668,13 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
           if (mmd->flag & MOD_MIR_AXIS_Z) {
             mirrz = true;
           }
-
           clip_dist = mmd->tolerance;
         }
       }
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
+        EditMeshSymmetryHelper::create_if_needed(em, me);
 
     int hflag_smooth = BM_ELEM_SELECT;
 
@@ -2693,10 +2684,11 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
       BMIter v_iter;
       BMVert *v;
-      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
-        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+      BM_ITER_MESH (v, &v_iter, em->bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT) ||
+            symmetry_helper->is_any_mirror_vert_selected(v))
+        {
           BM_elem_flag_enable(v, hflag_smooth);
-          symmetry_helper->set_flag_on_mirror_verts(v, hflag_smooth, true);
         }
       }
     }
@@ -2792,7 +2784,7 @@ static int edbm_do_smooth_laplacian_vertex_exec(bContext *C, wmOperator *op)
     repeat = 1;
   }
 
-  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5217,7 +5209,7 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me, bm);
+        EditMeshSymmetryHelper::create_if_needed(em, me);
 
     int hflag_poke = BM_ELEM_SELECT;
 
