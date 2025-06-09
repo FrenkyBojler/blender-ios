@@ -158,7 +158,8 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -201,7 +202,8 @@ static void acf_generic_channel_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -5215,7 +5217,8 @@ void ANIM_channel_draw(
     short draw_sliders = 0;
     float ymin_ofs = 0.0f;
     float color[3];
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
