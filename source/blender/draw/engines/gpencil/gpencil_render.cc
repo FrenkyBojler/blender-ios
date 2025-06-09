@@ -358,7 +358,9 @@ static void render_frame(RenderEngine *engine,
   for (const float time : time_steps) {
     inst.init();
 
-    DRW_render_set_time(engine, depsgraph, floorf(time), fractf(time));
+    if (motion_blur_enabled) {
+      DRW_render_set_time(engine, depsgraph, floorf(time), fractf(time));
+    }
 
     inst.camera = DEG_get_evaluated(depsgraph, RE_GetCamera(engine->re));
 
@@ -401,7 +403,9 @@ static void render_frame(RenderEngine *engine,
     }
   }
 
-  RE_engine_frame_set(engine, initial_frame, initial_subframe);
+  if (motion_blur_enabled) {
+    RE_engine_frame_set(engine, initial_frame, initial_subframe);
+  }
 }
 
 void Engine::render_to_image(RenderEngine *engine, RenderLayer *render_layer, const rcti rect)
