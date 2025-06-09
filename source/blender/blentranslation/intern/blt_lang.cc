@@ -110,7 +110,7 @@ static void fill_locales()
   if (num_locales > 0) {
     locales = MEM_calloc_arrayN<const char *>(num_locales, __func__);
     while (line) {
-      const char *loc, *sep1, *sep2, *sep3;
+      const char *loc, *desc, *sep1, *sep2, *sep3;
 
       char *str = (char *)line->link;
       if (ELEM(str[0], '#', '\0')) {
@@ -133,9 +133,13 @@ static void fill_locales()
 
           if (sep3) {
             locales_menu[idx].identifier = loc = BLI_strdupn(sep2, sep3 - sep2);
+
+            sep3++;
+            desc = BLI_sprintfN("%s (%s)", loc, sep3);
           }
           else {
             locales_menu[idx].identifier = loc = BLI_strdup(sep2);
+            desc = BLI_strdup(sep2);
           }
 
           if (id == 0) {
@@ -148,13 +152,10 @@ static void fill_locales()
                   "Automatically choose system's defined language "
                   "if available, or fall-back to English");
             }
-            /* Menu "label", not to be stored in locales! */
-            else {
-              locales_menu[idx].description = BLI_strdup("");
-            }
           }
           else {
-            locales[id] = locales_menu[idx].description = BLI_strdup(loc);
+            locales[id] = BLI_strdup(loc);
+            locales_menu[idx].description = BLI_strdup(desc);
           }
           idx++;
         }

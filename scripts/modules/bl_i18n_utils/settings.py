@@ -25,12 +25,6 @@ except ModuleNotFoundError:
 ###############################################################################
 
 # The languages defined in Blender.
-LANGUAGES_CATEGORIES = (
-    # Min completeness level, UI English label.
-    (0.95, "Complete"),
-    (0.33, "In Progress"),
-    (-1.0, "Starting"),
-)
 LANGUAGES = (
     # ID, UI English label, ISO code.
     (0, "Automatic", "DEFAULT"),
