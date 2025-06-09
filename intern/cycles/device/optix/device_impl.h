@@ -11,6 +11,8 @@
 #  include "device/optix/util.h"  // IWYU pragma: keep
 #  include "kernel/osl/globals.h"
 
+#  include "util/task.h"
+
 CCL_NAMESPACE_BEGIN
 
 class BVHOptiX;
@@ -74,15 +76,16 @@ class OptiXDevice : public CUDADevice {
   OptixProgramGroup groups[NUM_PROGRAM_GROUPS] = {};
   OptixPipelineCompileOptions pipeline_options = {};
 
-  device_vector<SbtRecord> sbt_data;
-  device_only_memory<KernelParamsOptiX> launch_params;
-
 #  ifdef WITH_OSL
   OSLGlobals osl_globals;
   vector<OptixModule> osl_modules;
   vector<OptixProgramGroup> osl_groups;
   OptixModule osl_camera_module = nullptr;
+  device_vector<uint8_t> osl_colorsystem;
 #  endif
+
+  device_vector<SbtRecord> sbt_data;
+  device_only_memory<KernelParamsOptiX> launch_params;
 
  private:
   OptixTraversableHandle tlas_handle = 0;
@@ -96,6 +99,12 @@ class OptiXDevice : public CUDADevice {
   BVHLayoutMask get_bvh_layout_mask(uint /*kernel_features*/) const override;
 
   string compile_kernel_get_common_cflags(const uint kernel_features);
+
+  void create_optix_module(TaskPool &pool,
+                           OptixModuleCompileOptions &module_options,
+                           string &ptx_data,
+                           OptixModule &module,
+                           OptixResult &failure_reason);
 
   bool load_kernels(const uint kernel_features) override;
 

@@ -174,6 +174,7 @@ static void modify_geometry_set(ModifierData *md,
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);
   CacheFile *cache_file = mcmd->cache_file;
   const float frame = DEG_get_ctime(ctx->depsgraph);
+  const double frame_offset = BKE_cachefile_frame_offset(cache_file, double(frame));
   const double time = BKE_cachefile_time_offset(cache_file, frame, FPS);
   const char *err_str = nullptr;
 
@@ -236,7 +237,7 @@ static void modify_geometry_set(ModifierData *md,
     case CACHEFILE_TYPE_USD: {
 #  ifdef WITH_USD
       const blender::io::usd::USDMeshReadParams params = blender::io::usd::create_mesh_read_params(
-          time * FPS, mcmd->read_flag);
+          frame_offset, mcmd->read_flag);
       blender::io::usd::USD_read_geometry(
           mcmd->reader, ctx->object, *geometry_set, params, &err_str);
 #  endif
@@ -385,14 +386,14 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
-    uiItemR(layout, ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (RNA_enum_get(&ob_ptr, "type") == OB_CURVES) {
-    uiItemR(layout, ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -409,7 +410,7 @@ static void velocity_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
   uiTemplateCacheFileVelocity(layout, &fileptr);
-  uiItemR(layout, ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "velocity_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void time_panel_draw(const bContext * /*C*/, Panel *panel)

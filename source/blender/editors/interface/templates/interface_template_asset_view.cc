@@ -245,16 +245,10 @@ void uiTemplateAssetView(uiLayout *layout,
 
   uiLayout *row = &col->row(true);
   if ((display_flags & UI_TEMPLATE_ASSET_DRAW_NO_LIBRARY) == 0) {
-    uiItemFullR(row,
-                asset_library_dataptr,
-                asset_library_prop,
-                RNA_NO_INDEX,
-                0,
-                UI_ITEM_NONE,
-                "",
-                ICON_NONE);
+    row->prop(
+        asset_library_dataptr, asset_library_prop, RNA_NO_INDEX, 0, UI_ITEM_NONE, "", ICON_NONE);
     if (asset_library_ref.type != ASSET_LIBRARY_LOCAL) {
-      uiItemO(row, "", ICON_FILE_REFRESH, "ASSET_OT_library_refresh");
+      row->op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
     }
   }
 
@@ -280,8 +274,8 @@ void uiTemplateAssetView(uiLayout *layout,
 
   uiLayout *subcol = &col->column(false);
 
-  uiLayoutSetScaleX(subcol, 0.8f);
-  uiLayoutSetScaleY(subcol, 0.8f);
+  subcol->scale_x_set(0.8f);
+  subcol->scale_y_set(0.8f);
 
   /* TODO can we have some kind of model-view API to handle referencing, filtering and lazy loading
    * (of previews) of the items? */
