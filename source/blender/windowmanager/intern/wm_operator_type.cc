@@ -300,6 +300,37 @@ static void wm_macro_start(wmOperator *op)
   }
 }
 
+static bool wm_macro_operator_status_early_exit_check(wmOperator *op,
+                                                      wmOperator *opm,
+                                                      const wmOperatorStatus retval)
+{
+  if (retval & OPERATOR_CANCELLED) {
+    /* Operator didn't finish, end macro. */
+    return true;
+  }
+
+  /* If an "interface" or "modal" action is not last, it behaves the same as "cancel"
+   * while not an "error" it's unlikely the intended outcome. */
+  if (retval & OPERATOR_INTERFACE) {
+    BLI_assert_msg(opm->next == nullptr, "Interface operators must be last");
+    return true;
+  }
+  if (retval & OPERATOR_RUNNING_MODAL) {
+    BLI_assert_msg(opm->next == nullptr, "Modal operators must be last");
+    return true;
+  }
+
+  /* This flag may need special handling, see: #wm_macro_end too. */
+  CLOG_WARN(WM_LOG_OPERATORS,
+            "'%s', '%s' unexpected operator flag %d",
+            op->type->idname,
+            opm->type->idname,
+            int(retval));
+
+  /* Always return true since it makes sense to exit when an unexpected flag is met. */
+  return true;
+}
+
 static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 {
   MacroData *md = static_cast<MacroData *>(op->customdata);
@@ -346,8 +377,8 @@ static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
       MacroData *md = static_cast<MacroData *>(op->customdata);
       md->retval = OPERATOR_FINISHED; /* Keep in mind that at least one operator finished. */
     }
-    else {
-      break; /* Operator didn't finish, end macro. */
+    else if (wm_macro_operator_status_early_exit_check(op, opm, retval)) {
+      break;
     }
   }
 
@@ -382,8 +413,8 @@ static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
       MacroData *md = static_cast<MacroData *>(op->customdata);
       md->retval = OPERATOR_FINISHED; /* Keep in mind that at least one operator finished. */
     }
-    else {
-      break; /* Operator didn't finish, end macro. */
+    else if (wm_macro_operator_status_early_exit_check(op, opm, retval)) {
+      break;
     }
   }
 
