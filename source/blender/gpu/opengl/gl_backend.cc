@@ -742,8 +742,14 @@ void GLBackend::capabilities_init()
     thread_count = 1;
 
     if (GCaps.use_subprocess_shader_compilations) {
-      /* Subprocess is too costly in memory (~150MB per worker) to have better defaults. */
-      thread_count = 1;
+      /* Use reasonable number of worker by default when there are known gains. */
+      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) ||
+          GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) ||
+          GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY))
+      {
+        /* Subprocess is too costly in memory (>150MB per worker) to have better defaults. */
+        thread_count = std::max(1, std::min(4, BLI_system_thread_count() - 1));
+      }
     }
     else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
       /* Best middle ground between memory usage and speedup as Nvidia context memory footprint
