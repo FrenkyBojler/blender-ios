@@ -5,3 +5,4 @@ Referenced by pull request #133992, Sculpt: Assert when applying a translation t
 Referenced by commit 1131254644996e5a8adf5842509cfac3c0409b77, Fix #139969: Clay Strips brush can corrupt mesh
 Referenced by pull request #140084, Fix #140078: Sculpt Paint brushes can apply NaN
 Referenced by commit 44bfeb22147431a2fdbe89d9501b861b2d6006ce, Fix #140078: Sculpt Paint brushes can apply NaN
+Referenced by commit 12f4e1704469388f8e8c359fcbecea6fd2737cc1, Sculpt: Assert when applying a translation that contains NaN
