@@ -1320,9 +1320,9 @@ constexpr void id_cast_assert(SrcRuntime *src)
 }  // namespace dna::detail
 
 /**
- * A drop-in replacement for `reinterpret_cast` that does additional compile-time and run-time type
- * checks to make sure that the cast is valid. This can only be used on reference and pointer
- * types.
+ * A drop-in replacement for `reinterpret_cast` that does additional checks:
+ * - Static check that the source and destination types are data-block types.
+ * - Run-time assert when down-casting from #ID to e.g. #Object.
  *
  * \note This can't be used with forward-declared types as the type information is necessary for
  * the additional checks. For the same reason, it also can't be used to convert from void pointers.
