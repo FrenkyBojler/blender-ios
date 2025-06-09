@@ -551,12 +551,14 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
       }
     }
 
-    /* Validate that everything has been tagged in some way or another.*/
-    BLI_assert(BMO_edge_flag_test(bm, e, EDGE_MARK) || BMO_edge_flag_test(bm, e, EDGE_CHAIN));
-    BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
-               BMO_vert_flag_test(bm, e->v1, VERT_ISGC));
-    BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
-               BMO_vert_flag_test(bm, e->v2, VERT_ISGC));
+    /* Validate that everything has been tagged in some way or another, if in dissolve selection mode.*/
+    if (use_select_mode) {
+      BLI_assert(BMO_edge_flag_test(bm, e, EDGE_MARK) || BMO_edge_flag_test(bm, e, EDGE_CHAIN));
+      BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
+                 BMO_vert_flag_test(bm, e->v1, VERT_ISGC));
+      BLI_assert((BMO_vert_flag_test(bm, e->v1, VERT_MARK) || use_verts == false) ||
+                 BMO_vert_flag_test(bm, e->v2, VERT_ISGC));
+    }
 
     /* Tag face geometry near edges that will be removed, for possible garbage collection.
      *
