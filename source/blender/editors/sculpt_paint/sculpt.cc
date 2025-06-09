@@ -7226,7 +7226,6 @@ void reset_translations_to_original(const MutableSpan<float3> translations,
   }
 }
 
-/** Helper function to assert on translations that attempt to propagate NaN */
 static bool contains_nan(const Span<float> values)
 {
   return std::any_of(values.begin(), values.end(), [&](const float v) { return std::isnan(v); });
