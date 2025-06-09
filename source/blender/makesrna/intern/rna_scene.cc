@@ -8732,8 +8732,9 @@ static void rna_def_scene_gpencil(BlenderRNA *brna)
   prop = RNA_def_property(srna, "motion_blur_steps", PROP_INT, PROP_NONE);
   RNA_def_property_ui_text(prop,
                            "Motion Steps",
-                           "Controls accuracy of motion blur, more steps means longer render "
-                           "time. Set to 0 to disable motion blur for Grease Pencil");
+                           "Controls accuracy of motion blur, more steps result in longer render "
+                           "time. Only used when Motion Blur is enabled. Set to 0 to disable "
+                           "motion blur for Grease Pencil");
   RNA_def_property_range(prop, 0, INT_MAX);
   RNA_def_property_ui_range(prop, 0, 64, 1, -1);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
