@@ -469,6 +469,8 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
+        layout.operator("uv.box_region")
+        layout.operator("uv.disable_box_region")
 
         layout.separator()
 
@@ -493,8 +495,6 @@ class IMAGE_MT_uvs(Menu):
         layout.operator("uv.reset")
 
         layout.separator()
-        layout.operator("uv.box_region")
-        layout.operator("uv.disable_box_region")
 
         layout.separator()
 
