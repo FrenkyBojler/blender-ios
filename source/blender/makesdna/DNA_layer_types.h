@@ -176,9 +176,9 @@ typedef struct ViewLayer {
 
   struct Material *mat_override;
   struct World *world_override;
-  /** Equivalent to datablocks user-defined ID properties. */
+  /** Equivalent to data-blocks user-defined ID properties. */
   struct IDProperty *id_properties;
-  /** Equivalent to datablocks system-defined ID properties. */
+  /** Equivalent to data-blocks system-defined ID properties. */
   struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
