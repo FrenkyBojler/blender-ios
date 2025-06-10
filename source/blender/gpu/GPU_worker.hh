@@ -41,8 +41,10 @@ class GPUWorker {
    *               (and reused internally for termation).
    * \param pop_work: The callback function that will be called to acquire the next work,
    *                  should return a void pointer.
+   *                  NOTE: The mutex is locked when this function is called.
    * \param do_work: The callback function that will be called for each acquired work
    *                 (passed as a void pointer).
+   *                 NOTE: The mutex is unlocked when this function is called.
    */
   GPUWorker(uint32_t threads_count,
             ContextType context_type,
