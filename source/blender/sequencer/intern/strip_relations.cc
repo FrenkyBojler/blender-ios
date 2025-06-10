@@ -85,10 +85,6 @@ void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 
 void relations_invalidate_cache(Scene *scene, Strip *strip)
 {
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    return;
-  }
-
   if (strip->effectdata && strip->type == STRIP_TYPE_SPEED) {
     strip_effect_speed_rebuild_map(scene, strip);
   }
@@ -99,31 +95,18 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
   intra_frame_cache_invalidate(scene, strip);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
+  /* Needed to update VSE sound. */
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   prefetch_stop(scene);
 }
 
-static void invalidate_scene_strips(Scene *scene, Scene *scene_target, ListBase *seqbase)
+void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_target)
 {
-  for (Strip *strip = static_cast<Strip *>(seqbase->first); strip != nullptr; strip = strip->next)
-  {
-    if (strip->scene == scene_target) {
-      relations_invalidate_cache_raw(scene, strip);
-    }
-
-    if (strip->seqbase.first != nullptr) {
-      invalidate_scene_strips(scene, scene_target, &strip->seqbase);
-    }
-  }
-}
-
-void relations_invalidate_scene_strips(Main *bmain, Scene *scene_target)
-{
-  for (Scene *scene = static_cast<Scene *>(bmain->scenes.first); scene != nullptr;
-       scene = static_cast<Scene *>(scene->id.next))
-  {
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     if (scene->ed != nullptr) {
-      invalidate_scene_strips(scene, scene_target, &scene->ed->seqbase);
+      for (Strip *strip : lookup_strips_by_scene(editing_get(scene), scene_target)) {
+        relations_invalidate_cache_raw(scene, strip);
+      }
     }
   }
 }
