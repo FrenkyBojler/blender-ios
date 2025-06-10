@@ -702,7 +702,7 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
 static void UV_OT_set_texel_density(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Set Texetl Desnity";
+  ot->name = "Set Texel Desnity";
   ot->description =
       "Set the texel density of the selected faces";
   ot->idname = "UV_OT_set_texel_density";
