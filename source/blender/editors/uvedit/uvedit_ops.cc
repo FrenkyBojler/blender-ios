@@ -630,11 +630,6 @@ static void UV_OT_align(wmOperatorType *ot)
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
 }
 
-static float area_calculate(float2 a, float2 b, float2 c)
-{
-  return abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) * 0.5);
-}
-
 static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
