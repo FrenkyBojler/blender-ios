@@ -955,6 +955,7 @@ class SEQUENCER_MT_strip_show_hide(Menu):
         layout.operator("sequencer.mute", text="Hide Selected").unselected = False
         layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
 
+
 class SEQUENCER_MT_strip_animation(Menu):
     bl_label = "Animation"
 

@@ -63,6 +63,8 @@ def RKS_POLL_selected_bones(_ksi, context):
     return False
 
 # selected vse strip
+
+
 def RKS_POLL_selected_strip(_ksi, context):
     if context.active_sequence_strip or context.selected_sequences:
         return True
@@ -87,9 +89,12 @@ def RKS_ITER_selected_item(ksi, context, ks):
     if ob and ob.mode == 'POSE':
         for bone in context.selected_pose_bones:
             ksi.generate(context, ks, bone)
-    else:
+    elif context.selected_objects:
         for ob in context.selected_objects:
             ksi.generate(context, ks, ob)
+    elif context.selected_sequences:
+        for strip in context.selected_sequences:
+            ksi.generate(context, ks, strip)
 
 
 # All selected objects only.
