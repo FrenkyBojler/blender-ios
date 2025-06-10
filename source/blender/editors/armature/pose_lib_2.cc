@@ -144,9 +144,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
     blender::Set<bPoseChannel *> keyed_pose_bones;
     auto autokey_pose_bones = [&](FCurve * /* fcu */, const char *bone_name) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(pose, bone_name);
-      if (!pchan) {
-        return;
-      }
+      BLI_assert(pchan != nullptr);
       if (BKE_pose_backup_is_selection_relevant(pbd->pose_backup) &&
           !PBONE_SELECTED(armature, pchan->bone))
       {
