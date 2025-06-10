@@ -41,7 +41,7 @@ static uint16_t vbo_bind(const ShaderInterface *interface,
 
     if (format->deinterleaved) {
       offset += ((a_idx == 0) ? 0 : format->attrs[a_idx - 1].type.size()) * v_len;
-      stride = a->size();
+      stride = a->type.size();
     }
     else {
       offset = a->offset;
