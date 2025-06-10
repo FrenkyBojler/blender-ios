@@ -57,6 +57,13 @@ static void free_locales()
       MEM_freeN(locales_menu[idx].name);
       MEM_freeN(locales_menu[idx].description); /* Also frees locales's relevant value! */
     }
+    int id = num_locales;
+    while (id--) {
+      if (locales[id]) {
+        MEM_freeN(locales[id]);
+        locales[id] = nullptr;
+      }
+    }
 
     MEM_freeN(locales);
     locales = nullptr;
@@ -145,7 +152,7 @@ static void fill_locales()
           if (id == 0) {
             /* The DEFAULT/Automatic item... */
             if (BLI_strnlen(loc, 2)) {
-              locales[id] = "";
+              locales[id] = BLI_strdup("");
               /* Keep this tip in sync with the one in rna_userdef
                * (rna_enum_language_default_items). */
               locales_menu[idx].description = BLI_strdup(
@@ -157,6 +164,7 @@ static void fill_locales()
             locales[id] = BLI_strdup(loc);
             locales_menu[idx].description = BLI_strdup(desc);
           }
+          MEM_freeN(desc);
           idx++;
         }
       }
