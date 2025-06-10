@@ -62,11 +62,20 @@ def RKS_POLL_selected_bones(_ksi, context):
     # nothing selected
     return False
 
+# selected vse strip
+def RKS_POLL_selected_strip(_ksi, context):
+    if context.active_sequence_strip or context.selected_sequences:
+        return True
+
+    # nothing selected
+    return False
+
 
 # selected bones or objects
 def RKS_POLL_selected_items(ksi, context):
     return (RKS_POLL_selected_bones(ksi, context) or
-            RKS_POLL_selected_objects(ksi, context))
+            RKS_POLL_selected_objects(ksi, context) or
+            RKS_POLL_selected_strip(ksi, context))
 
 ###########################
 # Iterator Callbacks
