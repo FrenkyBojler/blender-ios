@@ -494,13 +494,6 @@ class StaticShader : NonCopyable {
 
     std::scoped_lock lock(mutex_);
 
-    if (GPU_use_main_context_workaround()) {
-      BLI_assert(!info_name_.empty());
-      shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
-      failed_ = shader_ == nullptr;
-      return;
-    }
-
     if (compilation_handle_) {
       if (GPU_shader_batch_is_ready(compilation_handle_)) {
         shader_ = GPU_shader_batch_finalize(compilation_handle_)[0];
