@@ -50,9 +50,8 @@ static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "use_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -63,19 +62,14 @@ class TranslateOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = this->get_input("Image");
-    Result &output = this->get_result("Image");
+    const Result &input = this->get_input("Image");
 
     float x = this->get_input("X").get_single_value_default(0.0f);
     float y = this->get_input("Y").get_single_value_default(0.0f);
-    if (this->get_use_relative()) {
-      x *= input.domain().size.x;
-      y *= input.domain().size.y;
-    }
-
     const float2 translation = float2(x, y);
 
-    input.pass_through(output);
+    Result &output = this->get_result("Image");
+    output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
     output.get_realization_options().repeat_x = this->get_repeat_x();
@@ -95,11 +89,6 @@ class TranslateOperation : public NodeOperation {
 
     BLI_assert_unreachable();
     return Interpolation::Nearest;
-  }
-
-  bool get_use_relative()
-  {
-    return node_storage(bnode()).relative;
   }
 
   bool get_repeat_x()
@@ -124,7 +113,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_translate_cc
 
-void register_node_type_cmp_translate()
+static void register_node_type_cmp_translate()
 {
   namespace file_ns = blender::nodes::node_composite_translate_cc;
 
@@ -144,3 +133,4 @@ void register_node_type_cmp_translate()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_translate)

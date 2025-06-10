@@ -35,8 +35,7 @@ static void CMP_NODE_CONVERT_COLOR_SPACE_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_convert_colorspace(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertColorSpace *ncs = static_cast<NodeConvertColorSpace *>(
-      MEM_callocN(sizeof(NodeConvertColorSpace), "node colorspace"));
+  NodeConvertColorSpace *ncs = MEM_callocN<NodeConvertColorSpace>("node colorspace");
   const char *first_colorspace = IMB_colormanagement_role_colorspace_name_get(
       COLOR_ROLE_SCENE_LINEAR);
   if (first_colorspace && first_colorspace[0]) {
@@ -54,12 +53,12 @@ static void node_composit_buts_convert_colorspace(uiLayout *layout,
                                                   bContext * /*C*/,
                                                   PointerRNA *ptr)
 {
-#ifndef WITH_OCIO
-  uiItemL(layout, RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
+#ifndef WITH_OPENCOLORIO
+  layout->label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
-  uiItemR(layout, ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -70,10 +69,10 @@ class ConvertColorSpaceOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_input("Image");
-    Result &output_image = get_result("Image");
-    if (is_identity()) {
-      input_image.pass_through(output_image);
+    const Result &input_image = this->get_input("Image");
+    if (this->is_identity()) {
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -102,10 +101,10 @@ class ConvertColorSpaceOperation : public NodeOperation {
 
     /* A null shader indicates that the conversion shader is just a stub implementation since OCIO
      * is disabled at compile time, so pass the input through in that case. */
-    Result &input_image = get_input("Image");
-    Result &output_image = get_result("Image");
+    const Result &input_image = this->get_input("Image");
+    Result &output_image = this->get_result("Image");
     if (!shader) {
-      input_image.pass_through(output_image);
+      output_image.share_data(input_image);
       return;
     }
 
@@ -191,7 +190,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_convert_color_space_cc
 
-void register_node_type_cmp_convert_color_space()
+static void register_node_type_cmp_convert_color_space()
 {
   namespace file_ns = blender::nodes::node_composite_convert_color_space_cc;
   static blender::bke::bNodeType ntype;
@@ -211,3 +210,4 @@ void register_node_type_cmp_convert_color_space()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_convert_color_space)

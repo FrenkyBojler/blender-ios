@@ -23,11 +23,11 @@ namespace blender::seq {
 
 static void init_alpha_over_or_under(Strip *strip)
 {
-  Strip *seq1 = strip->seq1;
-  Strip *seq2 = strip->seq2;
+  Strip *input1 = strip->input1;
+  Strip *input2 = strip->input2;
 
-  strip->seq2 = seq1;
-  strip->seq1 = seq2;
+  strip->input2 = input1;
+  strip->input1 = input2;
 }
 
 static bool alpha_opaque(uchar alpha)
@@ -339,8 +339,10 @@ static void init_colormix_effect(Strip *strip)
   if (strip->effectdata) {
     MEM_freeN(strip->effectdata);
   }
-  strip->effectdata = MEM_callocN(sizeof(ColorMixVars), "colormixvars");
-  ColorMixVars *data = (ColorMixVars *)strip->effectdata;
+
+  ColorMixVars *data = MEM_callocN<ColorMixVars>("colormixvars");
+  strip->effectdata = data;
+
   data->blend_effect = STRIP_TYPE_OVERLAY;
   data->factor = 1.0f;
 }

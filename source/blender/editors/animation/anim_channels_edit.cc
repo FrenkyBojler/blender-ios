@@ -41,6 +41,7 @@
 #include "BKE_library.hh"
 #include "BKE_mask.h"
 #include "BKE_nla.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
@@ -176,7 +177,7 @@ static bool get_channel_bounds(bAnimContext *ac,
   bool found_bounds = false;
   switch (ale->datatype) {
     case ALE_GPFRAME: {
-      bGPDlayer *gpl = (bGPDlayer *)ale->data;
+      bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
       found_bounds = get_gpencil_bounds(gpl, range, r_bounds);
       break;
     }
@@ -186,7 +187,7 @@ static bool get_channel_bounds(bAnimContext *ac,
       break;
 
     case ALE_FCURVE: {
-      FCurve *fcu = (FCurve *)ale->key_data;
+      FCurve *fcu = static_cast<FCurve *>(ale->key_data);
       found_bounds = get_normalized_fcurve_bounds(
           fcu, ac->sl, ac->scene, ale->id, include_handles, range, r_bounds);
       if (found_bounds) {
@@ -259,20 +260,20 @@ void ANIM_set_active_channel(bAnimContext *ac,
     /* flag to set depends on type */
     switch (ale->type) {
       case ANIMTYPE_GROUP: {
-        bActionGroup *agrp = (bActionGroup *)ale->data;
+        bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
 
         ACHANNEL_SET_FLAG(agrp, ACHANNEL_SETFLAG_CLEAR, AGRP_ACTIVE);
         break;
       }
       case ANIMTYPE_FCURVE:
       case ANIMTYPE_NLACURVE: {
-        FCurve *fcu = (FCurve *)ale->data;
+        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
         ACHANNEL_SET_FLAG(fcu, ACHANNEL_SETFLAG_CLEAR, FCURVE_ACTIVE);
         break;
       }
       case ANIMTYPE_NLATRACK: {
-        NlaTrack *nlt = (NlaTrack *)ale->data;
+        NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
         ACHANNEL_SET_FLAG(nlt, ACHANNEL_SETFLAG_CLEAR, NLATRACK_ACTIVE);
         break;
@@ -307,7 +308,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
         break;
       }
       case ANIMTYPE_GPLAYER: {
-        bGPDlayer *gpl = (bGPDlayer *)ale->data;
+        bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
         ACHANNEL_SET_FLAG(gpl, ACHANNEL_SETFLAG_CLEAR, GP_LAYER_ACTIVE);
         break;
@@ -338,18 +339,18 @@ void ANIM_set_active_channel(bAnimContext *ac,
   if (channel_data) {
     switch (channel_type) {
       case ANIMTYPE_GROUP: {
-        bActionGroup *agrp = (bActionGroup *)channel_data;
+        bActionGroup *agrp = static_cast<bActionGroup *>(channel_data);
         agrp->flag |= AGRP_ACTIVE;
         break;
       }
       case ANIMTYPE_FCURVE:
       case ANIMTYPE_NLACURVE: {
-        FCurve *fcu = (FCurve *)channel_data;
+        FCurve *fcu = static_cast<FCurve *>(channel_data);
         fcu->flag |= FCURVE_ACTIVE;
         break;
       }
       case ANIMTYPE_NLATRACK: {
-        NlaTrack *nlt = (NlaTrack *)channel_data;
+        NlaTrack *nlt = static_cast<NlaTrack *>(channel_data);
         nlt->flag |= NLATRACK_ACTIVE;
         break;
       }
@@ -390,7 +391,7 @@ void ANIM_set_active_channel(bAnimContext *ac,
       }
 
       case ANIMTYPE_GPLAYER: {
-        bGPDlayer *gpl = (bGPDlayer *)channel_data;
+        bGPDlayer *gpl = static_cast<bGPDlayer *>(channel_data);
         gpl->flag |= GP_LAYER_ACTIVE;
         break;
       }
@@ -441,16 +442,16 @@ bool ANIM_is_active_channel(bAnimListElem *ale)
       return ale->adt && (ale->adt->flag & ADT_UI_ACTIVE);
     }
     case ANIMTYPE_GROUP: {
-      bActionGroup *argp = (bActionGroup *)ale->data;
+      bActionGroup *argp = static_cast<bActionGroup *>(ale->data);
       return argp->flag & AGRP_ACTIVE;
     }
     case ANIMTYPE_FCURVE:
     case ANIMTYPE_NLACURVE: {
-      FCurve *fcu = (FCurve *)ale->data;
+      FCurve *fcu = static_cast<FCurve *>(ale->data);
       return fcu->flag & FCURVE_ACTIVE;
     }
     case ANIMTYPE_GPLAYER: {
-      bGPDlayer *gpl = (bGPDlayer *)ale->data;
+      bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
       return gpl->flag & GP_LAYER_ACTIVE;
     }
     case ANIMTYPE_GREASE_PENCIL_LAYER: {
@@ -496,7 +497,7 @@ static void select_pchan_for_action_group(bAnimContext *ac,
    */
   if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) == 0) {
     if ((ale->id) && (GS(ale->id->name) == ID_OB)) {
-      Object *ob = (Object *)ale->id;
+      Object *ob = reinterpret_cast<Object *>(ale->id);
       if (ob->type == OB_ARMATURE) {
         /* Assume for now that any group with corresponding name is what we want
          * (i.e. for an armature whose location is animated, things would break
@@ -685,7 +686,7 @@ static void anim_channels_select_set(bAnimContext *ac,
         if (change_active) {
           break;
         }
-        Scene *scene = (Scene *)ale->data;
+        Scene *scene = static_cast<Scene *>(ale->data);
 
         ACHANNEL_SET_FLAG(scene, sel, SCE_DS_SELECTED);
 
@@ -709,7 +710,7 @@ static void anim_channels_select_set(bAnimContext *ac,
         break;
       }
       case ANIMTYPE_GROUP: {
-        bActionGroup *agrp = (bActionGroup *)ale->data;
+        bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
         ACHANNEL_SET_FLAG(agrp, sel, AGRP_SELECTED);
         select_pchan_for_action_group(ac, agrp, ale, change_active);
         if (change_active) {
@@ -719,7 +720,7 @@ static void anim_channels_select_set(bAnimContext *ac,
       }
       case ANIMTYPE_FCURVE:
       case ANIMTYPE_NLACURVE: {
-        FCurve *fcu = (FCurve *)ale->data;
+        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
         ACHANNEL_SET_FLAG(fcu, sel, FCURVE_SELECTED);
         if (!(fcu->flag & FCURVE_SELECTED) && change_active) {
@@ -730,13 +731,13 @@ static void anim_channels_select_set(bAnimContext *ac,
         break;
       }
       case ANIMTYPE_SHAPEKEY: {
-        KeyBlock *kb = (KeyBlock *)ale->data;
+        KeyBlock *kb = static_cast<KeyBlock *>(ale->data);
 
         ACHANNEL_SET_FLAG(kb, sel, KEYBLOCK_SEL);
         break;
       }
       case ANIMTYPE_NLATRACK: {
-        NlaTrack *nlt = (NlaTrack *)ale->data;
+        NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
         ACHANNEL_SET_FLAG(nlt, sel, NLATRACK_SELECTED);
         nlt->flag &= ~NLATRACK_ACTIVE;
@@ -787,13 +788,13 @@ static void anim_channels_select_set(bAnimContext *ac,
         break;
       }
       case ANIMTYPE_GPLAYER: {
-        bGPDlayer *gpl = (bGPDlayer *)ale->data;
+        bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
         ACHANNEL_SET_FLAG(gpl, sel, GP_LAYER_SELECT);
         break;
       }
       case ANIMTYPE_MASKLAYER: {
-        MaskLayer *masklay = (MaskLayer *)ale->data;
+        MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
         ACHANNEL_SET_FLAG(masklay, sel, MASK_LAYERFLAG_SELECT);
         break;
@@ -1307,7 +1308,7 @@ static void rearrange_animchannel_add_to_islands(ListBase *islands,
   /* get flags - selected and untouchable from the channel */
   switch (type) {
     case ANIMTYPE_GROUP: {
-      bActionGroup *agrp = (bActionGroup *)channel;
+      bActionGroup *agrp = reinterpret_cast<bActionGroup *>(channel);
 
       is_sel = SEL_AGRP(agrp);
       is_untouchable = (agrp->flag & AGRP_TEMP) != 0;
@@ -1315,19 +1316,19 @@ static void rearrange_animchannel_add_to_islands(ListBase *islands,
     }
     case ANIMTYPE_FCURVE:
     case ANIMTYPE_NLACURVE: {
-      FCurve *fcu = (FCurve *)channel;
+      FCurve *fcu = reinterpret_cast<FCurve *>(channel);
 
       is_sel = SEL_FCU(fcu);
       break;
     }
     case ANIMTYPE_NLATRACK: {
-      NlaTrack *nlt = (NlaTrack *)channel;
+      NlaTrack *nlt = reinterpret_cast<NlaTrack *>(channel);
 
       is_sel = SEL_NLT(nlt);
       break;
     }
     case ANIMTYPE_GPLAYER: {
-      bGPDlayer *gpl = (bGPDlayer *)channel;
+      bGPDlayer *gpl = reinterpret_cast<bGPDlayer *>(channel);
 
       is_sel = SEL_GPL(gpl);
       break;
@@ -1351,8 +1352,7 @@ static void rearrange_animchannel_add_to_islands(ListBase *islands,
       (bool(island->flag & REORDER_ISLAND_HIDDEN) != is_hidden))
   {
     /* create a new island now */
-    island = static_cast<tReorderChannelIsland *>(
-        MEM_callocN(sizeof(tReorderChannelIsland), "tReorderChannelIsland"));
+    island = MEM_callocN<tReorderChannelIsland>("tReorderChannelIsland");
     BLI_addtail(islands, island);
 
     if (is_sel) {
@@ -1413,7 +1413,7 @@ static void rearrange_animchannels_filter_visible(
     }
 
     if (type == ANIMTYPE_NLATRACK) {
-      NlaTrack *nlt = (NlaTrack *)ale->data;
+      NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
       if (BKE_nlatrack_is_nonlocal_in_liboverride(ale->id, nlt)) {
         /* No re-arrangement of non-local tracks of override data. */
@@ -1538,9 +1538,9 @@ static void rearrange_nla_tracks(bAnimContext *ac, AnimData *adt, eRearrangeAnim
   /* Add back non-local NLA tracks at the beginning of the animation data's list. */
   if (!BLI_listbase_is_empty(&extracted_nonlocal_nla_tracks)) {
     BLI_assert(is_liboverride);
-    ((NlaTrack *)extracted_nonlocal_nla_tracks.last)->next = static_cast<NlaTrack *>(
+    static_cast<NlaTrack *>(extracted_nonlocal_nla_tracks.last)->next = static_cast<NlaTrack *>(
         adt->nla_tracks.first);
-    ((NlaTrack *)adt->nla_tracks.first)->prev = static_cast<NlaTrack *>(
+    static_cast<NlaTrack *>(adt->nla_tracks.first)->prev = static_cast<NlaTrack *>(
         extracted_nonlocal_nla_tracks.last);
     adt->nla_tracks.first = extracted_nonlocal_nla_tracks.first;
   }
@@ -1627,7 +1627,8 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
   }
 
   /* Initialize memory for temp-group */
-  memset(tgrp, 0, sizeof(bActionGroup));
+  *tgrp = bActionGroup{};
+  tgrp->cs = ThemeWireColor{};
   tgrp->flag |= (AGRP_EXPANDED | AGRP_TEMP | AGRP_EXPANDED_G);
   STRNCPY(tgrp->name, "#TempGroup");
 
@@ -1812,6 +1813,7 @@ static bool rearrange_layered_action_slots(bAnimContext *ac, const eRearrangeAni
  * we have more time.
  */
 static void rearrange_layered_action_channel_groups(bAnimContext *ac,
+                                                    blender::animrig::Action &action,
                                                     const eRearrangeAnimChan_Mode mode)
 {
   ListBase anim_data_visible = {nullptr, nullptr};
@@ -1826,8 +1828,11 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
   switch (mode) {
     case REARRANGE_ANIMCHAN_UP: {
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_GROUP);
-        bActionGroup *group = (bActionGroup *)ale->data;
+        bActionGroup *group = static_cast<bActionGroup *>(ale->data);
         if (!SEL_AGRP(group)) {
           continue;
         }
@@ -1851,8 +1856,11 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
 
     case REARRANGE_ANIMCHAN_TOP: {
       LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_GROUP);
-        bActionGroup *group = (bActionGroup *)ale->data;
+        bActionGroup *group = static_cast<bActionGroup *>(ale->data);
         if (!SEL_AGRP(group)) {
           continue;
         }
@@ -1864,8 +1872,11 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
 
     case REARRANGE_ANIMCHAN_DOWN: {
       LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_GROUP);
-        bActionGroup *group = (bActionGroup *)ale->data;
+        bActionGroup *group = static_cast<bActionGroup *>(ale->data);
         if (!SEL_AGRP(group)) {
           continue;
         }
@@ -1889,8 +1900,11 @@ static void rearrange_layered_action_channel_groups(bAnimContext *ac,
 
     case REARRANGE_ANIMCHAN_BOTTOM: {
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_GROUP);
-        bActionGroup *group = (bActionGroup *)ale->data;
+        bActionGroup *group = static_cast<bActionGroup *>(ale->data);
         if (!SEL_AGRP(group)) {
           continue;
         }
@@ -1942,7 +1956,7 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
    * NOTE: this returns a *copy* of the group, rather a pointer or reference, to
    * make it possible to return a fake group when needed. */
   auto get_group_or_make_fake = [&action](bAnimListElem *fcurve_ale) -> bActionGroup {
-    FCurve *fcurve = (FCurve *)fcurve_ale->data;
+    FCurve *fcurve = static_cast<FCurve *>(fcurve_ale->data);
     if (fcurve->grp) {
       return *fcurve->grp;
     }
@@ -1975,8 +1989,11 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
   switch (mode) {
     case REARRANGE_ANIMCHAN_UP: {
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_FCURVE);
-        FCurve *fcurve = (FCurve *)ale->data;
+        FCurve *fcurve = static_cast<FCurve *>(ale->data);
         bActionGroup group = get_group_or_make_fake(ale);
 
         if (should_skip(*fcurve, group)) {
@@ -1997,13 +2014,16 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
 
         bag.fcurve_move_to_index(*fcurve, to_index);
       }
-      return;
+      break;
     }
 
     case REARRANGE_ANIMCHAN_TOP: {
       LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_FCURVE);
-        FCurve *fcurve = (FCurve *)ale->data;
+        FCurve *fcurve = static_cast<FCurve *>(ale->data);
         bActionGroup group = get_group_or_make_fake(ale);
 
         if (should_skip(*fcurve, group)) {
@@ -2013,13 +2033,16 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
         blender::animrig::Channelbag &bag = group.channelbag->wrap();
         bag.fcurve_move_to_index(*fcurve, group.fcurve_range_start);
       }
-      return;
+      break;
     }
 
     case REARRANGE_ANIMCHAN_DOWN: {
       LISTBASE_FOREACH_BACKWARD (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_FCURVE);
-        FCurve *fcurve = (FCurve *)ale->data;
+        FCurve *fcurve = static_cast<FCurve *>(ale->data);
         bActionGroup group = get_group_or_make_fake(ale);
 
         if (should_skip(*fcurve, group)) {
@@ -2042,13 +2065,16 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
 
         bag.fcurve_move_to_index(*fcurve, to_index);
       }
-      return;
+      break;
     }
 
     case REARRANGE_ANIMCHAN_BOTTOM: {
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data_visible) {
+        if (ale->adt && &ale->adt->action->wrap() != &action) {
+          continue;
+        }
         BLI_assert(ale->type == ANIMTYPE_FCURVE);
-        FCurve *fcurve = (FCurve *)ale->data;
+        FCurve *fcurve = static_cast<FCurve *>(ale->data);
         bActionGroup group = get_group_or_make_fake(ale);
 
         if (should_skip(*fcurve, group)) {
@@ -2059,9 +2085,10 @@ static void rearrange_layered_action_fcurves(bAnimContext *ac,
         bag.fcurve_move_to_index(*fcurve,
                                  group.fcurve_range_start + group.fcurve_range_length - 1);
       }
-      return;
+      break;
     }
   }
+  BLI_freelistN(&anim_data_visible);
 }
 
 /* Change the order of anim-channels within action
@@ -2077,7 +2104,7 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
       /* Only rearrange other channels if no slot rearranging happened. */
       return;
     }
-    rearrange_layered_action_channel_groups(ac, mode);
+    rearrange_layered_action_channel_groups(ac, act->wrap(), mode);
     rearrange_layered_action_fcurves(ac, act->wrap(), mode);
     return;
   }
@@ -2275,7 +2302,7 @@ static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode
 
 /* ------------------- */
 
-static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_rearrange_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   eRearrangeAnimChan_Mode mode;
@@ -2315,6 +2342,10 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
     ANIM_animdata_filter(
         &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
+    /* Rearranging an Action should only happen once, as that inspects all the
+     * selected & visible channels of that Action anyway. */
+    blender::Set<bAction *> visited_actions;
+
     LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
       AnimData *adt = static_cast<AnimData *>(ale->data);
 
@@ -2332,7 +2363,9 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
         case ANIMCONT_SHAPEKEY: /* DOUBLE CHECK ME... */
         {
           if (adt->action) {
-            rearrange_action_channels(&ac, adt->action, mode);
+            if (visited_actions.add(adt->action)) {
+              rearrange_action_channels(&ac, adt->action, mode);
+            }
           }
           else if (G.debug & G_DEBUG) {
             printf("Animdata has no action\n");
@@ -2349,7 +2382,9 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
 
           /* Action */
           if (adt->action) {
-            rearrange_action_channels(&ac, adt->action, mode);
+            if (visited_actions.add(adt->action)) {
+              rearrange_action_channels(&ac, adt->action, mode);
+            }
           }
           else if (G.debug & G_DEBUG) {
             printf("Animdata has no action\n");
@@ -2377,7 +2412,7 @@ static void ANIM_OT_channels_move(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_move";
   ot->description = "Rearrange selected animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_rearrange_exec;
   ot->poll = animedit_poll_channels_nla_tweakmode_off;
 
@@ -2416,9 +2451,9 @@ static bool animchannels_grouping_poll(bContext *C)
   switch (area->spacetype) {
     /* supported... */
     case SPACE_ACTION: {
-      SpaceAction *saction = (SpaceAction *)sl;
+      SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
 
-      /* Dopesheet and action only - all others are for other data-types or have no groups. */
+      /* Dope-sheet and action only - all others are for other data-types or have no groups. */
       if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_DOPESHEET) == 0) {
         return false;
       }
@@ -2426,7 +2461,7 @@ static bool animchannels_grouping_poll(bContext *C)
       break;
     }
     case SPACE_GRAPH: {
-      SpaceGraph *sipo = (SpaceGraph *)sl;
+      SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
 
       /* drivers can't have groups... */
       if (sipo->mode != SIPO_MODE_ANIMATION) {
@@ -2476,7 +2511,7 @@ static void animchannels_group_channels(bAnimContext *ac,
 
     /* Transfer selected F-Curves across to new group. */
     LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      FCurve *fcu = (FCurve *)ale->data;
+      FCurve *fcu = static_cast<FCurve *>(ale->data);
       bActionGroup *grp = fcu->grp;
 
       /* remove F-Curve from group, then group too if it is now empty */
@@ -2513,7 +2548,7 @@ static void animchannels_group_channels(bAnimContext *ac,
   blender::animrig::Channelbag *last_channelbag = nullptr;
   bActionGroup *group = nullptr;
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+    FCurve *fcu = static_cast<FCurve *>(ale->data);
     blender::animrig::Channelbag *channelbag = channelbag_for_action_slot(act->wrap(),
                                                                           ale->slot_handle);
 
@@ -2529,7 +2564,7 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int animchannels_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   char name[MAX_NAME];
@@ -2599,7 +2634,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
 /** \name Ungroup Channels Operator
  * \{ */
 
-static int animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -2619,7 +2654,7 @@ static int animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
 
-    FCurve *fcu = (FCurve *)ale->data;
+    FCurve *fcu = static_cast<FCurve *>(ale->data);
 
     /* Already ungrouped, so skip. */
     if (fcu->grp == nullptr) {
@@ -2752,7 +2787,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
           break;
         }
 
-        bActionGroup *agrp = (bActionGroup *)ale->data;
+        bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
         AnimData *adt = ale->adt;
         FCurve *fcu, *fcn;
 
@@ -2863,7 +2898,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
   return has_skipped_group;
 }
 
-static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
@@ -2901,7 +2936,7 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
       case ANIMTYPE_FCURVE: {
         /* F-Curves if we can identify its parent */
         AnimData *adt = ale->adt;
-        FCurve *fcu = (FCurve *)ale->data;
+        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
         /* try to free F-Curve */
         BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
@@ -2912,8 +2947,8 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
       }
       case ANIMTYPE_NLACURVE: {
         /* NLA Control Curve - Deleting it should disable the corresponding setting... */
-        NlaStrip *strip = (NlaStrip *)ale->owner;
-        FCurve *fcu = (FCurve *)ale->data;
+        NlaStrip *strip = static_cast<NlaStrip *>(ale->owner);
+        FCurve *fcu = static_cast<FCurve *>(ale->data);
 
         if (STREQ(fcu->rna_path, "strip_time")) {
           strip->flag &= ~NLASTRIP_FLAG_USR_TIME;
@@ -2934,8 +2969,8 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
       }
       case ANIMTYPE_GPLAYER: {
         /* Grease Pencil layer */
-        bGPdata *gpd = (bGPdata *)ale->id;
-        bGPDlayer *gpl = (bGPDlayer *)ale->data;
+        bGPdata *gpd = reinterpret_cast<bGPdata *>(ale->id);
+        bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
         /* try to delete the layer's data and the layer itself */
         BKE_gpencil_layer_delete(gpd, gpl);
@@ -2963,8 +2998,8 @@ static int animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
       }
       case ANIMTYPE_MASKLAYER: {
         /* Mask layer */
-        Mask *mask = (Mask *)ale->id;
-        MaskLayer *masklay = (MaskLayer *)ale->data;
+        Mask *mask = reinterpret_cast<Mask *>(ale->id);
+        MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
         /* try to delete the layer's data and the layer itself */
         BKE_mask_layer_remove(mask, masklay);
@@ -3033,7 +3068,7 @@ static void ANIM_OT_channels_delete(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_delete";
   ot->description = "Delete all selected animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_delete_exec;
   ot->poll = animedit_poll_channels_active;
 
@@ -3156,7 +3191,7 @@ static void setflag_anim_channels(bAnimContext *ac,
 
 /* ------------------- */
 
-static int animchannels_setflag_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   eAnimChannel_Settings setting;
@@ -3188,7 +3223,7 @@ static int animchannels_setflag_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-/* duplicate of 'ANIM_OT_channels_setting_toggle' for menu title only, weak! */
+/* Duplicate of `ANIM_OT_channels_setting_toggle` for menu title only, weak! */
 static void ANIM_OT_channels_setting_enable(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -3198,7 +3233,7 @@ static void ANIM_OT_channels_setting_enable(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_setting_enable";
   ot->description = "Enable specified setting on all selected animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = animchannels_setflag_exec;
   ot->poll = animedit_poll_channels_active;
@@ -3214,7 +3249,7 @@ static void ANIM_OT_channels_setting_enable(wmOperatorType *ot)
   /* setting to set */
   ot->prop = RNA_def_enum(ot->srna, "type", prop_animchannel_settings_types, 0, "Type", "");
 }
-/* duplicate of 'ANIM_OT_channels_setting_toggle' for menu title only, weak! */
+/* Duplicate of `ANIM_OT_channels_setting_toggle` for menu title only, weak! */
 static void ANIM_OT_channels_setting_disable(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -3224,7 +3259,7 @@ static void ANIM_OT_channels_setting_disable(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_setting_disable";
   ot->description = "Disable specified setting on all selected animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = animchannels_setflag_exec;
   ot->poll = animedit_poll_channels_active;
@@ -3250,7 +3285,7 @@ static void ANIM_OT_channels_setting_toggle(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_setting_toggle";
   ot->description = "Toggle specified setting on all selected animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = animchannels_setflag_exec;
   ot->poll = animedit_poll_channels_active;
@@ -3276,7 +3311,7 @@ static void ANIM_OT_channels_editable_toggle(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_editable_toggle";
   ot->description = "Toggle editability of selected channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_setflag_exec;
   ot->poll = animedit_poll_channels_active;
 
@@ -3299,7 +3334,7 @@ static void ANIM_OT_channels_editable_toggle(wmOperatorType *ot)
 /** \name Expand Channels Operator
  * \{ */
 
-static int animchannels_expand_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_expand_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool onlysel = true;
@@ -3330,7 +3365,7 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_expand";
   ot->description = "Expand (open) all selected expandable animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_expand_exec;
   ot->poll = animedit_poll_channels_active;
 
@@ -3348,7 +3383,7 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
 /** \name Collapse Channels Operator
  * \{ */
 
-static int animchannels_collapse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_collapse_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   bool onlysel = true;
@@ -3379,7 +3414,7 @@ static void ANIM_OT_channels_collapse(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_collapse";
   ot->description = "Collapse (close) all selected expandable animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_collapse_exec;
   ot->poll = animedit_poll_channels_active;
 
@@ -3408,7 +3443,7 @@ static void ANIM_OT_channels_collapse(wmOperatorType *ot)
  * 3) No drivers
  * \{ */
 
-static int animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -3430,7 +3465,7 @@ static int animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
     ID *id = ale->id;
     AnimData *adt = static_cast<AnimData *>(ale->data);
 
-    bool action_empty = false;
+    bool action_empty;
     bool nla_empty = false;
     bool drivers_empty = false;
 
@@ -3440,12 +3475,17 @@ static int animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
     /* check if this is "empty" and can be deleted */
     /* (For now, there are only these 3 criteria) */
 
-    /* 1) Active Action is missing or empty */
-    if (ELEM(nullptr, adt->action, adt->action->curves.first)) {
-      action_empty = true;
+    /* 1) Assigned Action is empty, at least when it comes to this data-block. */
+    if (adt->action) {
+      using namespace blender::animrig;
+      const Action &action = adt->action->wrap();
+      /* This should not be using action.is_empty(), as this operator is not about cleaning up the
+       * Action itself, but rather disassociating it from the animated ID when that ID is not being
+       * animated by it. */
+      action_empty = fcurves_for_action_slot(action, adt->slot_handle).is_empty();
     }
     else {
-      /* TODO: check for keyframe + F-modifier data on these too. */
+      action_empty = true;
     }
 
     /* 2) No NLA Tracks and/or NLA Strips */
@@ -3495,7 +3535,7 @@ static void ANIM_OT_channels_clean_empty(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_clean_empty";
   ot->description = "Delete all empty animation data containers from visible data-blocks";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_clean_empty_exec;
   ot->poll = animedit_poll_channels_nla_tweakmode_off;
 
@@ -3519,7 +3559,7 @@ static bool animchannels_enable_poll(bContext *C)
     return false;
   }
 
-  /* animation editor test - Action/Dopesheet/etc. and Graph only */
+  /* animation editor test - Action/Dope-sheet/etc. and Graph only */
   if (ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH) == 0) {
     return false;
   }
@@ -3527,7 +3567,7 @@ static bool animchannels_enable_poll(bContext *C)
   return true;
 }
 
-static int animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
 
@@ -3546,7 +3586,7 @@ static int animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
 
   /* loop through filtered data and clean curves */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->data;
+    FCurve *fcu = static_cast<FCurve *>(ale->data);
 
     /* remove disabled flags from F-Curves */
     fcu->flag &= ~FCURVE_DISABLED;
@@ -3576,7 +3616,7 @@ static void ANIM_OT_channels_fcurves_enable(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_fcurves_enable";
   ot->description = "Clear 'disabled' tag from all F-Curves to get broken F-Curves working again";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_enable_exec;
   ot->poll = animchannels_enable_poll;
 
@@ -3599,13 +3639,13 @@ static bool animchannels_select_filter_poll(bContext *C)
     return false;
   }
 
-  /* animation editor with dopesheet */
+  /* animation editor with dope-sheet */
   return ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
 }
 
-static int animchannels_select_filter_invoke(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region_ctx = CTX_wm_region(C);
@@ -3628,9 +3668,9 @@ static int animchannels_select_filter_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int animchannels_select_filter_modal(bContext *C,
-                                            wmOperator * /*op*/,
-                                            const wmEvent * /*event*/)
+static wmOperatorStatus animchannels_select_filter_modal(bContext *C,
+                                                         wmOperator * /*op*/,
+                                                         const wmEvent * /*event*/)
 {
   bAnimContext ac;
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -3667,7 +3707,7 @@ static void ANIM_OT_channels_select_filter(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static int animchannels_selectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_selectall_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -3709,7 +3749,7 @@ static void ANIM_OT_channels_select_all(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_select_all";
   ot->description = "Toggle selection of all animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = animchannels_selectall_exec;
   ot->poll = animedit_poll_channels_nla_tweakmode_off;
 
@@ -3731,7 +3771,7 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
   ListBase anim_data = {nullptr, nullptr};
   int filter;
 
-  SpaceNla *snla = (SpaceNla *)ac->sl;
+  SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac->sl);
   View2D *v2d = &ac->region->v2d;
   rctf rectf;
 
@@ -3773,14 +3813,14 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
       /* type specific actions */
       switch (ale->type) {
         case ANIMTYPE_GROUP: {
-          bActionGroup *agrp = (bActionGroup *)ale->data;
+          bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
           select_pchan_for_action_group(ac, agrp, ale, true);
           /* always clear active flag after doing this */
           agrp->flag &= ~AGRP_ACTIVE;
           break;
         }
         case ANIMTYPE_NLATRACK: {
-          NlaTrack *nlt = (NlaTrack *)ale->data;
+          NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
           /* for now, it's easier just to do this here manually, as defining a new type
            * currently adds complications when doing other stuff
@@ -3849,7 +3889,7 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
   ANIM_animdata_freelist(&anim_data);
 }
 
-static int animchannels_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_box_select_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   rcti rect;
@@ -3892,7 +3932,7 @@ static void ANIM_OT_channels_select_box(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_select_box";
   ot->description = "Select all animation channels within the specified region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = animchannels_box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -3962,7 +4002,7 @@ static bool rename_anim_channels(bAnimContext *ac, int channel_index)
     if (ID_IS_OVERRIDE_LIBRARY(ale->id)) {
       switch (ale->type) {
         case ANIMTYPE_NLATRACK: {
-          NlaTrack *nlt = (NlaTrack *)ale->data;
+          NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
           if ((nlt->flag & NLATRACK_OVERRIDELIBRARY_LOCAL) == 0) {
             ANIM_animdata_freelist(&anim_data);
             return false;
@@ -4017,7 +4057,7 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
   UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
 
   if (ac->datatype == ANIMCONT_NLA) {
-    SpaceNla *snla = (SpaceNla *)ac->sl;
+    SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac->sl);
     UI_view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
                                     NLATRACK_STEP(snla),
                                     0,
@@ -4041,7 +4081,9 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
   return channel_index;
 }
 
-static int animchannels_rename_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus animchannels_rename_invoke(bContext *C,
+                                                   wmOperator * /*op*/,
+                                                   const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
@@ -4070,7 +4112,7 @@ static void ANIM_OT_channels_rename(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_rename";
   ot->description = "Rename animation channel under mouse";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = animchannels_rename_invoke;
   ot->poll = animedit_poll_channels_active;
 }
@@ -4086,7 +4128,7 @@ static void ANIM_OT_channels_rename(wmOperatorType *ot)
 static int click_select_channel_scene(bAnimListElem *ale,
                                       const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
-  Scene *sce = (Scene *)ale->data;
+  Scene *sce = static_cast<Scene *>(ale->data);
   AnimData *adt = sce->adt;
 
   /* set selection status */
@@ -4149,14 +4191,14 @@ static void animchannel_select_range(bAnimContext *ac, bAnimListElem *cursor_ele
       ANIM_channel_setting_set(ac, ale, ACHANNEL_SETTING_SELECT, ACHANNEL_SETFLAG_ADD);
       in_selection_range = !in_selection_range;
       if (ale->type == ANIMTYPE_GROUP) {
-        select_pchan_for_action_group(ac, (bActionGroup *)ale->data, ale, false);
+        select_pchan_for_action_group(ac, static_cast<bActionGroup *>(ale->data), ale, false);
       }
     }
     else if (in_selection_range) {
       /* Select elements between the range. */
       ANIM_channel_setting_set(ac, ale, ACHANNEL_SETTING_SELECT, ACHANNEL_SETFLAG_ADD);
       if (ale->type == ANIMTYPE_GROUP) {
-        select_pchan_for_action_group(ac, (bActionGroup *)ale->data, ale, false);
+        select_pchan_for_action_group(ac, static_cast<bActionGroup *>(ale->data), ale, false);
       }
     }
 
@@ -4178,7 +4220,7 @@ static int click_select_channel_object(bContext *C,
   using namespace blender::ed;
   Scene *scene = ac->scene;
   ViewLayer *view_layer = ac->view_layer;
-  Base *base = (Base *)ale->data;
+  Base *base = static_cast<Base *>(ale->data);
   Object *ob = base->object;
   AnimData *adt = ob->adt;
 
@@ -4267,7 +4309,7 @@ static int click_select_channel_group(bAnimContext *ac,
                                       const short /* eEditKeyframes_Select or -1 */ selectmode,
                                       const int filter)
 {
-  bActionGroup *agrp = (bActionGroup *)ale->data;
+  bActionGroup *agrp = static_cast<bActionGroup *>(ale->data);
   Object *ob = nullptr;
   bPoseChannel *pchan = nullptr;
 
@@ -4277,12 +4319,12 @@ static int click_select_channel_group(bAnimContext *ac,
    * things here easier for animators by mapping group selection to bone
    * selection.
    *
-   * Only do this if "Only Selected" dopesheet filter is not active, or else it
+   * Only do this if "Only Selected" dope-sheet filter is not active, or else it
    * becomes too unpredictable/tricky to manage
    */
   if ((ac->ads->filterflag & ADS_FILTER_ONLYSEL) == 0) {
     if ((ale->id) && (GS(ale->id->name) == ID_OB)) {
-      ob = (Object *)ale->id;
+      ob = reinterpret_cast<Object *>(ale->id);
 
       if (ob->type == OB_ARMATURE) {
         /* Assume for now that any group with corresponding name is what we want
@@ -4370,7 +4412,7 @@ static int click_select_channel_fcurve(bAnimContext *ac,
                                        const short /* eEditKeyframes_Select or -1 */ selectmode,
                                        const int filter)
 {
-  FCurve *fcu = (FCurve *)ale->data;
+  FCurve *fcu = static_cast<FCurve *>(ale->data);
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4442,7 +4484,7 @@ static int click_select_channel_shapekey(bAnimContext *ac,
                                          bAnimListElem *ale,
                                          const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
-  KeyBlock *kb = (KeyBlock *)ale->data;
+  KeyBlock *kb = static_cast<KeyBlock *>(ale->data);
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4460,7 +4502,7 @@ static int click_select_channel_shapekey(bAnimContext *ac,
 
 static int click_select_channel_nlacontrols(bAnimListElem *ale)
 {
-  AnimData *adt = (AnimData *)ale->data;
+  AnimData *adt = static_cast<AnimData *>(ale->data);
 
   /* Toggle expand:
    * - Although the triangle widget already allows this,
@@ -4478,8 +4520,8 @@ static int click_select_channel_gplayer(bContext *C,
                                         const short /* eEditKeyframes_Select or -1 */ selectmode,
                                         const int filter)
 {
-  bGPdata *gpd = (bGPdata *)ale->id;
-  bGPDlayer *gpl = (bGPDlayer *)ale->data;
+  bGPdata *gpd = reinterpret_cast<bGPdata *>(ale->id);
+  bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4570,7 +4612,7 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
   if (layer->is_selected() && (selectmode != SELECT_EXTEND_RANGE)) {
     grease_pencil->set_active_layer(layer);
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil->id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
 
@@ -4580,7 +4622,7 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
 
 static int click_select_channel_maskdatablock(bAnimListElem *ale)
 {
-  Mask *mask = (Mask *)ale->data;
+  Mask *mask = static_cast<Mask *>(ale->data);
 
   /* Toggle expand
    * - Although the triangle widget already allows this,
@@ -4595,7 +4637,7 @@ static int click_select_channel_masklayer(bAnimContext *ac,
                                           bAnimListElem *ale,
                                           const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
-  MaskLayer *masklay = (MaskLayer *)ale->data;
+  MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
   /* select/deselect */
   if (selectmode == SELECT_INVERT) {
@@ -4749,7 +4791,9 @@ static int mouse_anim_channels(bContext *C,
  * \{ */
 
 /** Handle picking logic. */
-static int animchannels_mouseclick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent *event)
 {
   bAnimContext ac;
   ARegion *region;
@@ -4814,7 +4858,7 @@ static void ANIM_OT_channels_click(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channels_click";
   ot->description = "Handle mouse clicks over animation channels";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = animchannels_mouseclick_invoke;
   ot->poll = animedit_poll_channels_active;
 
@@ -4875,7 +4919,7 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
     return false;
   }
 
-  fcu = (FCurve *)ale->key_data;
+  fcu = static_cast<FCurve *>(ale->key_data);
   success = (fcu != nullptr);
 
   ANIM_animdata_freelist(&anim_data);
@@ -4889,7 +4933,7 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
       ANIM_animdata_filter(
           ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-        FCurve *fcu_inner = (FCurve *)ale->key_data;
+        FCurve *fcu_inner = static_cast<FCurve *>(ale->key_data);
 
         if (fcu_inner != nullptr && fcu_inner->bezt != nullptr) {
           for (i = 0, bezt = fcu_inner->bezt; i < fcu_inner->totvert; i++, bezt++) {
@@ -4911,9 +4955,9 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
   return success;
 }
 
-static int animchannels_channel_select_keys_invoke(bContext *C,
-                                                   wmOperator *op,
-                                                   const wmEvent *event)
+static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext *C,
+                                                                wmOperator *op,
+                                                                const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
@@ -4945,7 +4989,7 @@ static void ANIM_OT_channel_select_keys(wmOperatorType *ot)
   ot->idname = "ANIM_OT_channel_select_keys";
   ot->description = "Select all keyframes of channel under mouse";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = animchannels_channel_select_keys_invoke;
   ot->poll = animedit_poll_channels_active;
 
@@ -4973,7 +5017,7 @@ static void get_view_range(Scene *scene, const bool use_preview_range, float r_r
   }
 }
 
-static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
 
@@ -4994,7 +5038,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5023,7 +5067,7 @@ static int graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
 
   if (!valid_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_report(RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5073,7 +5117,9 @@ static void ANIM_OT_channels_view_selected(wmOperatorType *ot)
                              "Ignore frames outside of the preview range");
 }
 
-static int graphkeys_channel_view_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
+                                                           wmOperator *op,
+                                                           const wmEvent *event)
 {
   bAnimContext ac;
 
@@ -5112,7 +5158,7 @@ static int graphkeys_channel_view_pick_invoke(bContext *C, wmOperator *op, const
 
   if (!found_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    WM_report(RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5164,7 +5210,7 @@ static const EnumPropertyItem channel_bake_key_options[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int channels_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
@@ -5181,7 +5227,7 @@ static int channels_bake_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5323,7 +5369,7 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
                   "Bake Modifiers into keyframes and delete them after");
 }
 
-static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op */)
+static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
@@ -5340,7 +5386,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   size_t anim_data_length = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   if (anim_data_length == 0) {
-    WM_report(RPT_WARNING, "No channels to operate on");
+    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5356,7 +5402,7 @@ static int slot_channels_move_to_new_action_exec(bContext *C, wmOperator * /* op
   ANIM_animdata_freelist(&anim_data);
 
   if (slots.size() == 0) {
-    WM_report(RPT_WARNING, "None of the selected channels is an Action Slot");
+    BKE_report(op->reports, RPT_WARNING, "None of the selected channels is an Action Slot");
     return OPERATOR_CANCELLED;
   }
 
@@ -5418,7 +5464,7 @@ static void ANIM_OT_slot_channels_move_to_new_action(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int separate_slots_exec(bContext *C, wmOperator * /* op */)
+static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   Object *active_object = CTX_data_active_object(C);
@@ -5430,16 +5476,24 @@ static int separate_slots_exec(bContext *C, wmOperator * /* op */)
   BLI_assert(action != nullptr);
 
   Main *bmain = CTX_data_main(C);
+  int created_actions = 0;
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
     char actname[MAX_ID_NAME - 2];
     SNPRINTF(actname, DATA_("%sAction"), slot->identifier + 2);
     Action &target_action = action_add(*bmain, actname);
+    created_actions++;
     Layer &layer = target_action.layer_add(std::nullopt);
     layer.strip_add(target_action, Strip::Type::Keyframe);
     move_slot(*bmain, *slot, *action, target_action);
     DEG_id_tag_update(&target_action.id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
+
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Separated %s into %i new actions",
+              action->id.name + 2,
+              created_actions);
 
   DEG_id_tag_update(&action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -5519,7 +5573,7 @@ static void deselect_all_fcurves(bAnimContext *ac, const bool hide)
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
     fcu->flag &= ~FCURVE_SELECTED;
     fcu->flag &= ~FCURVE_ACTIVE;
     if (hide) {
@@ -5536,14 +5590,14 @@ static int count_fcurves_hidden_by_filter(bAnimContext *ac, const blender::Span<
   if (ac->sl->spacetype != SPACE_GRAPH) {
     return 0;
   }
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
   const eAnimFilter_Flags filter = eAnimFilter_Flags(sipo->ads->filterflag);
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
   /* Adding FCurves to a map for quicker lookup times. */
   blender::Map<FCurve *, bool> filtered_fcurves;
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
     filtered_fcurves.add(fcu, true);
   }
 
@@ -5678,7 +5732,7 @@ static rctf calculate_selection_fcurve_bounds(bAnimContext *ac,
   return bounds;
 }
 
-static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
 {
   PointerRNA button_ptr = {};
   PropertyRNA *button_prop = nullptr;
@@ -5690,7 +5744,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
 
-  int retval = OPERATOR_FINISHED;
+  wmOperatorStatus retval = OPERATOR_FINISHED;
 
   blender::Vector<PointerRNA> selection;
 
@@ -5708,7 +5762,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
   if (!context_find_graph_editor(
           C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
   {
-    WM_report(RPT_WARNING, "No open Graph Editor window found");
+    BKE_report(op->reports, RPT_WARNING, "No open Graph Editor window found");
     retval = OPERATOR_CANCELLED;
   }
   else {
@@ -5723,7 +5777,7 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
     bAnimContext ac;
     if (!ANIM_animdata_get_context(C, &ac)) {
       /* This might never be called since we are manually setting the Graph Editor just before. */
-      WM_report(RPT_ERROR, "Cannot create the Animation Context");
+      BKE_report(op->reports, RPT_ERROR, "Cannot create the Animation Context");
       retval = OPERATOR_CANCELLED;
     }
     else {
@@ -5763,11 +5817,13 @@ static int view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
       }
 
       if (filtered_fcurve_count > 0) {
-        WM_report(RPT_WARNING, "One or more F-Curves are not visible due to filter settings");
+        BKE_report(op->reports,
+                   RPT_WARNING,
+                   "One or more F-Curves are not visible due to filter settings");
       }
 
       if (!BLI_rctf_is_valid(&bounds)) {
-        WM_report(RPT_ERROR, "F-Curves have no valid size");
+        BKE_report(op->reports, RPT_ERROR, "F-Curves have no valid size");
         retval = OPERATOR_CANCELLED;
       }
       else {

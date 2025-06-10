@@ -2,8 +2,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "GPU_context.hh"
 #include "GPU_immediate.hh"
 #include "GPU_platform.hh"
+#include "GPU_platform_backend_enum.h"
 #include "GPU_shader.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
@@ -311,15 +313,18 @@ class DisplayGPUPixelBuffer {
     return *this;
   }
 
-  bool gpu_resources_ensure(const uint new_width, const uint new_height)
+  bool gpu_resources_ensure(const uint new_width, const uint new_height, bool &buffer_recreated)
   {
-    const size_t required_size = sizeof(half4) * new_width * new_height * 4;
+    buffer_recreated = false;
+
+    const size_t required_size = sizeof(half4) * new_width * new_height;
 
     /* Try to re-use the existing PBO if it has usable size. */
     if (gpu_pixel_buffer) {
       if (new_width != width || new_height != height ||
           GPU_pixel_buffer_size(gpu_pixel_buffer) < required_size)
       {
+        buffer_recreated = true;
         gpu_resources_destroy();
       }
     }
@@ -331,6 +336,7 @@ class DisplayGPUPixelBuffer {
     /* Create pixel buffer if not already created. */
     if (!gpu_pixel_buffer) {
       gpu_pixel_buffer = GPU_pixel_buffer_create(required_size);
+      buffer_recreated = true;
     }
 
     if (gpu_pixel_buffer == nullptr) {
@@ -471,7 +477,7 @@ void BlenderDisplayDriver::next_tile_begin()
 
   /* Moving to the next tile without giving render data for the current tile is not an expected
    * situation. */
-  DCHECK(!need_clear_);
+  DCHECK(!need_zero_);
   /* Texture should have been updated from the PBO at this point. */
   DCHECK(!tiles_->current_tile.need_update_texture_pixels);
 
@@ -502,9 +508,9 @@ bool BlenderDisplayDriver::update_begin(const Params &params,
   /* Clear storage of all finished tiles when display clear is requested.
    * Do it when new tile data is provided to handle the display clear flag in a single place.
    * It also makes the logic reliable from the whether drawing did happen or not point of view. */
-  if (need_clear_) {
+  if (need_zero_) {
     tiles_->finished_tiles.gl_resources_destroy_and_clear();
-    need_clear_ = false;
+    need_zero_ = false;
   }
 
   /* Update PBO dimensions if needed.
@@ -518,13 +524,20 @@ bool BlenderDisplayDriver::update_begin(const Params &params,
    * mode faster. */
   const int buffer_width = params.size.x;
   const int buffer_height = params.size.y;
+  bool interop_recreated = false;
 
-  if (!current_tile_buffer_object.gpu_resources_ensure(buffer_width, buffer_height) ||
+  if (!current_tile_buffer_object.gpu_resources_ensure(
+          buffer_width, buffer_height, interop_recreated) ||
       !current_tile.texture.gpu_resources_ensure(texture_width, texture_height))
   {
+    graphics_interop_buffer_.clear();
     tiles_->current_tile.gpu_resources_destroy();
     gpu_context_disable();
     return false;
+  }
+
+  if (interop_recreated) {
+    graphics_interop_buffer_.clear();
   }
 
   /* Store an updated parameters of the current tile.
@@ -619,16 +632,56 @@ void BlenderDisplayDriver::unmap_texture_buffer()
  * Graphics interoperability.
  */
 
-BlenderDisplayDriver::GraphicsInterop BlenderDisplayDriver::graphics_interop_get()
+GraphicsInteropDevice BlenderDisplayDriver::graphics_interop_get_device()
 {
-  GraphicsInterop interop_dst;
+  GraphicsInteropDevice interop_device;
 
-  interop_dst.buffer_width = tiles_->current_tile.buffer_object.width;
-  interop_dst.buffer_height = tiles_->current_tile.buffer_object.height;
-  interop_dst.opengl_pbo_id = GPU_pixel_buffer_get_native_handle(
-      tiles_->current_tile.buffer_object.gpu_pixel_buffer);
+  switch (GPU_backend_get_type()) {
+    case GPU_BACKEND_OPENGL:
+      interop_device.type = GraphicsInteropDevice::OPENGL;
+      break;
+    case GPU_BACKEND_VULKAN:
+      interop_device.type = GraphicsInteropDevice::VULKAN;
+      break;
+    case GPU_BACKEND_METAL:
+      interop_device.type = GraphicsInteropDevice::METAL;
+      break;
+    case GPU_BACKEND_NONE:
+    case GPU_BACKEND_ANY:
+      interop_device.type = GraphicsInteropDevice::NONE;
+      break;
+  }
 
-  return interop_dst;
+  blender::Span<uint8_t> uuid = GPU_platform_uuid();
+  interop_device.uuid.resize(uuid.size());
+  std::copy_n(uuid.data(), uuid.size(), interop_device.uuid.data());
+
+  return interop_device;
+}
+
+void BlenderDisplayDriver::graphics_interop_update_buffer()
+{
+  if (graphics_interop_buffer_.is_empty()) {
+    GraphicsInteropDevice::Type type = GraphicsInteropDevice::NONE;
+    switch (GPU_backend_get_type()) {
+      case GPU_BACKEND_OPENGL:
+        type = GraphicsInteropDevice::OPENGL;
+        break;
+      case GPU_BACKEND_VULKAN:
+        type = GraphicsInteropDevice::VULKAN;
+        break;
+      case GPU_BACKEND_METAL:
+        type = GraphicsInteropDevice::METAL;
+        break;
+      case GPU_BACKEND_NONE:
+      case GPU_BACKEND_ANY:
+        break;
+    }
+
+    GPUPixelBufferNativeHandle handle = GPU_pixel_buffer_get_native_handle(
+        tiles_->current_tile.buffer_object.gpu_pixel_buffer);
+    graphics_interop_buffer_.assign(type, handle.handle, handle.size);
+  }
 }
 
 void BlenderDisplayDriver::graphics_interop_activate()
@@ -645,9 +698,9 @@ void BlenderDisplayDriver::graphics_interop_deactivate()
  * Drawing.
  */
 
-void BlenderDisplayDriver::clear()
+void BlenderDisplayDriver::zero()
 {
-  need_clear_ = true;
+  need_zero_ = true;
 }
 
 void BlenderDisplayDriver::set_zoom(const float zoom_x, const float zoom_y)
@@ -759,7 +812,7 @@ void BlenderDisplayDriver::draw(const Params &params)
 {
   gpu_context_lock();
 
-  if (need_clear_) {
+  if (need_zero_) {
     /* Texture is requested to be cleared and was not yet cleared.
      *
      * Do early return which should be equivalent of drawing all-zero texture.
@@ -886,6 +939,8 @@ void BlenderDisplayDriver::gpu_resources_destroy()
   gpu_context_enable();
 
   display_shader_.reset();
+
+  graphics_interop_buffer_.clear();
 
   tiles_->current_tile.gpu_resources_destroy();
   tiles_->finished_tiles.gl_resources_destroy_and_clear();

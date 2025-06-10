@@ -45,12 +45,12 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
@@ -138,6 +138,15 @@ static void node_rna(StructRNA *srna)
                     rna_enum_attribute_domain_with_auto_items,
                     NOD_storage_enum_accessors(domain),
                     int(AttrDomain::Point));
+
+  PropertyRNA *prop;
+  prop = RNA_def_property(srna, "ui_shortcut", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs_runtime(
+      prop, rna_Node_Viewer_shortcut_node_get, rna_Node_Viewer_shortcut_node_set, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
+  RNA_def_property_int_default(prop, NODE_VIEWER_SHORTCUT_NONE);
+  RNA_def_property_update_notifier(prop, NC_NODE | ND_DISPLAY);
 }
 
 static void node_register()

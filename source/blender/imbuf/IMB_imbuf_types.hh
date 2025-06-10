@@ -16,11 +16,14 @@
 #include "IMB_imbuf_enums.h"
 
 struct ColormanageCache;
-struct ColorSpace;
 struct GPUTexture;
 struct IDProperty;
 
-#define IMB_MIPMAP_LEVELS 20
+namespace blender::ocio {
+class ColorSpace;
+}
+using ColorSpace = blender::ocio::ColorSpace;
+
 #define IMB_FILEPATH_SIZE 1024
 
 /**
@@ -39,14 +42,14 @@ struct IDProperty;
 /* Lowest bits of foptions.flag / exr_codec contain actual codec enum. */
 #define OPENEXR_CODEC_MASK (0xF)
 
-#ifdef WITH_CINEON
+#ifdef WITH_IMAGE_CINEON
 #  define CINEON_LOG (1 << 8)
 #  define CINEON_16BIT (1 << 7)
 #  define CINEON_12BIT (1 << 6)
 #  define CINEON_10BIT (1 << 5)
 #endif
 
-#ifdef WITH_OPENJPEG
+#ifdef WITH_IMAGE_OPENJPEG
 #  define JP2_12BIT (1 << 9)
 #  define JP2_16BIT (1 << 8)
 #  define JP2_YCC (1 << 7)
@@ -102,7 +105,6 @@ enum eImBufFlags {
   /** ignore alpha on load and substitute it with 1.0f */
   IB_alphamode_ignore = 1 << 15,
   IB_thumbnail = 1 << 16,
-  IB_halffloat = 1 << 18,
 };
 
 /** \} */
@@ -147,14 +149,14 @@ struct ImBufByteBuffer {
   uint8_t *data;
   ImBufOwnership ownership;
 
-  ColorSpace *colorspace;
+  const ColorSpace *colorspace;
 };
 
 struct ImBufFloatBuffer {
   float *data;
   ImBufOwnership ownership;
 
-  ColorSpace *colorspace;
+  const ColorSpace *colorspace;
 };
 
 struct ImBufGPU {
@@ -217,11 +219,6 @@ struct ImBuf {
   /** Amount of dithering to apply, when converting float -> byte. */
   float dither;
 
-  /* mipmapping */
-  /** MipMap levels, a series of halved images */
-  ImBuf *mipmap[IMB_MIPMAP_LEVELS];
-  int miptot, miplevel;
-
   /* externally used data */
   /** reference index for ImBuf lists */
   int index;
@@ -240,9 +237,8 @@ struct ImBuf {
   /** The absolute file path associated with this image. */
   char filepath[IMB_FILEPATH_SIZE];
 
-  /* memory cache limiter */
   /** reference counter for multiple users */
-  int refcounter;
+  int32_t refcounter;
 
   /* some parameters to pass along for packing images */
   /** Compressed image only used with PNG and EXR currently. */
@@ -271,8 +267,6 @@ struct ImBuf {
 enum {
   /** image needs to be saved is not the same as filename */
   IB_BITMAPDIRTY = (1 << 1),
-  /** image mipmaps are invalid, need recreate */
-  IB_MIPMAP_INVALID = (1 << 2),
   /** float buffer changed, needs recreation of byte rect */
   IB_RECT_INVALID = (1 << 3),
   /** either float or byte buffer changed, need to re-calculate display buffers */
@@ -315,6 +309,12 @@ enum {
 #define FOURCC_DXT4 (DDS_MAKEFOURCC('D', 'X', 'T', '4'))
 #define FOURCC_DXT5 (DDS_MAKEFOURCC('D', 'X', 'T', '5'))
 
+/**
+ * Known image extensions, in most cases these match values
+ * for images which Blender creates, there are some exceptions to this.
+ *
+ * See #BKE_image_path_ext_from_imformat which also stores known extensions.
+ */
 extern const char *imb_ext_image[];
 extern const char *imb_ext_movie[];
 extern const char *imb_ext_audio[];

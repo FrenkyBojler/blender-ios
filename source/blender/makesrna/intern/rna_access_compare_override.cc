@@ -710,7 +710,7 @@ bool RNA_struct_override_matches(Main *bmain,
       if (!prop_local.is_idprop) {
         rna_path_len = root_path_len + 1 + prop_name_len;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
+          rna_path = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -721,7 +721,7 @@ bool RNA_struct_override_matches(Main *bmain,
       else {
         rna_path_len = root_path_len + 2 + prop_name_len + 2;
         if (rna_path_len >= RNA_PATH_BUFFSIZE) {
-          rna_path_c = static_cast<char *>(MEM_mallocN(rna_path_len + 1, __func__));
+          rna_path_c = MEM_malloc_arrayN<char>(rna_path_len + 1, __func__);
         }
 
         memcpy(rna_path_c, root_path, root_path_len);
@@ -800,7 +800,7 @@ bool RNA_struct_override_matches(Main *bmain,
          * unused.
          *
          * In case the property itself is already tagged as used, in means lower-level diffing code
-         * took care of this property (as is needed for e.g. collections of items, since then some
+         * took care of this property (e.g. as is needed collections of items, since then some
          * operations may be valid, while others may need to be purged). */
         if (op->tag & LIBOVERRIDE_PROP_OP_TAG_UNUSED) {
           BKE_lib_override_library_operations_tag(op, LIBOVERRIDE_PROP_OP_TAG_UNUSED, false);

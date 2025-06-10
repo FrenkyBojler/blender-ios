@@ -19,6 +19,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "OCIO_colorspace.hh"
+
 /* -------------------------------------------------------------------- */
 
 /** \name Generic Buffer Conversion
@@ -616,11 +618,11 @@ void IMB_byte_from_float(ImBuf *ibuf)
   const char *from_colorspace = (ibuf->float_buffer.colorspace == nullptr) ?
                                     IMB_colormanagement_role_colorspace_name_get(
                                         COLOR_ROLE_SCENE_LINEAR) :
-                                    ibuf->float_buffer.colorspace->name;
+                                    ibuf->float_buffer.colorspace->name().c_str();
   const char *to_colorspace = (ibuf->byte_buffer.colorspace == nullptr) ?
                                   IMB_colormanagement_role_colorspace_name_get(
                                       COLOR_ROLE_DEFAULT_BYTE) :
-                                  ibuf->byte_buffer.colorspace->name;
+                                  ibuf->byte_buffer.colorspace->name().c_str();
 
   float *buffer = static_cast<float *>(MEM_dupallocN(ibuf->float_buffer.data));
 
@@ -720,8 +722,7 @@ void IMB_float_from_byte(ImBuf *ibuf)
    */
   float *rect_float = ibuf->float_buffer.data;
   if (rect_float == nullptr) {
-    const size_t size = IMB_get_pixel_count(ibuf) * sizeof(float[4]);
-    rect_float = static_cast<float *>(MEM_callocN(size, "IMB_float_from_byte"));
+    rect_float = MEM_calloc_arrayN<float>(4 * IMB_get_pixel_count(ibuf), "IMB_float_from_byte");
 
     if (rect_float == nullptr) {
       return;

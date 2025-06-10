@@ -59,15 +59,6 @@ struct SculptData {
   float mask;
 };
 
-/* Duplicate of #PosNorLoop from the mesh extract CPU code.
- * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
- * the format. */
-struct PosNorLoop {
-  float x, y, z;
-  float nx, ny, nz;
-  float flag;
-};
-
 /* Mirror of #UVStretchAngle in the C++ code, but using floats until proper data compression
  * is implemented for all subdivision data. */
 struct UVStretchAngle {
@@ -76,12 +67,18 @@ struct UVStretchAngle {
   float uv_angle1;
 };
 
+struct Position {
+  float x;
+  float y;
+  float z;
+};
+
 struct LoopNormal {
   float nx, ny, nz;
   float flag;
 };
 
-struct CustomNormal {
+struct Normal {
   float x;
   float y;
   float z;
@@ -94,12 +91,12 @@ struct BlenderPatchCoord {
 };
 
 /* Patch evaluation - F-dots. */
-/* vec3 is padded to vec4, but the format used for face-dots does not have any padding. */
+/* float3 is padded to float4, but the format used for face-dots does not have any padding. */
 struct FDotVert {
   float x, y, z;
 };
 
-/* Same here, do not use vec3. */
+/* Same here, do not use float3. */
 struct FDotNor {
   float x, y, z;
   float flag;

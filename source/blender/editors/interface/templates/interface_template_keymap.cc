@@ -25,13 +25,13 @@ static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
 {
-  uiItemS(layout);
+  layout->separator();
 
   if (title) {
-    uiItemL(layout, title, ICON_NONE);
+    layout->label(title, ICON_NONE);
   }
 
-  uiLayout *flow = uiLayoutColumnFlow(layout, 2, false);
+  uiLayout *flow = &layout->column_flow(2, false);
 
   RNA_STRUCT_BEGIN_SKIP_RNA_TYPE (ptr, prop) {
     const bool is_set = RNA_property_is_set(ptr, prop);
@@ -48,17 +48,17 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
       }
     }
 
-    uiLayout *box = uiLayoutBox(flow);
+    uiLayout *box = &flow->box();
     uiLayoutSetActive(box, is_set);
-    uiLayout *row = uiLayoutRow(box, false);
+    uiLayout *row = &box->row(false);
 
     /* property value */
-    uiItemFullR(row, ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (is_set) {
       /* unset operator */
       uiBlock *block = uiLayoutGetBlock(row);
-      UI_block_emboss_set(block, UI_EMBOSS_NONE);
+      UI_block_emboss_set(block, blender::ui::EmbossType::None);
       but = uiDefIconButO(block,
                           UI_BTYPE_BUT,
                           "UI_OT_unset_property_button",
@@ -71,7 +71,7 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
                           std::nullopt);
       but->rnapoin = *ptr;
       but->rnaprop = prop;
-      UI_block_emboss_set(block, UI_EMBOSS);
+      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
   }
   RNA_STRUCT_END;

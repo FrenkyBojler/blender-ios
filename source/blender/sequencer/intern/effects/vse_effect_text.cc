@@ -153,9 +153,10 @@ static void strip_unload_font(int fontid)
 /** \name Text Effect
  * \{ */
 
-/* `data->text[0] == 0` is ignored on purpose in order to make it possible to edit  */
 bool effects_can_render_text(const Strip *strip)
 {
+  /* `data->text[0] == 0` is ignored on purpose in order to make it possible to edit. */
+
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   if (data->text_size < 1.0f ||
       ((data->color[3] == 0.0f) &&
@@ -174,8 +175,9 @@ static void init_text_effect(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  TextVars *data = static_cast<TextVars *>(
-      strip->effectdata = MEM_callocN(sizeof(TextVars), "textvars"));
+  TextVars *data = MEM_callocN<TextVars>("textvars");
+  strip->effectdata = data;
+
   data->text_font = nullptr;
   data->text_blf_id = -1;
   data->text_size = 60.0f;
@@ -570,7 +572,7 @@ static void text_draw(const TextVarsRuntime *runtime, float color[4])
 static rcti draw_text_outline(const RenderData *context,
                               const TextVars *data,
                               const TextVarsRuntime *runtime,
-                              ColorManagedDisplay *display,
+                              const ColorManagedDisplay *display,
                               ImBuf *out)
 {
   /* Outline width of 1.0 maps to half of text line height. */
@@ -807,7 +809,7 @@ static int text_effect_font_init(const RenderData *context, const Strip *strip, 
 static Vector<CharInfo> build_character_info(const TextVars *data, int font)
 {
   Vector<CharInfo> characters;
-  const size_t len_max = BLI_strnlen(data->text, sizeof(data->text));
+  const size_t len_max = STRNLEN(data->text);
   int byte_offset = 0;
   int char_index = 0;
 
@@ -1024,7 +1026,7 @@ static ImBuf *do_text_effect(const RenderData *context,
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   const char *display_device = context->scene->display_settings.display_device;
-  ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+  const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
   const int font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : 0) |
                          ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
 

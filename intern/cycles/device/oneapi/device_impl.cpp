@@ -388,7 +388,11 @@ void *OneapiDevice::host_alloc(const MemoryType type, const size_t size)
     /* Import host_pointer into USM memory for faster host<->device data transfers. */
     if (type == MEM_READ_WRITE || type == MEM_READ_ONLY) {
       sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
-      sycl::ext::oneapi::experimental::prepare_for_device_copy(host_pointer, size, *queue);
+      /* This API is properly implemented only in Level-Zero backend at the moment and we don't
+       * want it to fail at runtime, so we conservatively use it only for L0. */
+      if (queue->get_backend() == sycl::backend::ext_oneapi_level_zero) {
+        sycl::ext::oneapi::experimental::prepare_for_device_copy(host_pointer, size, *queue);
+      }
     }
   }
 #  endif
@@ -401,7 +405,11 @@ void OneapiDevice::host_free(const MemoryType type, void *host_pointer, const si
 #  ifdef SYCL_EXT_ONEAPI_COPY_OPTIMIZE
   if (type == MEM_READ_WRITE || type == MEM_READ_ONLY) {
     sycl::queue *queue = reinterpret_cast<sycl::queue *>(device_queue_);
-    sycl::ext::oneapi::experimental::release_from_device_copy(host_pointer, *queue);
+    /* This API is properly implemented only in Level-Zero backend at the moment and we don't
+     * want it to fail at runtime, so we conservatively use it only for L0. */
+    if (queue->get_backend() == sycl::backend::ext_oneapi_level_zero) {
+      sycl::ext::oneapi::experimental::release_from_device_copy(host_pointer, *queue);
+    }
   }
 #  endif
 
@@ -590,7 +598,13 @@ void OneapiDevice::const_copy_to(const char *name, void *host, const size_t size
 
     /* Update scene handle(since it is different for each device on multi devices) */
     KernelData *const data = (KernelData *)host;
-    data->device_bvh = embree_scene;
+    data->device_bvh =
+#    if RTC_VERSION >= 40400
+        rtcGetSceneTraversable(embree_scene)
+#    else
+        embree_scene
+#    endif
+        ;
 
     /* We need this number later for proper local memory allocation. */
     scene_max_shaders_ = data->max_shaders;
@@ -750,6 +764,41 @@ void OneapiDevice::tex_alloc(device_texture &mem)
     sycl::ext::oneapi::experimental::image_descriptor desc{};
 
     if (mem.data_height > 0) {
+      const sycl::device &device = reinterpret_cast<sycl::queue *>(queue)->get_device();
+      if (mem.data_depth > 1) {
+        const size_t max_width = device.get_info<sycl::info::device::image3d_max_width>();
+        const size_t max_height = device.get_info<sycl::info::device::image3d_max_height>();
+        const size_t max_depth = device.get_info<sycl::info::device::image3d_max_depth>();
+
+        if (mem.data_width > max_width || mem.data_height > max_height ||
+            mem.data_depth > max_depth)
+        {
+          set_error(string_printf(
+              "Maximum GPU 3D texture size exceeded (max %zux%zux%zu, found %zux%zux%zu)",
+              max_width,
+              max_height,
+              max_depth,
+              mem.data_width,
+              mem.data_height,
+              mem.data_depth));
+          return;
+        }
+      }
+      else {
+        const size_t max_width = device.get_info<sycl::info::device::image2d_max_width>();
+        const size_t max_height = device.get_info<sycl::info::device::image2d_max_height>();
+
+        if (mem.data_width > max_width || mem.data_height > max_height) {
+          set_error(
+              string_printf("Maximum GPU 2D texture size exceeded (max %zux%zu, found %zux%zu)",
+                            max_width,
+                            max_height,
+                            mem.data_width,
+                            mem.data_height));
+          return;
+        }
+      }
+
       /* 2D/3D texture -- Tile optimized */
       size_t depth = mem.data_depth == 1 ? 0 : mem.data_depth;
       desc = sycl::ext::oneapi::experimental::image_descriptor(
@@ -761,6 +810,10 @@ void OneapiDevice::tex_alloc(device_texture &mem)
 
       sycl::ext::oneapi::experimental::image_mem_handle memHandle =
           sycl::ext::oneapi::experimental::alloc_image_mem(desc, *queue);
+      if (!memHandle.raw_handle) {
+        set_error("GPU texture allocation failed: Raw handle is null");
+        return;
+      }
 
       /* Copy data from host to the texture properly based on the texture description */
       queue->ext_oneapi_copy(mem.host_pointer, memHandle, desc);
@@ -834,8 +887,7 @@ void OneapiDevice::tex_alloc(device_texture &mem)
     }
   }
   catch (sycl::exception const &e) {
-    set_error("oneAPI texture allocation error: got runtime exception \"" + string(e.what()) +
-              "\"");
+    set_error("GPU texture allocation failed: runtime exception \"" + string(e.what()) + "\"");
   }
 }
 
@@ -920,7 +972,8 @@ unique_ptr<DeviceQueue> OneapiDevice::gpu_queue_create()
   return make_unique<OneapiDeviceQueue>(this);
 }
 
-bool OneapiDevice::should_use_graphics_interop()
+bool OneapiDevice::should_use_graphics_interop(const GraphicsInteropDevice & /*interop_device*/,
+                                               const bool /*log*/)
 {
   /* NOTE(@nsirgien): oneAPI doesn't yet support direct writing into graphics API objects, so
    * return false. */
@@ -1317,13 +1370,7 @@ int parse_driver_build_version(const sycl::device &device)
   int driver_build_version = 0;
 
   size_t second_dot_position = driver_version.find('.', driver_version.find('.') + 1);
-  if (second_dot_position == std::string::npos) {
-    std::cerr << "Unable to parse unknown Intel GPU driver version \"" << driver_version
-              << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
-              << " xx.xx.xxx.xxxx (Windows) for device \""
-              << device.get_info<sycl::info::device::name>() << "\"." << std::endl;
-  }
-  else {
+  if (second_dot_position != std::string::npos) {
     try {
       size_t third_dot_position = driver_version.find('.', second_dot_position + 1);
       if (third_dot_position != std::string::npos) {
@@ -1341,11 +1388,14 @@ int parse_driver_build_version(const sycl::device &device)
       }
     }
     catch (std::invalid_argument &) {
-      std::cerr << "Unable to parse unknown Intel GPU driver version \"" << driver_version
-                << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
-                << " xx.xx.xxx.xxxx (Windows) for device \""
-                << device.get_info<sycl::info::device::name>() << "\"." << std::endl;
     }
+  }
+
+  if (driver_build_version == 0) {
+    VLOG_WARNING << "Unable to parse unknown Intel GPU driver version. \"" << driver_version
+                 << "\" does not match xx.xx.xxxxx (Linux), x.x.xxxx (L0),"
+                 << " xx.xx.xxx.xxxx (Windows) for device \""
+                 << device.get_info<sycl::info::device::name>() << "\".";
   }
 
   return driver_build_version;
@@ -1419,11 +1469,16 @@ std::vector<sycl::device> available_sycl_devices()
 #  endif
           if (check_driver_version) {
             int driver_build_version = parse_driver_build_version(device);
-            if ((driver_build_version > 100000 &&
-                 driver_build_version < lowest_supported_driver_version_win) ||
-                driver_build_version < lowest_supported_driver_version_neo)
-            {
+            const int lowest_supported_driver_version = (driver_build_version > 100000) ?
+                                                            lowest_supported_driver_version_win :
+                                                            lowest_supported_driver_version_neo;
+            if (driver_build_version < lowest_supported_driver_version) {
               filter_out = true;
+
+              VLOG_WARNING << "Driver version for device \""
+                           << device.get_info<sycl::info::device::name>()
+                           << "\" is too old. Expected \"" << lowest_supported_driver_version
+                           << "\" or newer, but got \"" << driver_build_version << "\".";
             }
           }
         }
@@ -1435,6 +1490,64 @@ std::vector<sycl::device> available_sycl_devices()
   }
 
   return available_devices;
+}
+
+void OneapiDevice::architecture_information(const SyclDevice *device,
+                                            string &name,
+                                            bool &is_optimized)
+{
+  const sycl::ext::oneapi::experimental::architecture arch =
+      reinterpret_cast<const sycl::device *>(device)
+          ->get_info<sycl::ext::oneapi::experimental::info::device::architecture>();
+
+#  define FILL_ARCH_INFO(architecture_code, is_arch_optimised) \
+    case sycl::ext::oneapi::experimental::architecture ::architecture_code: \
+      name = #architecture_code; \
+      is_optimized = is_arch_optimised; \
+      break;
+
+  /* List of architectures that have been optimized by Intel and Blender developers.
+   *
+   * For example, Intel Rocket Lake iGPU (rkl) is not supported and not optimized,
+   * while Intel Arc Alchemist dGPU (dg2) was optimized for.
+   *
+   * Devices can changed from unoptimized to optimized manually, after DPC++ has
+   * been upgraded to support the architecture and CYCLES_ONEAPI_INTEL_BINARIES_ARCH
+   * in CMake includes the architecture. */
+  switch (arch) {
+    FILL_ARCH_INFO(intel_gpu_bdw, false)
+    FILL_ARCH_INFO(intel_gpu_skl, false)
+    FILL_ARCH_INFO(intel_gpu_kbl, false)
+    FILL_ARCH_INFO(intel_gpu_cfl, false)
+    FILL_ARCH_INFO(intel_gpu_apl, false)
+    FILL_ARCH_INFO(intel_gpu_glk, false)
+    FILL_ARCH_INFO(intel_gpu_whl, false)
+    FILL_ARCH_INFO(intel_gpu_aml, false)
+    FILL_ARCH_INFO(intel_gpu_cml, false)
+    FILL_ARCH_INFO(intel_gpu_icllp, false)
+    FILL_ARCH_INFO(intel_gpu_ehl, false)
+    FILL_ARCH_INFO(intel_gpu_tgllp, false)
+    FILL_ARCH_INFO(intel_gpu_rkl, false)
+    FILL_ARCH_INFO(intel_gpu_adl_s, false)
+    FILL_ARCH_INFO(intel_gpu_adl_p, false)
+    FILL_ARCH_INFO(intel_gpu_adl_n, false)
+    FILL_ARCH_INFO(intel_gpu_dg1, false)
+    FILL_ARCH_INFO(intel_gpu_dg2_g10, true)
+    FILL_ARCH_INFO(intel_gpu_dg2_g11, true)
+    FILL_ARCH_INFO(intel_gpu_dg2_g12, true)
+    FILL_ARCH_INFO(intel_gpu_pvc, false)
+    FILL_ARCH_INFO(intel_gpu_pvc_vg, false)
+    /* intel_gpu_mtl_u == intel_gpu_mtl_s == intel_gpu_arl_u == intel_gpu_arl_s */
+    FILL_ARCH_INFO(intel_gpu_mtl_u, true)
+    FILL_ARCH_INFO(intel_gpu_mtl_h, true)
+    FILL_ARCH_INFO(intel_gpu_bmg_g21, true)
+    FILL_ARCH_INFO(intel_gpu_lnl_m, true)
+
+    default:
+      name = "unknown";
+      is_optimized = false;
+      break;
+  }
 }
 
 char *OneapiDevice::device_capabilities()
@@ -1452,6 +1565,15 @@ char *OneapiDevice::device_capabilities()
     capabilities << std::string("\t") << name << "\n";
     capabilities << "\t\tsycl::info::platform::name\t\t\t"
                  << device.get_platform().get_info<sycl::info::platform::name>() << "\n";
+
+    string arch_name;
+    bool is_optimised_for_arch;
+    architecture_information(
+        reinterpret_cast<const SyclDevice *>(&device), arch_name, is_optimised_for_arch);
+    capabilities << "\t\tsycl::info::device::architecture\t\t\t";
+    capabilities << arch_name << "\n";
+    capabilities << "\t\tsycl::info::device::is_cycles_optimized\t\t\t";
+    capabilities << is_optimised_for_arch << "\n";
 
 #  define WRITE_ATTR(attribute_name, attribute_variable) \
     capabilities << "\t\tsycl::info::device::" #attribute_name "\t\t\t" << attribute_variable \
@@ -1570,10 +1692,22 @@ void OneapiDevice::iterate_devices(OneAPIDeviceIteratorCallback cb, void *user_p
     bool oidn_support = false;
 #  endif
     std::string id = "ONEAPI_" + platform_name + "_" + name;
+
+    string arch_name;
+    bool is_optimised_for_arch;
+    architecture_information(
+        reinterpret_cast<const SyclDevice *>(&device), arch_name, is_optimised_for_arch);
+
     if (device.has(sycl::aspect::ext_intel_pci_address)) {
       id.append("_" + device.get_info<sycl::ext::intel::info::device::pci_address>());
     }
-    (cb)(id.c_str(), name.c_str(), num, hwrt_support, oidn_support, user_ptr);
+    (cb)(id.c_str(),
+         name.c_str(),
+         num,
+         hwrt_support,
+         oidn_support,
+         is_optimised_for_arch,
+         user_ptr);
     num++;
   }
 }
@@ -1591,7 +1725,7 @@ int OneapiDevice::get_num_multiprocessors()
   if (device.has(sycl::aspect::ext_intel_gpu_eu_count)) {
     return device.get_info<sycl::ext::intel::info::device::gpu_eu_count>();
   }
-  return 0;
+  return device.get_info<sycl::info::device::max_compute_units>();
 }
 
 int OneapiDevice::get_max_num_threads_per_multiprocessor()
@@ -1603,7 +1737,9 @@ int OneapiDevice::get_max_num_threads_per_multiprocessor()
     return device.get_info<sycl::ext::intel::info::device::gpu_eu_simd_width>() *
            device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>();
   }
-  return 0;
+  /* We'd want sycl::info::device::max_threads_per_compute_unit which doesn't exist yet.
+   * max_work_group_size is the closest approximation but it can still be several times off. */
+  return device.get_info<sycl::info::device::max_work_group_size>();
 }
 
 CCL_NAMESPACE_END

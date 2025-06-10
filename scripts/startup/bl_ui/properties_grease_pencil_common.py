@@ -53,7 +53,7 @@ class GreasePencilSculptAdvancedPanel:
 
         tool_settings = context.scene.tool_settings
         brush = tool_settings.gpencil_sculpt_paint.brush
-        tool = brush.gpencil_sculpt_tool
+        tool = brush.gpencil_sculpt_brush_type
         gp_settings = brush.gpencil_settings
 
         if tool in {'SMOOTH', 'RANDOMIZE'}:
@@ -94,9 +94,9 @@ class GreasePencilDisplayPanel:
             settings = tool_settings.gpencil_paint
         elif context.mode == 'SCULPT_GPENCIL':
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
-        elif context.mode == 'VERTEX_GPENCIL' or context.mode == 'VERTEX_GREASE_PENCIL':
+        elif context.mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         if brush:
@@ -108,13 +108,13 @@ class GreasePencilDisplayPanel:
         layout.use_property_decorate = False
 
         tool_settings = context.tool_settings
-        if context.mode == 'PAINT_GPENCIL' or context.mode == 'PAINT_GREASE_PENCIL':
+        if context.mode in {'PAINT_GPENCIL', 'PAINT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_paint
-        elif context.mode == 'SCULPT_GPENCIL' or context.mode == 'SCULPT_GREASE_PENCIL':
+        elif context.mode in {'SCULPT_GPENCIL', 'SCULPT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_sculpt_paint
-        elif context.mode == 'WEIGHT_GPENCIL' or context.mode == 'WEIGHT_GREASE_PENCIL':
+        elif context.mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_weight_paint
-        elif context.mode == 'VERTEX_GPENCIL' or context.mode == 'VERTEX_GREASE_PENCIL':
+        elif context.mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         gp_settings = brush.gpencil_settings
@@ -130,7 +130,7 @@ class GreasePencilDisplayPanel:
                 row = layout.row(align=True)
                 row.prop(settings, "show_brush", text="Display Cursor")
 
-            if brush.gpencil_tool == 'DRAW':
+            if brush.gpencil_brush_type == 'DRAW':
                 row = layout.row(align=True)
                 row.active = settings.show_brush
                 row.prop(gp_settings, "show_lasso", text="Show Fill Color While Drawing")
@@ -140,7 +140,7 @@ class GreasePencilDisplayPanel:
             col.active = settings.show_brush
 
             col.prop(brush, "cursor_color_add", text="Cursor Color")
-            if brush.gpencil_sculpt_tool in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
+            if brush.gpencil_sculpt_brush_type in {'THICKNESS', 'STRENGTH', 'PINCH', 'TWIST'}:
                 col.prop(brush, "cursor_color_subtract", text="Inverse Color")
 
         elif ob.mode == 'WEIGHT_GREASE_PENCIL':

@@ -17,6 +17,7 @@
 #include "BKE_context.hh"
 #include "BKE_movieclip.h"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
 #include "ED_screen.hh"
 
@@ -99,8 +100,10 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
 
-  /* frame range */
-  clip_draw_sfra_efra(v2d, scene);
+  /* Frame and preview range. */
+  UI_view2d_view_ortho(v2d);
+  ANIM_draw_framerange(scene, v2d);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   if (clip) {
     MovieTracking *tracking = &clip->tracking;
@@ -367,7 +370,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
 
   /* third pass: widgets */
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
@@ -387,7 +390,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
       PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
 
-      UI_block_emboss_set(block, UI_EMBOSS_NONE);
+      UI_block_emboss_set(block, blender::ui::EmbossType::None);
       uiDefIconButR_prop(block,
                          UI_BTYPE_ICON_TOGGLE,
                          1,
@@ -402,7 +405,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
                          0,
                          0,
                          std::nullopt);
-      UI_block_emboss_set(block, UI_EMBOSS);
+      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
     /* adjust y-position for next one */

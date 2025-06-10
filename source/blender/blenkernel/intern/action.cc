@@ -69,6 +69,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
 #include "ANIM_versioning.hh"
@@ -133,7 +134,7 @@ static void action_copy_data(Main * /*bmain*/,
 
   /* Duplicate the lists of groups and markers. */
   BLI_duplicatelist(&action_dst.groups, &action_src.groups);
-  BLI_duplicatelist(&action_dst.markers, &action_src.markers);
+  BKE_copy_time_markers(action_dst.markers, action_src.markers, flag);
 
   /* Copy F-Curves, fixing up the links as we go. */
   BLI_listbase_clear(&action_dst.curves);
@@ -572,9 +573,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BLO_write_struct(writer, bActionGroup, grp);
   }
 
-  LISTBASE_FOREACH (TimeMarker *, marker, &action.markers) {
-    BLO_write_struct(writer, TimeMarker, marker);
-  }
+  BKE_time_markers_blend_write(writer, action.markers);
 
   BKE_previewimg_blend_write(writer, action.preview);
 }
@@ -732,7 +731,7 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLO_read_struct_list(reader, TimeMarker, &action.markers);
+  BKE_time_markers_blend_read(reader, action.markers);
 
   /* End of reading legacy data. */
 
@@ -765,7 +764,7 @@ static AssetTypeInfo AssetType_AC = {
 }  // namespace blender::bke
 
 IDTypeInfo IDType_ID_AC = {
-    /*id_code*/ ID_AC,
+    /*id_code*/ bAction::id_type,
     /*id_filter*/ FILTER_ID_AC,
 
     /* This value will be set dynamically in `BKE_idtype_init()` to only include
@@ -804,7 +803,7 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 {
   bAction *act;
 
-  act = static_cast<bAction *>(BKE_id_new(bmain, ID_AC, name));
+  act = BKE_id_new<bAction>(bmain, name);
 
   return act;
 }
@@ -909,7 +908,7 @@ bActionGroup *action_groups_add_new(bAction *act, const char name[])
   BLI_assert(act->wrap().is_action_legacy());
 
   /* allocate a new one */
-  agrp = static_cast<bActionGroup *>(MEM_callocN(sizeof(bActionGroup), "bActionGroup"));
+  agrp = MEM_callocN<bActionGroup>("bActionGroup");
 
   /* make it selected, with default name */
   agrp->flag = AGRP_SELECTED;
@@ -1142,7 +1141,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   }
 
   /* If not, create it and add it */
-  chan = static_cast<bPoseChannel *>(MEM_callocN(sizeof(bPoseChannel), "verifyPoseChannel"));
+  chan = MEM_callocN<bPoseChannel>("verifyPoseChannel");
 
   BKE_pose_channel_session_uid_generate(chan);
 
@@ -1156,7 +1155,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   /* init vars to prevent math errors */
   unit_qt(chan->quat);
   unit_axis_angle(chan->rotAxis, &chan->rotAngle);
-  chan->size[0] = chan->size[1] = chan->size[2] = 1.0f;
+  chan->scale[0] = chan->scale[1] = chan->scale[2] = 1.0f;
 
   copy_v3_fl(chan->scale_in, 1.0f);
   copy_v3_fl(chan->scale_out, 1.0f);
@@ -1232,13 +1231,17 @@ bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
   }
 
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan && (pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+  if (pchan && (pchan->bone->flag & BONE_SELECTED) &&
+      blender::animrig::bone_is_visible_pchan(arm, pchan))
+  {
     return pchan;
   }
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     if (pchan->bone != nullptr) {
-      if ((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+      if ((pchan->bone->flag & BONE_SELECTED) &&
+          blender::animrig::bone_is_visible_pchan(arm, pchan))
+      {
         return pchan;
       }
     }
@@ -1285,7 +1288,7 @@ void BKE_pose_copy_data_ex(bPose **dst,
     return;
   }
 
-  outPose = static_cast<bPose *>(MEM_callocN(sizeof(bPose), "pose"));
+  outPose = MEM_callocN<bPose>("pose");
 
   BLI_duplicatelist(&outPose->chanbase, &src->chanbase);
 
@@ -1337,6 +1340,9 @@ void BKE_pose_copy_data_ex(bPose **dst,
     if (pchan->prop) {
       pchan->prop = IDP_CopyProperty_ex(pchan->prop, flag);
     }
+    if (pchan->system_properties) {
+      pchan->system_properties = IDP_CopyProperty_ex(pchan->system_properties, flag);
+    }
 
     pchan->draw_data = nullptr; /* Drawing cache, no need to copy. */
 
@@ -1379,7 +1385,7 @@ void BKE_pose_ikparam_init(bPose *pose)
   bItasc *itasc;
   switch (pose->iksolver) {
     case IKSOLVER_ITASC:
-      itasc = static_cast<bItasc *>(MEM_callocN(sizeof(bItasc), "itasc"));
+      itasc = MEM_callocN<bItasc>("itasc");
       BKE_pose_itasc_init(itasc);
       pose->ikparam = itasc;
       break;
@@ -1534,6 +1540,10 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
     IDP_FreeProperty_ex(pchan->prop, do_id_user);
     pchan->prop = nullptr;
   }
+  if (pchan->system_properties) {
+    IDP_FreeProperty_ex(pchan->system_properties, do_id_user);
+    pchan->system_properties = nullptr;
+  }
 
   /* Cached data, for new draw manager rendering code. */
   MEM_SAFE_FREE(pchan->draw_data);
@@ -1544,13 +1554,13 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
 
 void BKE_pose_channel_runtime_reset(bPoseChannel_Runtime *runtime)
 {
-  memset(runtime, 0, sizeof(*runtime));
+  *runtime = bPoseChannel_Runtime{};
 }
 
 void BKE_pose_channel_runtime_reset_on_copy(bPoseChannel_Runtime *runtime)
 {
   const SessionUID uid = runtime->session_uid;
-  memset(runtime, 0, sizeof(*runtime));
+  *runtime = bPoseChannel_Runtime{};
   runtime->session_uid = uid;
 }
 
@@ -1609,7 +1619,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free IK solver param */
   if (pose->ikparam) {
-    MEM_freeN(pose->ikparam);
+    MEM_freeN(static_cast<bItasc *>(pose->ikparam));
   }
 }
 
@@ -1661,12 +1671,20 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
   /* id-properties */
   if (pchan->prop) {
-    /* unlikely but possible it exists */
+    /* Unlikely, but possible that it exists. */
     IDP_FreeProperty(pchan->prop);
     pchan->prop = nullptr;
   }
   if (pchan_from->prop) {
     pchan->prop = IDP_CopyProperty(pchan_from->prop);
+  }
+  if (pchan->system_properties) {
+    /* Unlikely, but possible that it exists. */
+    IDP_FreeProperty(pchan->system_properties);
+    pchan->system_properties = nullptr;
+  }
+  if (pchan_from->system_properties) {
+    pchan->system_properties = IDP_CopyProperty(pchan_from->system_properties);
   }
 
   /* custom shape */
@@ -1778,7 +1796,7 @@ bActionGroup *BKE_pose_add_group(bPose *pose, const char *name)
     name = DATA_("Group");
   }
 
-  grp = static_cast<bActionGroup *>(MEM_callocN(sizeof(bActionGroup), "PoseGroup"));
+  grp = MEM_callocN<bActionGroup>("PoseGroup");
   STRNCPY(grp->name, name);
   BLI_addtail(&pose->agroups, grp);
   BLI_uniquename(&pose->agroups, grp, name, '.', offsetof(bActionGroup, name), sizeof(grp->name));
@@ -1856,7 +1874,7 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
     zero_v3(pchan->eul);
     unit_qt(pchan->quat);
     unit_axis_angle(pchan->rotAxis, &pchan->rotAngle);
-    pchan->size[0] = pchan->size[1] = pchan->size[2] = 1.0f;
+    pchan->scale[0] = pchan->scale[1] = pchan->scale[2] = 1.0f;
 
     pchan->roll1 = pchan->roll2 = 0.0f;
     pchan->curve_in_x = pchan->curve_in_z = 0.0f;
@@ -1866,7 +1884,7 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
     copy_v3_fl(pchan->scale_in, 1.0f);
     copy_v3_fl(pchan->scale_out, 1.0f);
 
-    pchan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE | POSE_BBONE_SHAPE);
+    pchan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE | POSE_BBONE_SHAPE);
   }
 }
 
@@ -1879,7 +1897,7 @@ void BKE_pose_copy_pchan_result(bPoseChannel *pchanto, const bPoseChannel *pchan
   copy_v3_v3(pchanto->loc, pchanfrom->loc);
   copy_qt_qt(pchanto->quat, pchanfrom->quat);
   copy_v3_v3(pchanto->eul, pchanfrom->eul);
-  copy_v3_v3(pchanto->size, pchanfrom->size);
+  copy_v3_v3(pchanto->scale, pchanfrom->scale);
 
   copy_v3_v3(pchanto->pose_head, pchanfrom->pose_head);
   copy_v3_v3(pchanto->pose_tail, pchanfrom->pose_tail);
@@ -2071,6 +2089,8 @@ void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
     if (chan->prop) {
       IDP_BlendWrite(writer, chan->prop);
     }
+    /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+     * the matching call to #BLO_read_struct). */
 
     BKE_constraint_blend_write(writer, &chan->constraints);
 
@@ -2135,6 +2155,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
 
     BLO_read_struct(reader, IDProperty, &pchan->prop);
     IDP_BlendDataRead(reader, &pchan->prop);
+    BLO_read_struct(reader, IDProperty, &pchan->system_properties);
+    IDP_BlendDataRead(reader, &pchan->system_properties);
 
     BLO_read_struct(reader, bMotionPath, &pchan->mpath);
     if (pchan->mpath) {

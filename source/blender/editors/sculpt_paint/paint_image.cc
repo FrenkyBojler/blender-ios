@@ -16,6 +16,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.hh"
+#include "BLI_noise.hh"
+#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -33,6 +35,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -44,6 +47,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 
 #include "NOD_texture.h"
@@ -155,10 +159,6 @@ void imapaint_image_update(
     return;
   }
 
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
-
   IMB_partial_display_buffer_update_delayed(ibuf,
                                             imapaintpartial.dirty_region.xmin,
                                             imapaintpartial.dirty_region.ymin,
@@ -205,8 +205,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = 2;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = radius;
   }
   else {
@@ -218,8 +217,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj)
 
     side = kernel->side = radius * 2 + 1;
     kernel->side_squared = kernel->side * kernel->side;
-    kernel->wdata = static_cast<float *>(
-        MEM_mallocN(sizeof(float) * kernel->side_squared, "blur kernel data"));
+    kernel->wdata = MEM_malloc_arrayN<float>(kernel->side_squared, "blur kernel data");
     kernel->pixel_len = br->blur_kernel_radius;
   }
 
@@ -350,7 +348,7 @@ static bool image_paint_2d_clone_poll(bContext *C)
 /** \name Paint Operator
  * \{ */
 
-bool paint_use_opacity_masking(Brush *brush)
+bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Brush *brush)
 {
   return ((brush->flag & BRUSH_AIRBRUSH) || (brush->flag & BRUSH_DRAG_DOT) ||
                   (brush->flag & BRUSH_ANCHORED) ||
@@ -359,6 +357,7 @@ bool paint_use_opacity_masking(Brush *brush)
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
+                  (BKE_brush_color_jitter_get_settings(scene, paint, brush)) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -370,17 +369,20 @@ bool paint_use_opacity_masking(Brush *brush)
 void paint_brush_color_get(Scene *scene,
                            const Paint *paint,
                            Brush *br,
+                           std::optional<blender::float3> &initial_hsv_jitter,
                            bool color_correction,
                            bool invert,
                            float distance,
                            float pressure,
-                           ColorManagedDisplay *display,
+                           const ColorManagedDisplay *display,
                            float r_color[3])
 {
   if (invert) {
     copy_v3_v3(r_color, BKE_brush_secondary_color_get(scene, paint, br));
   }
   else {
+    const std::optional<BrushColorJitterSettings> color_jitter_settings =
+        BKE_brush_color_jitter_get_settings(scene, paint, br);
     if (br->flag & BRUSH_USE_GRADIENT) {
       float color_gr[4];
       switch (br->gradient_stroke_mode) {
@@ -400,6 +402,14 @@ void paint_brush_color_get(Scene *scene,
       /* Gradient / Color-band colors are not considered #PROP_COLOR_GAMMA.
        * Brush colors are expected to be in sRGB though. */
       IMB_colormanagement_scene_linear_to_srgb_v3(r_color, color_gr);
+    }
+    else if (color_jitter_settings) {
+      copy_v3_v3(r_color,
+                 BKE_paint_randomize_color(*color_jitter_settings,
+                                           *initial_hsv_jitter,
+                                           distance,
+                                           pressure,
+                                           BKE_brush_color_get(scene, paint, br)));
     }
     else {
       copy_v3_v3(r_color, BKE_brush_color_get(scene, paint, br));
@@ -529,14 +539,14 @@ static void grab_clone_apply(bContext *C, wmOperator *op)
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-static int grab_clone_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grab_clone_exec(bContext *C, wmOperator *op)
 {
   grab_clone_apply(C, op);
 
   return OPERATOR_FINISHED;
 }
 
-static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   const ToolSettings *settings = scene->toolsettings;
@@ -554,7 +564,7 @@ static int grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
@@ -568,7 +578,7 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
     case LEFTMOUSE:
     case MIDDLEMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
-      MEM_freeN(op->customdata);
+      MEM_freeN(cmv);
       return OPERATOR_FINISHED;
     case MOUSEMOVE:
       /* mouse moved, so move the clone image */
@@ -584,6 +594,9 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
       grab_clone_apply(C, op);
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -602,7 +615,7 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
   ot->idname = "PAINT_OT_grab_clone";
   ot->description = "Move the clone source image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = grab_clone_exec;
   ot->invoke = grab_clone_invoke;
   ot->modal = grab_clone_modal;
@@ -653,7 +666,7 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
   }
 }
 
-static int sample_color_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
@@ -684,7 +697,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -722,7 +735,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
@@ -737,6 +750,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
     if (data->sample_palette) {
       BKE_brush_color_set(scene, paint, brush, data->initcolor);
       RNA_boolean_set(op->ptr, "palette", true);
+      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
     }
     WM_cursor_modal_restore(CTX_wm_window(C));
     MEM_delete(data);
@@ -766,10 +780,14 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
+          BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
         }
         WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -788,7 +806,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
   ot->idname = "PAINT_OT_sample_color";
   ot->description = "Use the mouse to sample a color in the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sample_color_exec;
   ot->invoke = sample_color_invoke;
   ot->modal = sample_color_modal;
@@ -932,7 +950,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
   BKE_scene_graph_evaluated_ensure(&depsgraph, &bmain);
 
   /* Set pivot to bounding box center. */
-  Object *ob_eval = DEG_get_evaluated_object(&depsgraph, &ob);
+  Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
   paint_init_pivot(ob_eval ? ob_eval : &ob, &scene);
 
   WM_main_add_notifier(NC_SCENE | ND_MODE, &scene);
@@ -985,7 +1003,7 @@ static bool texture_paint_toggle_poll(bContext *C)
   return true;
 }
 
-static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus texture_paint_toggle_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
   wmMsgBus *mbus = CTX_wm_message_bus(C);
@@ -1023,7 +1041,7 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
   ot->idname = "PAINT_OT_texture_paint_toggle";
   ot->description = "Toggle texture paint mode in 3D view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = texture_paint_toggle_exec;
   ot->poll = texture_paint_toggle_poll;
 
@@ -1037,7 +1055,7 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 /** \name Brush Color Flip Operator
  * \{ */
 
-static int brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene &scene = *CTX_data_scene(C);
 
@@ -1092,7 +1110,7 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
   ot->idname = "PAINT_OT_brush_colors_flip";
   ot->description = "Swap primary and secondary brush colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_colors_flip_exec;
   ot->poll = brush_colors_flip_poll;
 
@@ -1133,6 +1151,12 @@ static bool texture_paint_poll(bContext *C)
   }
 
   return false;
+}
+
+blender::float3 seed_hsv_jitter()
+{
+  blender::RandomNumberGenerator rng = blender::RandomNumberGenerator::from_random_seed();
+  return blender::float3{rng.get_float(), rng.get_float(), rng.get_float()};
 }
 
 bool image_texture_paint_poll(bContext *C)

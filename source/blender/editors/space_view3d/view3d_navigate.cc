@@ -249,7 +249,7 @@ void ViewOpsData::init_navigation(bContext *C,
      * Logically it doesn't make sense to use the selection as a pivot when the first-person
      * navigation pivots from the view-point. This also interferes with zoom-speed,
      * causing zoom-speed scale based on the distance to the selection center, see: #115253. */
-    if ((U.ndof_flag & NDOF_MODE_ORBIT) == 0) {
+    if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
       viewops_flag &= ~VIEWOPS_FLAG_ORBIT_SELECT;
     }
   }
@@ -436,17 +436,26 @@ struct ViewOpsData_Utility : ViewOpsData {
 
       wmKeyMapItem *kmi_cpy = WM_keymap_add_item_copy(&keymap_tmp, kmi);
       if (kmi_merge) {
-        if (kmi_merge->shift == 1 || ELEM(kmi_merge->type, EVT_RIGHTSHIFTKEY, EVT_LEFTSHIFTKEY)) {
-          kmi_cpy->shift = 1;
+        if (kmi_merge->shift == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_RIGHTSHIFTKEY, EVT_LEFTSHIFTKEY))
+        {
+          kmi_cpy->shift = KM_MOD_HELD;
         }
-        if (kmi_merge->ctrl == 1 || ELEM(kmi_merge->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
-          kmi_cpy->ctrl = 1;
+        if (kmi_merge->ctrl == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY))
+        {
+          kmi_cpy->ctrl = KM_MOD_HELD;
         }
-        if (kmi_merge->alt == 1 || ELEM(kmi_merge->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
-          kmi_cpy->alt = 1;
+        if (kmi_merge->alt == KM_MOD_HELD ||
+            ELEM(kmi_merge->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY))
+        {
+          kmi_cpy->alt = KM_MOD_HELD;
         }
-        if (kmi_merge->oskey == 1 || ELEM(kmi_merge->type, EVT_OSKEY)) {
-          kmi_cpy->oskey = 1;
+        if (kmi_merge->oskey == KM_MOD_HELD || ELEM(kmi_merge->type, EVT_OSKEY)) {
+          kmi_cpy->oskey = KM_MOD_HELD;
+        }
+        if (kmi_merge->hyper == KM_MOD_HELD || ELEM(kmi_merge->type, EVT_HYPER)) {
+          kmi_cpy->hyper = KM_MOD_HELD;
         }
         if (!ISKEYMODIFIER(kmi_merge->type)) {
           kmi_cpy->keymodifier = kmi_merge->type;
@@ -535,12 +544,12 @@ static eV3D_OpEvent view3d_navigate_event(ViewOpsData *vod, const wmEvent *event
   return VIEW_PASS;
 }
 
-static int view3d_navigation_invoke_generic(bContext *C,
-                                            ViewOpsData *vod,
-                                            const wmEvent *event,
-                                            PointerRNA *ptr,
-                                            const ViewOpsType *nav_type,
-                                            const float dyn_ofs_override[3])
+static wmOperatorStatus view3d_navigation_invoke_generic(bContext *C,
+                                                         ViewOpsData *vod,
+                                                         const wmEvent *event,
+                                                         PointerRNA *ptr,
+                                                         const ViewOpsType *nav_type,
+                                                         const float dyn_ofs_override[3])
 {
   if (!nav_type->init_fn) {
     return OPERATOR_CANCELLED;
@@ -557,14 +566,15 @@ static int view3d_navigation_invoke_generic(bContext *C,
   return nav_type->init_fn(C, vod, event, ptr);
 }
 
-int view3d_navigate_invoke_impl(bContext *C,
-                                wmOperator *op,
-                                const wmEvent *event,
-                                const ViewOpsType *nav_type)
+wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent *event,
+                                             const ViewOpsType *nav_type)
 {
   ViewOpsData *vod = new ViewOpsData();
   vod->init_context(C);
-  int ret = view3d_navigation_invoke_generic(C, vod, event, op->ptr, nav_type, nullptr);
+  wmOperatorStatus ret = view3d_navigation_invoke_generic(
+      C, vod, event, op->ptr, nav_type, nullptr);
   op->customdata = (void *)vod;
 
   if (ret == OPERATOR_RUNNING_MODAL) {
@@ -605,7 +615,7 @@ bool view3d_zoom_or_dolly_or_rotation_poll(bContext *C)
   return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
 }
 
-int view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
 
@@ -618,7 +628,7 @@ int view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event)
     return view3d_navigation_invoke_generic(C, vod, event, op->ptr, vod->nav_type, nullptr);
   }
 
-  int ret = vod->nav_type->apply_fn(C, vod, event_code, event->xy);
+  wmOperatorStatus ret = vod->nav_type->apply_fn(C, vod, event_code, event->xy);
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
     if (ret & OPERATOR_FINISHED) {
@@ -744,7 +754,7 @@ static void view3d_orbit_apply_dyn_ofs_ortho_correction(float ofs[3],
    * (`ofs` + `dist` along the view Z-axis) unlike orthographic views which center around `ofs`.
    * Nevertheless there will be cases when having `ofs` and a large `dist` pointing nowhere doesn't
    * give ideal behavior (zooming may jump in larger than expected steps and panning the view may
-   * move too much in relation to nearby objects - for e.g.). So it's worth investigating but
+   * move too much in relation to nearby objects - for example). So it's worth investigating but
    * should be done with extra care as changing `ofs` in perspective view also requires changing
    * the `dist` which could cause unexpected results if the calculated `dist` happens to be small.
    * So disable this workaround in perspective view unless there are clear benefits to enabling. */
@@ -803,7 +813,7 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
   View3D *v3d = CTX_wm_view3d(C);
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_act_eval = BKE_view_layer_active_object_get(view_layer_eval);
-  Object *ob_act = DEG_get_original_object(ob_act_eval);
+  Object *ob_act = DEG_get_original(ob_act_eval);
 
   if (ob_act && (ob_act->mode & OB_MODE_ALL_PAINT) &&
       /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */
@@ -812,7 +822,13 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
     BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
     is_set = true;
   }
-  else if (ob_act && (ob_act->mode & OB_MODE_SCULPT_CURVES)) {
+  else if (ob_act && ELEM(ob_act->mode,
+                          OB_MODE_SCULPT_CURVES,
+                          OB_MODE_PAINT_GREASE_PENCIL,
+                          OB_MODE_SCULPT_GREASE_PENCIL,
+                          OB_MODE_VERTEX_GREASE_PENCIL,
+                          OB_MODE_WEIGHT_GREASE_PENCIL))
+  {
     BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
     is_set = true;
   }
@@ -893,9 +909,6 @@ void viewops_data_free(bContext *C, ViewOpsData *vod)
 /** \name Generic View Operator Utilities
  * \{ */
 
-/**
- * \param align_to_quat: When not nullptr, set the axis relative to this rotation.
- */
 void axis_set_view(bContext *C,
                    View3D *v3d,
                    ARegion *region,
@@ -968,8 +981,7 @@ void axis_set_view(bContext *C,
     dist = rv3d->dist;
 
     /* so we animate _from_ the camera location */
-    Object *camera_eval = DEG_get_evaluated_object(CTX_data_ensure_evaluated_depsgraph(C),
-                                                   v3d->camera);
+    Object *camera_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), v3d->camera);
     ED_view3d_from_object(camera_eval, rv3d->ofs, nullptr, &rv3d->dist, nullptr);
 
     V3D_SmoothParams sview = {nullptr};
@@ -1103,7 +1115,7 @@ bool ED_view3d_navigation_do(bContext *C,
     event = &event_tmp;
   }
 
-  int op_return = OPERATOR_CANCELLED;
+  wmOperatorStatus op_return = OPERATOR_CANCELLED;
 
   ViewOpsData_Utility *vod_intern = static_cast<ViewOpsData_Utility *>(vod);
   if (vod_intern->is_modal_event) {

@@ -157,7 +157,7 @@ static Mesh *mesh_remove_doubles_on_axis(Mesh *result,
 
   if (tot_doubles != 0) {
     uint tot = totvert * step_tot;
-    int *full_doubles_map = static_cast<int *>(MEM_malloc_arrayN(tot, sizeof(int), __func__));
+    int *full_doubles_map = MEM_malloc_arrayN<int>(tot, __func__);
     copy_vn_i(full_doubles_map, int(tot), -1);
 
     uint tot_doubles_left = tot_doubles;
@@ -461,12 +461,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   /* build face -> edge map */
   if (faces_num) {
 
-    edge_face_map = static_cast<uint *>(
-        MEM_malloc_arrayN(totedge, sizeof(*edge_face_map), __func__));
+    edge_face_map = MEM_malloc_arrayN<uint>(totedge, __func__);
     memset(edge_face_map, 0xff, sizeof(*edge_face_map) * totedge);
 
-    vert_loop_map = static_cast<uint *>(
-        MEM_malloc_arrayN(totvert, sizeof(*vert_loop_map), __func__));
+    vert_loop_map = MEM_malloc_arrayN<uint>(totvert, __func__);
     memset(vert_loop_map, 0xff, sizeof(*vert_loop_map) * totvert);
 
     for (const int64_t i : faces_orig.index_range()) {
@@ -490,8 +488,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
      * Sort edge verts for correct face flipping
      * NOT REALLY NEEDED but face flipping is nice. */
 
-    vert_connect = static_cast<ScrewVertConnect *>(
-        MEM_malloc_arrayN(totvert, sizeof(ScrewVertConnect), __func__));
+    vert_connect = MEM_malloc_arrayN<ScrewVertConnect>(totvert, __func__);
     /* skip the first slice of verts. */
     // vert_connect = (ScrewVertConnect *) &medge_new[totvert];
     vc = vert_connect;
@@ -1071,45 +1068,45 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row = uiLayoutRow(col, false);
+  col = &layout->column(false);
+  col->prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row = &col->row(false);
   uiLayoutSetActive(row,
                     RNA_pointer_is_null(&screw_obj_ptr) ||
                         !RNA_boolean_get(ptr, "use_object_screw_offset"));
-  uiItemR(row, ptr, "screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(ptr, "screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemS(layout);
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRow(col, false);
-  uiItemR(row, ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
-  sub = uiLayoutColumn(col, false);
+  layout->separator();
+  col = &layout->column(false);
+  row = &col->row(false);
+  row->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  col->prop(ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
+  sub = &col->column(false);
   uiLayoutSetActive(sub, !RNA_pointer_is_null(&screw_obj_ptr));
-  uiItemR(sub, ptr, "use_object_screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  sub->prop(ptr, "use_object_screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "steps", UI_ITEM_NONE, IFACE_("Steps Viewport"), ICON_NONE);
-  uiItemR(col, ptr, "render_steps", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "steps", UI_ITEM_NONE, IFACE_("Steps Viewport"), ICON_NONE);
+  col->prop(ptr, "render_steps", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Merge"));
-  uiItemR(row, ptr, "use_merge_vertices", UI_ITEM_NONE, "", ICON_NONE);
-  sub = uiLayoutRow(row, true);
+  row = &layout->row(true, IFACE_("Merge"));
+  row->prop(ptr, "use_merge_vertices", UI_ITEM_NONE, "", ICON_NONE);
+  sub = &row->row(true);
   uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_merge_vertices"));
-  uiItemR(sub, ptr, "merge_threshold", UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, "merge_threshold", UI_ITEM_NONE, "", ICON_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Stretch UVs"));
-  uiItemR(row, ptr, "use_stretch_u", toggles_flag, IFACE_("U"), ICON_NONE);
-  uiItemR(row, ptr, "use_stretch_v", toggles_flag, IFACE_("V"), ICON_NONE);
+  row = &layout->row(true, IFACE_("Stretch UVs"));
+  row->prop(ptr, "use_stretch_u", toggles_flag, IFACE_("U"), ICON_NONE);
+  row->prop(ptr, "use_stretch_v", toggles_flag, IFACE_("V"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -1121,10 +1118,10 @@ static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(false);
+  col->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

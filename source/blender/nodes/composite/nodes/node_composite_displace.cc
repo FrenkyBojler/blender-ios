@@ -27,7 +27,8 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
   b.add_input<decl::Vector>("Vector")
-      .default_value({1.0f, 1.0f, 1.0f})
+      .dimensions(2)
+      .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_TRANSLATION)
@@ -53,8 +54,10 @@ class DisplaceOperation : public NodeOperation {
 
   void execute() override
   {
-    if (is_identity()) {
-      get_input("Image").pass_through(get_result("Image"));
+    if (this->is_identity()) {
+      const Result &input = this->get_input("Image");
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -213,7 +216,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_displace_cc
 
-void register_node_type_cmp_displace()
+static void register_node_type_cmp_displace()
 {
   namespace file_ns = blender::nodes::node_composite_displace_cc;
 
@@ -229,3 +232,4 @@ void register_node_type_cmp_displace()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_displace)

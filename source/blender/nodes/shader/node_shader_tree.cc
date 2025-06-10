@@ -969,6 +969,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             case SH_NODE_VOLUME_ABSORPTION:
             case SH_NODE_VOLUME_PRINCIPLED:
             case SH_NODE_VOLUME_SCATTER:
+            case SH_NODE_VOLUME_COEFFICIENTS:
               fromsock = ntree_shader_node_find_input(fromnode, "Weight");
               /* Make "weight" sockets available so that links to it are available as well and are
                * not ignored in other places. */
@@ -1035,6 +1036,7 @@ static bool closure_node_filter(const bNode *node)
     case SH_NODE_VOLUME_ABSORPTION:
     case SH_NODE_VOLUME_PRINCIPLED:
     case SH_NODE_VOLUME_SCATTER:
+    case SH_NODE_VOLUME_COEFFICIENTS:
       return true;
     default:
       return false;
@@ -1282,8 +1284,7 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context,
   bNodeTreeExec *exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = static_cast<ListBase *>(
-      MEM_callocN(BLENDER_MAX_THREADS * sizeof(ListBase), "thread stack array"));
+  exec->threadstack = MEM_calloc_arrayN<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
 
   LISTBASE_FOREACH (bNode *, node, &exec->nodetree->nodes) {
     node->runtime->need_exec = 1;

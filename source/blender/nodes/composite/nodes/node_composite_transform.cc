@@ -53,7 +53,7 @@ static void cmp_node_transform_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_transform(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -64,9 +64,6 @@ class TransformOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = this->get_input("Image");
-    Result &output = this->get_result("Image");
-
     const float2 translation = float2(this->get_input("X").get_single_value_default(0.0f),
                                       this->get_input("Y").get_single_value_default(0.0f));
     const math::AngleRadian rotation = this->get_input("Angle").get_single_value_default(0.0f);
@@ -74,7 +71,9 @@ class TransformOperation : public NodeOperation {
     const float3x3 transformation = math::from_loc_rot_scale<float3x3>(
         translation, rotation, scale);
 
-    input.pass_through(output);
+    const Result &input = this->get_input("Image");
+    Result &output = this->get_result("Image");
+    output.share_data(input);
     output.transform(transformation);
     output.get_realization_options().interpolation = this->get_interpolation();
   }
@@ -86,6 +85,7 @@ class TransformOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
@@ -102,7 +102,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_transform_cc
 
-void register_node_type_cmp_transform()
+static void register_node_type_cmp_transform()
 {
   namespace file_ns = blender::nodes::node_composite_transform_cc;
 
@@ -119,3 +119,4 @@ void register_node_type_cmp_transform()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_transform)

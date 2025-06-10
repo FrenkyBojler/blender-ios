@@ -130,10 +130,10 @@ class ImagePaintMode : public AbstractPaintMode {
   {
     float color[3];
     if (paint_stroke_inverted(stroke)) {
-      srgb_to_linearrgb_v3_v3(color, BKE_brush_secondary_color_get(scene, paint, brush));
+      copy_v3_v3(color, BKE_brush_secondary_color_get(scene, paint, brush));
     }
     else {
-      srgb_to_linearrgb_v3_v3(color, BKE_brush_color_get(scene, paint, brush));
+      copy_v3_v3(color, BKE_brush_color_get(scene, paint, brush));
     }
     paint_2d_bucket_fill(C, color, brush, mouse_start, mouse_end, stroke_handle);
   }
@@ -242,7 +242,10 @@ struct PaintOperation : public PaintModeData {
   }
 };
 
-static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
+static void gradient_draw_line(bContext * /*C*/,
+                               const blender::int2 &xy,
+                               const blender::float2 & /*tilt*/,
+                               void *customdata)
 {
   PaintOperation *pop = (PaintOperation *)customdata;
 
@@ -251,7 +254,7 @@ static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
     ARegion *region = pop->vc.region;
 
@@ -261,8 +264,8 @@ static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
     immUniformColor4ub(0, 0, 0, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2i(pos, x, y);
-    immVertex2i(
+    immVertex2fv(pos, blender::float2(xy));
+    immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
 
@@ -270,8 +273,8 @@ static void gradient_draw_line(bContext * /*C*/, int x, int y, void *customdata)
     immUniformColor4ub(255, 255, 255, 255);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2i(pos, x, y);
-    immVertex2i(
+    immVertex2fv(pos, blender::float2(xy));
+    immVertex2f(
         pos, pop->startmouse[0] + region->winrct.xmin, pop->startmouse[1] + region->winrct.ymin);
     immEnd();
 
@@ -451,10 +454,8 @@ static bool paint_stroke_test_start(bContext *C, wmOperator *op, const float mou
   return true;
 }
 
-static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int retval;
-
   op->customdata = paint_stroke_new(C,
                                     op,
                                     nullptr,
@@ -464,20 +465,22 @@ static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
                                     paint_stroke_done,
                                     event->type);
 
-  if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  OPERATOR_RETVAL_CHECK(retval);
+
+  if (retval == OPERATOR_FINISHED) {
     paint_stroke_free(C, op, static_cast<PaintStroke *>(op->customdata));
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
   WM_event_add_modal_handler(C, op);
 
-  OPERATOR_RETVAL_CHECK(retval);
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int paint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
 {
   PropertyRNA *strokeprop;
   PointerRNA firstpoint;
@@ -520,7 +523,7 @@ static int paint_exec(bContext *C, wmOperator *op)
   return paint_stroke_exec(C, op, static_cast<PaintStroke *>(op->customdata));
 }
 
-static int paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
 }
@@ -540,7 +543,7 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
   ot->idname = "PAINT_OT_image_paint";
   ot->description = "Paint a stroke into the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paint_invoke;
   ot->modal = paint_modal;
   ot->exec = paint_exec;

@@ -4,6 +4,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later AND BSD-3-Clause */
 
+/** \file
+ * \ingroup bli
+ */
+
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
@@ -1130,6 +1134,17 @@ float voronoi_distance(const float4 a, const float4 b, const VoronoiParams &para
   return 0.0f;
 }
 
+/* Possibly cheaper/faster version of Voronoi distance, in a way that does not change
+ * logic of "which distance is the closest?". */
+template<typename T>
+static float voronoi_distance_bound(const T a, const T b, const VoronoiParams &params)
+{
+  if (params.metric == NOISE_SHD_VORONOI_EUCLIDEAN) {
+    return math::length_squared(a - b);
+  }
+  return voronoi_distance(a, b, params);
+}
+
 /* **** 1D Voronoi **** */
 
 float4 voronoi_position(const float coord)
@@ -1313,7 +1328,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float2 coord)
       float2 cellOffset(i, j);
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+      float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
       if (distanceToPoint < minDistance) {
         targetOffset = cellOffset;
         minDistance = distanceToPoint;
@@ -1323,7 +1338,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float2 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1457,22 +1472,22 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float2 coord)
 
   float2 closestPoint = {0.0f, 0.0f};
   float2 closestPointOffset = {0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
       float2 cellOffset(i, j);
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = math::distance(pointPosition, localPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPoint = pointPosition;
         closestPointOffset = cellOffset;
       }
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float2 closestPointToClosestPoint = {0.0f, 0.0f};
   for (int j = -1; j <= 1; j++) {
     for (int i = -1; i <= 1; i++) {
@@ -1482,9 +1497,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float2 coord)
       float2 cellOffset = float2(i, j) + closestPointOffset;
       float2 pointPosition = cellOffset +
                              hash_float_to_float2(cellPosition + cellOffset) * params.randomness;
-      float distanceToPoint = math::distance(closestPoint, pointPosition);
-      if (distanceToPoint < minDistance) {
-        minDistance = distanceToPoint;
+      float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+      if (distanceToPointSq < minDistanceSq) {
+        minDistanceSq = distanceToPointSq;
         closestPointToClosestPoint = pointPosition;
       }
     }
@@ -1514,7 +1529,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float3 coord)
         float3 cellOffset(i, j, k);
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+        float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
         if (distanceToPoint < minDistance) {
           targetOffset = cellOffset;
           minDistance = distanceToPoint;
@@ -1525,7 +1540,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float3 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1669,16 +1684,16 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
 
   float3 closestPoint = {0.0f, 0.0f, 0.0f};
   float3 closestPointOffset = {0.0f, 0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
       for (int i = -1; i <= 1; i++) {
         float3 cellOffset(i, j, k);
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = math::distance(pointPosition, localPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPoint = pointPosition;
           closestPointOffset = cellOffset;
         }
@@ -1686,7 +1701,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float3 closestPointToClosestPoint = {0.0f, 0.0f, 0.0f};
   for (int k = -1; k <= 1; k++) {
     for (int j = -1; j <= 1; j++) {
@@ -1697,9 +1712,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float3 coord)
         float3 cellOffset = float3(i, j, k) + closestPointOffset;
         float3 pointPosition = cellOffset +
                                hash_float_to_float3(cellPosition + cellOffset) * params.randomness;
-        float distanceToPoint = math::distance(closestPoint, pointPosition);
-        if (distanceToPoint < minDistance) {
-          minDistance = distanceToPoint;
+        float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+        if (distanceToPointSq < minDistanceSq) {
+          minDistanceSq = distanceToPointSq;
           closestPointToClosestPoint = pointPosition;
         }
       }
@@ -1731,7 +1746,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float4 coord)
           float4 cellOffset(i, j, k, u);
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = voronoi_distance(pointPosition, localPosition, params);
+          float distanceToPoint = voronoi_distance_bound(pointPosition, localPosition, params);
           if (distanceToPoint < minDistance) {
             targetOffset = cellOffset;
             minDistance = distanceToPoint;
@@ -1743,7 +1758,7 @@ VoronoiOutput voronoi_f1(const VoronoiParams &params, const float4 coord)
   }
 
   VoronoiOutput octave;
-  octave.distance = minDistance;
+  octave.distance = voronoi_distance(targetPosition, localPosition, params);
   octave.color = hash_float_to_float3(cellPosition + targetOffset);
   octave.position = voronoi_position(targetPosition + cellPosition);
   return octave;
@@ -1895,7 +1910,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
 
   float4 closestPoint = {0.0f, 0.0f, 0.0f, 0.0f};
   float4 closestPointOffset = {0.0f, 0.0f, 0.0f, 0.0f};
-  float minDistance = FLT_MAX;
+  float minDistanceSq = FLT_MAX;
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
       for (int j = -1; j <= 1; j++) {
@@ -1903,9 +1918,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
           float4 cellOffset(i, j, k, u);
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = math::distance(pointPosition, localPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          float distanceToPointSq = math::length_squared(pointPosition - localPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPoint = pointPosition;
             closestPointOffset = cellOffset;
           }
@@ -1914,7 +1929,7 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
     }
   }
 
-  minDistance = FLT_MAX;
+  minDistanceSq = FLT_MAX;
   float4 closestPointToClosestPoint = {0.0f, 0.0f, 0.0f, 0.0f};
   for (int u = -1; u <= 1; u++) {
     for (int k = -1; k <= 1; k++) {
@@ -1926,9 +1941,9 @@ float voronoi_n_sphere_radius(const VoronoiParams &params, const float4 coord)
           float4 cellOffset = float4(i, j, k, u) + closestPointOffset;
           float4 pointPosition = cellOffset + hash_float_to_float4(cellPosition + cellOffset) *
                                                   params.randomness;
-          float distanceToPoint = math::distance(closestPoint, pointPosition);
-          if (distanceToPoint < minDistance) {
-            minDistance = distanceToPoint;
+          float distanceToPointSq = math::length_squared(closestPoint - pointPosition);
+          if (distanceToPointSq < minDistanceSq) {
+            minDistanceSq = distanceToPointSq;
             closestPointToClosestPoint = pointPosition;
           }
         }

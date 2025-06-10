@@ -72,8 +72,8 @@ static void test_framebuffer_clear_color_multiple_attachments()
   }
   MEM_freeN(read_data1);
 
-#ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. Current expected value is \
-                     broken. */
+#ifndef __APPLE__ /* FIXME: Behavior is not the same on all backend. \
+                   * Current expected value is broken. */
   uint4 *read_data2 = static_cast<uint4 *>(GPU_texture_read(texture2, GPU_DATA_UINT, 0));
   uint4 clear_color_uint(1036831949, 1045220557, 1056964608, 1065353216);
   for (uint4 pixel_color : Span<uint4>(read_data2, size.x * size.y)) {
@@ -283,7 +283,7 @@ static void test_framebuffer_multi_viewport()
   create_info.vertex_source("gpu_framebuffer_layer_viewport_test.glsl");
   create_info.fragment_source("gpu_framebuffer_layer_viewport_test.glsl");
   create_info.builtins(BuiltinBits::VIEWPORT_INDEX | BuiltinBits::LAYER);
-  create_info.fragment_out(0, Type::IVEC2, "out_value");
+  create_info.fragment_out(0, Type::int2_t, "out_value");
 
   GPUShader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
@@ -313,6 +313,8 @@ static void test_framebuffer_multi_viewport()
     }
   }
   MEM_freeN(read_data);
+
+  GPU_shader_unbind();
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
@@ -352,7 +354,7 @@ static void test_framebuffer_subpass_input()
   create_info_write.define("WRITE");
   create_info_write.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_write.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_write.fragment_out(0, Type::INT, "out_value", DualBlend::NONE, 0);
+  create_info_write.fragment_out(0, Type::int_t, "out_value", DualBlend::NONE, 0);
 
   GPUShader *shader_write = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_write));
@@ -361,8 +363,8 @@ static void test_framebuffer_subpass_input()
   create_info_read.define("READ");
   create_info_read.vertex_source("gpu_framebuffer_subpass_input_test.glsl");
   create_info_read.fragment_source("gpu_framebuffer_subpass_input_test.glsl");
-  create_info_read.subpass_in(0, Type::INT, "in_value", 0);
-  create_info_read.fragment_out(1, Type::INT, "out_value");
+  create_info_read.subpass_in(0, Type::int_t, ImageType::Int2D, "in_value", 0);
+  create_info_read.fragment_out(1, Type::int_t, "out_value");
 
   GPUShader *shader_read = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info_read));
@@ -399,6 +401,8 @@ static void test_framebuffer_subpass_input()
   int *read_data_b = static_cast<int *>(GPU_texture_read(texture_b, GPU_DATA_INT, 0));
   EXPECT_EQ(*read_data_b, 0xDEADC0DE);
   MEM_freeN(read_data_b);
+
+  GPU_shader_unbind();
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture_a);

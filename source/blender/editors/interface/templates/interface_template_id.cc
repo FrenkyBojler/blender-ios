@@ -298,7 +298,8 @@ static void template_id_liboverride_hierarchy_collection_root_find_recursive(
       *r_collection_parent_best = collection;
     }
   }
-  for (CollectionParent *iter = static_cast<CollectionParent *>(collection->runtime.parents.first);
+  for (CollectionParent *iter =
+           static_cast<CollectionParent *>(collection->runtime->parents.first);
        iter != nullptr;
        iter = iter->next)
   {
@@ -319,7 +320,7 @@ static void template_id_liboverride_hierarchy_collections_tag_recursive(
    * linked ones can be replaced by the local overrides in those parents too. */
   if (do_parents) {
     for (CollectionParent *iter =
-             static_cast<CollectionParent *>(root_collection->runtime.parents.first);
+             static_cast<CollectionParent *>(root_collection->runtime->parents.first);
          iter != nullptr;
          iter = iter->next)
     {
@@ -385,7 +386,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
    * NOTE: do not attempt to perform such hierarchy override at all cost, if there is not enough
    * context, better to abort than create random overrides all over the place. */
   if (!ID_IS_OVERRIDABLE_LIBRARY_HIERARCHY(id)) {
-    WM_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s is not overridable", id->name);
     return nullptr;
   }
 
@@ -574,16 +575,16 @@ ID *ui_template_id_liboverride_hierarchy_make(
     case ID_MA:
     case ID_TE:
     case ID_IM:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_WO:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     case ID_PA:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
     default:
-      WM_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
+      WM_global_reportf(RPT_WARNING, "The type of data-block %s is not yet implemented", id->name);
       break;
   }
 
@@ -621,7 +622,7 @@ ID *ui_template_id_liboverride_hierarchy_make(
     /* In theory we could rely on setting/updating the RNA ID pointer property (as done by calling
      * code) to be enough.
      *
-     * However, some rare ID pointers properties (like the 'active object in viewlayer' one used
+     * However, some rare ID pointers properties (like the "active object in view-layer" one used
      * for the Object templateID in the Object properties) use notifiers that do not enforce a
      * rebuild of outliner trees, leading to crashes.
      *
@@ -657,7 +658,7 @@ static void template_id_liboverride_hierarchy_make(bContext *C,
     }
   }
   else {
-    WM_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
+    WM_global_reportf(RPT_ERROR, "The data-block %s could not be overridden", id->name);
   }
 }
 
@@ -861,7 +862,7 @@ static StringRef template_id_browse_tip(const StructRNA *type)
       case ID_VO:
         return N_("Browse Volume Data to be linked");
       case ID_GP:
-        return N_("Browse Grease Pencil v3 Data to be linked");
+        return N_("Browse Grease Pencil Data to be linked");
 
         /* Use generic text. */
       case ID_LI:
@@ -1431,7 +1432,12 @@ static void template_ID_tabs(const bContext *C,
   const PointerRNA active_ptr = RNA_property_pointer_get(&template_id.ptr, template_id.prop);
   MenuType *mt = menu ? WM_menutype_find(menu, false) : nullptr;
 
-  const int but_align = ui_but_align_opposite_to_area_align_get(region);
+  /* When horizonal show the tabs as pills, rounded on all corners. */
+  const bool horizontal =
+      (region->regiontype == RGN_TYPE_HEADER &&
+       ELEM(RGN_ALIGN_ENUM_FROM_MASK(region->alignment), RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM));
+  const int but_align = horizontal ? 0 : ui_but_align_opposite_to_area_align_get(region);
+
   const int but_height = UI_UNIT_Y * 1.1;
 
   uiBlock *block = uiLayoutGetBlock(layout);
@@ -1547,11 +1553,11 @@ static void ui_template_id(uiLayout *layout,
    */
   if (template_ui.idlb) {
     if (use_tabs) {
-      layout = uiLayoutRow(layout, true);
+      layout = &layout->row(true);
       template_ID_tabs(C, layout, template_ui, type, flag, newop, menu);
     }
     else {
-      layout = uiLayoutRow(layout, true);
+      layout = &layout->row(true);
       template_ID(C,
                   layout,
                   template_ui,
@@ -1640,7 +1646,7 @@ void uiTemplateAction(uiLayout *layout,
   template_ui.idlb = which_libbase(CTX_data_main(C), ID_AC);
   BLI_assert(template_ui.idlb);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   template_ID(
       C, row, template_ui, &RNA_Action, flag, newop, nullptr, unlinkop, text, false, false);
 }
@@ -1785,39 +1791,39 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Start drawing UI Elements using standard defines */
 
   /* NOTE: split amount here needs to be synced with normal labels */
-  uiLayout *split = uiLayoutSplit(layout, 0.33f, false);
+  uiLayout *split = &layout->split(0.33f, false);
 
   /* FIRST PART ................................................ */
-  uiLayout *row = uiLayoutRow(split, false);
+  uiLayout *row = &split->row(false);
 
   /* Label - either use the provided text, or will become "ID-Block:" */
   if (text) {
     if (!text->is_empty()) {
-      uiItemL(row, *text, ICON_NONE);
+      row->label(*text, ICON_NONE);
     }
   }
   else {
-    uiItemL(row, IFACE_("ID-Block:"), ICON_NONE);
+    row->label(IFACE_("ID-Block:"), ICON_NONE);
   }
 
   /* SECOND PART ................................................ */
-  row = uiLayoutRow(split, true);
+  row = &split->row(true);
 
   /* ID-Type Selector - just have a menu of icons */
 
   /* HACK: special group just for the enum,
    * otherwise we get ugly layout with text included too... */
-  uiLayout *sub = uiLayoutRow(row, true);
+  uiLayout *sub = &row->row(true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
 
-  uiItemFullR(sub, ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* ID-Block Selector - just use pointer widget... */
 
   /* HACK: special group to counteract the effects of the previous enum,
    * which now pushes everything too far right. */
-  sub = uiLayoutRow(row, true);
+  sub = &row->row(true);
   uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
 
-  uiItemFullR(sub, ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
 }
