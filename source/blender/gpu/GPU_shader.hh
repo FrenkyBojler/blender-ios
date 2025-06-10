@@ -17,6 +17,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "GPU_capabilities.hh"
 #include "GPU_common_types.hh"
 #include "GPU_shader_builtin.hh"
 
@@ -492,6 +493,13 @@ class StaticShader : NonCopyable {
     }
 
     std::scoped_lock lock(mutex_);
+
+    if (GPU_use_main_context_workaround()) {
+      BLI_assert(!info_name_.empty());
+      shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
+      failed_ = shader_ == nullptr;
+      return;
+    }
 
     if (compilation_handle_) {
       if (GPU_shader_batch_is_ready(compilation_handle_)) {
