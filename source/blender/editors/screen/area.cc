@@ -57,67 +57,80 @@
 
 #include "screen_intern.hh"
 
-enum RegionEmbossSide {
-  REGION_EMBOSS_LEFT = (1 << 0),
-  REGION_EMBOSS_TOP = (1 << 1),
-  REGION_EMBOSS_BOTTOM = (1 << 2),
-  REGION_EMBOSS_RIGHT = (1 << 3),
-  REGION_EMBOSS_ALL = REGION_EMBOSS_LEFT | REGION_EMBOSS_TOP | REGION_EMBOSS_RIGHT |
-                      REGION_EMBOSS_BOTTOM,
-};
-
 /* general area and region code */
 
-static void region_draw_emboss(const ARegion *region, const rcti *scirct, int sides)
+static void header_edge_gradient(const ScrArea *area, const ARegion *region)
 {
-  /* translate scissor rect to region space */
-  rcti rect{};
-  rect.xmin = scirct->xmin - region->winrct.xmin;
-  rect.xmax = scirct->xmax - region->winrct.xmin;
-  rect.ymin = scirct->ymin - region->winrct.ymin;
-  rect.ymax = scirct->ymax - region->winrct.ymin;
+  const bool is_topbar = (area->spacetype == SPACE_TOPBAR);
+  const bool is_header = (ELEM(region->regiontype,
+                               RGN_TYPE_HEADER,
+                               RGN_TYPE_TOOL_HEADER,
+                               RGN_TYPE_FOOTER,
+                               RGN_TYPE_ASSET_SHELF_HEADER));
 
-  /* Set transparent line. */
-  GPU_blend(GPU_BLEND_ALPHA);
-
-  float color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
-  UI_GetThemeColor3fv(TH_EDITOR_BORDER, color);
-
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4fv(color);
-
-  immBeginAtMost(GPU_PRIM_LINES, 8);
-
-  /* right */
-  if (sides & REGION_EMBOSS_RIGHT) {
-    immVertex2f(pos, rect.xmax, rect.ymax);
-    immVertex2f(pos, rect.xmax, rect.ymin);
+  float opaque[4];
+  UI_GetThemeColor4fv(TH_BACK, opaque);
+  const bool is_overlap = (opaque[3] == 0.0f && region->overlap);
+  if (is_overlap && !is_header) {
+    return;
   }
 
-  /* bottom */
-  if (sides & REGION_EMBOSS_BOTTOM) {
-    immVertex2f(pos, rect.xmax, rect.ymin);
-    immVertex2f(pos, rect.xmin, rect.ymin);
+  const float max_alpha = is_topbar ? 1.0f : is_header ? 0.4f : 0.25f;
+  opaque[0] = is_topbar ? opaque[0] * 0.8f : 0.0f;
+  opaque[1] = is_topbar ? opaque[1] * 0.8f : 0.0f;
+  opaque[2] = is_topbar ? opaque[2] * 0.8f : 0.0f;
+  opaque[3] = max_alpha;
+
+  float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  if (area->spacetype == SPACE_TOPBAR) {
+    UI_GetThemeColor3fv(TH_BACK, transparent);
   }
 
-  /* left */
-  if (sides & REGION_EMBOSS_LEFT) {
-    immVertex2f(pos, rect.xmin, rect.ymin);
-    immVertex2f(pos, rect.xmin, rect.ymax);
+  rctf rect{};
+  const float width = (is_header ? 15.0f : 5.0f) * UI_SCALE_FAC;
+  const float transition = 30.0f * UI_SCALE_FAC;
+  const float padding = (is_header && is_overlap) ? (3 * UI_SCALE_FAC) : 0.0f;
+
+  if (region->v2d.cur.xmax < region->v2d.tot.xmax) {
+    /* Right Edge. */
+    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
+    rect.xmin = rect.xmax - width;
+    rect.ymin = padding;
+    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1 - padding;
+    opaque[3] = max_alpha *
+                std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
   }
-
-  /* top */
-  if (sides & REGION_EMBOSS_TOP) {
-    immVertex2f(pos, rect.xmin, rect.ymax);
-    immVertex2f(pos, rect.xmax, rect.ymax);
+  if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
+    /* Left Edge. */
+    rect.xmin = 0;
+    rect.xmax = width;
+    rect.ymin = padding;
+    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1 - padding;
+    opaque[3] = max_alpha *
+                std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
   }
-
-  immEnd();
-  immUnbindProgram();
-
-  GPU_blend(GPU_BLEND_NONE);
+  if (region->v2d.cur.ymax < region->v2d.tot.ymax) {
+    /* Top Edge. */
+    rect.xmin = 0;
+    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
+    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1;
+    rect.ymin = rect.ymax - width;
+    opaque[3] = max_alpha *
+                std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 1.0f, nullptr, 0.0f, 0.0f);
+  }
+  if (region->v2d.cur.ymin > region->v2d.tot.ymin) {
+    /* Bottom Edge. */
+    rect.xmin = 0;
+    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
+    rect.ymin = 0;
+    rect.ymax = width;
+    opaque[3] = max_alpha *
+                std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
+    UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 1.0f, nullptr, 0.0f, 0.0f);
+  }
 }
 
 void ED_region_pixelspace(const ARegion *region)
@@ -568,11 +581,10 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   if (area) {
     const bScreen *screen = WM_window_get_active_screen(win);
 
-    /* Only region emboss for top-bar */
-    if ((screen->state != SCREENFULL) && ED_area_is_global(area)) {
-      region_draw_emboss(region, &region->winrct, (REGION_EMBOSS_LEFT | REGION_EMBOSS_RIGHT));
-    }
-    else if ((region->regiontype == RGN_TYPE_WINDOW) && (region->alignment == RGN_ALIGN_QSPLIT)) {
+    /* Draw fading gradient at edges when content is scrolled out of view. */
+    header_edge_gradient(area, region);
+
+    if ((region->regiontype == RGN_TYPE_WINDOW) && (region->alignment == RGN_ALIGN_QSPLIT)) {
 
       /* draw separating lines between the quad views */
 
