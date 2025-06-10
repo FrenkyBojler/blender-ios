@@ -1,1 +1,2 @@
 Referenced by issue #83697, Rotate sculpting brush may have an incorrect pen pressure behavior
+Referenced by issue #119901, OpenXR runtime returns XR_ERROR_GRAPHICS_DEVICE_INVALID when starting VR Scene Inspection on Wayland
