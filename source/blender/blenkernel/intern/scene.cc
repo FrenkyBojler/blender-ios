@@ -1009,7 +1009,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
-  /* Todo(habib): Forward compatibility support will be removed in 5.0. Remove mapping between
+  /* Todo(#140139): Forward compatibility support will be removed in 6.0. Remove mapping between
    * `scene->use_nodes` and `scene->r.scemode`. */
   if (sce->compositing_node_group && sce->r.scemode & R_DOCOMP) {
     sce->use_nodes = true;

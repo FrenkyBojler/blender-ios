@@ -2010,7 +2010,8 @@ static void rna_Scene_use_nodes_set(PointerRNA *ptr, const bool use_nodes)
   SET_FLAG_FROM_TEST(scene->r.scemode, use_nodes, R_DOCOMP);
 }
 
-/* Todo(habib): Remove in 5.0. use_nodes will be replaced by use_compositing. */
+/* Todo(#140139): Remove in 6.0. In Python API, this function is used to create a compositing node
+ * tree if none exists. scene.use_nodes will be replaced by the existing scene.use_compositing. */
 static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
