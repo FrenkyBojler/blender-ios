@@ -126,7 +126,12 @@ static void blo_update_defaults_screen(bScreen *screen,
       region->sizey = 0;
     }
 
-    if (area->spacetype == SPACE_IMAGE) {
+    if (area->spacetype == SPACE_PROPERTIES) {
+      SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
+      /* Hide the tool tab by default. */
+      sbuts->visible_tabs &= ~(1 << BCONTEXT_TOOL);
+    }
+    else if (area->spacetype == SPACE_IMAGE) {
       if (STREQ(workspace_name, "UV Editing")) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
         if (sima->mode == SI_MODE_VIEW) {
