@@ -137,15 +137,13 @@ CurveMapping *BKE_sculpt_default_cavity_curve()
   return cumap;
 }
 
-void BKE_sculpt_check_cavity_curves(Sculpt *sd)
+CurveMapping *BKE_paint_default_curve()
 {
-  if (!sd->automasking_cavity_curve) {
-    sd->automasking_cavity_curve = BKE_sculpt_default_cavity_curve();
-  }
+  CurveMapping *cumap = BKE_curvemapping_add(1, 0, 0, 1, 1);
+  BKE_curvemap_reset(cumap->cm, &cumap->clipr, CURVE_PRESET_LINE, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemapping_init(cumap);
 
-  if (!sd->automasking_cavity_curve_op) {
-    sd->automasking_cavity_curve_op = BKE_sculpt_default_cavity_curve();
-  }
+  return cumap;
 }
 
 static void scene_init_data(ID *id)
@@ -172,6 +170,10 @@ static void scene_init_data(ID *id)
   scene->toolsettings = DNA_struct_default_alloc(ToolSettings);
 
   scene->toolsettings->autokey_mode = uchar(U.autokey_mode);
+
+  scene->toolsettings->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  scene->toolsettings->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
 
   /* Grease pencil multi-frame falloff curve. */
   scene->toolsettings->gp_sculpt.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -373,6 +375,9 @@ static void scene_free_data(ID *id)
   blender::seq::editing_free(scene, do_id_user);
 
   BKE_keyingsets_free(&scene->keyingsets);
+
+  BLI_assert_msg(scene->nodetree == nullptr,
+                 "Pointer should not be valid after blend file reading.");
 
   if (scene->rigidbody_world) {
     /* Prevent rigidbody freeing code to follow other IDs pointers, this should never be allowed
@@ -790,6 +795,9 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+    BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+  });
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     FOREACHID_PROCESS_IDSUPER(data, smd->mask_id, IDWALK_CB_USER);
   }
@@ -850,6 +858,12 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
         IDP_foreach_property(view_layer->id_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
           BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
         }));
+    BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+        data,
+        IDP_foreach_property(
+            view_layer->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+              BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+            }));
 
     BKE_view_layer_synced_ensure(scene, view_layer);
     LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
@@ -976,16 +990,17 @@ static void scene_foreach_cache(ID *id,
 static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Scene *sce = (Scene *)id;
+  const bool is_write_undo = BLO_write_is_undo(writer);
 
-  if (BLO_write_is_undo(writer)) {
+  if (is_write_undo) {
     /* Clean up, important in undo case to reduce false detection of changed data-blocks. */
     /* XXX This UI data should not be stored in Scene at all... */
     sce->cursor = View3DCursor{};
   }
 
-  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
-  if (sce->compositing_node_group && !BLO_write_is_undo(writer)) {
+  if (sce->compositing_node_group && !is_write_undo) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
      * writing the scene.*/
     /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
@@ -1009,6 +1024,25 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   ToolSettings *tos = sce->toolsettings;
   BLO_write_struct(writer, ToolSettings, tos);
+
+  /* In 5.0 we intend to change the brush.size value from representing radius to representing
+   * diameter. This and the corresponding code in `brush_blend_read_data` should be removed once
+   * that transition is complete. */
+  tos->unified_paint_settings.size *= 2;
+  tos->unified_paint_settings.unprojected_radius *= 2.0f;
+
+  if (tos->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_hue);
+  }
+
+  if (tos->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_saturation);
+  }
+
+  if (tos->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_value);
+  }
+
   if (tos->vpaint) {
     BLO_write_struct(writer, VPaint, tos->vpaint);
     BKE_paint_blend_write(writer, &tos->vpaint->paint);
@@ -1100,9 +1134,9 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct(writer, SceneRenderView, srv);
   }
 
-  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
-  if (sce->compositing_node_group && !BLO_write_is_undo(writer)) {
+  if (sce->compositing_node_group && !is_write_undo) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_node_group->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
@@ -1151,6 +1185,14 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Freed on `do_versions()`. */
   BLI_assert(sce->layer_properties == nullptr);
+
+  /* Restore original values after writing, so current working file is not affected. Note that this
+   * is only needed because scene `id` is a shallow copy here, and `tool_settings` is not copied.
+   * In the case of `brush_blend_write`, the size value does not need restoring after writing
+   * because that one was directly under `Brush` id which is copied. See `brush_blend_write` in
+   * `blenkernel/intern/brush.cc`. */
+  tos->unified_paint_settings.size /= 2;
+  tos->unified_paint_settings.unprojected_radius /= 2.0f;
 }
 
 static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)
@@ -1212,6 +1254,31 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     zero_v3(ups->last_location);
     ups->last_hit = 0;
 
+    /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
+     * ensure correct behavior, convert this when reading newer files. */
+    if (BLO_read_fileversion_get(reader) > 500) {
+      ups->size = std::max(ups->size / 2, 1);
+      ups->unprojected_radius = std::max(ups->unprojected_radius / 2, 0.001f);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
+    if (ups->curve_rand_hue) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_hue);
+      BKE_curvemapping_init(ups->curve_rand_hue);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_saturation);
+    if (ups->curve_rand_saturation) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_saturation);
+      BKE_curvemapping_init(ups->curve_rand_saturation);
+    }
+
+    BLO_read_struct(reader, CurveMapping, &ups->curve_rand_value);
+    if (ups->curve_rand_value) {
+      BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
+      BKE_curvemapping_init(ups->curve_rand_value);
+    }
+
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->sculpt);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->vpaint);
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->wpaint);
@@ -1249,7 +1316,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
 
-      BKE_sculpt_check_cavity_curves(sce->toolsettings->sculpt);
+      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
@@ -1660,6 +1727,14 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
     BKE_paint_copy(&ts->curves_sculpt->paint, &ts->curves_sculpt->paint, flag);
   }
 
+  /* Color jitter curves in unified paint settings. */
+  ts->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_hue);
+  ts->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_saturation);
+  ts->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
+      ts->unified_paint_settings.curve_rand_value);
+
   BKE_paint_copy(&ts->imapaint.paint, &ts->imapaint.paint, flag);
   ts->particle.paintcursor = nullptr;
   ts->particle.scene = nullptr;
@@ -1726,6 +1801,17 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
   }
   BKE_paint_free(&toolsettings->imapaint.paint);
 
+  /* Color jitter curves in unified paint settings. */
+  if (toolsettings->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_hue);
+  }
+  if (toolsettings->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_saturation);
+  }
+  if (toolsettings->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_free(toolsettings->unified_paint_settings.curve_rand_value);
+  }
+
   /* free Grease Pencil interpolation curve */
   if (toolsettings->gp_interpolate.custom_ipo) {
     BKE_curvemapping_free(toolsettings->gp_interpolate.custom_ipo);
@@ -1777,6 +1863,9 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     if (sce->id.properties) {
       sce_copy->id.properties = IDP_CopyProperty(sce->id.properties);
+    }
+    if (sce->id.system_properties) {
+      sce_copy->id.system_properties = IDP_CopyProperty(sce->id.system_properties);
     }
 
     BKE_sound_destroy_scene(sce_copy);
@@ -2614,7 +2703,7 @@ void BKE_scene_graph_update_for_newframe_ex(Depsgraph *depsgraph, const bool cle
   const bool is_time_update = true;
   DEG_editors_update(depsgraph, is_time_update);
 
-  /* Clear recalc flags, can be skipped for e.g. renderers that will read these
+  /* Clear recalc flags, can be skipped for example renderers that will read these
    * and clear the flags later. */
   if (clear_recalc) {
     const bool backup = false;

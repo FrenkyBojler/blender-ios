@@ -227,7 +227,8 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
-  char _pad[5];
+  char use_socket_structure_type;
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -486,12 +487,16 @@ typedef struct UserDef {
   int gpu_preferred_index;
   uint32_t gpu_preferred_vendor_id;
   uint32_t gpu_preferred_device_id;
-  char _pad16[4];
+
+  /** Max number of parallel shader compilation workers. */
+  short gpu_shader_workers;
+  /** eUserpref_ShaderCompileMethod (OpenGL only). */
+  short shader_compilation_method;
+
+  char _pad16[2];
+
   /** #eGPUBackendType */
   short gpu_backend;
-
-  /** Max number of parallel shader compilation subprocesses. */
-  short max_shader_compilation_subprocesses;
 
   /** Number of samples for FPS display calculations. */
   short playback_fps_samples;
@@ -515,9 +520,9 @@ typedef struct UserDef {
   float ndof_deadzone;
   /** #eNdof_Flag, flags for 3D mouse. */
   int ndof_flag;
-
-  /** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
-  short ogl_multisamples;
+  /** #eNdof_Navigation_Mode, current navigation mode. */
+  uint8_t ndof_navigation_mode;
+  char _pad17[1];
 
   /** eImageDrawMethod, Method to be used to draw the images
    * (AUTO, GLSL, Textures or DrawPixels) */
@@ -1009,15 +1014,13 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
 
-  /* Orbit navigation modes. */
-
-  NDOF_MODE_ORBIT = (1 << 6),
+  // NDOF_UNUSED_6 = (1 << 6), /* Dirty. */
 
   /* actually... users probably don't care about what the mode
    * is called, just that it feels right */
   /* zoom is up/down if this flag is set (otherwise forward/backward) */
   NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
-  NDOF_ZOOM_INVERT = (1 << 8),
+  // NDOF_UNUSED_8 = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),
   NDOF_ROTZ_INVERT_AXIS = (1 << 11),
@@ -1030,6 +1033,33 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
 } eNdof_Flag;
+
+/**
+ * NDOF Navigation Modes.
+ * Each mode describes some style of navigation rather than control a single aspect of navigation.
+ */
+typedef enum eNdof_Navigation_Mode {
+  /**
+   * 3D mouse cap represents objects movement in 3D space.
+   * Pulling the cap will pull the objects closer to the camera.
+   */
+  NDOF_NAVIGATION_MODE_OBJECT = 0,
+  /**
+   * 3D mouse cap controls the movement of the view window
+   * and allows for flying through the scene.
+   */
+  NDOF_NAVIGATION_MODE_FLY = 1,
+  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+} eNdof_Navigation_Mode;
+
+/**
+ * Some navigation modes make use of "Auto Center" (#NDOF_ORBIT_CENTER_AUTO) and some don't.
+ * Instead of testing against all possibilities use a macro.
+ *
+ * TODO: Add Target Camera Mode when implemented.
+ */
+#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) \
+  ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 
@@ -1098,6 +1128,11 @@ typedef enum eUserpref_SeqEditorFlags {
   USER_SEQ_ED_SIMPLE_TWEAKING = (1 << 0),
   USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT = (1 << 1),
 } eUserpref_SeqEditorFlags;
+
+typedef enum eUserpref_ShaderCompileMethod {
+  USER_SHADER_COMPILE_THREAD = 0,
+  USER_SHADER_COMPILE_SUBPROCESS = 1,
+} eUserpref_ShaderCompileMethod;
 
 /* Locale Ids. Auto will try to get local from OS. Our default is English though. */
 /** #UserDef.language */

@@ -154,6 +154,8 @@ TEST_F(NodeTest, tree_iterator_1mat_1scene)
   ED_node_shader_default(context.C, &material->id);
 
   Scene *scene = BKE_scene_add(context.bmain, SCENE_NAME);
+  /* Embedded compositing trees are deprecated, but still relevant for versioning/backward
+   * compatibility. */
   scene->nodetree = bke::node_tree_add_tree_embedded(
       context.bmain, &scene->id, "compositing nodetree", "CompositorNodeTree");
 
@@ -214,6 +216,40 @@ TEST_F(NodeTest, tree_iterator_1mat_3scenes)
   bke::node_tree_free_embedded_tree(scene2->nodetree);
   MEM_freeN(scene2->nodetree);
   scene2->nodetree = nullptr;
+}
+
+TEST_F(NodeTest, tree_iterator_1mat_1scene_2compositing_trees)
+{
+  TestData context;
+  const char SCENE_NAME_1[MAX_ID_NAME - 2] = "Scene 1";
+  const char NTREE_NAME_1[MAX_ID_NAME - 2] = "Test Composisiting Node Tree 1";
+  const char NTREE_NAME_2[MAX_ID_NAME - 2] = "Test Composisiting Node Tree 2";
+  const char MATERIAL_NTREE_NAME[MAX_NAME] = "Shader Nodetree";
+
+  Material *material = BKE_material_add(context.bmain, "Material");
+  ED_node_shader_default(context.C, &material->id);
+
+  BKE_scene_add(context.bmain, SCENE_NAME_1);
+
+  bke::node_tree_add_tree(context.bmain, NTREE_NAME_1, "CompositorNodeTree");
+  bke::node_tree_add_tree(context.bmain, NTREE_NAME_2, "CompositorNodeTree");
+
+  IteratorResult iter_result = this->get_node_trees(context.bmain);
+
+  ASSERT_EQ(iter_result.node_trees.size(), 3);
+  ASSERT_EQ(iter_result.ids.size(), 3);
+
+  /* Iterator should return 2 compositing node trees and no scene node tree. */
+  EXPECT_EQ(GS(iter_result.ids[0]->name), ID_NT);
+  EXPECT_STREQ(iter_result.ids[0]->name + 2, NTREE_NAME_1);
+  EXPECT_FALSE((iter_result.ids[0]->flag & ID_FLAG_EMBEDDED_DATA));
+
+  EXPECT_EQ(GS(iter_result.ids[1]->name), ID_NT);
+  EXPECT_STREQ(iter_result.ids[1]->name + 2, NTREE_NAME_2);
+  EXPECT_FALSE((iter_result.ids[1]->flag & ID_FLAG_EMBEDDED_DATA));
+
+  EXPECT_EQ(GS(iter_result.ids[2]->name), ID_MA);
+  EXPECT_STREQ(iter_result.node_trees[2]->id.name + 2, MATERIAL_NTREE_NAME);
 }
 
 }  // namespace blender::nodes::tests

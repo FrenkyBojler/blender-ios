@@ -1589,12 +1589,11 @@ void NODE_OT_new_node_tree(wmOperatorType *ot)
 static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  bNodeTree *ntree;
-  char tree_name[MAX_NAME];
 
+  char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "name", tree_name);
 
-  ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
   ED_node_composit_default_init(C, ntree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
@@ -1608,7 +1607,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* identifiers */
   ot->name = "New Compositing Node Tree";
   ot->idname = "NODE_OT_new_compositing_node_group";
-  ot->description = "Create a new compositing node tree and initialize it with default nodes.";
+  ot->description = "Create a new compositing node tree and initialize it with default nodes";
 
   /* api callbacks */
   ot->exec = new_compositing_node_group_exec;
@@ -1616,7 +1615,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", DATA_("Compositing Nodetree"), MAX_NAME, "Name", "");
+  RNA_def_string(ot->srna, "name", DATA_("Compositing Node Tree"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */
