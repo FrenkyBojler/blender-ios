@@ -239,7 +239,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_clip.anim_preview_range);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 2)) {
+  if (!USER_VERSION_ATLEAST(500, 5)) {
     FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_file.tab_back);

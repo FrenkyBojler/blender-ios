@@ -1375,7 +1375,6 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   const int roundboxtype = region->overlap ? UI_CNR_ALL :
                                              (is_left ? (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) :
                                                         (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT));
-
   bool is_alpha;
 #ifdef USE_FLAT_INACTIVE
   bool is_active_prev = false;
@@ -1447,7 +1446,8 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   /* Begin drawing. */
   GPU_line_smooth(true);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Draw the background. */
@@ -1497,7 +1497,8 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 #ifdef USE_FLAT_INACTIVE
     /* Draw line between inactive tabs. */
     if (is_active == false && is_active_prev == false && pc_dyn->prev) {
-      pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      pos = GPU_vertformat_attr_add(
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor3fvAlpha(theme_col_tab_outline, 0.3f);
       immRectf(pos,
@@ -1531,7 +1532,8 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
       /* Disguise the outline on one side to join the tab to the panel. */
       if (!region->overlap) {
-        pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        pos = GPU_vertformat_attr_add(
+            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
         immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
