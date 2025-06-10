@@ -67,18 +67,12 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
                                RGN_TYPE_TOOL_HEADER,
                                RGN_TYPE_FOOTER,
                                RGN_TYPE_ASSET_SHELF_HEADER));
+  const bool is_outliner = area->spacetype == SPACE_OUTLINER &&
+                           region->regiontype == RGN_TYPE_WINDOW;
 
   float opaque[4];
-  UI_GetThemeColor4fv(TH_BACK, opaque);
-  const bool is_overlap = (opaque[3] == 0.0f && region->overlap);
-  if (is_overlap && !is_header) {
-    return;
-  }
-
-  const float max_alpha = is_topbar ? 1.0f : is_header ? 0.4f : 0.25f;
-  opaque[0] = is_topbar ? opaque[0] * 0.8f : 0.0f;
-  opaque[1] = is_topbar ? opaque[1] * 0.8f : 0.0f;
-  opaque[2] = is_topbar ? opaque[2] * 0.8f : 0.0f;
+  UI_GetThemeColor4fv(is_topbar ? TH_BACK : TH_BLACK, opaque);
+  const float max_alpha = is_topbar ? 1.0f : is_header ? 0.4f : 0.3f;
   opaque[3] = max_alpha;
 
   float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -87,46 +81,54 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
   }
 
   rctf rect{};
-  const float width = (is_header ? 15.0f : 5.0f) * UI_SCALE_FAC;
+  int offset_x = 0;
+  int width = BLI_rcti_size_x(&region->winrct) + 1;
+  int height = BLI_rcti_size_y(&region->winrct) + 1;
+  const float gradient_width = (is_header ? 20.0f : 6.0f) * UI_SCALE_FAC;
   const float transition = 30.0f * UI_SCALE_FAC;
-  const float padding = (is_header && is_overlap) ? (3 * UI_SCALE_FAC) : 0.0f;
+  const float padding = is_header ? (3 * UI_SCALE_FAC) : 0.0f;
 
-  if (region->v2d.cur.xmax < region->v2d.tot.xmax) {
+  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    offset_x = std::max(panel->ofsx, offset_x);
+    width = std::min(width, panel->sizex);
+  }
+
+  if (region->v2d.cur.xmax < region->v2d.tot.xmax && !is_outliner) {
     /* Right Edge. */
-    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
-    rect.xmin = rect.xmax - width;
+    rect.xmax = offset_x + width;
+    rect.xmin = offset_x + rect.xmax - gradient_width;
     rect.ymin = padding;
-    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1 - padding;
+    rect.ymax = height;
     opaque[3] = max_alpha *
                 std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
     /* Left Edge. */
-    rect.xmin = 0;
-    rect.xmax = width;
+    rect.xmin = offset_x + offset_x;
+    rect.xmax = offset_x + gradient_width;
     rect.ymin = padding;
-    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1 - padding;
+    rect.ymax = height;
     opaque[3] = max_alpha *
                 std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
   }
-  if (region->v2d.cur.ymax < region->v2d.tot.ymax) {
+  if (region->v2d.cur.ymax < region->v2d.tot.ymax && !is_header) {
     /* Top Edge. */
-    rect.xmin = 0;
-    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
-    rect.ymax = BLI_rcti_size_y(&region->winrct) + 1;
-    rect.ymin = rect.ymax - width;
+    rect.xmin = offset_x;
+    rect.xmax = offset_x + width;
+    rect.ymax = height;
+    rect.ymin = rect.ymax - gradient_width;
     opaque[3] = max_alpha *
                 std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 1.0f, nullptr, 0.0f, 0.0f);
   }
-  if (region->v2d.cur.ymin > region->v2d.tot.ymin) {
+  if (region->v2d.cur.ymin > region->v2d.tot.ymin && !is_header) {
     /* Bottom Edge. */
-    rect.xmin = 0;
-    rect.xmax = BLI_rcti_size_x(&region->winrct) + 1;
+    rect.xmin = offset_x;
+    rect.xmax = offset_x + width;
     rect.ymin = 0;
-    rect.ymax = width;
+    rect.ymax = gradient_width;
     opaque[3] = max_alpha *
                 std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 1.0f, nullptr, 0.0f, 0.0f);
