@@ -128,8 +128,19 @@ class VIEW3D_PT_tools_object_options(View3DPanel, Panel):
     bl_label = "Options"
 
     def draw(self, context):
-        # layout = self.layout
-        pass
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        layout.operator("mesh.reorder_vertices_spatial", 
+                        text="Reorder Vertices Spatially", 
+                        icon='SCULPTMODE_HLT')
+        tool_settings = context.tool_settings
+        sculpt = tool_settings.sculpt
+
+        col = layout.column(heading="Display", align=True)
+        col.prop(sculpt, "show_low_resolution")
+        col.prop(sculpt, "use_sculpt_delay_updates")
+        col.prop(sculpt, "use_deform_only")
 
 
 class VIEW3D_PT_tools_object_options_transform(View3DPanel, Panel):
@@ -1087,19 +1098,20 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         return (context.sculpt_object and context.tool_settings.sculpt)
 
     def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-        layout.operator("sculpt.reorder_vertices_spatial", 
-                        text="Reorder Vertices Spatially", 
-                        icon='SCULPTMODE_HLT')
-        tool_settings = context.tool_settings
-        sculpt = tool_settings.sculpt
+            self
+    #     layout = self.layout
+    #     layout.use_property_split = True
+    #     layout.use_property_decorate = False
+    #     layout.operator("mesh.reorder_vertices_spatial", 
+    #                     text="Reorder Vertices Spatially", 
+    #                     icon='SCULPTMODE_HLT')
+    #     tool_settings = context.tool_settings
+    #     sculpt = tool_settings.sculpt
 
-        col = layout.column(heading="Display", align=True)
-        col.prop(sculpt, "show_low_resolution")
-        col.prop(sculpt, "use_sculpt_delay_updates")
-        col.prop(sculpt, "use_deform_only")
+    #     col = layout.column(heading="Display", align=True)
+    #     col.prop(sculpt, "show_low_resolution")
+    #     col.prop(sculpt, "use_sculpt_delay_updates")
+    #     col.prop(sculpt, "use_deform_only")
 
 
 class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):
@@ -2938,23 +2950,23 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
         if gp_settings.fill_extend_mode == 'EXTEND':
             row = col.row(align=True)
             row.prop(gp_settings, "use_collide_strokes")
-class VIEW3D_PT_sculpt_mesh_reorder(bpy.types.Menu):
-    bl_label = "Mesh Operations"
-    bl_idname = "VIEW3D_PT_sculpt_mesh_reorder"
+# class VIEW3D_PT_sculpt_mesh_reorder(bpy.types.Menu):
+#     bl_label = "Mesh Operations"
+#     bl_idname = "VIEW3D_PT_sculpt_mesh_reorder"
     
-    def draw(self, context):
-        layout = self.layout
-        layout.operator("sculpt.reorder_vertices_spatial", 
-                        text="Reorder Vertices Spatially", 
-                        icon='SCULPTMODE_HLT')
+#     def draw(self, context):
+#         layout = self.layout
+#         layout.operator("mesh.reorder_vertices_spatial", 
+#                         text="Reorder Vertices Spatially", 
+#                         icon='SCULPTMODE_HLT')
 
-def draw_mesh_ops_menu(self, context):
-    layout = self.layout
-    layout.separator()
-    layout.menu(VIEW3D_PT_sculpt_mesh_reorder.bl_idname, icon="MESH_DATA")
+# def draw_mesh_ops_menu(self, context):
+#     layout = self.layout
+#     layout.separator()
+#     layout.menu(VIEW3D_PT_sculpt_mesh_reorder.bl_idname, icon="MESH_DATA")
 
 classes = (
-    VIEW3D_PT_sculpt_mesh_reorder,
+   # VIEW3D_PT_sculpt_mesh_reorder,
     VIEW3D_MT_brush_context_menu,
     VIEW3D_MT_brush_gpencil_context_menu,
     VIEW3D_PT_tools_object_options,

@@ -965,7 +965,7 @@ namespace blender::ed::sculpt_paint {
 float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::StrokeCache &cache);
 
 void SCULPT_OT_brush_stroke(wmOperatorType *ot);
-void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot);
+// void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot);
 
 inline bool brush_type_is_paint(const int tool)
 {

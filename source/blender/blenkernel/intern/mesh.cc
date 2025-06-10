@@ -13,6 +13,7 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
+#include "BLI_array_utils.hh"
 #include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
@@ -23,6 +24,7 @@
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
 #include "BLI_endian_switch.h"
+#include "BLI_generic_virtual_array.hh"
 #include "BLI_hash.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
@@ -652,30 +654,52 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
   for (int i = 0; i < mesh->verts_num; i++) {
     reverse_map[new_order[i]] = i;
   }
-  // Reorder point domain attributes
   MutableAttributeAccessor attributes_for_write = mesh->attributes_for_write();
-  if (auto mask_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
-          ".sculpt_mask", bke::AttrDomain::Point))
-  {
-    auto &mask_span = mask_span_writer.span;
-    Array<float> new_mask(mesh->verts_num);
-    for (int i = 0; i < mesh->verts_num; i++) {
-      new_mask[i] = mask_span[new_order[i]];
+  attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain != bke::AttrDomain::Point) {
+      return;
     }
-    mask_span.copy_from(new_mask);
-    mask_span_writer.finish();
-  }
-  if (auto hide_vert_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
-          ".hide_vert", bke::AttrDomain::Point))
-  {
-    auto &hide_vert_span = hide_vert_span_writer.span;
-    Array<float> new_hide_vert(mesh->verts_num);
-    for (int i = 0; i < mesh->verts_num; i++) {
-      new_hide_vert[i] = hide_vert_span[new_order[i]];
+
+    const std::string attr_name = iter.name;
+
+    if (auto attr_writer = attributes_for_write.lookup_for_write(attr_name)) {
+      const GVArray &original_data = attr_writer.varray;
+      const CPPType &type = original_data.type();
+
+      GArray<> new_attr_data(type, mesh->verts_num);
+
+      for (int i = 0; i < mesh->verts_num; i++) {
+        original_data.get(new_order[i], new_attr_data[i]);
+      }
+
+      attr_writer.varray.set_all(new_attr_data.data());
+      attr_writer.finish();
     }
-    hide_vert_span.copy_from(new_hide_vert);
-    hide_vert_span_writer.finish();
-  }
+  });
+
+  // if (auto mask_span_writer = attributes_for_write.lookup_or_add_for_write_only_span<float>(
+  //         ".sculpt_mask", bke::AttrDomain::Point))
+  // {
+  //   auto &mask_span = mask_span_writer.span;
+  //   Array<float> new_mask(mesh->verts_num);
+  //   for (int i = 0; i < mesh->verts_num; i++) {
+  //     new_mask[i] = mask_span[new_order[i]];
+  //   }
+  //   mask_span.copy_from(new_mask);
+  //   mask_span_writer.finish();
+  // }
+  // if (auto hide_vert_span_writer =
+  // attributes_for_write.lookup_or_add_for_write_only_span<float>(
+  //         ".hide_vert", bke::AttrDomain::Point))
+  // {
+  //   auto &hide_vert_span = hide_vert_span_writer.span;
+  //   Array<float> new_hide_vert(mesh->verts_num);
+  //   for (int i = 0; i < mesh->verts_num; i++) {
+  //     new_hide_vert[i] = hide_vert_span[new_order[i]];
+  //   }
+  //   hide_vert_span.copy_from(new_hide_vert);
+  //   hide_vert_span_writer.finish();
+  // }
 
   MutableSpan positions = mesh->vert_positions_for_write();
   Array<float3> new_positions(positions.size());
@@ -694,13 +718,483 @@ void BKE_mesh_reorder_vertices_spatial(Object *object)
     edge.x = reverse_map[edge.x];
     edge.y = reverse_map[edge.y];
   }
-
   pbvh->node_unique_offset_indices = OffsetIndices<int>(pbvh->node_unique_offsets);
   pbvh->node_all_offset_indices = OffsetIndices<int>(pbvh->node_all_offsets);
   // for (int i = 0; i < pbvh->node_unique_offset_indices.data().size(); i++) {
   //   std::cout << pbvh->node_unique_offset_indices.data()[i] << std::endl;
   // }
   std::cout << " " << std::endl;
+  mesh->tag_topology_changed();
+  // tag drawing data as dirty (maybe use bvh's draw cache impl)
+}
+inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
+                                       const Span<int> face_verts)
+{
+  Bounds<float3> bounds{vert_positions[face_verts.first()]};
+  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
+    math::min_max(vert_positions[vert], bounds.min, bounds.max);
+  }
+  return bounds;
+}
+static Bounds<float3> negative_bounds()
+{
+  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
+}
+static int partition_along_axis(const Span<float3> face_centers,
+                                MutableSpan<int> faces,
+                                const int axis,
+                                const float middle)
+{
+  const int *split = std::partition(faces.begin(), faces.end(), [&](const int face) {
+    return face_centers[face][axis] >= middle;
+  });
+  return split - faces.begin();
+}
+
+static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3> &b)
+{
+  return bounds::merge(a, b);
+}
+static int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
+{
+  const int first = material_indices[faces.first()];
+  const int *split = std::partition(
+      faces.begin(), faces.end(), [&](const int face) { return material_indices[face] == first; });
+  return split - faces.begin();
+}
+static bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
+{
+  if (material_indices.is_empty()) {
+    return false;
+  }
+  const int first = material_indices[faces.first()];
+  return std::any_of(
+      faces.begin(), faces.end(), [&](const int face) { return material_indices[face] != first; });
+}
+void partition_faces_recursively(const Span<float3> face_centers,
+                                 MutableSpan<int> face_indices,
+                                 Vector<int> &children_offsets,  // -1 for leaves
+                                 Vector<Array<int>> &face_data,  // face indices for leaves
+                                 int node_index,
+                                 int depth,
+                                 const std::optional<Bounds<float3>> &bounds_precalc,
+                                 const Span<int> material_indices)
+{
+  const int target_group_size = 10000;
+
+  if (face_indices.size() <= target_group_size || depth >= 99) {
+    if (!leaf_needs_material_split(face_indices, material_indices)) {
+      children_offsets[node_index] = -1;
+      face_data[node_index] = Array<int>(face_indices.size(), NoInitialization());
+      std::memcpy(
+          face_data[node_index].data(), face_indices.data(), face_indices.size() * sizeof(int));
+      return;
+    }
+  }
+
+  // Add children using array resizing
+  children_offsets[node_index] = children_offsets.size();
+  children_offsets.resize(children_offsets.size() + 2);
+  face_data.resize(face_data.size() + 2);
+  int split;
+  if (!(face_indices.size() <= target_group_size || depth >= 99)) {
+    Bounds<float3> bounds;
+    if (bounds_precalc) {
+      bounds = *bounds_precalc;
+    }
+    else {
+      bounds = threading::parallel_reduce(
+          face_indices.index_range(),
+          1024,
+          negative_bounds(),
+          [&](const IndexRange range, Bounds<float3> value) {
+            for (const int face : face_indices.slice(range)) {
+              math::min_max(face_centers[face], value.min, value.max);
+            }
+            return value;
+          },
+          merge_bounds);
+    }
+    const int axis = math::dominant_axis(bounds.max - bounds.min);
+
+    /* Partition primitives along that axis */
+    split = partition_along_axis(
+        face_centers, face_indices, axis, math::midpoint(bounds.min[axis], bounds.max[axis]));
+  }
+  else {
+    /* Partition primitives by material */
+    split = partition_material_indices(material_indices, face_indices);
+  }
+
+  // Recursively build children
+  partition_faces_recursively(face_centers,
+                              face_indices.take_front(split),
+                              children_offsets,
+                              face_data,
+                              children_offsets[node_index],
+                              depth + 1,
+                              std::nullopt,
+                              material_indices);
+  partition_faces_recursively(face_centers,
+                              face_indices.drop_front(split),
+                              children_offsets,
+                              face_data,
+                              children_offsets[node_index] + 1,
+                              depth + 1,
+                              std::nullopt,
+                              material_indices);
+}
+
+std::pair<Vector<Array<int>>, Vector<int>> build_mesh_leaf_nodes(
+    const int verts_num,
+    const OffsetIndices<int> faces,
+    const Span<int> corner_verts,
+    const Vector<Array<int>> &leaf_groups)
+{
+  Vector<Array<int>> vert_groups;
+  vert_groups.resize(leaf_groups.size());
+  Vector<int> unique_counts;
+  unique_counts.resize(leaf_groups.size());
+
+  Array<Array<int>> verts_per_node(leaf_groups.size(), NoInitialization());
+
+  threading::parallel_for(leaf_groups.index_range(), 8, [&](const IndexRange range) {
+    Set<int> verts;
+    for (const int i : range) {
+      verts.clear();
+      int corners_count = 0;
+
+      if (leaf_groups[i].is_empty()) {
+        new (&verts_per_node[i]) Array<int>();
+        continue;
+      }
+
+      for (const int face_index : leaf_groups[i]) {
+        const IndexRange face = faces[face_index];
+        verts.add_multiple(corner_verts.slice(face));
+        corners_count += face.size();
+      }
+
+      new (&verts_per_node[i]) Array<int>(verts.size());
+      std::copy(verts.begin(), verts.end(), verts_per_node[i].begin());
+      std::sort(verts_per_node[i].begin(), verts_per_node[i].end());
+    }
+  });
+
+  Vector<int> owned_verts;
+  Vector<int> shared_verts;
+  BitVector<> vert_used(verts_num);
+
+  for (const int i : leaf_groups.index_range()) {
+    owned_verts.clear();
+    shared_verts.clear();
+
+    for (const int vert : verts_per_node[i]) {
+      if (vert_used[vert]) {
+        shared_verts.append(vert);
+      }
+      else {
+        vert_used[vert].set();
+        owned_verts.append(vert);
+      }
+    }
+
+    unique_counts[i] = owned_verts.size();
+
+    const int total_verts = owned_verts.size() + shared_verts.size();
+    vert_groups[i] = Array<int>(total_verts, NoInitialization());
+
+    if (!owned_verts.is_empty()) {
+      std::memcpy(vert_groups[i].data(), owned_verts.data(), owned_verts.size() * sizeof(int));
+    }
+
+    if (!shared_verts.is_empty()) {
+      std::memcpy(vert_groups[i].data() + owned_verts.size(),
+                  shared_verts.data(),
+                  shared_verts.size() * sizeof(int));
+    }
+  }
+
+  return {std::move(vert_groups), std::move(unique_counts)};
+}
+struct SpatialFaceGroupsResult {
+  Vector<Array<int>> face_groups;
+  Vector<Array<int>> vert_groups;
+  Vector<int> unique_counts;
+};
+
+SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
+{
+  Vector<Array<int>> face_groups;
+  Vector<Array<int>> vert_groups;
+  Vector<int> unique_counts;
+
+  const Span<float3> vert_positions = mesh->vert_positions();
+  const OffsetIndices<int> faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
+  if (faces.is_empty()) {
+    return {face_groups, vert_groups};
+  }
+  Array<float3> face_centers(faces.size());
+  const Bounds<float3> bounds = threading::parallel_reduce(
+      faces.index_range(),
+      1024,
+      negative_bounds(),
+      [&](const IndexRange range, const Bounds<float3> &init) {
+        Bounds<float3> current = init;
+        for (const int face : range) {
+          const Bounds<float3> bounds = calc_face_bounds(vert_positions,
+                                                         corner_verts.slice(faces[face]));
+          face_centers[face] = bounds.center();
+          current = bounds::merge(current, bounds);
+        }
+        return current;
+      },
+      merge_bounds);
+
+  Array<int> prim_face_indices(mesh->faces_num);
+  array_utils::fill_index_range<int>(prim_face_indices);
+
+  Vector<int> children_offsets;
+  Vector<Array<int>> face_data;
+
+  children_offsets.resize(1);
+  face_data.resize(1);
+  const AttributeAccessor attributes = mesh->attributes();
+  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  partition_faces_recursively(
+      face_centers, prim_face_indices, children_offsets, face_data, 0, 0, bounds, material_index);
+
+  for (int i = 0; i < children_offsets.size(); i++) {
+    if (children_offsets[i] == -1) {  // leaf node
+      face_groups.append(std::move(face_data[i]));
+    }
+    else {                               // internal node
+      face_groups.append(Array<int>());  // empty group
+    }
+  }
+  auto [vertex_groups, vertex_unique_counts] = build_mesh_leaf_nodes(
+      mesh->verts_num, faces, corner_verts, face_groups);
+  vert_groups = std::move(vertex_groups);
+  unique_counts = std::move(vertex_unique_counts);
+
+  return {std::move(face_groups), std::move(vert_groups), std::move(unique_counts)};
+}
+
+void BKE_mesh_apply_spatial_organization(Mesh *mesh)
+{
+
+  // auto [spatial_face_groups, vert_groups, unique_counts] = compute_spatial_groups(mesh);
+  // std::cout << "Spatial face groups: " << spatial_face_groups.size() << std::endl;
+  // for (const Array<int> &group : spatial_face_groups) {
+  //   std::cout << "Group size: " << group.size() << std::endl;
+  //   for (const int face_i : group) {
+  //     std::cout << "  Face: " << face_i << std::endl;
+  //   }
+  // }
+  // std::cout << "Spatial Vert groups: " << vert_groups.size() << std::endl;
+  // for (const Array<int> &group : vert_groups) {
+  //   std::cout << "Group size: " << group.size() << std::endl;
+  //   for (const int face_i : group) {
+  //     std::cout << "  Vert: " << face_i << std::endl;
+  //   }
+  // }
+  // std::cout << "===== Vert to Face Map =====" << std::endl;
+
+  // for (const int vert_i : mesh->vert_to_face_map().index_range()) {
+  //   std::cout << vert_i << ": ";
+
+  //   auto faces = mesh->vert_to_face_map()[vert_i];
+
+  //   std::cout << "[";
+  //   for (int i = 0; i < faces.size(); ++i) {
+  //     std::cout << faces[i];
+  //     if (i < faces.size() - 1) {
+  //       std::cout << ", ";
+  //     }
+  //   }
+  //   std::cout << "]" << std::endl;
+  // }
+  // std::cout << "===== Vert to Corner Map =====" << std::endl;
+  // for (const int vert_i : mesh->vert_to_corner_map().index_range()) {
+  //   std::cout << vert_i << ": ";
+
+  //   auto corners = mesh->vert_to_corner_map()[vert_i];
+
+  //   std::cout << "[";
+  //   for (int i = 0; i < corners.size(); ++i) {
+  //     std::cout << corners[i];
+  //     if (i < corners.size() - 1) {
+  //       std::cout << ", ";
+  //     }
+  //   }
+  //   std::cout << "]" << std::endl;
+  // }
+  MutableAttributeAccessor attributes_for_write = mesh->attributes_for_write();
+
+  attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
+    std::cout << "Attribute: " << iter.name << ", Domain: " << static_cast<int>(iter.domain)
+              << ", Type: " << iter.data_type << std::endl;
+  });
+  SpatialFaceGroupsResult spatial_groups = compute_spatial_groups(mesh);
+  // std::cout << "Spatial face groups: " << spatial_groups.face_groups.size() << std::endl;
+  // for (const Array<int> &group : spatial_groups.face_groups) {
+  //   std::cout << "Group size: " << group.size() << std::endl;
+  //   for (const int face_i : group) {
+  //     std::cout << "  Face: " << face_i << std::endl;
+  //   }
+  // }
+  // std::cout << "Spatial Vert groups: " << spatial_groups.vert_groups.size() << std::endl;
+  // for (const Array<int> &group : spatial_groups.vert_groups) {
+  //   std::cout << "Group size: " << group.size() << std::endl;
+  //   for (const int face_i : group) {
+  //     std::cout << "  Vert: " << face_i << std::endl;
+  //   }
+  // }
+
+  Vector<int> new_vert_order;
+  new_vert_order.reserve(mesh->verts_num);
+
+  Vector<int> new_face_order;
+  new_face_order.reserve(mesh->faces_num);
+
+  BitVector<> added_verts(mesh->verts_num, false);
+
+  // Store offsets for unique vertices in each group
+  Vector<int> group_unique_offsets;
+  group_unique_offsets.reserve(spatial_groups.vert_groups.size() + 1);
+  group_unique_offsets.append(0);
+
+  // Store offsets for all vertices in each group
+  Vector<int> group_all_offsets;
+  group_all_offsets.reserve(spatial_groups.vert_groups.size() + 1);
+  group_all_offsets.append(0);
+
+  // Store face offsets for each group
+  Vector<int> group_face_offsets;
+  group_face_offsets.reserve(spatial_groups.face_groups.size() + 1);
+  group_face_offsets.append(0);
+
+  // Process each spatial group
+  for (int group_idx = 0; group_idx < spatial_groups.vert_groups.size(); group_idx++) {
+    const Array<int> &vert_group = spatial_groups.vert_groups[group_idx];
+    const Array<int> &face_group = spatial_groups.face_groups[group_idx];
+    const int unique_count = spatial_groups.unique_counts[group_idx];
+
+    // Add unique vertices first
+    for (int j = 0; j < unique_count; j++) {
+      int vert_idx = vert_group[j];
+      if (!added_verts[vert_idx]) {
+        new_vert_order.append(vert_idx);
+        added_verts[vert_idx].set();
+      }
+    }
+    group_unique_offsets.append(new_vert_order.size());
+
+    // Add shared vertices
+    for (int j = unique_count; j < vert_group.size(); j++) {
+      int vert_idx = vert_group[j];
+      if (!added_verts[vert_idx]) {
+        new_vert_order.append(vert_idx);
+        added_verts[vert_idx].set();
+      }
+    }
+    group_all_offsets.append(new_vert_order.size());
+
+    // Add faces for this group
+    for (const int face_idx : face_group) {
+      new_face_order.append(face_idx);
+    }
+    group_face_offsets.append(new_face_order.size());
+  }
+
+  // Create vertex reverse map
+  Vector<int> vert_reverse_map(mesh->verts_num);
+  for (int i = 0; i < mesh->verts_num; i++) {
+    vert_reverse_map[new_vert_order[i]] = i;
+  }
+
+  // Create face reverse map
+  Vector<int> face_reverse_map(mesh->faces_num);
+  for (int i = 0; i < mesh->faces_num; i++) {
+    face_reverse_map[new_face_order[i]] = i;
+  }
+
+  const Span<int> corner_verts_span = mesh->corner_verts();
+  const Span<int> corner_edges_span = mesh->corner_edges();
+  const OffsetIndices<int> faces = mesh->faces();
+
+  Set<int> used_edges_set;
+  for (const int old_face_idx : new_face_order) {
+    const IndexRange face = faces[old_face_idx];
+    for (const int corner : face) {
+      used_edges_set.add(corner_edges_span[corner]);
+    }
+  }
+
+  Vector<int> new_edge_order;
+  new_edge_order.reserve(used_edges_set.size());
+  for (const int edge_idx : used_edges_set) {
+    new_edge_order.append(edge_idx);
+  }
+  std::sort(new_edge_order.begin(), new_edge_order.end());
+
+  for (int i = 0; i < mesh->edges_num; i++) {
+    if (!used_edges_set.contains(i)) {
+      new_edge_order.append(i);
+    }
+  }
+
+  // Create edge reverse map
+  Vector<int> edge_reverse_map(mesh->edges_num);
+  for (int i = 0; i < new_edge_order.size(); i++) {
+    edge_reverse_map[new_edge_order[i]] = i;
+  }
+
+  // Update vertex positions
+  MutableSpan positions = mesh->vert_positions_for_write();
+  Array<float3> new_positions(positions.size());
+  for (int i = 0; i < positions.size(); i++) {
+    new_positions[i] = positions[new_vert_order[i]];
+  }
+  positions.copy_from(new_positions);
+
+  // Reorder edges and update vertex indices
+  MutableSpan edges = mesh->edges_for_write();
+  Array<int2> new_edges(edges.size());
+  for (int i = 0; i < new_edge_order.size(); i++) {
+    const int2 old_edge = edges[new_edge_order[i]];
+    new_edges[i] = {vert_reverse_map[old_edge.x], vert_reverse_map[old_edge.y]};
+  }
+  edges.copy_from(new_edges);
+
+  // Update corner data with proper edge remapping
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  MutableSpan<int> corner_edges = mesh->corner_edges_for_write();
+
+  Array<int> new_corner_verts(corner_verts.size());
+  Array<int> new_corner_edges(corner_edges.size());
+
+  int new_corner_idx = 0;
+  for (const int old_face_idx : new_face_order) {
+    const IndexRange face = faces[old_face_idx];
+
+    for (const int corner : face) {
+      new_corner_verts[new_corner_idx] = vert_reverse_map[corner_verts_span[corner]];
+      new_corner_edges[new_corner_idx] = edge_reverse_map[corner_edges_span[corner]];
+      new_corner_idx++;
+    }
+  }
+
+  corner_verts.copy_from(new_corner_verts);
+  corner_edges.copy_from(new_corner_edges);
+  mesh->runtime->spatial_offsets = std::make_unique<BVHNodeOffsets>(
+      std::move(group_unique_offsets),
+      std::move(group_all_offsets),
+      std::move(group_face_offsets),
+      std::move(new_face_order));
+
+  mesh->tag_positions_changed();
   mesh->tag_topology_changed();
 }
 

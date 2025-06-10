@@ -155,14 +155,14 @@ static void join_mesh_single(Depsgraph *depsgraph,
         /* if this mesh has any shape-keys, check first, otherwise just copy coordinates */
         LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
           /* get pointer to where to write data for this mesh in shape-key's data array */
-          float(*cos)[3] = ((float(*)[3])kb->data) + *vertofs;
+          float (*cos)[3] = ((float (*)[3])kb->data) + *vertofs;
 
           /* Check if this mesh has such a shape-key. */
           KeyBlock *okb = mesh->key ? BKE_keyblock_find_name(mesh->key, kb->name) : nullptr;
           if (okb) {
             /* copy this mesh's shape-key to the destination shape-key
              * (need to transform first) */
-            float(*ocos)[3] = static_cast<float(*)[3]>(okb->data);
+            float (*ocos)[3] = static_cast<float (*)[3]>(okb->data);
             for (a = 0; a < mesh->verts_num; a++, cos++, ocos++) {
               copy_v3_v3(*cos, *ocos);
               mul_m4_v3(cmat, *cos);
@@ -185,13 +185,13 @@ static void join_mesh_single(Depsgraph *depsgraph,
       if (key) {
         LISTBASE_FOREACH (KeyBlock *, kb, &key->block) {
           /* get pointer to where to write data for this mesh in shape-key's data array */
-          float(*cos)[3] = ((float(*)[3])kb->data) + *vertofs;
+          float (*cos)[3] = ((float (*)[3])kb->data) + *vertofs;
 
           /* Check if this was one of the original shape-keys. */
           KeyBlock *okb = nkey ? BKE_keyblock_find_name(nkey, kb->name) : nullptr;
           if (okb) {
             /* copy this mesh's shape-key to the destination shape-key */
-            float(*ocos)[3] = static_cast<float(*)[3]>(okb->data);
+            float (*ocos)[3] = static_cast<float (*)[3]>(okb->data);
             for (a = 0; a < mesh->verts_num; a++, cos++, ocos++) {
               copy_v3_v3(*cos, *ocos);
             }
@@ -1529,4 +1529,67 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
     BMesh *bm = em->bm;
     BM_mesh_elem_index_ensure_ex(bm, htype, elem_offset);
   }
+}
+static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+
+  if (!ob || ob->type != OB_MESH) {
+    BKE_report(op->reports, RPT_ERROR, "No active mesh object");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Check if object is in object mode */
+  if (ob->mode != OB_MODE_OBJECT) {
+    BKE_report(op->reports, RPT_ERROR, "Object must be in Object Mode");
+    return OPERATOR_CANCELLED;
+  }
+
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  if (!mesh) {
+    BKE_report(op->reports, RPT_ERROR, "Object has no mesh data");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Apply spatial reordering */
+  blender::bke::BKE_mesh_apply_spatial_organization(mesh);
+
+  /* Tag for update */
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+
+  BKE_report(op->reports, RPT_INFO, "Mesh vertices reordered spatially");
+
+  return OPERATOR_FINISHED;
+}
+
+static bool mesh_reorder_vertices_spatial_poll(bContext *C)
+{
+  Object *ob = CTX_data_active_object(C);
+  if (!ob || ob->type != OB_MESH) {
+    return false;
+  }
+
+  /* Only available in object mode */
+  if (ob->mode != OB_MODE_OBJECT) {
+    return false;
+  }
+
+  return true;
+}
+
+void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Reorder Vertices Spatially";
+  ot->idname = "MESH_OT_reorder_vertices_spatial";
+  ot->description =
+      "Reorder mesh vertices based on their spatial position for better sculpting performance";
+
+  /* api callbacks */
+  ot->exec = mesh_reorder_vertices_spatial_exec;
+  ot->poll = mesh_reorder_vertices_spatial_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

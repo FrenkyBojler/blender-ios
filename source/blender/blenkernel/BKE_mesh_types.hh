@@ -17,11 +17,11 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_customdata_types.h"
-
 struct BMEditMesh;
 struct BVHTree;
 struct Mesh;
@@ -107,7 +107,23 @@ struct TrianglesCache {
   /** Call instead of `data.tag_dirty()`. */
   void tag_dirty();
 };
+struct BVHNodeOffsets {
+  Vector<int> group_unique_offsets;
+  Vector<int> group_all_offsets;
+  Vector<int> group_face_offsets;
+  Vector<int> new_face_order;
 
+  BVHNodeOffsets(Vector<int> unique_offsets,
+                 Vector<int> all_offsets,
+                 Vector<int> face_offsets,
+                 Vector<int> new_face_order)
+      : group_unique_offsets(std::move(unique_offsets)),
+        group_all_offsets(std::move(all_offsets)),
+        group_face_offsets(std::move(face_offsets)),
+        new_face_order(std::move(new_face_order))
+  {
+  }
+};
 struct MeshRuntime {
   /**
    * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
@@ -173,6 +189,7 @@ struct MeshRuntime {
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
+  std::unique_ptr<BVHNodeOffsets> spatial_offsets;
 
   /**
    * Grids representation for multi-resolution sculpting. When this is set, the mesh will be empty,

@@ -223,11 +223,118 @@ inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
   return bounds;
 }
 
+template<> MutableSpan<MeshNode> Tree::nodes()
+{
+  return std::get<Vector<MeshNode>>(this->nodes_);
+}
+Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
+{
+#ifdef DEBUG_BUILD_TIME
+  SCOPED_TIMER_AVERAGED(__func__);
+#endif
+
+  Tree pbvh(Type::Mesh);
+  Span<float3> vert_positions = mesh.vert_positions();
+  const OffsetIndices<int> faces = mesh.faces();
+  if (!mesh.runtime->spatial_offsets) {
+    std::cout << "fast fail" << std::endl;
+    return Tree::from_mesh(mesh);
+  }
+
+  const BVHNodeOffsets &spatial_offsets = *mesh.runtime->spatial_offsets;
+  const int num_groups = spatial_offsets.group_face_offsets.size() - 1;
+
+  if (num_groups == 0) {
+    return pbvh;
+  }
+  else {
+  }
+
+  Vector<MeshNode> &nodes = std::get<Vector<MeshNode>>(pbvh.nodes_);
+  std::cout << "Number of nodes: " << nodes.size() << std::endl;
+  nodes.resize(2);
+  std::cout << "Number of nodes after: " << nodes.size() << std::endl;
+  pbvh.prim_indices_.reinitialize(mesh.faces_num);
+  array_utils::fill_index_range<int>(pbvh.prim_indices_);
+  threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
+    for (const int group_idx : range) {
+      MeshNode &node = nodes[group_idx];
+
+      const int face_start = spatial_offsets.group_face_offsets[group_idx];
+      const int face_end = spatial_offsets.group_face_offsets[group_idx + 1];
+      const int face_count = face_end - face_start;
+
+      if (face_count == 0) {
+        continue;
+      }
+      else {
+        const int unique_vert_start = spatial_offsets.group_unique_offsets[group_idx];
+        const int unique_vert_end = spatial_offsets.group_unique_offsets[group_idx + 1];
+        const int all_vert_start = spatial_offsets.group_unique_offsets[group_idx];
+        const int all_vert_end = spatial_offsets.group_all_offsets[group_idx + 1];
+
+        const int unique_vert_count = unique_vert_end - unique_vert_start;
+        const int all_vert_count = all_vert_end - all_vert_start;
+
+        node.flag_ = Node::Leaf;
+        node.unique_verts_num_ = unique_vert_count;
+
+        node.face_indices_ = Span<int>(&pbvh.prim_indices_[face_start], face_count);
+        int corners_count = 0;
+        for (const int face_index : node.face_indices_) {
+          if (face_index >= 0 && face_index < mesh.faces_num) {
+            const IndexRange face = faces[face_index];
+            corners_count += face.size();
+          }
+        }
+        node.corners_num_ = corners_count;
+        node.vert_indices_.reserve(all_vert_count);
+        for (int i = 0; i < all_vert_count; i++) {
+          node.vert_indices_.add(all_vert_start + i);
+        }
+      }
+    }
+  });
+
+  pbvh.update_bounds_mesh(vert_positions);
+  store_bounds_orig(pbvh);
+
+  const AttributeAccessor attributes = mesh.attributes();
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
+
+  if (!hide_vert.is_empty()) {
+    threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
+      for (const int i : range) {
+        node_update_visibility_mesh(hide_vert, nodes[i]);
+      }
+    });
+  }
+
+  update_mask_mesh(mesh, nodes.index_range(), pbvh);
+  MutableSpan<MeshNode> n = pbvh.nodes<MeshNode>();
+  for (int i = 0; i < n.size(); i++) {
+    std::cout << "Node " << i << " has" << n[i].faces().size() << "faces" << std::endl;
+    std::cout << "Node " << i << " has" << n[i].all_verts().size() << "verts" << std::endl;
+
+    for (const auto face : n[i].faces()) {
+      std::cout << "  Face " << face << std::endl;
+    }
+    for (const auto vert : n[i].all_verts()) {
+      std::cout << "  Vert " << vert << std::endl;
+    }
+  }
+  return pbvh;
+}
+
 Tree Tree::from_mesh(const Mesh &mesh)
 {
 #ifdef DEBUG_BUILD_TIME
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
+  if (mesh.runtime->spatial_offsets) {
+    std::cout << "Fast Method" << std::endl;
+    return from_spatially_organized_mesh(mesh);
+  }
   Tree pbvh(Type::Mesh);
   const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
@@ -289,7 +396,19 @@ Tree Tree::from_mesh(const Mesh &mesh)
   }
 
   update_mask_mesh(mesh, nodes.index_range(), pbvh);
+  std::cout << "Mesh PBVH built with " << nodes.size() << " nodes." << std::endl;
+  MutableSpan<MeshNode> n = pbvh.nodes<MeshNode>();
+  for (int i = 0; i < n.size(); i++) {
+    std::cout << "Node " << i << " has" << n[i].faces().size() << "faces" << std::endl;
+    std::cout << "Node " << i << " has" << n[i].all_verts().size() << "verts" << std::endl;
 
+    for (const auto face : n[i].faces()) {
+      std::cout << "  Face " << face << std::endl;
+    }
+    for (const auto vert : n[i].all_verts()) {
+      std::cout << "  Vert " << vert << std::endl;
+    }
+  }
   return pbvh;
 }
 
@@ -510,10 +629,10 @@ template<> Span<BMeshNode> Tree::nodes() const
 {
   return std::get<Vector<BMeshNode>>(this->nodes_);
 }
-template<> MutableSpan<MeshNode> Tree::nodes()
-{
-  return std::get<Vector<MeshNode>>(this->nodes_);
-}
+// template<> MutableSpan<MeshNode> Tree::nodes()
+// {
+//   return std::get<Vector<MeshNode>>(this->nodes_);
+// }
 template<> MutableSpan<GridsNode> Tree::nodes()
 {
   return std::get<Vector<GridsNode>>(this->nodes_);

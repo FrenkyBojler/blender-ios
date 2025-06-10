@@ -266,6 +266,7 @@ class Tree {
 
   /** Build a BVH tree from base mesh triangles. */
   static Tree from_mesh(const Mesh &mesh);
+  static Tree from_spatially_organized_mesh(const Mesh &mesh);
   /** Build a BVH tree from grids geometry. */
   static Tree from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg);
   /** Build a BVH tree from a triangle BMesh. */
