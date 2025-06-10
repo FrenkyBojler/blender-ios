@@ -1520,10 +1520,11 @@ static wmEvent wm_update_cursor_position_from_drag_and_drop(wmWindowManager *wm,
   return event;
 }
 
-static void wm_start_drag(wmWindowManager *wm,
-                          wmWindow *win,
-                          bContext *C,
-                          const GHOST_TEventDragnDropData *ddd)
+static void wm_start_ghost_event_drag(wmWindowManager *wm,
+                                      wmWindow *win,
+                                      bContext *C,
+                                      const GHOST_TEventDragnDropData *ddd,
+                                      bool log_drop)
 {
   /* Currently not all platfoms retrieves drag and drop data on drag enter. */
   if (!ddd->data) {
@@ -1537,9 +1538,11 @@ static void wm_start_drag(wmWindowManager *wm,
     const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
 
     if (stra->count) {
-      CLOG_INFO(WM_LOG_EVENTS, 1, "Drop %d files:", stra->count);
-      for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
-        CLOG_INFO(WM_LOG_EVENTS, 1, "%s", path);
+      if (log_drop) {
+        CLOG_INFO(WM_LOG_EVENTS, 1, "Drop %d files:", stra->count);
+        for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
+          CLOG_INFO(WM_LOG_EVENTS, 1, "%s", path);
+        }
       }
       /* Try to get icon type from extension of the first path. */
       int icon = ED_file_extension_icon((char *)stra->strings[0]);
@@ -1793,7 +1796,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
     case GHOST_kEventDraggingEntered: {
       const GHOST_TEventDragnDropData *ddd = static_cast<const GHOST_TEventDragnDropData *>(data);
       wm_update_cursor_position_from_drag_and_drop(wm, win, ddd, event_time_ms);
-      wm_start_drag(wm, win, C, ddd);
+      wm_start_ghost_event_drag(wm, win, C, ddd, false);
       break;
     }
     case GHOST_kEventDraggingUpdated: {
@@ -1817,7 +1820,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       // printf("Drop detected\n");
 
       /* Add drag data to wm for paths. */
-      wm_start_drag(wm, win, C, ddd);
+      wm_start_ghost_event_drag(wm, win, C, ddd, true);
 
       break;
     }
