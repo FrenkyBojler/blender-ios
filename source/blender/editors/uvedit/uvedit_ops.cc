@@ -666,8 +666,7 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
         }
       }
       float texel_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
-                                 edit_mode_area);
-
+                                 edit_mode_area) / scene->unit.scale_length;
       float scale = density / texel_density;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
