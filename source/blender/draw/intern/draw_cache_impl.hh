@@ -194,7 +194,8 @@ blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edge_detection(Mesh &mesh, bool *r_is_manifold);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh);
-blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_surface(Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_edges(Mesh &mesh);
 Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(Object &object,
                                                            Mesh &mesh,
                                                            Span<const GPUMaterial *> materials);

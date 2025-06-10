@@ -747,6 +747,13 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface(Mesh &mesh)
   return cache.batch.surface;
 }
 
+gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_surface(Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  mesh_batch_cache_add_request(cache, MBC_PAINT_OVERLAY_SURFACE);
+  return DRW_batch_request(&cache.batch.paint_overlay_surface);
+}
+
 gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
@@ -1077,11 +1084,11 @@ gpu::Batch *DRW_mesh_batch_cache_get_edituv_wireframe(Object &object, Mesh &mesh
   return DRW_batch_request(&cache.batch.wire_loops_edituvs);
 }
 
-gpu::Batch *DRW_mesh_batch_cache_get_surface_edges(Mesh &mesh)
+gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_edges(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
-  mesh_batch_cache_add_request(cache, MBC_WIRE_LOOPS);
-  return DRW_batch_request(&cache.batch.wire_loops);
+  mesh_batch_cache_add_request(cache, MBC_PAINT_OVERLAY_WIRE_LOOPS);
+  return DRW_batch_request(&cache.batch.paint_overlay_wire_loops);
 }
 
 /** \} */
@@ -1333,6 +1340,14 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       }
       batch_info.append(std::move(batch));
     }
+    if (batches_to_create & MBC_PAINT_OVERLAY_SURFACE) {
+      BatchCreateData batch{*cache.batch.surface,
+                            GPU_PRIM_TRIS,
+                            list,
+                            IBOType::Tris,
+                            {VBOType::Position, VBOType::PaintOverlayFlag}};
+      batch_info.append(std::move(batch));
+    }
     if (batches_to_create & MBC_VIEWER_ATTRIBUTE_OVERLAY) {
       batch_info.append({*cache.batch.surface_viewer_attribute,
                          GPU_PRIM_TRIS,
@@ -1383,12 +1398,12 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                          IBOType::Tris,
                          {VBOType::Position, VBOType::CornerNormal, VBOType::VertexGroupWeight}});
     }
-    if (batches_to_create & MBC_WIRE_LOOPS) {
-      batch_info.append({*cache.batch.wire_loops,
+    if (batches_to_create & MBC_PAINT_OVERLAY_WIRE_LOOPS) {
+      batch_info.append({*cache.batch.paint_overlay_wire_loops,
                          GPU_PRIM_LINES,
                          list,
                          IBOType::LinesPaintMask,
-                         {VBOType::Position, VBOType::CornerNormal}});
+                         {VBOType::Position, VBOType::PaintOverlayFlag}});
     }
     if (batches_to_create & MBC_WIRE_EDGES) {
       batch_info.append({*cache.batch.wire_edges,
