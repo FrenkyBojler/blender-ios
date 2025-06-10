@@ -1,3 +1,4 @@
 Referenced by issue #139282, 4.5 Alpha Launch bug
 Referenced by issue #139289, Curves data in wireframe mode is displayed as an Empty
 Referenced by issue #139191, Blender crashes on startup with addons that use gpu.types.GPUShader
+Referenced by pull request #138651, UI: show an icon in the "slots" menu to show usage
