@@ -1,3 +1,4 @@
 Referenced by pull request #139292, Fix: Make new FBX importer support Light exposure
 Referenced by commit 8e8d2e7aecc4651f2d1ab36acb9632070f72e535, Fix: Make new FBX importer support Light exposure
 Referenced by issue #139869, Blender runs but is permanently stuck at its "loading phase"
+Referenced by issue #139939, Driver Timeout when switching to Material Preview
