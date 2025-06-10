@@ -166,7 +166,7 @@ template<typename T> T SocketValueVariant::extract()
     return this->extract<GVolumeGrid>().typed<typename T::base_type>();
   }
 #endif
-  else if constexpr (std::is_same_v<T, nodes::List>) {
+  else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
     return std::move(value_.get<T>());
   }
   else {
@@ -207,9 +207,9 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     /* Always store #Field<T> as #GField. */
     this->store_impl<fn::GField>(std::move(value));
   }
-  else if constexpr (std::is_same_v<T, nodes::List>) {
+  else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
     kind_ = Kind::List;
-    value_.emplace<nodes::ListPtr>(std::move(value));
+    value_.emplace(std::move(value));
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {

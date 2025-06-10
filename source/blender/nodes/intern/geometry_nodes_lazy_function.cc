@@ -22,6 +22,7 @@
 
 #include "NOD_geometry_exec.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_list.hh"
 #include "NOD_multi_function.hh"
 #include "NOD_node_declaration.hh"
 
@@ -536,30 +537,35 @@ static void execute_multi_function_on_value_variant__list(
     const Span<SocketValueVariant *> output_values,
     GeoNodesUserData *user_data)
 {
-  int max_size = 0;
+  int64_t max_size = 0;
   for (const int i : input_values.index_range()) {
-    if (input_values[i]->is_single()) {
-      max_size = std::max(max_size, 1);
-      continue;
+    SocketValueVariant &input_variant = *input_values[i];
+    if (input_variant.is_single()) {
+      max_size = std::max<int64_t>(max_size, 1);
     }
-    if (input_values[i]->is_list()) {
-
-      // max_size = std::max(max_size, input_values[i]-());
+    else if (input_variant.is_list()) {
+      ListPtr list = input_variant.get<ListPtr>();
+      max_size = std::max(max_size, list->values().size());
     }
   }
   /* In this case, the multi-function is evaluated directly. */
-  const IndexMask mask(1);
+  const IndexMask mask(max_size);
   mf::ParamsBuilder params{fn, &mask};
   mf::ContextBuilder context;
   context.user_data(user_data);
 
   for (const int i : input_values.index_range()) {
-    SocketValueVariant &input_variant = *input_values[i];
-    input_variant.convert_to_single();
-    const void *value = input_variant.get_single_ptr_raw();
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
-    params.add_readonly_single_input(GPointer{cpp_type, value});
+    SocketValueVariant &input_variant = *input_values[i];
+    if (input_variant.is_single()) {
+      const void *value = input_variant.get_single_ptr_raw();
+      params.add_readonly_single_input(GPointer{cpp_type, value});
+    }
+    else if (input_variant.is_list()) {
+      ListPtr list = input_variant.get<ListPtr>();
+      params.add_readonly_single_input(GVArray::ForSpan(list->values()));
+    }
   }
   for (const int i : output_values.index_range()) {
     if (output_values[i] == nullptr) {
@@ -569,10 +575,9 @@ static void execute_multi_function_on_value_variant__list(
     SocketValueVariant &output_variant = *output_values[i];
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
-    const eNodeSocketDatatype socket_type =
-        bke::geo_nodes_base_cpp_type_to_socket_type(cpp_type).value();
-    void *value = output_variant.allocate_single(socket_type);
-    params.add_uninitialized_single_output(GMutableSpan{cpp_type, value, 1});
+    ListPtr list = List::ForUninitialized(cpp_type, max_size);
+    params.add_uninitialized_single_output(const_cast<List &>(*list).values_for_write());
+    output_variant.set(std::move(list));
   }
   fn.call(mask, params, context);
 }

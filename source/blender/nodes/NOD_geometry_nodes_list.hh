@@ -25,6 +25,7 @@ class List : public ImplicitSharingMixin {
   ~List();
 
   static ListPtr for_garray(GArray<> array);
+  static ListPtr ForUninitialized(const CPPType &cpp_type, int64_t size);
 
   virtual GSpan values() const = 0;
   virtual GMutableSpan values_for_write() = 0;

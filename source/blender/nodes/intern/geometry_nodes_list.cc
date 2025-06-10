@@ -29,6 +29,35 @@ ListPtr List::for_garray(GArray<> array)
   return ListPtr(MEM_new<List_For_GArray>(__func__, std::move(array)));
 }
 
+class List_For_Data : public List {
+  const CPPType &cpp_type_;
+  void *data_;
+  int64_t size_;
+
+ public:
+  List_For_Data(const CPPType &cpp_type, void *data, const int64_t size)
+      : cpp_type_(cpp_type), data_(data), size_(size)
+  {
+  }
+  virtual ~List_For_Data() {}
+
+  GSpan values() const override
+  {
+    return GSpan(cpp_type_, data_, size_);
+  }
+  GMutableSpan values_for_write() override
+  {
+    BLI_assert(this->is_mutable());
+    return GMutableSpan(cpp_type_, data_, size_);
+  }
+};
+
+ListPtr List::ForUninitialized(const CPPType &cpp_type, int64_t size)
+{
+  void *data = MEM_malloc_arrayN_aligned(size, cpp_type.size, cpp_type.alignment, __func__);
+  return ListPtr(MEM_new<List_For_Data>(__func__, cpp_type, data, size));
+}
+
 void List::delete_self()
 {
   MEM_delete(this);

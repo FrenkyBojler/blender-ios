@@ -8,18 +8,12 @@
 
 #pragma once
 
-// TODO: MOVE
-#include "BLI_generic_array.hh"
-#include "BLI_implicit_sharing_ptr.hh"
-
 #include "DNA_node_types.h"
 
 #include "BLI_any.hh"
 #include "BLI_generic_pointer.hh"
 
 namespace blender::bke {
-
-using List = ImplicitSharingPtr<GArray<>>;
 
 /**
  * #SocketValueVariant is used by geometry nodes in the lazy-function evaluator to pass data
