@@ -243,7 +243,7 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
       /* The basis key will just recieve values from the mesh positions. */
       continue;
     }
-    const std::string attribute_name = fmt::format("shape_key:{}", kb->name);
+    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
     attributes.add<float3>(attribute_name,
                            bke::AttrDomain::Point,
@@ -256,7 +256,7 @@ static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    const std::string attribute_name = fmt::format("shape_key:{}", kb->name);
+    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
     const VArray attr = *attributes.lookup<float3>(attribute_name, bke::AttrDomain::Point);
     if (!attr) {
       continue;
@@ -279,7 +279,7 @@ static void remove_shape_key_attributes(Mesh &mesh, const Key &key)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    const std::string attribute_name = fmt::format("shape_key:{}", kb->name);
+    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
     attributes.remove(attribute_name);
   }
 }
