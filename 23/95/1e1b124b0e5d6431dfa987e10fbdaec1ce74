@@ -7,3 +7,4 @@ Referenced by pull request #140084, Fix #140078: Sculpt Paint brushes can apply 
 Referenced by commit 44bfeb22147431a2fdbe89d9501b861b2d6006ce, Fix #140078: Sculpt Paint brushes can apply NaN
 Referenced by commit 12f4e1704469388f8e8c359fcbecea6fd2737cc1, Sculpt: Assert when applying a translation that contains NaN
 Referenced by commit ddcd314df4630b271677ef1675d1bba198f0e840, Fix: Silence warning in `BKE_brush_calc_curve_factors`
+Referenced by pull request #140143, Fix #140120: Multiplane Scrape behaves incorrectly
