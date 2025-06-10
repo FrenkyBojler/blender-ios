@@ -44,7 +44,7 @@ LANGUAGES = (
     (14, "Chinese (Traditional) - 繁體中文", "zh_HANT"),
     (15, "Russian - Русский", "ru_RU"),
     (16, "Croatian - Hrvatski", "hr_HR"),
-    (17, "Serbian - Српски", "sr_RS"),
+    (17, "Serbian (Cyrillic) - Српски", "sr_RS"),
     (18, "Ukrainian - Українська", "uk_UA"),
     (19, "Polish - Polski", "pl_PL"),
     (20, "Romanian - Român", "ro_RO"),
@@ -57,7 +57,7 @@ LANGUAGES = (
     # Using the utf8 flipped form of Persian (فارسی).
     (26, "Persian - ﯽﺳﺭﺎﻓ", "fa_IR"),
     (27, "Indonesian - Bahasa indonesia", "id_ID"),
-    (28, "Serbian Latin - Srpski latinica", "sr_RS@latin"),
+    (28, "Serbian (Latin) - Srpski latinica", "sr_RS@latin"),
     (29, "Kyrgyz - Кыргыз тили", "ky_KG"),
     (30, "Turkish - Türkçe", "tr_TR"),
     (31, "Hungarian - Magyar", "hu_HU"),
@@ -68,8 +68,8 @@ LANGUAGES = (
     (35, "Esperanto - Esperanto", "eo"),
     # 36 is free, used to be 'Spanish from Spain' (`es_ES`).
     (37, "Amharic - አማርኛ", "am_ET"),
-    (38, "Uzbek - Oʻzbek", "uz_UZ@latin"),
-    (39, "Uzbek Cyrillic - Ўзбек", "uz_UZ@cyrillic"),
+    (38, "Uzbek (Latin) - Oʻzbek", "uz_UZ@latin"),
+    (39, "Uzbek (Cyrillic) - Ўзбек", "uz_UZ@cyrillic"),
     (40, "Hindi - हिन्दी", "hi_IN"),
     (41, "Vietnamese - Tiếng Việt", "vi_VN"),
     (42, "Basque - Euskara", "eu_EU"),
