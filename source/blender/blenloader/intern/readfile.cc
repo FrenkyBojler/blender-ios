@@ -55,6 +55,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
@@ -1025,8 +1026,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         bool has_truncated_slot_identifer = false;
         bAction *act = reinterpret_cast<bAction *>(id_iter);
         for (int i = 0; i < act->slot_array_num; i++) {
-          if (!std::memchr(act->slot_array[i]->identifier, '\0', MAX_ID_NAME)) {
-            act->slot_array[i]->identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(act->slot_array[i]->identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long action slot name to '%s'",
@@ -1038,7 +1038,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           continue;
         }
 
-        /* If there are truncated slots idenfiers, ensuring their uniqueness must happen in a
+        /* If there are truncated slots identifiers, ensuring their uniqueness must happen in a
          * second loop, to avoid e.g. an attempt to read a slot identifier that has not yet been
          * truncated. */
         for (int i = 0; i < act->slot_array_num; i++) {
@@ -1067,8 +1067,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
             return true;
           }
           bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
-          if (!std::memchr(constraint_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
-            constraint_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(constraint_data->last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long bActionConstraint.last_slot_identifier to '%s'",
@@ -1093,15 +1092,13 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
       default: {
         AnimData *anim_data = BKE_animdata_from_id(id_iter);
         if (anim_data) {
-          if (!std::memchr(anim_data->last_slot_identifier, '\0', MAX_ID_NAME)) {
-            anim_data->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(anim_data->last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long AnimData.last_slot_identifier to '%s'",
                       anim_data->last_slot_identifier);
           }
-          if (!std::memchr(anim_data->tmp_last_slot_identifier, '\0', MAX_ID_NAME)) {
-            anim_data->tmp_last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+          if (BLI_str_utf8_truncate_at_size(anim_data->tmp_last_slot_identifier, MAX_ID_NAME)) {
             CLOG_INFO(&LOG,
                       4,
                       "Truncated too long AnimData.tmp_last_slot_identifier to '%s'",
@@ -1109,8 +1106,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           }
 
           blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
-            if (!std::memchr(strip->last_slot_identifier, '\0', MAX_ID_NAME)) {
-              strip->last_slot_identifier[MAX_ID_NAME - 1] = '\0';
+            if (BLI_str_utf8_truncate_at_size(strip->last_slot_identifier, MAX_ID_NAME)) {
               CLOG_INFO(&LOG,
                         4,
                         "Truncated too long NlaStrip.last_slot_identifier to '%s'",
@@ -1969,14 +1965,17 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
   if (!id) {
     return id;
   }
-  if (std::memchr(id->name, '\0', MAX_ID_NAME)) {
-    return id;
+
+  /* Invalid ID name (probably from 'too long' ID name from a future Blender version).
+   *
+   * They can only be truncated here, ensuring that all ID names remain unique happens later, after
+   * reading all local IDs, but before linking them, see the call to
+   * #long_id_names_ensure_unique_id_names in #blo_read_file_internal. */
+  if (BLI_str_utf8_truncate_at_size(id->name + 2, MAX_ID_NAME - 2)) {
+    fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
+    CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
   }
 
-  /* Invalid ID name (probably from 'too long' ID name from a future Blender version). */
-  id->name[MAX_ID_NAME - 1] = '\0';
-  fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
-  CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
   return id;
 }
 
@@ -2321,6 +2320,11 @@ static void direct_link_id_common(BlendDataReader *reader,
     BLO_read_struct(reader, IDProperty, &id->properties);
     /* this case means the data was written incorrectly, it should not happen */
     IDP_BlendDataRead(reader, &id->properties);
+  }
+
+  if (id->system_properties) {
+    BLO_read_struct(reader, IDProperty, &id->system_properties);
+    IDP_BlendDataRead(reader, &id->system_properties);
   }
 
   id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
@@ -3294,6 +3298,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   /* Don't allow versioning to create new data-blocks. */
   main->is_locked_for_linking = true;
 
+  /* Code ensuring conversion from new 'system IDProperties' in 5.0. This needs to run before any
+   * other data versioning. Otherwise, things like Cycles versioning code cannot work as expected.
+   *
+   * Merge (with overwrite) future system properties storage into current IDProperties. */
+  version_forward_compat_system_idprops(main);
+
   if (G.debug & G_DEBUG) {
     char build_commit_datetime[32];
     time_t temp_time = main->build_commit_timestamp;
@@ -3354,6 +3364,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_450(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_500(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3413,6 +3426,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_450(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_500(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -3901,8 +3917,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
                   bfd->filepath);
     }
 
-    /* This part is only to ensure forward compatibility with 5.0+ blendfiles in 4.5. It will be
-     * removed in 5.0. */
+    /* This part is only to ensure forward compatibility with 5.0+ blend-files in 4.5.
+     * It will be removed in 5.0. */
     long_id_names_process_action_slots_identifiers(bfd->main);
   }
   else {

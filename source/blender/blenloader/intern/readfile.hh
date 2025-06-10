@@ -42,7 +42,7 @@ struct OldNewMap;
 struct UserDef;
 
 /**
- * Store some critical informations about the read blendfile.
+ * Store some critical information about the read blend-file.
  */
 enum eFileDataFlag {
   FD_FLAGS_SWITCH_ENDIAN = 1 << 0,
@@ -56,7 +56,7 @@ enum eFileDataFlag {
    */
   FD_FLAGS_FILE_FUTURE = 1 << 5,
   /**
-   * The blendfile has IDs with invalid names (either using the 5.0+ new 'long names', or
+   * The blend-file has IDs with invalid names (either using the 5.0+ new 'long names', or
    * corrupted). I.e. their names have no null char in their first 66 bytes.
    */
   FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
@@ -263,6 +263,7 @@ void blo_do_versions_420(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_430(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_440(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_450(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_500(FileData *fd, Library *lib, Main *bmain);
 
 void do_versions_after_linking_250(Main *bmain);
 void do_versions_after_linking_260(Main *bmain);
@@ -276,6 +277,7 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain);
 void do_versions_after_linking_430(FileData *fd, Main *bmain);
 void do_versions_after_linking_440(FileData *fd, Main *bmain);
 void do_versions_after_linking_450(FileData *fd, Main *bmain);
+void do_versions_after_linking_500(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,
                              BlendfileLinkAppendContext *lapp_context,
