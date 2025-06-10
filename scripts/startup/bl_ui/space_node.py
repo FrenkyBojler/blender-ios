@@ -151,11 +151,6 @@ class NODE_HT_header(Header):
             row.enabled = not snode.pin
             row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
 
-            layout.separator_spacer()
-            row = layout.row()
-            row.enabled = not snode.pin
-            row.template_ID(scene, "compositing_node_group", new="node.new_compositing_node_group")
-
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "geometry_nodes_type", text="")
             NODE_MT_editor_menus.draw_collapsible(context, layout)
