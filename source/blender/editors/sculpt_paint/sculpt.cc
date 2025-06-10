@@ -4608,9 +4608,8 @@ static void sculpt_raycast_cb(bke::pbvh::Node &node, RaycastData &rd, float *tmi
                                          &rd.isect_precalc,
                                          &rd.depth,
                                          mesh_active_vert,
-                                         srd.active_face_grid_index,
-                                         srd.face_normal,
-                                         pbvh);
+                                         rd.active_face_grid_index,
+                                         rd.face_normal);
       if (hit) {
         rd.active_vertex = mesh_active_vert;
       }

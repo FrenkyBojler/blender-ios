@@ -830,30 +830,10 @@ std::optional<Span<float>> orig_mask_data_lookup_mesh(const Object &object,
 std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
                                                        const bke::pbvh::GridsNode &node);
 
-inline bool brush_type_is_paint(const int tool)
-{
-  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
-}
-
 inline bool brush_type_is_mask(const int tool)
 {
   return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
 }
-
-BLI_INLINE bool brush_type_is_attribute_only(const int tool)
-{
-  return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
-         ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
-}
-
-inline bool brush_uses_vector_displacement(const Brush &brush)
-{
-  return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
-         brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
-         brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
-}
-
-void ensure_valid_pivot(const Object &ob, Scene &scene);
 
 /** Retrieve or calculate the object space radius depending on brush settings. */
 float object_space_radius_get(const ViewContext &vc,
@@ -994,33 +974,14 @@ void multiplane_scrape_preview_draw(uint gpuattr,
  * the image and image user. Returns false when the image isn't found. In the later case the
  * r_image and r_image_user are set to NULL.
  */
-bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
-                                   Object &ob,
-                                   Image **r_image,
-                                   ImageUser **r_image_user) ATTR_NONNULL();
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
-                                 PaintModeSettings &paint_mode_settings,
-                                 const Sculpt &sd,
-                                 Object &ob,
-                                 const blender::IndexMask &node_mask);
-bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob);
 
 namespace blender::ed::sculpt_paint {
 
-float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::StrokeCache &cache);
-
-void SCULPT_OT_brush_stroke(wmOperatorType *ot);
 // void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot);
 
 inline bool brush_type_is_paint(const int tool)
 {
   return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
-}
-
-inline bool brush_type_is_mask(const int tool)
-{
-  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
 }
 
 BLI_INLINE bool brush_type_is_attribute_only(const int tool)

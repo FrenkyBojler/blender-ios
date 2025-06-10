@@ -1225,7 +1225,7 @@ void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
   BLI_assert(DEG_is_original(&object_orig));
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
-  pbvh.update_normals(object_orig, object_eval);
+  pbvh.update_normals(object_orig, object_eval, pbvh);
 }
 
 void update_normals_from_eval(Object &object_eval, Tree &pbvh)
@@ -1234,7 +1234,7 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh)
    * graph updates for sculpt deformations in some cases (so the evaluated object doesn't contain
    * their result), and also because (currently) sculpt deformations skip tagging the mesh normals
    * caches dirty. */
-  Object &object_orig = *DEG_get_original_object(&object_eval);
+  Object &object_orig = *DEG_get_original(&object_eval);
   pbvh.update_normals(object_orig, object_eval, pbvh);
 }
 

@@ -1543,7 +1543,7 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
     BM_mesh_elem_index_ensure_ex(bm, htype, elem_offset);
   }
 }
-static int mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
 
