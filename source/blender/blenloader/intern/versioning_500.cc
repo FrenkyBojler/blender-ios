@@ -16,6 +16,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
@@ -99,6 +100,12 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
+    LISTBASE_FOREACH (PointCloud *, pointcloud, &bmain->pointclouds) {
+      blender::bke::pointcloud_convert_customdata_to_storage(*pointcloud);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 3)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
         continue;
