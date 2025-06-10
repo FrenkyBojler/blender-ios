@@ -5794,8 +5794,10 @@ void UV_OT_box_region(wmOperatorType *ot)
 static wmOperatorStatus uv_disable_box_region_exec(bContext *C, wmOperator *op)
 {
   ARegion *region = CTX_wm_region(C);
-
+  printf("Disabling box region\n");
   region->v2d.flag &= ~V2D_BOX_REGION;
+
+  ED_region_tag_redraw(region);
 
   return OPERATOR_FINISHED;
 }
