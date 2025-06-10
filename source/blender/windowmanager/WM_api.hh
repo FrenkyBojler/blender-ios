@@ -1909,7 +1909,7 @@ void WM_draw_region_free(ARegion *region);
 GPUViewport *WM_draw_region_get_viewport(ARegion *region);
 GPUViewport *WM_draw_region_get_bound_viewport(ARegion *region);
 
-void WM_main_playanim(int argc, const char **argv);
+int WM_main_playanim(int argc, const char **argv);
 
 /**
  * Debugging only, convenience function to write on crash.
@@ -2011,7 +2011,9 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3]);
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3]);
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3]);
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
 
 float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);
