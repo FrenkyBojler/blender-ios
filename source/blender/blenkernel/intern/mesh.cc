@@ -309,6 +309,31 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
 
+  if (U.experimental.use_attribute_storage_write) {
+    /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
+     * reserved for future use (names stored on #Mesh). */
+    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      mesh->active_uv_map_attribute = const_cast<char *>(
+          scope.allocator().copy_string(name).c_str());
+      BLO_write_string(writer, mesh->active_uv_map_attribute);
+    }
+    else {
+      mesh->active_uv_map_attribute = nullptr;
+    }
+    if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      mesh->default_uv_map_attribute = const_cast<char *>(
+          scope.allocator().copy_string(name).c_str());
+      BLO_write_string(writer, mesh->default_uv_map_attribute);
+    }
+    else {
+      mesh->default_uv_map_attribute = nullptr;
+    }
+  }
+  else {
+    mesh->active_uv_map_attribute = nullptr;
+    mesh->default_uv_map_attribute = nullptr;
+  }
+
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
     mesh->verts_num = 0;
@@ -345,29 +370,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
   const blender::bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
-
-  if (U.experimental.use_attribute_storage_write) {
-    /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-     * reserved for future use (names stored on #Mesh). */
-    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-      mesh->active_uv_map_attribute = const_cast<char *>(name);
-      BLO_write_string(writer, mesh->active_uv_map_attribute);
-    }
-    else {
-      mesh->active_uv_map_attribute = nullptr;
-    }
-    if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-      mesh->default_uv_map_attribute = const_cast<char *>(name);
-      BLO_write_string(writer, mesh->default_uv_map_attribute);
-    }
-    else {
-      mesh->default_uv_map_attribute = nullptr;
-    }
-  }
-  else {
-    mesh->active_uv_map_attribute = nullptr;
-    mesh->default_uv_map_attribute = nullptr;
-  }
 
   BLO_write_id_struct(writer, Mesh, id_address, &mesh->id);
   BKE_id_blend_write(writer, &mesh->id);
