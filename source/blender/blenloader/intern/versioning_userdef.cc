@@ -239,6 +239,27 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_clip.anim_preview_range);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 5)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_file.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_graph.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_info.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_action.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_nla.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_sequencer.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_image.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_text.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_outliner.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_node.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_preferences.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_console.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_clip.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1493,6 +1514,12 @@ void blo_do_versions_userdef(UserDef *userdef)
       LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
         do_version_keyframe_jump(kmi);
       }
+    }
+  }
+
+  if (!USER_VERSION_ATLEAST(405, 86)) {
+    if (userdef->gpu_shader_workers > 0) {
+      userdef->shader_compilation_method = USER_SHADER_COMPILE_SUBPROCESS;
     }
   }
 
