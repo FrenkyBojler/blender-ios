@@ -29,10 +29,13 @@ static void cmp_node_split_declare(NodeDeclarationBuilder &b)
       .dimensions(2)
       .subtype(PROP_FACTOR)
       .default_value({0.5f, 0.5f})
-      .min(0.5f)
+      .min(0.0f)
       .max(1.0f)
       .description("");
-  b.add_input<decl::Float>("Rotation").default_value(45.0f).subtype(PROP_ANGLE).description("");
+  b.add_input<decl::Float>("Rotation")
+      .default_value(float(M_PI_4))
+      .subtype(PROP_ANGLE)
+      .description("");
 
   b.add_input<decl::Color>("Image");
   b.add_input<decl::Color>("Image", "Image_001");

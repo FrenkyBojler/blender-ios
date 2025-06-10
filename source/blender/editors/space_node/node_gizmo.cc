@@ -966,7 +966,7 @@ static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*
   if (node && node->is_type("CompositorNodeSplit")) {
     snode->edittree->ensure_topology_cache();
     LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-      if (STR_ELEM(input->name, "Factor") && input->is_directly_linked()) {
+      if (STR_ELEM(input->name, "Position", "Rotation") && input->is_directly_linked()) {
         return false;
       }
     }
