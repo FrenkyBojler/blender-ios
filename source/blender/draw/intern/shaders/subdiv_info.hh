@@ -121,21 +121,6 @@ GPU_SHADER_CREATE_END()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Paint Overlay Flag
- * \{ */
-
-GPU_SHADER_CREATE_INFO(subdiv_paint_overlay_flag)
-DO_STATIC_COMPILATION()
-STORAGE_BUF(PAINT_OVERLAY_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
-STORAGE_BUF(PAINT_OVERLAY_FLAG_VERTEX_LOOP_MAP_BUF_SLOT, read, uint, vert_loop_map[])
-STORAGE_BUF(PAINT_OVERLAY_OUTPUT_FLAG_SLOT, write, uint, flags[])
-COMPUTE_SOURCE("subdiv_vbo_paint_overlay_flag_comp.glsl")
-ADDITIONAL_INFO(subdiv_polygon_offset_base)
-GPU_SHADER_CREATE_END()
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Triangle indices
  * \{ */
 
@@ -297,6 +282,21 @@ STORAGE_BUF(NORMALS_ACCUMULATE_VERTEX_LOOP_MAP_BUF_SLOT, read, uint, vert_loop_m
 STORAGE_BUF(NORMALS_ACCUMULATE_NORMALS_BUF_SLOT, write, Normal, vert_normals[])
 COMPUTE_SOURCE("subdiv_normals_accumulate_comp.glsl")
 ADDITIONAL_INFO(subdiv_base)
+GPU_SHADER_CREATE_END()
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Paint Overlay Flag
+ * \{ */
+
+GPU_SHADER_CREATE_INFO(subdiv_paint_overlay_flag)
+DO_STATIC_COMPILATION()
+STORAGE_BUF(PAINT_OVERLAY_EXTRA_COARSE_FACE_DATA_BUF_SLOT, read, uint, extra_coarse_face_data[])
+STORAGE_BUF(PAINT_OVERLAY_FLAG_VERTEX_LOOP_MAP_BUF_SLOT, read, uint, vert_loop_map[])
+STORAGE_BUF(PAINT_OVERLAY_OUTPUT_FLAG_SLOT, write, uint, flags[])
+COMPUTE_SOURCE("subdiv_vbo_paint_overlay_flag_comp.glsl")
+ADDITIONAL_INFO(subdiv_polygon_offset_base)
 GPU_SHADER_CREATE_END()
 
 /** \} */

@@ -63,6 +63,9 @@ static blender::StringRefNull get_subdiv_shader_info_name(SubdivShaderType shade
     case SubdivShaderType::BUFFER_NORMALS_ACCUMULATE:
       return "subdiv_normals_accumulate";
 
+    case SubdivShaderType::BUFFER_PAINT_OVERLAY_FLAG:
+      return "subdiv_paint_overlay_flag";
+
     case SubdivShaderType::BUFFER_LNOR:
       return "subdiv_loop_normals";
 
