@@ -8,12 +8,11 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 normal = float2(-sin(rotation), cos(rotation)); // todo: compute outside shader
   float2 pos_to_line_point = position - float2(texel);
-  float d = dot(normal, pos_to_line_point);
+  float projection = dot(normal, pos_to_line_point);
 
-  bool is_below_line = d <= 0;
+  bool is_below_line = projection <= 0;
   float4 color = is_below_line ? texture_load(first_image_tx, texel) :
-                             texture_load(second_image_tx, texel);
+                                 texture_load(second_image_tx, texel);
   imageStore(output_img, texel, color);
 }

@@ -25,8 +25,14 @@ namespace blender::nodes::node_composite_split_cc {
 static void cmp_node_split_declare(NodeDeclarationBuilder &b)
 {
   // todo: define reasonable min max, description etc..
-  b.add_input<decl::Vector>("Position").dimensions(2).default_value({0.0f, 0.0f}).description("");
-  b.add_input<decl::Float>("Rotation").default_value(0.0f).subtype(PROP_ANGLE).description("");
+  b.add_input<decl::Vector>("Position")
+      .dimensions(2)
+      .subtype(PROP_FACTOR)
+      .default_value({0.5f, 0.5f})
+      .min(0.5f)
+      .max(1.0f)
+      .description("");
+  b.add_input<decl::Float>("Rotation").default_value(45.0f).subtype(PROP_ANGLE).description("");
 
   b.add_input<decl::Color>("Image");
   b.add_input<decl::Color>("Image", "Image_001");
@@ -55,15 +61,19 @@ class SplitOperation : public NodeOperation {
     GPUShader *shader = this->context().get_shader("compositor_split");
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_2fv(shader, "position", this->get_position());
+    const Domain domain = this->compute_domain();
+
+    GPU_shader_uniform_2fv(shader, "position", this->get_position(domain));
     GPU_shader_uniform_1f(shader, "rotation", this->get_rotation().radian());
+
+    const float2 normal = {-math::sin(this->get_rotation()), math::cos(this->get_rotation())};
+    GPU_shader_uniform_2fv(shader, "normal", normal);
 
     const Result &first_image = this->get_input("Image");
     first_image.bind_as_texture(shader, "first_image_tx");
     const Result &second_image = this->get_input("Image_001");
     second_image.bind_as_texture(shader, "second_image_tx");
 
-    const Domain domain = this->compute_domain();
     Result &output_image = this->get_result("Image");
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
@@ -74,16 +84,6 @@ class SplitOperation : public NodeOperation {
     second_image.unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
-  }
-
-  float2 get_position()
-  {
-    return this->get_input("Position").get_single_value_default(float3(0.0f, 0.0f, 0.0f)).xy();
-  }
-
-  math::AngleRadian get_rotation()
-  {
-    return this->get_input("Rotation").get_single_value_default(0.0f);
   }
 
   void execute_cpu()
@@ -97,16 +97,28 @@ class SplitOperation : public NodeOperation {
 
     const math::AngleRadian rotation = this->get_rotation();
     const float2 normal = {-math::sin(rotation), math::cos(rotation)};
-    const float2 line_point = this->get_position();
+    const float2 line_point = this->get_position(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      const float2 vec = line_point - float2(texel);
-      const float dot = math::dot(normal, vec);
-      const bool is_below_line = dot <= 0;
+      const float2 pos_to_line_point = line_point - float2(texel);
+      const float projection = math::dot(normal, pos_to_line_point);
+      const bool is_below_line = projection <= 0;
       output_image.store_pixel(texel,
                                is_below_line ? first_image.load_pixel<float4, true>(texel) :
                                                second_image.load_pixel<float4, true>(texel));
     });
+  }
+
+  float2 get_position(const Domain &domain)
+  {
+    const float2 relative_position =
+        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy();
+    return float2(domain.size) * relative_position;
+  }
+
+  math::AngleRadian get_rotation()
+  {
+    return this->get_input("Rotation").get_single_value_default(0.0f);
   }
 };
 

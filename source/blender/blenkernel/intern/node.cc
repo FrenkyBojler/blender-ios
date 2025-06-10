@@ -785,12 +785,6 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
       write_input_to_property_bool_int16_flag("Switch", node->custom1, 1 << 0);
     }
 
-    if (node->type_legacy == CMP_NODE_SPLIT) {
-      // Todo(Habib): forward compat
-      // const bNodeSocket *input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
-      // node->custom1 = int(input->default_value_typed<bNodeSocketValueFloat>()->value * 100.0f);
-    }
-
     if (node->type_legacy == CMP_NODE_INVERT) {
       write_input_to_property_bool_int16_flag("Invert Color", node->custom1, CMP_CHAN_RGB);
       write_input_to_property_bool_int16_flag("Invert Alpha", node->custom1, CMP_CHAN_A);
@@ -1166,6 +1160,18 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
   }
 }
 
+/* The enum horizontal/vertical was turned into an arbitrary angle. */
+static void write_compositor_legacy_split_node(bNodeTree &node_tree)
+{
+  for (bNode *node : node_tree.all_nodes()) {
+    if (node->type_legacy == CMP_NODE_SPLIT) {
+      /* The exact angle will be inaccurate anyways, so keep it simple and always set the split to
+       * horizontal (default). */
+      node->custom2 = 0;
+    }
+  }
+}
+
 }  // namespace forward_compat
 
 static void write_node_socket_default_value(BlendWriter *writer, const bNodeSocket *sock)
@@ -1333,6 +1339,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   if (!BLO_write_is_undo(writer)) {
     forward_compat::update_node_location_legacy(*ntree);
     forward_compat::write_compositor_legacy_properties(*ntree);
+    forward_compat::write_compositor_legacy_split_node(*ntree);
   }
 
   for (bNode *node : ntree->all_nodes()) {

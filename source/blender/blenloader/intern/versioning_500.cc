@@ -101,12 +101,42 @@ static void initialize_closure_input_structure_types(bNodeTree &ntree)
 
 static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
 {
-  bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
-  float fac = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
-  printf("factor from versioning: %f\n", fac);
+  using namespace blender;
 
-  CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
-  // todo(habib): relative to pixel (Idea: image info node + divide by relevant dimension/axis)
+  bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
+  float factor = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
+
+  bNodeSocket *rotation_input;
+  if (!bke::node_find_socket(*node, SOCK_IN, "Rotation")) {
+    rotation_input = bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Rotation", "Rotation");
+  }
+
+  bNodeSocket *position_input;
+  if (!bke::node_find_socket(*node, SOCK_IN, "Position")) {
+    position_input = bke::node_add_static_socket(
+        *node_tree, *node, SOCK_IN, SOCK_VECTOR, PROP_FACTOR, "Position", "Position");
+  }
+
+  constexpr int CMP_NODE_SPLIT_HORIZONTAL = 0;
+  constexpr int CMP_NODE_SPLIT_VERTICAL = 1;
+
+  switch (node->custom2) {
+    case CMP_NODE_SPLIT_HORIZONTAL: {
+      rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = -M_PI_2;
+      position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = factor;
+      /* The y-coordinate doesn't matter in this case, so set the value to 0.5 so that the gizmo
+       * appears nicely at the center.*/
+      position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = 0.5f;
+      break;
+    }
+    case CMP_NODE_SPLIT_VERTICAL: {
+      rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = 0.0f;
+      position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = 0.5f;
+      position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = factor;
+      break;
+    }
+  }
 }
 
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
@@ -150,9 +180,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_SPLIT) {
-            printf("versioning split node...\n");
             do_version_split_node_rotation(node_tree, node);
-            printf("\n");
           }
         }
       }

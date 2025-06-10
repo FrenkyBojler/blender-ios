@@ -1016,7 +1016,7 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
   axis_angle_to_mat3_single(rot, 'Z', rotation);
   loc_rot_size_to_mat4(
       matrix,
-      float3{pos.x - 0.5f * dims.x + offset.x, pos.y - 0.5f * dims.y + offset.y, 0.0f},
+      float3{(pos.x - 0.5f) * dims.x + offset.x, (pos.y - 0.5f) * dims.y + offset.y, 0.0f},
       rot,
       float3{gizmo_width, std::numeric_limits<float>::epsilon(), 1.0f});
 }
@@ -1043,8 +1043,8 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
   pos_x = math::clamp(pos_x, 0.0f, dims.x);
   pos_y = math::clamp(pos_y, 0.0f, dims.y);
 
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = pos_x;
-  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = pos_y;
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = pos_x / dims.x;
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = pos_y / dims.y;
 
   float3 eul;
   mat4_to_eul(eul, matrix);
