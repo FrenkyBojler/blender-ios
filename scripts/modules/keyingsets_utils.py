@@ -179,6 +179,17 @@ def RKS_GEN_location(_ksi, _context, ks, data):
     # get id-block and path info
     id_block, base_path, grouping = get_transform_generators_base_info(data)
 
+    if isinstance(data, bpy.types.Strip):
+        path_x = path_add_property(base_path, "transform.offset_x")
+        path_y = path_add_property(base_path, "transform.offset_y")
+        if grouping:
+            ks.paths.add(id_block, path_x, group_method='NAMED', group_name=grouping)
+            ks.paths.add(id_block, path_y, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path_x)
+            ks.paths.add(id_block, path_y)
+        return
+
     # add the property name to the base path
     path = path_add_property(base_path, "location")
 
@@ -195,6 +206,13 @@ def RKS_GEN_rotation(_ksi, _context, ks, data):
     id_block, base_path, grouping = get_transform_generators_base_info(data)
 
     # add the property name to the base path
+    if isinstance(data, bpy.types.Strip):
+        path = path_add_property(base_path, "transform.rotation")
+        if grouping:
+            ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path)
+        return
     #   rotation mode affects the property used
     if data.rotation_mode == 'QUATERNION':
         path = path_add_property(base_path, "rotation_quaternion")
@@ -215,6 +233,16 @@ def RKS_GEN_scaling(_ksi, _context, ks, data):
     # get id-block and path info
     id_block, base_path, grouping = get_transform_generators_base_info(data)
 
+    if isinstance(data, bpy.types.Strip):
+        path_x = path_add_property(base_path, "transform.scale_x")
+        path_y = path_add_property(base_path, "transform.scale_y")
+        if grouping:
+            ks.paths.add(id_block, path_x, group_method='NAMED', group_name=grouping)
+            ks.paths.add(id_block, path_y, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path_x)
+            ks.paths.add(id_block, path_y)
+        return
     # add the property name to the base path
     path = path_add_property(base_path, "scale")
 
