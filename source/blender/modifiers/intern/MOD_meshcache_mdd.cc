@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "BLI_endian_switch.h"
 #include "BLI_fileops.h"
 #include "BLI_math_base.h"
 #ifdef WIN32
@@ -39,7 +40,8 @@ static bool meshcache_read_mdd_head(FILE *fp,
   }
 
   /* NOTE: this is endianness-sensitive. */
-  /* The integer values in `mmd_head` would need to be switched on big-endian systems. */
+  /* MDD is big-endian, its values need to be switched on little-endian systems. */
+  BLI_endian_switch_int32_array((int *)mdd_head, 2);
 
   if (mdd_head->verts_tot != verts_tot) {
     *r_err_str = RPT_("Vertex count mismatch");
@@ -101,7 +103,8 @@ static bool meshcache_read_mdd_range_from_time(FILE *fp,
   for (i = 0; i < mdd_head.frame_tot; i++) {
     frames_num_read += fread(&f_time, sizeof(float), 1, fp);
     /* NOTE: this is endianness-sensitive. */
-    /* The `f_time` value would need to be switched on big-endian systems. */
+    /* MDD is big-endian, its values need to be switched on little-endian systems. */
+    BLI_endian_switch_float(&f_time);
 
     if (f_time >= time) {
       frames_num_expect = i + 1;
@@ -166,7 +169,10 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
       verts_read_num += fread(vco, sizeof(float[3]), 1, fp);
 
       /* NOTE: this is endianness-sensitive. */
-      /* The `vco` values would need to be switched on big-endian systems. */
+      /* MDD is big-endian, its values need to be switched on little-endian systems. */
+      BLI_endian_switch_float(vco + 0);
+      BLI_endian_switch_float(vco + 1);
+      BLI_endian_switch_float(vco + 2);
     }
 #else
     /* no blending */
@@ -175,7 +181,8 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
       return false;
     }
     /* NOTE: this is endianness-sensitive. */
-    /* The `vertexCos` values would need to be switched on big-endian systems. */
+    /* MDD is big-endian, its values need to be switched on little-endian systems. */
+    BLI_endian_switch_float_array(vertexCos[0], mdd_head.verts_tot * 3);
 #endif
   }
   else {
@@ -187,7 +194,10 @@ bool MOD_meshcache_read_mdd_index(FILE *fp,
       verts_read_num += fread(tvec, sizeof(float[3]), 1, fp);
 
       /* NOTE: this is endianness-sensitive. */
-      /* The `tvec` values would need to be switched on big-endian systems. */
+      /* MDD is big-endian, its values need to be switched on little-endian systems. */
+      BLI_endian_switch_float(tvec + 0);
+      BLI_endian_switch_float(tvec + 1);
+      BLI_endian_switch_float(tvec + 2);
 
       vco[0] = (vco[0] * ifactor) + (tvec[0] * factor);
       vco[1] = (vco[1] * ifactor) + (tvec[1] * factor);
