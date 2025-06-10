@@ -142,7 +142,7 @@ static void fill_locales()
             locales_menu[idx].identifier = loc = BLI_strdupn(sep2, sep3 - sep2);
 
             sep3++;
-            desc = BLI_sprintfN("%s (%s)", loc, sep3);
+            desc = BLI_sprintfN("Locale code: %s. Translation progress: %s", loc, sep3);
           }
           else {
             locales_menu[idx].identifier = loc = BLI_strdup(sep2);
