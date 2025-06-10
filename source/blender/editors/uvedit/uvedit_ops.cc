@@ -670,8 +670,15 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
           visited_faces.add(element[j].l->f);
         }
       }
-      float texel_density = (sqrt(region->v2d.tot.xmax * region->v2d.tot.ymax) * uv_area) /
-                            edit_mode_area;
+      float aspect_ratio = region->v2d.tot.xmax / region->v2d.tot.ymax;
+      if (aspect_ratio < 1) {
+        aspect_ratio = 1 / aspect_ratio;
+      }
+      float largest_resolution = (region->v2d.tot.xmax > region->v2d.tot.ymax) ?
+                                    region->v2d.tot.xmax :
+                                    region->v2d.tot.ymax;
+      float texel_density = largest_resolution /
+                            (sqrt(aspect_ratio * uv_area * edit_mode_area) * 100);
 
       float scale = density / texel_density;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
@@ -709,11 +716,11 @@ static void UV_OT_set_texel_density(wmOperatorType *ot)
                 "density",
                 0.5f,
                 0.0f,
-                10.0f,
+                FLT_MAX,
                 "Texel Density",
                 "Value that the texel density is being set to",
                 0.0f,
-                1.0f);
+                FLT_MAX);
   RNA_def_boolean(ot->srna,
                   "lock_x",
                   false,
