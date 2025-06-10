@@ -657,9 +657,13 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
       UvElement *element = element_map->storage + element_map->island_indices[i];
       float uv_area = 0.0f;
       float edit_mode_area = 0.0f;
+      float min[2], max[2];
+      INIT_MINMAX2(min, max);
 
       Set<BMFace *> visited_faces;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        minmax_v2v2_v2(min, max, luv);
         if (!visited_faces.contains(element[j].l->f)) {
           uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
           edit_mode_area += BM_face_calc_area(element[j].l->f);
@@ -702,7 +706,7 @@ static void UV_OT_set_texel_density(wmOperatorType *ot)
 
   RNA_def_float(ot->srna,
                 "density",
-                0.5f,
+                5.0f,
                 0.0f,
                 FLT_MAX,
                 "Texel Density",
