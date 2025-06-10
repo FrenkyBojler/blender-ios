@@ -313,7 +313,7 @@ bool ZstdWriteWrap::open(const char *filepath)
 void ZstdWriteWrap::write_u32_le(uint32_t val)
 {
   /* NOTE: this is endianness-sensitive.
-   * This value umst always be written as little-endian. */
+   * This value must always be written as little-endian. */
   BLI_assert(ENDIAN_ORDER == L_ENDIAN);
   base_wrap.write(&val, sizeof(uint32_t));
 }
