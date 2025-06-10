@@ -33,8 +33,7 @@ typedef struct MTex {
   char _pad2[2];
   struct Object *object;
   struct Tex *tex;
-  /** MAX_CUSTOMDATA_LAYER_NAME. */
-  char uvname[68];
+  char uvname[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68];
 
   char projx, projy, projz, mapping;
   char brush_map_mode, brush_angle_mode;
@@ -92,8 +91,8 @@ typedef struct PointDensity {
   short psys_cache_space;
   /** cache points in world-space, object space, ... ? */
   short ob_cache_space;
-  /** vertex attribute layer for color source, MAX_CUSTOMDATA_LAYER_NAME */
-  char vertex_attribute_name[68];
+  /** Vertex attribute layer for color source. */
+  char vertex_attribute_name[/*MAX_CUSTOMDATA_LAYER_NAME*/ 68];
   char _pad1[4];
 
   /** The acceleration tree containing points. */
@@ -169,9 +168,6 @@ typedef struct Tex {
   short type, stype;
 
   float cropxmin, cropymin, cropxmax, cropymax;
-  int texfilter;
-  /** Anisotropic filter maximum value, EWA -> max eccentricity, feline -> max probes. */
-  int afmax;
   short xrepeat, yrepeat;
   short extend;
 
@@ -320,21 +316,10 @@ enum {
 enum {
   TEX_INTERPOL = 1 << 0,
   TEX_USEALPHA = 1 << 1,
-  TEX_MIPMAP = 1 << 2,
   TEX_IMAROT = 1 << 4,
   TEX_CALCALPHA = 1 << 5,
   TEX_NORMALMAP = 1 << 11,
-  TEX_GAUSS_MIP = 1 << 12,
-  TEX_FILTER_MIN = 1 << 13,
   TEX_DERIVATIVEMAP = 1 << 14,
-};
-
-/** #Tex::texfilter type. */
-enum {
-  TXF_BOX = 0, /* Blender's old texture filtering method. */
-  TXF_EWA = 1,
-  TXF_FELINE = 2,
-  TXF_AREA = 3,
 };
 
 /** #Tex::flag bit-mask. */

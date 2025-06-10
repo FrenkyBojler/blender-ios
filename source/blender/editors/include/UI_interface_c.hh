@@ -1398,6 +1398,19 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                          float min,
                          float max,
                          std::optional<blender::StringRef> tip);
+uiBut *uiDefIconTextButS(uiBlock *block,
+                         int type,
+                         int retval,
+                         int icon,
+                         blender::StringRef str,
+                         int x,
+                         int y,
+                         short width,
+                         short height,
+                         short *poin,
+                         float min,
+                         float max,
+                         std::optional<blender::StringRef> tip);
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -1783,7 +1796,7 @@ int UI_searchbox_size_x();
  * \note When used with a menu that does full refreshes, it might be beneficial to cache this size
  * because recomputing it is potentially expensive.
  */
-int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn);
+int UI_searchbox_size_x_guess(const bContext *C, const uiButSearchUpdateFn update_fn, void *arg);
 /**
  * Check if a string is in an existing search box.
  */
@@ -2646,6 +2659,9 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr);
 
 void uiTemplateCollectionExporters(uiLayout *layout, bContext *C);
 
+namespace blender::ed::object::shapekey {
+void template_tree(uiLayout *layout, bContext *C);
+}
 /**
  * \return: True if the list item with unfiltered, unordered index \a item_idx is visible given the
  *          current filter settings.

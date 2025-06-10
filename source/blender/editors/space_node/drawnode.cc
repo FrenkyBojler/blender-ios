@@ -89,30 +89,6 @@ static void node_socket_button_label(bContext * /*C*/,
 
 /* ****************** BUTTON CALLBACKS FOR ALL TREES ***************** */
 
-static void node_buts_value(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  uiLayout *row = &layout->row(true);
-  row->prop(&sockptr, "default_value", DEFAULT_FLAGS, "", ICON_NONE);
-}
-
-static void node_buts_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  bNode *node = (bNode *)ptr->data;
-  /* first output stores value */
-  bNodeSocket *output = (bNodeSocket *)node->outputs.first;
-  uiLayout *col;
-  PointerRNA sockptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_NodeSocket, output);
-
-  col = &layout->column(false);
-  uiTemplateColorPicker(col, &sockptr, "default_value", true, false, false, false);
-  col->prop(&sockptr, "default_value", DEFAULT_FLAGS | UI_ITEM_R_SLIDER, "", ICON_NONE);
-}
-
 static void node_buts_mix_rgb(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNodeTree *ntree = (bNodeTree *)ptr->owner_id;
@@ -462,12 +438,6 @@ static void node_shader_set_butfunc(blender::bke::bNodeType *ntype)
     case SH_NODE_CURVE_FLOAT:
       ntype->draw_buttons = node_buts_curvefloat;
       break;
-    case SH_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
-      break;
-    case SH_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
-      break;
     case SH_NODE_MIX_RGB_LEGACY:
       ntype->draw_buttons = node_buts_mix_rgb;
       break;
@@ -662,12 +632,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
-      break;
-    case CMP_NODE_VALUE:
-      ntype->draw_buttons = node_buts_value;
-      break;
-    case CMP_NODE_RGB:
-      ntype->draw_buttons = node_buts_rgb;
       break;
     case CMP_NODE_MIX_RGB:
       ntype->draw_buttons = node_buts_mix_rgb;
@@ -1154,7 +1118,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
-      uiLayoutSetEmboss(layout, blender::ui::EmbossType::None);
+      layout->emboss_set(blender::ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
                    UI_ITEM_NONE,
@@ -1173,6 +1137,20 @@ static void draw_node_socket_without_value(uiLayout *layout,
   draw_node_socket_name_editable(layout, sock, text);
 }
 
+/* Menu sockets hide the socket name by default to save space. Some nodes have multiple menu
+ * sockets which requires showing the name anyway to avoid ambiguity. */
+static bool show_menu_socket_name(const bNode *node, const bNodeSocket *sock)
+{
+  BLI_assert(sock->type == SOCK_MENU);
+  if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
+    return true;
+  }
+  if (node->is_type("GeometryNodeSwitch")) {
+    return true;
+  }
+  return false;
+}
+
 static void std_node_socket_draw(
     bContext *C, uiLayout *layout, PointerRNA *ptr, PointerRNA *node_ptr, StringRefNull text)
 {
@@ -1182,10 +1160,16 @@ static void std_node_socket_draw(
   int type = sock->typeinfo->type;
   // int subtype = sock->typeinfo->subtype;
 
-  /* Gray out inputs that do not affect the output of the node currently.
-   * Don't gray out any inputs if the node has no outputs (in which case no input can affect the
-   * output). Otherwise, viewer node inputs would be inactive. */
-  if (sock->is_input() && !sock->affects_node_output() && !node->output_sockets().is_empty()) {
+  const nodes::SocketDeclaration *socket_decl = sock->runtime->declaration;
+  if (socket_decl) {
+    if (socket_decl->custom_draw_fn) {
+      nodes::CustomSocketDrawParams params{*C, *layout, *tree, *node, *sock, *node_ptr, *ptr};
+      (*socket_decl->custom_draw_fn)(params);
+      return;
+    }
+  }
+
+  if (sock->is_inactive()) {
     uiLayoutSetActive(layout, false);
   }
 
@@ -1201,26 +1185,11 @@ static void std_node_socket_draw(
                              false;
 
   if (has_gizmo) {
-    if (sock->in_out == SOCK_OUT && ELEM(node->type_legacy,
-                                         SH_NODE_VALUE,
-                                         FN_NODE_INPUT_VECTOR,
-                                         FN_NODE_INPUT_INT,
-                                         FN_NODE_INPUT_BOOL,
-                                         FN_NODE_INPUT_ROTATION,
-                                         NODE_GROUP_INPUT))
-    {
-      if (node->is_group_input()) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        row->label("", ICON_GIZMO);
-      }
-      else if (nodes::partial_eval::is_supported_value_node(*node)) {
-        uiLayout *row = &layout->row(false);
-        uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-        node_socket_button_label(C, row, ptr, node_ptr, text);
-        draw_gizmo_pin_icon(row, ptr);
-      }
+    if (sock->in_out == SOCK_OUT && node->is_group_input()) {
+      uiLayout *row = &layout->row(false);
+      uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+      node_socket_button_label(C, row, ptr, node_ptr, text);
+      row->label("", ICON_GIZMO);
       return;
     }
     if (sock->in_out == SOCK_IN && sock->index() == 0 &&
@@ -1352,18 +1321,13 @@ static void std_node_socket_draw(
           row->label(IFACE_("No Items"), ICON_NONE);
         }
         else {
-          if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
-                  sock->runtime->declaration))
-          {
-            if (socket_decl->is_expanded) {
+          if (const auto *menu_decl = dynamic_cast<const nodes::decl::Menu *>(socket_decl)) {
+            if (menu_decl->is_expanded) {
               layout->prop(ptr, "default_value", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
               break;
             }
           }
-          const char *name = "";
-          if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
-            name = sock->name;
-          }
+          const char *name = show_menu_socket_name(node, sock) ? sock->name : "";
           layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
         }
       }
@@ -1461,6 +1425,7 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_VECTOR: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
+      col->prop(&ptr, "dimensions", DEFAULT_FLAGS, IFACE_("Dimensions"), ICON_NONE);
       col->prop(&ptr, "default_value", UI_ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
       uiLayout *sub = &col->column(true);
       sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
@@ -1522,12 +1487,8 @@ static void std_node_socket_interface_draw(ID *id,
     uiLayout *sub = &col->column(false);
     uiLayoutSetActive(sub, !is_layer_selection_field(*interface_socket));
     sub->prop(&ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    if (nodes::socket_type_supports_fields(type)) {
-      uiLayout *sub_sub = &col->column(false);
-      uiLayoutSetActive(sub_sub,
-                        (interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE) &&
-                            !is_layer_selection_field(*interface_socket));
-      sub_sub->prop(&ptr, "force_non_field", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+    if (nodes::socket_type_supports_fields(type) || nodes::socket_type_supports_grids(type)) {
+      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
   }
 }
@@ -1660,7 +1621,7 @@ void draw_nodespace_back_pix(const bContext &C,
                       y + snode.zoom * viewer_border->ymax * ibuf->y);
 
         uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immUniformThemeColor(TH_ACTIVE);
 
@@ -1973,9 +1934,9 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
 static void nodelink_batch_init()
 {
   GPUVertFormat format = {0};
-  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint expand_id = GPU_vertformat_attr_add(&format, "expand", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint uv_id = GPU_vertformat_attr_add(&format, "uv", gpu::VertAttrType::SFLOAT_32_32);
+  uint pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  uint expand_id = GPU_vertformat_attr_add(&format, "expand", gpu::VertAttrType::SFLOAT_32_32);
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
   int vcount = LINK_RESOL * 2; /* curve */
   vcount += 2;                 /* restart strip */
@@ -2059,29 +2020,29 @@ static void nodelink_batch_init()
   /* Instances data */
   GPUVertFormat format_inst = {0};
   g_batch_link.p0_id = GPU_vertformat_attr_add(
-      &format_inst, "P0", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P0", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p1_id = GPU_vertformat_attr_add(
-      &format_inst, "P1", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P1", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p2_id = GPU_vertformat_attr_add(
-      &format_inst, "P2", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P2", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p3_id = GPU_vertformat_attr_add(
-      &format_inst, "P3", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P3", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.colid_id = GPU_vertformat_attr_add(
-      &format_inst, "colid_doarrow", GPU_COMP_U8, 4, GPU_FETCH_INT);
+      &format_inst, "colid_doarrow", blender::gpu::VertAttrType::UINT_8_8_8_8);
   g_batch_link.start_color_id = GPU_vertformat_attr_add(
-      &format_inst, "start_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      &format_inst, "start_color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   g_batch_link.end_color_id = GPU_vertformat_attr_add(
-      &format_inst, "end_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      &format_inst, "end_color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   g_batch_link.muted_id = GPU_vertformat_attr_add(
-      &format_inst, "domuted", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      &format_inst, "domuted", blender::gpu::VertAttrType::UINT_32);
   g_batch_link.dim_factor_id = GPU_vertformat_attr_add(
-      &format_inst, "dim_factor", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      &format_inst, "dim_factor", blender::gpu::VertAttrType::SFLOAT_32);
   g_batch_link.thickness_id = GPU_vertformat_attr_add(
-      &format_inst, "thickness", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      &format_inst, "thickness", blender::gpu::VertAttrType::SFLOAT_32);
   g_batch_link.dash_params_id = GPU_vertformat_attr_add(
-      &format_inst, "dash_params", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      &format_inst, "dash_params", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   g_batch_link.has_back_link_id = GPU_vertformat_attr_add(
-      &format_inst, "has_back_link", GPU_COMP_I32, 1, GPU_FETCH_INT);
+      &format_inst, "has_back_link", blender::gpu::VertAttrType::SINT_32);
   g_batch_link.inst_vbo = GPU_vertbuf_create_with_format_ex(format_inst, GPU_USAGE_STREAM);
   /* Alloc max count but only draw the range we need. */
   GPU_vertbuf_data_alloc(*g_batch_link.inst_vbo, NODELINK_GROUP_SIZE);

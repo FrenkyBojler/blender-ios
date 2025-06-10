@@ -428,6 +428,12 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
           data, IDP_foreach_property(pchan->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
             BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
           }));
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data,
+          IDP_foreach_property(
+              pchan->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+                BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+              }));
 
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -948,8 +954,7 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
      * Within a file (no library linking) this should never happen.
      * see: #139133. */
 
-    const ID *ob_data_id = static_cast<ID *>(ob->data);
-    BLI_assert(GS(ob_data_id->name) == ID_CU_LEGACY);
+    BLI_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
     /* Don't recalculate any internal curve data is this is low level logic
      * intended to avoid errors when switching between font/curve types. */
     BKE_curve_type_test(ob, false);

@@ -230,6 +230,9 @@ struct StrokeCache {
 
   /* The rest is temporary storage that isn't saved as a property */
 
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
+  std::optional<blender::float3> initial_hsv_jitter;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 
@@ -547,8 +550,10 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 /** \name Sculpt mesh accessor API
  * \{ */
 
+namespace blender::ed::sculpt_paint {
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
-void SCULPT_vertex_random_access_ensure(Object &object);
+void vert_random_access_ensure(Object &object);
+}  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object);
 

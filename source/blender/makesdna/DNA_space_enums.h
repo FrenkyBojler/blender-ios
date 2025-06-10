@@ -632,7 +632,7 @@ typedef enum eFileSel_File_Types {
   /** represents folders for filtering */
   FILE_TYPE_FOLDER = (1 << 11),
   FILE_TYPE_BTX = (1 << 12),
-  FILE_TYPE_COLLADA = (1 << 13),
+  FILE_TYPE_UNUSED_13 = (1 << 13), /* Was FILE_TYPE_COLLADA */
   /** from filter_glob operator property */
   FILE_TYPE_OPERATOR = (1 << 14),
   FILE_TYPE_BUNDLE = (1 << 15),
@@ -770,6 +770,8 @@ typedef enum eSpaceImage_Flag {
 typedef enum eSpaceImageOverlay_Flag {
   SI_OVERLAY_SHOW_OVERLAYS = (1 << 0),
   SI_OVERLAY_SHOW_GRID_BACKGROUND = (1 << 1),
+  SI_OVERLAY_DRAW_RENDER_REGION = (1 << 2),
+  SI_OVERLAY_DRAW_TEXT_INFO = (1 << 3),
 } eSpaceImageOverlay_Flag;
 
 /** #SpaceImage.gizmo_flag */
@@ -848,6 +850,13 @@ typedef enum eSpaceNode_Flag {
   SNODE_PIN = (1 << 12),
   SNODE_FLAG_UNUSED_12 = (1 << 13),
 } eSpaceNode_Flag;
+
+/** #SpaceNode.gizmo_flag */
+enum {
+  /** All gizmos. */
+  SNODE_GIZMO_HIDE = (1 << 0),
+  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
+};
 
 /** #SpaceNode.texfrom */
 typedef enum eSpaceNode_TexFrom {
@@ -959,8 +968,17 @@ enum {
  * \{ */
 
 typedef enum eSpaceSpreadsheet_Flag {
+  /**
+   * Spreadsheet context is pinned and does not does not change when the context changes (unless
+   * the pinned context does not exist anymore).
+   */
   SPREADSHEET_FLAG_PINNED = (1 << 0),
-  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED = (1 << 1),
+  /**
+   * Not used anymore, just kept so the flag is not accidentally reused without clearing it in
+   * versioning first.
+   */
+  SPREADSHEET_FLAG_CONTEXT_PATH_COLLAPSED_LEGACY = (1 << 1),
+  SPREADSHEET_FLAG_SHOW_INTERNAL_ATTRIBUTES = (1 << 2),
 } eSpaceSpreadsheet_Flag;
 
 typedef enum eSpaceSpreadsheet_FilterFlag {
@@ -1008,6 +1026,28 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
 } eSpreadsheetColumnValueType;
+
+typedef enum eSpreadsheetColumnFlag {
+  /**
+   * There is no data for this column currently, so it's not displayed. However, it is still kept
+   * around so that the column remembers its position and width when the data becomes available
+   * again.
+   */
+  SPREADSHEET_COLUMN_FLAG_UNAVAILABLE = (1 << 0),
+} eSpreadsheetColumnFlag;
+
+typedef enum eSpreadsheetTableIDType {
+  /** This table uses the #SpreadsheetTableIDGeometry key. */
+  SPREADSHEET_TABLE_ID_TYPE_GEOMETRY = 0,
+} eSpreadsheetTableType;
+
+typedef enum eSpreadsheetTableFlag {
+  /**
+   * If a generated table has never been manually edited (e.g. changing column order), it can be
+   * discarded when it's no longer displayed.
+   */
+  SPREADSHEET_TABLE_FLAG_MANUALLY_EDITED = (1 << 0),
+} eSpreadsheetTableFlag;
 
 /**
  * We can't just use UI_UNIT_X, because it does not take `widget.points` into account, which

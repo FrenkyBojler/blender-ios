@@ -29,8 +29,7 @@ typedef struct bAddon {
 
 typedef struct bPathCompare {
   struct bPathCompare *next, *prev;
-  /** FILE_MAXDIR. */
-  char path[768];
+  char path[/*FILE_MAXDIR*/ 768];
   char flag;
   char _pad0[7];
 } bPathCompare;
@@ -84,8 +83,8 @@ enum {
 typedef struct bUserAssetLibrary {
   struct bUserAssetLibrary *next, *prev;
 
-  char name[64];      /* MAX_NAME */
-  char dirpath[1024]; /* FILE_MAX */
+  char name[/*MAX_NAME*/ 64];
+  char dirpath[/*FILE_MAX*/ 1024];
 
   short import_method; /* eAssetImportMethod */
   short flag;          /* eAssetLibrary_Flag */
@@ -98,14 +97,14 @@ typedef struct bUserExtensionRepo {
    * Unique identifier, only for display in the UI list.
    * The `module` is used for internal identifiers.
    */
-  char name[64]; /* MAX_NAME */
+  char name[/*MAX_NAME*/ 64];
   /**
    * The unique module name (sub-module) in fact.
    *
    * Use a shorter name than #NAME_MAX to leave room for a base module prefix.
    * e.g. `bl_ext.{submodule}.{add_on}` to allow this string to fit into #bAddon::module.
    */
-  char module[48];
+  char module[/*MAX_NAME - 16*/ 48];
 
   /**
    * Secret access token for remote repositories (allocated).
@@ -117,8 +116,8 @@ typedef struct bUserExtensionRepo {
    * The "local" directory where extensions are stored.
    * When unset, use `{BLENDER_USER_EXTENSIONS}/{bUserExtensionRepo::module}`.
    */
-  char custom_dirpath[1024]; /* FILE_MAX */
-  char remote_url[1024];     /* FILE_MAX */
+  char custom_dirpath[/*FILE_MAX*/ 1024];
+  char remote_url[/*FILE_MAX*/ 1024];
 
   /** Options for the repository (#eUserExtensionRepo_Flag). */
   uint8_t flag;
@@ -228,7 +227,8 @@ typedef struct UserDef_Experimental {
   char use_new_volume_nodes;
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
-  char _pad[5];
+  char use_socket_structure_type;
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -241,8 +241,8 @@ typedef struct bUserScriptDirectory {
   struct bUserScriptDirectory *next, *prev;
 
   /** Name must be unique. */
-  char name[64];      /* MAX_NAME */
-  char dir_path[768]; /* FILE_MAXDIR */
+  char name[/*MAX_NAME*/ 64];
+  char dir_path[/*FILE_MAXDIR*/ 768];
 } bUserScriptDirectory;
 
 /**
@@ -254,7 +254,7 @@ typedef struct bUserAssetShelfSettings {
   struct bUserAssetShelfSettings *next, *prev;
 
   /** Identifier that matches the #AssetShelfType.idname of the shelf these settings apply to. */
-  char shelf_idname[64]; /* MAX_NAME */
+  char shelf_idname[/*MAX_NAME*/ 64];
 
   ListBase enabled_catalog_paths; /* #AssetCatalogPathLink */
 } bUserAssetShelfSettings;
@@ -285,26 +285,21 @@ typedef struct UserDef {
    * TODO: Remove this once this API is better supported by Wayland compositors, see #107676.
    */
   char trackpad_scroll_direction;
-  /** FILE_MAXDIR length. */
-  char tempdir[768];
-  char fontdir[768];
-  /** FILE_MAX length. */
-  char renderdir[1024];
+  /**  length. */
+  char tempdir[/*FILE_MAXDIR*/ 768];
+  char fontdir[/*FILE_MAXDIR*/ 768];
+  char renderdir[/*FILE_MAX*/ 1024];
   /* EXR cache path */
-  /** 768 = FILE_MAXDIR. */
-  char render_cachedir[768];
-  char textudir[768];
+  char render_cachedir[/*FILE_MAXDIR*/ 768];
+  char textudir[/*FILE_MAXDIR*/ 768];
   /* Deprecated, use #UserDef.script_directories instead. */
-  char pythondir_legacy[768] DNA_DEPRECATED;
-  char sounddir[768];
-  char i18ndir[768];
-  /** 1024 = FILE_MAX. */
-  char image_editor[1024];
-  /** 1024 = FILE_MAX. */
-  char text_editor[1024];
+  char pythondir_legacy[/*FILE_MAXDIR*/ 768] DNA_DEPRECATED;
+  char sounddir[/*FILE_MAXDIR*/ 768];
+  char i18ndir[/*FILE_MAXDIR*/ 768];
+  char image_editor[/*FILE_MAX*/ 1024];
+  char text_editor[/*FILE_MAX*/ 1024];
   char text_editor_args[256];
-  /** 1024 = FILE_MAX. */
-  char anim_player[1024];
+  char anim_player[/*FILE_MAX*/ 1024];
   int anim_player_preset;
 
   /** Minimum spacing between grid-lines in View2D grids. */
@@ -492,12 +487,16 @@ typedef struct UserDef {
   int gpu_preferred_index;
   uint32_t gpu_preferred_vendor_id;
   uint32_t gpu_preferred_device_id;
-  char _pad16[4];
+
+  /** Max number of parallel shader compilation workers. */
+  short gpu_shader_workers;
+  /** eUserpref_ShaderCompileMethod (OpenGL only). */
+  short shader_compilation_method;
+
+  char _pad16[2];
+
   /** #eGPUBackendType */
   short gpu_backend;
-
-  /** Max number of parallel shader compilation subprocesses. */
-  short max_shader_compilation_subprocesses;
 
   /** Number of samples for FPS display calculations. */
   short playback_fps_samples;
@@ -521,9 +520,9 @@ typedef struct UserDef {
   float ndof_deadzone;
   /** #eNdof_Flag, flags for 3D mouse. */
   int ndof_flag;
-
-  /** #eMultiSample_Type, amount of samples for OpenGL FSA, if zero no FSA. */
-  short ogl_multisamples;
+  /** #eNdof_Navigation_Mode, current navigation mode. */
+  uint8_t ndof_navigation_mode;
+  char _pad17[1];
 
   /** eImageDrawMethod, Method to be used to draw the images
    * (AUTO, GLSL, Textures or DrawPixels) */
@@ -563,8 +562,8 @@ typedef struct UserDef {
   char drag_threshold;
   char move_threshold;
 
-  char font_path_ui[1024];
-  char font_path_ui_mono[1024];
+  char font_path_ui[/*FILE_MAX*/ 1024];
+  char font_path_ui_mono[/*FILE_MAX*/ 1024];
 
   /** Legacy, for backwards compatibility only. */
   int compute_device_type;
@@ -1015,15 +1014,13 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ZOOM = (1 << 4),
   NDOF_SHOULD_ROTATE = (1 << 5),
 
-  /* Orbit navigation modes. */
-
-  NDOF_MODE_ORBIT = (1 << 6),
+  // NDOF_UNUSED_6 = (1 << 6), /* Dirty. */
 
   /* actually... users probably don't care about what the mode
    * is called, just that it feels right */
   /* zoom is up/down if this flag is set (otherwise forward/backward) */
   NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
-  NDOF_ZOOM_INVERT = (1 << 8),
+  // NDOF_UNUSED_8 = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),
   NDOF_ROTZ_INVERT_AXIS = (1 << 11),
@@ -1036,6 +1033,33 @@ typedef enum eNdof_Flag {
   NDOF_ORBIT_CENTER_SELECTED = (1 << 18),
   NDOF_SHOW_GUIDE_ORBIT_CENTER = (1 << 19),
 } eNdof_Flag;
+
+/**
+ * NDOF Navigation Modes.
+ * Each mode describes some style of navigation rather than control a single aspect of navigation.
+ */
+typedef enum eNdof_Navigation_Mode {
+  /**
+   * 3D mouse cap represents objects movement in 3D space.
+   * Pulling the cap will pull the objects closer to the camera.
+   */
+  NDOF_NAVIGATION_MODE_OBJECT = 0,
+  /**
+   * 3D mouse cap controls the movement of the view window
+   * and allows for flying through the scene.
+   */
+  NDOF_NAVIGATION_MODE_FLY = 1,
+  /* TODO: implement "Target Camera Mode" and "Drone Mode" */
+} eNdof_Navigation_Mode;
+
+/**
+ * Some navigation modes make use of "Auto Center" (#NDOF_ORBIT_CENTER_AUTO) and some don't.
+ * Instead of testing against all possibilities use a macro.
+ *
+ * TODO: Add Target Camera Mode when implemented.
+ */
+#define NDOF_IS_ORBIT_AROUND_CENTER_MODE(userdef) \
+  ((userdef)->ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT)
 
 #define NDOF_PIXELS_PER_SECOND 600.0f
 
@@ -1104,6 +1128,11 @@ typedef enum eUserpref_SeqEditorFlags {
   USER_SEQ_ED_SIMPLE_TWEAKING = (1 << 0),
   USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT = (1 << 1),
 } eUserpref_SeqEditorFlags;
+
+typedef enum eUserpref_ShaderCompileMethod {
+  USER_SHADER_COMPILE_THREAD = 0,
+  USER_SHADER_COMPILE_SUBPROCESS = 1,
+} eUserpref_ShaderCompileMethod;
 
 /* Locale Ids. Auto will try to get local from OS. Our default is English though. */
 /** #UserDef.language */

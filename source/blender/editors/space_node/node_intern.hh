@@ -300,11 +300,12 @@ void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
+void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-StringRef node_group_idname(bContext *C);
+StringRef node_group_idname(const bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
@@ -406,6 +407,7 @@ void NODE_GGT_backdrop_sun_beams(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt);
 void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt);
+void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 
 /* `node_geometry_attribute_search.cc` */
 

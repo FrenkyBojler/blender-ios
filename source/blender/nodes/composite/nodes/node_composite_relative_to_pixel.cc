@@ -12,6 +12,7 @@
 #include "NOD_rna_define.hh"
 
 #include "COM_node_operation.hh"
+#include "COM_realize_on_domain_operation.hh"
 
 #include "node_composite_util.hh"
 
@@ -20,8 +21,9 @@ namespace blender::nodes::node_composite_relative_to_pixel_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Vector>("Value", "Vector Value")
-      .default_value({0.0f, 0.0f, 0.0f})
       .subtype(PROP_FACTOR)
+      .dimensions(2)
+      .default_value({0.0f, 0.0f})
       .min(0.0f)
       .max(1.0f)
       .description(
@@ -39,7 +41,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       CompositorInputRealizationMode::None);
 
   b.add_output<decl::Float>("Value", "Float Value");
-  b.add_output<decl::Vector>("Value", "Vector Value");
+  b.add_output<decl::Vector>("Value", "Vector Value").dimensions(2);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -206,7 +208,9 @@ class RelativeToPixelOperation : public NodeOperation {
       return float2(1.0f);
     }
 
-    const float2 image_size = float2(input_image.domain().size);
+    const Domain domain = RealizeOnDomainOperation::compute_realized_transformation_domain(
+        this->context(), input_image.domain());
+    const float2 image_size = float2(domain.size);
     switch (this->get_reference_dimension()) {
       case CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_PER_DIMENSION:
         return image_size;

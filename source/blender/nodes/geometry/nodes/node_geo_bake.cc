@@ -80,8 +80,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       }
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -487,6 +489,12 @@ static void node_extra_info(NodeExtraInfoParams &params)
   if (!get_bake_draw_context(&params.C, params.node, ctx)) {
     return;
   }
+  if (!ctx.is_bakeable_in_current_context) {
+    NodeExtraInfoRow row;
+    row.text = TIP_("Can't bake in zone");
+    row.icon = ICON_ERROR;
+    params.rows.append(std::move(row));
+  }
   if (ctx.is_baked) {
     NodeExtraInfoRow row;
     row.text = get_baked_string(ctx);
@@ -501,7 +509,7 @@ static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
   if (!get_bake_draw_context(C, node, ctx)) {
     return;
   }
-
+  uiLayoutSetActive(layout, ctx.is_bakeable_in_current_context);
   uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
   uiLayout *col = &layout->column(false);
   {
@@ -522,6 +530,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     return;
   }
 
+  uiLayoutSetActive(layout, ctx.is_bakeable_in_current_context);
   uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
 
   {
@@ -557,12 +566,15 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     return;
   }
 
-  params.add_item(IFACE_("Value"), [type](LinkSearchOpParams &params) {
-    bNode &node = params.add_node("GeometryNodeBake");
-    socket_items::add_item_with_socket_type_and_name<BakeItemsAccessor>(
-        node, type, params.socket.name);
-    params.update_and_connect_available_socket(node, params.socket.name);
-  });
+  params.add_item(
+      IFACE_("Value"),
+      [type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBake");
+        socket_items::add_item_with_socket_type_and_name<BakeItemsAccessor>(
+            node, type, params.socket.name);
+        params.update_and_connect_available_socket(node, params.socket.name);
+      },
+      -1);
 }
 
 static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*/,
@@ -626,14 +638,15 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
   }
   r_ctx.object = object_and_modifier->object;
   r_ctx.nmd = object_and_modifier->nmd;
-  const std::optional<int32_t> bake_id = ed::space_node::find_nested_node_id_in_root(*r_ctx.snode,
-                                                                                     *r_ctx.node);
+  const std::optional<FoundNestedNodeID> bake_id = ed::space_node::find_nested_node_id_in_root(
+      *r_ctx.snode, *r_ctx.node);
   if (!bake_id) {
     return false;
   }
+  r_ctx.is_bakeable_in_current_context = !bake_id->is_in_loop && !bake_id->is_in_closure;
   r_ctx.bake = nullptr;
   for (const NodesModifierBake &iter_bake : Span(r_ctx.nmd->bakes, r_ctx.nmd->bakes_num)) {
-    if (iter_bake.id == *bake_id) {
+    if (iter_bake.id == bake_id->id) {
       r_ctx.bake = &iter_bake;
       break;
     }
@@ -648,7 +661,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
     const bke::bake::ModifierCache &cache = *r_ctx.nmd->runtime->cache;
     std::lock_guard lock{cache.mutex};
     if (const std::unique_ptr<bke::bake::BakeNodeCache> *node_cache_ptr =
-            cache.bake_cache_by_id.lookup_ptr(*bake_id))
+            cache.bake_cache_by_id.lookup_ptr(bake_id->id))
     {
       const bke::bake::BakeNodeCache &node_cache = **node_cache_ptr;
       if (!node_cache.bake.frames.is_empty()) {
@@ -658,7 +671,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       }
     }
     else if (const std::unique_ptr<bke::bake::SimulationNodeCache> *node_cache_ptr =
-                 cache.simulation_cache_by_id.lookup_ptr(*bake_id))
+                 cache.simulation_cache_by_id.lookup_ptr(bake_id->id))
     {
       const bke::bake::SimulationNodeCache &node_cache = **node_cache_ptr;
       if (!node_cache.bake.frames.is_empty() &&
