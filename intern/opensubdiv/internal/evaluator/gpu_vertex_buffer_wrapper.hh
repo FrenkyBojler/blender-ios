@@ -42,21 +42,22 @@ class GPUVertexBuffer {
 
   static GPUVertexBuffer *Create(int element_count, int vertex_len, void *device_context = nullptr)
   {
+    using namespace blender::gpu;
     (void)device_context;
     GPUVertFormat format;
     GPU_vertformat_clear(&format);
     switch (element_count) {
       case 4:
-        GPU_vertformat_attr_add(&format, "elements", blender::gpu::VertAttrType::SFLOAT_32_32);
+        GPU_vertformat_attr_add(&format, "elements", VertAttrType::SFLOAT_32_32_32_32);
         break;
       case 3:
-        GPU_vertformat_attr_add(&format, "elements", blender::gpu::VertAttrType::SFLOAT_32_32);
+        GPU_vertformat_attr_add(&format, "elements", VertAttrType::SFLOAT_32_32_32);
         break;
       case 2:
-        GPU_vertformat_attr_add(&format, "elements", blender::gpu::VertAttrType::SFLOAT_32_32);
+        GPU_vertformat_attr_add(&format, "elements", VertAttrType::SFLOAT_32_32);
         break;
       case 1:
-        GPU_vertformat_attr_add(&format, "elements", blender::gpu::VertAttrType::SFLOAT_32_32);
+        GPU_vertformat_attr_add(&format, "elements", VertAttrType::SFLOAT_32);
         break;
       default:
         assert(0);
