@@ -1236,7 +1236,8 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
                                  int icon,
                                  const wmOperatorCallContext context,
                                  const eUI_Item_Flag flag,
-                                 PointerRNA *r_opptr)
+                                 PointerRNA *r_opptr,
+                                 const std::optional<StringRefNull> description = std::nullopt)
 {
   /* Take care to fill 'r_opptr' whatever happens. */
   uiBlock *block = layout->root_->block;
@@ -1271,11 +1272,11 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
   if (icon) {
     if (!name->is_empty()) {
       but = uiDefIconTextButO_ptr(
-          block, UI_BTYPE_BUT, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, UI_BTYPE_BUT, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, description);
     }
     else {
       but = uiDefIconButO_ptr(
-          block, UI_BTYPE_BUT, ot, context, icon, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, UI_BTYPE_BUT, ot, context, icon, 0, 0, w, UI_UNIT_Y, description);
     }
   }
   else {
@@ -1359,10 +1360,11 @@ PointerRNA uiLayout::op(wmOperatorType *ot,
                         std::optional<StringRef> name,
                         const int icon,
                         const wmOperatorCallContext context,
-                        const eUI_Item_Flag flag)
+                        const eUI_Item_Flag flag,
+                        const std::optional<StringRefNull> description)
 {
   PointerRNA ptr;
-  uiItemFullO_ptr_ex(this, ot, name, icon, context, flag, &ptr);
+  uiItemFullO_ptr_ex(this, ot, name, icon, context, flag, &ptr, description);
   return ptr;
 }
 

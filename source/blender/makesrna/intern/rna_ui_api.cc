@@ -345,6 +345,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
                               const char *text_ctxt,
                               bool translate,
                               int icon,
+                              const char *description,
                               bool emboss,
                               bool depress,
                               int icon_value,
@@ -376,7 +377,12 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   const float prev_weight = uiLayoutGetSearchWeight(layout);
   uiLayoutSetSearchWeight(layout, search_weight);
 
-  PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag);
+  std::optional<blender::StringRefNull> tooltip = std::nullopt;
+  if (description != nullptr) {
+    tooltip = description;
+  }
+
+  PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag, tooltip);
 
   uiLayoutSetSearchWeight(layout, prev_weight);
   return opptr;
@@ -388,6 +394,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
                                       const char *text_ctxt,
                                       bool translate,
                                       int icon,
+                                      const char *description,
                                       bool emboss,
                                       bool depress,
                                       int icon_value,
@@ -1562,6 +1569,9 @@ void RNA_api_ui_layout(StructRNA *srna)
     func = (is_menu_hold) ? RNA_def_function(srna, "operator_menu_hold", "rna_uiItemOMenuHold") :
                             RNA_def_function(srna, "operator", "rna_uiItemO");
     api_ui_item_op_common(func);
+    prop = RNA_def_string(
+        func, "description", nullptr, 0, "", "Override description of an operator");
+    RNA_def_property_clear_flag(prop, PROP_NEVER_NULL);
     RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, not just the icon/text");
     RNA_def_boolean(func, "depress", false, "", "Draw pressed in");
     parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);

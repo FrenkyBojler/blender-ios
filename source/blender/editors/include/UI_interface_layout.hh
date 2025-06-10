@@ -308,7 +308,8 @@ struct uiLayout : uiItem {
                 std::optional<blender::StringRef> name,
                 int icon,
                 wmOperatorCallContext context,
-                eUI_Item_Flag flag);
+                eUI_Item_Flag flag,
+                const std::optional<blender::StringRefNull> description = std::nullopt);
 
   /**
    * Adds a operator item, places a button in the layout to call the operator.
