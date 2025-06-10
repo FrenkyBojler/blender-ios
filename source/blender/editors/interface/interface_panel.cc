@@ -1291,6 +1291,11 @@ void ui_draw_aligned_panel(const ARegion *region,
                            const bool show_background,
                            const bool region_search_filter_active)
 {
+  if (BLI_rcti_size_x(rect) < 0 || BLI_rcti_size_y(rect) < 0) {
+    /* Nothing to draw. */
+    return;
+  }
+
   const Panel *panel = block->panel;
 
   /* Add 0.001f to prevent flicker from float inaccuracy. */
@@ -1477,6 +1482,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
 
   immUnbindProgram();
 
+  /* If the area is too small to show panels, then don't show any tabs as active. */
+  const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
+                          int(float(UI_PANEL_CATEGORY_MARGIN_WIDTH + UI_PANEL_MARGIN_X) / aspect);
+
   LISTBASE_FOREACH (PanelCategoryDyn *, pc_dyn, &region->runtime->panels_category) {
     const rcti *rct = &pc_dyn->rect;
     if (rct->ymin > v2d->mask.ymax) {
@@ -1490,7 +1499,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     const char *category_id = pc_dyn->idname;
     const char *category_id_draw = IFACE_(category_id);
     size_t category_draw_len = BLF_DRAW_STR_DUMMY_MAX;
-    const bool is_active = STREQ(category_id, category_id_active);
+    const bool is_active = !too_narrow && STREQ(category_id, category_id_active);
 
     GPU_blend(GPU_BLEND_ALPHA);
 
@@ -2540,7 +2549,50 @@ int ui_handler_panel_region(bContext *C,
     if (event->type == LEFTMOUSE) {
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
+        const bool already_active = STREQ(pc_dyn->idname,
+                                          UI_panel_category_active_get(region, false));
+        const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                             (BLI_rcti_size_y(&region->v2d.mask) + 1);
+        const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
+                                int(float(UI_PANEL_CATEGORY_MARGIN_WIDTH + UI_PANEL_MARGIN_X) /
+                                    aspect);
+
         UI_panel_category_active_set(region, pc_dyn->idname);
+
+	        if (too_narrow) {
+          /* Enlarge. */
+          const float size_new = 250.0f / aspect;
+          if (region->alignment & RGN_ALIGN_RIGHT) {
+            region->winrct.xmin = region->winrct.xmax - (size_new * UI_SCALE_FAC);
+          }
+          else {
+            region->winrct.xmax = region->winrct.xmin + (size_new * UI_SCALE_FAC);
+          }
+          region->winx = size_new * UI_SCALE_FAC;
+          region->sizex = size_new;
+          region->v2d.winx = region->winx;
+          region->v2d.cur.xmin = 0;
+          region->v2d.cur.xmax = size_new * UI_SCALE_FAC;
+          region->v2d.mask.xmin = 0;
+          region->v2d.mask.xmax = size_new * UI_SCALE_FAC;
+          UI_view2d_curRect_validate(&region->v2d);
+          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+        }
+        else if (already_active) {
+          /* Minimize. */
+          const float size_new = 22.0f / aspect;
+          region->winrct.xmin = region->winrct.xmax - (size_new * UI_SCALE_FAC);
+          region->winx = size_new * UI_SCALE_FAC;
+          region->sizex = size_new;
+          region->v2d.winx = region->winx;
+          region->v2d.cur.xmin = 0;
+          region->v2d.cur.xmax += size_new * UI_SCALE_FAC;
+          region->v2d.mask.xmin = 0;
+          region->v2d.mask.xmax += size_new * UI_SCALE_FAC;
+          UI_view2d_curRect_validate(&region->v2d);
+          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+        }
+
         ED_region_tag_redraw(region);
 
         /* Reset scroll to the top (#38348). */
