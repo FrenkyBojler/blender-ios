@@ -1,1 +1,2 @@
 Referenced by issue #140082, Regression: Collection Instances are ignored by Grease Pencil Line Art modifier
+Referenced by pull request #140095, Fix #140082: Line Art: Use original object id to check dupli objects
