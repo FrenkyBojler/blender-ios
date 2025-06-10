@@ -987,7 +987,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->cursor = View3DCursor{};
   }
 
-  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not initialize the
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
     /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
@@ -1098,7 +1098,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     BLO_write_struct(writer, SceneRenderView, srv);
   }
 
-  /* Todo(habib): Forward compatibility support will be removed in 5.0. Do not write an embedded
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
     BLO_Write_IDBuffer temp_embedded_id_buffer{sce->compositing_node_group->id, writer};
