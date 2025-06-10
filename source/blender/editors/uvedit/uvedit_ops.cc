@@ -630,7 +630,8 @@ static void UV_OT_align(wmOperatorType *ot)
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
 }
 
-static float area_calculate(float2 a, float2 b, float2 c) {
+static float area_calculate(float2 a, float2 b, float2 c)
+{
   return abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) * 0.5);
 }
 
@@ -662,7 +663,7 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
       float uv_area = 0.0f;
       float edit_mode_area = 0.0f;
 
-      Set<BMFace *> visited_faces; 
+      Set<BMFace *> visited_faces;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         if (!visited_faces.contains(element[j].l->f)) {
           uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
@@ -675,8 +676,8 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
         aspect_ratio = 1 / aspect_ratio;
       }
       float largest_resolution = (region->v2d.tot.xmax > region->v2d.tot.ymax) ?
-                                    region->v2d.tot.xmax :
-                                    region->v2d.tot.ymax;
+                                     region->v2d.tot.xmax :
+                                     region->v2d.tot.ymax;
       float texel_density = largest_resolution /
                             (sqrt(aspect_ratio * uv_area * edit_mode_area) * 100);
 
@@ -703,8 +704,7 @@ static void UV_OT_set_texel_density(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Set Texel Desnity";
-  ot->description =
-      "Set the texel density of the selected faces";
+  ot->description = "Set the texel density of the selected faces";
   ot->idname = "UV_OT_set_texel_density";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -721,13 +721,8 @@ static void UV_OT_set_texel_density(wmOperatorType *ot)
                 "Value that the texel density is being set to",
                 0.0f,
                 FLT_MAX);
-  RNA_def_boolean(ot->srna,
-                  "lock_x",
-                  false,
-                  "Lock X",
-                  "Lock X axis");
-  RNA_def_boolean(
-      ot->srna, "lock_y", false, "Lock Y", "Lock Y axis");
+  RNA_def_boolean(ot->srna, "lock_x", false, "Lock X", "Lock X axis");
+  RNA_def_boolean(ot->srna, "lock_y", false, "Lock Y", "Lock Y axis");
 }
 
 /** \} */
