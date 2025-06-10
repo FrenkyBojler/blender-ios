@@ -1930,9 +1930,10 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
             /* For a single point curve, its screen_space_curve_bounds Bounds will be empty (by
              * definition), so intersecting will fail. Check if the single point is in the bounds
              * instead. */
-            if (points_by_curve[index].size() == 1) {
-              return is_point_inside_bounds(
-                  lasso_bounds_int, int2(screen_space_positions[points_by_curve[index][0]]));
+            const IndexRange points = points_by_curve[index];
+            if (points.size() == 1) {
+              return is_point_inside_bounds(lasso_bounds_int,
+                                            int2(screen_space_positions[points.first()]));
             }
 
             return bounds::intersect(lasso_bounds, screen_space_curve_bounds[index]).has_value();
