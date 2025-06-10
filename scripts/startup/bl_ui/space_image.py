@@ -478,6 +478,7 @@ class IMAGE_MT_uvs(Menu):
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
+        layout.operator("uv.set_texel_density")
 
         layout.separator()
 

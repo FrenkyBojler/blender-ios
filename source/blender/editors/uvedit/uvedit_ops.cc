@@ -630,6 +630,99 @@ static void UV_OT_align(wmOperatorType *ot)
       ot->srna, "axis", axis_items, UV_ALIGN_AUTO, "Axis", "Axis to align UV locations on");
 }
 
+static float area_calculate(float2 a, float2 b, float2 c) {
+  return abs((a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)) * 0.5);
+}
+
+static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  ARegion *region = CTX_wm_region(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
+      scene, view_layer, nullptr);
+  float density = RNA_float_get(op->ptr, "density");
+  bool lock_x = RNA_boolean_get(op->ptr, "lock_x");
+  bool lock_y = RNA_boolean_get(op->ptr, "lock_y");
+  for (Object *obedit : objects) {
+    float changed = false;
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    if (em->bm->totvertsel == 0) {
+      continue; /* No selected vertices, nothing to do. */
+    }
+    BMesh *bm = em->bm;
+    BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+
+    UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+
+    for (int i = 0; i < element_map->total_islands; i++) {
+
+      UvElement *element = element_map->storage + element_map->island_indices[i];
+      float uv_area = 0.0f;
+      float edit_mode_area = 0.0f;
+
+      Set<BMFace *> visited_faces; 
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        if (!visited_faces.contains(element[j].l->f)) {
+          uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
+          edit_mode_area += BM_face_calc_area(element[j].l->f);
+          visited_faces.add(element[j].l->f);
+        }
+      }
+      float texel_density = (sqrt(region->v2d.tot.xmax * region->v2d.tot.ymax) * uv_area) /
+                            edit_mode_area;
+
+      float scale = density / texel_density;
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        if (!lock_y) {
+          luv[0] = (luv[0] - 0.5) * scale + 0.5;
+        }
+        if (!lock_x) {
+          luv[1] = (luv[1] - 0.5) * scale + 0.5;
+        }
+        changed = true;
+      }
+    }
+    uvedit_live_unwrap_update(sima, scene, obedit);
+    DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  }
+  return OPERATOR_FINISHED;
+}
+
+static void UV_OT_set_texel_density(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Set Texetl Desnity";
+  ot->description =
+      "Set the texel density of the selected faces";
+  ot->idname = "UV_OT_set_texel_density";
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->exec = uv_set_texel_density_exec;
+  ot->poll = ED_operator_uvedit;
+
+  RNA_def_float(ot->srna,
+                "density",
+                0.5f,
+                0.0f,
+                10.0f,
+                "Texel Density",
+                "Value that the texel density is being set to",
+                0.0f,
+                1.0f);
+  RNA_def_boolean(ot->srna,
+                  "lock_x",
+                  false,
+                  "Lock X",
+                  "Lock X axis");
+  RNA_def_boolean(
+      ot->srna, "lock_y", false, "Lock Y", "Lock Y axis");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2032,6 +2125,7 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_sphere_project);
   WM_operatortype_append(UV_OT_unwrap);
   WM_operatortype_append(UV_OT_smart_project);
+  WM_operatortype_append(UV_OT_set_texel_density);
 
   WM_operatortype_append(UV_OT_reveal);
   WM_operatortype_append(UV_OT_hide);
