@@ -17,7 +17,7 @@ bool is_face_hidden(uint coarse_quad_index)
 }
 
 /* Flag for paint mode overlay and normals drawing in edit-mode. */
-uint get_loop_flag(uint coarse_quad_index, int vert_origindex)
+int get_loop_flag(uint coarse_quad_index, int vert_origindex)
 {
   if (is_face_hidden(coarse_quad_index) || (shader_data.is_edit_mode && vert_origindex == -1)) {
     return -1;
@@ -45,7 +45,7 @@ void main()
         uint subdiv_vert_index = vert_loop_map[start_loop_index + i];
 
         int origindex = input_vert_origindex[start_loop_index + i];
-        uint flag = get_loop_flag(coarse_quad_index, origindex);
+        int flag = get_loop_flag(coarse_quad_index, origindex);
 
         flags[start_loop_index + i] = flag;
     }

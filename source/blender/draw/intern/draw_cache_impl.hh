@@ -189,6 +189,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                                            bool use_hide);
 
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_verts(Mesh &mesh);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_verts(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_loose_edges(Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_edge_detection(Mesh &mesh, bool *r_is_manifold);

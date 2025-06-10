@@ -167,6 +167,12 @@ gpu::Batch *DRW_cache_mesh_all_verts_get(Object *ob)
   return DRW_mesh_batch_cache_get_all_verts(DRW_object_get_data_for_drawing<Mesh>(*ob));
 }
 
+gpu::Batch *DRW_cache_mesh_paint_overlay_verts_get(Object *ob)
+{
+  BLI_assert(ob->type == OB_MESH);
+  return DRW_mesh_batch_cache_get_paint_overlay_verts(DRW_object_get_data_for_drawing<Mesh>(*ob));
+}
+
 gpu::Batch *DRW_cache_mesh_all_edges_get(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);

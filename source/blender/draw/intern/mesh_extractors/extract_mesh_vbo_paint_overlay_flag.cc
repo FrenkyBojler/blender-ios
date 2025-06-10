@@ -8,7 +8,7 @@
 
 namespace blender::draw {
 
-static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<uint> flags)
+static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<int> flags)
 {
   const bool use_face_select = (mr.mesh->editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   Span<bool> selection;
@@ -68,7 +68,7 @@ static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<ui
   });
 }
 
-static void extract_edit_flags_bm(const MeshRenderData &mr, MutableSpan<uint> flags)
+static void extract_edit_flags_bm(const MeshRenderData &mr, MutableSpan<int> flags)
 {
   /* TODO: Return early if there are no hidden faces. */
   const BMesh &bm = *mr.bm;
@@ -86,7 +86,7 @@ static void extract_edit_flags_bm(const MeshRenderData &mr, MutableSpan<uint> fl
 static const GPUVertFormat &get_paint_overlay_flag_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute("paint_overlay_flag",
-                                                                    gpu::VertAttrType::UINT_32);
+                                                                    gpu::VertAttrType::SINT_32);
   return format;
 }
 
@@ -96,7 +96,7 @@ gpu::VertBufPtr extract_paint_overlay_flags(const MeshRenderData &mr)
   gpu::VertBufPtr vbo = gpu::VertBufPtr(
       GPU_vertbuf_create_with_format(get_paint_overlay_flag_format()));
   GPU_vertbuf_data_alloc(*vbo, size);
-  MutableSpan vbo_data = vbo->data<uint>();
+  MutableSpan vbo_data = vbo->data<int>();
   MutableSpan corners_data = vbo_data.take_front(mr.corners_num);
   MutableSpan loose_data = vbo_data.take_back(mr.loose_indices_num);
 
@@ -123,11 +123,11 @@ static void update_loose_flags(const MeshRenderData &mr,
 
   /* Default to zeroed attribute. The overlay shader should expect this and render engines should
    * never draw loose geometry. */
-  const uint default_value = 0;
+  const int default_value = 0;
   for (const int i : IndexRange::from_begin_end(loose_geom_start, vbo_size)) {
     /* TODO(fclem): This has HORRENDOUS performance. Prefer clearing the buffer on device with
      * something like glClearBufferSubData. */
-    GPU_vertbuf_update_sub(&flags, i * sizeof(uint), sizeof(uint), &default_value);
+    GPU_vertbuf_update_sub(&flags, i * sizeof(int), sizeof(int), &default_value);
   }
 }
 

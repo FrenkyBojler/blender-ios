@@ -725,6 +725,13 @@ gpu::Batch *DRW_mesh_batch_cache_get_all_verts(Mesh &mesh)
   return DRW_batch_request(&cache.batch.all_verts);
 }
 
+gpu::Batch *DRW_mesh_batch_cache_get_paint_overlay_verts(Mesh &mesh)
+{
+  MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
+  mesh_batch_cache_add_request(cache, MBC_PAINT_OVERLAY_VERTS);
+  return DRW_batch_request(&cache.batch.paint_overlay_verts);
+}
+
 gpu::Batch *DRW_mesh_batch_cache_get_all_edges(Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
@@ -1334,11 +1341,15 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                          {VBOType::Position, VBOType::AttrViewer}});
     }
     if (batches_to_create & MBC_ALL_VERTS) {
+      batch_info.append(
+          {*cache.batch.all_verts, GPU_PRIM_POINTS, list, std::nullopt, {VBOType::Position}});
+    }
+    if (batches_to_create & MBC_PAINT_OVERLAY_VERTS) {
       batch_info.append({*cache.batch.all_verts,
                          GPU_PRIM_POINTS,
                          list,
                          std::nullopt,
-                         {VBOType::Position, VBOType::CornerNormal}});
+                         {VBOType::Position, VBOType::PaintOverlayFlag}});
     }
     if (batches_to_create & MBC_SCULPT_OVERLAYS) {
       batch_info.append({*cache.batch.sculpt_overlays,
