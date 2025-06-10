@@ -311,7 +311,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
 
   if (U.experimental.use_attribute_storage_write) {
     /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-     * reserved for future use (names stored on #Mesh). */
+     * reserved for future runtime use (names stored on #Mesh). */
     if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
       mesh->active_uv_map_attribute = const_cast<char *>(
           scope.allocator().copy_string(name).c_str());
