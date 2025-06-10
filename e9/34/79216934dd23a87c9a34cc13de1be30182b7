@@ -1,1 +1,1 @@
-Referenced by pull request #140112, Fix #139815: Vulkan: Hang when loading minimized windows
+Referenced by pull request #140112, Fix #139815: Vulkan: Infinite loop when loading minimized windows
