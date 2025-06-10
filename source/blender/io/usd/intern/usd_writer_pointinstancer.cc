@@ -192,6 +192,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   /* must be the last to populate */
   pxr::UsdAttribute proto_indices_attr = usd_instancer.CreateProtoIndicesAttr();
   pxr::VtArray<int> proto_indices;
+  std::vector<std::pair<int, int>> collection_instance_object_count_map;
 
   Span<int> reference_handles = instances->reference_handles();
   Span<bke::InstanceReference> references = instances->references();
@@ -227,41 +228,65 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
 
         if (proto_index_map.find(set_name) != proto_index_map.end()) {
           proto_indices.push_back(proto_index_map[set_name]);
+        }
 
-          Vector<const bke::GeometryComponent *> components = geometry_set.get_components();
-          for (const bke::GeometryComponent *comp : components) {
-            if (comp) {
-              if (const bke::Instances *instances =
-                      static_cast<const bke::InstancesComponent &>(*comp).get())
-              {
-                Span<float4x4> transforms = instances->transforms();
-                if (transforms.size() == 1) {
-                  if (proto_path_map.find(set_name) != proto_path_map.end()) {
-                    // override position
-                    const float3 &pos = transforms[0].location();
-                    pxr::GfVec3d override_position = pxr::GfVec3d(pos.x, pos.y, pos.z);
+        Vector<const bke::GeometryComponent *> components = geometry_set.get_components();
+        for (const bke::GeometryComponent *comp : components) {
+          if (comp) {
+            if (const bke::Instances *instances =
+                    static_cast<const bke::InstancesComponent &>(*comp).get())
+            {
+              Span<int> reference_handles = instances->reference_handles();
+              Span<bke::InstanceReference> references = instances->references();
 
-                    // override rotation
-                    const float3 euler = float3(math::to_euler(math::normalize(transforms[0])));
-                    pxr::GfVec3f override_rotation = pxr::GfVec3f(euler.x, euler.y, euler.z);
+              for (int index = 0; index < reference_handles.size(); ++index) {
+                bke::InstanceReference reference = references[reference_handles[index]];
 
-                    // override scale
-                    const float3 scale_vec = math::to_scale<true>(transforms[0]);
-                    pxr::GfVec3f override_scale = pxr::GfVec3f(
-                        scale_vec.x, scale_vec.y, scale_vec.z);
+                if (reference.type() == bke::InstanceReference::Type::Collection) {
+                  Collection &collection = reference.collection();
+                  int object_num = 0;
+                  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
+                    std::string ob_name = BKE_id_name(object->id);
 
-                    pxr::SdfPath proto_path = proto_path_map[set_name];
-                    pxr::UsdPrim prim = stage->GetPrimAtPath(proto_path);
+                    if (proto_index_map.find(ob_name) != proto_index_map.end()) {
+                      object_num += 1;
+                      proto_indices.push_back(proto_index_map[ob_name]);
 
-                    if (prim) {
-                      pxr::UsdGeomXformable xformable(prim);
-                      xformable.ClearXformOpOrder();
+                      Span<float4x4> transforms = instances->transforms();
+                      if (transforms.size() == 1) {
+                        if (proto_path_map.find(set_name) != proto_path_map.end()) {
+                          // override position
+                          const float3 &pos = transforms[0].location();
+                          pxr::GfVec3d override_position = pxr::GfVec3d(pos.x, pos.y, pos.z);
 
-                      xformable.AddTranslateOp().Set(override_position);
-                      xformable.AddRotateXYZOp().Set(override_rotation);
-                      xformable.AddScaleOp().Set(override_scale);
+                          // override rotation
+                          const float3 euler = float3(
+                              math::to_euler(math::normalize(transforms[0])));
+                          pxr::GfVec3f override_rotation = pxr::GfVec3f(euler.x, euler.y, euler.z);
+
+                          // override scale
+                          const float3 scale_vec = math::to_scale<true>(transforms[0]);
+                          pxr::GfVec3f override_scale = pxr::GfVec3f(
+                              scale_vec.x, scale_vec.y, scale_vec.z);
+
+                          pxr::SdfPath proto_path = proto_path_map[set_name];
+                          pxr::UsdPrim prim = stage->GetPrimAtPath(proto_path);
+
+                          if (prim) {
+                            pxr::UsdGeomXformable xformable(prim);
+                            xformable.ClearXformOpOrder();
+
+                            xformable.AddTranslateOp().Set(override_position);
+                            xformable.AddRotateXYZOp().Set(override_rotation);
+                            xformable.AddScaleOp().Set(override_scale);
+                          }
+                        }
+                      }
                     }
                   }
+                  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+                  collection_instance_object_count_map.push_back(std::make_pair(i, object_num));
                 }
               }
             }
@@ -275,13 +300,12 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
     }
   }
 
+  blender::io::usd::set_attribute(proto_indices_attr, proto_indices, timecode, usd_value_writer_);
+
   /* Handle Collection Prototypes */
-  if (proto_indices.size() == 0) {
-    handle_collection_prototypes(usd_instancer, timecode, instance_num);
-  }
-  else {
-    blender::io::usd::set_attribute(
-        proto_indices_attr, proto_indices, timecode, usd_value_writer_);
+  if (!collection_instance_object_count_map.empty()) {
+    handle_collection_prototypes(
+        usd_instancer, timecode, instance_num, collection_instance_object_count_map);
   }
 
   stage->GetRootLayer()->Save();
@@ -312,10 +336,11 @@ static void DuplicatePerInstanceAttribute(const GetterFunc &getter,
   }
 }
 
-void USDPointInstancerWriter::handle_collection_prototypes(
-    const pxr::UsdGeomPointInstancer &usd_instancer,
-    const pxr::UsdTimeCode timecode,
-    int instance_num)
+template<typename T, typename GetterFunc, typename CreatorFunc>
+static void ExpandAttributePerInstance(const GetterFunc &getter,
+                                       const CreatorFunc &creator,
+                                       const std::vector<std::pair<int, int>> &instance_object_map,
+                                       const pxr::UsdTimeCode &timecode)
 {
   // MARK: Handle Collection Prototypes
   // -----------------------------------------------------------------------------
@@ -326,108 +351,110 @@ void USDPointInstancerWriter::handle_collection_prototypes(
   //
   // To ensure correct arrangement, reading, and drawing in OpenUSD, we need to explicitly
   // duplicate the instance attributes across all prototypes derived from the Collection.
-  pxr::VtArray<pxr::GfVec3f> positions;
-  usd_instancer.GetPositionsAttr().Get(&positions, timecode);
-  pxrBlender_v25_02__pxrReserved__::VtDictionary::size_type copies = proto_paths.size();
-
-  ///* Duplicate Positions */
-  if (usd_instancer.GetPositionsAttr() && usd_instancer.GetPositionsAttr().HasAuthoredValue()) {
-    DuplicatePerInstanceAttribute<pxr::GfVec3f>(
-        [&]() { return usd_instancer.GetPositionsAttr(); },
-        [&]() { return usd_instancer.CreatePositionsAttr(); },
-        copies,
-        timecode);
+  pxr::VtArray<T> original_values;
+  if (!getter().Get(&original_values, timecode) || original_values.empty()) {
+    return;
   }
 
-  ///* Duplicate Orientations */
-  if (usd_instancer.GetOrientationsAttr() &&
-      usd_instancer.GetOrientationsAttr().HasAuthoredValue())
-  {
-    DuplicatePerInstanceAttribute<pxr::GfQuath>(
+  pxr::VtArray<T> expanded_values;
+  for (const auto &[instance_index, object_count] : instance_object_map) {
+    if (instance_index < static_cast<int>(original_values.size())) {
+      for (int i = 0; i < object_count; ++i) {
+        expanded_values.push_back(original_values[instance_index]);
+      }
+    }
+  }
+
+  creator().Set(expanded_values, timecode);
+}
+
+void USDPointInstancerWriter::handle_collection_prototypes(
+    const pxr::UsdGeomPointInstancer &usd_instancer,
+    const pxr::UsdTimeCode timecode,
+    int instance_num,
+    const std::vector<std::pair<int, int>> &collection_instance_object_count_map)
+{
+  // Duplicate attributes
+  if (usd_instancer.GetPositionsAttr().HasAuthoredValue()) {
+    ExpandAttributePerInstance<pxr::GfVec3f>([&]() { return usd_instancer.GetPositionsAttr(); },
+                                             [&]() { return usd_instancer.CreatePositionsAttr(); },
+                                             collection_instance_object_count_map,
+                                             timecode);
+  }
+  if (usd_instancer.GetOrientationsAttr().HasAuthoredValue()) {
+    ExpandAttributePerInstance<pxr::GfQuath>(
         [&]() { return usd_instancer.GetOrientationsAttr(); },
         [&]() { return usd_instancer.CreateOrientationsAttr(); },
-        copies,
+        collection_instance_object_count_map,
         timecode);
   }
-
-  ///* Duplicate Scales */
-  if (usd_instancer.GetScalesAttr() && usd_instancer.GetScalesAttr().HasAuthoredValue()) {
-    DuplicatePerInstanceAttribute<pxr::GfVec3f>([&]() { return usd_instancer.GetScalesAttr(); },
-                                                [&]() { return usd_instancer.CreateScalesAttr(); },
-                                                copies,
-                                                timecode);
+  if (usd_instancer.GetScalesAttr().HasAuthoredValue()) {
+    ExpandAttributePerInstance<pxr::GfVec3f>([&]() { return usd_instancer.GetScalesAttr(); },
+                                             [&]() { return usd_instancer.CreateScalesAttr(); },
+                                             collection_instance_object_count_map,
+                                             timecode);
   }
-
-  ///* Duplicate Velocities */
-  if (usd_instancer.GetVelocitiesAttr() && usd_instancer.GetVelocitiesAttr().HasAuthoredValue()) {
-    DuplicatePerInstanceAttribute<pxr::GfVec3f>(
+  if (usd_instancer.GetVelocitiesAttr().HasAuthoredValue()) {
+    ExpandAttributePerInstance<pxr::GfVec3f>(
         [&]() { return usd_instancer.GetVelocitiesAttr(); },
         [&]() { return usd_instancer.CreateVelocitiesAttr(); },
-        copies,
+        collection_instance_object_count_map,
         timecode);
   }
-
-  ///* Duplicate AngularVelocities */
-  if (usd_instancer.GetAngularVelocitiesAttr() &&
-      usd_instancer.GetAngularVelocitiesAttr().HasAuthoredValue())
-  {
-    DuplicatePerInstanceAttribute<pxr::GfVec3f>(
+  if (usd_instancer.GetAngularVelocitiesAttr().HasAuthoredValue()) {
+    ExpandAttributePerInstance<pxr::GfVec3f>(
         [&]() { return usd_instancer.GetAngularVelocitiesAttr(); },
         [&]() { return usd_instancer.CreateAngularVelocitiesAttr(); },
-        copies,
+        collection_instance_object_count_map,
         timecode);
   }
 
-  ///* Duplicate Other Attributes (Primvars) */
+  // Duplicate Primvars
   const pxr::UsdGeomPrimvarsAPI primvars_api(usd_instancer);
   std::vector<pxr::UsdGeomPrimvar> primvars = primvars_api.GetPrimvars();
-
   for (const pxr::UsdGeomPrimvar &primvar : primvars) {
     if (!primvar.HasAuthoredValue()) {
       continue;
     }
-
     const pxr::TfToken name = primvar.GetPrimvarName();
     const pxr::SdfValueTypeName type = primvar.GetTypeName();
     const pxr::TfToken interp = primvar.GetInterpolation();
-
     auto create = [&]() { return primvars_api.CreatePrimvar(name, type, interp); };
 
-    /* Follow all types in blender::io::usd::convert_blender_type_to_usd */
     if (type == pxr::SdfValueTypeNames->FloatArray) {
-      DuplicatePerInstanceAttribute<float>([&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<float>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->IntArray) {
-      DuplicatePerInstanceAttribute<int>([&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<int>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->UCharArray) {
-      DuplicatePerInstanceAttribute<unsigned char>(
-          [&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<unsigned char>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->Float2Array) {
-      DuplicatePerInstanceAttribute<pxr::GfVec2f>(
-          [&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<pxr::GfVec2f>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
-    else if (type == pxr::SdfValueTypeNames->Float3Array) {
-      DuplicatePerInstanceAttribute<pxr::GfVec3f>(
-          [&]() { return primvar; }, create, copies, timecode);
-    }
-    else if (type == pxr::SdfValueTypeNames->Color3fArray ||
+    else if (type == pxr::SdfValueTypeNames->Float3Array ||
+             type == pxr::SdfValueTypeNames->Color3fArray ||
              type == pxr::SdfValueTypeNames->Color4fArray)
     {
-      DuplicatePerInstanceAttribute<pxr::GfVec4f>(
-          [&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<pxr::GfVec3f>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->QuatfArray) {
-      DuplicatePerInstanceAttribute<pxr::GfQuatf>(
-          [&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<pxr::GfQuatf>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->BoolArray) {
-      DuplicatePerInstanceAttribute<bool>([&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<bool>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
     else if (type == pxr::SdfValueTypeNames->StringArray) {
-      DuplicatePerInstanceAttribute<std::string>(
-          [&]() { return primvar; }, create, copies, timecode);
+      ExpandAttributePerInstance<std::string>(
+          [&]() { return primvar; }, create, collection_instance_object_count_map, timecode);
     }
   }
 
@@ -436,13 +463,16 @@ void USDPointInstancerWriter::handle_collection_prototypes(
   // If the PointInstancer has no authored instance indices, manually generate a default
   // sequence of indices to ensure the PointInstancer functions correctly in OpenUSD.
   // This guarantees that each instance can correctly reference its prototype.
-  std::vector<int> index;
-  for (int i = 0; i < proto_paths.size(); i++) {
-    std::vector<int> current_proto_index(instance_num, i);
-    index.insert(index.end(), current_proto_index.begin(), current_proto_index.end());
-  }
   pxr::UsdAttribute proto_indices_attr = usd_instancer.GetProtoIndicesAttr();
-  proto_indices_attr.Set(pxr::VtArray<int>(index.begin(), index.end()));
+  if (!proto_indices_attr.HasAuthoredValue()) {
+    std::vector<int> index;
+    for (int i = 0; i < proto_paths.size(); i++) {
+      std::vector<int> current_proto_index(instance_num, i);
+      index.insert(index.end(), current_proto_index.begin(), current_proto_index.end());
+    }
+
+    proto_indices_attr.Set(pxr::VtArray<int>(index.begin(), index.end()));
+  }
 }
 
 static std::optional<pxr::TfToken> convert_blender_domain_to_usd(

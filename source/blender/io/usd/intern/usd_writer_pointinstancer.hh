@@ -35,9 +35,11 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
                             const pxr::UsdGeomPointInstancer &usd_instancer,
                             const pxr::UsdTimeCode timecode);
 
-  void handle_collection_prototypes(const pxr::UsdGeomPointInstancer &usd_instancer,
-                                    const pxr::UsdTimeCode timecode,
-                                    int instance_num);
+  void handle_collection_prototypes(
+      const pxr::UsdGeomPointInstancer &usd_instancer,
+      const pxr::UsdTimeCode timecode,
+      int instance_num,
+      const std::vector<std::pair<int, int>> &collection_instance_object_count_map);
 };
 
 }  // namespace blender::io::usd
