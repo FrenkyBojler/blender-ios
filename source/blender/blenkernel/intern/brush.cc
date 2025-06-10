@@ -1425,6 +1425,9 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
     }
     case BRUSH_CURVE_ROOT: {
       for (const int i : distances.index_range()) {
+        if (factors[i] == 0.0f) {
+          continue;
+        }
         const float distance = distances[i];
         const float factor = 1.0f - distance * radius_rcp;
         factors[i] *= sqrtf(factor);
@@ -1444,6 +1447,9 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
     }
     case BRUSH_CURVE_SPHERE: {
       for (const int i : distances.index_range()) {
+        if (factors[i] == 0.0f) {
+          continue;
+        }
         const float distance = distances[i];
         const float factor = 1.0f - distance * radius_rcp;
         factors[i] *= sqrtf(2 * factor - factor * factor);
