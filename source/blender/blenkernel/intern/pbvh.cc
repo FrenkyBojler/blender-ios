@@ -252,7 +252,7 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 
   Vector<MeshNode> &nodes = std::get<Vector<MeshNode>>(pbvh.nodes_);
   std::cout << "Number of nodes: " << nodes.size() << std::endl;
-  nodes.resize(2);
+  nodes.resize(num_groups);
   std::cout << "Number of nodes after: " << nodes.size() << std::endl;
   pbvh.prim_indices_.reinitialize(mesh.faces_num);
   array_utils::fill_index_range<int>(pbvh.prim_indices_);
