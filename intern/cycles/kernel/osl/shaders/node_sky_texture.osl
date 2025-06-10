@@ -119,7 +119,7 @@ shader node_sky_texture(
     int use_mapping = 0,
     matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     vector Vector = P,
-    string sky_type = "nishita",
+    string sky_type = "nishita_improved",
     float theta = 0.0,
     float phi = 0.0,
     string filename = "",
