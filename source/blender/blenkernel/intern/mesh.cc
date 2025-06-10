@@ -315,7 +315,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
       mesh->active_uv_map_attribute = const_cast<char *>(
           scope.allocator().copy_string(name).c_str());
-      BLO_write_string(writer, mesh->active_uv_map_attribute);
     }
     else {
       mesh->active_uv_map_attribute = nullptr;
@@ -323,7 +322,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
       mesh->default_uv_map_attribute = const_cast<char *>(
           scope.allocator().copy_string(name).c_str());
-      BLO_write_string(writer, mesh->default_uv_map_attribute);
     }
     else {
       mesh->default_uv_map_attribute = nullptr;
@@ -377,6 +375,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BKE_defbase_blend_write(writer, &mesh->vertex_group_names);
   BLO_write_string(writer, mesh->active_color_attribute);
   BLO_write_string(writer, mesh->default_color_attribute);
+  BLO_write_string(writer, mesh->active_uv_map_attribute);
+  BLO_write_string(writer, mesh->default_uv_map_attribute);
 
   BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
   BLO_write_struct_array(writer, MSelect, mesh->totselect, mesh->mselect);
