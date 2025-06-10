@@ -666,15 +666,8 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
           visited_faces.add(element[j].l->f);
         }
       }
-      float aspect_ratio = region->v2d.tot.xmax / region->v2d.tot.ymax;
-      if (aspect_ratio < 1) {
-        aspect_ratio = 1 / aspect_ratio;
-      }
-      float largest_resolution = (region->v2d.tot.xmax > region->v2d.tot.ymax) ?
-                                     region->v2d.tot.xmax :
-                                     region->v2d.tot.ymax;
-      float texel_density = largest_resolution /
-                            (sqrt(aspect_ratio * uv_area * edit_mode_area) * 100);
+      float texel_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
+                                 edit_mode_area);
 
       float scale = density / texel_density;
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
