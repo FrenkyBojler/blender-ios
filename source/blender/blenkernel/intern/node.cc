@@ -1163,12 +1163,11 @@ static void write_compositor_legacy_properties(bNodeTree &node_tree)
 /* The enum horizontal/vertical was turned into an arbitrary angle. */
 static void write_compositor_legacy_split_node(bNodeTree &node_tree)
 {
-  for (bNode *node : node_tree.all_nodes()) {
-    if (node->type_legacy == CMP_NODE_SPLIT) {
-      /* The exact angle will be inaccurate anyways, so keep it simple and always set the split to
-       * horizontal (default). */
-      node->custom2 = 0;
-    }
+  for (bNode *node : node_tree.nodes_by_type("CompositorNodeSplit")) {
+    /* The exact angle will be inaccurate anyways, so keep it simple and always set the split to
+     * horizontal and factor to 0.5 (default). */
+    node->custom1 = 50;
+    node->custom2 = 0;
   }
 }
 
