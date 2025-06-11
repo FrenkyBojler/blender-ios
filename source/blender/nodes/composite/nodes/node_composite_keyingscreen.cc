@@ -79,7 +79,7 @@ static void node_composit_buts_keyingscreen(uiLayout *layout, bContext *C, Point
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(
         &clip->id, &RNA_MovieTracking, &clip->tracking);
 
-    col = uiLayoutColumn(layout, true);
+    col = &layout->column(true);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
   }
 }
@@ -169,7 +169,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_keyingscreen_cc
 
-void register_node_type_cmp_keyingscreen()
+static void register_node_type_cmp_keyingscreen()
 {
   namespace file_ns = blender::nodes::node_composite_keyingscreen_cc;
 
@@ -189,3 +189,4 @@ void register_node_type_cmp_keyingscreen()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_keyingscreen)

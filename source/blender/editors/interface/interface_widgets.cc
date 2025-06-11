@@ -406,7 +406,7 @@ static const GPUVertFormat &vflag_format()
   if (g_ui_batch_cache.format.attr_len == 0) {
     GPUVertFormat *format = &g_ui_batch_cache.format;
     g_ui_batch_cache.vflag_id = GPU_vertformat_attr_add(
-        format, "vflag", GPU_COMP_U32, 1, GPU_FETCH_INT);
+        format, "vflag", blender::gpu::VertAttrType::UINT_32);
   }
   return g_ui_batch_cache.format;
 }
@@ -526,7 +526,7 @@ static void draw_anti_tria(
   GPU_blend(GPU_BLEND_ALPHA);
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor4fv(draw_color);
@@ -1476,7 +1476,7 @@ static void ui_text_clip_right_ex(const uiFontStyle *fstyle,
 {
   BLI_assert(str[0]);
 
-  /* How many BYTES (not characters) of this utf-8 string can fit, along with appended ellipsis. */
+  /* How many BYTES (not characters) of this UTF8 string can fit, along with appended ellipsis. */
   int l_end = BLF_width_to_strlen(
       fstyle->uifont_id, str, max_len, okwidth - sep_strwidth, nullptr);
 
@@ -1937,7 +1937,7 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
     }
 
     width = BLF_width(
-        fstyle->uifont_id, drawstr + but->ofs, ime_data->composite_len + but->pos - but->ofs);
+        fstyle->uifont_id, drawstr + but->ofs, ime_data->composite.size() + but->pos - but->ofs);
 
     rgba_uchar_to_float(fcol, wcol->text);
     UI_draw_text_underline(rect->xmin + ofs_x,
@@ -2017,7 +2017,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       /* FIXME: IME is modifying `const char *drawstr`! */
       ime_data = ui_but_ime_data_get(but);
 
-      if (ime_data && ime_data->composite_len) {
+      if (ime_data && ime_data->composite.size()) {
         /* insert composite string into cursor pos */
         char tmp_drawstr[UI_MAX_DRAW_STR];
         STRNCPY(tmp_drawstr, drawstr);
@@ -2026,7 +2026,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
                      "%.*s%s%s",
                      but->pos,
                      but->editstr,
-                     ime_data->str_composite,
+                     ime_data->composite.c_str(),
                      but->editstr + but->pos);
         but->drawstr = tmp_drawstr;
         drawstr = but->drawstr.c_str();
@@ -2068,7 +2068,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       GPU_blend(GPU_BLEND_ALPHA);
       UI_widgetbase_draw_cache_flush();
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(wcol->item);
       const auto boxes = BLF_str_selection_boxes(
@@ -2078,7 +2078,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
           (but->selsta >= but->ofs) ? but->selsta - but->ofs : 0,
           but->selend - std::max(but->ofs, but->selsta));
       for (auto bounds : boxes) {
-        immRecti(pos,
+        immRectf(pos,
                  rect->xmin + bounds.min,
                  rect->ymin + U.pixelsize,
                  std::min(rect->xmin + bounds.max, rect->xmax - 2),
@@ -2102,7 +2102,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef WITH_INPUT_IME
     /* If is IME compositing, move the cursor. */
-    if (ime_data && ime_data->composite_len && ime_data->cursor_pos != -1) {
+    if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
       but_pos_ofs += ime_data->cursor_pos;
     }
 #endif
@@ -2122,13 +2122,13 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       GPU_blend(GPU_BLEND_NONE);
 
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
 
       /* draw cursor */
-      immRecti(pos,
+      immRectf(pos,
                rect->xmin + t,
                rect->ymin + U.pixelsize,
                rect->xmin + t + int(2.0f * U.pixelsize),
@@ -2151,7 +2151,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
     if (ime_reposition_window) {
       ui_but_ime_reposition(but, ime_win_x, ime_win_y, false);
     }
-    if (ime_data && ime_data->composite_len) {
+    if (ime_data && ime_data->composite.size()) {
       /* Composite underline. */
       widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
     }
@@ -2223,7 +2223,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
         int ul_index = -1;
 
         {
-          /* Find upper case, fallback to lower case. */
+          /* Find upper case, fall back to lower case. */
           const char *drawstr_end = drawstr_ofs + drawlen;
           const char keys[] = {char(but->menu_key - 32), but->menu_key};
           for (int i = 0; i < ARRAY_SIZE(keys); i++) {
@@ -2958,7 +2958,7 @@ static void ui_hsv_cursor(const float x,
 
   GPU_blend(GPU_BLEND_ALPHA);
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
   immUniformColor3fv(rgb);
@@ -3067,8 +3067,9 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint color = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
@@ -3102,7 +3103,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, const uiWidgetColors *wcol, const 
 
   /* fully rounded outline */
   format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -3199,8 +3200,10 @@ void ui_draw_gradient(const rcti *rect,
 
   /* old below */
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   immBegin(GPU_PRIM_TRIS, steps * 3 * 6);
@@ -3366,7 +3369,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 
   /* outline */
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor3ub(0, 0, 0);
   imm_draw_box_wire_2d(pos, (rect->xmin), (rect->ymin), (rect->xmax), (rect->ymax));
@@ -3481,7 +3484,7 @@ static void ui_draw_separator(const uiWidgetColors *wcol, uiBut *but, const rcti
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -3877,7 +3880,8 @@ static void widget_progress_type_ring(uiButProgress *but_progress,
   const float start = 0.0f;
   const float end = but_progress->progress_factor * 360.0f;
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor3ubvAlpha(wcol->item, 255 / UI_PIXEL_AA_JITTER * 2);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -4156,7 +4160,7 @@ static void widget_swatch(uiBut *but,
     GPU_blend(GPU_BLEND_NONE);
 
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor3f(bw, bw, bw);
@@ -4376,9 +4380,9 @@ static void widget_list_itembut(uiBut *but,
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, UI_CNR_ALL, &draw_rect, rad);
 
-  if (state->but_flag & UI_HOVER && !(state->but_flag & UI_SELECT)) {
-    copy_v3_v3_uchar(wcol->inner, wcol->text);
-    wcol->inner[3] = 20;
+  if (state->but_flag & UI_HOVER) {
+    color_blend_v3_v3(wcol->inner, wcol->text, 0.2);
+    wcol->inner[3] = (state->but_flag & UI_SELECT) ? 255 : 20;
   }
 
   widgetbase_draw(&wtb, wcol);
@@ -4666,7 +4670,7 @@ static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *
     but->block->drawextra(C, rect);
 
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     /* make mask to draw over image */
@@ -5385,7 +5389,7 @@ static void ui_draw_popover_back_impl(const uiWidgetColors *wcol,
   /* Draw popover arrow (top/bottom) */
   if (ELEM(direction, UI_DIR_UP, UI_DIR_DOWN)) {
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     const bool is_down = (direction == UI_DIR_DOWN);
@@ -5449,9 +5453,10 @@ static void draw_disk_shaded(float start,
 
   uint col;
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   if (shaded) {
-    col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+    col = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
   }
   else {
@@ -5566,7 +5571,8 @@ void ui_draw_pie_center(uiBlock *block)
   }
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ubv(btheme->tui.wcol_pie_menu.outline);
 
@@ -5653,13 +5659,16 @@ void ui_draw_tooltip_background(const uiStyle * /*style*/, uiBlock * /*block*/, 
 
 void ui_draw_menu_item(const uiFontStyle *fstyle,
                        rcti *rect,
+                       rcti *back_rect,
+                       const float zoom,
+                       const bool use_unpadded,
                        const char *name,
                        int iconid,
                        int but_flag,
                        uiMenuItemSeparatorType separator_type,
                        int *r_xmax)
 {
-  uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
+  uiWidgetType *wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
   const rcti _rect = *rect;
   const int row_height = BLI_rcti_size_y(rect);
   int max_hint_width = INT_MAX;
@@ -5670,7 +5679,10 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   state.but_flag = but_flag;
 
   wt->state(wt, &state, blender::ui::EmbossType::Undefined);
-  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
+
+  if (back_rect) {
+    wt->draw(&wt->wcol, back_rect, &STATE_INFO_NULL, 0, zoom);
+  }
 
   UI_fontstyle_set(fstyle);
 
@@ -5742,15 +5754,12 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   *rect = _rect;
 
   if (iconid) {
-    float height, aspect;
-    const int xs = rect->xmin + 0.2f * UI_UNIT_X;
-    const int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
+    const int xs = rect->xmin + 0.2f * UI_UNIT_X * zoom;
+    const int ys = rect->ymin + 0.5f * (BLI_rcti_size_y(rect) - UI_ICON_SIZE * zoom);
 
-    height = ICON_SIZE_FROM_BUTRECT(rect);
-    aspect = ICON_DEFAULT_HEIGHT / height;
+    const float aspect = U.inv_scale_factor / zoom;
 
     GPU_blend(GPU_BLEND_ALPHA);
-    /* XXX scale weak get from fstyle? */
     UI_icon_draw_ex(
         xs, ys, iconid, aspect, 1.0f, 0.0f, wt->wcol.text, false, UI_NO_ICON_OVERLAY_TEXT);
     GPU_blend(GPU_BLEND_NONE);
@@ -5777,7 +5786,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
         }
       }
 
-      rect->xmax = _rect.xmax - 5;
+      rect->xmax = _rect.xmax - padding;
       uiFontStyleDraw_Params params{};
       params.align = UI_STYLE_TEXT_RIGHT;
       UI_fontstyle_draw(fstyle, rect, hint_drawstr, sizeof(hint_drawstr), wt->wcol.text, &params);
@@ -5838,6 +5847,7 @@ void ui_draw_preview_item_stateless(const uiFontStyle *fstyle,
 
 void ui_draw_preview_item(const uiFontStyle *fstyle,
                           rcti *rect,
+                          const float zoom,
                           const char *name,
                           int iconid,
                           int but_flag,
@@ -5850,7 +5860,7 @@ void ui_draw_preview_item(const uiFontStyle *fstyle,
 
   /* drawing button background */
   wt->state(wt, &state, blender::ui::EmbossType::Undefined);
-  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, 1.0f);
+  wt->draw(&wt->wcol, rect, &STATE_INFO_NULL, 0, zoom);
 
   ui_draw_preview_item_stateless(fstyle, rect, name, iconid, wt->wcol.text, text_align, true);
 }

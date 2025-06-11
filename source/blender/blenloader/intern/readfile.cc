@@ -7,11 +7,12 @@
  */
 
 #include "fmt/core.h"
-#include <cctype> /* for isdigit. */
+
 #include <cerrno>
 #include <cstdarg> /* for va_start/end. */
 #include <cstddef> /* for offsetof. */
 #include <cstdlib> /* for atoi. */
+#include <cstring>
 #include <ctime>   /* for gmtime. */
 #include <fcntl.h> /* for open flags (O_BINARY, O_RDONLY). */
 
@@ -32,6 +33,7 @@
 
 #include "DNA_asset_types.h"
 #include "DNA_collection_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_fileglobal_types.h"
 #include "DNA_genfile.h"
 #include "DNA_key_types.h"
@@ -50,8 +52,11 @@
 #include "BLI_ghash.h"
 #include "BLI_map.hh"
 #include "BLI_memarena.h"
+#include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
+#include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -79,6 +84,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
+#include "BKE_nla.hh"
 #include "BKE_node.hh" /* for tree type defines */
 #include "BKE_node_tree_update.hh"
 #include "BKE_object.hh"
@@ -94,7 +100,6 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "BLO_blend_defs.hh"
 #include "BLO_blend_validate.hh"
 #include "BLO_read_write.hh"
 #include "BLO_readfile.hh"
@@ -455,9 +460,17 @@ static void read_file_version(FileData *fd, Main *main)
       FileGlobal *fg = static_cast<FileGlobal *>(
           read_struct(fd, bhead, "Data from Global block", INDEX_ID_NULL));
       if (fg) {
+        if (main->versionfile != fd->fileversion) {
+          /* `versionfile` remains unset when linking from a new library (`main` has then just be
+           * created by `blo_find_main`). */
+          BLI_assert(main->versionfile == 0);
+          main->versionfile = short(fd->fileversion);
+        }
         main->subversionfile = fg->subversion;
         main->minversionfile = fg->minversion;
         main->minsubversionfile = fg->minsubversion;
+        main->has_forward_compatibility_issues = !MAIN_VERSION_FILE_OLDER_OR_EQUAL(
+            main, BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION);
         main->is_asset_edit_file = (fg->fileflags & G_FILE_ASSET_EDIT_FILE) != 0;
         MEM_freeN(fg);
       }
@@ -507,8 +520,13 @@ static void read_file_bhead_idname_map_create(FileData *fd)
     }
 
     if (is_link) {
-      const blender::StringRefNull name = blo_bhead_id_name(fd, bhead);
-      fd->bhead_idname_map->add(name, bhead);
+      /* #idname may be null in case the ID name of the given BHead is detected as invalid (e.g.
+       * because it comes from a future version of Blender allowing for longer ID names). These
+       * 'invalid-named IDs' are skipped here, which will e.g. prevent them from being linked. */
+      const char *idname = blo_bhead_id_name(fd, bhead);
+      if (idname) {
+        fd->bhead_idname_map->add(idname, bhead);
+      }
     }
   }
 }
@@ -544,8 +562,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
   /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
    * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
-  lib = static_cast<Library *>(
-      BKE_id_new(static_cast<Main *>(mainlist->first), ID_LI, BLI_path_basename(filepath)));
+  lib = BKE_id_new<Library>(static_cast<Main *>(mainlist->first), BLI_path_basename(filepath));
 
   /* Important, consistency with main ID reading code from read_libblock(). */
   lib->id.us = ID_FAKE_USERS(lib);
@@ -603,144 +620,25 @@ struct BlendLibReader {
   Main *main;
 };
 
-static void switch_endian_bh4(BHead4 *bhead)
-{
-  /* the ID_.. codes */
-  if ((bhead->code & 0xFFFF) == 0) {
-    bhead->code >>= 16;
-  }
-
-  if (bhead->code != BLO_CODE_ENDB) {
-    BLI_endian_switch_int32(&bhead->len);
-    BLI_endian_switch_int32(&bhead->SDNAnr);
-    BLI_endian_switch_int32(&bhead->nr);
-  }
-}
-
-static void switch_endian_bh8(BHead8 *bhead)
-{
-  /* the ID_.. codes */
-  if ((bhead->code & 0xFFFF) == 0) {
-    bhead->code >>= 16;
-  }
-
-  if (bhead->code != BLO_CODE_ENDB) {
-    BLI_endian_switch_int32(&bhead->len);
-    BLI_endian_switch_int32(&bhead->SDNAnr);
-    BLI_endian_switch_int32(&bhead->nr);
-  }
-}
-
-static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, const bool do_endian_swap)
-{
-  BHead4 *bhead4 = (BHead4 *)bhead;
-  int64_t old;
-
-  bhead4->code = bhead8->code;
-  bhead4->len = bhead8->len;
-
-  if (bhead4->code != BLO_CODE_ENDB) {
-    /* perform a endian swap on 64bit pointers, otherwise the pointer might map to zero
-     * 0x0000000000000000000012345678 would become 0x12345678000000000000000000000000
-     */
-    if (do_endian_swap) {
-      BLI_endian_switch_uint64(&bhead8->old);
-    }
-
-    /* this patch is to avoid `intptr_t` being read from not-eight aligned positions
-     * is necessary on any modern 64bit architecture) */
-    memcpy(&old, &bhead8->old, 8);
-    bhead4->old = int(old >> 3);
-
-    bhead4->SDNAnr = bhead8->SDNAnr;
-    bhead4->nr = bhead8->nr;
-  }
-}
-
-static void bh8_from_bh4(BHead *bhead, BHead4 *bhead4)
-{
-  BHead8 *bhead8 = (BHead8 *)bhead;
-
-  bhead8->code = bhead4->code;
-  bhead8->len = bhead4->len;
-
-  if (bhead8->code != BLO_CODE_ENDB) {
-    bhead8->old = bhead4->old;
-    bhead8->SDNAnr = bhead4->SDNAnr;
-    bhead8->nr = bhead4->nr;
-  }
-}
-
 static BHeadN *get_bhead(FileData *fd)
 {
   BHeadN *new_bhead = nullptr;
-  int64_t readsize;
+  const bool do_endian_swap = fd->flags & FD_FLAGS_SWITCH_ENDIAN;
 
   if (fd) {
     if (!fd->is_eof) {
-      /* initializing to zero isn't strictly needed but shuts valgrind up
-       * since uninitialized memory gets compared */
-      BHead8 bhead8 = {0};
-      BHead4 bhead4 = {0};
-      BHead bhead = {0};
-
-      /* First read the bhead structure.
-       * Depending on the platform the file was written on this can
-       * be a big or little endian BHead4 or BHead8 structure.
-       *
-       * As usual 'ENDB' (the last *partial* bhead of the file)
-       * needs some special handling. We don't want to EOF just yet.
-       */
-      if (fd->flags & FD_FLAGS_FILE_POINTSIZE_IS_4) {
-        bhead4.code = BLO_CODE_DATA;
-        readsize = fd->file->read(fd->file, &bhead4, sizeof(bhead4));
-
-        if (readsize == sizeof(bhead4) || bhead4.code == BLO_CODE_ENDB) {
-          if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-            switch_endian_bh4(&bhead4);
-          }
-
-          if (fd->flags & FD_FLAGS_POINTSIZE_DIFFERS) {
-            bh8_from_bh4(&bhead, &bhead4);
-          }
-          else {
-            /* std::min is only to quiet '-Warray-bounds' compiler warning. */
-            BLI_assert(sizeof(bhead) == sizeof(bhead4));
-            memcpy(&bhead, &bhead4, std::min(sizeof(bhead), sizeof(bhead4)));
-          }
-        }
-        else {
-          fd->is_eof = true;
-          bhead.len = 0;
-        }
+      std::optional<BHead> bhead_opt = BLO_readfile_read_bhead(
+          fd->file, fd->blender_header.bhead_type(), do_endian_swap);
+      BHead *bhead = nullptr;
+      if (!bhead_opt.has_value()) {
+        fd->is_eof = true;
+      }
+      else if (bhead_opt->len < 0) {
+        /* Make sure people are not trying to parse bad blend files. */
+        fd->is_eof = true;
       }
       else {
-        bhead8.code = BLO_CODE_DATA;
-        readsize = fd->file->read(fd->file, &bhead8, sizeof(bhead8));
-
-        if (readsize == sizeof(bhead8) || bhead8.code == BLO_CODE_ENDB) {
-          if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-            switch_endian_bh8(&bhead8);
-          }
-
-          if (fd->flags & FD_FLAGS_POINTSIZE_DIFFERS) {
-            bh4_from_bh8(&bhead, &bhead8, (fd->flags & FD_FLAGS_SWITCH_ENDIAN) != 0);
-          }
-          else {
-            /* std::min is only to quiet `-Warray-bounds` compiler warning. */
-            BLI_assert(sizeof(bhead) == sizeof(bhead8));
-            memcpy(&bhead, &bhead8, std::min(sizeof(bhead), sizeof(bhead8)));
-          }
-        }
-        else {
-          fd->is_eof = true;
-          bhead.len = 0;
-        }
-      }
-
-      /* make sure people are not trying to pass bad blend files */
-      if (bhead.len < 0) {
-        fd->is_eof = true;
+        bhead = &bhead_opt.value();
       }
 
       /* bhead now contains the (converted) bhead structure. Now read
@@ -750,7 +648,7 @@ static BHeadN *get_bhead(FileData *fd)
         /* pass */
       }
 #ifdef USE_BHEAD_READ_ON_DEMAND
-      else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(&bhead)) {
+      else if (fd->file->seek != nullptr && BHEAD_USE_READ_ON_DEMAND(bhead)) {
         /* Delay reading bhead content. */
         new_bhead = MEM_mallocN<BHeadN>("new_bhead");
         if (new_bhead) {
@@ -758,8 +656,8 @@ static BHeadN *get_bhead(FileData *fd)
           new_bhead->file_offset = fd->file->offset;
           new_bhead->has_data = false;
           new_bhead->is_memchunk_identical = false;
-          new_bhead->bhead = bhead;
-          const off64_t seek_new = fd->file->seek(fd->file, bhead.len, SEEK_CUR);
+          new_bhead->bhead = *bhead;
+          const off64_t seek_new = fd->file->seek(fd->file, bhead->len, SEEK_CUR);
           if (UNLIKELY(seek_new == -1)) {
             fd->is_eof = true;
             MEM_freeN(new_bhead);
@@ -776,7 +674,7 @@ static BHeadN *get_bhead(FileData *fd)
 #endif
       else {
         new_bhead = static_cast<BHeadN *>(
-            MEM_mallocN(sizeof(BHeadN) + size_t(bhead.len), "new_bhead"));
+            MEM_mallocN(sizeof(BHeadN) + size_t(bhead->len), "new_bhead"));
         if (new_bhead) {
           new_bhead->next = new_bhead->prev = nullptr;
 #ifdef USE_BHEAD_READ_ON_DEMAND
@@ -784,18 +682,19 @@ static BHeadN *get_bhead(FileData *fd)
           new_bhead->has_data = true;
 #endif
           new_bhead->is_memchunk_identical = false;
-          new_bhead->bhead = bhead;
+          new_bhead->bhead = *bhead;
 
-          readsize = fd->file->read(fd->file, new_bhead + 1, size_t(bhead.len));
+          const int64_t readsize = fd->file->read(fd->file, new_bhead + 1, size_t(bhead->len));
 
-          if (readsize != bhead.len) {
+          if (UNLIKELY(readsize != bhead->len)) {
             fd->is_eof = true;
             MEM_freeN(new_bhead);
             new_bhead = nullptr;
           }
-
-          if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-            new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+          else {
+            if (fd->flags & FD_FLAGS_IS_MEMFILE) {
+              new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+            }
           }
         }
         else {
@@ -880,11 +779,15 @@ static bool blo_bhead_read_data(FileData *fd, BHead *thisblock, void *buf)
     success = false;
   }
   else {
-    if (fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) != new_bhead->bhead.len) {
+    if (UNLIKELY(fd->file->read(fd->file, buf, size_t(new_bhead->bhead.len)) !=
+                 new_bhead->bhead.len))
+    {
       success = false;
     }
-    if (fd->flags & FD_FLAGS_IS_MEMFILE) {
-      new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+    else {
+      if (fd->flags & FD_FLAGS_IS_MEMFILE) {
+        new_bhead->is_memchunk_identical = ((UndoReader *)fd->file)->memchunk_identical;
+      }
     }
   }
   if (fd->file->seek(fd->file, offset_backup, SEEK_SET) == -1) {
@@ -910,9 +813,17 @@ static BHead *blo_bhead_read_full(FileData *fd, BHead *thisblock)
 }
 #endif /* USE_BHEAD_READ_ON_DEMAND */
 
-const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead)
+const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
 {
-  return (const char *)POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offset);
+  const char *id_name = reinterpret_cast<const char *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_name_offset));
+  if (std::memchr(id_name, '\0', MAX_ID_NAME)) {
+    return id_name;
+  }
+
+  /* ID name longer than MAX_ID_NAME - 1, or otherwise corrupted. */
+  fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
+  return nullptr;
 }
 
 AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead)
@@ -923,76 +834,13 @@ AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *
              nullptr;
 }
 
-/** A header that has been parsed successfully. */
-struct BlenderHeader {
-  /** 4 or 8. */
-  int pointer_size;
-  /** L_ENDIAN or B_ENDIAN. */
-  int endian;
-  /** #BLENDER_FILE_VERSION. */
-  int file_version;
-};
-
-/** The file is detected to be a Blender file, but it could not be decoded successfully. */
-struct UnknownBlenderHeader {};
-
-/** The file is not a Blender file. */
-struct InvalidHeader {};
-
-using BlenderHeaderVariant = std::variant<InvalidHeader, UnknownBlenderHeader, BlenderHeader>;
-
-static BlenderHeaderVariant decode_blender_header(FileData *fd)
-{
-  char header_bytes[SIZEOFBLENDERHEADER];
-  const int64_t readsize = fd->file->read(fd->file, header_bytes, sizeof(header_bytes));
-  if (readsize != sizeof(header_bytes)) {
-    return InvalidHeader{};
-  }
-  if (!STREQLEN(header_bytes, "BLENDER", 7)) {
-    return InvalidHeader{};
-  }
-  /* If the first 7 bytes are BLENDER, it is very likely that this is a newer version of the
-   * blendfile format. If the rest of the decode fails, we can still report that this was a Blender
-   * file of a potentially future version. */
-
-  BlenderHeader header;
-  switch (header_bytes[7]) {
-    case '_':
-      header.pointer_size = 4;
-      break;
-    case '-':
-      header.pointer_size = 8;
-      break;
-    default:
-      return UnknownBlenderHeader{};
-  }
-  switch (header_bytes[8]) {
-    case 'v':
-      header.endian = L_ENDIAN;
-      break;
-    case 'V':
-      header.endian = B_ENDIAN;
-      break;
-    default:
-      return UnknownBlenderHeader{};
-  }
-  if (!isdigit(header_bytes[9]) || !isdigit(header_bytes[10]) || !isdigit(header_bytes[11])) {
-    return UnknownBlenderHeader{};
-  }
-  char version_str[4];
-  memcpy(version_str, header_bytes + 9, 3);
-  version_str[3] = '\0';
-  header.file_version = atoi(version_str);
-  return header;
-}
-
 static void read_blender_header(FileData *fd)
 {
-  const BlenderHeaderVariant header_variant = decode_blender_header(fd);
-  if (std::holds_alternative<InvalidHeader>(header_variant)) {
+  const BlenderHeaderVariant header_variant = BLO_readfile_blender_header_decode(fd->file);
+  if (std::holds_alternative<BlenderHeaderInvalid>(header_variant)) {
     return;
   }
-  if (std::holds_alternative<UnknownBlenderHeader>(header_variant)) {
+  if (std::holds_alternative<BlenderHeaderUnknown>(header_variant)) {
     fd->flags |= FD_FLAGS_FILE_FUTURE;
     return;
   }
@@ -1008,6 +856,7 @@ static void read_blender_header(FileData *fd)
     fd->flags |= FD_FLAGS_SWITCH_ENDIAN;
   }
   fd->fileversion = header.file_version;
+  fd->blender_header = header;
 }
 
 /**
@@ -1106,6 +955,171 @@ static int *read_file_thumbnail(FileData *fd)
   }
 
   return blend_thumb;
+}
+
+/**
+ * ID names are truncated the their maximum allowed length at a very low level of the readfile code
+ * (see #read_id_struct).
+ *
+ * However, ensuring they remain unique can only be done once all IDs have been read and put in
+ * Main.
+ *
+ * \note #BKE_main_namemap_validate_and_fix could also be used here - but it is designed for a more
+ * general usage, where names are typically expected to be valid, and would generate noisy logs in
+ * this case, where names are expected to _not_ be valid.
+ */
+static void long_id_names_ensure_unique_id_names(Main *bmain)
+{
+  ListBase *lb_iter;
+  /* Using a set is needed, to avoid renaming names when there is no collision, and deal with IDs
+   * being moved around in their list when renamed. A simple set is enough, since here only local
+   * IDs are processed. */
+  blender::Set<blender::StringRef> used_names;
+  blender::Set<ID *> processed_ids;
+
+  FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb_iter) {
+    LISTBASE_FOREACH_MUTABLE (ID *, id_iter, lb_iter) {
+      if (processed_ids.contains(id_iter)) {
+        continue;
+      }
+      processed_ids.add_new(id_iter);
+      /* Linked IDs can be fully ignored here, 'long names' IDs cannot be linked in any way. */
+      if (ID_IS_LINKED(id_iter)) {
+        continue;
+      }
+      if (!used_names.contains(id_iter->name)) {
+        used_names.add_new(id_iter->name);
+        continue;
+      }
+
+      BKE_id_new_name_validate(
+          *bmain, *lb_iter, *id_iter, nullptr, IDNewNameMode::RenameExistingNever, false);
+      BLI_assert(!used_names.contains(id_iter->name));
+      used_names.add_new(id_iter->name);
+      CLOG_INFO(&LOG, 3, "ID name has been de-duplicated to '%s'", id_iter->name);
+    }
+  }
+  FOREACH_MAIN_LISTBASE_END;
+}
+
+/**
+ * Iterate all IDs from Actions and look for non-null terminated #ActionSlot.identifier. Also
+ * handle slot users (in Action constraint, AnimData, and NLA strips).
+ *
+ * This is for forward compatibility, if the blendfile was saved from a version allowing larger
+ * MAX_ID_NAME value than the current one (introduced when switching from MAX_ID_NAME = 66 to
+ * MAX_ID_NAME = 258).
+ */
+static void long_id_names_process_action_slots_identifiers(Main *bmain)
+{
+  /* NOTE: A large part of this code follows a similar logic to
+   * #foreach_action_slot_use_with_references.
+   *
+   * However, no slot identifier should ever be skipped here, even if it is not in use in any way,
+   * since it is critical to remove all non-null terminated strings.
+   */
+
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+    switch (GS(id_iter->name)) {
+      case ID_AC: {
+        bool has_truncated_slot_identifer = false;
+        bAction *act = reinterpret_cast<bAction *>(id_iter);
+        for (int i = 0; i < act->slot_array_num; i++) {
+          if (BLI_str_utf8_truncate_at_size(act->slot_array[i]->identifier, MAX_ID_NAME)) {
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long action slot name to '%s'",
+                      act->slot_array[i]->identifier);
+            has_truncated_slot_identifer = true;
+          }
+        }
+        if (!has_truncated_slot_identifer) {
+          continue;
+        }
+
+        /* If there are truncated slots identifiers, ensuring their uniqueness must happen in a
+         * second loop, to avoid e.g. an attempt to read a slot identifier that has not yet been
+         * truncated. */
+        for (int i = 0; i < act->slot_array_num; i++) {
+          BLI_uniquename_cb(
+              [&](const blender::StringRef name) -> bool {
+                for (int j = 0; j < act->slot_array_num; j++) {
+                  if (i == j) {
+                    continue;
+                  }
+                  if (act->slot_array[j]->identifier == name) {
+                    return true;
+                  }
+                }
+                return false;
+              },
+              "",
+              '.',
+              act->slot_array[i]->identifier,
+              sizeof(act->slot_array[i]->identifier));
+        }
+        break;
+      }
+      case ID_OB: {
+        auto visit_constraint = [](const bConstraint &constraint) -> bool {
+          if (constraint.type != CONSTRAINT_TYPE_ACTION) {
+            return true;
+          }
+          bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
+          if (BLI_str_utf8_truncate_at_size(constraint_data->last_slot_identifier, MAX_ID_NAME)) {
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long bActionConstraint.last_slot_identifier to '%s'",
+                      constraint_data->last_slot_identifier);
+          }
+          return true;
+        };
+
+        Object *object = reinterpret_cast<Object *>(id_iter);
+        LISTBASE_FOREACH (bConstraint *, con, &object->constraints) {
+          visit_constraint(*con);
+        }
+        if (object->pose) {
+          LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
+            LISTBASE_FOREACH (bConstraint *, con, &pchan->constraints) {
+              visit_constraint(*con);
+            }
+          }
+        }
+      }
+        ATTR_FALLTHROUGH;
+      default: {
+        AnimData *anim_data = BKE_animdata_from_id(id_iter);
+        if (anim_data) {
+          if (BLI_str_utf8_truncate_at_size(anim_data->last_slot_identifier, MAX_ID_NAME)) {
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long AnimData.last_slot_identifier to '%s'",
+                      anim_data->last_slot_identifier);
+          }
+          if (BLI_str_utf8_truncate_at_size(anim_data->tmp_last_slot_identifier, MAX_ID_NAME)) {
+            CLOG_INFO(&LOG,
+                      4,
+                      "Truncated too long AnimData.tmp_last_slot_identifier to '%s'",
+                      anim_data->tmp_last_slot_identifier);
+          }
+
+          blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
+            if (BLI_str_utf8_truncate_at_size(strip->last_slot_identifier, MAX_ID_NAME)) {
+              CLOG_INFO(&LOG,
+                        4,
+                        "Truncated too long NlaStrip.last_slot_identifier to '%s'",
+                        strip->last_slot_identifier);
+            }
+
+            return true;
+          });
+        }
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
 }
 
 /** \} */
@@ -1348,7 +1362,7 @@ FileData *blo_filedata_from_memory(const void *mem,
                                    const int memsize,
                                    BlendFileReadReport *reports)
 {
-  if (!mem || memsize < SIZEOFBLENDERHEADER) {
+  if (!mem || memsize < MIN_SIZEOFBLENDERHEADER) {
     BKE_report(
         reports->reports, RPT_WARNING, (mem) ? RPT_("Unable to read") : RPT_("Unable to open"));
     return nullptr;
@@ -1540,23 +1554,55 @@ static void change_link_placeholder_to_real_ID_pointer_fd(FileData *fd,
   }
 }
 
+/* Very rarely needed, allows some form of ID remapping as part of readfile process.
+ *
+ * Currently only used to remap duplicate library pointers.
+ */
+static void change_ID_pointer_to_real_ID_pointer_fd(FileData *fd, const void *old, void *newp)
+{
+  for (NewAddress &entry : fd->libmap->map.values()) {
+    if (old == entry.newp) {
+      BLI_assert(BKE_idtype_idcode_is_valid(short(entry.nr)));
+      entry.newp = newp;
+      if (newp) {
+        entry.nr = GS(((ID *)newp)->name);
+      }
+    }
+  }
+}
+
+static FileData *change_ID_link_filedata_get(Main *bmain, FileData *basefd)
+{
+  if (bmain->curlib) {
+    return bmain->curlib->runtime->filedata;
+  }
+  else {
+    return basefd;
+  }
+}
+
 static void change_link_placeholder_to_real_ID_pointer(ListBase *mainlist,
                                                        FileData *basefd,
                                                        void *old,
                                                        void *newp)
 {
   LISTBASE_FOREACH (Main *, mainptr, mainlist) {
-    FileData *fd;
-
-    if (mainptr->curlib) {
-      fd = mainptr->curlib->runtime->filedata;
-    }
-    else {
-      fd = basefd;
-    }
-
+    FileData *fd = change_ID_link_filedata_get(mainptr, basefd);
     if (fd) {
       change_link_placeholder_to_real_ID_pointer_fd(fd, old, newp);
+    }
+  }
+}
+
+static void change_ID_pointer_to_real_ID_pointer(ListBase *mainlist,
+                                                 FileData *basefd,
+                                                 void *old,
+                                                 void *newp)
+{
+  LISTBASE_FOREACH (Main *, mainptr, mainlist) {
+    FileData *fd = change_ID_link_filedata_get(mainptr, basefd);
+    if (fd) {
+      change_ID_pointer_to_real_ID_pointer_fd(fd, old, newp);
     }
   }
 }
@@ -1913,6 +1959,26 @@ static void *read_struct(FileData *fd, BHead *bh, const char *blockname, const i
   return temp;
 }
 
+static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const int id_type_index)
+{
+  ID *id = static_cast<ID *>(read_struct(fd, bh, blockname, id_type_index));
+  if (!id) {
+    return id;
+  }
+
+  /* Invalid ID name (probably from 'too long' ID name from a future Blender version).
+   *
+   * They can only be truncated here, ensuring that all ID names remain unique happens later, after
+   * reading all local IDs, but before linking them, see the call to
+   * #long_id_names_ensure_unique_id_names in #blo_read_file_internal. */
+  if (BLI_str_utf8_truncate_at_size(id->name + 2, MAX_ID_NAME - 2)) {
+    fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
+    CLOG_INFO(&LOG, 3, "Truncated too long ID name to '%s'", id->name);
+  }
+
+  return id;
+}
+
 /* Like read_struct, but gets a pointer without allocating. Only works for
  * undo since DNA must match. */
 static const void *peek_struct_undo(FileData *fd, BHead *bhead)
@@ -2046,6 +2112,15 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
                                        ID *id_old)
 {
   /* Handle 'private IDs'. */
+  if (GS(id->name) == ID_SCE) {
+    Scene *scene = (Scene *)id;
+    if (scene->compositing_node_group) {
+      /* If `scene->compositing_node_group != nullptr`, then this means the blend file was created
+       * by a version that wrote the compositing_node_group as its own ID datablock. Since
+       * `scene->nodetree` was written for forward compatibility reasons only, we can ignore it. */
+      scene->nodetree = nullptr;
+    }
+  }
   bNodeTree **nodetree = blender::bke::node_tree_ptr_from_id(id);
   if (nodetree != nullptr && *nodetree != nullptr) {
     BLO_read_struct(reader, bNodeTree, nodetree);
@@ -2256,6 +2331,11 @@ static void direct_link_id_common(BlendDataReader *reader,
     IDP_BlendDataRead(reader, &id->properties);
   }
 
+  if (id->system_properties) {
+    BLO_read_struct(reader, IDProperty, &id->system_properties);
+    IDP_BlendDataRead(reader, &id->system_properties);
+  }
+
   id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
 
   /* NOTE: It is important to not clear the recalc flags for undo/redo.
@@ -2402,7 +2482,7 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
                          lib->filepath,
                          lib->runtime->filepath_abs);
 
-        change_link_placeholder_to_real_ID_pointer(fd->mainlist, fd, lib, newmain->curlib);
+        change_ID_pointer_to_real_ID_pointer(fd->mainlist, fd, lib, newmain->curlib);
         // change_link_placeholder_to_real_ID_pointer_fd(fd, lib, newmain->curlib);
 
         BLI_remlink(&main->libraries, lib);
@@ -3013,7 +3093,7 @@ static BHead *read_libblock(FileData *fd,
    * in release builds. */
   const char *blockname = get_alloc_name(fd, bhead, nullptr, id_type_index);
 #endif
-  ID *id = static_cast<ID *>(read_struct(fd, bhead, blockname, id_type_index));
+  ID *id = read_id_struct(fd, bhead, blockname, id_type_index);
   if (id == nullptr) {
     if (r_id) {
       *r_id = nullptr;
@@ -3227,6 +3307,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   /* Don't allow versioning to create new data-blocks. */
   main->is_locked_for_linking = true;
 
+  /* Code ensuring conversion from new 'system IDProperties' in 5.0. This needs to run before any
+   * other data versioning. Otherwise, things like Cycles versioning code cannot work as expected.
+   *
+   * Merge (with overwrite) future system properties storage into current IDProperties. */
+  version_forward_compat_system_idprops(main);
+
   if (G.debug & G_DEBUG) {
     char build_commit_datetime[32];
     time_t temp_time = main->build_commit_timestamp;
@@ -3272,6 +3358,24 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_400(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_410(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_420(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_430(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_440(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_450(fd, lib, main);
+  }
+  if (!main->is_read_invalid) {
+    blo_do_versions_500(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3316,6 +3420,24 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_400(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_410(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_420(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_430(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_440(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_450(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_500(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -3785,6 +3907,41 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     }
   }
 
+  /* Ensure fully valid and unique ID names before calling first stage of versioning. */
+  if (!is_undo && (fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) != 0) {
+    long_id_names_ensure_unique_id_names(bfd->main);
+
+    if (bfd->main->has_forward_compatibility_issues) {
+      BKE_reportf(fd->reports->reports,
+                  RPT_WARNING,
+                  "Blendfile '%s' was created by a future version of Blender and contains ID "
+                  "names longer than currently supported. These have been truncated.",
+                  bfd->filepath);
+    }
+    else {
+      BKE_reportf(fd->reports->reports,
+                  RPT_ERROR,
+                  "Blendfile '%s' appears corrupted, it contains invalid ID names. These have "
+                  "been truncated.",
+                  bfd->filepath);
+    }
+
+    /* This part is only to ensure forward compatibility with 5.0+ blend-files in 4.5.
+     * It will be removed in 5.0. */
+    long_id_names_process_action_slots_identifiers(bfd->main);
+  }
+  else {
+    /* Getting invalid ID names from memfile undo data would be a critical error. */
+    BLI_assert((fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) == 0);
+    if ((fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) != 0) {
+      bfd->main->is_read_invalid = true;
+    }
+  }
+
+  if (bfd->main->is_read_invalid) {
+    return bfd;
+  }
+
   /* Do versioning before read_libraries, but skip in undo case. */
   if (!is_undo) {
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
@@ -4089,10 +4246,38 @@ static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
   BLI_assert(BKE_main_idmap_main_get(mainvar->id_map) == mainvar);
 
   const char *idname = blo_bhead_id_name(fd, bhead);
+  if (!idname) {
+    return nullptr;
+  }
 
   ID *id = BKE_main_idmap_lookup_name(mainvar->id_map, GS(idname), idname + 2, mainvar->curlib);
   BLI_assert(id == BLI_findstring(which_libbase(mainvar, GS(idname)), idname, offsetof(ID, name)));
   return id;
+}
+
+static void read_libraries_report_invalid_id_names(FileData *fd,
+                                                   ReportList *reports,
+                                                   const bool has_forward_compatibility_issues,
+                                                   const char *filepath)
+{
+  if (!fd || (fd->flags & FD_FLAGS_HAS_INVALID_ID_NAMES) == 0) {
+    return;
+  }
+  if (has_forward_compatibility_issues) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Library '%s' was created by a future version of Blender and contains ID names "
+                "longer than currently supported. This may cause missing linked data, consider "
+                "opening and re-saving that library with the current Blender version.",
+                filepath);
+  }
+  else {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Library '%s' appears corrupted, it contains invalid ID names. This may cause "
+                "missing linked data.",
+                filepath);
+  }
 }
 
 /** \} */
@@ -4126,6 +4311,11 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
   if (!blo_bhead_is_id_valid_type(bhead)) {
     return;
   }
+  if (!blo_bhead_id_name(fd, bhead)) {
+    /* Do not allow linking ID which names are invalid (likely coming from a future version of
+     * Blender allowing longer names). */
+    return;
+  }
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */
@@ -4134,8 +4324,8 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
       return;
     }
 
-    Library *lib = static_cast<Library *>(
-        read_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
+    Library *lib = reinterpret_cast<Library *>(
+        read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main(fd, lib->filepath, fd->relabase);
 
     if (libmain->curlib == nullptr) {
@@ -4144,7 +4334,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
       BLO_reportf_wrap(fd->reports,
                        RPT_WARNING,
                        RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
-                       idname,
+                       idname ? idname : "<InvalidIDName>",
                        mainvar->curlib->runtime->filepath_abs);
       return;
     }
@@ -4457,7 +4647,7 @@ static void split_main_newid(Main *mainptr, Main *main_newid)
   }
 }
 
-static void library_link_end(Main *mainl, FileData **fd, const int flag)
+static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportList *reports)
 {
   Main *mainvar;
   Library *curlib;
@@ -4468,6 +4658,9 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
 
   /* make main consistent */
   BLO_expand_main(*fd, mainl, expand_doit_library);
+
+  read_libraries_report_invalid_id_names(
+      *fd, reports, mainl->has_forward_compatibility_issues, mainl->curlib->runtime->filepath_abs);
 
   /* Do this when expand found other libraries. */
   read_libraries(*fd, (*fd)->mainlist);
@@ -4579,12 +4772,15 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag)
   blo_read_file_checks(mainvar);
 }
 
-void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Params *params)
+void BLO_library_link_end(Main *mainl,
+                          BlendHandle **bh,
+                          const LibraryLink_Params *params,
+                          ReportList *reports)
 {
   FileData *fd = reinterpret_cast<FileData *>(*bh);
 
   if (!mainl->is_read_invalid) {
-    library_link_end(mainl, &fd, params->flag);
+    library_link_end(mainl, &fd, params->flag, reports);
   }
 
   LISTBASE_FOREACH (Library *, lib, &params->bmain->libraries) {
@@ -4644,6 +4840,10 @@ static void read_library_linked_id(
                         ((id->tag & ID_TAG_EXTERN) == 0);
 
   if (fd) {
+    /* About future longer ID names: This is one of the main places that prevent linking IDs with
+     * names longer than MAX_ID_NAME - 1.
+     *
+     * See also #read_file_bhead_idname_map_create. */
     bhead = find_bhead_from_idname(fd, id->name);
   }
 
@@ -4749,6 +4949,11 @@ static void read_library_linked_ids(FileData *basefd,
 
     loaded_ids.clear();
   }
+
+  read_libraries_report_invalid_id_names(fd,
+                                         basefd->reports->reports,
+                                         mainvar->has_forward_compatibility_issues,
+                                         mainvar->curlib->runtime->filepath_abs);
 }
 
 static void read_library_clear_weak_links(FileData *basefd, ListBase *mainlist, Main *mainvar)
@@ -4949,16 +5154,25 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
   BKE_main_free(main_newid);
 }
 
-static void *blo_verify_data_address(void *new_address,
+static void *blo_verify_data_address(FileData *fd,
+                                     void *new_address,
                                      const void * /*old_address*/,
                                      const size_t expected_size)
 {
   if (new_address != nullptr) {
     /* Not testing equality, since size might have been aligned up,
      * or might be passed the size of a base struct with inheritance. */
-    BLI_assert_msg(MEM_allocN_len(new_address) >= expected_size,
-                   "Corrupt .blend file, unexpected data size.");
-    UNUSED_VARS_NDEBUG(expected_size);
+    if (MEM_allocN_len(new_address) < expected_size) {
+      blo_readfile_invalidate(fd,
+                              static_cast<Main *>(fd->mainlist->last),
+                              "Corrupt .blend file, unexpected data size.");
+      /* Return null to trigger a hard-crash rather than allowing readfile code to further access
+       * this invalid block of memory.
+       *
+       * It could also potentially allow the calling code to do its own error checking and abort
+       * reading process, but that is not implemented currently. */
+      return nullptr;
+    }
   }
 
   return new_address;
@@ -4974,7 +5188,7 @@ void *BLO_read_get_new_data_address_no_us(BlendDataReader *reader,
                                           const size_t expected_size)
 {
   void *new_address = newdataadr_no_us(reader->fd, old_address);
-  return blo_verify_data_address(new_address, old_address, expected_size);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_array_with_size(BlendDataReader *reader,
@@ -4982,7 +5196,7 @@ void *BLO_read_struct_array_with_size(BlendDataReader *reader,
                                       const size_t expected_size)
 {
   void *new_address = newdataadr(reader->fd, old_address);
-  return blo_verify_data_address(new_address, old_address, expected_size);
+  return blo_verify_data_address(reader->fd, new_address, old_address, expected_size);
 }
 
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
@@ -5148,18 +5362,9 @@ static void convert_pointer_array_64_to_32(BlendDataReader *reader,
                                            const uint64_t *src,
                                            uint32_t *dst)
 {
-  /* Match pointer conversion rules from bh4_from_bh8 and cast_pointer. */
-  if (BLO_read_requires_endian_switch(reader)) {
-    for (int i = 0; i < array_size; i++) {
-      uint64_t ptr = src[i];
-      BLI_endian_switch_uint64(&ptr);
-      dst[i] = uint32_t(ptr >> 3);
-    }
-  }
-  else {
-    for (int i = 0; i < array_size; i++) {
-      dst[i] = uint32_t(src[i] >> 3);
-    }
+  const bool use_endian_swap = BLO_read_requires_endian_switch(reader);
+  for (int i = 0; i < array_size; i++) {
+    dst[i] = uint32_from_uint64_ptr(src[i], use_endian_swap);
   }
 }
 

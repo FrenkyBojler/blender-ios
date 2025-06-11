@@ -10,13 +10,8 @@
 
 #if (!defined(__KERNEL_GPU__) || (defined(__KERNEL_ONEAPI__) && defined(WITH_EMBREE_GPU))) && \
     defined(WITH_EMBREE)
-#  if EMBREE_MAJOR_VERSION == 4
-#    include <embree4/rtcore.h>
-#    include <embree4/rtcore_scene.h>
-#  else
-#    include <embree3/rtcore.h>
-#    include <embree3/rtcore_scene.h>
-#  endif
+#  include <embree4/rtcore.h>
+#  include <embree4/rtcore_scene.h>
 #  define __EMBREE__
 #endif
 
@@ -124,17 +119,18 @@ CCL_NAMESPACE_BEGIN
 #define KERNEL_FEATURE_PATH_GUIDING (1U << 24U)
 
 /* OSL. */
-#define KERNEL_FEATURE_OSL (1U << 25U)
+#define KERNEL_FEATURE_OSL_SHADING (1U << 25U)
+#define KERNEL_FEATURE_OSL_CAMERA (1U << 26U)
 
 /* Light and shadow linking. */
-#define KERNEL_FEATURE_LIGHT_LINKING (1U << 26U)
-#define KERNEL_FEATURE_SHADOW_LINKING (1U << 27U)
+#define KERNEL_FEATURE_LIGHT_LINKING (1U << 27U)
+#define KERNEL_FEATURE_SHADOW_LINKING (1U << 28U)
 
 /* Use denoising kernels and output denoising passes. */
-#define KERNEL_FEATURE_DENOISING (1U << 28U)
+#define KERNEL_FEATURE_DENOISING (1U << 29U)
 
 /* Light tree. */
-#define KERNEL_FEATURE_LIGHT_TREE (1U << 29U)
+#define KERNEL_FEATURE_LIGHT_TREE (1U << 30U)
 
 /* Shader node feature mask, to specialize shader evaluation for kernels. */
 
@@ -205,7 +201,7 @@ CCL_NAMESPACE_BEGIN
 #  endif
 #endif
 #ifndef __KERNEL_GPU__
-#  ifdef WITH_PATH_GUIDING
+#  if defined(WITH_PATH_GUIDING)
 #    define __PATH_GUIDING__
 #  endif
 #  define __VOLUME_RECORD_ALL__
@@ -659,7 +655,7 @@ enum GuidingDirectionalSamplingType {
 
 /* Camera Type */
 
-enum CameraType { CAMERA_PERSPECTIVE, CAMERA_ORTHOGRAPHIC, CAMERA_PANORAMA };
+enum CameraType { CAMERA_PERSPECTIVE, CAMERA_ORTHOGRAPHIC, CAMERA_PANORAMA, CAMERA_CUSTOM };
 
 /* Panorama Type */
 
@@ -1481,7 +1477,11 @@ struct ccl_align(16) KernelData
   void *device_bvh;
 #else
 #  ifdef __EMBREE__
+#    if RTC_VERSION >= 40400
+  RTCTraversable device_bvh;
+#    else
   RTCScene device_bvh;
+#    endif
 #    ifndef __KERNEL_64_BIT__
   int pad1;
 #    endif
@@ -1764,7 +1764,7 @@ struct KernelWorkTile {
 /* Shader Evaluation.
  *
  * Position on a primitive on an object at which we want to evaluate the
- * shader for e.g. mesh displacement or light importance map. */
+ * shader for example mesh displacement or light importance map. */
 
 struct KernelShaderEvalInput {
   int object;

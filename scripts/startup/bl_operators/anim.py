@@ -120,8 +120,9 @@ class ANIM_OT_keying_set_export(Operator):
             elif ksp.id.bl_rna.identifier.startswith("CompositorNodeTree"):
                 # Find compositor node-tree using this node tree.
                 for scene in bpy.data.scenes:
-                    if scene.node_tree == ksp.id:
-                        id_bpy_path = "bpy.data.scenes[\"{:s}\"].node_tree".format(escape_identifier(scene.name))
+                    if scene.compositing_node_group == ksp.id:
+                        id_bpy_path = "bpy.data.scenes[\"{:s}\"].compositing_node_group".format(
+                            escape_identifier(scene.name))
                         break
                 else:
                     self.report(
@@ -712,7 +713,8 @@ class ANIM_OT_slot_new_for_id(Operator):
         if adt.action_slot:
             slot = adt.action_slot.duplicate()
         else:
-            slot = adt.action.slots.new(animated_id.id_type, animated_id.name)
+            slot_name = adt.last_slot_identifier[2:] or animated_id.name
+            slot = adt.action.slots.new(animated_id.id_type, slot_name)
 
         adt.action_slot = slot
         return {'FINISHED'}

@@ -922,7 +922,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
       if (final) {
         copy_v2_v2(luv, final_position[index].uv);
 
-        uvedit_uv_select_enable(scene, state->em->bm, l, false, offsets);
+        uvedit_uv_select_enable(scene, state->em->bm, l, offsets);
       }
       else {
         int face_preview_pos =
@@ -1691,7 +1691,7 @@ static void stitch_draw(const bContext * /*C*/, ARegion * /*region*/, void *arg)
     static GPUVertFormat format = {0};
     static uint pos_id;
     if (format.attr_len == 0) {
-      pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      pos_id = GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     }
 
     GPU_blend(GPU_BLEND_ALPHA);
@@ -2699,7 +2699,7 @@ void UV_OT_stitch(wmOperatorType *ot)
   ot->idname = "UV_OT_stitch";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = stitch_invoke;
   ot->modal = stitch_modal;
   ot->exec = stitch_exec;
