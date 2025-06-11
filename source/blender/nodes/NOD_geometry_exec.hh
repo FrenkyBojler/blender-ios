@@ -19,6 +19,7 @@
 #include "BKE_volume_grid_fwd.hh"
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_closure_fwd.hh"
+#include "NOD_geometry_nodes_list_fwd.hh"
 
 #include "DNA_node_types.h"
 
@@ -108,9 +109,15 @@ class GeoNodeExecParams {
                                                              float4x4>;
 
   template<typename T>
-  static constexpr bool stored_as_SocketValueVariant_v =
-      is_field_base_type_v<T> || fn::is_field_v<T> || bke::is_VolumeGrid_v<T> ||
-      is_same_any_v<T, GField, bke::GVolumeGrid, nodes::BundlePtr, nodes::ClosurePtr>;
+  static constexpr bool stored_as_SocketValueVariant_v = is_field_base_type_v<T> ||
+                                                         fn::is_field_v<T> ||
+                                                         bke::is_VolumeGrid_v<T> ||
+                                                         is_same_any_v<T,
+                                                                       GField,
+                                                                       bke::GVolumeGrid,
+                                                                       nodes::BundlePtr,
+                                                                       nodes::ClosurePtr,
+                                                                       nodes::ListPtr>;
 
   /**
    * Get the input value for the input socket with the given identifier.
