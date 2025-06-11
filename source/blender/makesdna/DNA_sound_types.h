@@ -14,13 +14,17 @@ struct Ipo;
 struct PackedFile;
 
 typedef struct bSound {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_SO;
+#endif
+
   ID id;
 
   /**
    * The path to the sound file.
    */
-  /** 1024 = FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   /**
    * The packed file.
@@ -73,7 +77,7 @@ typedef struct bSound {
   /** Spin-lock for asynchronous loading of sounds. */
   void *spinlock;
   /* XXX unused currently (SOUND_TYPE_LIMITER) */
-  /* float start, end; */
+  // float start, end;
 
   /* Description of Audio channels, as of #eSoundChannels. */
   int audio_channels;

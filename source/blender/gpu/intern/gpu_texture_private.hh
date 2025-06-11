@@ -10,14 +10,13 @@
 
 #include "BLI_assert.h"
 
-#include "GPU_vertex_buffer.h"
+#include "GPU_vertex_buffer.hh"
 
 #include "gpu_framebuffer_private.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-typedef enum eGPUTextureFormatFlag {
+enum eGPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
   /* The format has a stencil component and can be used as stencil attachment. */
@@ -36,7 +35,7 @@ typedef enum eGPUTextureFormatFlag {
   GPU_FORMAT_SIGNED = (1 << 7),
 
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
-} eGPUTextureFormatFlag;
+};
 
 ENUM_OPERATORS(eGPUTextureFormatFlag, GPU_FORMAT_SIGNED)
 
@@ -68,7 +67,7 @@ enum eGPUSamplerFormat {
 
 ENUM_OPERATORS(eGPUSamplerFormat, GPU_SAMPLER_TYPE_UINT)
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #  define DEBUG_NAME_LEN 64
 #else
 #  define DEBUG_NAME_LEN 8
@@ -132,7 +131,7 @@ class Texture {
   bool init_2D(int w, int h, int layers, int mip_len, eGPUTextureFormat format);
   bool init_3D(int w, int h, int d, int mip_len, eGPUTextureFormat format);
   bool init_cubemap(int w, int layers, int mip_len, eGPUTextureFormat format);
-  bool init_buffer(GPUVertBuf *vbo, eGPUTextureFormat format);
+  bool init_buffer(VertBuf *vbo, eGPUTextureFormat format);
   bool init_view(GPUTexture *src,
                  eGPUTextureFormat format,
                  eGPUTextureType type,
@@ -313,7 +312,7 @@ class Texture {
 
  protected:
   virtual bool init_internal() = 0;
-  virtual bool init_internal(GPUVertBuf *vbo) = 0;
+  virtual bool init_internal(VertBuf *vbo) = 0;
   virtual bool init_internal(GPUTexture *src,
                              int mip_offset,
                              int layer_offset,
@@ -341,11 +340,11 @@ class PixelBuffer {
 
  public:
   PixelBuffer(size_t size) : size_(size){};
-  virtual ~PixelBuffer(){};
+  virtual ~PixelBuffer() = default;
 
   virtual void *map() = 0;
   virtual void unmap() = 0;
-  virtual int64_t get_native_handle() = 0;
+  virtual GPUPixelBufferNativeHandle get_native_handle() = 0;
   virtual size_t get_size() = 0;
 };
 
@@ -767,8 +766,7 @@ inline size_t to_bytesize(eGPUTextureFormat tex_format, eGPUDataFormat data_form
 }
 
 /* Definitely not complete, edit according to the gl specification. */
-constexpr inline bool validate_data_format(eGPUTextureFormat tex_format,
-                                           eGPUDataFormat data_format)
+constexpr bool validate_data_format(eGPUTextureFormat tex_format, eGPUDataFormat data_format)
 {
   switch (tex_format) {
     /* Formats texture & render-buffer */
@@ -825,7 +823,7 @@ constexpr inline bool validate_data_format(eGPUTextureFormat tex_format,
       /* Should have its own type. For now, we rely on the backend to do the conversion. */
       ATTR_FALLTHROUGH;
     case GPU_DEPTH24_STENCIL8:
-      return ELEM(data_format, GPU_DATA_UINT_24_8, GPU_DATA_UINT);
+      return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8, GPU_DATA_UINT);
     case GPU_SRGB8_A8:
       return ELEM(data_format, GPU_DATA_FLOAT, GPU_DATA_UBYTE);
 
@@ -1086,89 +1084,9 @@ static inline eGPUTextureFormat to_texture_format(const GPUVertFormat *format)
 {
   if (format->attr_len == 0) {
     BLI_assert_msg(0, "Incorrect vertex format for buffer texture");
-    return GPU_DEPTH_COMPONENT24;
+    return eGPUTextureFormat(0);
   }
-  switch (format->attrs[0].comp_len) {
-    case 1:
-      switch (format->attrs[0].comp_type) {
-        case GPU_COMP_I8:
-          return GPU_R8I;
-        case GPU_COMP_U8:
-          return GPU_R8UI;
-        case GPU_COMP_I16:
-          return GPU_R16I;
-        case GPU_COMP_U16:
-          return GPU_R16UI;
-        case GPU_COMP_I32:
-          return GPU_R32I;
-        case GPU_COMP_U32:
-          return GPU_R32UI;
-        case GPU_COMP_F32:
-          return GPU_R32F;
-        default:
-          break;
-      }
-      break;
-    case 2:
-      switch (format->attrs[0].comp_type) {
-        case GPU_COMP_I8:
-          return GPU_RG8I;
-        case GPU_COMP_U8:
-          return GPU_RG8UI;
-        case GPU_COMP_I16:
-          return GPU_RG16I;
-        case GPU_COMP_U16:
-          return GPU_RG16UI;
-        case GPU_COMP_I32:
-          return GPU_RG32I;
-        case GPU_COMP_U32:
-          return GPU_RG32UI;
-        case GPU_COMP_F32:
-          return GPU_RG32F;
-        default:
-          break;
-      }
-      break;
-    case 3:
-      /* Not supported until GL 4.0 */
-      break;
-    case 4:
-      switch (format->attrs[0].comp_type) {
-        case GPU_COMP_I8:
-          return GPU_RGBA8I;
-        case GPU_COMP_U8:
-          return GPU_RGBA8UI;
-        case GPU_COMP_I16:
-          return GPU_RGBA16I;
-        case GPU_COMP_U16:
-          /* NOTE: Checking the fetch mode to select the right GPU texture format. This can be
-           * added to other formats as well. */
-          switch (format->attrs[0].fetch_mode) {
-            case GPU_FETCH_INT:
-              return GPU_RGBA16UI;
-            case GPU_FETCH_INT_TO_FLOAT_UNIT:
-              return GPU_RGBA16;
-            case GPU_FETCH_INT_TO_FLOAT:
-              return GPU_RGBA16F;
-            case GPU_FETCH_FLOAT:
-              return GPU_RGBA16F;
-          }
-        case GPU_COMP_I32:
-          return GPU_RGBA32I;
-        case GPU_COMP_U32:
-          return GPU_RGBA32UI;
-        case GPU_COMP_F32:
-          return GPU_RGBA32F;
-        default:
-          break;
-      }
-      break;
-    default:
-      break;
-  }
-  BLI_assert_msg(0, "Unsupported vertex format for buffer texture");
-  return GPU_DEPTH_COMPONENT24;
+  return eGPUTextureFormat(format->attrs[0].type.format);
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

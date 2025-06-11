@@ -6,12 +6,10 @@
  * \ingroup spview3d
  */
 
-#include "BKE_context.h"
-#include "BKE_report.h"
+#include "BKE_context.hh"
+#include "BKE_report.hh"
 
 #include "BLI_math_vector.h"
-
-#include "DEG_depsgraph.h"
 
 #include "WM_api.hh"
 
@@ -19,7 +17,7 @@
 
 #include "ED_screen.hh"
 
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
@@ -29,9 +27,10 @@
  * which avoids #RegionView3D.dist approaching zero.
  * \{ */
 
-/* This is an exact copy of #viewzoom_modal_keymap. */
 void viewdolly_modal_keymap(wmKeyConfig *keyconf)
 {
+  /* NOTE: This is an exact copy of #viewzoom_modal_keymap. */
+
   static const EnumPropertyItem modal_items[] = {
       {VIEW_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
       {VIEW_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
@@ -91,7 +90,7 @@ static void viewdolly_apply(ViewOpsData *vod, const int xy[2], const bool zoom_i
       len2 = (vod->region->winrct.ymax - vod->init.event_xy[1]) + 5;
     }
     if (zoom_invert) {
-      SWAP(float, len1, len2);
+      std::swap(len1, len2);
     }
 
     zfac = 1.0f + ((len1 - len2) * 0.01f * vod->rv3d->dist);
@@ -110,12 +109,12 @@ static void viewdolly_apply(ViewOpsData *vod, const int xy[2], const bool zoom_i
   ED_region_tag_redraw(vod->region);
 }
 
-static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
   short event_code = VIEW_PASS;
   bool use_autokey = false;
-  int ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
   /* Execute the events. */
   if (event->type == EVT_MODAL_MAP) {
@@ -184,7 +183,7 @@ static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return ret;
 }
 
-static int viewdolly_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
 {
   View3D *v3d;
   RegionView3D *rv3d;
@@ -235,9 +234,10 @@ static int viewdolly_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-/* copied from viewzoom_invoke(), changes here may apply there */
-static int viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  /* Near duplicate logic in #viewzoom_invoke(), changes here may apply there too. */
+
   ViewOpsData *vod;
 
   if (viewdolly_offset_lock_check(C, op)) {
@@ -251,8 +251,25 @@ static int viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
 
-  /* needs to run before 'viewops_data_create' so the backup 'rv3d->ofs' is correct */
-  /* switch from camera view when: */
+  /* Rationale for enforcing a perspective projection:
+   *
+   * While translating the view center (the #RegionView3D::ofs) is possible,
+   * in most cases there is no user feedback that anything is changing,
+   * because only "panning" the view is shown in orthographic projections.
+   *
+   * From a user perspective it seems like a bug when interactive operators appear to do nothing,
+   * so force a perspective view.
+   *
+   * There are some exceptions where users would notice (mentioning for completeness),
+   * but they're obscure enough for the logic to stay as-is.
+   *
+   * - With a small far-clip plane "dolly" may move contents in/out of the visible clipping range.
+   * - With quad-view and "Sync Zoom/Pan" enabled, "dolly" will be visible other views.
+   *   We could even make an exception for this and allow dolly however even in this case
+   *   the user might as well pan the other views directly.
+   *
+   * NOTE: needs to run before #viewops_data_create so the backup `rv3d->ofs` is correct.
+   */
   if (vod->rv3d->persp != RV3D_PERSP) {
     if (vod->rv3d->persp == RV3D_CAMOB) {
       /* ignore rv3d->lpersp because dolly only makes sense in perspective mode */
@@ -313,11 +330,13 @@ void VIEW3D_OT_dolly(wmOperatorType *ot)
   ot->description = "Dolly in/out in the view";
   ot->idname = ViewOpsType_dolly.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = viewdolly_invoke;
   ot->exec = viewdolly_exec;
   ot->modal = viewdolly_modal;
-  ot->poll = view3d_rotation_poll;
+  /* Check rotation because this operator switches from orthographic to perspective view.
+   * See inline code-comments for details. */
+  ot->poll = view3d_zoom_or_dolly_or_rotation_poll;
   ot->cancel = view3d_navigate_cancel_fn;
 
   /* flags */

@@ -15,19 +15,19 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_array_utils.h"
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 
-#include "BKE_anim_data.h"
-#include "BKE_context.h"
-#include "BKE_curve.h"
-#include "BKE_fcurve.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_undo_system.h"
+#include "BKE_anim_data.hh"
+#include "BKE_context.hh"
+#include "BKE_curve.hh"
+#include "BKE_fcurve.hh"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
+#include "BKE_object.hh"
+#include "BKE_undo_system.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_curve.hh"
 #include "ED_undo.hh"
@@ -35,7 +35,9 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
+
+using blender::Vector;
 
 /** We only need this locally. */
 static CLG_LogRef LOG = {"ed.undo.curve"};
@@ -44,11 +46,23 @@ static CLG_LogRef LOG = {"ed.undo.curve"};
 /** \name Undo Conversion
  * \{ */
 
+namespace {
+
 struct UndoCurve {
   ListBase nubase;
   int actvert;
   GHash *undoIndex;
-  ListBase fcurves, drivers;
+
+  /* Historical note: Once upon a time, this code also made a backup of F-Curves, in an attempt to
+   * enable undo of animation changes. This was very limited, as it only backed up the animation
+   * of the curve ID; all the other IDs whose animation was shown in the dope sheet, timeline, etc.
+   * was ignored. It also ignored the NLA, and deleted Action groups even when the animation was
+   * not touched by the user.
+   *
+   * With the introduction of slotted Actions, a decision had to be made to either port this
+   * behavior or remove it. The latter was chosen. For more information, see #135585. */
+  ListBase drivers;
+
   int actnu;
   int flag;
 
@@ -59,6 +73,8 @@ struct UndoCurve {
 
   size_t undo_size;
 };
+
+}  // namespace
 
 static void undocurve_to_editcurve(Main *bmain, UndoCurve *ucu, Curve *cu, short *r_shapenr)
 {
@@ -75,11 +91,6 @@ static void undocurve_to_editcurve(Main *bmain, UndoCurve *ucu, Curve *cu, short
   }
 
   if (ad) {
-    if (ad->action) {
-      BKE_fcurves_free(&ad->action->curves);
-      BKE_fcurves_copy(&ad->action->curves, &ucu->fcurves);
-    }
-
     BKE_fcurves_free(&ad->drivers);
     BKE_fcurves_copy(&ad->drivers, &ucu->drivers);
   }
@@ -109,7 +120,7 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   EditNurb *editnurb = cu->editnurb, tmpEditnurb;
   AnimData *ad = BKE_animdata_from_id(&cu->id);
 
-  /* TODO: include size of fcurve & undoIndex */
+  /* TODO: include size of drivers & undoIndex */
   // ucu->undo_size = 0;
 
   if (editnurb->keyindex) {
@@ -118,10 +129,6 @@ static void undocurve_from_editcurve(UndoCurve *ucu, Curve *cu, const short shap
   }
 
   if (ad) {
-    if (ad->action) {
-      BKE_fcurves_copy(&ucu->fcurves, &ad->action->curves);
-    }
-
     BKE_fcurves_copy(&ucu->drivers, &ad->drivers);
   }
 
@@ -154,7 +161,6 @@ static void undocurve_free_data(UndoCurve *uc)
 
   BKE_curve_editNurb_keyIndex_free(&uc->undoIndex);
 
-  BKE_fcurves_free(&uc->fcurves);
   BKE_fcurves_free(&uc->drivers);
 }
 
@@ -188,6 +194,8 @@ struct CurveUndoStep_Elem {
 
 struct CurveUndoStep {
   UndoStep step;
+  /** See #ED_undo_object_editmode_validate_scene_from_windows code comment for details. */
+  UndoRefID_Scene scene_ref;
   CurveUndoStep_Elem *elems;
   uint elems_len;
 };
@@ -206,14 +214,13 @@ static bool curve_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
    * outside of this list will be moved out of edit-mode when reading back undo steps. */
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer, &objects_len);
+  blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
-  us->elems = static_cast<CurveUndoStep_Elem *>(
-      MEM_callocN(sizeof(*us->elems) * objects_len, __func__));
-  us->elems_len = objects_len;
+  us->scene_ref.ptr = scene;
+  us->elems = MEM_calloc_arrayN<CurveUndoStep_Elem>(objects.size(), __func__);
+  us->elems_len = objects.size();
 
-  for (uint i = 0; i < objects_len; i++) {
+  for (uint i = 0; i < objects.size(); i++) {
     Object *ob = objects[i];
     Curve *cu = static_cast<Curve *>(ob->data);
     CurveUndoStep_Elem *elem = &us->elems[i];
@@ -223,7 +230,6 @@ static bool curve_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
     cu->editnurb->needs_flush_to_id = 1;
     us->step.data_size += elem->data.undo_size;
   }
-  MEM_freeN(objects);
 
   bmain->is_memfile_undo_flush_needed = true;
 
@@ -234,9 +240,13 @@ static void curve_undosys_step_decode(
     bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir /*dir*/, bool /*is_final*/)
 {
   CurveUndoStep *us = (CurveUndoStep *)us_p;
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
+  ED_undo_object_editmode_validate_scene_from_windows(
+      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
   ED_undo_object_editmode_restore_helper(
-      C, &us->elems[0].obedit_ref.ptr, us->elems_len, sizeof(*us->elems));
+      scene, view_layer, &us->elems[0].obedit_ref.ptr, us->elems_len, sizeof(*us->elems));
 
   BLI_assert(BKE_object_is_in_editmode(us->elems[0].obedit_ref.ptr));
 
@@ -260,10 +270,10 @@ static void curve_undosys_step_decode(
 
   /* The first element is always active */
   ED_undo_object_set_active_or_warn(
-      CTX_data_scene(C), CTX_data_view_layer(C), us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+      scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
 
-  /* Check after setting active. */
-  BLI_assert(curve_undosys_poll(C));
+  /* Check after setting active (unless undoing into another scene). */
+  BLI_assert(curve_undosys_poll(C) || (scene != CTX_data_scene(C)));
 
   bmain->is_memfile_undo_flush_needed = true;
 
@@ -287,6 +297,7 @@ static void curve_undosys_foreach_ID_ref(UndoStep *us_p,
 {
   CurveUndoStep *us = (CurveUndoStep *)us_p;
 
+  foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->scene_ref));
   for (uint i = 0; i < us->elems_len; i++) {
     CurveUndoStep_Elem *elem = &us->elems[i];
     foreach_ID_ref_fn(user_data, ((UndoRefID *)&elem->obedit_ref));

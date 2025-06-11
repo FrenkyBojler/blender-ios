@@ -14,7 +14,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BKE_armature.h"
+#include "BKE_armature.hh"
 
 #include "../outliner_intern.hh"
 #include "tree_display.hh"
@@ -36,7 +36,7 @@ void TreeElementIDArmature::expand(SpaceOutliner &space_outliner) const
     expand_edit_bones();
   }
   else {
-    /* do not extend Armature when we have posemode */
+    /* Do not extend Armature when we have pose-mode. */
     TreeStoreElem *tselem = TREESTORE(legacy_te_.parent);
     if (TSE_IS_REAL_ID(tselem) && GS(tselem->id->name) == ID_OB &&
         ((Object *)tselem->id)->mode & OB_MODE_POSE)
@@ -46,6 +46,10 @@ void TreeElementIDArmature::expand(SpaceOutliner &space_outliner) const
     else {
       expand_bones(space_outliner);
     }
+  }
+
+  if (arm_.collection_array_num > 0) {
+    add_element(&legacy_te_.subtree, &arm_.id, nullptr, &legacy_te_, TSE_BONE_COLLECTION_BASE, 0);
   }
 }
 

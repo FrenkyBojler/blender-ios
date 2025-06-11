@@ -3,14 +3,13 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-blender -b -noaudio --factory-startup --python tests/python/bl_animation_fcurves.py -- --testdir /path/to/lib/tests/animation
+blender -b --factory-startup --python tests/python/bl_animation_fcurves.py -- --testdir tests/files/animation
 """
 
 import pathlib
 import sys
 import unittest
 from math import degrees, radians
-from typing import List
 
 import bpy
 
@@ -59,6 +58,147 @@ class FCurveEvaluationTest(AbstractAnimationTest, unittest.TestCase):
         self.assertAlmostEqual(0.9776642322540283, fcurve.evaluate(8))
         self.assertAlmostEqual(0.9952865839004517, fcurve.evaluate(9))
         self.assertAlmostEqual(1.0, fcurve.evaluate(10))
+
+
+class PropertyInterpolationTest(AbstractAnimationTest, unittest.TestCase):
+    """Test F-Curve interpolation on RNA properties.
+
+    This tests both the evaluation of the RNA property and the F-Curve
+    interpolation itself (the not-exposed-to-RNA flags `FCURVE_INT_VALUES` and
+    `FCURVE_DISCRETE_VALUES` have an impact on the latter as well).
+
+    NOTE: This test uses the backward-compatible API in 4.4 (action.fcurves)
+    because it only uses a single slot anyway. This way, the test is
+    backward-compatible with older versions of Blender, and can be used to track
+    down regression issues.
+    """
+
+    def setUp(self):
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+
+    def test_float(self) -> None:
+        scene: bpy.types.Scene = bpy.context.scene
+
+        camera_ob: bpy.types.Object = scene.objects["Camera"]
+        camera: bpy.types.Camera = camera_ob.data
+        camera.lens = 16
+        camera.keyframe_insert('lens', frame=0)
+        camera.lens = 32
+        camera.keyframe_insert('lens', frame=64)
+
+        self._make_all_keys_linear()
+        fcurve = camera.animation_data.action.fcurves[0]
+
+        scene.frame_set(0)
+        self.assertAlmostEqual(16, camera.lens)
+        self.assertAlmostEqual(16, fcurve.evaluate(0))
+        scene.frame_set(1)
+        self.assertAlmostEqual(16.25, camera.lens)
+        self.assertAlmostEqual(16.25, fcurve.evaluate(1))
+        scene.frame_set(2)
+        self.assertAlmostEqual(16.5, camera.lens)
+        self.assertAlmostEqual(16.5, fcurve.evaluate(2))
+        scene.frame_set(11)
+        self.assertAlmostEqual(18.75, camera.lens)
+        self.assertAlmostEqual(18.75, fcurve.evaluate(11))
+        scene.frame_set(64)
+        self.assertAlmostEqual(32, camera.lens)
+        self.assertAlmostEqual(32, fcurve.evaluate(64))
+
+    def test_int(self) -> None:
+        scene: bpy.types.Scene = bpy.context.scene
+        render: bpy.types.RenderSettings = scene.render
+
+        render.simplify_subdivision = 16
+        render.keyframe_insert('simplify_subdivision', frame=0)
+        render.simplify_subdivision = 32
+        render.keyframe_insert('simplify_subdivision', frame=64)
+
+        self._make_all_keys_linear()
+        fcurve = scene.animation_data.action.fcurves[0]
+
+        scene.frame_set(0)
+        self.assertAlmostEqual(16, render.simplify_subdivision)
+        self.assertAlmostEqual(16, fcurve.evaluate(0))
+        scene.frame_set(1)  # 16.25 rounds down.
+        self.assertAlmostEqual(16, render.simplify_subdivision)
+        self.assertAlmostEqual(16, fcurve.evaluate(1))
+        scene.frame_set(2)  # 16.50 rounds up.
+        self.assertAlmostEqual(17, render.simplify_subdivision)
+        self.assertAlmostEqual(17, fcurve.evaluate(2))
+        scene.frame_set(11)  # 18.75 rounds up.
+        self.assertAlmostEqual(19, render.simplify_subdivision)
+        self.assertAlmostEqual(19, fcurve.evaluate(11))
+        scene.frame_set(64)
+        self.assertAlmostEqual(32, render.simplify_subdivision)
+        self.assertAlmostEqual(32, fcurve.evaluate(64))
+
+    def test_bool(self) -> None:
+        scene: bpy.types.Scene = bpy.context.scene
+        render: bpy.types.RenderSettings = scene.render
+
+        render.use_simplify = False
+        render.keyframe_insert('use_simplify', frame=0)
+        render.use_simplify = True
+        render.keyframe_insert('use_simplify', frame=64)
+
+        self._make_all_keys_linear()
+        fcurve = scene.animation_data.action.fcurves[0]
+
+        scene.frame_set(0)
+        self.assertEqual(False, render.use_simplify)
+        self.assertAlmostEqual(0, fcurve.evaluate(0))
+        scene.frame_set(32)  # Boolean F-Curves should not interpolate at all.
+        self.assertEqual(False, render.use_simplify)
+        self.assertAlmostEqual(0, fcurve.evaluate(63))
+        scene.frame_set(63)  # Should remain False until the frame it goes to True.
+        self.assertEqual(False, render.use_simplify)
+        self.assertAlmostEqual(0, fcurve.evaluate(63))
+        scene.frame_set(64)
+        self.assertEqual(True, render.use_simplify)
+        self.assertAlmostEqual(1, fcurve.evaluate(64))
+
+    def test_enum(self) -> None:
+        scene: bpy.types.Scene = bpy.context.scene
+        cube: bpy.types.Object = scene.objects["Cube"]
+
+        cube.rotation_mode = 'QUATERNION'  # First item in the enum.
+        cube.keyframe_insert('rotation_mode', frame=0)
+        cube.rotation_mode = 'ZYX'  # Item in the enum with the highest value.
+        # Yes, 'AXIS_ANGLE' is the last one in the enum, but that has value -1
+        # for historical reasons, and so for this test it's a bit weird.
+        cube.keyframe_insert('rotation_mode', frame=64)
+
+        self._make_all_keys_linear()
+        fcurve = cube.animation_data.action.fcurves[0]
+
+        scene.frame_set(0)
+        self.assertEqual('QUATERNION', cube.rotation_mode)
+        self.assertAlmostEqual(0, fcurve.evaluate(0))
+        scene.frame_set(32)  # Enum F-Curves should not interpolate at all.
+        self.assertEqual('QUATERNION', cube.rotation_mode)
+        scene.frame_set(63)  # Should remain 'QUATERNION' until the frame it goes to another value.
+        self.assertEqual('QUATERNION', cube.rotation_mode)
+        self.assertAlmostEqual(0, fcurve.evaluate(63))
+        scene.frame_set(64)
+        self.assertEqual('ZYX', cube.rotation_mode)
+        self.assertAlmostEqual(6, fcurve.evaluate(64))
+
+    def _make_all_keys_linear(self) -> None:
+        """Make all keys in all Actions linearly interpolated.
+
+        This makes the code in this test a bit simpler, and shouldn't have any
+        effect on the actual mapping of the F-Curve value to the property value.
+        """
+
+        for action in bpy.data.actions:
+            # Make this test backward compatible with older versions of Blender,
+            # to make it easier to test regressions.
+            self.assertEqual(1, len(action.slots), f"{action} should have exactly one slot")
+
+            for fcurve in action.fcurves:
+                for key in fcurve.keyframe_points:
+                    key.interpolation = 'LINEAR'
 
 
 class EulerFilterTest(AbstractAnimationTest, unittest.TestCase):
@@ -148,10 +288,232 @@ class EulerFilterTest(AbstractAnimationTest, unittest.TestCase):
         bpy.context.view_layer.objects.active = ob
 
     @staticmethod
-    def active_object_rotation_channels() -> List[bpy.types.FCurve]:
+    def active_object_rotation_channels() -> list[bpy.types.FCurve]:
         ob = bpy.context.view_layer.objects.active
         action = ob.animation_data.action
         return [action.fcurves.find('rotation_euler', index=idx) for idx in range(3)]
+
+
+def get_view3d_context():
+    ctx = bpy.context.copy()
+
+    for area in bpy.context.window.screen.areas:
+        if area.type != 'VIEW_3D':
+            continue
+
+        ctx['area'] = area
+        ctx['space'] = area.spaces.active
+        break
+
+    return ctx
+
+
+class KeyframeInsertTest(AbstractAnimationTest, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+
+    def test_keyframe_insertion_basic(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 100
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(frame)
+                bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        for key_index in range(key_count):
+            key = key_object.animation_data.action.fcurves[0].keyframe_points[key_index]
+            self.assertEqual(key.co.x, key_index)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_insert_keytype(self):
+        key_object = bpy.context.active_object
+
+        # Inserting a key with a specific type should work.
+        key_object.keyframe_insert("location", keytype='GENERATED')
+
+        # Unsupported/unknown types should be rejected.
+        with self.assertRaises(ValueError):
+            key_object.keyframe_insert("rotation_euler", keytype='UNSUPPORTED')
+
+        # Only a single key should have been inserted.
+        keys = key_object.animation_data.action.fcurves[0].keyframe_points
+        self.assertEqual(len(keys), 1)
+        self.assertEqual(keys[0].type, 'GENERATED')
+
+    def test_keyframe_insertion_high_frame_number(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 100
+        frame_offset = 1000000
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(frame + frame_offset)
+                bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        for key_index in range(key_count):
+            key = key_object.animation_data.action.fcurves[0].keyframe_points[key_index]
+            self.assertEqual(key.co.x, key_index + frame_offset)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_insertion_subframes_basic(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 50
+        with bpy.context.temp_override(**get_view3d_context()):
+            for i in range(key_count):
+                bpy.context.scene.frame_set(0, subframe=i / key_count)
+                bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        for key_index in range(key_count):
+            key = key_object.animation_data.action.fcurves[0].keyframe_points[key_index]
+            self.assertAlmostEqual(key.co.x, key_index / key_count)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_insertion_subframes_high_frame_number(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 50
+        frame_offset = 1000000
+        with bpy.context.temp_override(**get_view3d_context()):
+            for i in range(key_count):
+                bpy.context.scene.frame_set(frame_offset, subframe=i / key_count)
+                bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        # These are the possible floating point steps from "1.000.000" up to "1.000.001".
+        floating_point_steps = [
+            1000000.0,
+            1000000.0625,
+            1000000.125,
+            1000000.1875,
+            1000000.25,
+            1000000.3125,
+            1000000.375,
+            1000000.4375,
+            1000000.5,
+            1000000.5625,
+            1000000.625,
+            1000000.6875,
+            1000000.75,
+            1000000.8125,
+            1000000.875,
+            1000000.9375,
+            # Even though range() is exclusive, the floating point limitations mean keys end up on that position.
+            1000001.0
+        ]
+        keyframe_points = key_object.animation_data.action.fcurves[0].keyframe_points
+        for i, value in enumerate(floating_point_steps):
+            key = keyframe_points[i]
+            self.assertAlmostEqual(key.co.x, value)
+
+        # This checks that there is a key on every possible floating point value and not more than that.
+        self.assertEqual(len(floating_point_steps), len(keyframe_points))
+
+        bpy.ops.object.delete(use_global=False)
+
+
+class KeyframeDeleteTest(AbstractAnimationTest, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+
+    def test_keyframe_deletion_basic(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 100
+        with bpy.context.temp_override(**get_view3d_context()):
+            bpy.context.scene.frame_set(-1)
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        fcu = key_object.animation_data.action.fcurves[0]
+        for i in range(key_count):
+            fcu.keyframe_points.insert(frame=i, value=0)
+
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(frame)
+                bpy.ops.anim.keyframe_delete_by_name(type="Location")
+
+        # Only the key on frame -1 should be left
+        self.assertEqual(len(fcu.keyframe_points), 1)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_deletion_high_frame_number(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 100
+        frame_offset = 1000000
+        with bpy.context.temp_override(**get_view3d_context()):
+            bpy.context.scene.frame_set(-1)
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        fcu = key_object.animation_data.action.fcurves[0]
+        for i in range(key_count):
+            fcu.keyframe_points.insert(frame=i + frame_offset, value=0)
+
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(frame + frame_offset)
+                bpy.ops.anim.keyframe_delete_by_name(type="Location")
+
+        # Only the key on frame -1 should be left
+        self.assertEqual(len(fcu.keyframe_points), 1)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_deletion_subframe_basic(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 50
+        with bpy.context.temp_override(**get_view3d_context()):
+            bpy.context.scene.frame_set(-1)
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        fcu = key_object.animation_data.action.fcurves[0]
+        for i in range(key_count):
+            fcu.keyframe_points.insert(frame=i / key_count, value=0)
+
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(0, subframe=frame / key_count)
+                bpy.ops.anim.keyframe_delete_by_name(type="Location")
+
+        # Only the key on frame -1 should be left
+        self.assertEqual(len(fcu.keyframe_points), 1)
+
+        bpy.ops.object.delete(use_global=False)
+
+    def test_keyframe_deletion_subframe_high_frame_number(self):
+        bpy.ops.mesh.primitive_monkey_add()
+        key_count = 50
+        frame_offset = 1000000
+        with bpy.context.temp_override(**get_view3d_context()):
+            bpy.context.scene.frame_set(-1)
+            bpy.ops.anim.keyframe_insert_by_name(type="Location")
+
+        key_object = bpy.context.active_object
+        fcu = key_object.animation_data.action.fcurves[0]
+        for i in range(key_count):
+            fcu.keyframe_points.insert(frame=i / key_count + frame_offset, value=0)
+
+        with bpy.context.temp_override(**get_view3d_context()):
+            for frame in range(key_count):
+                bpy.context.scene.frame_set(frame_offset, subframe=frame / key_count)
+                bpy.ops.anim.keyframe_delete_by_name(type="Location")
+
+        # Only the key on frame -1 should be left
+        # This works even though there are floating point precision issues,
+        # because the deletion has the exact same precision as the insertion.
+        # Due to that, the code calls keyframe_delete_by_name for
+        # every floating point step multiple times.
+        self.assertEqual(len(fcu.keyframe_points), 1)
+
+        bpy.ops.object.delete(use_global=False)
 
 
 def main():

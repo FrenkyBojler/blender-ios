@@ -5,67 +5,68 @@
  *
  * Adapted from the Blender Alembic importer implementation. */
 
-#include "usd_reader_xform.h"
+#include "usd_reader_xform.hh"
 
 #include "BKE_constraint.h"
-#include "BKE_lib_id.h"
-#include "BKE_library.h"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
+#include "BKE_lib_id.hh"
+#include "BKE_object.hh"
 
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_cachefile_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h" /* for FILE_MAX */
 
-#include <pxr/base/gf/math.h>
 #include <pxr/base/gf/matrix4f.h>
+#include <pxr/usd/usdGeom/xformable.h>
 
-#include <pxr/usd/usdGeom/xform.h>
+#include <string>
 
 namespace blender::io::usd {
 
-void USDXformReader::create_object(Main *bmain, const double /* motionSampleTime */)
+void USDXformReader::create_object(Main *bmain)
 {
   object_ = BKE_object_add_only_object(bmain, OB_EMPTY, name_.c_str());
   object_->empty_drawsize = 0.1f;
   object_->data = nullptr;
 }
 
-void USDXformReader::read_object_data(Main * /* bmain */, const double motionSampleTime)
+void USDXformReader::read_object_data(Main * /*bmain*/, const double motionSampleTime)
 {
   bool is_constant;
   float transform_from_usd[4][4];
 
-  read_matrix(transform_from_usd, motionSampleTime, import_params_.scale, &is_constant);
+  read_matrix(transform_from_usd, motionSampleTime, settings_->scene_scale, &is_constant);
 
-  if (!is_constant) {
+  if (!is_constant && settings_->get_cache_file) {
     bConstraint *con = BKE_constraint_add_for_object(
         object_, nullptr, CONSTRAINT_TYPE_TRANSFORM_CACHE);
     bTransformCacheConstraint *data = static_cast<bTransformCacheConstraint *>(con->data);
 
-    std::string prim_path = use_parent_xform_ ? prim_.GetParent().GetPath().GetAsString() :
-                                                prim_path_;
+    pxr::SdfPath object_path = use_parent_xform_ ? prim_.GetParent().GetPath() : this->prim_path();
 
-    STRNCPY(data->object_path, prim_path.c_str());
+    STRNCPY(data->object_path, object_path.GetAsString().c_str());
 
-    data->cache_file = settings_->cache_file;
+    data->cache_file = settings_->get_cache_file();
     id_us_plus(&data->cache_file->id);
   }
 
   BKE_object_apply_mat4(object_, transform_from_usd, true, false);
+
+  /* Make sure to collect custom attributes */
+  set_props(use_parent_xform(), motionSampleTime);
+}
+
+pxr::SdfPath USDXformReader::object_prim_path() const
+{
+  return get_xformable().GetPrim().GetPath();
 }
 
 void USDXformReader::read_matrix(float r_mat[4][4] /* local matrix */,
                                  const float time,
                                  const float scale,
-                                 bool *r_is_constant)
+                                 bool *r_is_constant) const
 {
   BLI_assert(r_mat);
   BLI_assert(r_is_constant);
@@ -100,7 +101,7 @@ void USDXformReader::read_matrix(float r_mat[4][4] /* local matrix */,
 
 bool USDXformReader::prim_has_xform_ops() const
 {
-  pxr::UsdGeomXformable xformable(prim_);
+  const pxr::UsdGeomXformable xformable(prim_);
 
   if (!xformable) {
     /* This might happen if the prim is a Scope. */
@@ -118,7 +119,7 @@ bool USDXformReader::is_root_xform_prim() const
     return false;
   }
 
-  if (prim_.IsInPrototype()) {
+  if (is_in_proto()) {
     /* We don't consider prototypes to be root prims,
      * because we never want to apply global scaling
      * or rotations to the prototypes themselves. */
@@ -153,8 +154,7 @@ bool USDXformReader::is_root_xform_prim() const
 
 std::optional<XformResult> USDXformReader::get_local_usd_xform(const float time) const
 {
-  pxr::UsdGeomXformable xformable = use_parent_xform_ ? pxr::UsdGeomXformable(prim_.GetParent()) :
-                                                        pxr::UsdGeomXformable(prim_);
+  const pxr::UsdGeomXformable xformable = get_xformable();
 
   if (!xformable) {
     /* This might happen if the prim is a Scope. */
@@ -175,4 +175,9 @@ std::optional<XformResult> USDXformReader::get_local_usd_xform(const float time)
   return XformResult(pxr::GfMatrix4f(xform), is_constant);
 }
 
+pxr::UsdGeomXformable USDXformReader::get_xformable() const
+{
+  pxr::UsdPrim prim = use_parent_xform_ ? prim_.GetParent() : prim_;
+  return pxr::UsdGeomXformable(prim);
+}
 }  // namespace blender::io::usd

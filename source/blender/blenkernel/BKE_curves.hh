@@ -10,20 +10,36 @@
  */
 
 #include "BLI_bounds_types.hh"
-#include "BLI_generic_virtual_array.hh"
-#include "BLI_implicit_sharing.hh"
-#include "BLI_index_mask.hh"
+#include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_index_mask_fwd.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
-#include "BLI_virtual_array.hh"
+#include "BLI_virtual_array_fwd.hh"
 
-#include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_curves.h"
+
+struct BlendDataReader;
+struct BlendWriter;
+struct MDeformVert;
+namespace blender::bke {
+class AttributeAccessor;
+class MutableAttributeAccessor;
+enum class AttrDomain : int8_t;
+struct AttributeAccessorFunctions;
+}  // namespace blender::bke
+namespace blender::bke::bake {
+struct BakeMaterialsList;
+}
+namespace blender {
+class GVArray;
+}
 
 namespace blender::bke {
 
@@ -59,6 +75,9 @@ class CurvesGeometryRuntime {
   /** Implicit sharing user count for #CurvesGeometry::curve_offsets. */
   const ImplicitSharingInfo *curve_offsets_sharing_info = nullptr;
 
+  /** Implicit sharing user count for #CurvesGeometry::custom_knots. */
+  const ImplicitSharingInfo *custom_knots_sharing_info = nullptr;
+
   /**
    * The cached number of curves with each type. Unlike other caches here, this is not computed
    * lazily, since it is needed so often and types are not adjusted much anyway.
@@ -89,6 +108,7 @@ class CurvesGeometryRuntime {
    * See #SharedCache comments.
    */
   mutable SharedCache<Bounds<float3>> bounds_cache;
+  mutable SharedCache<Bounds<float3>> bounds_with_radius_cache;
 
   /**
    * Cache of lengths along each evaluated curve for each evaluated point. If a curve is
@@ -102,6 +122,26 @@ class CurvesGeometryRuntime {
 
   /** Normal direction vectors for each evaluated point. */
   mutable SharedCache<Vector<float3>> evaluated_normal_cache;
+
+  /** The maximum of the "material_index" attribute. */
+  mutable SharedCache<std::optional<int>> max_material_index_cache;
+
+  /**
+   * Offsets of custom knots in #CurvesGeometry::custom_knots for each curve in #CurvesGeometry.
+   * For curves with no custom knots next offset value stays the same.
+   */
+  mutable SharedCache<Vector<int>> custom_knot_offsets_cache;
+
+  /** Stores weak references to material data blocks. */
+  std::unique_ptr<bake::BakeMaterialsList> bake_materials;
+
+  /**
+   * Type counts have to be set eagerly after each operation. It's checked with asserts that the
+   * type counts are correct when accessed. However, this check is expensive and shouldn't be done
+   * all the time because it makes debug builds unusable in some situations that would be fine
+   * otherwise.
+   */
+  bool check_type_counts = true;
 };
 
 /**
@@ -135,6 +175,11 @@ class CurvesGeometry : public ::CurvesGeometry {
    * The number of curves in the data-block.
    */
   int curves_num() const;
+  /**
+   * Return true if there are no curves in the geometry.
+   */
+  bool is_empty() const;
+
   IndexRange points_range() const;
   IndexRange curves_range() const;
 
@@ -157,7 +202,7 @@ class CurvesGeometry : public ::CurvesGeometry {
   /**
    * Mutable access to curve types. Call #tag_topology_changed and #update_curve_types after
    * changing any type. Consider using the other methods to change types below.
-   * */
+   */
   MutableSpan<int8_t> curve_types_for_write();
   /** Set all curve types to the value and call #update_curve_types. */
   void fill_curve_types(CurveType type);
@@ -184,6 +229,9 @@ class CurvesGeometry : public ::CurvesGeometry {
 
   Span<float3> positions() const;
   MutableSpan<float3> positions_for_write();
+
+  VArray<float> radius() const;
+  MutableSpan<float> radius_for_write();
 
   /** Whether the curve loops around to connect to itself, on the curve domain. */
   VArray<bool> cyclic() const;
@@ -258,9 +306,57 @@ class CurvesGeometry : public ::CurvesGeometry {
   MutableSpan<float2> surface_uv_coords_for_write();
 
   /**
+   * Custom knots for NURBS curves with knots mode #NURBS_KNOT_MODE_CUSTOM.
+   */
+  Span<float> nurbs_custom_knots() const;
+  MutableSpan<float> nurbs_custom_knots_for_write();
+
+  /**
+   * The offsets of every curve into arrays on #CurvesGeometry::nurbs_custom_knots.
+   * Curves with knot mode other than #NURBS_KNOT_MODE_CUSTOM will have zero sized #IndexRange.
+   */
+  OffsetIndices<int> nurbs_custom_knots_by_curve() const;
+
+  /**
+   * Builds mask of NURBS curves with knot mode #NURBS_KNOT_MODE_CUSTOM.
+   */
+  IndexMask nurbs_custom_knot_curves(IndexMaskMemory &memory) const;
+
+  bool nurbs_has_custom_knots() const;
+
+  /**
+   * Resizes custom knots array depending on topological data.
+   * Depends on curve offsets, knot modes, orders and cyclic data.
+   * Used to resize internal knots array before writing knots.
+   */
+  void nurbs_custom_knots_update_size();
+
+  /**
+   * Resizes custom knots array. Used when knots number is known in advance and knot values are set
+   * together with topological data.
+   */
+  void nurbs_custom_knots_resize(int knots_num);
+
+  /**
+   * Vertex group data, encoded as an array of indices and weights for every vertex.
+   * \warning: May be empty.
+   */
+  Span<MDeformVert> deform_verts() const;
+  MutableSpan<MDeformVert> deform_verts_for_write();
+
+  /**
    * The largest and smallest position values of evaluated points.
    */
-  std::optional<Bounds<float3>> bounds_min_max() const;
+  std::optional<Bounds<float3>> bounds_min_max(bool use_radius = true) const;
+
+  void count_memory(MemoryCounter &memory) const;
+
+  /**
+   * Get the largest material index used by the geometry or `nullopt` if there are none.
+   * The returned value is clamped between 0 and MAXMAT even if the stored material indices may be
+   * out of that range.
+   */
+  std::optional<int> material_index_max() const;
 
  private:
   /* --------------------------------------------------------------------
@@ -335,8 +431,10 @@ class CurvesGeometry : public ::CurvesGeometry {
 
  public:
   /**
-   * Change the number of elements. New values for existing attributes should be properly
-   * initialized afterwards.
+   * Change the number of curves and/or points.
+   *
+   * \warning To avoid redundant writes, newly created attribute values are not initialized.
+   * They must be initialized by the caller afterwards.
    */
   void resize(int points_num, int curves_num);
 
@@ -354,16 +452,16 @@ class CurvesGeometry : public ::CurvesGeometry {
    * this in #finish() calls.
    */
   void tag_radii_changed();
+  /** Call after changing the "material_index" attribute. */
+  void tag_material_index_changed();
 
   void translate(const float3 &translation);
   void transform(const float4x4 &matrix);
 
   void calculate_bezier_auto_handles();
 
-  void remove_points(const IndexMask &points_to_delete,
-                     const AnonymousAttributePropagationInfo &propagation_info = {});
-  void remove_curves(const IndexMask &curves_to_delete,
-                     const AnonymousAttributePropagationInfo &propagation_info = {});
+  void remove_points(const IndexMask &points_to_delete, const AttributeFilter &attribute_filter);
+  void remove_curves(const IndexMask &curves_to_delete, const AttributeFilter &attribute_filter);
 
   /**
    * Change the direction of selected curves (switch the start and end) without changing their
@@ -383,9 +481,9 @@ class CurvesGeometry : public ::CurvesGeometry {
    * Attributes.
    */
 
-  GVArray adapt_domain(const GVArray &varray, eAttrDomain from, eAttrDomain to) const;
+  GVArray adapt_domain(const GVArray &varray, AttrDomain from, AttrDomain to) const;
   template<typename T>
-  VArray<T> adapt_domain(const VArray<T> &varray, eAttrDomain from, eAttrDomain to) const
+  VArray<T> adapt_domain(const VArray<T> &varray, AttrDomain from, AttrDomain to) const
   {
     return this->adapt_domain(GVArray(varray), from, to).typed<T>();
   }
@@ -393,9 +491,22 @@ class CurvesGeometry : public ::CurvesGeometry {
   /* --------------------------------------------------------------------
    * File Read/Write.
    */
-
   void blend_read(BlendDataReader &reader);
-  void blend_write(BlendWriter &writer, ID &id);
+  /**
+   * Helper struct for `CurvesGeometry::blend_write_*` functions.
+   */
+  struct BlendWriteData {
+    Vector<CustomDataLayer, 16> point_layers;
+    Vector<CustomDataLayer, 16> curve_layers;
+    AttributeStorage::BlendWriteData attribute_data;
+    explicit BlendWriteData(ResourceScope &scope) : attribute_data{scope} {}
+  };
+  /**
+   * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
+   * is written because it can mutate the `CustomData` and `AttributeStorage` structs.
+   */
+  void blend_write_prepare(BlendWriteData &write_data);
+  void blend_write(BlendWriter &writer, ID &id, const BlendWriteData &write_data);
 };
 
 static_assert(sizeof(blender::bke::CurvesGeometry) == sizeof(::CurvesGeometry));
@@ -414,7 +525,7 @@ class CurvesEditHints {
    * Evaluated positions for the points in #curves_orig. If this is empty, the positions from the
    * evaluated #Curves should be used if possible.
    */
-  std::optional<Array<float3>> positions;
+  ImplicitSharingPtrAndData positions_data;
   /**
    * Matrices which transform point movement vectors from original data to corresponding movements
    * of evaluated data.
@@ -423,12 +534,17 @@ class CurvesEditHints {
 
   CurvesEditHints(const Curves &curves_id_orig) : curves_id_orig(curves_id_orig) {}
 
+  std::optional<Span<float3>> positions() const;
+  std::optional<MutableSpan<float3>> positions_for_write();
+
   /**
    * The edit hints have to correspond to the original curves, i.e. the number of deformed points
    * is the same as the number of original points.
    */
   bool is_valid() const;
 };
+
+void curves_normals_point_domain_calc(const CurvesGeometry &curves, MutableSpan<float3> normals);
 
 namespace curves {
 
@@ -610,6 +726,11 @@ void calculate_auto_handles(bool cyclic,
                             MutableSpan<float3> positions_left,
                             MutableSpan<float3> positions_right);
 
+void calculate_aligned_handles(const IndexMask &selection,
+                               Span<float3> positions,
+                               Span<float3> align_by,
+                               MutableSpan<float3> align);
+
 /**
  * Change the handles of a single control point, aligning any aligned (#BEZIER_HANDLE_ALIGN)
  * handles on the other side of the control point.
@@ -630,11 +751,9 @@ void set_handle_position(const float3 &position,
  * points are referred to as the control points, and the middle points are the corresponding
  * handles.
  */
-void evaluate_segment(const float3 &point_0,
-                      const float3 &point_1,
-                      const float3 &point_2,
-                      const float3 &point_3,
-                      MutableSpan<float3> result);
+template<typename T>
+void evaluate_segment(
+    const T &point_0, const T &point_1, const T &point_2, const T &point_3, MutableSpan<T> result);
 
 /**
  * Calculate all evaluated points for the Bezier curve.
@@ -690,7 +809,7 @@ void interpolate_to_evaluated(const GSpan src,
                               const OffsetIndices<int> evaluated_offsets,
                               GMutableSpan dst);
 
-void calculate_basis(const float parameter, float4 &r_weights);
+float4 calculate_basis(const float parameter);
 
 /**
  * Interpolate the control point values for the given parameter on the piecewise segment.
@@ -702,14 +821,13 @@ template<typename T>
 T interpolate(const T &a, const T &b, const T &c, const T &d, const float parameter)
 {
   BLI_assert(0.0f <= parameter && parameter <= 1.0f);
-  float4 n;
-  calculate_basis(parameter, n);
+  const float4 weights = calculate_basis(parameter);
   if constexpr (is_same_any_v<T, float, float2, float3>) {
     /* Save multiplications by adjusting weights after mix. */
-    return 0.5f * attribute_math::mix4<T>(n, a, b, c, d);
+    return 0.5f * attribute_math::mix4<T>(weights, a, b, c, d);
   }
   else {
-    return attribute_math::mix4<T>(n * 0.5f, a, b, c, d);
+    return attribute_math::mix4<T>(weights * 0.5f, a, b, c, d);
   }
 }
 
@@ -747,6 +865,18 @@ int calculate_evaluated_num(
 int knots_num(int points_num, int8_t order, bool cyclic);
 
 /**
+ * Depending on KnotsMode calculates knots or copies custom knots into given `MutableSpan`.
+ * Adds `order - 1` length tail for cyclic curves.
+ */
+void load_curve_knots(KnotsMode mode,
+                      int points_num,
+                      int8_t order,
+                      bool cyclic,
+                      IndexRange curve_knots,
+                      Span<float> custom_knots,
+                      MutableSpan<float> knots);
+
+/**
  * Calculate the knots for a curve given its properties, based on built-in standards defined by
  * #KnotsMode.
  *
@@ -756,6 +886,16 @@ int knots_num(int points_num, int8_t order, bool cyclic);
  */
 void calculate_knots(
     int points_num, KnotsMode mode, int8_t order, bool cyclic, MutableSpan<float> knots);
+
+/**
+ * Compute the number of occurrences of each unique knot value (so knot multiplicity),
+ * forming a sequence for which: `sum(multiplicity) == knots.size()`.
+ *
+ * Example:
+ * Knots: [0, 0, 0, 0.1, 0.3, 0.4, 0.4, 0.4]
+ * Result: [3, 1, 1, 3]
+ */
+Vector<int> calculate_multiplicity_sequence(Span<float> knots);
 
 /**
  * Based on the knots, the order, and other properties of a NURBS curve, calculate a cache that can
@@ -804,15 +944,15 @@ Curves *curves_new_nomain_single(int points_num, CurveType type);
  */
 void curves_copy_parameters(const Curves &src, Curves &dst);
 
-CurvesGeometry curves_copy_point_selection(
-    const CurvesGeometry &curves,
-    const IndexMask &points_to_copy,
-    const AnonymousAttributePropagationInfo &propagation_info);
+CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
+                                           const IndexMask &points_to_copy,
+                                           const AttributeFilter &attribute_filter);
 
-CurvesGeometry curves_copy_curve_selection(
-    const CurvesGeometry &curves,
-    const IndexMask &curves_to_copy,
-    const AnonymousAttributePropagationInfo &propagation_info);
+CurvesGeometry curves_copy_curve_selection(const CurvesGeometry &curves,
+                                           const IndexMask &curves_to_copy,
+                                           const AttributeFilter &attribute_filter);
+
+CurvesGeometry curves_new_no_attributes(int point_num, int curve_num);
 
 std::array<int, CURVE_TYPES_NUM> calculate_type_counts(const VArray<int8_t> &types);
 
@@ -827,6 +967,16 @@ inline int CurvesGeometry::points_num() const
 inline int CurvesGeometry::curves_num() const
 {
   return this->curve_num;
+}
+inline bool CurvesGeometry::nurbs_has_custom_knots() const
+{
+  return this->custom_knot_num != 0;
+}
+inline bool CurvesGeometry::is_empty() const
+{
+  /* Each curve must have at least one point. */
+  BLI_assert((this->curve_num == 0) == (this->point_num == 0));
+  return this->curve_num == 0;
 }
 inline IndexRange CurvesGeometry::points_range() const
 {
@@ -855,13 +1005,22 @@ inline bool CurvesGeometry::has_curve_with_type(const Span<CurveType> types) con
 
 inline const std::array<int, CURVE_TYPES_NUM> &CurvesGeometry::curve_type_counts() const
 {
-  BLI_assert(this->runtime->type_counts == calculate_type_counts(this->curve_types()));
+#ifndef NDEBUG
+
+  if (this->runtime->check_type_counts) {
+    const std::array<int, CURVE_TYPES_NUM> actual_type_counts = calculate_type_counts(
+        this->curve_types());
+    BLI_assert(this->runtime->type_counts == actual_type_counts);
+    this->runtime->check_type_counts = false;
+  }
+#endif
   return this->runtime->type_counts;
 }
 
 inline OffsetIndices<int> CurvesGeometry::points_by_curve() const
 {
-  return OffsetIndices<int>({this->curve_offsets, this->curve_num + 1});
+  return OffsetIndices<int>({this->curve_offsets, this->curve_num + 1},
+                            offset_indices::NoSortCheck{});
 }
 
 inline int CurvesGeometry::evaluated_points_num() const
@@ -949,6 +1108,8 @@ inline float3 calculate_vector_handle(const float3 &point, const float3 &next_po
 }  // namespace bezier
 
 /** \} */
+
+const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
 }  // namespace curves
 

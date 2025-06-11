@@ -9,7 +9,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 
-#include "BKE_curve.h"
+#include "BKE_curve.hh"
 #include "BKE_curve_legacy_convert.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
@@ -64,8 +64,11 @@ static NormalMode normal_mode_from_legacy(const short twist_mode)
   return NORMAL_MODE_MINIMUM_TWIST;
 }
 
-static KnotsMode knots_mode_from_legacy(const short flag)
+KnotsMode knots_mode_from_legacy(const short flag)
 {
+  if (flag & CU_NURB_CUSTOM) {
+    return NURBS_KNOT_MODE_CUSTOM;
+  }
   switch (flag & (CU_NURB_ENDPOINT | CU_NURB_BEZIER)) {
     case CU_NURB_ENDPOINT:
       return NURBS_KNOT_MODE_ENDPOINT;
@@ -116,7 +119,7 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
   const OffsetIndices points_by_curve = curves.points_by_curve();
   MutableSpan<float3> positions = curves.positions_for_write();
   SpanAttributeWriter<float> radius_attribute =
-      curves_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
+      curves_attributes.lookup_or_add_for_write_only_span<float>("radius", AttrDomain::Point);
   MutableSpan<float> radii = radius_attribute.span;
   MutableSpan<float> tilts = curves.tilt_for_write();
 
@@ -189,6 +192,21 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
         nurbs_weights[points[i]] = bp.vec[3];
       }
     });
+
+    curves.nurbs_custom_knots_update_size();
+    if (!curves.nurbs_has_custom_knots()) {
+      return;
+    }
+
+    const OffsetIndices<int> knots_by_curve = curves.nurbs_custom_knots_by_curve();
+    MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+    selection.foreach_index([&](const int curve_i) {
+      if (nurbs_knots_modes[curve_i] == NURBS_KNOT_MODE_CUSTOM) {
+        const Nurb &src_curve = *src_curves[curve_i];
+        const IndexRange knots = knots_by_curve[curve_i];
+        custom_knots.slice(knots).copy_from(Span<float>(src_curve.knotsu, knots.size()));
+      }
+    });
   };
 
   bke::curves::foreach_curve_by_type(
@@ -203,6 +221,9 @@ Curves *curve_legacy_to_curves(const Curve &curve_legacy, const ListBase &nurbs_
   curves.normal_mode_for_write().fill(normal_mode_from_legacy(curve_legacy.twist_mode));
 
   radius_attribute.finish();
+
+  curves_id->mat = static_cast<Material **>(MEM_dupallocN(curve_legacy.mat));
+  curves_id->totcol = curve_legacy.totcol;
 
   return curves_id;
 }

@@ -2,18 +2,19 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "GPU_batch_utils.hh"
 #include "testing/testing.h"
 
 #include "gpu_testing.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_framebuffer.h"
-#include "GPU_matrix.h"
+#include "GPU_batch.hh"
+#include "GPU_batch_presets.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_state.hh"
 
 #include "BLI_math_vector.hh"
 
-#include "intern/draw_cache.h"
+#include "intern/draw_cache.hh"
 
 namespace blender::gpu::tests {
 
@@ -26,13 +27,14 @@ void blend_test(float4 source_a, float4 source_b, float4 expected_result)
                                                  GPU_RGBA16F,
                                                  GPU_TEXTURE_USAGE_ATTACHMENT |
                                                      GPU_TEXTURE_USAGE_HOST_READ,
+                                                 false,
                                                  nullptr);
   BLI_assert(offscreen != nullptr);
   GPU_offscreen_bind(offscreen, false);
   GPUTexture *color_texture = GPU_offscreen_color_texture(offscreen);
   GPU_texture_clear(color_texture, GPU_DATA_FLOAT, source_a);
 
-  GPUBatch *batch = DRW_cache_quad_get();
+  Batch *batch = GPU_batch_preset_quad();
 
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(batch, "color", source_b);
@@ -48,7 +50,9 @@ void blend_test(float4 source_a, float4 source_b, float4 expected_result)
   EXPECT_EQ(read_back, expected_result);
 
   GPU_offscreen_free(offscreen);
-  DRW_shape_cache_free();
+
+  /* Reset default. */
+  GPU_blend(GPU_BLEND_NONE);
 }
 
 static void test_blend_none()

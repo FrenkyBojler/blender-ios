@@ -6,279 +6,63 @@
  * \ingroup edsculpt
  */
 
-#include <cstddef>
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
-
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_interp.hh"
 
 #include "DNA_brush_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.hh"
-#include "BKE_context.h"
-#include "BKE_image.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_context.hh"
+#include "BKE_image.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
+#include "BKE_main.hh"
 #include "BKE_paint.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "ED_image.hh"
 #include "ED_paint.hh"
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.h"
+#include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "curves_sculpt_intern.hh"
+#include "paint_hide.hh"
 #include "paint_intern.hh"
+#include "paint_mask.hh"
 #include "sculpt_intern.hh"
 
-/* Brush operators */
-static int brush_add_exec(bContext *C, wmOperator * /*op*/)
-{
-  // int type = RNA_enum_get(op->ptr, "type");
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *br = BKE_paint_brush(paint);
-  Main *bmain = CTX_data_main(C);
-  ePaintMode mode = BKE_paintmode_get_active_from_context(C);
-
-  if (br) {
-    br = (Brush *)BKE_id_copy(bmain, &br->id);
-  }
-  else {
-    br = BKE_brush_add(bmain, "Brush", BKE_paint_object_mode_from_paintmode(mode));
-  }
-  id_us_min(&br->id); /* fake user only */
-
-  BKE_paint_brush_set(paint, br);
-
-  return OPERATOR_FINISHED;
-}
-
-static void BRUSH_OT_add(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Add Brush";
-  ot->description = "Add brush by mode type";
-  ot->idname = "BRUSH_OT_add";
-
-  /* api callbacks */
-  ot->exec = brush_add_exec;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static eGPBrush_Presets gpencil_get_brush_preset_from_tool(bToolRef *tool,
-                                                           enum eContextObjectMode mode)
-{
-  switch (mode) {
-    case CTX_MODE_PAINT_GPENCIL_LEGACY: {
-      if (STREQ(tool->runtime->data_block, "DRAW")) {
-        return GP_BRUSH_PRESET_PENCIL;
-      }
-      if (STREQ(tool->runtime->data_block, "FILL")) {
-        return GP_BRUSH_PRESET_FILL_AREA;
-      }
-      if (STREQ(tool->runtime->data_block, "ERASE")) {
-        return GP_BRUSH_PRESET_ERASER_SOFT;
-      }
-      if (STREQ(tool->runtime->data_block, "TINT")) {
-        return GP_BRUSH_PRESET_TINT;
-      }
-      break;
-    }
-    case CTX_MODE_SCULPT_GPENCIL_LEGACY: {
-      if (STREQ(tool->runtime->data_block, "SMOOTH")) {
-        return GP_BRUSH_PRESET_SMOOTH_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "STRENGTH")) {
-        return GP_BRUSH_PRESET_STRENGTH_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "THICKNESS")) {
-        return GP_BRUSH_PRESET_THICKNESS_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "GRAB")) {
-        return GP_BRUSH_PRESET_GRAB_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "PUSH")) {
-        return GP_BRUSH_PRESET_PUSH_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "TWIST")) {
-        return GP_BRUSH_PRESET_TWIST_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "PINCH")) {
-        return GP_BRUSH_PRESET_PINCH_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "RANDOMIZE")) {
-        return GP_BRUSH_PRESET_RANDOMIZE_STROKE;
-      }
-      if (STREQ(tool->runtime->data_block, "CLONE")) {
-        return GP_BRUSH_PRESET_CLONE_STROKE;
-      }
-      break;
-    }
-    case CTX_MODE_WEIGHT_GPENCIL_LEGACY: {
-      if (STREQ(tool->runtime->data_block, "DRAW")) {
-        return GP_BRUSH_PRESET_WEIGHT_DRAW;
-      }
-      if (STREQ(tool->runtime->data_block, "BLUR")) {
-        return GP_BRUSH_PRESET_WEIGHT_BLUR;
-      }
-      if (STREQ(tool->runtime->data_block, "AVERAGE")) {
-        return GP_BRUSH_PRESET_WEIGHT_AVERAGE;
-      }
-      if (STREQ(tool->runtime->data_block, "SMEAR")) {
-        return GP_BRUSH_PRESET_WEIGHT_SMEAR;
-      }
-      break;
-    }
-    case CTX_MODE_VERTEX_GPENCIL_LEGACY: {
-      if (STREQ(tool->runtime->data_block, "DRAW")) {
-        return GP_BRUSH_PRESET_VERTEX_DRAW;
-      }
-      if (STREQ(tool->runtime->data_block, "BLUR")) {
-        return GP_BRUSH_PRESET_VERTEX_BLUR;
-      }
-      if (STREQ(tool->runtime->data_block, "AVERAGE")) {
-        return GP_BRUSH_PRESET_VERTEX_AVERAGE;
-      }
-      if (STREQ(tool->runtime->data_block, "SMEAR")) {
-        return GP_BRUSH_PRESET_VERTEX_SMEAR;
-      }
-      if (STREQ(tool->runtime->data_block, "REPLACE")) {
-        return GP_BRUSH_PRESET_VERTEX_REPLACE;
-      }
-      break;
-    }
-    default:
-      return GP_BRUSH_PRESET_UNKNOWN;
-  }
-  return GP_BRUSH_PRESET_UNKNOWN;
-}
-
-static int brush_add_gpencil_exec(bContext *C, wmOperator * /*op*/)
-{
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *br = BKE_paint_brush(paint);
-  Main *bmain = CTX_data_main(C);
-
-  if (br) {
-    br = (Brush *)BKE_id_copy(bmain, &br->id);
-  }
-  else {
-    /* Get the active tool to determine what type of brush is active. */
-    bScreen *screen = CTX_wm_screen(C);
-    if (screen == nullptr) {
-      return OPERATOR_CANCELLED;
-    }
-
-    bToolRef *tool = nullptr;
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_VIEW3D) {
-        /* Check the current tool is a brush. */
-        bToolRef *tref = area->runtime.tool;
-        if (tref && tref->runtime && tref->runtime->data_block[0]) {
-          tool = tref;
-          break;
-        }
-      }
-    }
-
-    if (tool == nullptr) {
-      return OPERATOR_CANCELLED;
-    }
-
-    /* Get Brush mode base on context mode. */
-    const enum eContextObjectMode mode = CTX_data_mode_enum(C);
-    eObjectMode obmode = OB_MODE_PAINT_GPENCIL_LEGACY;
-    switch (mode) {
-      case CTX_MODE_PAINT_GPENCIL_LEGACY:
-        obmode = OB_MODE_PAINT_GPENCIL_LEGACY;
-        break;
-      case CTX_MODE_SCULPT_GPENCIL_LEGACY:
-        obmode = OB_MODE_SCULPT_GPENCIL_LEGACY;
-        break;
-      case CTX_MODE_WEIGHT_GPENCIL_LEGACY:
-        obmode = OB_MODE_WEIGHT_GPENCIL_LEGACY;
-        break;
-      case CTX_MODE_VERTEX_GPENCIL_LEGACY:
-        obmode = OB_MODE_VERTEX_GPENCIL_LEGACY;
-        break;
-      default:
-        return OPERATOR_CANCELLED;
-        break;
-    }
-
-    /* Get brush preset using the actual tool. */
-    eGPBrush_Presets preset = gpencil_get_brush_preset_from_tool(tool, mode);
-
-    /* Capitalize Brush name first letter using the tool name. */
-    char name[64];
-    STRNCPY(name, tool->runtime->data_block);
-    BLI_str_tolower_ascii(name, sizeof(name));
-    name[0] = BLI_toupper_ascii(name[0]);
-
-    /* Create the brush and assign default values. */
-    br = BKE_brush_add(bmain, name, obmode);
-    if (br) {
-      BKE_brush_init_gpencil_settings(br);
-      BKE_gpencil_brush_preset_set(bmain, br, preset);
-    }
-  }
-
-  if (br) {
-    id_us_min(&br->id); /* fake user only */
-    BKE_paint_brush_set(paint, br);
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-static void BRUSH_OT_add_gpencil(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Add Drawing Brush";
-  ot->description = "Add brush for Grease Pencil";
-  ot->idname = "BRUSH_OT_add_gpencil";
-
-  /* api callbacks */
-  ot->exec = brush_add_gpencil_exec;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static int brush_scale_size_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
-  const bool is_gpencil = (brush && brush->gpencil_settings != nullptr);
-  // Object *ob = CTX_data_active_object(C);
   float scalar = RNA_float_get(op->ptr, "scalar");
 
+  /* Grease Pencil brushes in Paint mode do not use unified size. */
+  const bool use_unified_size = !(brush && brush->gpencil_settings &&
+                                  brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL);
+
   if (brush) {
-    /* pixel radius */
+    /* Pixel radius. */
     {
-      const int old_size = (!is_gpencil) ? BKE_brush_size_get(scene, brush) : brush->size;
+      const int old_size = (use_unified_size) ? BKE_brush_size_get(scene, brush) : brush->size;
       int size = int(scalar * old_size);
 
       if (abs(old_size - size) < U.pixelsize) {
@@ -289,25 +73,31 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
           size -= U.pixelsize;
         }
       }
-      /* Grease Pencil does not use unified size. */
-      if (is_gpencil) {
-        brush->size = max_ii(size, 1);
-        WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
-        return OPERATOR_FINISHED;
-      }
 
-      BKE_brush_size_set(scene, brush, size);
+      if (use_unified_size) {
+        BKE_brush_size_set(scene, brush, size);
+      }
+      else {
+        brush->size = max_ii(size, 1);
+        BKE_brush_tag_unsaved_changes(brush);
+      }
     }
 
-    /* unprojected radius */
+    /* Unprojected radius. */
     {
-      float unprojected_radius = scalar * BKE_brush_unprojected_radius_get(scene, brush);
+      float unprojected_radius = scalar * (use_unified_size ?
+                                               BKE_brush_unprojected_radius_get(scene, brush) :
+                                               brush->unprojected_radius);
 
-      if (unprojected_radius < 0.001f) { /* XXX magic number */
-        unprojected_radius = 0.001f;
+      unprojected_radius = std::max(unprojected_radius, 0.001f);
+
+      if (use_unified_size) {
+        BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
       }
-
-      BKE_brush_unprojected_radius_set(scene, brush, unprojected_radius);
+      else {
+        brush->unprojected_radius = unprojected_radius;
+        BKE_brush_tag_unsaved_changes(brush);
+      }
     }
 
     WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
@@ -323,7 +113,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
   ot->description = "Change brush size by a scalar";
   ot->idname = "BRUSH_OT_scale_size";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_scale_size_exec;
 
   /* flags */
@@ -334,7 +124,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 /* Palette operators */
 
-static int palette_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Main *bmain = CTX_data_main(C);
@@ -354,7 +144,7 @@ static void PALETTE_OT_new(wmOperatorType *ot)
   ot->description = "Add new palette";
   ot->idname = "PALETTE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_new_exec;
 
   /* flags */
@@ -365,7 +155,7 @@ static bool palette_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
 
-  if (paint && paint->palette != nullptr && !ID_IS_LINKED(paint->palette) &&
+  if (paint && paint->palette != nullptr && ID_IS_EDITABLE(paint->palette) &&
       !ID_IS_OVERRIDE_LIBRARY(paint->palette))
   {
     return true;
@@ -374,28 +164,31 @@ static bool palette_poll(bContext *C)
   return false;
 }
 
-static int palette_color_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  ePaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
   Palette *palette = paint->palette;
   PaletteColor *color;
 
   color = BKE_palette_color_add(palette);
   palette->active_color = BLI_listbase_count(&palette->colors) - 1;
 
-  if (paint->brush) {
-    const Brush *brush = paint->brush;
+  const Brush *brush = BKE_paint_brush_for_read(paint);
+  if (brush) {
     if (ELEM(mode,
-             PAINT_MODE_TEXTURE_3D,
-             PAINT_MODE_TEXTURE_2D,
-             PAINT_MODE_VERTEX,
-             PAINT_MODE_SCULPT)) {
-      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
+             PaintMode::Texture3D,
+             PaintMode::Texture2D,
+             PaintMode::Vertex,
+             PaintMode::Sculpt,
+             PaintMode::GPencil,
+             PaintMode::VertexGPencil))
+    {
+      copy_v3_v3(color->rgb, BKE_brush_color_get(scene, paint, brush));
       color->value = 0.0;
     }
-    else if (mode == PAINT_MODE_WEIGHT) {
+    else if (mode == PaintMode::Weight) {
       zero_v3(color->rgb);
       color->value = brush->weight;
     }
@@ -411,14 +204,14 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
   ot->description = "Add new color to active palette";
   ot->idname = "PALETTE_OT_color_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_add_exec;
   ot->poll = palette_poll;
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -439,7 +232,7 @@ static void PALETTE_OT_color_delete(wmOperatorType *ot)
   ot->description = "Remove active color from palette";
   ot->idname = "PALETTE_OT_color_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_delete_exec;
   ot->poll = palette_poll;
   /* flags */
@@ -460,7 +253,7 @@ static bool palette_extract_img_poll(bContext *C)
   return false;
 }
 
-static int palette_extract_img_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
 {
   const int threshold = RNA_int_get(op->ptr, "threshold");
 
@@ -517,7 +310,7 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_extract_from_image";
   ot->description = "Extract all colors used in Image and create a Palette";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_extract_img_exec;
   ot->poll = palette_extract_img_poll;
 
@@ -526,11 +319,11 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
 
   /* properties */
   prop = RNA_def_int(ot->srna, "threshold", 1, 1, 1, "Threshold", "", 1, 1);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* Sort Palette color by Hue and Saturation. */
-static int palette_sort_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
 {
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -547,7 +340,7 @@ static int palette_sort_exec(bContext *C, wmOperator *op)
   const int totcol = BLI_listbase_count(&palette->colors);
 
   if (totcol > 0) {
-    color_array = MEM_cnew_array<tPaletteColorHSV>(totcol, __func__);
+    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totcol, __func__);
     /* Put all colors in an array. */
     int t = 0;
     LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
@@ -615,7 +408,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_sort";
   ot->description = "Sort Palette Colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_sort_exec;
   ot->poll = palette_poll;
 
@@ -626,7 +419,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
 }
 
 /* Move colors in palette. */
-static int palette_color_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_color_move_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -661,7 +454,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_color_move";
   ot->description = "Move the active Color up/down in the list";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_move_exec;
   ot->poll = palette_poll;
 
@@ -672,7 +465,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
 }
 
 /* Join Palette swatches. */
-static int palette_join_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -725,7 +518,7 @@ static void PALETTE_OT_join(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_join";
   ot->description = "Join Palette Swatches";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_join_exec;
   ot->poll = palette_poll;
 
@@ -734,299 +527,6 @@ static void PALETTE_OT_join(wmOperatorType *ot)
 
   /* properties */
   RNA_def_string(ot->srna, "palette", nullptr, MAX_ID_NAME - 2, "Palette", "Name of the Palette");
-}
-
-static int brush_reset_exec(bContext *C, wmOperator * /*op*/)
-{
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = BKE_paint_brush(paint);
-  Object *ob = CTX_data_active_object(C);
-
-  if (!ob || !brush) {
-    return OPERATOR_CANCELLED;
-  }
-
-  /* TODO: other modes */
-  if (ob->mode & OB_MODE_SCULPT) {
-    BKE_brush_sculpt_reset(brush);
-  }
-  else {
-    return OPERATOR_CANCELLED;
-  }
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-
-  return OPERATOR_FINISHED;
-}
-
-static void BRUSH_OT_reset(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Reset Brush";
-  ot->description = "Return brush to defaults based on current tool";
-  ot->idname = "BRUSH_OT_reset";
-
-  /* api callbacks */
-  ot->exec = brush_reset_exec;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-static int brush_tool(const Brush *brush, size_t tool_offset)
-{
-  return *(((char *)brush) + tool_offset);
-}
-
-static void brush_tool_set(const Brush *brush, size_t tool_offset, int tool)
-{
-  *(((char *)brush) + tool_offset) = tool;
-}
-
-static Brush *brush_tool_cycle(Main *bmain, Paint *paint, Brush *brush_orig, const int tool)
-{
-  Brush *brush, *first_brush;
-
-  if (!brush_orig && !(brush_orig = static_cast<Brush *>(bmain->brushes.first))) {
-    return nullptr;
-  }
-
-  if (brush_tool(brush_orig, paint->runtime.tool_offset) != tool) {
-    /* If current brush's tool is different from what we need,
-     * start cycling from the beginning of the list.
-     * Such logic will activate the same exact brush not relating from
-     * which tool user requests other tool.
-     */
-
-    /* Try to tool-slot first. */
-    first_brush = BKE_paint_toolslots_brush_get(paint, tool);
-    if (first_brush == nullptr) {
-      first_brush = static_cast<Brush *>(bmain->brushes.first);
-    }
-  }
-  else {
-    /* If user wants to switch to brush with the same  tool as
-     * currently active brush do a cycling via all possible
-     * brushes with requested tool.
-     */
-    first_brush = brush_orig->id.next ? static_cast<Brush *>(brush_orig->id.next) :
-                                        static_cast<Brush *>(bmain->brushes.first);
-  }
-
-  /* get the next brush with the active tool */
-  brush = first_brush;
-  do {
-    if ((brush->ob_mode & paint->runtime.ob_mode) &&
-        (brush_tool(brush, paint->runtime.tool_offset) == tool))
-    {
-      return brush;
-    }
-
-    brush = brush->id.next ? static_cast<Brush *>(brush->id.next) :
-                             static_cast<Brush *>(bmain->brushes.first);
-  } while (brush != first_brush);
-
-  return nullptr;
-}
-
-static Brush *brush_tool_toggle(Main *bmain, Paint *paint, Brush *brush_orig, const int tool)
-{
-  if (!brush_orig || brush_tool(brush_orig, paint->runtime.tool_offset) != tool) {
-    Brush *br;
-    /* if the current brush is not using the desired tool, look
-     * for one that is */
-    br = brush_tool_cycle(bmain, paint, brush_orig, tool);
-    /* store the previously-selected brush */
-    if (br) {
-      br->toggle_brush = brush_orig;
-    }
-
-    return br;
-  }
-  if (brush_orig->toggle_brush) {
-    /* if current brush is using the desired tool, try to toggle
-     * back to the previously selected brush. */
-    return brush_orig->toggle_brush;
-  }
-  return nullptr;
-}
-
-/** The name of the active tool is "builtin_brush." concatenated with the returned string. */
-static blender::StringRefNull curves_active_tool_name_get(const eBrushCurvesSculptTool tool)
-{
-  switch (tool) {
-    case CURVES_SCULPT_TOOL_COMB:
-      return "comb";
-    case CURVES_SCULPT_TOOL_DELETE:
-      return "delete";
-    case CURVES_SCULPT_TOOL_SNAKE_HOOK:
-      return "snake_hook";
-    case CURVES_SCULPT_TOOL_ADD:
-      return "add";
-    case CURVES_SCULPT_TOOL_GROW_SHRINK:
-      return "grow_shrink";
-    case CURVES_SCULPT_TOOL_SELECTION_PAINT:
-      return "selection_paint";
-    case CURVES_SCULPT_TOOL_PINCH:
-      return "pinch";
-    case CURVES_SCULPT_TOOL_SMOOTH:
-      return "smooth";
-    case CURVES_SCULPT_TOOL_PUFF:
-      return "puff";
-    case CURVES_SCULPT_TOOL_DENSITY:
-      return "density";
-    case CURVES_SCULPT_TOOL_SLIDE:
-      return "slide";
-  }
-  return "";
-}
-
-static bool brush_generic_tool_set(bContext *C,
-                                   Main *bmain,
-                                   Paint *paint,
-                                   const int tool,
-                                   const char *tool_name,
-                                   const bool create_missing,
-                                   const bool toggle)
-{
-  Brush *brush, *brush_orig = BKE_paint_brush(paint);
-
-  if (toggle) {
-    brush = brush_tool_toggle(bmain, paint, brush_orig, tool);
-  }
-  else {
-    brush = brush_tool_cycle(bmain, paint, brush_orig, tool);
-  }
-
-  if (((brush == nullptr) && create_missing) &&
-      ((brush_orig == nullptr) || brush_tool(brush_orig, paint->runtime.tool_offset) != tool))
-  {
-    brush = BKE_brush_add(bmain, tool_name, eObjectMode(paint->runtime.ob_mode));
-    id_us_min(&brush->id); /* fake user only */
-    brush_tool_set(brush, paint->runtime.tool_offset, tool);
-    brush->toggle_brush = brush_orig;
-  }
-
-  if (brush) {
-    BKE_paint_brush_set(paint, brush);
-    BKE_paint_invalidate_overlay_all();
-
-    WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
-
-    /* Tool System
-     * This is needed for when there is a non-sculpt tool active (transform for e.g.).
-     * In case we are toggling (and the brush changed to the toggle_brush), we need to get the
-     * tool_name again. */
-    int tool_result = brush_tool(brush, paint->runtime.tool_offset);
-    ePaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
-
-    if (paint_mode == PAINT_MODE_SCULPT_CURVES) {
-      tool_name = curves_active_tool_name_get(eBrushCurvesSculptTool(tool)).c_str();
-    }
-    else {
-      const EnumPropertyItem *items = BKE_paint_get_tool_enum_from_paintmode(paint_mode);
-      RNA_enum_name_from_value(items, tool_result, &tool_name);
-    }
-
-    char tool_id[MAX_NAME];
-    SNPRINTF(tool_id, "builtin_brush.%s", tool_name);
-    WM_toolsystem_ref_set_by_id(C, tool_id);
-
-    return true;
-  }
-  return false;
-}
-
-static const ePaintMode brush_select_paint_modes[] = {
-    PAINT_MODE_SCULPT,
-    PAINT_MODE_VERTEX,
-    PAINT_MODE_WEIGHT,
-    PAINT_MODE_TEXTURE_3D,
-    PAINT_MODE_GPENCIL,
-    PAINT_MODE_VERTEX_GPENCIL,
-    PAINT_MODE_SCULPT_GPENCIL,
-    PAINT_MODE_WEIGHT_GPENCIL,
-    PAINT_MODE_SCULPT_CURVES,
-};
-
-static int brush_select_exec(bContext *C, wmOperator *op)
-{
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  const bool create_missing = RNA_boolean_get(op->ptr, "create_missing");
-  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  const char *tool_name = "Brush";
-  int tool = 0;
-
-  ePaintMode paint_mode = PAINT_MODE_INVALID;
-  for (int i = 0; i < ARRAY_SIZE(brush_select_paint_modes); i++) {
-    paint_mode = brush_select_paint_modes[i];
-    const char *op_prop_id = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, op_prop_id);
-    if (RNA_property_is_set(op->ptr, prop)) {
-      tool = RNA_property_enum_get(op->ptr, prop);
-      break;
-    }
-  }
-
-  if (paint_mode == PAINT_MODE_INVALID) {
-    return OPERATOR_CANCELLED;
-  }
-
-  Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
-  if (paint == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
-  if (paint_mode == PAINT_MODE_SCULPT_CURVES) {
-    tool_name = curves_active_tool_name_get(eBrushCurvesSculptTool(tool)).c_str();
-  }
-  else {
-    const EnumPropertyItem *items = BKE_paint_get_tool_enum_from_paintmode(paint_mode);
-    RNA_enum_name_from_value(items, tool, &tool_name);
-  }
-
-  if (brush_generic_tool_set(C, bmain, paint, tool, tool_name, create_missing, toggle)) {
-    return OPERATOR_FINISHED;
-  }
-  return OPERATOR_CANCELLED;
-}
-
-static void PAINT_OT_brush_select(wmOperatorType *ot)
-{
-  PropertyRNA *prop;
-
-  /* identifiers */
-  ot->name = "Brush Select";
-  ot->description = "Select a paint mode's brush by tool type";
-  ot->idname = "PAINT_OT_brush_select";
-
-  /* api callbacks */
-  ot->exec = brush_select_exec;
-
-  /* flags */
-  ot->flag = 0;
-
-  /* props */
-  /* All properties are hidden, so as not to show the redo panel. */
-  for (int i = 0; i < ARRAY_SIZE(brush_select_paint_modes); i++) {
-    const ePaintMode paint_mode = brush_select_paint_modes[i];
-    const char *prop_id = BKE_paint_get_tool_prop_id_from_paintmode(paint_mode);
-    prop = RNA_def_enum(
-        ot->srna, prop_id, BKE_paint_get_tool_enum_from_paintmode(paint_mode), 0, prop_id, "");
-    RNA_def_property_translation_context(
-        prop, BKE_paint_get_tool_enum_translation_context_from_paintmode(paint_mode));
-    RNA_def_property_flag(prop, PROP_HIDDEN);
-  }
-
-  prop = RNA_def_boolean(
-      ot->srna, "toggle", false, "Toggle", "Toggle between two brushes rather than cycling");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
-  prop = RNA_def_boolean(ot->srna,
-                         "create_missing",
-                         false,
-                         "Create Missing",
-                         "If the requested brush type does not exist, create a new brush");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
 }
 
 /***** Stencil Control *****/
@@ -1098,7 +598,7 @@ static void stencil_set_target(StencilControlData *scd)
   scd->init_angle = atan2f(mdiff[1], mdiff[0]);
 }
 
-static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -1118,7 +618,7 @@ static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *ev
     }
   }
 
-  scd = static_cast<StencilControlData *>(MEM_mallocN(sizeof(StencilControlData), __func__));
+  scd = MEM_mallocN<StencilControlData>(__func__);
   scd->mask = mask;
   scd->br = br;
 
@@ -1168,6 +668,7 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
       CLAMP(scd->pos_target[1],
             -scd->dim_target[1] + PIXEL_MARGIN,
             scd->area_size[1] + scd->dim_target[1] - PIXEL_MARGIN);
+      BKE_brush_tag_unsaved_changes(scd->br);
 
       break;
     case STENCIL_SCALE: {
@@ -1184,6 +685,7 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
       }
       clamp_v2(mdiff, 5.0f, 10000.0f);
       copy_v2_v2(scd->dim_target, mdiff);
+      BKE_brush_tag_unsaved_changes(scd->br);
       break;
     }
     case STENCIL_ROTATE: {
@@ -1198,18 +700,19 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
         angle -= float(2 * M_PI);
       }
       *scd->rot_target = angle;
+      BKE_brush_tag_unsaved_changes(scd->br);
       break;
     }
   }
 #undef PIXEL_MARGIN
 }
 
-static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StencilControlData *scd = static_cast<StencilControlData *>(op->customdata);
 
   if (event->type == scd->launch_event && event->val == KM_RELEASE) {
-    MEM_freeN(op->customdata);
+    MEM_freeN(scd);
     WM_event_add_notifier(C, NC_WINDOW, nullptr);
     return OPERATOR_FINISHED;
   }
@@ -1261,12 +764,12 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 
 static bool stencil_control_poll(bContext *C)
 {
-  ePaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
   Paint *paint;
   Brush *br;
 
-  if (!paint_supports_texture(mode)) {
+  if (!blender::ed::sculpt_paint::paint_supports_texture(mode)) {
     return false;
   }
 
@@ -1295,7 +798,7 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
   ot->description = "Control the stencil brush";
   ot->idname = "BRUSH_OT_stencil_control";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = stencil_control_invoke;
   ot->modal = stencil_control_modal;
   ot->cancel = stencil_control_cancel;
@@ -1306,12 +809,12 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
 
   PropertyRNA *prop;
   prop = RNA_def_enum(ot->srna, "mode", stencil_control_items, STENCIL_TRANSLATE, "Tool", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_enum(ot->srna, "texmode", stencil_texture_items, STENCIL_PRIMARY, "Tool", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -1360,6 +863,7 @@ static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
       br->stencil_dimension[0] = fabsf(factor * aspx);
       br->stencil_dimension[1] = fabsf(factor * aspy);
     }
+    BKE_brush_tag_unsaved_changes(br);
   }
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
@@ -1375,7 +879,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       "When using an image texture, adjust the stencil size to fit the image aspect ratio";
   ot->idname = "BRUSH_OT_stencil_fit_image_aspect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_fit_image_aspect_exec;
   ot->poll = stencil_control_poll;
 
@@ -1388,7 +892,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       ot->srna, "mask", false, "Modify Mask Stencil", "Modify either the primary or mask stencil");
 }
 
-static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_reset_transform_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -1417,6 +921,7 @@ static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
     br->mtex.rot = 0;
   }
 
+  BKE_brush_tag_unsaved_changes(br);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
@@ -1429,7 +934,7 @@ static void BRUSH_OT_stencil_reset_transform(wmOperatorType *ot)
   ot->description = "Reset the stencil transformation to the default";
   ot->idname = "BRUSH_OT_stencil_reset_transform";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_reset_transform_exec;
   ot->poll = stencil_control_poll;
 
@@ -1461,6 +966,7 @@ void ED_operatormacros_paint()
 void ED_operatortypes_paint()
 {
   /* palette */
+  using namespace blender::ed::sculpt_paint;
   WM_operatortype_append(PALETTE_OT_new);
   WM_operatortype_append(PALETTE_OT_color_add);
   WM_operatortype_append(PALETTE_OT_color_delete);
@@ -1480,18 +986,19 @@ void ED_operatortypes_paint()
   WM_operatortype_append(PAINTCURVE_OT_cursor);
 
   /* brush */
-  WM_operatortype_append(BRUSH_OT_add);
-  WM_operatortype_append(BRUSH_OT_add_gpencil);
   WM_operatortype_append(BRUSH_OT_scale_size);
   WM_operatortype_append(BRUSH_OT_curve_preset);
   WM_operatortype_append(BRUSH_OT_sculpt_curves_falloff_preset);
-  WM_operatortype_append(BRUSH_OT_reset);
   WM_operatortype_append(BRUSH_OT_stencil_control);
   WM_operatortype_append(BRUSH_OT_stencil_fit_image_aspect);
   WM_operatortype_append(BRUSH_OT_stencil_reset_transform);
-
-  /* NOTE: particle uses a different system, can be added with existing operators in `wm.py`. */
-  WM_operatortype_append(PAINT_OT_brush_select);
+  WM_operatortype_append(BRUSH_OT_asset_activate);
+  WM_operatortype_append(BRUSH_OT_asset_save_as);
+  WM_operatortype_append(BRUSH_OT_asset_edit_metadata);
+  WM_operatortype_append(BRUSH_OT_asset_load_preview);
+  WM_operatortype_append(BRUSH_OT_asset_delete);
+  WM_operatortype_append(BRUSH_OT_asset_save);
+  WM_operatortype_append(BRUSH_OT_asset_revert);
 
   /* image */
   WM_operatortype_append(PAINT_OT_texture_paint_toggle);
@@ -1514,7 +1021,9 @@ void ED_operatortypes_paint()
   WM_operatortype_append(PAINT_OT_weight_sample_group);
 
   /* uv */
-  WM_operatortype_append(SCULPT_OT_uv_sculpt_stroke);
+  WM_operatortype_append(SCULPT_OT_uv_sculpt_grab);
+  WM_operatortype_append(SCULPT_OT_uv_sculpt_relax);
+  WM_operatortype_append(SCULPT_OT_uv_sculpt_pinch);
 
   /* vertex selection */
   WM_operatortype_append(PAINT_OT_vert_select_all);
@@ -1549,44 +1058,55 @@ void ED_operatortypes_paint()
   WM_operatortype_append(PAINT_OT_face_vert_reveal);
 
   /* partial visibility */
-  WM_operatortype_append(PAINT_OT_hide_show);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_all);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_masked);
+  WM_operatortype_append(hide::PAINT_OT_hide_show);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_lasso_gesture);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_line_gesture);
+  WM_operatortype_append(hide::PAINT_OT_hide_show_polyline_gesture);
+  WM_operatortype_append(hide::PAINT_OT_visibility_invert);
+  WM_operatortype_append(hide::PAINT_OT_visibility_filter);
 
   /* paint masking */
-  WM_operatortype_append(PAINT_OT_mask_flood_fill);
-  WM_operatortype_append(PAINT_OT_mask_lasso_gesture);
-  WM_operatortype_append(PAINT_OT_mask_box_gesture);
-  WM_operatortype_append(PAINT_OT_mask_line_gesture);
+  WM_operatortype_append(mask::PAINT_OT_mask_flood_fill);
+  WM_operatortype_append(mask::PAINT_OT_mask_lasso_gesture);
+  WM_operatortype_append(mask::PAINT_OT_mask_box_gesture);
+  WM_operatortype_append(mask::PAINT_OT_mask_line_gesture);
+  WM_operatortype_append(mask::PAINT_OT_mask_polyline_gesture);
 }
 
 void ED_keymap_paint(wmKeyConfig *keyconf)
 {
+  using namespace blender::ed::sculpt_paint;
   wmKeyMap *keymap;
 
-  keymap = WM_keymap_ensure(keyconf, "Paint Curve", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = paint_curve_poll;
 
   /* Sculpt mode */
-  keymap = WM_keymap_ensure(keyconf, "Sculpt", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Sculpt", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = SCULPT_mode_poll;
 
   /* Vertex Paint mode */
-  keymap = WM_keymap_ensure(keyconf, "Vertex Paint", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Vertex Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = vertex_paint_mode_poll;
 
   /* Weight Paint mode */
-  keymap = WM_keymap_ensure(keyconf, "Weight Paint", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = weight_paint_mode_poll;
 
   /* Weight paint's Vertex Selection Mode. */
-  keymap = WM_keymap_ensure(keyconf, "Paint Vertex Selection (Weight, Vertex)", 0, 0);
+  keymap = WM_keymap_ensure(
+      keyconf, "Paint Vertex Selection (Weight, Vertex)", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = vert_paint_poll;
 
   /* Image/Texture Paint mode */
-  keymap = WM_keymap_ensure(keyconf, "Image Paint", 0, 0);
+  keymap = WM_keymap_ensure(keyconf, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = image_texture_paint_poll;
 
   /* face-mask mode */
-  keymap = WM_keymap_ensure(keyconf, "Paint Face Mask (Weight, Vertex, Texture)", 0, 0);
+  keymap = WM_keymap_ensure(
+      keyconf, "Paint Face Mask (Weight, Vertex, Texture)", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = facemask_paint_poll;
 
   /* paint stroke */
@@ -1594,9 +1114,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SCULPT_OT_brush_stroke");
 
   /* Curves Sculpt mode. */
-  keymap = WM_keymap_ensure(keyconf, "Sculpt Curves", 0, 0);
-  keymap->poll = CURVES_SCULPT_mode_poll;
+  keymap = WM_keymap_ensure(keyconf, "Sculpt Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap->poll = curves_sculpt_poll;
 
   /* sculpt expand. */
-  sculpt_expand_modal_keymap(keyconf);
+  expand::modal_keymap(keyconf);
 }

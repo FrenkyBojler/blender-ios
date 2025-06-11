@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 
 #include "node_geometry_util.hh"
 
@@ -10,42 +11,57 @@ namespace blender::nodes::node_geo_set_curve_radius_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Curve").supported_type(
+      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Float>("Radius").min(0.0f).default_value(0.005f).field_on_all().subtype(
-      PROP_DISTANCE);
-  b.add_output<decl::Geometry>("Curve").propagate_all();
+  b.add_input<decl::Float>("Radius")
+      .min(0.0f)
+      .default_value(0.005f)
+      .subtype(PROP_DISTANCE)
+      .field_on_all();
 }
 
 static void set_radius(bke::CurvesGeometry &curves,
-                       const Field<bool> &selection_field,
-                       const Field<float> &radius_field)
+                       const fn::FieldContext &field_context,
+                       const Field<bool> &selection,
+                       const Field<float> &radius)
 {
-  if (curves.points_num() == 0) {
-    return;
-  }
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
-  AttributeWriter<float> radii = attributes.lookup_or_add_for_write<float>("radius",
-                                                                           ATTR_DOMAIN_POINT);
-
-  const bke::CurvesFieldContext field_context{curves, ATTR_DOMAIN_POINT};
-  fn::FieldEvaluator evaluator{field_context, curves.points_num()};
-  evaluator.set_selection(selection_field);
-  evaluator.add_with_destination(radius_field, radii.varray);
-  evaluator.evaluate();
-
-  radii.finish();
+  bke::try_capture_field_on_geometry(curves.attributes_for_write(),
+                                     field_context,
+                                     "radius",
+                                     bke::AttrDomain::Point,
+                                     selection,
+                                     radius);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<float> radii_field = params.extract_input<Field<float>>("Radius");
+  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  const Field<float> radius = params.extract_input<Field<float>>("Radius");
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
-      set_radius(curves_id->geometry.wrap(), selection_field, radii_field);
+      bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+      const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
+      set_radius(curves, field_context, selection, radius);
+    }
+    if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+      using namespace blender::bke::greasepencil;
+      for (const int layer_index : grease_pencil->layers().index_range()) {
+        Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
+        if (drawing == nullptr) {
+          continue;
+        }
+        set_radius(
+            drawing->strokes_for_write(),
+            bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Point, layer_index),
+            selection,
+            radius);
+      }
     }
   });
 
@@ -54,12 +70,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_CURVE_RADIUS, "Set Curve Radius", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetCurveRadius", GEO_NODE_SET_CURVE_RADIUS);
+  ntype.ui_name = "Set Curve Radius";
+  ntype.ui_description = "Set the radius of the curve at each control point";
+  ntype.enum_name_legacy = "SET_CURVE_RADIUS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

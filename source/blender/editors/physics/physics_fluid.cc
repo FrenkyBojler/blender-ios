@@ -6,7 +6,6 @@
  * \ingroup edphys
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <sys/stat.h>
@@ -14,33 +13,33 @@
 #include "MEM_guardedalloc.h"
 
 /* types */
-#include "DNA_action_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_path_util.h"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_context.h"
+#include "BKE_context.hh"
 #include "BKE_fluid.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
-#include "BKE_modifier.h"
-#include "BKE_report.h"
-#include "BKE_screen.h"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
+#include "BKE_modifier.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_object.hh"
 #include "ED_screen.hh"
-#include "PIL_time.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "physics_intern.h" /* own include */
+#include "physics_intern.hh" /* own include */
 
 #include "DNA_fluid_types.h"
 #include "DNA_scene_types.h"
@@ -134,7 +133,7 @@ static bool fluid_initjob(
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   fmd = (FluidModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   if (!fmd) {
@@ -337,20 +336,22 @@ static void fluid_bake_endjob(void *customdata)
    * Report for ended bake and how long it took. */
   if (job->success) {
     /* Show bake info. */
-    WM_reportf(
-        RPT_INFO, "Fluid: %s complete! (%.2f)", job->name, PIL_check_seconds_timer() - job->start);
+    WM_global_reportf(
+        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(
+          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
     }
     else { /* User canceled the bake. */
-      WM_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(
+          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
     }
   }
 }
 
-static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   FluidJob *job = static_cast<FluidJob *>(customdata);
   FluidDomainSettings *fds = job->fmd->domain;
@@ -358,10 +359,10 @@ static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, f
   char temp_dir[FILE_MAX];
   const char *relbase = BKE_modifier_path_relbase_from_global(job->ob);
 
-  job->stop = stop;
-  job->do_update = do_update;
-  job->progress = progress;
-  job->start = PIL_check_seconds_timer();
+  job->stop = &worker_status->stop;
+  job->do_update = &worker_status->do_update;
+  job->progress = &worker_status->progress;
+  job->start = BLI_time_now_seconds();
   job->success = 1;
 
   G.is_break = false;
@@ -425,12 +426,8 @@ static void fluid_bake_startjob(void *customdata, bool *stop, bool *do_update, f
 
   fluid_bake_sequence(job);
 
-  if (do_update) {
-    *do_update = true;
-  }
-  if (stop) {
-    *stop = false;
-  }
+  worker_status->do_update = true;
+  worker_status->stop = false;
 }
 
 static void fluid_free_endjob(void *customdata)
@@ -449,28 +446,30 @@ static void fluid_free_endjob(void *customdata)
    *  Report for ended free job and how long it took */
   if (job->success) {
     /* Show free job info */
-    WM_reportf(
-        RPT_INFO, "Fluid: %s complete! (%.2f)", job->name, PIL_check_seconds_timer() - job->start);
+    WM_global_reportf(
+        RPT_INFO, "Fluid: %s complete (%.2fs)", job->name, BLI_time_now_seconds() - job->start);
   }
   else {
     if (fds->error[0] != '\0') {
-      WM_reportf(RPT_ERROR, "Fluid: %s failed: %s", job->name, fds->error);
+      WM_global_reportf(
+          RPT_ERROR, "Fluid: %s failed at frame %d: %s", job->name, *job->pause_frame, fds->error);
     }
     else { /* User canceled the free job */
-      WM_reportf(RPT_WARNING, "Fluid: %s canceled!", job->name);
+      WM_global_reportf(
+          RPT_WARNING, "Fluid: %s canceled at frame %d!", job->name, *job->pause_frame);
     }
   }
 }
 
-static void fluid_free_startjob(void *customdata, bool *stop, bool *do_update, float *progress)
+static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   FluidJob *job = static_cast<FluidJob *>(customdata);
   FluidDomainSettings *fds = job->fmd->domain;
 
-  job->stop = stop;
-  job->do_update = do_update;
-  job->progress = progress;
-  job->start = PIL_check_seconds_timer();
+  job->stop = &worker_status->stop;
+  job->do_update = &worker_status->do_update;
+  job->progress = &worker_status->progress;
+  job->start = BLI_time_now_seconds();
   job->success = 1;
 
   G.is_break = false;
@@ -504,8 +503,8 @@ static void fluid_free_startjob(void *customdata, bool *stop, bool *do_update, f
   UNUSED_VARS(cache_map);
 #endif
 
-  *do_update = true;
-  *stop = false;
+  worker_status->do_update = true;
+  worker_status->stop = false;
 
   /* Update scene so that viewport shows freed up scene */
   ED_update_for_newframe(job->bmain, job->depsgraph);
@@ -513,9 +512,9 @@ static void fluid_free_startjob(void *customdata, bool *stop, bool *do_update, f
 
 /***************************** Operators ******************************/
 
-static int fluid_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 {
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   char error_msg[256] = "\0";
 
   if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
@@ -531,17 +530,18 @@ static int fluid_bake_exec(bContext *C, wmOperator *op)
   }
   WM_report_banners_cancel(job->bmain);
 
-  fluid_bake_startjob(job, nullptr, nullptr, nullptr);
+  wmJobWorkerStatus worker_status = {};
+  fluid_bake_startjob(job, &worker_status);
   fluid_bake_endjob(job);
   fluid_bake_free(job);
 
   return OPERATOR_FINISHED;
 }
 
-static int fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
+static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
   Scene *scene = CTX_data_scene(C);
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   char error_msg[256] = "\0";
 
   if (!fluid_initjob(C, job, op, error_msg, sizeof(error_msg))) {
@@ -579,7 +579,7 @@ static int fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_eve
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
@@ -589,15 +589,18 @@ static int fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *eve
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static int fluid_free_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   Scene *scene = CTX_data_scene(C);
 
   /*
@@ -622,7 +625,7 @@ static int fluid_free_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  FluidJob *job = static_cast<FluidJob *>(MEM_mallocN(sizeof(FluidJob), "FluidJob"));
+  FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   job->bmain = CTX_data_main(C);
   job->scene = scene;
   job->depsgraph = CTX_data_depsgraph_pointer(C);
@@ -658,11 +661,11 @@ static int fluid_free_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int fluid_pause_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus fluid_pause_exec(bContext *C, wmOperator *op)
 {
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
-  Object *ob = ED_object_active_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
 
   /*
    * Get modifier data
@@ -690,7 +693,7 @@ void FLUID_OT_bake_all(wmOperatorType *ot)
   ot->description = "Bake Entire Fluid Simulation";
   ot->idname = FLUID_JOB_BAKE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -704,7 +707,7 @@ void FLUID_OT_free_all(wmOperatorType *ot)
   ot->description = "Free Entire Fluid Simulation";
   ot->idname = FLUID_JOB_FREE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -716,7 +719,7 @@ void FLUID_OT_bake_data(wmOperatorType *ot)
   ot->description = "Bake Fluid Data";
   ot->idname = FLUID_JOB_BAKE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -730,7 +733,7 @@ void FLUID_OT_free_data(wmOperatorType *ot)
   ot->description = "Free Fluid Data";
   ot->idname = FLUID_JOB_FREE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -742,7 +745,7 @@ void FLUID_OT_bake_noise(wmOperatorType *ot)
   ot->description = "Bake Fluid Noise";
   ot->idname = FLUID_JOB_BAKE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -756,7 +759,7 @@ void FLUID_OT_free_noise(wmOperatorType *ot)
   ot->description = "Free Fluid Noise";
   ot->idname = FLUID_JOB_FREE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -768,7 +771,7 @@ void FLUID_OT_bake_mesh(wmOperatorType *ot)
   ot->description = "Bake Fluid Mesh";
   ot->idname = FLUID_JOB_BAKE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -782,7 +785,7 @@ void FLUID_OT_free_mesh(wmOperatorType *ot)
   ot->description = "Free Fluid Mesh";
   ot->idname = FLUID_JOB_FREE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -794,7 +797,7 @@ void FLUID_OT_bake_particles(wmOperatorType *ot)
   ot->description = "Bake Fluid Particles";
   ot->idname = FLUID_JOB_BAKE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -808,7 +811,7 @@ void FLUID_OT_free_particles(wmOperatorType *ot)
   ot->description = "Free Fluid Particles";
   ot->idname = FLUID_JOB_FREE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -820,7 +823,7 @@ void FLUID_OT_bake_guides(wmOperatorType *ot)
   ot->description = "Bake Fluid Guiding";
   ot->idname = FLUID_JOB_BAKE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -834,7 +837,7 @@ void FLUID_OT_free_guides(wmOperatorType *ot)
   ot->description = "Free Fluid Guiding";
   ot->idname = FLUID_JOB_FREE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -846,7 +849,7 @@ void FLUID_OT_pause_bake(wmOperatorType *ot)
   ot->description = "Pause Bake";
   ot->idname = FLUID_JOB_BAKE_PAUSE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_pause_exec;
   ot->poll = ED_operator_object_active_editable;
 }

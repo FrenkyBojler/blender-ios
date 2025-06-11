@@ -6,25 +6,21 @@
  * \ingroup edcurve
  */
 
+#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_curve.h"
-#include "BKE_fcurve.h"
-#include "BKE_layer.h"
-
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "BKE_curve.hh"
+#include "BKE_layer.hh"
 
 #include "ED_curve.hh"
 #include "ED_view3d.hh"
 
-#include "curve_intern.h"
+#include "curve_intern.hh"
+
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Cursor Picking API
@@ -41,13 +37,13 @@ struct PickUserData {
   bool is_changed;
 };
 
-static void ED_curve_pick_vert__do_closest(void *user_data,
-                                           Nurb *nu,
-                                           BPoint *bp,
-                                           BezTriple *bezt,
-                                           int beztindex,
-                                           bool handles_visible,
-                                           const float screen_co[2])
+static void curve_pick_vert__do_closest(void *user_data,
+                                        Nurb *nu,
+                                        BPoint *bp,
+                                        BezTriple *bezt,
+                                        int beztindex,
+                                        bool handles_visible,
+                                        const float screen_co[2])
 {
   PickUserData *data = static_cast<PickUserData *>(user_data);
 
@@ -109,22 +105,19 @@ bool ED_curve_pick_vert_ex(ViewContext *vc,
   data.mval_fl[0] = vc->mval[0];
   data.mval_fl[1] = vc->mval[1];
 
-  uint bases_len;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      vc->scene, vc->view_layer, vc->v3d, &bases_len);
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
-    Base *base = bases[base_index];
+  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+      vc->scene, vc->view_layer, vc->v3d);
+  for (Base *base : bases) {
     data.is_changed = false;
 
     ED_view3d_viewcontext_init_object(vc, base->object);
     ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
-    nurbs_foreachScreenVert(vc, ED_curve_pick_vert__do_closest, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
+    nurbs_foreachScreenVert(vc, curve_pick_vert__do_closest, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
     if (r_base && data.is_changed) {
       *r_base = base;
     }
   }
-  MEM_freeN(bases);
 
   *r_nurb = data.nurb;
   *r_bezt = data.bezt;

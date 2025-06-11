@@ -14,10 +14,6 @@ extern "C" {
 
 #include "../stroke/Stroke.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 extern PyTypeObject MediumType_Type;
@@ -33,17 +29,4 @@ typedef struct {
 
 int MediumType_Init(PyObject *module);
 
-// internal constants
-extern PyLongObject _BPy_MediumType_DRY_MEDIUM;
-extern PyLongObject _BPy_MediumType_HUMID_MEDIUM;
-extern PyLongObject _BPy_MediumType_OPAQUE_MEDIUM;
-// public constants
-#define BPy_MediumType_DRY_MEDIUM ((PyObject *)&_BPy_MediumType_DRY_MEDIUM)
-#define BPy_MediumType_HUMID_MEDIUM ((PyObject *)&_BPy_MediumType_HUMID_MEDIUM)
-#define BPy_MediumType_OPAQUE_MEDIUM ((PyObject *)&_BPy_MediumType_OPAQUE_MEDIUM)
-
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

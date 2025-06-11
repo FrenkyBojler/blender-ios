@@ -14,12 +14,12 @@ if(WIN32)
 endif()
 add_definitions(-DBOOST_ALL_NO_LIB)
 
-# Precompiled Linux libs are made with GCC, and USD uses some extensions
+# Pre-compiled Linux libraries are made with GCC, and USD uses some extensions
 # which lead to an incompatible ABI for Clang. Using those extensions with
 # Clang as well works around the issue.
 if(UNIX AND NOT APPLE)
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    if(EXISTS ${LIBDIR})
+    if(DEFINED LIBDIR)
       add_definitions(-DARCH_HAS_GNU_STL_EXTENSIONS)
     endif()
   endif()
@@ -33,23 +33,23 @@ if(WIN32)
   # warning alert.
   # Silence them by restore warn C4100 back to w4
   remove_cc_flag("/w34100")
+  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+    # USD currently does not support the new preprocessor,
+    # so we remove it here and disable sse2neon
+    remove_cc_flag("/Zc:preprocessor")
+    add_definitions(-DDISABLE_SSE2NEON)
+  endif()
 endif()
 
 set(INC
-  ../../../../intern/clog
   ../../../../intern/guardedalloc
-  ../../blenkernel
   ../../blenlib
-  ../../depsgraph
-  ../../imbuf
   ../../makesdna
   ../../makesrna
-  ../../nodes
   ../../io/usd
-  ../../gpu
   ../../gpu/intern
   ../../python/intern
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
   ..
 )
@@ -61,19 +61,25 @@ set(INC_SYS
   ${BOOST_INCLUDE_DIR}
   ${TBB_INCLUDE_DIR}
   ${GFLAGS_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(LIB
   ${Epoxy_LIBRARIES}
   ${PYTHON_LIBRARIES}
-  ${BOOST_LIBRARIES}
   ${USD_LIBRARIES}
   ${TBB_LIBRARIES}
-  bf_usd
+  PRIVATE bf::blenkernel
+  PRIVATE bf::depsgraph
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
+  PRIVATE bf::intern::clog
+  bf_io_usd
+  PRIVATE bf::nodes
+  PRIVATE bf::dependencies::eigen
 )
 
 set(SRC
+  camera.cc
   engine.cc
   final_engine.cc
   light_tasks_delegate.cc
@@ -82,16 +88,17 @@ set(SRC
   render_task_delegate.cc
   viewport_engine.cc
 
-  engine.h
-  final_engine.h
-  light_tasks_delegate.h
-  preview_engine.h
-  render_task_delegate.h
-  settings.h
-  viewport_engine.h
+  camera.hh
+  engine.hh
+  final_engine.hh
+  light_tasks_delegate.hh
+  preview_engine.hh
+  render_task_delegate.hh
+  settings.hh
+  viewport_engine.hh
 )
 
 blender_add_lib(bf_render_hydra "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_render_hydra bf_rna)

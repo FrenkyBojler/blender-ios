@@ -2,14 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "BLI_math_quaternion.hh"
 
-#include "BLI_math_vector.hh"
-#include "BLI_task.hh"
-
-#include "BKE_material.h"
-#include "BKE_mesh.hh"
+#include "BKE_material.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -17,6 +12,8 @@
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
+
+#include "GEO_mesh_primitive_line.hh"
 
 #include "NOD_socket_search_link.hh"
 
@@ -51,15 +48,15 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   if (RNA_enum_get(ptr, "mode") == GEO_NODE_MESH_LINE_MODE_END_POINTS) {
-    uiItemR(layout, ptr, "count_mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout->prop(ptr, "count_mode", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshLine *node_storage = MEM_cnew<NodeGeometryMeshLine>(__func__);
+  NodeGeometryMeshLine *node_storage = MEM_callocN<NodeGeometryMeshLine>(__func__);
 
   node_storage->mode = GEO_NODE_MESH_LINE_MODE_OFFSET;
   node_storage->count_mode = GEO_NODE_MESH_LINE_COUNT_TOTAL;
@@ -83,25 +80,25 @@ static void node_update(bNodeTree *ntree, bNode *node)
                   (mode == GEO_NODE_MESH_LINE_MODE_END_POINTS) ? N_("End Location") :
                                                                  N_("Offset"));
 
-  bke::nodeSetSocketAvailability(ntree,
-                                 resolution_socket,
-                                 mode == GEO_NODE_MESH_LINE_MODE_END_POINTS &&
-                                     count_mode == GEO_NODE_MESH_LINE_COUNT_RESOLUTION);
-  bke::nodeSetSocketAvailability(ntree,
-                                 count_socket,
-                                 mode == GEO_NODE_MESH_LINE_MODE_OFFSET ||
-                                     count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL);
+  bke::node_set_socket_availability(*ntree,
+                                    *resolution_socket,
+                                    mode == GEO_NODE_MESH_LINE_MODE_END_POINTS &&
+                                        count_mode == GEO_NODE_MESH_LINE_COUNT_RESOLUTION);
+  bke::node_set_socket_availability(*ntree,
+                                    *count_socket,
+                                    mode == GEO_NODE_MESH_LINE_MODE_OFFSET ||
+                                        count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL);
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const NodeDeclaration &declaration = *params.node_type().fixed_declaration;
+  const NodeDeclaration &declaration = *params.node_type().static_declaration;
   if (params.in_out() == SOCK_OUT) {
     search_link_ops_for_declarations(params, declaration.outputs);
     return;
   }
-  else if (params.node_tree().typeinfo->validate_link(
-               eNodeSocketDatatype(params.other_socket().type), SOCK_FLOAT))
+  if (params.node_tree().typeinfo->validate_link(eNodeSocketDatatype(params.other_socket().type),
+                                                 SOCK_FLOAT))
   {
     params.add_item(IFACE_("Count"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeMeshLine");
@@ -150,23 +147,27 @@ static void node_geo_exec(GeoNodeExecParams params)
       const float resolution = std::max(params.extract_input<float>("Resolution"), 0.0001f);
       const int count = math::length(total_delta) / resolution + 1;
       const float3 delta = math::normalize(total_delta) * resolution;
-      mesh = create_line_mesh(start, delta, count);
+      mesh = geometry::create_line_mesh(start, delta, count);
     }
     else if (count_mode == GEO_NODE_MESH_LINE_COUNT_TOTAL) {
       const int count = params.extract_input<int>("Count");
       if (count == 1) {
-        mesh = create_line_mesh(start, float3(0), count);
+        mesh = geometry::create_line_mesh(start, float3(0), count);
       }
       else {
         const float3 delta = total_delta / float(count - 1);
-        mesh = create_line_mesh(start, delta, count);
+        mesh = geometry::create_line_mesh(start, delta, count);
       }
     }
   }
   else if (mode == GEO_NODE_MESH_LINE_MODE_OFFSET) {
     const float3 delta = params.extract_input<float3>("Offset");
     const int count = params.extract_input<int>("Count");
-    mesh = create_line_mesh(start, delta, count);
+    mesh = geometry::create_line_mesh(start, delta, count);
+  }
+
+  if (mesh) {
+    BKE_id_material_eval_ensure_default_slot(reinterpret_cast<ID *>(mesh));
   }
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
@@ -221,57 +222,25 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_MESH_PRIMITIVE_LINE, "Mesh Line", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeMeshLine", GEO_NODE_MESH_PRIMITIVE_LINE);
+  ntype.ui_name = "Mesh Line";
+  ntype.ui_description = "Generate vertices in a line and connect them with edges";
+  ntype.enum_name_legacy = "MESH_PRIMITIVE_LINE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  ntype.updatefunc = node_update;
-  node_type_storage(
-      &ntype, "NodeGeometryMeshLine", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryMeshLine", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
+  ntype.updatefunc = node_update;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_mesh_primitive_line_cc
-
-namespace blender::nodes {
-
-Mesh *create_line_mesh(const float3 start, const float3 delta, const int count)
-{
-  if (count < 1) {
-    return nullptr;
-  }
-
-  Mesh *mesh = BKE_mesh_new_nomain(count, count - 1, 0, 0);
-  BKE_id_material_eval_ensure_default_slot(&mesh->id);
-  MutableSpan<float3> positions = mesh->vert_positions_for_write();
-  MutableSpan<int2> edges = mesh->edges_for_write();
-
-  threading::parallel_invoke(
-      1024 < count,
-      [&]() {
-        threading::parallel_for(positions.index_range(), 4096, [&](IndexRange range) {
-          for (const int i : range) {
-            positions[i] = start + delta * i;
-          }
-        });
-      },
-      [&]() {
-        threading::parallel_for(edges.index_range(), 4096, [&](IndexRange range) {
-          for (const int i : range) {
-            edges[i][0] = i;
-            edges[i][1] = i + 1;
-          }
-        });
-      });
-
-  return mesh;
-}
-
-}  // namespace blender::nodes

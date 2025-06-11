@@ -13,9 +13,9 @@
 #include "BLI_linklist_stack.h"
 #include "BLI_math_vector.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
 /********* Right-hand faces implementation ****** */
 
@@ -255,8 +255,7 @@ static void bmo_recalc_face_normals_array(BMesh *bm,
 
 void bmo_recalc_face_normals_exec(BMesh *bm, BMOperator *op)
 {
-  int *groups_array = static_cast<int *>(
-      MEM_mallocN(sizeof(*groups_array) * bm->totface, __func__));
+  int *groups_array = MEM_malloc_arrayN<int>(bm->totface, __func__);
   BMFace **faces_grp = static_cast<BMFace **>(
       MEM_mallocN(sizeof(*faces_grp) * bm->totface, __func__));
 

@@ -11,27 +11,26 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string_utils.h"
+#include "BLI_string.h"
+#include "BLI_string_utils.hh"
 
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_global.h"
-#include "BKE_idprop.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
+#include "BKE_armature.hh"
+#include "BKE_global.hh"
+#include "BKE_idprop.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_armature.hh"
-#include "ED_util.hh"
 
-#include "ANIM_bone_collections.h"
+#include "ANIM_armature.hh"
+#include "ANIM_bone_collections.hh"
 
-#include "armature_intern.h"
+#include "armature_intern.hh"
 
 #include <cstring>
 
@@ -59,17 +58,6 @@ void ED_armature_edit_sync_selection(ListBase *edbo)
       else {
         ebo->flag &= ~BONE_SELECTED;
       }
-    }
-  }
-}
-
-void ED_armature_edit_validate_active(bArmature *arm)
-{
-  EditBone *ebone = arm->act_edbone;
-
-  if (ebone) {
-    if (ebone->flag & BONE_HIDDEN_A) {
-      arm->act_edbone = nullptr;
     }
   }
 }
@@ -121,6 +109,9 @@ void bone_free(bArmature *arm, EditBone *bone)
   if (bone->prop) {
     IDP_FreeProperty(bone->prop);
   }
+  if (bone->system_properties) {
+    IDP_FreeProperty(bone->system_properties);
+  }
 
   /* Clear references from other edit bones. */
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
@@ -132,6 +123,7 @@ void bone_free(bArmature *arm, EditBone *bone)
     }
   }
 
+  BLI_freelistN(&bone->bone_collections);
   BLI_freelinkN(arm->edbo, bone);
 }
 
@@ -179,7 +171,8 @@ EditBone *ED_armature_ebone_find_shared_parent(EditBone *ebone_child[], const ui
   /* accumulate */
   for (uint i = 0; i < ebone_child_tot; i++) {
     for (EditBone *ebone_iter = ebone_child[i]->parent; ebone_iter;
-         ebone_iter = ebone_iter->parent) {
+         ebone_iter = ebone_iter->parent)
+    {
       EBONE_TEMP_UINT(ebone_iter) += 1;
     }
   }
@@ -288,7 +281,7 @@ void armature_select_mirrored_ex(bArmature *arm, const int flag)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     LISTBASE_FOREACH (EditBone *, curBone, arm->edbo) {
-      if (ANIM_bonecoll_is_visible_editbone(arm, curBone)) {
+      if (blender::animrig::bone_is_visible_editbone(arm, curBone)) {
         if (curBone->flag & flag) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
           if (ebone_mirr) {
@@ -315,7 +308,7 @@ void armature_tag_select_mirrored(bArmature *arm)
   /* Select mirrored bones */
   if (arm->flag & ARM_MIRROR_EDIT) {
     LISTBASE_FOREACH (EditBone *, curBone, arm->edbo) {
-      if (ANIM_bonecoll_is_visible_editbone(arm, curBone)) {
+      if (blender::animrig::bone_is_visible_editbone(arm, curBone)) {
         if (curBone->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, curBone);
           if (ebone_mirr && (ebone_mirr->flag & BONE_SELECTED) == 0) {
@@ -354,7 +347,9 @@ void ED_armature_ebone_transform_mirror_update(bArmature *arm, EditBone *ebo, bo
    * eg. from 3d viewport. */
 
   /* no layer check, correct mirror is more important */
-  if (!check_select || ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL)) {
+  if (!check_select || (blender::animrig::bone_is_visible_editbone(arm, ebo) &&
+                        (ebo->flag & (BONE_TIPSEL | BONE_ROOTSEL))))
+  {
     EditBone *eboflip = ED_armature_ebone_get_mirrored(arm->edbo, ebo);
     if (eboflip) {
       /* We assume X-axis flipping for now. */
@@ -457,7 +452,7 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
   EditBone *eBoneTest = nullptr;
 
   LISTBASE_FOREACH (Bone *, curBone, bones) {
-    eBone = static_cast<EditBone *>(MEM_callocN(sizeof(EditBone), "make_editbone"));
+    eBone = MEM_callocN<EditBone>("make_editbone");
     eBone->temp.bone = curBone;
 
     /* Copy relevant data from bone to eBone
@@ -467,6 +462,7 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
     STRNCPY(eBone->name, curBone->name);
     eBone->flag = curBone->flag;
     eBone->inherit_scale_mode = curBone->inherit_scale_mode;
+    eBone->drawtype = curBone->drawtype;
 
     /* fix selection flags */
     if (eBone->flag & BONE_SELECTED) {
@@ -519,6 +515,7 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
     eBone->bbone_prev_type = curBone->bbone_prev_type;
     eBone->bbone_next_type = curBone->bbone_next_type;
 
+    eBone->bbone_mapping_mode = eBone_BBoneMappingMode(curBone->bbone_mapping_mode);
     eBone->bbone_flag = curBone->bbone_flag;
     eBone->bbone_prev_flag = curBone->bbone_prev_flag;
     eBone->bbone_next_flag = curBone->bbone_next_flag;
@@ -528,6 +525,9 @@ static EditBone *make_boneList_recursive(ListBase *edbo,
 
     if (curBone->prop) {
       eBone->prop = IDP_CopyProperty(curBone->prop);
+    }
+    if (curBone->system_properties) {
+      eBone->system_properties = IDP_CopyProperty(curBone->system_properties);
     }
 
     BLI_addtail(edbo, eBone);
@@ -687,7 +687,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
   /* Copy the bones from the edit-data into the armature. */
   LISTBASE_FOREACH (EditBone *, eBone, arm->edbo) {
-    newBone = static_cast<Bone *>(MEM_callocN(sizeof(Bone), "bone"));
+    newBone = MEM_callocN<Bone>("bone");
     eBone->temp.bone = newBone; /* Associate the real Bones with the EditBones */
 
     STRNCPY(newBone->name, eBone->name);
@@ -697,6 +697,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
 
     newBone->flag = eBone->flag;
     newBone->inherit_scale_mode = eBone->inherit_scale_mode;
+    newBone->drawtype = eBone->drawtype;
 
     if (eBone == arm->act_edbone) {
       /* Don't change active selection, this messes up separate which uses
@@ -733,6 +734,7 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone->bbone_prev_type = eBone->bbone_prev_type;
     newBone->bbone_next_type = eBone->bbone_next_type;
 
+    newBone->bbone_mapping_mode = eBone->bbone_mapping_mode;
     newBone->bbone_flag = eBone->bbone_flag;
     newBone->bbone_prev_flag = eBone->bbone_prev_flag;
     newBone->bbone_next_flag = eBone->bbone_next_flag;
@@ -740,13 +742,16 @@ void ED_armature_from_edit(Main *bmain, bArmature *arm)
     newBone->color = eBone->color;
 
     LISTBASE_FOREACH (BoneCollectionReference *, ref, &eBone->bone_collections) {
-      BoneCollectionReference *newBoneRef = MEM_cnew<BoneCollectionReference>(
+      BoneCollectionReference *newBoneRef = MEM_dupallocN<BoneCollectionReference>(
           "ED_armature_from_edit", *ref);
       BLI_addtail(&newBone->runtime.collections, newBoneRef);
     }
 
     if (eBone->prop) {
       newBone->prop = IDP_CopyProperty(eBone->prop);
+    }
+    if (eBone->system_properties) {
+      newBone->system_properties = IDP_CopyProperty(eBone->system_properties);
     }
   }
 
@@ -801,6 +806,9 @@ void ED_armature_edit_free(bArmature *arm)
         if (eBone->prop) {
           IDP_FreeProperty(eBone->prop);
         }
+        if (eBone->system_properties) {
+          IDP_FreeProperty(eBone->system_properties);
+        }
         BLI_freelistN(&eBone->bone_collections);
       }
 
@@ -815,7 +823,7 @@ void ED_armature_edit_free(bArmature *arm)
 void ED_armature_to_edit(bArmature *arm)
 {
   ED_armature_edit_free(arm);
-  arm->edbo = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), "edbo armature"));
+  arm->edbo = MEM_callocN<ListBase>("edbo armature");
   arm->act_edbone = make_boneList(arm->edbo, &arm->bonebase, arm->act_bone);
 }
 
@@ -835,6 +843,11 @@ void ED_armature_ebone_listbase_free(ListBase *lb, const bool do_id_user)
     if (ebone->prop) {
       IDP_FreeProperty_ex(ebone->prop, do_id_user);
     }
+    if (ebone->system_properties) {
+      IDP_FreeProperty_ex(ebone->system_properties, do_id_user);
+    }
+
+    BLI_freelistN(&ebone->bone_collections);
 
     MEM_freeN(ebone);
   }
@@ -852,6 +865,10 @@ void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src, const b
       ebone_dst->prop = IDP_CopyProperty_ex(ebone_dst->prop,
                                             do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
     }
+    if (ebone_dst->system_properties) {
+      ebone_dst->system_properties = IDP_CopyProperty_ex(
+          ebone_dst->system_properties, do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
     ebone_src->temp.ebone = ebone_dst;
     BLI_addtail(lb_dst, ebone_dst);
   }
@@ -868,17 +885,7 @@ void ED_armature_ebone_listbase_copy(ListBase *lb_dst, ListBase *lb_src, const b
       ebone_dst->bbone_prev = ebone_dst->bbone_prev->temp.ebone;
     }
 
-    /* TODO: WORKAROUND: this is a temporary hack to avoid segfaults when
-     * undoing, because bone collections are not handled properly by the
-     * armature undo code yet.  This just discards all collection membership
-     * data to avoid dangling references.  This MUST be addressed properly
-     * before release.
-     * See: https://projects.blender.org/blender/blender/pulls/109976#issuecomment-1008429
-     */
-    BoneCollectionReference *bcoll_ref = (BoneCollectionReference *)(&ebone_dst->bone_collections);
-    bcoll_ref->next = nullptr;
-    bcoll_ref->prev = nullptr;
-    bcoll_ref->bcoll = nullptr;
+    BLI_duplicatelist(&ebone_dst->bone_collections, &ebone_dst->bone_collections);
   }
 }
 

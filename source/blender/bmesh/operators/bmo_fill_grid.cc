@@ -14,13 +14,13 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "intern/bmesh_operators_private.h" /* own include */
+#include "intern/bmesh_operators_private.hh" /* own include */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #define EDGE_MARK 4
 #define FACE_OUT 16
@@ -245,11 +245,11 @@ static void bm_grid_fill_array(BMesh *bm,
   /* Store loops */
   if (use_loop_interp) {
     /* x2 because each edge connects 2 loops */
-    larr_x_a = static_cast<BMLoop *(*)[2]>(MEM_mallocN(sizeof(*larr_x_a) * (xtot - 1), __func__));
-    larr_x_b = static_cast<BMLoop *(*)[2]>(MEM_mallocN(sizeof(*larr_x_b) * (xtot - 1), __func__));
+    larr_x_a = MEM_malloc_arrayN<BMLoop *[2]>((xtot - 1), __func__);
+    larr_x_b = MEM_malloc_arrayN<BMLoop *[2]>((xtot - 1), __func__);
 
-    larr_y_a = static_cast<BMLoop *(*)[2]>(MEM_mallocN(sizeof(*larr_y_a) * (ytot - 1), __func__));
-    larr_y_b = static_cast<BMLoop *(*)[2]>(MEM_mallocN(sizeof(*larr_y_b) * (ytot - 1), __func__));
+    larr_y_a = MEM_malloc_arrayN<BMLoop *[2]>((ytot - 1), __func__);
+    larr_y_b = MEM_malloc_arrayN<BMLoop *[2]>((ytot - 1), __func__);
 
     /* fill in the loops */
     for (x = 0; x < xtot - 1; x++) {
@@ -378,7 +378,7 @@ static void bm_grid_fill_array(BMesh *bm,
           l_tmp = larr_y_a[y][0];
         }
 
-        BM_elem_attrs_copy(bm, bm, l_tmp->f, f);
+        BM_elem_attrs_copy(bm, l_tmp->f, f);
 
         BM_face_as_array_loop_quad(f, l_quad);
 
@@ -475,7 +475,7 @@ static void bm_grid_fill(BMesh *bm,
   const uint ytot = uint(BM_edgeloop_length_get(estore_rail_a));
   // BMVert *v;
   uint i;
-#ifdef DEBUG
+#ifndef NDEBUG
   uint x, y;
 #endif
   LinkData *el;
@@ -487,8 +487,7 @@ static void bm_grid_fill(BMesh *bm,
   ListBase *lb_rail_a = BM_edgeloop_verts_get(estore_rail_a);
   ListBase *lb_rail_b = BM_edgeloop_verts_get(estore_rail_b);
 
-  BMVert **v_grid = static_cast<BMVert **>(
-      MEM_callocN(sizeof(BMVert *) * size_t(xtot * ytot), __func__));
+  BMVert **v_grid = MEM_calloc_arrayN<BMVert *>(size_t(xtot * ytot), __func__);
   /**
    * <pre>
    *           estore_b
@@ -523,7 +522,7 @@ static void bm_grid_fill(BMesh *bm,
   for (el = static_cast<LinkData *>(lb_rail_b->first), i = 0; el; el = el->next, i++) {
     v_grid[(xtot * i) + (xtot - 1)] = static_cast<BMVert *>(el->data);
   }
-#ifdef DEBUG
+#ifndef NDEBUG
   for (x = 1; x < xtot - 1; x++) {
     for (y = 1; y < ytot - 1; y++) {
       BLI_assert(v_grid[(y * xtot) + x] == nullptr);
@@ -540,7 +539,8 @@ static void bm_grid_fill(BMesh *bm,
     for (i = 0; i < 4; i++) {
       LinkData *el_next;
       for (el = static_cast<LinkData *>(lb_iter[i]->first); el && (el_next = el->next);
-           el = el->next) {
+           el = el->next)
+      {
         BMEdge *e = BM_edge_exists(static_cast<BMVert *>(el->data),
                                    static_cast<BMVert *>(el_next->data));
         if (BM_edge_is_boundary(e)) {
@@ -609,7 +609,7 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 
   if (count != 2) {
     /* Note that this error message has been adjusted to make sense when called
-     * from the operator 'MESH_OT_fill_grid' which has a 'prepare' pass which can
+     * from the operator `MESH_OT_fill_grid` which has a 'prepare' pass which can
      * extract two 'rail' loops from a single edge loop, see #72075. */
     BMO_error_raise(bm,
                     op,

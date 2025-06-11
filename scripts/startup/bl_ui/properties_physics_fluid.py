@@ -4,6 +4,7 @@
 
 import bpy
 from bpy.types import Panel
+from bpy.app.translations import contexts as i18n_contexts
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_physics_common import (
     effector_weights_ui,
@@ -100,9 +101,9 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
     bl_label = "Fluid"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -125,12 +126,12 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
     bl_label = "Settings"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -164,12 +165,12 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
             col.enabled = not domain.has_cache_baked_guide
             col.prop(domain, "resolution_max", text="Resolution Divisions")
             col.prop(domain, "time_scale", text="Time Scale")
-            col.prop(domain, "cfl_condition", text="CFL Number")
 
             col = flow.column()
             col.prop(domain, "use_adaptive_timesteps")
             sub = col.column(align=True)
             sub.active = domain.use_adaptive_timesteps
+            sub.prop(domain, "cfl_condition", text="CFL Number")
             sub.prop(domain, "timesteps_max", text="Timesteps Maximum")
             sub.prop(domain, "timesteps_min", text="Minimum")
 
@@ -179,7 +180,7 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
             if scene.use_gravity:
                 sub = col.column()
                 sub.enabled = False
-                sub.prop(domain, "gravity", text="Using Scene Gravity", icon='SCENE_DATA')
+                sub.prop(domain, "gravity", text="Scene Gravity", icon='SCENE_DATA')
             else:
                 col.prop(domain, "gravity", text="Gravity")
 
@@ -292,12 +293,12 @@ class PHYSICS_PT_settings(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_borders(PhysicButtonsPanel, Panel):
     bl_label = "Border Collisions"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = "PHYSICS_PT_settings"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -329,12 +330,12 @@ class PHYSICS_PT_borders(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
     bl_label = "Gas"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -365,13 +366,14 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_smoke_dissolve(PhysicButtonsPanel, Panel):
     bl_label = "Dissolve"
-    bl_parent_id = 'PHYSICS_PT_smoke'
+    bl_translation_context = i18n_contexts.id_volume
+    bl_parent_id = "PHYSICS_PT_smoke"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -413,13 +415,13 @@ class PHYSICS_PT_smoke_dissolve(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
     bl_label = "Fire"
-    bl_parent_id = 'PHYSICS_PT_smoke'
+    bl_parent_id = "PHYSICS_PT_smoke"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -457,12 +459,12 @@ class PHYSICS_PT_fire(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
     bl_label = "Liquid"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -523,13 +525,13 @@ class PHYSICS_PT_liquid(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
     bl_label = "Flow Source"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = "PHYSICS_PT_settings"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -569,12 +571,12 @@ class PHYSICS_PT_flow_source(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_flow_initial_velocity(PhysicButtonsPanel, Panel):
     bl_label = "Initial Velocity"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = "PHYSICS_PT_settings"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -614,13 +616,13 @@ class PHYSICS_PT_flow_initial_velocity(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_flow_texture(PhysicButtonsPanel, Panel):
     bl_label = "Texture"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = "PHYSICS_PT_settings"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -669,13 +671,13 @@ class PHYSICS_PT_flow_texture(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_adaptive_domain(PhysicButtonsPanel, Panel):
     bl_label = "Adaptive Domain"
-    bl_parent_id = 'PHYSICS_PT_settings'
+    bl_parent_id = "PHYSICS_PT_settings"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -725,13 +727,13 @@ class PHYSICS_PT_adaptive_domain(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
     bl_label = "Noise"
-    bl_parent_id = 'PHYSICS_PT_smoke'
+    bl_parent_id = "PHYSICS_PT_smoke"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -763,7 +765,7 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
 
         col = flow.column()
         col.prop(domain, "noise_scale", text="Upres Factor")
-        col.prop(domain, "noise_strength", text="Strength")
+        col.prop(domain, "noise_strength", text="Strength", text_ctxt=i18n_contexts.amount)
 
         col = flow.column()
         col.prop(domain, "noise_pos_scale", text="Scale")
@@ -809,13 +811,13 @@ class PHYSICS_PT_noise(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
     bl_label = "Mesh"
-    bl_parent_id = 'PHYSICS_PT_liquid'
+    bl_parent_id = "PHYSICS_PT_liquid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -851,7 +853,7 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
         col.prop(domain, "mesh_particle_radius", text="Particle Radius")
 
         col = flow.column()
-        col.prop(domain, "use_speed_vectors", text="Use Speed Vectors")
+        col.prop(domain, "use_speed_vectors", text="Speed Vectors")
 
         col.separator()
         col.prop(domain, "mesh_generator", text="Mesh Generator")
@@ -908,13 +910,13 @@ class PHYSICS_PT_mesh(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
     bl_label = "Particles"
-    bl_parent_id = 'PHYSICS_PT_liquid'
+    bl_parent_id = "PHYSICS_PT_liquid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1019,11 +1021,12 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
             split.enabled = (
                 note_flag and
                 ob.mode == 'OBJECT' and
-                domain.has_cache_baked_data and
-                (domain.use_spray_particles or
-                 domain.use_bubble_particles or
-                 domain.use_foam_particles or
-                 domain.use_tracer_particles)
+                domain.has_cache_baked_data and (
+                    domain.use_spray_particles or
+                    domain.use_bubble_particles or
+                    domain.use_foam_particles or
+                    domain.use_tracer_particles
+                )
             )
 
             bake_incomplete = (domain.cache_frame_pause_particles < domain.cache_frame_end)
@@ -1041,59 +1044,15 @@ class PHYSICS_PT_particles(PhysicButtonsPanel, Panel):
                 split.operator("fluid.free_particles", text="Free Particles")
 
 
-class PHYSICS_PT_viscosity(PhysicButtonsPanel, Panel):
-    bl_label = "Viscosity"
-    bl_parent_id = 'PHYSICS_PT_liquid'
-    bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {
-        'BLENDER_RENDER',
-        'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
-
-    @classmethod
-    def poll(cls, context):
-        # Fluid viscosity only enabled for liquids
-        if not PhysicButtonsPanel.poll_liquid_domain(context):
-            return False
-
-        return (context.engine in cls.COMPAT_ENGINES)
-
-    def draw_header(self, context):
-        md = context.fluid.domain_settings
-        domain = context.fluid.domain_settings
-        is_baking_any = domain.is_cache_baking_any
-        has_baked_any = domain.has_cache_baked_any
-        self.layout.enabled = not is_baking_any and not has_baked_any
-        self.layout.prop(md, "use_viscosity", text="")
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-
-        domain = context.fluid.domain_settings
-        layout.active = domain.use_viscosity
-
-        is_baking_any = domain.is_cache_baking_any
-        has_baked_any = domain.has_cache_baked_any
-        has_baked_data = domain.has_cache_baked_data
-
-        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
-        flow.enabled = not is_baking_any and not has_baked_any and not has_baked_data
-
-        col = flow.column(align=True)
-        col.prop(domain, "viscosity_value", text="Strength")
-
-
 class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
     bl_label = "Diffusion"
-    bl_parent_id = 'PHYSICS_PT_liquid'
+    bl_parent_id = "PHYSICS_PT_liquid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1136,15 +1095,59 @@ class PHYSICS_PT_diffusion(PhysicButtonsPanel, Panel):
         col.prop(domain, "surface_tension", text="Surface Tension")
 
 
-class PHYSICS_PT_guide(PhysicButtonsPanel, Panel):
-    bl_label = "Guides"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+class PHYSICS_PT_viscosity(PhysicButtonsPanel, Panel):
+    bl_label = "High Viscosity Solver"
+    bl_parent_id = "PHYSICS_PT_diffusion"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        # Fluid viscosity only enabled for liquids
+        if not PhysicButtonsPanel.poll_liquid_domain(context):
+            return False
+
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw_header(self, context):
+        md = context.fluid.domain_settings
+        domain = context.fluid.domain_settings
+        is_baking_any = domain.is_cache_baking_any
+        has_baked_any = domain.has_cache_baked_any
+        self.layout.enabled = not is_baking_any and not has_baked_any
+        self.layout.prop(md, "use_viscosity", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        domain = context.fluid.domain_settings
+        layout.active = domain.use_viscosity
+
+        is_baking_any = domain.is_cache_baking_any
+        has_baked_any = domain.has_cache_baked_any
+        has_baked_data = domain.has_cache_baked_data
+
+        flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
+        flow.enabled = not is_baking_any and not has_baked_any and not has_baked_data
+
+        col = flow.column(align=True)
+        col.prop(domain, "viscosity_value", text="Strength", text_ctxt=i18n_contexts.amount)
+
+
+class PHYSICS_PT_guide(PhysicButtonsPanel, Panel):
+    bl_label = "Guides"
+    bl_parent_id = "PHYSICS_PT_fluid"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1208,13 +1211,13 @@ class PHYSICS_PT_guide(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_collections(PhysicButtonsPanel, Panel):
     bl_label = "Collections"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1240,12 +1243,12 @@ class PHYSICS_PT_collections(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
     bl_label = "Cache"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1258,12 +1261,10 @@ class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
         layout = self.layout
 
         ob = context.object
-        md = context.fluid
         domain = context.fluid.domain_settings
 
         is_baking_any = domain.is_cache_baking_any
         has_baked_data = domain.has_cache_baked_data
-        has_baked_mesh = domain.has_cache_baked_mesh
 
         col = layout.column()
         col.prop(domain, "cache_directory", text="")
@@ -1289,16 +1290,7 @@ class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
 
         row = col.row()
         row.enabled = not is_baking_any and not has_baked_data
-        row.prop(domain, "cache_resumable", text="Is Resumable")
-
-        row = col.row()
-        row.enabled = not is_baking_any and not has_baked_data
-        row.prop(domain, "cache_data_format", text="Format Volumes")
-
-        if md.domain_settings.domain_type == 'LIQUID' and domain.use_mesh:
-            row = col.row()
-            row.enabled = not is_baking_any and not has_baked_mesh
-            row.prop(domain, "cache_mesh_format", text="Meshes")
+        row.prop(domain, "cache_resumable", text="Resumable")
 
         if domain.cache_type == 'ALL':
             col.separator()
@@ -1326,22 +1318,18 @@ class PHYSICS_PT_cache(PhysicButtonsPanel, Panel):
 
 
 class PHYSICS_PT_export(PhysicButtonsPanel, Panel):
-    bl_label = "Advanced"
-    bl_parent_id = 'PHYSICS_PT_cache'
+    bl_label = "Volumetric Data"
+    bl_parent_id = "PHYSICS_PT_cache"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
-        domain = context.fluid.domain_settings
-        if (
-                not PhysicButtonsPanel.poll_fluid_domain(context) or
-                (domain.cache_data_format != 'OPENVDB' and bpy.app.debug_value != 3001)
-        ):
+        if not PhysicButtonsPanel.poll_fluid_domain(context):
             return False
 
         return (context.engine in cls.COMPAT_ENGINES)
@@ -1351,22 +1339,33 @@ class PHYSICS_PT_export(PhysicButtonsPanel, Panel):
         layout.use_property_split = True
 
         domain = context.fluid.domain_settings
+        md = context.fluid
 
         is_baking_any = domain.is_cache_baking_any
         has_baked_any = domain.has_cache_baked_any
         has_baked_data = domain.has_cache_baked_data
+        has_baked_mesh = domain.has_cache_baked_mesh
 
         flow = layout.grid_flow(row_major=True, columns=0, even_columns=True, even_rows=False, align=False)
         flow.enabled = not is_baking_any and not has_baked_any
 
         col = flow.column()
 
+        row = col.row()
+        row.enabled = not is_baking_any and not has_baked_data
+        row.prop(domain, "cache_data_format", text="Format")
+
         if domain.cache_data_format == 'OPENVDB':
             col.enabled = not is_baking_any and not has_baked_data
-            col.prop(domain, "openvdb_cache_compress_type", text="Compression Volumes")
+            col.prop(domain, "openvdb_cache_compress_type", text="Compression")
 
             col = flow.column()
-            col.prop(domain, "openvdb_data_depth", text="Precision Volumes")
+            col.prop(domain, "openvdb_data_depth", text="Precision")
+
+        if md.domain_settings.domain_type == 'LIQUID' and domain.use_mesh:
+            row = col.row()
+            row.enabled = not is_baking_any and not has_baked_mesh
+            row.prop(domain, "cache_mesh_format", text="Meshes")
 
         # Only show the advanced panel to advanced users who know Mantaflow's birthday :)
         if bpy.app.debug_value == 3001:
@@ -1376,13 +1375,13 @@ class PHYSICS_PT_export(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_field_weights(PhysicButtonsPanel, Panel):
     bl_label = "Field Weights"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1398,7 +1397,7 @@ class PHYSICS_PT_field_weights(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_viewport_display(PhysicButtonsPanel, Panel):
     bl_label = "Viewport Display"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1428,7 +1427,7 @@ class PHYSICS_PT_viewport_display(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_viewport_display_slicing(PhysicButtonsPanel, Panel):
     bl_label = "Slice"
-    bl_parent_id = 'PHYSICS_PT_viewport_display'
+    bl_parent_id = "PHYSICS_PT_viewport_display"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1460,7 +1459,7 @@ class PHYSICS_PT_viewport_display_slicing(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_viewport_display_color(PhysicButtonsPanel, Panel):
     bl_label = "Grid Display"
-    bl_parent_id = 'PHYSICS_PT_viewport_display'
+    bl_parent_id = "PHYSICS_PT_viewport_display"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1493,7 +1492,7 @@ class PHYSICS_PT_viewport_display_color(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_viewport_display_debug(PhysicButtonsPanel, Panel):
     bl_label = "Vector Display"
-    bl_parent_id = 'PHYSICS_PT_viewport_display'
+    bl_parent_id = "PHYSICS_PT_viewport_display"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1534,7 +1533,7 @@ class PHYSICS_PT_viewport_display_debug(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_viewport_display_advanced(PhysicButtonsPanel, Panel):
     bl_label = "Advanced"
-    bl_parent_id = 'PHYSICS_PT_viewport_display'
+    bl_parent_id = "PHYSICS_PT_viewport_display"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1569,13 +1568,13 @@ class PHYSICS_PT_viewport_display_advanced(PhysicButtonsPanel, Panel):
 
 class PHYSICS_PT_fluid_domain_render(PhysicButtonsPanel, Panel):
     bl_label = "Render"
-    bl_parent_id = 'PHYSICS_PT_fluid'
+    bl_parent_id = "PHYSICS_PT_fluid"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -1603,8 +1602,8 @@ classes = (
     PHYSICS_PT_noise,
     PHYSICS_PT_fire,
     PHYSICS_PT_liquid,
-    PHYSICS_PT_viscosity,
     PHYSICS_PT_diffusion,
+    PHYSICS_PT_viscosity,
     PHYSICS_PT_particles,
     PHYSICS_PT_mesh,
     PHYSICS_PT_guide,

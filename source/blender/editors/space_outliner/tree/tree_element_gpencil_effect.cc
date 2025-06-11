@@ -12,7 +12,7 @@
 
 #include "BLI_listbase.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 
@@ -36,7 +36,7 @@ void TreeElementGPencilEffectBase::expand(SpaceOutliner & /*space_outliner*/) co
 }
 
 TreeElementGPencilEffect::TreeElementGPencilEffect(TreeElement &legacy_te,
-                                                   Object & /* object */,
+                                                   Object & /*object*/,
                                                    ShaderFxData &fx)
     : AbstractTreeElement(legacy_te), /* object_(object), */ fx_(fx)
 {

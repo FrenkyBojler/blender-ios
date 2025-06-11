@@ -2,34 +2,37 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "material.h"
+#include "material.hh"
+#include "usd_private.hh"
 
 #include <Python.h>
 #include <unicodeobject.h>
 
+#include <pxr/base/tf/stringUtils.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usdImaging/usdImaging/materialParamUtils.h>
 
-#include "MEM_guardedalloc.h"
+#ifdef WITH_MATERIALX
+#  include <pxr/usd/usdMtlx/reader.h>
+#  include <pxr/usd/usdMtlx/utils.h>
+#endif
 
-#include "BKE_lib_id.h"
-#include "BKE_material.h"
+#include "DEG_depsgraph_query.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
-#include "RNA_types.hh"
+#include "hydra_scene_delegate.hh"
+#include "image.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "intern/usd_exporter_context.hh"
+#include "intern/usd_writer_material.hh"
 
-#include "bpy_rna.h"
+#ifdef WITH_MATERIALX
 
-#include "hydra_scene_delegate.h"
-#include "image.h"
+#  include "shader/materialx/material.h"
+#endif
 
-#include "intern/usd_exporter_context.h"
-#include "intern/usd_writer_material.h"
+using namespace blender::io::usd;
 
 namespace blender::io::hydra {
 
@@ -66,11 +69,41 @@ void MaterialData::init()
                                          material_library_path,
                                          get_time_code,
                                          export_params,
-                                         image_cache_file_path()};
-
+                                         blender::io::usd::image_cache_file_path(),
+                                         cache_or_get_image_file};
   /* Create USD material. */
-  pxr::UsdShadeMaterial usd_material = usd::create_usd_material(
-      export_context, material_path, (Material *)id, "st");
+  pxr::UsdShadeMaterial usd_material;
+#ifdef WITH_MATERIALX
+  if (scene_delegate_->use_materialx) {
+    std::string material_name = pxr::TfMakeValidIdentifier(id->name);
+    blender::nodes::materialx::ExportParams materialx_export_params{
+        material_name, cache_or_get_image_file, "st", "UVMap"};
+    MaterialX::DocumentPtr doc = blender::nodes::materialx::export_to_materialx(
+        scene_delegate_->depsgraph, (Material *)id, materialx_export_params);
+    pxr::UsdMtlxRead(doc, stage);
+
+    /* Logging stage: creating lambda stage_str() to not call stage->ExportToString()
+     * if log won't be printed. */
+    auto stage_str = [&stage]() {
+      std::string str;
+      stage->ExportToString(&str);
+      return str;
+    };
+    ID_LOGN(2, "Stage:\n%s", stage_str().c_str());
+
+    if (pxr::UsdPrim materials = stage->GetPrimAtPath(pxr::SdfPath("/MaterialX/Materials"))) {
+      pxr::UsdPrimSiblingRange children = materials.GetChildren();
+      if (!children.empty()) {
+        usd_material = pxr::UsdShadeMaterial(*children.begin());
+      }
+    }
+  }
+  else
+#endif
+  {
+    usd_material = usd::create_usd_material(
+        export_context, material_path, (Material *)id, "st", nullptr);
+  }
 
   /* Convert USD material to Hydra material network map, adapted for render delegate. */
   const pxr::HdRenderDelegate *render_delegate =
@@ -123,7 +156,7 @@ void MaterialData::update()
   }
 }
 
-pxr::VtValue MaterialData::get_data(pxr::TfToken const & /* key */) const
+pxr::VtValue MaterialData::get_data(pxr::TfToken const & /*key*/) const
 {
   return pxr::VtValue();
 }

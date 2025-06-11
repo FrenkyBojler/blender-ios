@@ -12,8 +12,6 @@
  * - Review weight and vertex color interpolation.;
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLI_array.hh"
@@ -21,7 +19,7 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
@@ -29,18 +27,17 @@
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_context.hh"
+#include "BKE_customdata.hh"
+#include "BKE_deform.hh"
+#include "BKE_modifier.hh"
+#include "BKE_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "DEG_depsgraph.h"
+#include "RNA_prototypes.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -63,7 +60,7 @@ static Span<MDeformVert> get_vertex_group(const Mesh &mesh, const int defgrp_ind
   if (!vertex_group) {
     return {};
   }
-  return {vertex_group, mesh.totvert};
+  return {vertex_group, mesh.verts_num};
 }
 
 static IndexMask selected_indices_from_vertex_group(Span<MDeformVert> vertex_group,
@@ -104,7 +101,7 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
           mesh, IndexMask(selected_indices), wmd.merge_dist);
     }
     return blender::geometry::mesh_merge_by_distance_all(
-        mesh, IndexMask(mesh.totvert), wmd.merge_dist);
+        mesh, IndexMask(mesh.verts_num), wmd.merge_dist);
   }
   if (wmd.mode == MOD_WELD_MODE_CONNECTED) {
     const bool only_loose_edges = (wmd.flag & MOD_WELD_LOOSE_EDGES) != 0;
@@ -114,7 +111,7 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
       return blender::geometry::mesh_merge_by_distance_connected(
           mesh, selection, wmd.merge_dist, only_loose_edges);
     }
-    Array<bool> selection(mesh.totvert, true);
+    Array<bool> selection(mesh.verts_num, true);
     return blender::geometry::mesh_merge_by_distance_connected(
         mesh, selection, wmd.merge_dist, only_loose_edges);
   }
@@ -163,14 +160,14 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "merge_threshold", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   if (weld_mode == MOD_WELD_MODE_CONNECTED) {
-    uiItemR(layout, ptr, "loose_edges", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -184,11 +181,11 @@ ModifierTypeInfo modifierType_Weld = {
     /*struct_name*/ "WeldModifierData",
     /*struct_size*/ sizeof(WeldModifierData),
     /*srna*/ &RNA_WeldModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/
-    (ModifierTypeFlag)(eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
-                       eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
-                       eModifierTypeFlag_AcceptsCVs),
+    (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsMapping |
+     eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode |
+     eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_AUTOMERGE_OFF, /* TODO: Use correct icon. */
 
     /*copy_data*/ BKE_modifier_copydata_generic,
@@ -213,4 +210,5 @@ ModifierTypeInfo modifierType_Weld = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

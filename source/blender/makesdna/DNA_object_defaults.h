@@ -10,7 +10,6 @@
 
 #include "DNA_vec_defaults.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -25,7 +24,6 @@
  \
     .constinv = _DNA_DEFAULT_UNIT_M4, \
     .parentinv = _DNA_DEFAULT_UNIT_M4, \
-    .object_to_world = _DNA_DEFAULT_UNIT_M4, \
  \
     .scale = {1, 1, 1}, \
     .dscale = {1, 1, 1}, \
@@ -48,7 +46,9 @@
     .empty_drawsize = 1.0, \
     .empty_image_depth = OB_EMPTY_IMAGE_DEPTH_DEFAULT, \
     .ima_ofs = {-0.5, -0.5}, \
- \
+\
+    .shadow_terminator_geometry_offset = 0.1f, \
+\
     .instance_faces_scale = 1, \
     .col_group = 0x01,  \
     .col_mask = 0xffff, \

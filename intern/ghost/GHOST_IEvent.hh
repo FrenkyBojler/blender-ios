@@ -10,7 +10,7 @@
 #pragma once
 
 #include "GHOST_Types.h"
-#include <stddef.h>
+#include <cstddef>
 
 class GHOST_IWindow;
 
@@ -29,34 +29,32 @@ class GHOST_IEvent {
   /**
    * Destructor.
    */
-  virtual ~GHOST_IEvent() {}
+  virtual ~GHOST_IEvent() = default;
 
   /**
    * Returns the event type.
    * \return The event type.
    */
-  virtual GHOST_TEventType getType() = 0;
+  virtual GHOST_TEventType getType() const = 0;
 
   /**
    * Returns the time this event was generated.
    * \return The event generation time.
    */
-  virtual uint64_t getTime() = 0;
+  virtual uint64_t getTime() const = 0;
 
   /**
    * Returns the window this event was generated on,
    * or nullptr if it is a 'system' event.
    * \return The generating window.
    */
-  virtual GHOST_IWindow *getWindow() = 0;
+  virtual GHOST_IWindow *getWindow() const = 0;
 
   /**
    * Returns the event data.
    * \return The event data.
    */
-  virtual GHOST_TEventDataPtr getData() = 0;
+  virtual GHOST_TEventDataPtr getData() const = 0;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IEvent")
-#endif
 };

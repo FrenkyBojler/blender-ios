@@ -8,19 +8,23 @@
 #include "device/device.h"
 #include "device/memory.h"
 #include "device/queue.h"
+
 #include "integrator/pass_accessor_gpu.h"
+
 #include "session/buffers.h"
+
 #include "util/log.h"
-#include "util/progress.h"
 
 CCL_NAMESPACE_BEGIN
 
-DenoiserGPU::DenoiserGPU(Device *path_trace_device, const DenoiseParams &params)
-    : Denoiser(path_trace_device, params)
+DenoiserGPU::DenoiserGPU(Device *denoiser_device, const DenoiseParams &params)
+    : Denoiser(denoiser_device, params)
 {
+  denoiser_queue_ = denoiser_device->gpu_queue_create();
+  DCHECK(denoiser_queue_);
 }
 
-DenoiserGPU::~DenoiserGPU()
+DenoiserGPU::~DenoiserGPU()  // NOLINT
 {
   /* Explicit implementation, to allow forward declaration of Device in the header. */
 }
@@ -90,21 +94,70 @@ bool DenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
   return denoise_result;
 }
 
-Device *DenoiserGPU::ensure_denoiser_device(Progress *progress)
+bool DenoiserGPU::denoise_buffer(const DenoiseTask &task)
 {
-  Device *denoiser_device = Denoiser::ensure_denoiser_device(progress);
-  if (!denoiser_device) {
-    return nullptr;
+  DenoiseContext context(denoiser_device_, task);
+
+  if (!denoise_ensure(context)) {
+    return false;
   }
 
-  if (!denoiser_queue_) {
-    denoiser_queue_ = denoiser_device->gpu_queue_create();
-    if (!denoiser_queue_) {
-      return nullptr;
-    }
+  if (!denoise_filter_guiding_preprocess(context)) {
+    LOG(ERROR) << "Error preprocessing guiding passes.";
+    return false;
   }
 
-  return denoiser_device;
+  /* Passes which will use real albedo when it is available. */
+  denoise_pass(context, PASS_COMBINED);
+  denoise_pass(context, PASS_SHADOW_CATCHER_MATTE);
+
+  /* Passes which do not need albedo and hence if real is present it needs to become fake. */
+  denoise_pass(context, PASS_SHADOW_CATCHER);
+
+  return true;
+}
+
+bool DenoiserGPU::denoise_ensure(DenoiseContext &context)
+{
+  if (!denoise_create_if_needed(context)) {
+    LOG(ERROR) << "GPU denoiser creation has failed.";
+    return false;
+  }
+
+  if (!denoise_configure_if_needed(context)) {
+    LOG(ERROR) << "GPU denoiser configuration has failed.";
+    return false;
+  }
+
+  return true;
+}
+
+bool DenoiserGPU::denoise_filter_guiding_preprocess(const DenoiseContext &context)
+{
+  const BufferParams &buffer_params = context.buffer_params;
+
+  const int work_size = buffer_params.width * buffer_params.height;
+
+  const DeviceKernelArguments args(&context.guiding_params.device_pointer,
+                                   &context.guiding_params.pass_stride,
+                                   &context.guiding_params.pass_albedo,
+                                   &context.guiding_params.pass_normal,
+                                   &context.guiding_params.pass_flow,
+                                   &context.render_buffers->buffer.device_pointer,
+                                   &buffer_params.offset,
+                                   &buffer_params.stride,
+                                   &buffer_params.pass_stride,
+                                   &context.pass_sample_count,
+                                   &context.pass_denoising_albedo,
+                                   &context.pass_denoising_normal,
+                                   &context.pass_motion,
+                                   &buffer_params.full_x,
+                                   &buffer_params.full_y,
+                                   &buffer_params.width,
+                                   &buffer_params.height,
+                                   &context.num_samples);
+
+  return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_PREPROCESS, work_size, args);
 }
 
 DenoiserGPU::DenoiseContext::DenoiseContext(Device *device, const DenoiseTask &task)
@@ -185,20 +238,20 @@ bool DenoiserGPU::denoise_filter_color_postprocess(const DenoiseContext &context
 
   const int work_size = buffer_params.width * buffer_params.height;
 
-  DeviceKernelArguments args(&context.render_buffers->buffer.device_pointer,
-                             &buffer_params.full_x,
-                             &buffer_params.full_y,
-                             &buffer_params.width,
-                             &buffer_params.height,
-                             &buffer_params.offset,
-                             &buffer_params.stride,
-                             &buffer_params.pass_stride,
-                             &context.num_samples,
-                             &pass.noisy_offset,
-                             &pass.denoised_offset,
-                             &context.pass_sample_count,
-                             &pass.num_components,
-                             &pass.use_compositing);
+  const DeviceKernelArguments args(&context.render_buffers->buffer.device_pointer,
+                                   &buffer_params.full_x,
+                                   &buffer_params.full_y,
+                                   &buffer_params.width,
+                                   &buffer_params.height,
+                                   &buffer_params.offset,
+                                   &buffer_params.stride,
+                                   &buffer_params.pass_stride,
+                                   &context.num_samples,
+                                   &pass.noisy_offset,
+                                   &pass.denoised_offset,
+                                   &context.pass_sample_count,
+                                   &pass.num_components,
+                                   &pass.use_compositing);
 
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_POSTPROCESS, work_size, args);
 }
@@ -206,19 +259,25 @@ bool DenoiserGPU::denoise_filter_color_postprocess(const DenoiseContext &context
 bool DenoiserGPU::denoise_filter_color_preprocess(const DenoiseContext &context,
                                                   const DenoisePass &pass)
 {
+  if (context.denoise_params.type != DENOISER_OPTIX) {
+    /* Pass preprocessing is used to clamp values for the OptiX denoiser.
+     * Clamping is not necessary for other denoisers, so just skip this preprocess step. */
+    return true;
+  }
+
   const BufferParams &buffer_params = context.buffer_params;
 
   const int work_size = buffer_params.width * buffer_params.height;
 
-  DeviceKernelArguments args(&context.render_buffers->buffer.device_pointer,
-                             &buffer_params.full_x,
-                             &buffer_params.full_y,
-                             &buffer_params.width,
-                             &buffer_params.height,
-                             &buffer_params.offset,
-                             &buffer_params.stride,
-                             &buffer_params.pass_stride,
-                             &pass.denoised_offset);
+  const DeviceKernelArguments args(&context.render_buffers->buffer.device_pointer,
+                                   &buffer_params.full_x,
+                                   &buffer_params.full_y,
+                                   &buffer_params.width,
+                                   &buffer_params.height,
+                                   &buffer_params.offset,
+                                   &buffer_params.stride,
+                                   &buffer_params.pass_stride,
+                                   &pass.denoised_offset);
 
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_COLOR_PREPROCESS, work_size, args);
 }
@@ -229,11 +288,11 @@ bool DenoiserGPU::denoise_filter_guiding_set_fake_albedo(const DenoiseContext &c
 
   const int work_size = buffer_params.width * buffer_params.height;
 
-  DeviceKernelArguments args(&context.guiding_params.device_pointer,
-                             &context.guiding_params.pass_stride,
-                             &context.guiding_params.pass_albedo,
-                             &buffer_params.width,
-                             &buffer_params.height);
+  const DeviceKernelArguments args(&context.guiding_params.device_pointer,
+                                   &context.guiding_params.pass_stride,
+                                   &context.guiding_params.pass_albedo,
+                                   &buffer_params.width,
+                                   &buffer_params.height);
 
   return denoiser_queue_->enqueue(DEVICE_KERNEL_FILTER_GUIDING_SET_FAKE_ALBEDO, work_size, args);
 }
@@ -258,9 +317,9 @@ void DenoiserGPU::denoise_color_read(const DenoiseContext &context, const Denois
       denoiser_queue_.get(), pass_access_info, 1.0f, context.num_samples);
 
   PassAccessor::Destination destination(pass_access_info.type);
-  destination.d_pixels = context.render_buffers->buffer.device_pointer +
-                         pass.denoised_offset * sizeof(float);
+  destination.d_pixels = context.render_buffers->buffer.device_pointer;
   destination.num_components = 3;
+  destination.pixel_offset = pass.denoised_offset;
   destination.pixel_stride = context.buffer_params.pass_stride;
 
   BufferParams buffer_params = context.buffer_params;

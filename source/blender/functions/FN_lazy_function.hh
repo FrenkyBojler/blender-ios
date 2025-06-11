@@ -42,20 +42,20 @@
 
 #include "BLI_cpp_type.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_generic_pointer.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_vector.hh"
 
-#include <atomic>
-#include <thread>
+#include "FN_user_data.hh"
 
-#ifdef DEBUG
+#ifndef NDEBUG
+#  include <atomic>
+#  include <thread>
 #  define FN_LAZY_FUNCTION_DEBUG_THREADS
 #endif
 
 namespace blender::fn::lazy_function {
 
-enum class ValueUsage {
+enum class ValueUsage : uint8_t {
   /**
    * The value is definitely used and therefore has to be computed.
    */
@@ -73,33 +73,6 @@ enum class ValueUsage {
 };
 
 class LazyFunction;
-
-/**
- * Extension of #UserData that is thread-local. This avoids accessing e.g.
- * `EnumerableThreadSpecific.local()` in every nested lazy-function because the thread local
- * data is passed in by the caller.
- */
-class LocalUserData {
- public:
-  virtual ~LocalUserData() = default;
-};
-
-/**
- * This allows passing arbitrary data into a lazy-function during execution. For that, #UserData
- * has to be subclassed. This mainly exists because it's more type safe than passing a `void *`
- * with no type information attached.
- *
- * Some lazy-functions may expect to find a certain type of user data when executed.
- */
-class UserData {
- public:
-  virtual ~UserData() = default;
-
-  /**
-   * Get thread local data for this user-data and the current thread.
-   */
-  virtual destruct_ptr<LocalUserData> get_local(LinearAllocator<> &allocator);
-};
 
 /**
  * Passed to the lazy-function when it is executed.
@@ -141,7 +114,6 @@ class Params {
   std::atomic<bool> allow_multi_threading_;
 #endif
 
- public:
   Params(const LazyFunction &fn, bool allow_multi_threading_initially);
 
   /**
@@ -196,11 +168,6 @@ class Params {
   template<typename T> T *try_get_input_data_ptr(int index) const;
   template<typename T> T *try_get_input_data_ptr_or_request(int index);
   template<typename T> void set_output(int index, T &&value);
-
-  /**
-   * Utility to initialize all outputs that haven't been set yet.
-   */
-  void set_default_remaining_outputs();
 
   /**
    * Returns true when the lazy-function is now allowed to use multi-threading when interacting
@@ -393,39 +360,46 @@ inline Params::Params(const LazyFunction &fn,
 
 inline void *Params::try_get_input_data_ptr(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   return this->try_get_input_data_ptr_impl(index);
 }
 
 inline void *Params::try_get_input_data_ptr_or_request(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   this->assert_valid_thread();
   return this->try_get_input_data_ptr_or_request_impl(index);
 }
 
 inline void *Params::get_output_data_ptr(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   this->assert_valid_thread();
   return this->get_output_data_ptr_impl(index);
 }
 
 inline void Params::output_set(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   this->assert_valid_thread();
   this->output_set_impl(index);
 }
 
 inline bool Params::output_was_set(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   return this->output_was_set_impl(index);
 }
 
 inline ValueUsage Params::get_output_usage(const int index) const
 {
+  BLI_assert(index >= 0 && index < fn_.outputs().size());
   return this->get_output_usage_impl(index);
 }
 
 inline void Params::set_input_unused(const int index)
 {
+  BLI_assert(index >= 0 && index < fn_.inputs().size());
   this->assert_valid_thread();
   this->set_input_unused_impl(index);
 }

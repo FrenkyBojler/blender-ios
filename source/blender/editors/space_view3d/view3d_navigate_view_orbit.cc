@@ -6,43 +6,17 @@
  * \ingroup spview3d
  */
 
-#include "DNA_curve_types.h"
-#include "DNA_gpencil_legacy_types.h"
-
-#include "MEM_guardedalloc.h"
-
+#include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
-#include "BLI_math_vector.h"
-#include "BLI_rect.h"
 
-#include "BLT_translation.h"
-
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_layer.h"
-#include "BKE_object.h"
-#include "BKE_paint.hh"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_vfont.h"
-
-#include "DEG_depsgraph_query.h"
-
-#include "ED_mesh.hh"
-#include "ED_particle.hh"
-#include "ED_screen.hh"
-#include "ED_transform.hh"
+#include "DNA_userdef_types.h"
 
 #include "WM_api.hh"
-#include "WM_message.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_resources.hh"
-
-#include "view3d_intern.h"
+#include "view3d_intern.hh"
 
 #include "view3d_navigate.hh" /* own include */
 
@@ -67,7 +41,7 @@ static const EnumPropertyItem prop_view_orbit_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static int vieworbit_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
 {
   float angle;
   {
@@ -91,6 +65,8 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
     /* no nullptr check is needed, poll checks */
     ED_view3d_context_user_region(C, &vod.v3d, &vod.region);
     vod.rv3d = static_cast<RegionView3D *>(vod.region->regiondata);
+
+    ED_view3d_smooth_view_force_finish(C, vod.v3d, vod.region);
   }
 
   if ((RV3D_LOCK_FLAGS(vod.rv3d) & RV3D_LOCK_ROTATION) && (view_opposite == RV3D_VIEW_USER)) {
@@ -167,7 +143,7 @@ void VIEW3D_OT_view_orbit(wmOperatorType *ot)
   ot->description = "Orbit the view";
   ot->idname = ViewOpsType_orbit.idname;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vieworbit_exec;
   ot->poll = ED_operator_rv3d_user_region_poll;
 
@@ -185,7 +161,7 @@ void VIEW3D_OT_view_orbit(wmOperatorType *ot)
 /** \} */
 
 const ViewOpsType ViewOpsType_orbit = {
-    /*flag*/ (VIEWOPS_FLAG_PERSP_ENSURE | VIEWOPS_FLAG_ORBIT_SELECT),
+    /*flag*/ VIEWOPS_FLAG_ORBIT_SELECT,
     /*idname*/ "VIEW3D_OT_view_orbit",
     /*poll_fn*/ nullptr,
     /*init_fn*/ nullptr,

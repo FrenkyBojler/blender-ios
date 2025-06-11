@@ -13,23 +13,21 @@
 
 #include "CLG_log.h"
 
-#include "BLI_array_utils.h"
+#include "BLI_array_utils.h" /* For #BLI_array_is_zeroed. */
 #include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_main.h"
-#include "BKE_undo_system.h"
-#include "BKE_vfont.h"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_main.hh"
+#include "BKE_undo_system.hh"
+#include "BKE_vfont.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "ED_curve.hh"
-#include "ED_object.hh"
 #include "ED_undo.hh"
 
 #include "WM_api.hh"
@@ -94,7 +92,7 @@ static void uf_arraystore_compact_ex(UndoFont *uf, const UndoFont *uf_ref, bool 
     if ((uf)->id) { \
       BLI_assert(create == ((uf)->store.id == nullptr)); \
       if (create) { \
-        BArrayState *state_reference = uf_ref ? uf_ref->store.id : nullptr; \
+        const BArrayState *state_reference = uf_ref ? uf_ref->store.id : nullptr; \
         const size_t stride = sizeof(*(uf)->id); \
         BArrayStore *bs = BLI_array_store_at_size_ensure( \
             &uf_arraystore.bs_stride, stride, ARRAY_CHUNK_SIZE); \
@@ -171,7 +169,7 @@ static void uf_arraystore_expand(UndoFont *uf)
 #  define STATE_EXPAND(uf, id, len) \
     if ((uf)->store.id) { \
       const size_t stride = sizeof(*(uf)->id); \
-      BArrayState *state = (uf)->store.id; \
+      const BArrayState *state = (uf)->store.id; \
       size_t state_len; \
       *(void **)&(uf)->id = BLI_array_store_state_data_get_alloc(state, &state_len); \
       BLI_assert((len) == (state_len / stride)); \
@@ -249,7 +247,7 @@ static void *undofont_from_editfont(UndoFont *uf, Curve *cu)
 {
   BLI_assert(BLI_array_is_zeroed(uf, 1));
 
-  EditFont *ef = cu->editfont;
+  const EditFont *ef = cu->editfont;
 
   size_t mem_used_prev = MEM_get_memory_in_use();
 
@@ -316,8 +314,8 @@ static Object *editfont_object_from_context(bContext *C)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_FONT) {
-    Curve *cu = static_cast<Curve *>(obedit->data);
-    EditFont *ef = cu->editfont;
+    const Curve *cu = static_cast<Curve *>(obedit->data);
+    const EditFont *ef = cu->editfont;
     if (ef != nullptr) {
       return obedit;
     }
@@ -333,6 +331,8 @@ static Object *editfont_object_from_context(bContext *C)
 
 struct FontUndoStep {
   UndoStep step;
+  /** See #ED_undo_object_editmode_validate_scene_from_windows code comment for details. */
+  UndoRefID_Scene scene_ref;
   /* NOTE: will split out into list for multi-object-editmode. */
   UndoRefID_Object obedit_ref;
   UndoFont data;
@@ -346,6 +346,7 @@ static bool font_undosys_poll(bContext *C)
 static bool font_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   FontUndoStep *us = (FontUndoStep *)us_p;
+  us->scene_ref.ptr = CTX_data_scene(C);
   us->obedit_ref.ptr = editfont_object_from_context(C);
   Curve *cu = static_cast<Curve *>(us->obedit_ref.ptr->data);
   undofont_from_editfont(&us->data, cu);
@@ -362,18 +363,22 @@ static void font_undosys_step_decode(
 
   FontUndoStep *us = (FontUndoStep *)us_p;
   Object *obedit = us->obedit_ref.ptr;
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Pass in an array of 1 (typically used for multi-object edit-mode). */
-  ED_undo_object_editmode_restore_helper(C, &obedit, 1, sizeof(Object *));
+  ED_undo_object_editmode_validate_scene_from_windows(
+      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
+  ED_undo_object_editmode_restore_helper(scene, view_layer, &obedit, 1, sizeof(Object *));
 
   Curve *cu = static_cast<Curve *>(obedit->data);
   undofont_to_editfont(&us->data, cu);
   DEG_id_tag_update(&cu->id, ID_RECALC_GEOMETRY);
 
-  ED_undo_object_set_active_or_warn(
-      CTX_data_scene(C), CTX_data_view_layer(C), obedit, us_p->name, &LOG);
+  ED_undo_object_set_active_or_warn(scene, view_layer, obedit, us_p->name, &LOG);
 
-  BLI_assert(font_undosys_poll(C));
+  /* Check after setting active (unless undoing into another scene). */
+  BLI_assert(font_undosys_poll(C) || (scene != CTX_data_scene(C)));
 
   cu->editfont->needs_flush_to_id = 1;
   bmain->is_memfile_undo_flush_needed = true;
@@ -391,6 +396,7 @@ static void font_undosys_foreach_ID_ref(UndoStep *us_p,
                                         void *user_data)
 {
   FontUndoStep *us = (FontUndoStep *)us_p;
+  foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->scene_ref));
   foreach_ID_ref_fn(user_data, ((UndoRefID *)&us->obedit_ref));
 }
 

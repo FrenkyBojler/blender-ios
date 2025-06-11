@@ -2,74 +2,78 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-void normal_transform_object_to_world(vec3 vin, out vec3 vout)
+/* Requires all common matrices declared. */
+
+void normal_transform_object_to_world(float3 vin, out float3 vout)
 {
-  vout = normal_object_to_world(vin);
+  /* Expansion of NormalMatrix. */
+  vout = vin * to_float3x3(drw_modelinv());
 }
 
-void normal_transform_world_to_object(vec3 vin, out vec3 vout)
+void normal_transform_world_to_object(float3 vin, out float3 vout)
 {
-  vout = normal_world_to_object(vin);
+  /* Expansion of NormalMatrixInverse. */
+  vout = vin * to_float3x3(drw_modelmat());
 }
 
-void direction_transform_object_to_world(vec3 vin, out vec3 vout)
+void direction_transform_object_to_world(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ModelMatrix, vin);
+  vout = to_float3x3(drw_modelmat()) * vin;
 }
 
-void direction_transform_object_to_view(vec3 vin, out vec3 vout)
+void direction_transform_object_to_view(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ModelMatrix, vin);
-  vout = transform_direction(ViewMatrix, vout);
+  vout = to_float3x3(drw_modelmat()) * vin;
+  vout = to_float3x3(drw_view().viewmat) * vout;
 }
 
-void direction_transform_view_to_world(vec3 vin, out vec3 vout)
+void direction_transform_view_to_world(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ViewMatrixInverse, vin);
+  vout = to_float3x3(drw_view().viewinv) * vin;
 }
 
-void direction_transform_view_to_object(vec3 vin, out vec3 vout)
+void direction_transform_view_to_object(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ViewMatrixInverse, vin);
-  vout = transform_direction(ModelMatrixInverse, vout);
+  vout = to_float3x3(drw_view().viewinv) * vin;
+  vout = to_float3x3(drw_modelinv()) * vout;
 }
 
-void direction_transform_world_to_view(vec3 vin, out vec3 vout)
+void direction_transform_world_to_view(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ViewMatrix, vin);
+  vout = to_float3x3(drw_view().viewmat) * vin;
 }
 
-void direction_transform_world_to_object(vec3 vin, out vec3 vout)
+void direction_transform_world_to_object(float3 vin, out float3 vout)
 {
-  vout = transform_direction(ModelMatrixInverse, vin);
+  vout = to_float3x3(drw_modelinv()) * vin;
 }
 
-void point_transform_object_to_world(vec3 vin, out vec3 vout)
+void point_transform_object_to_world(float3 vin, out float3 vout)
 {
-  vout = point_object_to_world(vin);
+  vout = (drw_modelmat() * float4(vin, 1.0f)).xyz;
 }
 
-void point_transform_object_to_view(vec3 vin, out vec3 vout)
+void point_transform_object_to_view(float3 vin, out float3 vout)
 {
-  vout = point_object_to_view(vin);
+  vout = (drw_view().viewmat * (drw_modelmat() * float4(vin, 1.0f))).xyz;
 }
 
-void point_transform_view_to_world(vec3 vin, out vec3 vout)
+void point_transform_view_to_world(float3 vin, out float3 vout)
 {
-  vout = point_view_to_world(vin);
+  vout = (drw_view().viewinv * float4(vin, 1.0f)).xyz;
 }
 
-void point_transform_view_to_object(vec3 vin, out vec3 vout)
+void point_transform_view_to_object(float3 vin, out float3 vout)
 {
-  vout = point_view_to_object(vin);
+  vout = (drw_modelinv() * (drw_view().viewinv * float4(vin, 1.0f))).xyz;
 }
 
-void point_transform_world_to_view(vec3 vin, out vec3 vout)
+void point_transform_world_to_view(float3 vin, out float3 vout)
 {
-  vout = point_world_to_view(vin);
+  vout = (drw_view().viewmat * float4(vin, 1.0f)).xyz;
 }
 
-void point_transform_world_to_object(vec3 vin, out vec3 vout)
+void point_transform_world_to_object(float3 vin, out float3 vout)
 {
-  vout = point_world_to_object(vin);
+  vout = (drw_modelinv() * float4(vin, 1.0f)).xyz;
 }

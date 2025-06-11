@@ -23,12 +23,12 @@
 #include "BLI_quadric.h"
 #include "BLI_utildefines_stack.h"
 
-#include "BKE_customdata.h"
+#include "BKE_customdata.hh"
 
-#include "bmesh.h"
-#include "bmesh_decimate.h" /* own include */
+#include "bmesh.hh"
+#include "bmesh_decimate.hh" /* own include */
 
-#include "../intern/bmesh_structure.h"
+#include "../intern/bmesh_structure.hh"
 
 #define USE_SYMMETRY
 #ifdef USE_SYMMETRY
@@ -242,29 +242,29 @@ static void bm_decim_build_edge_cost_single(BMEdge *e,
     goto clear;
   }
 
-  /* check we can collapse, some edges we better not touch */
+  /* Check we can collapse, some edges we better not touch. */
   if (BM_edge_is_boundary(e)) {
     if (e->l->f->len == 3) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else if (BM_edge_is_manifold(e)) {
     if ((e->l->f->len == 3) && (e->l->radial_next->f->len == 3)) {
-      /* pass */
+      /* Pass. */
     }
     else {
-      /* only collapse tri's */
+      /* Only collapse triangles. */
       goto clear;
     }
   }
   else {
     goto clear;
   }
-  /* end sanity check */
+  /* End sanity check. */
 
   {
     double optimize_co[3];
@@ -368,7 +368,7 @@ struct KD_Symmetry_Data {
 
 static bool bm_edge_symmetry_check_cb(void *user_data,
                                       int index,
-                                      const float[3] /*co*/,
+                                      const float /*co*/[3],
                                       float /*dist_sq*/)
 {
   KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
@@ -409,9 +409,8 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
 
   tree = BLI_kdtree_3d_new(bm->totedge);
 
-  etable = static_cast<BMEdge **>(MEM_mallocN(sizeof(*etable) * bm->totedge, __func__));
-  edge_symmetry_map = static_cast<int *>(
-      MEM_mallocN(sizeof(*edge_symmetry_map) * bm->totedge, __func__));
+  etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
+  edge_symmetry_map = MEM_malloc_arrayN<int>(bm->totedge, __func__);
 
   BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
     float co[3];
@@ -608,10 +607,10 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
   BMEdge **edges_tri = static_cast<BMEdge **>(
-      MEM_mallocN(MIN2(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
+      MEM_mallocN(std::min(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
   STACK_DECLARE(edges_tri);
 
-  STACK_INIT(edges_tri, MIN2(edges_tri_tot, bm->totedge));
+  STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));
 
   /* boundary edges */
   BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -662,8 +661,14 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
     BMLoop *l_a, *l_b;
     e = edges_tri[i];
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+      BMFace *f_double;
+
       BMFace *f_array[2] = {l_a->f, l_b->f};
-      BM_faces_join(bm, f_array, 2, false);
+      BM_faces_join(bm, f_array, 2, false, &f_double);
+      /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+      BLI_assert_msg(f_double == nullptr,
+                     "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
       if (e->l == nullptr) {
         BM_edge_kill(bm, e);
       }
@@ -687,7 +692,7 @@ static void bm_edge_collapse_loop_customdata(
 {
   /* Disable seam check - the seam check would have to be done per layer,
    * its not really that important. */
-  //#define USE_SEAM
+  // #define USE_SEAM
   /* these don't need to be updated, since they will get removed when the edge collapses */
   BMLoop *l_clear, *l_other;
   const bool is_manifold = BM_edge_is_manifold(l->e);
@@ -789,7 +794,7 @@ static void bm_edge_collapse_loop_customdata(
     }
   }
 
-  //#undef USE_SEAM
+  // #undef USE_SEAM
 }
 #endif /* USE_CUSTOMDATA */
 
@@ -1307,10 +1312,10 @@ void BM_mesh_decimate_collapse(BMesh *bm,
 #endif
 
   /* Allocate variables. */
-  vquadrics = static_cast<Quadric *>(MEM_callocN(sizeof(Quadric) * bm->totvert, __func__));
+  vquadrics = MEM_calloc_arrayN<Quadric>(bm->totvert, __func__);
   /* Since some edges may be degenerate, we might be over allocating a little here. */
   eheap = BLI_heap_new_ex(bm->totedge);
-  eheap_table = static_cast<HeapNode **>(MEM_mallocN(sizeof(HeapNode *) * bm->totedge, __func__));
+  eheap_table = MEM_malloc_arrayN<HeapNode *>(bm->totedge, __func__);
   tot_edge_orig = bm->totedge;
 
   /* build initial edge collapse cost data */
@@ -1380,8 +1385,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
     while ((bm->totface > face_tot_target) && (BLI_heap_is_empty(eheap) == false) &&
            (BLI_heap_top_value(eheap) != COST_INVALID))
     {
-      /**
-       * \note
+      /* NOTE:
        * - `eheap_table[e_index_mirr]` is only removed from the heap at the last moment
        *   since its possible (in theory) for collapsing `e` to remove `e_mirr`.
        * - edges sharing a vertex are ignored, so the pivot vertex isn't moved to one side.
@@ -1500,7 +1504,7 @@ void BM_mesh_decimate_collapse(BMesh *bm,
       }
     }
 
-    MEM_freeN((void *)edge_symmetry_map);
+    MEM_freeN(edge_symmetry_map);
   }
 #endif /* USE_SYMMETRY */
 

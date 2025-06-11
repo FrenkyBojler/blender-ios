@@ -42,7 +42,7 @@ find_library(LIBPULSE_LIBRARY
     ${_pulse_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set PULSE_FOUND to TRUE if
 # all listed variables are TRUE
@@ -59,3 +59,5 @@ mark_as_advanced(
   LIBPULSE_INCLUDE_DIR
   LIBPULSE_LIBRARY
 )
+
+unset(_pulse_SEARCH_DIRS)

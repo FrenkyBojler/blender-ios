@@ -15,16 +15,16 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_collection.h"
-#include "BKE_context.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_report.h"
+#include "BKE_collection.hh"
+#include "BKE_context.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
 
-#include "DEG_depsgraph.h"
-#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -37,16 +37,16 @@
 #include "ED_physics.hh"
 #include "ED_screen.hh"
 
-#include "physics_intern.h"
+#include "physics_intern.hh"
 
 /* ********************************************** */
 /* Helper API's for RigidBody Constraint Editing */
 
 static bool operator_rigidbody_constraints_editable_poll(Scene *scene)
 {
-  if (scene == nullptr || ID_IS_LINKED(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
+  if (scene == nullptr || !ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene) ||
       (scene->rigidbody_world != nullptr && scene->rigidbody_world->constraints != nullptr &&
-       (ID_IS_LINKED(scene->rigidbody_world->constraints) ||
+       (!ID_IS_EDITABLE(scene->rigidbody_world->constraints) ||
         ID_IS_OVERRIDE_LIBRARY(scene->rigidbody_world->constraints))))
   {
     return false;
@@ -54,7 +54,7 @@ static bool operator_rigidbody_constraints_editable_poll(Scene *scene)
   return true;
 }
 
-static bool ED_operator_rigidbody_con_active_poll(bContext *C)
+static bool operator_rigidbody_con_active_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_constraints_editable_poll(scene)) {
@@ -62,13 +62,13 @@ static bool ED_operator_rigidbody_con_active_poll(bContext *C)
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = ED_object_active_context(C);
+    Object *ob = blender::ed::object::context_active_object(C);
     return (ob && ob->rigidbody_constraint);
   }
   return false;
 }
 
-static bool ED_operator_rigidbody_con_add_poll(bContext *C)
+static bool operator_rigidbody_con_add_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_constraints_editable_poll(scene)) {
@@ -101,7 +101,7 @@ bool ED_rigidbody_constraint_add(
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
-  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_SYNC_TO_EVAL);
 
   return true;
 }
@@ -119,7 +119,7 @@ void ED_rigidbody_constraint_remove(Main *bmain, Scene *scene, Object *ob)
 
 /* ************ Add Rigid Body Constraint ************** */
 
-static int rigidbody_con_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_con_add_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -157,7 +157,7 @@ void RIGIDBODY_OT_constraint_add(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_con_add_exec;
-  ot->poll = ED_operator_rigidbody_con_add_poll;
+  ot->poll = operator_rigidbody_con_add_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -173,7 +173,7 @@ void RIGIDBODY_OT_constraint_add(wmOperatorType *ot)
 
 /* ************ Remove Rigid Body Constraint ************** */
 
-static int rigidbody_con_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_con_remove_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -204,7 +204,7 @@ void RIGIDBODY_OT_constraint_remove(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_con_remove_exec;
-  ot->poll = ED_operator_rigidbody_con_active_poll;
+  ot->poll = operator_rigidbody_con_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

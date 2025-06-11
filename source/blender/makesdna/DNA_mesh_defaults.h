@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -18,13 +17,12 @@
 #define _DNA_DEFAULT_Mesh \
   { \
     .texspace_size = {1.0f, 1.0f, 1.0f}, \
-    .smoothresh = DEG2RADF(30), \
     .texspace_flag = ME_TEXSPACE_FLAG_AUTO, \
     .remesh_voxel_size = 0.1f, \
     .remesh_voxel_adaptivity = 0.0f, \
     .face_sets_color_seed = 0, \
     .face_sets_color_default = 1, \
-    .flag = ME_REMESH_REPROJECT_VOLUME | ME_REMESH_REPROJECT_PAINT_MASK | ME_REMESH_REPROJECT_SCULPT_FACE_SETS | ME_REMESH_REPROJECT_VERTEX_COLORS, \
+    .flag = ME_REMESH_REPROJECT_VOLUME | ME_REMESH_REPROJECT_ATTRIBUTES, \
     .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS \
   }
 

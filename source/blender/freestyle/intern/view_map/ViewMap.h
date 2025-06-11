@@ -20,9 +20,7 @@
 #include "../system/BaseIterator.h"
 #include "../system/FreestyleConfig.h"
 
-#ifdef WITH_CXX_GUARDEDALLOC
-#  include "MEM_guardedalloc.h"
-#endif
+#include "MEM_guardedalloc.h"
 
 namespace Freestyle {
 
@@ -221,9 +219,7 @@ class ViewMap {
   /* Clean temporary FEdges created by chaining */
   virtual void Clean();
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewMap")
-#endif
 };
 
 /**********************************/
@@ -354,9 +350,7 @@ class ViewVertex : public Interface0D {
   /** Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
   virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge) = 0;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewVertex")
-#endif
 };
 
 /**********************************/
@@ -616,7 +610,8 @@ class TVertex : public ViewVertex {
     return nullptr;
   }
 
-  /* iterators access */
+  /* Iterators access. */
+
   virtual edge_iterator edges_begin();
   virtual const_edge_iterator edges_begin() const;
   virtual edge_iterator edges_end();
@@ -638,9 +633,7 @@ class TVertex : public ViewVertex {
   /** Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
   virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:TVertex")
-#endif
 };
 
 /**********************************/
@@ -692,19 +685,19 @@ class NonTVertex : public ViewVertex {
     return _SVertex->getPoint3D();
   }
 
-  /** Returns the projected 3D  x coordinate of the vertex. */
+  /** Returns the projected 3D. Y coordinate of the vertex. */
   virtual real getProjectedX() const
   {
     return _SVertex->point2D().x();
   }
 
-  /** Returns the projected 3D  y coordinate of the vertex. */
+  /** Returns the projected 3D. Y coordinate of the vertex. */
   virtual real getProjectedY() const
   {
     return _SVertex->point2D().y();
   }
 
-  /** Returns the projected 3D  z coordinate of the vertex. */
+  /** Returns the projected 3D. Z coordinate of the vertex. */
   virtual real getProjectedZ() const
   {
     return _SVertex->point2D().z();
@@ -821,7 +814,8 @@ class NonTVertex : public ViewVertex {
   {
     edges_container::iterator insertedve;
     for (edges_container::iterator ve = _ViewEdges.begin(), vend = _ViewEdges.end(); ve != vend;
-         ve++) {
+         ve++)
+    {
       if ((ve)->first == iOld) {
         insertedve = _ViewEdges.insert(
             ve, directedViewEdge(iNew, ve->second));  // inserts e2 before ve.
@@ -834,7 +828,8 @@ class NonTVertex : public ViewVertex {
     }
   }
 
-  /* iterators access */
+  /* Iterators access. */
+
   virtual edge_iterator edges_begin();
   virtual const_edge_iterator edges_begin() const;
   virtual edge_iterator edges_end();
@@ -856,9 +851,7 @@ class NonTVertex : public ViewVertex {
   /** Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
   virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:NonTVertex")
-#endif
 };
 
 /**********************************/
@@ -1377,9 +1370,7 @@ class ViewEdge : public Interface1D {
    */
   virtual Interface0DIterator pointsEnd(float t = 0.0f);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewEdge")
-#endif
 };
 
 /**********************************/
@@ -1458,7 +1449,8 @@ class ViewShape {
           v->setFrontEdgeB(veFrontB, v->frontEdgeB().second);
           v->setBackEdgeA(veBackA, v->backEdgeA().second);
           v->setBackEdgeB(veBackB, v->backEdgeB().second);
-        } break;
+          break;
+        }
         case Nature::NON_T_VERTEX: {
           NonTVertex *v = (NonTVertex *)(*vv);
           vector<ViewVertex::directedViewEdge> &vedges = (v)->viewedges();
@@ -1617,9 +1609,7 @@ class ViewShape {
   /* removes the view vertex iViewVertex in the View Shape. */
   void RemoveVertex(ViewVertex *iViewVertex);
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewShape")
-#endif
 };
 
 /*

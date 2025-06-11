@@ -8,13 +8,13 @@
 
 #include "DNA_node_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "node_common.h"
 #include "node_exec.hh"
 #include "node_texture_util.hh"
@@ -68,9 +68,10 @@ static void group_copy_inputs(bNode *gnode, bNodeStack **in, bNodeStack *gstack)
   int a;
 
   LISTBASE_FOREACH (bNode *, node, &ngroup->nodes) {
-    if (node->type == NODE_GROUP_INPUT) {
+    if (node->is_group_input()) {
       for (sock = static_cast<bNodeSocket *>(node->outputs.first), a = 0; sock;
-           sock = sock->next, a++) {
+           sock = sock->next, a++)
+      {
         if (in[a]) { /* shouldn't need to check this #36694. */
           ns = node_get_socket_stack(gstack, sock);
           if (ns) {
@@ -140,13 +141,15 @@ static void group_execute(void *data,
 
 void register_node_type_tex_group()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   /* NOTE: Cannot use #sh_node_type_base for node group, because it would map the node type
    * to the shared #NODE_GROUP integer type id. */
 
-  node_type_base_custom(&ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
-  ntype.type = NODE_GROUP;
+  blender::bke::node_type_base_custom(
+      ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+  ntype.enum_name_legacy = "GROUP";
+  ntype.type_legacy = NODE_GROUP;
   ntype.poll = tex_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;
   ntype.insert_link = node_insert_link_default;
@@ -154,12 +157,13 @@ void register_node_type_tex_group()
   BLI_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
-  blender::bke::node_type_size(&ntype, 140, 60, 400);
+  blender::bke::node_type_size(
+      ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
   ntype.labelfunc = node_group_label;
-  ntype.declare_dynamic = blender::nodes::node_group_declare_dynamic;
+  ntype.declare = blender::nodes::node_group_declare;
   ntype.init_exec_fn = group_initexec;
   ntype.free_exec_fn = group_freeexec;
   ntype.exec_fn = group_execute;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

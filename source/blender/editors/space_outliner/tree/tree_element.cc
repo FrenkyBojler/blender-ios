@@ -10,17 +10,16 @@
 #include <string>
 #include <string_view>
 
-#include "DNA_anim_types.h"
 #include "DNA_listBase.h"
 #include "DNA_space_types.h"
 
 #include "UI_resources.hh"
 
-#include "BLT_translation.h"
-
 #include "tree_display.hh"
+#include "tree_element_action_slot.hh"
 #include "tree_element_anim_data.hh"
 #include "tree_element_bone.hh"
+#include "tree_element_bone_collection.hh"
 #include "tree_element_collection.hh"
 #include "tree_element_constraint.hh"
 #include "tree_element_defgroup.hh"
@@ -32,13 +31,13 @@
 #include "tree_element_id.hh"
 #include "tree_element_label.hh"
 #include "tree_element_layer_collection.hh"
+#include "tree_element_linked_node_tree.hh"
 #include "tree_element_linked_object.hh"
 #include "tree_element_modifier.hh"
 #include "tree_element_nla.hh"
 #include "tree_element_overrides.hh"
 #include "tree_element_particle_system.hh"
 #include "tree_element_pose.hh"
-#include "tree_element_pose_group.hh"
 #include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
 #include "tree_element_seq.hh"
@@ -128,15 +127,14 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
     case TSE_RNA_ARRAY_ELEM:
       return std::make_unique<TreeElementRNAArrayElement>(
           legacy_te, *static_cast<PointerRNA *>(create_data), legacy_te.index);
-    case TSE_SEQUENCE:
-      return std::make_unique<TreeElementSequence>(legacy_te,
-                                                   *static_cast<Sequence *>(create_data));
-    case TSE_SEQ_STRIP:
-      return std::make_unique<TreeElementSequenceStrip>(legacy_te,
-                                                        *static_cast<Strip *>(create_data));
-    case TSE_SEQUENCE_DUP:
-      return std::make_unique<TreeElementSequenceStripDuplicate>(
-          legacy_te, *static_cast<Sequence *>(create_data));
+    case TSE_STRIP:
+      return std::make_unique<TreeElementStrip>(legacy_te, *static_cast<Strip *>(create_data));
+    case TSE_STRIP_DATA:
+      return std::make_unique<TreeElementStripData>(legacy_te,
+                                                    *static_cast<StripData *>(create_data));
+    case TSE_STRIP_DUP:
+      return std::make_unique<TreeElementStripDuplicate>(legacy_te,
+                                                         *static_cast<Strip *>(create_data));
     case TSE_BONE:
       return std::make_unique<TreeElementBone>(
           legacy_te, *owner_id, *static_cast<Bone *>(create_data));
@@ -176,13 +174,6 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
       return std::make_unique<TreeElementPoseChannel>(legacy_te,
                                                       *reinterpret_cast<Object *>(owner_id),
                                                       *static_cast<bPoseChannel *>(create_data));
-    case TSE_POSEGRP_BASE:
-      return std::make_unique<TreeElementPoseGroupBase>(legacy_te,
-                                                        *reinterpret_cast<Object *>(owner_id));
-    case TSE_POSEGRP:
-      return std::make_unique<TreeElementPoseGroup>(legacy_te,
-                                                    *reinterpret_cast<Object *>(owner_id),
-                                                    *static_cast<bActionGroup *>(create_data));
     case TSE_MODIFIER_BASE:
       return std::make_unique<TreeElementModifierBase>(legacy_te,
                                                        *reinterpret_cast<Object *>(owner_id));
@@ -191,6 +182,8 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
           legacy_te,
           *reinterpret_cast<Object *>(owner_id),
           *static_cast<ModifierDataStoreElem *>(create_data));
+    case TSE_LINKED_NODE_TREE:
+      return std::make_unique<TreeElementLinkedNodeTree>(legacy_te, *owner_id);
     case TSE_LINKED_OB:
       return std::make_unique<TreeElementLinkedObject>(legacy_te, *owner_id);
     case TSE_VIEW_COLLECTION_BASE:
@@ -199,6 +192,19 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
     case TSE_LAYER_COLLECTION:
       return std::make_unique<TreeElementLayerCollection>(
           legacy_te, *static_cast<LayerCollection *>(create_data));
+
+    case TSE_BONE_COLLECTION_BASE:
+      return std::make_unique<TreeElementBoneCollectionBase>(
+          legacy_te, *reinterpret_cast<bArmature *>(owner_id));
+    case TSE_BONE_COLLECTION:
+      return std::make_unique<TreeElementBoneCollection>(
+          legacy_te,
+          *reinterpret_cast<bArmature *>(owner_id),
+          *static_cast<BoneCollection *>(create_data));
+    case TSE_ACTION_SLOT:
+      return std::make_unique<TreeElementActionSlot>(
+          legacy_te, *reinterpret_cast<blender::animrig::Slot *>(create_data));
+
     default:
       break;
   }

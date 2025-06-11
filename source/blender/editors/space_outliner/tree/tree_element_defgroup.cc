@@ -11,9 +11,9 @@
 #include "DNA_object_types.h"
 #include "DNA_outliner_types.h"
 
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 
@@ -39,7 +39,7 @@ void TreeElementDeformGroupBase::expand(SpaceOutliner & /*space_outliner*/) cons
 }
 
 TreeElementDeformGroup::TreeElementDeformGroup(TreeElement &legacy_te,
-                                               Object & /* object */,
+                                               Object & /*object*/,
                                                bDeformGroup &defgroup)
     : AbstractTreeElement(legacy_te), /* object_(object), */ defgroup_(defgroup)
 {

@@ -9,13 +9,12 @@
 #include "DNA_cachefile_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 const EnumPropertyItem rna_enum_velocity_unit_items[] = {
     {CACHEFILE_VELOCITY_UNIT_SECOND, "SECOND", 0, "Second", ""},
@@ -25,12 +24,14 @@ const EnumPropertyItem rna_enum_velocity_unit_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "BLI_string.h"
+#  include "BLI_math_base.h"
 
-#  include "BKE_cachefile.h"
+#  include "BKE_cachefile.hh"
+#  include "BKE_context.hh"
+#  include "BKE_report.hh"
 
-#  include "DEG_depsgraph.h"
-#  include "DEG_depsgraph_build.h"
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
 #  include "WM_types.hh"
@@ -43,7 +44,7 @@ static void rna_CacheFile_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA
 {
   CacheFile *cache_file = (CacheFile *)ptr->data;
 
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
@@ -51,7 +52,7 @@ static void rna_CacheFileLayer_update(Main * /*bmain*/, Scene * /*scene*/, Point
 {
   CacheFile *cache_file = (CacheFile *)ptr->owner_id;
 
-  DEG_id_tag_update(&cache_file->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
 
@@ -64,14 +65,14 @@ static void rna_CacheFile_dependency_update(Main *bmain, Scene *scene, PointerRN
 static void rna_CacheFile_object_paths_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   CacheFile *cache_file = (CacheFile *)ptr->data;
-  rna_iterator_listbase_begin(iter, &cache_file->object_paths, nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &cache_file->object_paths, nullptr);
 }
 
 static PointerRNA rna_CacheFile_active_layer_get(PointerRNA *ptr)
 {
   CacheFile *cache_file = (CacheFile *)ptr->owner_id;
-  return rna_pointer_inherit_refine(
-      ptr, &RNA_CacheFileLayer, BKE_cachefile_get_active_layer(cache_file));
+  return RNA_pointer_create_with_parent(
+      *ptr, &RNA_CacheFileLayer, BKE_cachefile_get_active_layer(cache_file));
 }
 
 static void rna_CacheFile_active_layer_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -190,6 +191,7 @@ static void rna_def_cachefile_layer(BlenderRNA *brna)
 
   PropertyRNA *prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Path to the archive");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_CacheFileLayer_update");
 
   prop = RNA_def_property(srna, "hide_layer", PROP_BOOLEAN, PROP_NONE);
@@ -245,6 +247,7 @@ static void rna_def_cachefile(BlenderRNA *brna)
 
   PropertyRNA *prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_ui_text(prop, "File Path", "Path to external displacements file");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_update(prop, 0, "rna_CacheFile_update");
 
   prop = RNA_def_property(srna, "is_sequence", PROP_BOOLEAN, PROP_NONE);

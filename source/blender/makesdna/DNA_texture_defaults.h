@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -53,7 +52,7 @@
     .dampfac = 1.0f, \
     .gravityfac = 1.0f, \
     .fieldfac = 1.0f, \
-    .brush_map_mode = MTEX_MAP_MODE_TILED, \
+    .brush_map_mode = MTEX_MAP_MODE_VIEW, \
     .random_angle = 2.0f * (float)M_PI, \
     .brush_angle_mode = 0, \
   } \
@@ -64,14 +63,12 @@
     .ima = NULL, \
     .stype = 0, \
     .flag = TEX_CHECKER_ODD | TEX_NO_CLAMP, \
-    .imaflag = TEX_INTERPOL | TEX_MIPMAP | TEX_USEALPHA, \
+    .imaflag = TEX_INTERPOL | TEX_USEALPHA, \
     .extend = TEX_REPEAT, \
     .cropxmin = 0.0, \
     .cropymin = 0.0, \
     .cropxmax = 1.0, \
     .cropymax = 1.0, \
-    .texfilter = TXF_EWA, \
-    .afmax = 8, \
     .xrepeat = 1, \
     .yrepeat = 1, \
     .sfra = 1, \

@@ -4,10 +4,10 @@
 
 #include "testing/testing.h"
 
-#include "BLI_hash_mm2a.h"
+#include "BLI_hash_mm2a.hh"
 
 /* NOTE: Reference results are taken from reference implementation
- * (cpp code, CMurmurHash2A variant):
+ * (C++ code, CMurmurHash2A variant):
  * https://smhasher.googlecode.com/svn-history/r130/trunk/MurmurHash2.cpp
  */
 

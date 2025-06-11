@@ -17,9 +17,9 @@
 #include "BLI_scanfill.h"
 #include "BLI_sort_utils.h"
 
-#include "bmesh.h"
-#include "bmesh_tools.h"
-#include "intern/bmesh_operators_private.h"
+#include "bmesh.hh"
+#include "bmesh_tools.hh"
+#include "intern/bmesh_operators_private.hh"
 
 #define ELE_NEW 1
 #define EDGE_MARK 4
@@ -54,7 +54,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
   BMOIter siter;
   BMEdge *e;
   ScanFillContext sf_ctx;
-  /* ScanFillEdge *sf_edge; */ /* UNUSED */
+  // ScanFillEdge *sf_edge; /* UNUSED */
   GHash *sf_vert_map;
   float normal[3];
   const int scanfill_flag = BLI_SCANFILL_CALC_HOLES | BLI_SCANFILL_CALC_POLYS |
@@ -88,7 +88,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
     }
 
     /* sf_edge = */ BLI_scanfill_edge_add(&sf_ctx, UNPACK2(sf_verts));
-    /* sf_edge->tmp.p = e; */ /* UNUSED */
+    // sf_edge->tmp.p = e; /* UNUSED */
   }
   nors_tot = BLI_ghash_len(sf_vert_map);
   BLI_ghash_free(sf_vert_map, nullptr, nullptr);
@@ -101,7 +101,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
     uint i;
     bool is_degenerate = true;
 
-    nors = static_cast<SortNormal *>(MEM_mallocN(sizeof(*nors) * nors_tot, __func__));
+    nors = MEM_malloc_arrayN<SortNormal>(nors_tot, __func__);
 
     for (sf_vert = static_cast<ScanFillVert *>(sf_ctx.fillvertbase.first), i = 0; sf_vert;
          sf_vert = sf_vert->next, i++)
@@ -197,7 +197,7 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
 
     if (winding_votes < 0) {
       LISTBASE_FOREACH (ScanFillFace *, sf_tri, &sf_ctx.fillfacebase) {
-        SWAP(ScanFillVert *, sf_tri->v2, sf_tri->v3);
+        std::swap(sf_tri->v2, sf_tri->v3);
       }
     }
   }
@@ -242,7 +242,12 @@ void bmo_triangle_fill_exec(BMesh *bm, BMOperator *op)
       if (BMO_edge_flag_test(bm, e, ELE_NEW)) {
         /* in rare cases the edges face will have already been removed from the edge */
         if (LIKELY(BM_edge_is_manifold(e))) {
-          BMFace *f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false);
+          BMFace *f_double;
+          BMFace *f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, &f_double);
+          /* See #BM_faces_join note on callers asserting when `r_double` is non-null. */
+          BLI_assert_msg(f_double == nullptr,
+                         "Doubled face detected at " AT ". Resulting mesh may be corrupt.");
+
           if (f_new) {
             BMO_face_flag_enable(bm, f_new, ELE_NEW);
             BM_edge_kill(bm, e);

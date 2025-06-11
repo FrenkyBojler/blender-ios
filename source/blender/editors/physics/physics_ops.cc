@@ -8,11 +8,13 @@
 
 #include <cstdlib>
 
+#include "DNA_space_types.h"
+
 #include "WM_api.hh"
 
 #include "ED_physics.hh"
 
-#include "physics_intern.h" /* own include */
+#include "physics_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Particles
@@ -60,6 +62,7 @@ static void operatortypes_particle()
   WM_operatortype_append(PARTICLE_OT_disconnect_hair);
   WM_operatortype_append(PARTICLE_OT_copy_particle_systems);
   WM_operatortype_append(PARTICLE_OT_duplicate_particle_system);
+  WM_operatortype_append(PARTICLE_OT_particle_system_remove_all);
 
   WM_operatortype_append(PARTICLE_OT_dupliob_refresh);
   WM_operatortype_append(PARTICLE_OT_dupliob_copy);
@@ -86,7 +89,7 @@ static void operatortypes_particle()
 
 static void keymap_particle(wmKeyConfig *keyconf)
 {
-  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Particle", 0, 0);
+  wmKeyMap *keymap = WM_keymap_ensure(keyconf, "Particle", SPACE_EMPTY, RGN_TYPE_WINDOW);
   keymap->poll = PE_poll;
 }
 

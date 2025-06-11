@@ -6,17 +6,17 @@
  * \ingroup depsgraph
  */
 
+#include "DEG_depsgraph_debug.hh"
+
 #include "intern/builder/deg_builder_transitive.h"
 
-#include "MEM_guardedalloc.h"
-
-#include "intern/node/deg_node.h"
-#include "intern/node/deg_node_component.h"
-#include "intern/node/deg_node_operation.h"
+#include "intern/node/deg_node.hh"
+#include "intern/node/deg_node_component.hh"
+#include "intern/node/deg_node_operation.hh"
 
 #include "intern/debug/deg_debug.h"
-#include "intern/depsgraph.h"
-#include "intern/depsgraph_relation.h"
+#include "intern/depsgraph.hh"
+#include "intern/depsgraph_relation.hh"
 
 namespace blender::deg {
 
@@ -86,7 +86,6 @@ void deg_graph_transitive_reduction(Depsgraph *graph)
     }
     for (Relation *rel : relations_to_remove) {
       rel->unlink();
-      delete rel;
     }
     num_removed_relations += relations_to_remove.size();
     relations_to_remove.clear();

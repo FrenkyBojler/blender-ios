@@ -2,15 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-vec3 tint_from_color(vec3 color)
+#include "gpu_shader_common_math.glsl"
+#include "gpu_shader_math_fast_lib.glsl"
+
+float3 tint_from_color(float3 color)
 {
-  float lum = dot(color, vec3(0.3, 0.6, 0.1));  /* luminance approx. */
-  return (lum > 0.0) ? color / lum : vec3(1.0); /* normalize lum. to isolate hue+sat */
+  float lum = dot(color, float3(0.3f, 0.6f, 0.1f)); /* luminance approx. */
+  return (lum > 0.0f) ? color / lum : float3(1.0f); /* normalize lum. to isolate hue+sat */
 }
 
 float principled_sheen(float NV, float rough)
 {
-  /* Empirical approximation (manual curve fitting) to the sheen albedo. Can be refined. */
+  /* Empirical approximation (manual curve fitting) to the sheen_weight albedo. Can be refined. */
   float den = 35.6694f * rough * rough - 24.4269f * rough * NV - 0.1405f * NV * NV +
               6.1211f * rough + 0.28105f * NV - 0.1405f;
   float num = 58.5299f * rough * rough - 85.0941f * rough * NV + 9.8955f * NV * NV +
@@ -18,177 +21,236 @@ float principled_sheen(float NV, float rough)
   return saturate(den / num);
 }
 
-void node_bsdf_principled(vec4 base_color,
-                          float subsurface,
-                          vec3 subsurface_radius,
-                          vec4 subsurface_color,
+float ior_from_F0(float F0)
+{
+  float f = sqrt(clamp(F0, 0.0f, 0.99f));
+  return (-f - 1.0f) / (f - 1.0f);
+}
+
+void node_bsdf_principled(float4 base_color,
+                          float metallic,
+                          float roughness,
+                          float ior,
+                          float alpha,
+                          float3 N,
+                          float weight,
+                          float diffuse_roughness,
+                          float subsurface_weight,
+                          float3 subsurface_radius,
+                          float subsurface_scale,
                           float subsurface_ior,
                           float subsurface_anisotropy,
-                          float metallic,
-                          float specular,
-                          float specular_tint,
-                          float roughness,
+                          float specular_ior_level,
+                          float4 specular_tint,
                           float anisotropic,
                           float anisotropic_rotation,
-                          float sheen,
+                          float3 T,
+                          float transmission_weight,
+                          float coat_weight,
+                          float coat_roughness,
+                          float coat_ior,
+                          float4 coat_tint,
+                          float3 CN,
+                          float sheen_weight,
                           float sheen_roughness,
-                          vec4 sheen_tint,
-                          float clearcoat,
-                          float clearcoat_roughness,
-                          float ior,
-                          float transmission,
-                          vec4 emission,
+                          float4 sheen_tint,
+                          float4 emission,
                           float emission_strength,
-                          float alpha,
-                          vec3 N,
-                          vec3 CN,
-                          vec3 T,
-                          float weight,
-                          const float do_diffuse,
-                          const float do_clearcoat,
-                          const float do_refraction,
+                          float thin_film_thickness,
+                          float thin_film_ior,
                           const float do_multiscatter,
-                          float do_sss,
                           out Closure result)
 {
   /* Match cycles. */
-  metallic = clamp(metallic, 0.0, 1.0);
-  transmission = clamp(transmission, 0.0, 1.0);
-  clearcoat = max(clearcoat, 0.0) * 0.25;
+  metallic = saturate(metallic);
+  roughness = saturate(roughness);
+  ior = max(ior, 1e-5f);
+  alpha = saturate(alpha);
+  subsurface_weight = saturate(subsurface_weight);
+  /* Not used by EEVEE */
+  /* subsurface_anisotropy = clamp(subsurface_anisotropy, 0.0f, 0.9f); */
+  /* subsurface_ior = clamp(subsurface_ior, 1.01f, 3.8f); */
+  specular_ior_level = max(specular_ior_level, 0.0f);
+  specular_tint = max(specular_tint, float4(0.0f));
+  /* Not used by EEVEE */
+  /* anisotropic = saturate(anisotropic); */
+  transmission_weight = saturate(transmission_weight);
+  coat_weight = max(coat_weight, 0.0f);
+  coat_roughness = saturate(coat_roughness);
+  coat_ior = max(coat_ior, 1.0f);
+  coat_tint = max(coat_tint, float4(0.0f));
+  sheen_weight = max(sheen_weight, 0.0f);
+  sheen_roughness = saturate(sheen_roughness);
+  sheen_tint = max(sheen_tint, float4(0.0f));
+
+  base_color = max(base_color, float4(0.0f));
+  float4 clamped_base_color = min(base_color, float4(1.0f));
 
   N = safe_normalize(N);
   CN = safe_normalize(CN);
-  vec3 V = cameraVec(g_data.P);
+  float3 V = coordinate_incoming(g_data.P);
   float NV = dot(N, V);
 
-  ClosureTransparency transparency_data;
-  transparency_data.weight = weight;
-  transparency_data.transmittance = vec3(1.0 - alpha);
-  transparency_data.holdout = 0.0;
-  weight *= alpha;
+  /* Transparency component. */
+  if (true) {
+    ClosureTransparency transparency_data;
+    transparency_data.weight = weight;
+    transparency_data.transmittance = float3(1.0f - alpha);
+    transparency_data.holdout = 0.0f;
+    closure_eval(transparency_data);
+
+    weight *= alpha;
+  }
 
   /* First layer: Sheen */
-  /* TODO: Maybe sheen should be specular. */
-  vec3 sheen_color = sheen * sheen_tint.rgb * principled_sheen(NV, sheen_roughness);
-  ClosureDiffuse diffuse_data;
-  diffuse_data.color = weight * sheen_color;
-  diffuse_data.N = N;
-  /* Attenuate lower layers */
-  weight *= (1.0 - max_v3(sheen_color));
+  float3 sheen_data_color = float3(0.0f);
+  if (sheen_weight > 0.0f) {
+    /* TODO: Maybe sheen_weight should be specular. */
+    float3 sheen_color = sheen_weight * sheen_tint.rgb * principled_sheen(NV, sheen_roughness);
+    sheen_data_color = weight * sheen_color;
+    /* Attenuate lower layers */
+    weight *= max((1.0f - math_reduce_max(sheen_color)), 0.0f);
+  }
 
-  /* Second layer: Clearcoat */
-  ClosureReflection clearcoat_data;
-  clearcoat_data.N = CN;
-  clearcoat_data.roughness = clearcoat_roughness;
-  float coat_ior = 1.5;
-  float coat_NV = dot(clearcoat_data.N, V);
-  float reflectance = btdf_lut(coat_NV, clearcoat_data.roughness, coat_ior, 0.0).y;
-  clearcoat_data.weight = weight * clearcoat * reflectance;
-  clearcoat_data.color = vec3(1.0);
-  /* Attenuate lower layers */
-  weight *= (1.0 - reflectance * clearcoat);
+  /* Second layer: Coat */
+  if (coat_weight > 0.0f) {
+    float coat_NV = dot(CN, V);
+    float reflectance = bsdf_lut(coat_NV, coat_roughness, coat_ior, false).x;
 
-  /* Attenuated by sheen and clearcoat. */
-  ClosureEmission emission_data;
-  emission_data.weight = weight;
-  emission_data.emission = emission.rgb * emission_strength;
+    ClosureReflection coat_data;
+    coat_data.N = CN;
+    coat_data.roughness = coat_roughness;
+    coat_data.color = float3(1.0f);
+    coat_data.weight = weight * coat_weight * reflectance;
+    closure_eval(coat_data);
+
+    /* Attenuate lower layers */
+    weight *= max((1.0f - reflectance * coat_weight), 0.0f);
+
+    if (!all(equal(coat_tint.rgb, float3(1.0f)))) {
+      float coat_neta = 1.0f / coat_ior;
+      float NT = sqrt_fast(1.0f - coat_neta * coat_neta * (1 - NV * NV));
+      /* Tint lower layers. */
+      coat_tint.rgb = mix(
+          float3(1.0f), pow(coat_tint.rgb, float3(1.0f / NT)), saturate(coat_weight));
+    }
+  }
+  else {
+    coat_tint.rgb = float3(1.0f);
+  }
+
+  /* Emission component.
+   * Attenuated by sheen and coat.
+   */
+  if (true) {
+    ClosureEmission emission_data;
+    emission_data.weight = weight;
+    emission_data.emission = coat_tint.rgb * emission.rgb * emission_strength;
+    closure_eval(emission_data);
+  }
 
   /* Metallic component */
-  ClosureReflection reflection_data;
-  reflection_data.N = N;
-  reflection_data.roughness = roughness;
-  vec2 split_sum = brdf_lut(NV, roughness);
-  if (true) {
-    vec3 f0 = base_color.rgb;
-    vec3 f90 = vec3(1.0);
-    vec3 metallic_brdf = (do_multiscatter != 0.0) ? F_brdf_multi_scatter(f0, f90, split_sum) :
-                                                    F_brdf_single_scatter(f0, f90, split_sum);
-    reflection_data.color = weight * metallic * metallic_brdf;
+  float3 reflection_tint = specular_tint.rgb;
+  float3 reflection_color = float3(0.0f);
+  if (metallic > 0.0f) {
+    float3 F0 = clamped_base_color.rgb;
+    float3 F82 = min(reflection_tint, float3(1.0f));
+    float3 metallic_brdf;
+    brdf_f82_tint_lut(F0, F82, NV, roughness, do_multiscatter != 0.0f, metallic_brdf);
+    reflection_color = weight * metallic * metallic_brdf;
     /* Attenuate lower layers */
-    weight *= (1.0 - metallic);
+    weight *= max((1.0f - metallic), 0.0f);
   }
 
   /* Transmission component */
-  ClosureRefraction refraction_data;
-  /* TODO: change `specular_tint` to rgb. */
-  vec3 reflection_tint = mix(vec3(1.0), base_color.rgb, specular_tint);
-  if (true) {
-    vec2 bsdf = btdf_lut(NV, roughness, ior, do_multiscatter);
+  if (transmission_weight > 0.0f) {
+    float3 F0 = float3(F0_from_ior(ior)) * reflection_tint;
+    float3 F90 = float3(1.0f);
+    float3 reflectance, transmittance;
+    bsdf_lut(F0,
+             F90,
+             sqrt(clamped_base_color.rgb),
+             NV,
+             roughness,
+             ior,
+             do_multiscatter != 0.0f,
+             reflectance,
+             transmittance);
 
-    reflection_data.color += weight * transmission * bsdf.y * reflection_tint;
+    reflection_color += weight * transmission_weight * reflectance;
 
-    refraction_data.weight = weight * transmission * bsdf.x;
-    refraction_data.color = base_color.rgb;
+    ClosureRefraction refraction_data;
     refraction_data.N = N;
     refraction_data.roughness = roughness;
     refraction_data.ior = ior;
+    refraction_data.weight = weight * transmission_weight;
+    refraction_data.color = transmittance * coat_tint.rgb;
+    closure_eval(refraction_data);
+
     /* Attenuate lower layers */
-    weight *= (1.0 - transmission);
+    weight *= max((1.0f - transmission_weight), 0.0f);
   }
 
   /* Specular component */
   if (true) {
-    vec3 f0 = vec3(F0_from_ior(ior));
-    /* Gradually increase `f90` from 0 to 1 when IOR is in the range of [1.0, 1.33], to avoid harsh
-     * transition at `IOR == 1`. */
-    vec3 f90 = sqrt(saturate(f0 / 0.02));
-    f0 *= 2.0 * specular * reflection_tint;
+    float eta = ior;
+    float f0 = F0_from_ior(eta);
+    if (specular_ior_level != 0.5f) {
+      f0 *= 2.0f * specular_ior_level;
+      eta = ior_from_F0(f0);
+      if (ior < 1.0f) {
+        eta = 1.0f / eta;
+      }
+    }
 
-    vec3 specular_brdf = (do_multiscatter != 0.0) ? F_brdf_multi_scatter(f0, f90, split_sum) :
-                                                    F_brdf_single_scatter(f0, f90, split_sum);
-    reflection_data.color += weight * specular_brdf;
+    float3 F0 = float3(f0) * reflection_tint;
+    F0 = clamp(F0, float3(0.0f), float3(1.0f));
+    float3 F90 = float3(1.0f);
+    float3 reflectance, unused;
+    bsdf_lut(
+        F0, F90, float3(0.0f), NV, roughness, eta, do_multiscatter != 0.0f, reflectance, unused);
+
+    ClosureReflection reflection_data;
+    reflection_data.N = N;
+    reflection_data.roughness = roughness;
+    reflection_data.color = (reflection_color + weight * reflectance) * coat_tint.rgb;
+    /* `weight` is already applied in `color`. */
+    reflection_data.weight = 1.0f;
+    closure_eval(reflection_data);
+
     /* Attenuate lower layers */
-    weight *= (1.0 - max_v3(specular_brdf));
+    weight *= max((1.0f - math_reduce_max(reflectance)), 0.0f);
+  }
+
+  /* Subsurface component */
+  if (subsurface_weight > 0.0f) {
+    ClosureSubsurface sss_data;
+    sss_data.N = N;
+    sss_data.sss_radius = max(subsurface_radius * subsurface_scale, float3(0.0f));
+    /* Subsurface Scattering materials behave unpredictably with values greater than 1.0 in
+     * Cycles. So it's clamped there and we clamp here for consistency with Cycles. */
+    sss_data.color = (subsurface_weight * weight) * clamped_base_color.rgb * coat_tint.rgb;
+    /* Add energy of the sheen layer until we have proper sheen BSDF. */
+    sss_data.color += sheen_data_color;
+    /* `weight` is already applied in `color`. */
+    sss_data.weight = 1.0f;
+    closure_eval(sss_data);
+
+    /* Attenuate lower layers */
+    weight *= max((1.0f - subsurface_weight), 0.0f);
   }
 
   /* Diffuse component */
   if (true) {
-    vec3 diffuse_color = mix(base_color.rgb, subsurface_color.rgb, subsurface);
-    diffuse_data.sss_radius = subsurface_radius * subsurface;
-    diffuse_data.sss_id = uint(do_sss);
-    diffuse_data.color += weight * diffuse_color;
+    ClosureDiffuse diffuse_data;
+    diffuse_data.N = N;
+    diffuse_data.color = weight * base_color.rgb * coat_tint.rgb;
+    /* Add energy of the sheen layer until we have proper sheen BSDF. */
+    diffuse_data.color += sheen_data_color;
+    /* `weight` is already applied in `color`. */
+    diffuse_data.weight = 1.0f;
+    closure_eval(diffuse_data);
   }
 
-  /* Adjust the weight of picking the closure. */
-  reflection_data.weight = avg(reflection_data.color);
-  reflection_data.color *= safe_rcp(reflection_data.weight);
-  diffuse_data.weight = avg(diffuse_data.color);
-  diffuse_data.color *= safe_rcp(diffuse_data.weight);
-
-  /* Ref. #98190: Defines are optimizations for old compilers.
-   * Might become unnecessary with EEVEE-Next. */
-  if (do_diffuse == 0.0 && do_refraction == 0.0 && do_clearcoat != 0.0) {
-#ifdef PRINCIPLED_CLEARCOAT
-    /* Metallic & Clearcoat case. */
-    result = closure_eval(reflection_data, clearcoat_data);
-#endif
-  }
-  else if (do_diffuse == 0.0 && do_refraction == 0.0 && do_clearcoat == 0.0) {
-#ifdef PRINCIPLED_METALLIC
-    /* Metallic case. */
-    result = closure_eval(reflection_data);
-#endif
-  }
-  else if (do_diffuse != 0.0 && do_refraction == 0.0 && do_clearcoat == 0.0) {
-#ifdef PRINCIPLED_DIELECTRIC
-    /* Dielectric case. */
-    result = closure_eval(diffuse_data, reflection_data);
-#endif
-  }
-  else if (do_diffuse == 0.0 && do_refraction != 0.0 && do_clearcoat == 0.0) {
-#ifdef PRINCIPLED_GLASS
-    /* Glass case. */
-    result = closure_eval(reflection_data, refraction_data);
-#endif
-  }
-  else {
-#ifdef PRINCIPLED_ANY
-    /* Un-optimized case. */
-    result = closure_eval(diffuse_data, reflection_data, clearcoat_data, refraction_data);
-#endif
-  }
-  Closure emission_cl = closure_eval(emission_data);
-  Closure transparency_cl = closure_eval(transparency_data);
-  result = closure_add(result, emission_cl);
-  result = closure_add(result, transparency_cl);
+  result = Closure(0);
 }

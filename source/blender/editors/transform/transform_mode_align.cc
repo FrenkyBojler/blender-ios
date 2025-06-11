@@ -8,19 +8,19 @@
 
 #include <cstdlib>
 
-#include "BKE_context.h"
-
 #include "ED_screen.hh"
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Align)
@@ -32,7 +32,7 @@ static void applyAlign(TransInfo *t)
   int i;
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    /* saving original center */
+    /* Saving original center. */
     copy_v3_v3(center, tc->center_local);
     TransData *td = tc->data;
     for (i = 0; i < tc->data_len; i++, td++) {
@@ -42,7 +42,7 @@ static void applyAlign(TransInfo *t)
         continue;
       }
 
-      /* around local centers */
+      /* Around local centers. */
       if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
         copy_v3_v3(tc->center_local, td->center);
       }
@@ -58,13 +58,13 @@ static void applyAlign(TransInfo *t)
 
       ElementRotation(t, tc, td, mat, t->around);
     }
-    /* restoring original center */
+    /* Restoring original center. */
     copy_v3_v3(tc->center_local, center);
   }
 
   recalc_data(t);
 
-  ED_area_status_text(t->area, TIP_("Align"));
+  ED_area_status_text(t->area, IFACE_("Align"));
 }
 
 static void initAlign(TransInfo *t, wmOperator * /*op*/)
@@ -84,3 +84,5 @@ TransModeInfo TransMode_align = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

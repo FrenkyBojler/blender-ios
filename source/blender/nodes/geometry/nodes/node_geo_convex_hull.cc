@@ -2,13 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_curves.hh"
-#include "BKE_material.h"
+#include "BKE_grease_pencil.hh"
+#include "BKE_instances.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
+
+#include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
 
@@ -21,7 +23,7 @@ namespace blender::nodes::node_geo_convex_hull_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
-  b.add_output<decl::Geometry>("Convex Hull");
+  b.add_output<decl::Geometry>("Convex Hull").propagate_all_instance_attributes();
 }
 
 #ifdef WITH_BULLET
@@ -45,25 +47,20 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
     result = BKE_mesh_new_nomain(verts_num, edges_num, faces_num, loops_num);
     BKE_id_material_eval_ensure_default_slot(&result->id);
   }
-  BKE_mesh_smooth_flag_set(result, false);
+  bke::mesh_smooth_set(*result, false);
 
   /* Copy vertices. */
   MutableSpan<float3> dst_positions = result->vert_positions_for_write();
   for (const int i : IndexRange(verts_num)) {
+    float3 dummy_co;
     int original_index;
-    plConvexHullGetVertex(hull, i, dst_positions[i], &original_index);
-
-    if (original_index >= 0 && original_index < coords.size()) {
-#  if 0 /* Disabled because it only works for meshes, not predictable enough. */
-      /* Copy custom data on vertices, like vertex groups etc. */
-      if (mesh && original_index < mesh->totvert) {
-        CustomData_copy_data(&mesh->vert_data, &result->vert_data, int(original_index), int(i), 1);
-      }
-#  endif
+    plConvexHullGetVertex(hull, i, dummy_co, &original_index);
+    if (UNLIKELY(!coords.index_range().contains(original_index))) {
+      BLI_assert_unreachable();
+      dst_positions[i] = float3(0);
+      continue;
     }
-    else {
-      BLI_assert_msg(0, "Unexpected new vertex in hull output");
-    }
+    dst_positions[i] = coords[original_index];
   }
 
   /* Copy edges and loops. */
@@ -205,6 +202,53 @@ static Mesh *compute_hull(const GeometrySet &geometry_set)
   return hull_from_bullet(geometry_set.get_mesh(), positions);
 }
 
+static void convex_hull_grease_pencil(GeometrySet &geometry_set)
+{
+  using namespace blender::bke::greasepencil;
+
+  const GreasePencil &grease_pencil = *geometry_set.get_grease_pencil();
+  Array<Mesh *> mesh_by_layer(grease_pencil.layers().size(), nullptr);
+
+  for (const int layer_index : grease_pencil.layers().index_range()) {
+    const Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+    if (drawing == nullptr) {
+      continue;
+    }
+    const bke::CurvesGeometry &curves = drawing->strokes();
+    const Span<float3> positions_span = curves.evaluated_positions();
+    if (positions_span.is_empty()) {
+      continue;
+    }
+    mesh_by_layer[layer_index] = hull_from_bullet(nullptr, positions_span);
+  }
+
+  if (mesh_by_layer.is_empty()) {
+    return;
+  }
+
+  InstancesComponent &instances_component =
+      geometry_set.get_component_for_write<InstancesComponent>();
+  bke::Instances *instances = instances_component.get_for_write();
+  if (instances == nullptr) {
+    instances = new bke::Instances();
+    instances_component.replace(instances);
+  }
+  for (Mesh *mesh : mesh_by_layer) {
+    if (!mesh) {
+      /* Add an empty reference so the number of layers and instances match.
+       * This makes it easy to reconstruct the layers afterwards and keep their attributes.
+       * Although in this particular case we don't propagate the attributes. */
+      const int handle = instances->add_reference(bke::InstanceReference());
+      instances->add_instance(handle, float4x4::identity());
+      continue;
+    }
+    GeometrySet temp_set = GeometrySet::from_mesh(mesh);
+    const int handle = instances->add_reference(bke::InstanceReference{temp_set});
+    instances->add_instance(handle, float4x4::identity());
+  }
+  geometry_set.replace_grease_pencil(nullptr);
+}
+
 #endif /* WITH_BULLET */
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -215,7 +259,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     Mesh *mesh = compute_hull(geometry_set);
+    if (mesh) {
+      geometry::debug_randomize_mesh_order(mesh);
+    }
     geometry_set.replace_mesh(mesh);
+    if (geometry_set.has_grease_pencil()) {
+      convex_hull_grease_pencil(geometry_set);
+    }
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
   });
 
@@ -229,12 +279,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
-
-  geo_node_type_base(&ntype, GEO_NODE_CONVEX_HULL, "Convex Hull", NODE_CLASS_GEOMETRY);
+  static blender::bke::bNodeType ntype;
+  geo_node_type_base(&ntype, "GeometryNodeConvexHull", GEO_NODE_CONVEX_HULL);
+  ntype.ui_name = "Convex Hull";
+  ntype.ui_description =
+      "Create a mesh that encloses all points in the input geometry with the smallest number of "
+      "points";
+  ntype.enum_name_legacy = "CONVEX_HULL";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

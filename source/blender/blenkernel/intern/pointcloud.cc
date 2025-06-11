@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include <optional>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_defaults.h"
@@ -15,46 +17,42 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_index_range.hh"
-#include "BLI_listbase.h"
-#include "BLI_math_vector.hh"
-#include "BLI_rand.h"
+#include "BLI_resource_scope.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
-#include "BKE_anim_data.h"
-#include "BKE_customdata.h"
+#include "BKE_anim_data.hh"
+#include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
+#include "BKE_bake_data_block_id.hh"
+#include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
-#include "BKE_idtype.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
-#include "BKE_lib_remap.h"
-#include "BKE_main.h"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "BKE_pointcloud.h"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
+#include "BKE_modifier.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
+#include "BKE_pointcloud.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "DEG_depsgraph_query.h"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLO_read_write.hh"
 
+using blender::CPPType;
 using blender::float3;
 using blender::IndexRange;
+using blender::MutableSpan;
 using blender::Span;
+using blender::StringRef;
+using blender::VArray;
 using blender::Vector;
 
-/* PointCloud datablock */
-
-static void pointcloud_random(PointCloud *pointcloud);
-
-const char *POINTCLOUD_ATTR_POSITION = "position";
-const char *POINTCLOUD_ATTR_RADIUS = "radius";
+constexpr StringRef ATTR_POSITION = "position";
 
 static void pointcloud_init_data(ID *id)
 {
@@ -63,14 +61,12 @@ static void pointcloud_init_data(ID *id)
 
   MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
 
-  CustomData_reset(&pointcloud->pdata);
-  pointcloud->attributes_for_write().add<float3>(
-      "position", ATTR_DOMAIN_POINT, blender::bke::AttributeInitConstruct());
-
+  new (&pointcloud->attribute_storage.wrap()) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 }
 
 static void pointcloud_copy_data(Main * /*bmain*/,
+                                 std::optional<Library *> /*owner_library*/,
                                  ID *id_dst,
                                  const ID *id_src,
                                  const int /*flag*/)
@@ -79,11 +75,19 @@ static void pointcloud_copy_data(Main * /*bmain*/,
   const PointCloud *pointcloud_src = (const PointCloud *)id_src;
   pointcloud_dst->mat = static_cast<Material **>(MEM_dupallocN(pointcloud_src->mat));
 
-  CustomData_copy(
-      &pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, pointcloud_dst->totpoint);
+  new (&pointcloud_dst->attribute_storage.wrap())
+      blender::bke::AttributeStorage(pointcloud_src->attribute_storage.wrap());
 
   pointcloud_dst->runtime = new blender::bke::PointCloudRuntime();
   pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
+  pointcloud_dst->runtime->bounds_with_radius_cache =
+      pointcloud_src->runtime->bounds_with_radius_cache;
+  pointcloud_dst->runtime->bvh_cache = pointcloud_src->runtime->bvh_cache;
+  if (pointcloud_src->runtime->bake_materials) {
+    pointcloud_dst->runtime->bake_materials =
+        std::make_unique<blender::bke::bake::BakeMaterialsList>(
+            *pointcloud_src->runtime->bake_materials);
+  }
 
   pointcloud_dst->batch_cache = nullptr;
 }
@@ -93,7 +97,7 @@ static void pointcloud_free_data(ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
   BKE_animdata_free(&pointcloud->id, false);
   BKE_pointcloud_batch_cache_free(pointcloud);
-  CustomData_free(&pointcloud->pdata, pointcloud->totpoint);
+  pointcloud->attribute_storage.wrap().~AttributeStorage();
   MEM_SAFE_FREE(pointcloud->mat);
   delete pointcloud->runtime;
 }
@@ -108,22 +112,23 @@ static void pointcloud_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
+  using namespace blender;
+  using namespace blender::bke;
   PointCloud *pointcloud = (PointCloud *)id;
 
-  Vector<CustomDataLayer, 16> point_layers;
-  CustomData_blend_write_prepare(pointcloud->pdata, point_layers);
+  ResourceScope scope;
+  bke::AttributeStorage::BlendWriteData attribute_data{scope};
+  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), {}, attribute_data);
+  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
+  pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
+  pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
   BKE_id_blend_write(writer, &pointcloud->id);
 
   /* Direct data */
-  CustomData_blend_write(writer,
-                         &pointcloud->pdata,
-                         point_layers,
-                         pointcloud->totpoint,
-                         CD_MASK_ALL,
-                         &pointcloud->id);
+  pointcloud->attribute_storage.wrap().blend_write(*writer, attribute_data);
 
   BLO_write_pointer_array(writer, pointcloud->totcol, pointcloud->mat);
 }
@@ -133,21 +138,23 @@ static void pointcloud_blend_read_data(BlendDataReader *reader, ID *id)
   PointCloud *pointcloud = (PointCloud *)id;
 
   /* Geometry */
-  CustomData_blend_read(reader, &pointcloud->pdata, pointcloud->totpoint);
+  CustomData_blend_read(reader, &pointcloud->pdata_legacy, pointcloud->totpoint);
+  pointcloud->attribute_storage.wrap().blend_read(*reader);
 
   /* Materials */
-  BLO_read_pointer_array(reader, (void **)&pointcloud->mat);
+  BLO_read_pointer_array(reader, pointcloud->totcol, (void **)&pointcloud->mat);
 
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
 }
 
 IDTypeInfo IDType_ID_PT = {
-    /*id_code*/ ID_PT,
+    /*id_code*/ PointCloud::id_type,
     /*id_filter*/ FILTER_ID_PT,
+    /*dependencies_id_types*/ FILTER_ID_MA,
     /*main_listbase_index*/ INDEX_ID_PT,
     /*struct_size*/ sizeof(PointCloud),
     /*name*/ "PointCloud",
-    /*name_plural*/ "pointclouds",
+    /*name_plural*/ N_("pointclouds"),
     /*translation_context*/ BLT_I18NCONTEXT_ID_POINTCLOUD,
     /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     /*asset_type_info*/ nullptr,
@@ -170,45 +177,103 @@ IDTypeInfo IDType_ID_PT = {
     /*lib_override_apply_post*/ nullptr,
 };
 
-static void pointcloud_random(PointCloud *pointcloud)
+template<typename T>
+static VArray<T> get_varray_attribute(const PointCloud &pointcloud,
+                                      const StringRef name,
+                                      const T default_value)
 {
-  BLI_assert(pointcloud->totpoint == 0);
-  pointcloud->totpoint = 400;
-  CustomData_realloc(&pointcloud->pdata, 0, pointcloud->totpoint);
-
-  RNG *rng = BLI_rng_new(0);
-
-  blender::bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
-  blender::MutableSpan<float3> positions = pointcloud->positions_for_write();
-  blender::bke::SpanAttributeWriter<float> radii =
-      attributes.lookup_or_add_for_write_only_span<float>(POINTCLOUD_ATTR_RADIUS,
-                                                          ATTR_DOMAIN_POINT);
-
-  for (const int i : positions.index_range()) {
-    positions[i] = float3(BLI_rng_get_float(rng), BLI_rng_get_float(rng), BLI_rng_get_float(rng)) *
-                       2.0f -
-                   1.0f;
-    radii.span[i] = 0.05f * BLI_rng_get_float(rng);
+  using namespace blender;
+  const bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
+  if (!attr) {
+    return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
   }
-
-  radii.finish();
-
-  BLI_rng_free(rng);
+  switch (attr->storage_type()) {
+    case bke::AttrStorageType::Array: {
+      const auto &data = std::get<bke::Attribute::ArrayData>(attr->data());
+      const Span span(static_cast<const T *>(data.data), data.size);
+      BLI_assert(data.size == pointcloud.totpoint);
+      return VArray<T>::ForSpan(span);
+    }
+    case bke::AttrStorageType::Single: {
+      const auto &data = std::get<bke::Attribute::SingleData>(attr->data());
+      return VArray<T>::ForSingle(*static_cast<const T *>(data.value), pointcloud.totpoint);
+    }
+  }
+  return VArray<T>::ForSingle(default_value, pointcloud.totpoint);
 }
 
-void *BKE_pointcloud_add(Main *bmain, const char *name)
+template<typename T>
+static Span<T> get_span_attribute(const PointCloud &pointcloud, const StringRef name)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_id_new(bmain, ID_PT, name));
-
-  return pointcloud;
+  using namespace blender;
+  const bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name);
+  if (!attr) {
+    return {};
+  }
+  if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
+    BLI_assert(array_data->size == pointcloud.totpoint);
+    return Span(static_cast<const T *>(array_data->data), array_data->size);
+  }
+  return {};
 }
 
-void *BKE_pointcloud_add_default(Main *bmain, const char *name)
+template<typename T>
+static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
+                                            const StringRef name,
+                                            const T default_value = T())
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(bmain, ID_PT, name, 0));
+  using namespace blender;
+  if (pointcloud.totpoint <= 0) {
+    return {};
+  }
+  const bke::AttrType type = bke::cpp_type_to_attribute_type(CPPType::get<T>());
+  if (bke::Attribute *attr = pointcloud.attribute_storage.wrap().lookup(name)) {
+    if (attr->data_type() == type) {
+      if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
+        /* Convert single value storage to array storage. */
+        const GPointer g_value(CPPType::get<T>(), single_data->value);
+        attr->data_for_write() = bke::Attribute::ArrayData::ForValue(g_value, pointcloud.totpoint);
+      }
+      auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
+      BLI_assert(array_data.size == pointcloud.totpoint);
+      return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
+    }
+    /* The attribute has the wrong type. This shouldn't happen for builtin attributes, but just in
+     * case, remove it. */
+    pointcloud.attribute_storage.wrap().remove(name);
+  }
+  bke::Attribute &attr = pointcloud.attribute_storage.wrap().add(
+      name,
+      bke::AttrDomain::Point,
+      type,
+      bke::Attribute::ArrayData::ForValue({CPPType::get<T>(), &default_value},
+                                          pointcloud.totpoint));
+  auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
+  BLI_assert(array_data.size == pointcloud.totpoint);
+  return MutableSpan(static_cast<T *>(array_data.data), pointcloud.totpoint);
+}
 
-  pointcloud_init_data(&pointcloud->id);
-  pointcloud_random(pointcloud);
+Span<float3> PointCloud::positions() const
+{
+  return get_span_attribute<float3>(*this, "position");
+}
+MutableSpan<float3> PointCloud::positions_for_write()
+{
+  return get_mutable_attribute<float3>(*this, "position");
+}
+
+VArray<float> PointCloud::radius() const
+{
+  return get_varray_attribute<float>(*this, "radius", 0.01f);
+}
+MutableSpan<float> PointCloud::radius_for_write()
+{
+  return get_mutable_attribute<float>(*this, "radius", 0.01f);
+}
+
+PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
+{
+  PointCloud *pointcloud = BKE_id_new<PointCloud>(bmain, name);
 
   return pointcloud;
 }
@@ -218,80 +283,101 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
       nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
 
-  pointcloud_init_data(&pointcloud->id);
+  BKE_libblock_init_empty(&pointcloud->id);
 
-  CustomData_realloc(&pointcloud->pdata, 0, totpoint);
   pointcloud->totpoint = totpoint;
+
+  pointcloud->attributes_for_write().add<float3>(
+      "position", blender::bke::AttrDomain::Point, blender::bke::AttributeInitConstruct());
 
   return pointcloud;
 }
 
 void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud *pointcloud_dst)
 {
-  BLI_assert(pointcloud_src->id.tag & LIB_TAG_NO_MAIN);
+  BLI_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
 
-  CustomData_free(&pointcloud_dst->pdata, pointcloud_dst->totpoint);
-
-  const int totpoint = pointcloud_dst->totpoint = pointcloud_src->totpoint;
-  CustomData_copy(&pointcloud_src->pdata, &pointcloud_dst->pdata, CD_MASK_ALL, totpoint);
-
+  pointcloud_dst->totpoint = pointcloud_src->totpoint;
+  pointcloud_dst->attribute_storage.wrap() = std::move(pointcloud_src->attribute_storage.wrap());
+  pointcloud_dst->runtime->bounds_cache = pointcloud_src->runtime->bounds_cache;
+  pointcloud_dst->runtime->bounds_with_radius_cache =
+      pointcloud_src->runtime->bounds_with_radius_cache;
+  pointcloud_dst->runtime->bvh_cache = pointcloud_src->runtime->bvh_cache;
   BKE_id_free(nullptr, pointcloud_src);
 }
 
-std::optional<blender::Bounds<blender::float3>> PointCloud::bounds_min_max() const
+std::optional<blender::Bounds<float3>> PointCloud::bounds_min_max(const bool use_radius) const
 {
   using namespace blender;
   using namespace blender::bke;
   if (this->totpoint == 0) {
     return std::nullopt;
   }
-  this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_bounds) {
-    const AttributeAccessor attributes = this->attributes();
-    const Span<float3> positions = this->positions();
-    if (attributes.contains(POINTCLOUD_ATTR_RADIUS)) {
-      const VArraySpan radii = *attributes.lookup<float>(POINTCLOUD_ATTR_RADIUS);
-      r_bounds = *bounds::min_max_with_radii(positions, radii);
-    }
-    else {
-      r_bounds = *bounds::min_max(positions);
-    }
-  });
-  return this->runtime->bounds_cache.data();
-}
-
-BoundBox *BKE_pointcloud_boundbox_get(Object *ob)
-{
-  using namespace blender;
-  BLI_assert(ob->type == OB_POINTCLOUD);
-  if (ob->runtime.bb != nullptr && (ob->runtime.bb->flag & BOUNDBOX_DIRTY) == 0) {
-    return ob->runtime.bb;
-  }
-  if (ob->runtime.bb == nullptr) {
-    ob->runtime.bb = MEM_cnew<BoundBox>(__func__);
-  }
-
-  std::optional<Bounds<float3>> bounds;
-  if (ob->runtime.geometry_set_eval) {
-    bounds = ob->runtime.geometry_set_eval->compute_boundbox_without_instances();
+  if (use_radius) {
+    this->runtime->bounds_with_radius_cache.ensure([&](Bounds<float3> &r_bounds) {
+      const VArray<float> radius = this->radius();
+      if (const std::optional radius_single = radius.get_if_single()) {
+        r_bounds = *this->bounds_min_max(false);
+        r_bounds.pad(*radius_single);
+        return;
+      }
+      const Span radius_span = radius.get_internal_span();
+      r_bounds = *bounds::min_max_with_radii(this->positions(), radius_span);
+    });
   }
   else {
-    const PointCloud *pointcloud = static_cast<PointCloud *>(ob->data);
-    bounds = pointcloud->bounds_min_max();
+    this->runtime->bounds_cache.ensure(
+        [&](Bounds<float3> &r_bounds) { r_bounds = *bounds::min_max(this->positions()); });
   }
-
-  if (bounds) {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, bounds->min, bounds->max);
-  }
-  else {
-    BKE_boundbox_init_from_minmax(ob->runtime.bb, float3(-1), float3(1));
-  }
-
-  return ob->runtime.bb;
+  return use_radius ? this->runtime->bounds_with_radius_cache.data() :
+                      this->runtime->bounds_cache.data();
 }
 
-bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const char *name)
+std::optional<int> PointCloud::material_index_max() const
 {
-  return STREQ(name, POINTCLOUD_ATTR_POSITION);
+  if (this->totpoint == 0) {
+    return std::nullopt;
+  }
+  std::optional<int> max_material_index = blender::bounds::max<int>(
+      this->attributes()
+          .lookup_or_default<int>("material_index", blender::bke::AttrDomain::Point, 0)
+          .varray);
+  if (max_material_index.has_value()) {
+    max_material_index = std::clamp(*max_material_index, 0, MAXMAT);
+  }
+  return max_material_index;
+}
+
+void PointCloud::count_memory(blender::MemoryCounter &memory) const
+{
+  this->attribute_storage.wrap().count_memory(memory);
+}
+
+blender::bke::AttributeAccessor PointCloud::attributes() const
+{
+  return blender::bke::AttributeAccessor(this,
+                                         blender::bke::pointcloud_attribute_accessor_functions());
+}
+
+blender::bke::MutableAttributeAccessor PointCloud::attributes_for_write()
+{
+  return blender::bke::MutableAttributeAccessor(
+      this, blender::bke::pointcloud_attribute_accessor_functions());
+}
+
+bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/,
+                                       const blender::StringRef name)
+{
+  return name == ATTR_POSITION;
+}
+
+void pointcloud_copy_parameters(const PointCloud &src, PointCloud &dst)
+{
+  dst.flag = src.flag;
+  MEM_SAFE_FREE(dst.mat);
+  dst.mat = MEM_malloc_arrayN<Material *>(src.totcol, __func__);
+  dst.totcol = src.totcol;
+  MutableSpan(dst.mat, dst.totcol).copy_from(Span(src.mat, src.totcol));
 }
 
 /* Dependency Graph */
@@ -377,17 +463,19 @@ void BKE_pointcloud_data_update(Depsgraph *depsgraph, Scene *scene, Object *obje
   /* Assign evaluated object. */
   const bool eval_is_owned = pointcloud_eval != pointcloud;
   BKE_object_eval_assign_data(object, &pointcloud_eval->id, eval_is_owned);
-  object->runtime.geometry_set_eval = new blender::bke::GeometrySet(std::move(geometry_set));
+  object->runtime->geometry_set_eval = new blender::bke::GeometrySet(std::move(geometry_set));
 }
 
 void PointCloud::tag_positions_changed()
 {
   this->runtime->bounds_cache.tag_dirty();
+  this->runtime->bounds_with_radius_cache.tag_dirty();
+  this->runtime->bvh_cache.tag_dirty();
 }
 
 void PointCloud::tag_radii_changed()
 {
-  this->runtime->bounds_cache.tag_dirty();
+  this->runtime->bounds_with_radius_cache.tag_dirty();
 }
 
 /* Draw Cache */
@@ -408,3 +496,14 @@ void BKE_pointcloud_batch_cache_free(PointCloud *pointcloud)
     BKE_pointcloud_batch_cache_free_cb(pointcloud);
   }
 }
+
+namespace blender::bke {
+
+PointCloud *pointcloud_new_no_attributes(int totpoint)
+{
+  PointCloud *pointcloud = BKE_id_new_nomain<PointCloud>(nullptr);
+  pointcloud->totpoint = totpoint;
+  return pointcloud;
+}
+
+}  // namespace blender::bke

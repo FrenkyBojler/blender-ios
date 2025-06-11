@@ -6,7 +6,6 @@
  * \ingroup edrend
  */
 
-#include <cmath>
 #include <cstddef>
 #include <cstring>
 
@@ -15,38 +14,35 @@
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
-#include "BLI_string_utils.h"
-#include "BLI_threads.h"
+#include "BLI_string_utils.hh"
+#include "BLI_time.h"
 #include "BLI_timecode.h"
 #include "BLI_utildefines.h"
 
-#include "PIL_time.h"
-
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
-#include "BKE_colortools.h"
-#include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_image_format.h"
-#include "BKE_layer.h"
-#include "BKE_lib_id.h"
-#include "BKE_main.h"
-#include "BKE_node.hh"
-#include "BKE_node_tree_update.h"
-#include "BKE_object.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
+#include "BKE_colortools.hh"
+#include "BKE_context.hh"
+#include "BKE_global.hh"
+#include "BKE_image.hh"
+#include "BKE_image_format.hh"
+#include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_main.hh"
+#include "BKE_node_tree_update.hh"
+#include "BKE_object.hh"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
-#include "NOD_composite.h"
+#include "NOD_composite.hh"
 
-#include "DEG_depsgraph.h"
+#include "DEG_depsgraph.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -60,28 +56,23 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "SEQ_relations.h"
+#include "SEQ_relations.hh"
 
 #include "render_intern.hh"
 
 /* Render Callbacks */
 static bool render_break(void *rjv);
 
-struct RenderJob {
+struct RenderJob : public RenderJobBase {
   Main *main;
-  Scene *scene;
+  ViewLayer *view_layer;
   ViewLayer *single_layer;
-  Scene *current_scene;
-  /* TODO(sergey): Should not be needed once engine will have its own
-   * depsgraph and copy-on-write will be implemented.
-   */
-  Depsgraph *depsgraph;
   Render *re;
   Object *camera_override;
   bool v3d_override;
@@ -98,7 +89,6 @@ struct RenderJob {
   ScrArea *area;
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
-  bool supports_glsl_draw;
   bool interface_locked;
 };
 
@@ -182,8 +172,8 @@ static void image_buffer_rect_update(RenderJob *rj,
   Scene *scene = rj->scene;
   const float *rectf = nullptr;
   int linear_stride, linear_offset_x, linear_offset_y;
-  ColorManagedViewSettings *view_settings;
-  ColorManagedDisplaySettings *display_settings;
+  const ColorManagedViewSettings *view_settings;
+  const ColorManagedDisplaySettings *display_settings;
 
   if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
     /* The whole image buffer is to be color managed again anyway. */
@@ -304,7 +294,7 @@ static void screen_render_single_layer_set(
 }
 
 /* executes blocking render */
-static int screen_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
@@ -347,7 +337,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
    * since sequence rendering can call that recursively... (peter) */
-  SEQ_cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene);
 
   RE_SetReports(re, op->reports);
 
@@ -403,7 +393,7 @@ static void render_freejob(void *rjv)
   RenderJob *rj = static_cast<RenderJob *>(rjv);
 
   BKE_color_managed_view_settings_free(&rj->view_settings);
-  MEM_freeN(rj);
+  MEM_delete(rj);
 }
 
 static void make_renderinfo_string(const RenderStats *rs,
@@ -432,17 +422,17 @@ static void make_renderinfo_string(const RenderStats *rs,
 
   /* local view */
   if (rs->localview) {
-    ret_array[i++] = TIP_("3D Local View ");
+    ret_array[i++] = RPT_("3D Local View ");
     ret_array[i++] = info_sep;
   }
   else if (v3d_override) {
-    ret_array[i++] = TIP_("3D View ");
+    ret_array[i++] = RPT_("3D View ");
     ret_array[i++] = info_sep;
   }
 
   /* frame number */
   SNPRINTF(info_buffers.frame, "%d ", scene->r.cfra);
-  ret_array[i++] = TIP_("Frame:");
+  ret_array[i++] = RPT_("Frame:");
   ret_array[i++] = info_buffers.frame;
 
   /* Previous and elapsed time. */
@@ -461,10 +451,10 @@ static void make_renderinfo_string(const RenderStats *rs,
     info_time = info_buffers.time_elapsed;
     BLI_timecode_string_from_time_simple(info_buffers.time_elapsed,
                                          sizeof(info_buffers.time_elapsed),
-                                         PIL_check_seconds_timer() - rs->starttime);
+                                         BLI_time_now_seconds() - rs->starttime);
   }
 
-  ret_array[i++] = TIP_("Time:");
+  ret_array[i++] = RPT_("Time:");
   ret_array[i++] = info_time;
   ret_array[i++] = info_space;
 
@@ -479,13 +469,13 @@ static void make_renderinfo_string(const RenderStats *rs,
     else {
       if (rs->mem_peak == 0.0f) {
         SNPRINTF(info_buffers.statistics,
-                 TIP_("Mem:%.2fM (Peak %.2fM)"),
+                 RPT_("Mem:%.2fM (Peak %.2fM)"),
                  megs_used_memory,
                  megs_peak_memory);
       }
       else {
         SNPRINTF(
-            info_buffers.statistics, TIP_("Mem:%.2fM, Peak: %.2fM"), rs->mem_used, rs->mem_peak);
+            info_buffers.statistics, RPT_("Mem:%.2fM, Peak: %.2fM"), rs->mem_used, rs->mem_peak);
       }
       info_statistics = info_buffers.statistics;
     }
@@ -532,9 +522,9 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   rr = RE_AcquireResultRead(rj->re);
 
   if (rr) {
-    /* malloc OK here, stats_draw is not in tile threads */
+    /* `malloc` is OK here, `stats_draw` is not in tile threads. */
     if (rr->text == nullptr) {
-      rr->text = static_cast<char *>(MEM_callocN(IMA_MAX_RENDER_TEXT_SIZE, "rendertext"));
+      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);
@@ -668,9 +658,7 @@ static void image_rect_update(void *rjv, RenderResult *rr, rcti *renrect)
      * this case GLSL doesn't have original float buffer to
      * operate with.
      */
-    if (!rj->supports_glsl_draw || ibuf->channels == 1 ||
-        ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL)
-    {
+    if (ibuf->channels == 1 || ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL) {
       image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, &tile_rect, offset_x, offset_y, viewname);
     }
     ImageTile *image_tile = BKE_image_get_tile(ima, 0);
@@ -701,13 +689,13 @@ static void current_scene_update(void *rjv, Scene *scene)
   rj->iuser.scene = scene;
 }
 
-static void render_startjob(void *rjv, bool *stop, bool *do_update, float *progress)
+static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
 
-  rj->stop = stop;
-  rj->do_update = do_update;
-  rj->progress = progress;
+  rj->stop = &worker_status->stop;
+  rj->do_update = &worker_status->do_update;
+  rj->progress = &worker_status->progress;
 
   RE_SetReports(rj->re, rj->reports);
 
@@ -784,23 +772,31 @@ static void render_endjob(void *rjv)
     BKE_main_free(rj->main);
   }
 
-  /* else the frame will not update for the original value */
+  /* Update depsgraph for returning to the original frame before animation render job. */
   if (rj->anim && !(rj->scene->r.scemode & R_NO_FRAME_UPDATE)) {
-    /* possible this fails of loading new file while rendering */
+    /* Possible this fails when loading new file while rendering. */
     if (G_MAIN->wm.first) {
-      ED_update_for_newframe(G_MAIN, rj->depsgraph);
+      /* Check view layer was not deleted during render. Technically another view layer
+       * may get allocated with the same pointer, but worst case it will cause an
+       * unnecessary update. */
+      if (BLI_findindex(&rj->scene->view_layers, rj->view_layer) != -1) {
+        Depsgraph *depsgraph = BKE_scene_get_depsgraph(rj->scene, rj->view_layer);
+        if (depsgraph) {
+          ED_update_for_newframe(G_MAIN, depsgraph);
+        }
+      }
     }
   }
 
   /* XXX above function sets all tags in nodes */
-  ntreeCompositClearTags(rj->scene->nodetree);
+  ntreeCompositClearTags(rj->scene->compositing_node_group);
 
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
 
   if (rj->single_layer) {
     BKE_ntree_update_tag_id_changed(rj->main, &rj->scene->id);
-    BKE_ntree_update_main(rj->main, nullptr);
+    BKE_ntree_update(*rj->main);
     WM_main_add_notifier(NC_NODE | NA_EDITED, rj->scene);
   }
 
@@ -878,7 +874,7 @@ static bool render_break(void * /*rjv*/)
   return false;
 }
 
-/* runs in thread, no cursor setting here works. careful with notifiers too (malloc conflicts) */
+/* runs in thread, no cursor setting here works. careful with notifiers too (`malloc` conflicts) */
 /* maybe need a way to get job send notifier? */
 static void render_drawlock(void *rjv, bool lock)
 {
@@ -891,7 +887,7 @@ static void render_drawlock(void *rjv, bool lock)
 }
 
 /** Catch escape key to cancel. */
-static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Scene *scene = (Scene *)op->customdata;
 
@@ -901,11 +897,7 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
   }
 
   /* running render */
-  switch (event->type) {
-    case EVT_ESCKEY:
-      return OPERATOR_RUNNING_MODAL;
-  }
-  return OPERATOR_PASS_THROUGH;
+  return (event->type == EVT_ESCKEY) ? OPERATOR_RUNNING_MODAL : OPERATOR_PASS_THROUGH;
 }
 
 static void screen_render_cancel(bContext *C, wmOperator *op)
@@ -925,11 +917,11 @@ static void clean_viewport_memory_base(Base *base)
 
   Object *object = base->object;
 
-  if (object->id.tag & LIB_TAG_DOIT) {
+  if (object->id.tag & ID_TAG_DOIT) {
     return;
   }
 
-  object->id.tag &= ~LIB_TAG_DOIT;
+  object->id.tag &= ~ID_TAG_DOIT;
   if (RE_allow_render_generic_object(object)) {
     BKE_object_free_derived_caches(object);
   }
@@ -941,7 +933,7 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
   Base *base;
 
   /* Tag all the available objects. */
-  BKE_main_id_tag_listbase(&bmain->objects, LIB_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
 
   /* Go over all the visible objects. */
 
@@ -963,7 +955,7 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
 }
 
 /* using context, starts job */
-static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* new render clears all callbacks */
   Main *bmain = CTX_data_main(C);
@@ -1008,7 +1000,9 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
   /* Reports are done inside check function, and it will return false if there are other strips to
    * render. */
-  if ((scene->r.scemode & R_DOSEQ) && SEQ_relations_check_scene_recursion(scene, op->reports)) {
+  if ((scene->r.scemode & R_DOSEQ) &&
+      blender::seq::relations_check_scene_recursion(scene, op->reports))
+  {
     return OPERATOR_CANCELLED;
   }
 
@@ -1026,30 +1020,23 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   /* flush sculpt and editmode changes */
   ED_editors_flush_edits_ex(bmain, true, false);
 
-  /* cleanup sequencer caches before starting user triggered render.
-   * otherwise, invalidated cache entries can make their way into
-   * the output rendering. We can't put that into RE_RenderFrame,
-   * since sequence rendering can call that recursively... (peter) */
-  SEQ_cache_cleanup(scene);
+  /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
+  blender::seq::cache_cleanup(scene);
 
   /* store spare
-   * get view3d layer, local layer, make this nice api call to render
+   * get view3d layer, local layer, make this nice API call to render
    * store spare */
 
   /* ensure at least 1 area shows result */
   area = render_view_open(C, event->xy[0], event->xy[1], op->reports);
 
   /* job custom data */
-  rj = MEM_cnew<RenderJob>("render job");
+  rj = MEM_new<RenderJob>("render job");
   rj->main = bmain;
   rj->scene = scene;
   rj->current_scene = rj->scene;
+  rj->view_layer = CTX_data_view_layer(C);
   rj->single_layer = single_layer;
-  /* TODO(sergey): Render engine should be using its own depsgraph.
-   *
-   * NOTE: Currently is only used by ED_update_for_newframe() at the end of the render, so no
-   * need to ensure evaluation here. */
-  rj->depsgraph = CTX_data_depsgraph_pointer(C);
   rj->camera_override = camera_override;
   rj->anim = is_animation;
   rj->write_still = is_write_still && !is_animation;
@@ -1058,7 +1045,6 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
-  rj->supports_glsl_draw = IMB_colormanagement_support_glsl_draw(&scene->view_settings);
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
@@ -1163,7 +1149,7 @@ void RENDER_OT_render(wmOperatorType *ot)
   ot->description = "Render active scene";
   ot->idname = "RENDER_OT_render";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_render_invoke;
   ot->modal = screen_render_modal;
   ot->cancel = screen_render_cancel;
@@ -1185,7 +1171,7 @@ void RENDER_OT_render(wmOperatorType *ot)
       "write_still",
       false,
       "Write Image",
-      "Save rendered the image to the output path (used only when animation is disabled)");
+      "Save the rendered image to the output path (used only when animation is disabled)");
   prop = RNA_def_boolean(ot->srna,
                          "use_viewport",
                          false,
@@ -1211,7 +1197,7 @@ void RENDER_OT_render(wmOperatorType *ot)
 Scene *ED_render_job_get_scene(const bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJob *rj = (RenderJob *)WM_jobs_customdata_from_type(
+  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
       wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
 
   if (rj) {
@@ -1224,7 +1210,7 @@ Scene *ED_render_job_get_scene(const bContext *C)
 Scene *ED_render_job_get_current_scene(const bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJob *rj = (RenderJob *)WM_jobs_customdata_from_type(
+  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
       wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
   if (rj) {
     return rj->current_scene;
@@ -1234,7 +1220,7 @@ Scene *ED_render_job_get_current_scene(const bContext *C)
 
 /* Motion blur curve preset */
 
-static int render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   CurveMapping *mblur_shutter_curve = &scene->r.mblur_shutter_curve;

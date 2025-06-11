@@ -8,17 +8,17 @@
 
 #include <cstring>
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_immediate.h"
+#include "GPU_immediate.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -64,7 +64,7 @@ void console_scrollback_prompt_begin(SpaceConsole *sc, ConsoleLine *cl_dummy)
   cl_dummy->type = CONSOLE_LINE_INPUT;
   cl_dummy->len = prompt_len + cl->len;
   cl_dummy->len_alloc = cl_dummy->len + 1;
-  cl_dummy->line = static_cast<char *>(MEM_mallocN(cl_dummy->len_alloc, "cl_dummy"));
+  cl_dummy->line = MEM_malloc_arrayN<char>(cl_dummy->len_alloc, "cl_dummy");
   memcpy(cl_dummy->line, sc->prompt, prompt_len);
   memcpy(cl_dummy->line + prompt_len, cl->line, cl->len + 1);
   BLI_addtail(&sc->scrollback, cl_dummy);
@@ -112,9 +112,11 @@ static void console_cursor_wrap_offset(
     const char *str, int width, int *row, int *column, const char *end)
 {
   int col;
+  const int tab_width = 4;
 
   for (; *str; str += BLI_str_utf8_size_safe(str)) {
-    col = BLI_str_utf8_char_width_safe(str);
+    col = UNLIKELY(*str == '\t') ? (tab_width - (*column % tab_width)) :
+                                   BLI_str_utf8_char_width_safe(str);
 
     if (*column + col > width) {
       (*row)++;
@@ -151,7 +153,7 @@ static void console_textview_draw_cursor(TextViewContext *tvc, int cwidth, int c
 
   /* cursor */
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColor(TH_CONSOLE_CURSOR);
 
@@ -217,8 +219,15 @@ static int console_textview_main__internal(SpaceConsole *sc,
 
   console_textview_draw_rect_calc(region, &tvc.draw_rect, &tvc.draw_rect_outer);
 
+  /* Nudge right by half a column to break selection mid-character. */
+  int m_pos[2] = {mval[0], mval[1]};
+  /* Mouse position is initialized with max int. */
+  if (m_pos[0] != INT_MAX) {
+    m_pos[0] += tvc.lheight / 4;
+  }
+
   console_scrollback_prompt_begin(sc, &cl_dummy);
-  ret = textview_draw(&tvc, do_draw, mval, r_mval_pick_item, r_mval_pick_offset);
+  ret = textview_draw(&tvc, do_draw, m_pos, r_mval_pick_item, r_mval_pick_offset);
   console_scrollback_prompt_end(sc, &cl_dummy);
 
   return ret;

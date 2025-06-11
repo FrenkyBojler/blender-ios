@@ -23,9 +23,9 @@ class PHYSICS_PT_rigid_body(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Rigid Body"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -59,12 +59,12 @@ class PHYSICS_PT_rigid_body(PHYSICS_PT_rigidbody_panel, Panel):
 
 class PHYSICS_PT_rigid_body_settings(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Settings"
-    bl_parent_id = 'PHYSICS_PT_rigid_body'
+    bl_parent_id = "PHYSICS_PT_rigid_body"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -95,12 +95,12 @@ class PHYSICS_PT_rigid_body_settings(PHYSICS_PT_rigidbody_panel, Panel):
 
 class PHYSICS_PT_rigid_body_collisions(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Collisions"
-    bl_parent_id = 'PHYSICS_PT_rigid_body'
+    bl_parent_id = "PHYSICS_PT_rigid_body"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -148,13 +148,13 @@ class PHYSICS_PT_rigid_body_collisions(PHYSICS_PT_rigidbody_panel, Panel):
 
 class PHYSICS_PT_rigid_body_collisions_surface(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Surface Response"
-    bl_parent_id = 'PHYSICS_PT_rigid_body_collisions'
+    bl_parent_id = "PHYSICS_PT_rigid_body_collisions"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -180,13 +180,13 @@ class PHYSICS_PT_rigid_body_collisions_surface(PHYSICS_PT_rigidbody_panel, Panel
 
 class PHYSICS_PT_rigid_body_collisions_sensitivity(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Sensitivity"
-    bl_parent_id = 'PHYSICS_PT_rigid_body_collisions'
+    bl_parent_id = "PHYSICS_PT_rigid_body_collisions"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -221,13 +221,13 @@ class PHYSICS_PT_rigid_body_collisions_sensitivity(PHYSICS_PT_rigidbody_panel, P
 
 class PHYSICS_PT_rigid_body_collisions_collections(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Collections"
-    bl_parent_id = 'PHYSICS_PT_rigid_body_collisions'
+    bl_parent_id = "PHYSICS_PT_rigid_body_collisions"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -247,21 +247,23 @@ class PHYSICS_PT_rigid_body_collisions_collections(PHYSICS_PT_rigidbody_panel, P
 
 class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Dynamics"
-    bl_parent_id = 'PHYSICS_PT_rigid_body'
+    bl_parent_id = "PHYSICS_PT_rigid_body"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
         obj = context.object
         if obj.parent is not None and obj.parent.rigid_body is not None:
             return False
-        return (obj and obj.rigid_body and obj.rigid_body.type == 'ACTIVE'
-                and (context.engine in cls.COMPAT_ENGINES))
+        return (
+            obj and obj.rigid_body and obj.rigid_body.type == 'ACTIVE' and
+            (context.engine in cls.COMPAT_ENGINES)
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -284,20 +286,22 @@ class PHYSICS_PT_rigid_body_dynamics(PHYSICS_PT_rigidbody_panel, Panel):
 
 class PHYSICS_PT_rigid_body_dynamics_deactivation(PHYSICS_PT_rigidbody_panel, Panel):
     bl_label = "Deactivation"
-    bl_parent_id = 'PHYSICS_PT_rigid_body_dynamics'
+    bl_parent_id = "PHYSICS_PT_rigid_body_dynamics"
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE',
         'BLENDER_EEVEE_NEXT',
-        'BLENDER_WORKBENCH'}
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
         obj = context.object
-        return (obj and obj.rigid_body
-                and obj.rigid_body.type == 'ACTIVE'
-                and (context.engine in cls.COMPAT_ENGINES))
+        return (
+            obj and obj.rigid_body and
+            obj.rigid_body.type == 'ACTIVE' and
+            (context.engine in cls.COMPAT_ENGINES)
+        )
 
     def draw_header(self, context):
         ob = context.object

@@ -28,7 +28,7 @@ static void sh_node_clamp_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_clamp(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "clamp_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "clamp_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_clamp(bNodeTree * /*ntree*/, bNode *node)
@@ -70,20 +70,46 @@ static void sh_node_clamp_build_multi_function(NodeMultiFunctionBuilder &builder
   }
 }
 
+NODE_SHADER_MATERIALX_BEGIN
+#ifdef WITH_MATERIALX
+{
+  auto type = node_->custom1;
+  NodeItem value = get_input_value("Value", NodeItem::Type::Float);
+  NodeItem min = get_input_value("Min", NodeItem::Type::Float);
+  NodeItem max = get_input_value("Max", NodeItem::Type::Float);
+
+  NodeItem res = empty();
+  if (type == NODE_CLAMP_RANGE) {
+    res = min.if_else(
+        NodeItem::CompareOp::Less, max, value.clamp(min, max), value.clamp(max, min));
+  }
+  else {
+    res = value.clamp(min, max);
+  }
+  return res;
+}
+#endif
+NODE_SHADER_MATERIALX_END
+
 }  // namespace blender::nodes::node_shader_clamp_cc
 
 void register_node_type_sh_clamp()
 {
   namespace file_ns = blender::nodes::node_shader_clamp_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_fn_node_type_base(&ntype, SH_NODE_CLAMP, "Clamp", NODE_CLASS_CONVERTER);
+  common_node_type_base(&ntype, "ShaderNodeClamp", SH_NODE_CLAMP);
+  ntype.ui_name = "Clamp";
+  ntype.ui_description = "Clamp a value between a minimum and a maximum";
+  ntype.enum_name_legacy = "CLAMP";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::sh_node_clamp_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_clamp;
   ntype.initfunc = file_ns::node_shader_init_clamp;
   ntype.gpu_fn = file_ns::gpu_shader_clamp;
   ntype.build_multi_function = file_ns::sh_node_clamp_build_multi_function;
+  ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

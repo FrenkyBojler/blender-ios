@@ -16,9 +16,9 @@
 #include "BLI_stack.h"
 #include "BLI_utildefines_iter.h"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
-#include "bmesh_edgeloop.h" /* own include */
+#include "bmesh_edgeloop.hh" /* own include */
 
 struct BMEdgeLoopStore {
   BMEdgeLoopStore *next, *prev;
@@ -74,7 +74,7 @@ static bool bm_loop_build(BMEdgeLoopStore *el_store, BMVert *v_prev, BMVert *v, 
   }
 
   while (v) {
-    LinkData *node = static_cast<LinkData *>(MEM_callocN(sizeof(*node), __func__));
+    LinkData *node = MEM_callocN<LinkData>(__func__);
     int count;
     node->data = v;
     add_fn(&el_store->verts, node);
@@ -136,15 +136,14 @@ int BM_mesh_edgeloops_find(BMesh *bm,
   }
 
   const uint edges_len = BLI_stack_count(edge_stack);
-  BMEdge **edges = static_cast<BMEdge **>(MEM_mallocN(sizeof(*edges) * edges_len, __func__));
+  BMEdge **edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
   BLI_stack_pop_n_reverse(edge_stack, edges, BLI_stack_count(edge_stack));
   BLI_stack_free(edge_stack);
 
   for (uint i = 0; i < edges_len; i += 1) {
     e = edges[i];
     if (BM_elem_flag_test(e, BM_ELEM_INTERNAL_TAG)) {
-      BMEdgeLoopStore *el_store = static_cast<BMEdgeLoopStore *>(
-          MEM_callocN(sizeof(BMEdgeLoopStore), __func__));
+      BMEdgeLoopStore *el_store = MEM_callocN<BMEdgeLoopStore>(__func__);
 
       /* add both directions */
       if (bm_loop_build(el_store, e->v1, e->v2, 1) && bm_loop_build(el_store, e->v2, e->v1, -1) &&
@@ -251,9 +250,9 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool,
   }
 
   /* Commented because used in a loop, and this flag has already been set. */
-  /* bm->elem_index_dirty |= BM_VERT; */
+  // bm->elem_index_dirty |= BM_VERT;
 
-  /* lb is now full of free'd items, overwrite */
+  /* `lb` is now full of freed items, overwrite. */
   *lb = lb_tmp;
 
   return (BLI_listbase_is_empty(lb) == false);
@@ -299,14 +298,14 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm,
       }
     }
     edges_len = BLI_stack_count(edge_stack);
-    edges = static_cast<BMEdge **>(MEM_mallocN(sizeof(*edges) * edges_len, __func__));
+    edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
     BLI_stack_pop_n_reverse(edge_stack, edges, BLI_stack_count(edge_stack));
     BLI_stack_free(edge_stack);
   }
   else {
     int i = 0;
     edges_len = bm->totedge;
-    edges = static_cast<BMEdge **>(MEM_mallocN(sizeof(*edges) * edges_len, __func__));
+    edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
 
     BM_ITER_MESH_INDEX (e, &iter, bm, BM_EDGES_OF_MESH, i) {
       BM_elem_flag_enable(e, BM_ELEM_INTERNAL_TAG);
@@ -340,14 +339,13 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm,
     BLI_mempool_destroy(vs_pool);
 
     if (v_match[0]) {
-      BMEdgeLoopStore *el_store = static_cast<BMEdgeLoopStore *>(
-          MEM_callocN(sizeof(BMEdgeLoopStore), __func__));
+      BMEdgeLoopStore *el_store = MEM_callocN<BMEdgeLoopStore>(__func__);
       BMVert *v;
 
       /* build loop from edge pointers */
       v = v_match[0];
       while (true) {
-        LinkData *node = static_cast<LinkData *>(MEM_callocN(sizeof(*node), __func__));
+        LinkData *node = MEM_callocN<LinkData>(__func__);
         node->data = v;
         BLI_addhead(&el_store->verts, node);
         el_store->len++;
@@ -359,7 +357,7 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm,
 
       v = v_match[1];
       while (true) {
-        LinkData *node = static_cast<LinkData *>(MEM_callocN(sizeof(*node), __func__));
+        LinkData *node = MEM_callocN<LinkData>(__func__);
         node->data = v;
         BLI_addtail(&el_store->verts, node);
         el_store->len++;
@@ -504,7 +502,7 @@ BMEdgeLoopStore *BM_edgeloop_from_verts(BMVert **v_arr, const int v_arr_tot, boo
       MEM_callocN(sizeof(*el_store), __func__));
   int i;
   for (i = 0; i < v_arr_tot; i++) {
-    LinkData *node = static_cast<LinkData *>(MEM_callocN(sizeof(*node), __func__));
+    LinkData *node = MEM_callocN<LinkData>(__func__);
     node->data = v_arr[i];
     BLI_addtail(&el_store->verts, node);
   }
@@ -554,7 +552,8 @@ void BM_edgeloop_edges_get(BMEdgeLoopStore *el_store, BMEdge **e_arr)
   LinkData *node;
   int i = 0;
   for (node = static_cast<LinkData *>(el_store->verts.first); node && node->next;
-       node = node->next) {
+       node = node->next)
+  {
     e_arr[i++] = BM_edge_exists(NODE_AS_V(node), NODE_AS_V(node->next));
     BLI_assert(e_arr[i - 1] != nullptr);
   }
@@ -603,7 +602,7 @@ void BM_edgeloop_calc_center(BMesh * /*bm*/, BMEdgeLoopStore *el_store)
   } while (true);
 
   if (totw != 0.0f) {
-    mul_v3_fl(el_store->co, 1.0f / float(totw));
+    mul_v3_fl(el_store->co, 1.0f / totw);
   }
 }
 
@@ -770,7 +769,7 @@ bool BM_edgeloop_overlap_check(BMEdgeLoopStore *el_store_a, BMEdgeLoopStore *el_
 {
   /* A little more efficient if 'a' as smaller. */
   if (el_store_a->len > el_store_b->len) {
-    SWAP(BMEdgeLoopStore *, el_store_a, el_store_b);
+    std::swap(el_store_a, el_store_b);
   }
 
   /* init */

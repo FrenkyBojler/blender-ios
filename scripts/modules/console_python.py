@@ -2,20 +2,49 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "autocomplete",
+    "banner",
+    "execute",
+    "language_id",
+)
+
 import sys
 import bpy
 
 language_id = "python"
 
-# store our own __main__ module, not 100% needed
-# but python expects this in some places
-_BPY_MAIN_OWN = True
+
+class _TempModuleOverride:
+    __slots__ = (
+        "module_name",
+        "module",
+        "module_override",
+    )
+
+    def __init__(self, module_name, module_override):
+        self.module_name = module_name
+        self.module = None
+        self.module_override = module_override
+
+    def __enter__(self):
+        self.module = sys.modules.get(self.module_name)
+        sys.modules[self.module_name] = self.module_override
+
+    def __exit__(self, _type, _value, _traceback):
+        if self.module is None:
+            # Account for removal of `module_override` (albeit unlikely).
+            sys.modules.pop(self.module_name, None)
+        else:
+            sys.modules[self.module_name] = self.module
 
 
 def add_scrollback(text, text_type):
-    for l in text.split("\n"):
-        bpy.ops.console.scrollback_append(text=l.replace("\t", "    "),
-                                          type=text_type)
+    for line in text.split("\n"):
+        bpy.ops.console.scrollback_append(
+            text=line,
+            type=text_type,
+        )
 
 
 def replace_help(namespace):
@@ -72,12 +101,9 @@ def get_console(console_id):
         stdout = io.StringIO()
         stderr = io.StringIO()
     else:
-        if _BPY_MAIN_OWN:
-            import types
-            bpy_main_mod = types.ModuleType("__main__")
-            namespace = bpy_main_mod.__dict__
-        else:
-            namespace = {}
+        import types
+        bpy_main_mod = types.ModuleType("__main__")
+        namespace = bpy_main_mod.__dict__
 
         namespace["__builtins__"] = sys.modules["builtins"]
         namespace["bpy"] = bpy
@@ -94,8 +120,7 @@ def get_console(console_id):
         console.push("from mathutils import *")
         console.push("from math import *")
 
-        if _BPY_MAIN_OWN:
-            console._bpy_main_mod = bpy_main_mod
+        console._bpy_main_mod = bpy_main_mod
 
         import io
         stdout = io.StringIO()
@@ -121,25 +146,23 @@ def execute(context, is_interactive):
 
     console, stdout, stderr = get_console(hash(context.region))
 
-    if _BPY_MAIN_OWN:
-        main_mod_back = sys.modules["__main__"]
-        sys.modules["__main__"] = console._bpy_main_mod
-
     # redirect output
     from contextlib import (
         redirect_stdout,
         redirect_stderr,
     )
 
-    # not included with Python
+    # Not included with Python.
     class redirect_stdin(redirect_stdout.__base__):
         _stream = "stdin"
 
-    # don't allow the stdin to be used, can lock blender.
-    with redirect_stdout(stdout), \
-            redirect_stderr(stderr), \
-            redirect_stdin(None):
-
+    with (
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+            # Don't allow the `stdin` to be used because it can lock Blender.
+            redirect_stdin(None),
+            _TempModuleOverride("__main__", console._bpy_main_mod),
+    ):
         # in case exception happens
         line = ""  # in case of encoding error
         is_multiline = False
@@ -151,13 +174,16 @@ def execute(context, is_interactive):
             line_exec = line if line.strip() else "\n"
 
             is_multiline = console.push(line_exec)
+        except SystemExit as ex:
+            # Occurs when `exit(..)` is called, this raises an exception instead of exiting.
+            # The trace-back isn't helpful in this case, just print the exception.
+            stderr.write("{!r}\n".format(ex))
+            # Without this, entering new commands may include the previous command, see: #109435.
+            console.resetbuffer()
         except:
-            # unlikely, but this can happen with unicode errors for example.
+            # Unlikely, but this can happen with unicode errors accessing `line_object.body`.
             import traceback
             stderr.write(traceback.format_exc())
-
-    if _BPY_MAIN_OWN:
-        sys.modules["__main__"] = main_mod_back
 
     output = stdout.getvalue()
     output_err = stderr.getvalue()
@@ -220,46 +246,48 @@ def autocomplete(context):
     if not console:
         return {'CANCELLED'}
 
-    # don't allow the stdin to be used, can lock blender.
-    # note: unlikely stdin would be used for autocomplete. but its possible.
-    stdin_backup = sys.stdin
-    sys.stdin = None
-
     scrollback = ""
     scrollback_error = ""
 
-    if _BPY_MAIN_OWN:
-        main_mod_back = sys.modules["__main__"]
-        sys.modules["__main__"] = console._bpy_main_mod
+    # Don't allow the `stdin` to be used, can lock blender.
+    # note: unlikely `stdin` would be used for auto-complete - but it's possible.
 
-    try:
-        current_line = sc.history[-1]
-        line = current_line.body
+    from contextlib import redirect_stdout
 
-        # This function isn't aware of the text editor or being an operator
-        # just does the autocomplete then copy its results back
-        result = intellisense.expand(
-            line=line,
-            cursor=current_line.current_character,
-            namespace=console.locals,
-            private=bpy.app.debug_python)
+    # Not included with Python.
+    class redirect_stdin(redirect_stdout.__base__):
+        _stream = "stdin"
 
-        line_new = result[0]
-        current_line.body, current_line.current_character, scrollback = result
-        del result
+    with (
+            # Don't allow the `stdin` to be used because it can lock Blender.
+            redirect_stdin(None),
+            _TempModuleOverride("__main__", console._bpy_main_mod),
+    ):
+        try:
+            current_line = sc.history[-1]
+            line = current_line.body
 
-        # update selection. setting body should really do this!
-        ofs = len(line_new) - len(line)
-        sc.select_start += ofs
-        sc.select_end += ofs
-    except:
-        # unlikely, but this can happen with unicode errors for example.
-        # or if the api attribute access itself causes an error.
-        import traceback
-        scrollback_error = traceback.format_exc()
+            # This function isn't aware of the text editor or being an operator
+            # just does the autocomplete then copy its results back
+            result = intellisense.expand(
+                line=line,
+                cursor=current_line.current_character,
+                namespace=console.locals,
+                private=bpy.app.debug_python)
 
-    if _BPY_MAIN_OWN:
-        sys.modules["__main__"] = main_mod_back
+            line_new = result[0]
+            current_line.body, current_line.current_character, scrollback = result
+            del result
+
+            # update selection. setting body should really do this!
+            ofs = len(line_new) - len(line)
+            sc.select_start += ofs
+            sc.select_end += ofs
+        except:
+            # unlikely, but this can happen with unicode errors for example.
+            # or if the API attribute access itself causes an error.
+            import traceback
+            scrollback_error = traceback.format_exc()
 
     # Separate autocomplete output by command prompts
     if scrollback != '':
@@ -274,9 +302,6 @@ def autocomplete(context):
 
     if scrollback_error:
         add_scrollback(scrollback_error, 'ERROR')
-
-    # restore the stdin
-    sys.stdin = stdin_backup
 
     context.area.tag_redraw()
 
@@ -322,7 +347,7 @@ def banner(context):
     version_string = sys.version.strip().replace('\n', ' ')
 
     message = (
-        "PYTHON INTERACTIVE CONSOLE %s" % version_string,
+        "PYTHON INTERACTIVE CONSOLE {:s}".format(version_string),
         "",
         "Builtin Modules:       "
         "bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.context, bpy.utils, bgl, gpu, blf, mathutils",

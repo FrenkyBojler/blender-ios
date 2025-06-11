@@ -5,7 +5,7 @@
 /** \file
  * \ingroup GHOST
  *
- * C Api for GHOST
+ * C API for GHOST
  */
 
 #include <cstdlib>
@@ -46,11 +46,9 @@ void GHOST_SystemInitDebug(GHOST_SystemHandle systemhandle, GHOST_Debug debug)
   system->initDebug(debug);
 }
 
-GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle systemhandle)
+GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle /*systemhandle*/)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->disposeSystem();
+  return GHOST_ISystem::disposeSystem();
 }
 
 #if !(defined(WIN32) || defined(__APPLE__))
@@ -68,14 +66,14 @@ void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
                           const char *link,
                           GHOST_DialogOptions dialog_options)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
   system->showMessageBox(title, message, help_label, continue_label, link, dialog_options);
 }
 
 GHOST_EventConsumerHandle GHOST_CreateEventConsumer(GHOST_EventCallbackProcPtr eventCallback,
-                                                    GHOST_TUserDataPtr userdata)
+                                                    GHOST_TUserDataPtr user_data)
 {
-  return (GHOST_EventConsumerHandle) new GHOST_CallbackEventConsumer(eventCallback, userdata);
+  return (GHOST_EventConsumerHandle) new GHOST_CallbackEventConsumer(eventCallback, user_data);
 }
 
 GHOST_TSuccess GHOST_DisposeEventConsumer(GHOST_EventConsumerHandle consumerhandle)
@@ -86,7 +84,7 @@ GHOST_TSuccess GHOST_DisposeEventConsumer(GHOST_EventConsumerHandle consumerhand
 
 uint64_t GHOST_GetMilliSeconds(GHOST_SystemHandle systemhandle)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
 
   return system->getMilliSeconds();
 }
@@ -95,11 +93,11 @@ GHOST_TimerTaskHandle GHOST_InstallTimer(GHOST_SystemHandle systemhandle,
                                          uint64_t delay,
                                          uint64_t interval,
                                          GHOST_TimerProcPtr timerproc,
-                                         GHOST_TUserDataPtr userdata)
+                                         GHOST_TUserDataPtr user_data)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
 
-  return (GHOST_TimerTaskHandle)system->installTimer(delay, interval, timerproc, userdata);
+  return (GHOST_TimerTaskHandle)system->installTimer(delay, interval, timerproc, user_data);
 }
 
 GHOST_TSuccess GHOST_RemoveTimer(GHOST_SystemHandle systemhandle,
@@ -113,27 +111,31 @@ GHOST_TSuccess GHOST_RemoveTimer(GHOST_SystemHandle systemhandle,
 
 uint8_t GHOST_GetNumDisplays(GHOST_SystemHandle systemhandle)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
 
   return system->getNumDisplays();
 }
 
-void GHOST_GetMainDisplayDimensions(GHOST_SystemHandle systemhandle,
-                                    uint32_t *width,
-                                    uint32_t *height)
+GHOST_TSuccess GHOST_GetMainDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                              uint32_t *r_width,
+                                              uint32_t *r_height)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  system->getMainDisplayDimensions(*width, *height);
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+  *r_width = 0;
+  *r_height = 0;
+  system->getMainDisplayDimensions(*r_width, *r_height);
+  return (*r_width == 0 && *r_height == 0) ? GHOST_kFailure : GHOST_kSuccess;
 }
 
-void GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
-                                   uint32_t *width,
-                                   uint32_t *height)
+GHOST_TSuccess GHOST_GetAllDisplayDimensions(GHOST_SystemHandle systemhandle,
+                                             uint32_t *r_width,
+                                             uint32_t *r_height)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  system->getAllDisplayDimensions(*width, *height);
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+  *r_width = 0;
+  *r_height = 0;
+  system->getAllDisplayDimensions(*r_width, *r_height);
+  return (*r_width == 0 && *r_height == 0) ? GHOST_kFailure : GHOST_kSuccess;
 }
 
 GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
@@ -180,20 +182,20 @@ GHOST_WindowHandle GHOST_CreateWindow(GHOST_SystemHandle systemhandle,
 
 GHOST_TUserDataPtr GHOST_GetWindowUserData(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->getUserData();
 }
-void GHOST_SetWindowUserData(GHOST_WindowHandle windowhandle, GHOST_TUserDataPtr userdata)
+void GHOST_SetWindowUserData(GHOST_WindowHandle windowhandle, GHOST_TUserDataPtr user_data)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  window->setUserData(userdata);
+  window->setUserData(user_data);
 }
 
 bool GHOST_IsDialogWindow(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->isDialog();
 }
@@ -213,40 +215,6 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
   return system->validWindow(window);
-}
-
-GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                         const GHOST_DisplaySetting *setting,
-                                         const bool stereoVisual)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  GHOST_IWindow *window = nullptr;
-  bool bstereoVisual;
-
-  if (stereoVisual) {
-    bstereoVisual = true;
-  }
-  else {
-    bstereoVisual = false;
-  }
-
-  system->beginFullScreen(*setting, &window, bstereoVisual);
-
-  return (GHOST_WindowHandle)window;
-}
-
-GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->endFullScreen();
-}
-
-bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->getFullScreen();
 }
 
 GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
@@ -305,7 +273,7 @@ GHOST_TSuccess GHOST_EndProgressBar(GHOST_WindowHandle windowhandle)
 
 GHOST_TStandardCursor GHOST_GetCursorShape(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->getCursorShape();
 }
@@ -350,7 +318,7 @@ GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
 
 bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->getCursorVisibility();
 }
@@ -449,7 +417,7 @@ GHOST_TSuccess GHOST_GetModifierKeyState(GHOST_SystemHandle systemhandle,
                                          GHOST_TModifierKey mask,
                                          bool *r_is_down)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
   GHOST_TSuccess result;
   bool is_down = false;
 
@@ -463,7 +431,7 @@ GHOST_TSuccess GHOST_GetButtonState(GHOST_SystemHandle systemhandle,
                                     GHOST_TButton mask,
                                     bool *r_is_down)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
   GHOST_TSuccess result;
   bool is_down = false;
 
@@ -490,35 +458,35 @@ void GHOST_setAcceptDragOperation(GHOST_WindowHandle windowhandle, bool can_acce
 
 GHOST_TEventType GHOST_GetEventType(GHOST_EventHandle eventhandle)
 {
-  GHOST_IEvent *event = (GHOST_IEvent *)eventhandle;
+  const GHOST_IEvent *event = (const GHOST_IEvent *)eventhandle;
 
   return event->getType();
 }
 
 uint64_t GHOST_GetEventTime(GHOST_EventHandle eventhandle)
 {
-  GHOST_IEvent *event = (GHOST_IEvent *)eventhandle;
+  const GHOST_IEvent *event = (const GHOST_IEvent *)eventhandle;
 
   return event->getTime();
 }
 
 GHOST_WindowHandle GHOST_GetEventWindow(GHOST_EventHandle eventhandle)
 {
-  GHOST_IEvent *event = (GHOST_IEvent *)eventhandle;
+  const GHOST_IEvent *event = (const GHOST_IEvent *)eventhandle;
 
   return (GHOST_WindowHandle)event->getWindow();
 }
 
 GHOST_TEventDataPtr GHOST_GetEventData(GHOST_EventHandle eventhandle)
 {
-  GHOST_IEvent *event = (GHOST_IEvent *)eventhandle;
+  const GHOST_IEvent *event = (const GHOST_IEvent *)eventhandle;
 
   return event->getData();
 }
 
 GHOST_TimerProcPtr GHOST_GetTimerProc(GHOST_TimerTaskHandle timertaskhandle)
 {
-  GHOST_ITimerTask *timertask = (GHOST_ITimerTask *)timertaskhandle;
+  const GHOST_ITimerTask *timertask = (const GHOST_ITimerTask *)timertaskhandle;
 
   return timertask->getTimerProc();
 }
@@ -532,21 +500,22 @@ void GHOST_SetTimerProc(GHOST_TimerTaskHandle timertaskhandle, GHOST_TimerProcPt
 
 GHOST_TUserDataPtr GHOST_GetTimerTaskUserData(GHOST_TimerTaskHandle timertaskhandle)
 {
-  GHOST_ITimerTask *timertask = (GHOST_ITimerTask *)timertaskhandle;
+  const GHOST_ITimerTask *timertask = (const GHOST_ITimerTask *)timertaskhandle;
 
   return timertask->getUserData();
 }
 
-void GHOST_SetTimerTaskUserData(GHOST_TimerTaskHandle timertaskhandle, GHOST_TUserDataPtr userdata)
+void GHOST_SetTimerTaskUserData(GHOST_TimerTaskHandle timertaskhandle,
+                                GHOST_TUserDataPtr user_data)
 {
   GHOST_ITimerTask *timertask = (GHOST_ITimerTask *)timertaskhandle;
 
-  timertask->setUserData(userdata);
+  timertask->setUserData(user_data);
 }
 
 bool GHOST_GetValid(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->getValid();
 }
@@ -581,7 +550,7 @@ void GHOST_SetTitle(GHOST_WindowHandle windowhandle, const char *title)
 
 char *GHOST_GetTitle(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
   std::string title = window->getTitle();
 
   const size_t ctitle_size = title.size() + 1;
@@ -596,9 +565,43 @@ char *GHOST_GetTitle(GHOST_WindowHandle windowhandle)
   return ctitle;
 }
 
-GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhandle)
+GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+
+  return window->setPath(filepath);
+}
+
+GHOST_TWindowDecorationStyleFlags GHOST_GetWindowDecorationStyleFlags(
+    GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->getWindowDecorationStyleFlags();
+}
+
+void GHOST_SetWindowDecorationStyleFlags(GHOST_WindowHandle windowhandle,
+                                         GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleFlags(styleFlags);
+}
+
+void GHOST_SetWindowDecorationStyleSettings(GHOST_WindowHandle windowhandle,
+                                            GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleSettings(decorationSettings);
+}
+
+GHOST_TSuccess GHOST_ApplyWindowDecorationStyle(GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->applyWindowDecorationStyle();
+}
+
+GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhandle)
+{
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
   GHOST_Rect *rectangle = nullptr;
 
   rectangle = new GHOST_Rect();
@@ -609,7 +612,7 @@ GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhandle)
 
 GHOST_RectangleHandle GHOST_GetClientBounds(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
   GHOST_Rect *rectangle = nullptr;
 
   rectangle = new GHOST_Rect();
@@ -649,7 +652,7 @@ GHOST_TSuccess GHOST_SetClientSize(GHOST_WindowHandle windowhandle,
 void GHOST_ScreenToClient(
     GHOST_WindowHandle windowhandle, int32_t inX, int32_t inY, int32_t *outX, int32_t *outY)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   window->screenToClient(inX, inY, *outX, *outY);
 }
@@ -657,14 +660,14 @@ void GHOST_ScreenToClient(
 void GHOST_ClientToScreen(
     GHOST_WindowHandle windowhandle, int32_t inX, int32_t inY, int32_t *outX, int32_t *outY)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   window->clientToScreen(inX, inY, *outX, *outY);
 }
 
 GHOST_TWindowState GHOST_GetWindowState(GHOST_WindowHandle windowhandle)
 {
-  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
 
   return window->getState();
 }
@@ -704,11 +707,11 @@ GHOST_TSuccess GHOST_SetSwapInterval(GHOST_WindowHandle windowhandle, int interv
   return window->setSwapInterval(interval);
 }
 
-GHOST_TSuccess GHOST_GetSwapInterval(GHOST_WindowHandle windowhandle, int *intervalOut)
+GHOST_TSuccess GHOST_GetSwapInterval(GHOST_WindowHandle windowhandle, int *r_interval)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  return window->getSwapInterval(*intervalOut);
+  return window->getSwapInterval(*r_interval);
 }
 
 GHOST_TSuccess GHOST_ActivateWindowDrawingContext(GHOST_WindowHandle windowhandle)
@@ -735,6 +738,11 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
   return context->releaseDrawingContext();
 }
 
+GHOST_ContextHandle GHOST_GetActiveGPUContext()
+{
+  return (GHOST_ContextHandle)GHOST_IContext::getActiveDrawingContext();
+}
+
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
@@ -759,7 +767,7 @@ GHOST_TSuccess GHOST_InvalidateWindow(GHOST_WindowHandle windowhandle)
 void GHOST_SetMultitouchGestures(GHOST_SystemHandle systemhandle, const bool use)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  return system->setMultitouchGestures(use);
+  system->setMultitouchGestures(use);
 }
 
 void GHOST_SetTabletAPI(GHOST_SystemHandle systemhandle, GHOST_TTabletAPI api)
@@ -770,7 +778,7 @@ void GHOST_SetTabletAPI(GHOST_SystemHandle systemhandle, GHOST_TTabletAPI api)
 
 GHOST_TSuccess GHOST_GetPixelAtCursor(float r_color[3])
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->getPixelAtCursor(r_color);
 }
 
@@ -881,31 +889,31 @@ GHOST_TSuccess GHOST_ClipRectangle(GHOST_RectangleHandle rectanglehandle,
 
 char *GHOST_getClipboard(bool selection)
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->getClipboard(selection);
 }
 
 void GHOST_putClipboard(const char *buffer, bool selection)
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   system->putClipboard(buffer, selection);
 }
 
 GHOST_TSuccess GHOST_hasClipboardImage()
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->hasClipboardImage();
 }
 
 uint *GHOST_getClipboardImage(int *r_width, int *r_height)
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->getClipboardImage(r_width, r_height);
 }
 
 GHOST_TSuccess GHOST_putClipboardImage(uint *rgba, int width, int height)
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->putClipboardImage(rgba, width, height);
 }
 
@@ -923,7 +931,7 @@ bool GHOST_UseNativePixels()
 
 GHOST_TCapabilityFlag GHOST_GetCapabilities()
 {
-  GHOST_ISystem *system = GHOST_ISystem::getSystem();
+  const GHOST_ISystem *system = GHOST_ISystem::getSystem();
   return system->getCapabilities();
 }
 
@@ -935,7 +943,7 @@ void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn)
 void GHOST_UseWindowFocus(bool use_focus)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
-  return system->useWindowFocus(use_focus);
+  system->useWindowFocus(use_focus);
 }
 
 void GHOST_SetAutoFocus(bool auto_focus)
@@ -1034,9 +1042,23 @@ void GHOST_XrDrawViewFunc(GHOST_XrContextHandle xr_contexthandle, GHOST_XrDrawVi
   GHOST_XR_CAPI_CALL(xr_context->setDrawViewFunc(draw_view_fn), xr_context);
 }
 
-int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_contexthandle)
+void GHOST_XrPassthroughEnabledFunc(GHOST_XrContextHandle xr_contexthandle,
+                                    GHOST_XrPassthroughEnabledFn passthrough_enabled_fn)
 {
   GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setPassthroughEnabledFunc(passthrough_enabled_fn), xr_context);
+}
+
+void GHOST_XrDisablePassthroughFunc(GHOST_XrContextHandle xr_contexthandle,
+                                    GHOST_XrDisablePassthroughFn disable_passthrough_fn)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setDisablePassthroughFunc(disable_passthrough_fn), xr_context);
+}
+
+int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_contexthandle)
+{
+  const GHOST_IXrContext *xr_context = (const GHOST_IXrContext *)xr_contexthandle;
 
   GHOST_XR_CAPI_CALL_RET(xr_context->needsUpsideDownDrawing(), xr_context);
   return 0; /* Only reached if exception is thrown. */
@@ -1225,25 +1247,24 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_contexthandle,
 
 #ifdef WITH_VULKAN_BACKEND
 
-void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle,
-                            void *r_instance,
-                            void *r_physical_device,
-                            void *r_device,
-                            uint32_t *r_graphic_queue_family,
-                            void *r_queue)
+void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle, GHOST_VulkanHandles *r_handles)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->getVulkanHandles(
-      r_instance, r_physical_device, r_device, r_graphic_queue_family, r_queue);
+  context->getVulkanHandles(*r_handles);
 }
 
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle contexthandle,
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
-    void (*swap_buffers_post_callback)(void))
+    void (*swap_buffers_post_callback)(void),
+    void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
+    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *))
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback, swap_buffers_post_callback);
+  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback,
+                                         swap_buffers_post_callback,
+                                         openxr_acquire_image_callback,
+                                         openxr_release_image_callback);
 }
 
 void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,

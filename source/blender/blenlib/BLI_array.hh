@@ -163,7 +163,10 @@ class Array {
       : Array(NoExceptConstructor(), other.allocator_)
   {
     if (other.data_ == other.inline_buffer_) {
-      uninitialized_relocate_n(other.data_, other.size_, data_);
+      /* This comparison with #InlineBufferCapacity may look a bit useless, and indeed it is.
+       * However, it helps to quiet a wrong GCC `-Warray-bounds` warning. */
+      const int64_t relocate_num = (InlineBufferCapacity > 0) ? other.size_ : 0;
+      uninitialized_relocate_n(other.data_, relocate_num, data_);
     }
     else {
       data_ = other.data_;
@@ -348,6 +351,16 @@ class Array {
     return IndexRange(size_);
   }
 
+  friend bool operator==(const Array &a, const Array &b)
+  {
+    return a.as_span() == b.as_span();
+  }
+
+  friend bool operator!=(const Array &a, const Array &b)
+  {
+    return !(a == b);
+  }
+
   /**
    * Sets the size to zero. This should only be used when you have manually destructed all elements
    * in the array beforehand. Use with care.
@@ -415,9 +428,7 @@ class Array {
     if (size <= InlineBufferCapacity) {
       return inline_buffer_;
     }
-    else {
-      return this->allocate(size);
-    }
+    return this->allocate(size);
   }
 
   T *allocate(int64_t size)

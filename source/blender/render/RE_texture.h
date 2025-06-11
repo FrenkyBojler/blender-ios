@@ -17,10 +17,6 @@ struct ImagePool;
 struct MTex;
 struct Tex;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* `texture_procedural.cc` */
 
 /**
@@ -83,27 +79,24 @@ void RE_point_density_fix_linking(void);
 /**
  * Texture evaluation result.
  */
-typedef struct TexResult {
+struct TexResult {
   float tin;
   float trgba[4];
   /* Is actually a boolean: When true -> use alpha, false -> set alpha to 1.0. */
   int talpha;
-} TexResult;
+};
 
 /* This one uses nodes. */
 
 /**
- * \warning if the texres's values are not declared zero,
+ * WARNING(@ideasman42): if the texres's values are not declared zero,
  * check the return value to be sure the color values are set before using the r/g/b values,
- * otherwise you may use uninitialized values - Campbell
+ * otherwise you may use uninitialized values.
  *
  * Use it for stuff which is out of render pipeline.
  */
 int multitex_ext(struct Tex *tex,
                  const float texvec[3],
-                 float dxt[3],
-                 float dyt[3],
-                 int osatex,
                  struct TexResult *texres,
                  short thread,
                  struct ImagePool *pool,
@@ -131,15 +124,8 @@ int multitex_ext_safe(struct Tex *tex,
  */
 int multitex_nodes(struct Tex *tex,
                    const float texvec[3],
-                   float dxt[3],
-                   float dyt[3],
-                   int osatex,
                    struct TexResult *texres,
                    short thread,
                    short which_output,
                    const struct MTex *mtex,
                    struct ImagePool *pool);
-
-#ifdef __cplusplus
-}
-#endif

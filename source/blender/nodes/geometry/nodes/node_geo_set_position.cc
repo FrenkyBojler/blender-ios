@@ -2,15 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DEG_depsgraph_query.h"
-
-#include "BLI_task.hh"
-
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+#include "DNA_pointcloud_types.h"
 
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_instances.hh"
 #include "BKE_mesh.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "node_geometry_util.hh"
 
@@ -18,144 +17,147 @@ namespace blender::nodes::node_geo_set_position_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
-  b.add_input<decl::Vector>("Offset").field_on_all().subtype(PROP_TRANSLATION);
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
+  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Vector>("Offset").subtype(PROP_TRANSLATION).field_on_all();
 }
 
-static void set_computed_position_and_offset(GeometryComponent &component,
-                                             const VArray<float3> &in_positions,
-                                             const VArray<float3> &in_offsets,
-                                             const IndexMask &selection)
+static const auto &get_add_fn()
 {
-  MutableAttributeAccessor attributes = *component.attributes_for_write();
+  static const auto fn = mf::build::SI2_SO<float3, float3, float3>(
+      "Add",
+      [](const float3 a, const float3 b) { return a + b; },
+      mf::build::exec_presets::AllSpanOrSingle());
+  return fn;
+}
 
-  /* Optimize the case when `in_positions` references the original positions array. */
-  const bke::AttributeReader positions_read_only = attributes.lookup<float3>("position");
-  bool positions_are_original = false;
-  if (positions_read_only.varray.is_span() && in_positions.is_span()) {
-    positions_are_original = positions_read_only.varray.get_internal_span().data() ==
-                             in_positions.get_internal_span().data();
-  }
+static const auto &get_sub_fn()
+{
+  static const auto fn = mf::build::SI2_SO<float3, float3, float3>(
+      "Add",
+      [](const float3 a, const float3 b) { return a - b; },
+      mf::build::exec_presets::AllSpanOrSingle());
+  return fn;
+}
 
-  if (positions_are_original) {
-    if (const std::optional<float3> offset = in_offsets.get_if_single()) {
-      if (math::is_zero(*offset)) {
-        return;
-      }
+static void set_points_position(bke::MutableAttributeAccessor attributes,
+                                const fn::FieldContext &field_context,
+                                const Field<bool> &selection_field,
+                                const Field<float3> &position_field)
+{
+  bke::try_capture_field_on_geometry(attributes,
+                                     field_context,
+                                     "position",
+                                     bke::AttrDomain::Point,
+                                     selection_field,
+                                     position_field);
+}
+
+static void set_curves_position(bke::CurvesGeometry &curves,
+                                const fn::FieldContext &field_context,
+                                const Field<bool> &selection_field,
+                                const Field<float3> &position_field)
+{
+  MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  Vector<StringRef> attribute_names;
+  Vector<GField> fields;
+  attribute_names.append("position");
+  fields.append(position_field);
+
+  if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
+    fn::Field<float3> delta(fn::FieldOperation::Create(
+        get_sub_fn(), {position_field, bke::AttributeFieldInput::Create<float3>("position")}));
+    for (const StringRef name : {"handle_left", "handle_right"}) {
+      attribute_names.append(name);
+      fields.append(Field<float3>(fn::FieldOperation::Create(
+          get_add_fn(), {bke::AttributeFieldInput::Create<float3>(name), delta})));
     }
   }
-  const GrainSize grain_size{10000};
 
-  switch (component.type()) {
-    case GeometryComponent::Type::Curve: {
-      if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
-        CurveComponent &curve_component = static_cast<CurveComponent &>(component);
-        Curves &curves_id = *curve_component.get_for_write();
-        bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-        SpanAttributeWriter<float3> handle_right_attribute =
-            attributes.lookup_or_add_for_write_span<float3>("handle_right", ATTR_DOMAIN_POINT);
-        SpanAttributeWriter<float3> handle_left_attribute =
-            attributes.lookup_or_add_for_write_span<float3>("handle_left", ATTR_DOMAIN_POINT);
+  bke::try_capture_fields_on_geometry(
+      attributes, field_context, attribute_names, bke::AttrDomain::Point, selection_field, fields);
+  curves.calculate_bezier_auto_handles();
+}
 
-        AttributeWriter<float3> positions = attributes.lookup_for_write<float3>("position");
-        MutableVArraySpan<float3> out_positions_span = positions.varray;
-        devirtualize_varray2(
-            in_positions, in_offsets, [&](const auto in_positions, const auto in_offsets) {
-              selection.foreach_index_optimized<int>(grain_size, [&](const int i) {
-                const float3 new_position = in_positions[i] + in_offsets[i];
-                const float3 delta = new_position - out_positions_span[i];
-                handle_right_attribute.span[i] += delta;
-                handle_left_attribute.span[i] += delta;
-                out_positions_span[i] = new_position;
-              });
-            });
-
-        out_positions_span.save();
-        positions.finish();
-        handle_right_attribute.finish();
-        handle_left_attribute.finish();
-
-        /* Automatic Bezier handles must be recalculated based on the new positions. */
-        curves.calculate_bezier_auto_handles();
-        break;
-      }
-      ATTR_FALLTHROUGH;
+static void set_position_in_grease_pencil(GreasePencil &grease_pencil,
+                                          const Field<bool> &selection_field,
+                                          const Field<float3> &position_field)
+{
+  using namespace blender::bke::greasepencil;
+  for (const int layer_index : grease_pencil.layers().index_range()) {
+    Drawing *drawing = grease_pencil.get_eval_drawing(grease_pencil.layer(layer_index));
+    if (drawing == nullptr || drawing->strokes().is_empty()) {
+      continue;
     }
-    default: {
-      AttributeWriter<float3> positions = attributes.lookup_for_write<float3>("position");
-      MutableVArraySpan<float3> out_positions_span = positions.varray;
-      if (positions_are_original) {
-        devirtualize_varray(in_offsets, [&](const auto in_offsets) {
-          selection.foreach_index_optimized<int>(
-              grain_size, [&](const int i) { out_positions_span[i] += in_offsets[i]; });
-        });
-      }
-      else {
-        devirtualize_varray2(
-            in_positions, in_offsets, [&](const auto in_positions, const auto in_offsets) {
-              selection.foreach_index_optimized<int>(grain_size, [&](const int i) {
-                out_positions_span[i] = in_positions[i] + in_offsets[i];
-              });
-            });
-      }
-      out_positions_span.save();
-      positions.finish();
-      break;
-    }
+    set_curves_position(
+        drawing->strokes_for_write(),
+        bke::GreasePencilLayerFieldContext(grease_pencil, bke::AttrDomain::Point, layer_index),
+        selection_field,
+        position_field);
+    drawing->tag_positions_changed();
   }
 }
 
-static void set_position_in_component(GeometrySet &geometry,
-                                      GeometryComponent::Type component_type,
-                                      const Field<bool> &selection_field,
-                                      const Field<float3> &position_field,
-                                      const Field<float3> &offset_field)
+static void set_instances_position(bke::Instances &instances,
+                                   const Field<bool> &selection_field,
+                                   const Field<float3> &position_field)
 {
-  const GeometryComponent &component = *geometry.get_component(component_type);
-  const eAttrDomain domain = component.type() == GeometryComponent::Type::Instance ?
-                                 ATTR_DOMAIN_INSTANCE :
-                                 ATTR_DOMAIN_POINT;
-  const int domain_size = component.attribute_domain_size(domain);
-  if (domain_size == 0) {
-    return;
-  }
-
-  bke::GeometryFieldContext field_context{component, domain};
-  fn::FieldEvaluator evaluator{field_context, domain_size};
+  const bke::InstancesFieldContext context(instances);
+  fn::FieldEvaluator evaluator(context, instances.instances_num());
   evaluator.set_selection(selection_field);
-  evaluator.add(position_field);
-  evaluator.add(offset_field);
+
+  /* Use a temporary array for the output to avoid potentially reading from freed memory if
+   * retrieving the transforms has to make a mutable copy (then we can't depend on the user count
+   * of the original read-only data). */
+  Array<float3> result(instances.instances_num());
+  evaluator.add_with_destination(position_field, result.as_mutable_span());
   evaluator.evaluate();
 
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  if (selection.is_empty()) {
-    return;
-  }
 
-  GeometryComponent &mutable_component = geometry.get_component_for_write(component_type);
-  const VArray<float3> positions_input = evaluator.get_evaluated<float3>(0);
-  const VArray<float3> offsets_input = evaluator.get_evaluated<float3>(1);
-  set_computed_position_and_offset(mutable_component, positions_input, offsets_input, selection);
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
+  selection.foreach_index(GrainSize(2048),
+                          [&](const int i) { transforms[i].location() = result[i]; });
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<float3> offset_field = params.extract_input<Field<float3>>("Offset");
-  Field<float3> position_field = params.extract_input<Field<float3>>("Position");
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const fn::Field<float3> position_field(
+      fn::FieldOperation::Create(get_add_fn(),
+                                 {params.extract_input<Field<float3>>("Position"),
+                                  params.extract_input<Field<float3>>("Offset")}));
 
-  for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
-                                             GeometryComponent::Type::PointCloud,
-                                             GeometryComponent::Type::Curve,
-                                             GeometryComponent::Type::Instance})
-  {
-    if (geometry.has(type)) {
-      set_position_in_component(geometry, type, selection_field, position_field, offset_field);
-    }
+  if (Mesh *mesh = geometry.get_mesh_for_write()) {
+    set_points_position(mesh->attributes_for_write(),
+                        bke::MeshFieldContext(*mesh, bke::AttrDomain::Point),
+                        selection_field,
+                        position_field);
+  }
+  if (PointCloud *pointcloud = geometry.get_pointcloud_for_write()) {
+    set_points_position(pointcloud->attributes_for_write(),
+                        bke::PointCloudFieldContext(*pointcloud),
+                        selection_field,
+                        position_field);
+  }
+  if (Curves *curves_id = geometry.get_curves_for_write()) {
+    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+    set_curves_position(curves,
+                        bke::CurvesFieldContext(*curves_id, bke::AttrDomain::Point),
+                        selection_field,
+                        position_field);
+  }
+  if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
+    set_position_in_grease_pencil(*grease_pencil, selection_field, position_field);
+  }
+  if (bke::Instances *instances = geometry.get_instances_for_write()) {
+    set_instances_position(*instances, selection_field, position_field);
   }
 
   params.set_output("Geometry", std::move(geometry));
@@ -163,12 +165,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SET_POSITION, "Set Position", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSetPosition", GEO_NODE_SET_POSITION);
+  ntype.ui_name = "Set Position";
+  ntype.ui_description = "Set the location of each point";
+  ntype.enum_name_legacy = "SET_POSITION";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

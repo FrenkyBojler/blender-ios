@@ -6,7 +6,6 @@
  * \ingroup spseq
  */
 
-#include <cmath>
 #include <cstdlib>
 
 #include "DNA_space_types.h"
@@ -16,7 +15,9 @@
 
 #include "ED_sequencer.hh"
 
-#include "sequencer_intern.h"
+#include "sequencer_intern.hh"
+
+namespace blender::ed::vse {
 
 /* ************************** registration **********************************/
 
@@ -29,6 +30,8 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_unmute);
   WM_operatortype_append(SEQUENCER_OT_lock);
   WM_operatortype_append(SEQUENCER_OT_unlock);
+  WM_operatortype_append(SEQUENCER_OT_connect);
+  WM_operatortype_append(SEQUENCER_OT_disconnect);
   WM_operatortype_append(SEQUENCER_OT_reload);
   WM_operatortype_append(SEQUENCER_OT_refresh_all);
   WM_operatortype_append(SEQUENCER_OT_reassign_inputs);
@@ -56,7 +59,6 @@ void sequencer_operatortypes()
 
   WM_operatortype_append(SEQUENCER_OT_rebuild_proxy);
   WM_operatortype_append(SEQUENCER_OT_enable_proxies);
-  WM_operatortype_append(SEQUENCER_OT_change_effect_input);
   WM_operatortype_append(SEQUENCER_OT_change_effect_type);
   WM_operatortype_append(SEQUENCER_OT_change_path);
   WM_operatortype_append(SEQUENCER_OT_change_scene);
@@ -71,14 +73,30 @@ void sequencer_operatortypes()
 
   /* `sequencer_retiming.cc` */
   WM_operatortype_append(SEQUENCER_OT_retiming_reset);
-  WM_operatortype_append(SEQUENCER_OT_retiming_handle_move);
-  WM_operatortype_append(SEQUENCER_OT_retiming_handle_add);
-  WM_operatortype_append(SEQUENCER_OT_retiming_handle_remove);
+  WM_operatortype_append(SEQUENCER_OT_retiming_show);
+  WM_operatortype_append(SEQUENCER_OT_retiming_key_add);
+  WM_operatortype_append(SEQUENCER_OT_retiming_freeze_frame_add);
+  WM_operatortype_append(SEQUENCER_OT_retiming_transition_add);
   WM_operatortype_append(SEQUENCER_OT_retiming_segment_speed_set);
+  WM_operatortype_append(SEQUENCER_OT_retiming_key_delete);
+
+  /* `sequencer_text_edit.cc` */
+  WM_operatortype_append(SEQUENCER_OT_text_cursor_move);
+  WM_operatortype_append(SEQUENCER_OT_text_insert);
+  WM_operatortype_append(SEQUENCER_OT_text_delete);
+  WM_operatortype_append(SEQUENCER_OT_text_line_break);
+  WM_operatortype_append(SEQUENCER_OT_text_select_all);
+  WM_operatortype_append(SEQUENCER_OT_text_deselect_all);
+  WM_operatortype_append(SEQUENCER_OT_text_edit_mode_toggle);
+  WM_operatortype_append(SEQUENCER_OT_text_cursor_set);
+  WM_operatortype_append(SEQUENCER_OT_text_edit_copy);
+  WM_operatortype_append(SEQUENCER_OT_text_edit_paste);
+  WM_operatortype_append(SEQUENCER_OT_text_edit_cut);
 
   /* `sequencer_select.cc` */
   WM_operatortype_append(SEQUENCER_OT_select_all);
   WM_operatortype_append(SEQUENCER_OT_select);
+  WM_operatortype_append(SEQUENCER_OT_select_handle);
   WM_operatortype_append(SEQUENCER_OT_select_more);
   WM_operatortype_append(SEQUENCER_OT_select_less);
   WM_operatortype_append(SEQUENCER_OT_select_linked_pick);
@@ -122,16 +140,18 @@ void sequencer_operatortypes()
 void sequencer_keymap(wmKeyConfig *keyconf)
 {
   /* Common items ------------------------------------------------------------------ */
-  WM_keymap_ensure(keyconf, "SequencerCommon", SPACE_SEQ, 0);
+  WM_keymap_ensure(keyconf, "Video Sequence Editor", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Strips Region --------------------------------------------------------------- */
-  WM_keymap_ensure(keyconf, "Sequencer", SPACE_SEQ, 0);
+  WM_keymap_ensure(keyconf, "Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Preview Region ----------------------------------------------------------- */
-  WM_keymap_ensure(keyconf, "SequencerPreview", SPACE_SEQ, 0);
+  WM_keymap_ensure(keyconf, "Preview", SPACE_SEQ, RGN_TYPE_WINDOW);
 
   /* Channels Region ----------------------------------------------------------- */
-  WM_keymap_ensure(keyconf, "Sequencer Channels", SPACE_SEQ, 0);
+  WM_keymap_ensure(keyconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
+
+  slip_modal_keymap(keyconf);
 }
 
 void ED_operatormacros_sequencer()
@@ -145,4 +165,29 @@ void ED_operatormacros_sequencer()
 
   WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
   WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
+
+  ot = WM_operatortype_append_macro("SEQUENCER_OT_preview_duplicate_move",
+                                    "Duplicate Strips",
+                                    "Duplicate selected strips and move them",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+
+  WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+
+  ot = WM_operatortype_append_macro("SEQUENCER_OT_retiming_add_freeze_frame_slide",
+                                    "Add Freeze Frame And Slide",
+                                    "Add freeze frame and move it",
+                                    OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "SEQUENCER_OT_retiming_freeze_frame_add");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
+
+  ot = WM_operatortype_append_macro(
+      "SEQUENCER_OT_retiming_add_transition_slide",
+      "Add Speed Transition And Slide",
+      "Add smooth transition between 2 retimed segments and change its duration",
+      OPTYPE_UNDO | OPTYPE_REGISTER);
+  WM_operatortype_macro_define(ot, "SEQUENCER_OT_retiming_transition_add");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
 }
+
+}  // namespace blender::ed::vse

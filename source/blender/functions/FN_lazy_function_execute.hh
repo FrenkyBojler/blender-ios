@@ -10,7 +10,7 @@
  * This file contains common utilities for actually executing a lazy-function.
  */
 
-#include "BLI_parameter_pack_utils.hh"
+#include "BLI_generic_pointer.hh"
 
 #include "FN_lazy_function.hh"
 
@@ -30,11 +30,39 @@ class BasicParams : public Params {
 
  public:
   BasicParams(const LazyFunction &fn,
-              const Span<GMutablePointer> inputs,
-              const Span<GMutablePointer> outputs,
+              Span<GMutablePointer> inputs,
+              Span<GMutablePointer> outputs,
               MutableSpan<std::optional<ValueUsage>> input_usages,
               Span<ValueUsage> output_usages,
               MutableSpan<bool> set_outputs);
+
+  void *try_get_input_data_ptr_impl(const int index) const override;
+  void *try_get_input_data_ptr_or_request_impl(const int index) override;
+  void *get_output_data_ptr_impl(const int index) override;
+  void output_set_impl(const int index) override;
+  bool output_was_set_impl(const int index) const override;
+  ValueUsage get_output_usage_impl(const int index) const override;
+  void set_input_unused_impl(const int index) override;
+  bool try_enable_multi_threading_impl() override;
+};
+
+/**
+ * Wraps an existing #Params. This should be used when a lazy-function internally contains another
+ * lazy-function that handles a subset or the inputs and outputs.
+ */
+class RemappedParams : public Params {
+ private:
+  Params &base_params_;
+  Span<int> input_map_;
+  Span<int> output_map_;
+  bool &multi_threading_enabled_;
+
+ public:
+  RemappedParams(const LazyFunction &fn,
+                 Params &base_params,
+                 Span<int> input_map,
+                 Span<int> output_map,
+                 bool &multi_threading_enabled);
 
   void *try_get_input_data_ptr_impl(const int index) const override;
   void *try_get_input_data_ptr_or_request_impl(const int index) override;
@@ -52,14 +80,13 @@ namespace detail {
  * Utility to implement #execute_lazy_function_eagerly.
  */
 template<typename... Inputs, typename... Outputs, size_t... InIndices, size_t... OutIndices>
-inline void execute_lazy_function_eagerly_impl(
-    const LazyFunction &fn,
-    UserData *user_data,
-    LocalUserData *local_user_data,
-    std::tuple<Inputs...> &inputs,
-    std::tuple<Outputs *...> &outputs,
-    std::index_sequence<InIndices...> /* in_indices */,
-    std::index_sequence<OutIndices...> /* out_indices */)
+inline void execute_lazy_function_eagerly_impl(const LazyFunction &fn,
+                                               UserData *user_data,
+                                               LocalUserData *local_user_data,
+                                               std::tuple<Inputs...> &inputs,
+                                               std::tuple<Outputs *...> &outputs,
+                                               std::index_sequence<InIndices...> /*in_indices*/,
+                                               std::index_sequence<OutIndices...> /*out_indices*/)
 {
   constexpr size_t InputsNum = sizeof...(Inputs);
   constexpr size_t OutputsNum = sizeof...(Outputs);
@@ -72,7 +99,7 @@ inline void execute_lazy_function_eagerly_impl(
       [&]() {
         constexpr size_t I = InIndices;
         /* Use `typedef` instead of `using` to work around a compiler bug. */
-        typedef Inputs T;
+        using T = Inputs;
         const CPPType &type = CPPType::get<T>();
         input_pointers[I] = {type, &std::get<I>(inputs)};
       }(),
@@ -81,7 +108,7 @@ inline void execute_lazy_function_eagerly_impl(
       [&]() {
         constexpr size_t I = OutIndices;
         /* Use `typedef` instead of `using` to work around a compiler bug. */
-        typedef Outputs T;
+        using T = Outputs;
         const CPPType &type = CPPType::get<T>();
         output_pointers[I] = {type, std::get<I>(outputs)};
       }(),

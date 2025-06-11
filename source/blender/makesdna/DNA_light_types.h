@@ -16,12 +16,15 @@
 #endif
 
 struct AnimData;
-struct CurveMapping;
 struct Ipo;
 struct bNodeTree;
 
 typedef struct Light {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Light)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_LA;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
@@ -31,9 +34,11 @@ typedef struct Light {
   short type, flag;
   int mode;
 
-  /* Color and energy. */
+  /* Color, temperature and energy. */
   float r, g, b;
+  float temperature;
   float energy;
+  float exposure;
 
   /* Point light. */
   float radius;
@@ -53,29 +58,27 @@ typedef struct Light {
   /* Sun light. */
   float sun_angle;
 
-  /* Shadow color. */
-  float shdwr, shdwg, shdwb;
-
   /* Nodes. */
   short pr_texture, use_nodes;
 
   /* Eevee */
-  float bias;
   float clipsta;
-  float clipend;
+  float clipend_deprecated;
 
   float cascade_max_dist;
   float cascade_exponent;
   float cascade_fade;
   int cascade_count;
 
-  float contact_dist;
-  float contact_bias;
-  float contact_thickness;
+  float diff_fac;
+  float spec_fac;
+  float transmission_fac;
+  float volume_fac;
 
-  float diff_fac, volume_fac;
-  float spec_fac, att_dist;
-  float _pad0;
+  float att_dist;
+  float shadow_filter_radius;
+  float shadow_maximum_resolution;
+  float shadow_jitter_overblur;
 
   /* Preview */
   struct PreviewImage *preview;
@@ -113,7 +116,7 @@ enum {
 /** #Light::mode */
 enum {
   LA_SHADOW = 1 << 0,
-  // LA_HALO = 1 << 1, /* Deprecated. .*/
+  // LA_HALO = 1 << 1, /* Deprecated. */
   // LA_LAYER = 1 << 2, /* Deprecated. */
   // LA_QUAD = 1 << 3, /* Deprecated. */
   // LA_NEG = 1 << 4, /* Deprecated. */
@@ -129,14 +132,20 @@ enum {
   /**
    * YAFRAY: light shadow-buffer flag, soft-light.
    * Since it is used with LOCAL light, can't use LA_SHAD.
-   * */
+   */
   // LA_YF_SOFT = 1 << 14, /* Deprecated. */
   // LA_LAYER_SHADOW = 1 << 15, /* Deprecated. */
   // LA_SHAD_TEX = 1 << 16, /* Deprecated. */
   LA_SHOW_CONE = 1 << 17,
   // LA_SHOW_SHADOW_BOX = 1 << 18,
-  LA_SHAD_CONTACT = 1 << 19,
+  // LA_SHAD_CONTACT = 1 << 19, /* Deprecated. */
   LA_CUSTOM_ATTENUATION = 1 << 20,
+  LA_USE_SOFT_FALLOFF = 1 << 21,
+  /** Use absolute resolution clamping instead of relative. */
+  LA_SHAD_RES_ABSOLUTE = 1 << 22,
+  LA_SHADOW_JITTER = 1 << 23,
+  LA_USE_TEMPERATURE = 1 << 24,
+  LA_UNNORMALIZED = 1 << 25,
 };
 
 /** #Light::falloff_type */

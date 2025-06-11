@@ -11,7 +11,7 @@
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_defaults.h"
@@ -19,27 +19,17 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_action.h"
-#include "BKE_armature.h"
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_editmesh.h"
-#include "BKE_lib_id.h"
-#include "BKE_lib_query.h"
+#include "BKE_action.hh"
+#include "BKE_armature.hh"
+#include "BKE_deform.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
-#include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "BLO_read_write.hh"
-
-#include "DEG_depsgraph_query.h"
+#include "RNA_prototypes.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -98,7 +88,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     /* If not using envelopes,
      * create relations to individual bones for more rigging flexibility. */
     if ((amd->deformflag & ARM_DEF_ENVELOPE) == 0 && (amd->object->pose != nullptr) &&
-        ELEM(ctx->object->type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY))
+        ELEM(ctx->object->type, OB_MESH, OB_LATTICE))
     {
       /* If neither vertex groups nor envelopes are used, the modifier has no bone dependencies. */
       if ((amd->deformflag & ARM_DEF_VGROUP) != 0) {
@@ -126,18 +116,18 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 static void deform_verts(ModifierData *md,
                          const ModifierEvalContext *ctx,
                          Mesh *mesh,
-                         float (*vertexCos)[3],
-                         int verts_num)
+                         blender::MutableSpan<blender::float3> positions)
 {
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
 
-  MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
+  /* if next modifier needs original vertices */
+  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
 
   BKE_armature_deform_coords_with_mesh(amd->object,
                                        ctx->object,
-                                       vertexCos,
+                                       reinterpret_cast<float(*)[3]>(positions.data()),
                                        nullptr,
-                                       verts_num,
+                                       positions.size(),
                                        amd->deformflag,
                                        amd->vert_coords_prev,
                                        amd->defgrp_name,
@@ -149,25 +139,25 @@ static void deform_verts(ModifierData *md,
 
 static void deform_verts_EM(ModifierData *md,
                             const ModifierEvalContext *ctx,
-                            BMEditMesh *em,
+                            const BMEditMesh *em,
                             Mesh *mesh,
-                            float (*vertexCos)[3],
-                            int verts_num)
+                            blender::MutableSpan<blender::float3> positions)
 {
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA) {
-    deform_verts(md, ctx, mesh, vertexCos, verts_num);
+    deform_verts(md, ctx, mesh, positions);
     return;
   }
 
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
 
-  MOD_previous_vcos_store(md, vertexCos); /* if next modifier needs original vertices */
+  /* if next modifier needs original vertices */
+  MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
 
   BKE_armature_deform_coords_with_editmesh(amd->object,
                                            ctx->object,
-                                           vertexCos,
+                                           reinterpret_cast<float(*)[3]>(positions.data()),
                                            nullptr,
-                                           verts_num,
+                                           positions.size(),
                                            amd->deformflag,
                                            amd->vert_coords_prev,
                                            amd->defgrp_name,
@@ -179,19 +169,18 @@ static void deform_verts_EM(ModifierData *md,
 
 static void deform_matrices_EM(ModifierData *md,
                                const ModifierEvalContext *ctx,
-                               BMEditMesh *em,
+                               const BMEditMesh *em,
                                Mesh * /*mesh*/,
-                               float (*vertexCos)[3],
-                               float (*defMats)[3][3],
-                               int verts_num)
+                               blender::MutableSpan<blender::float3> positions,
+                               blender::MutableSpan<blender::float3x3> matrices)
 {
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
 
   BKE_armature_deform_coords_with_editmesh(amd->object,
                                            ctx->object,
-                                           vertexCos,
-                                           defMats,
-                                           verts_num,
+                                           reinterpret_cast<float(*)[3]>(positions.data()),
+                                           reinterpret_cast<float(*)[3][3]>(matrices.data()),
+                                           positions.size(),
                                            amd->deformflag,
                                            nullptr,
                                            amd->defgrp_name,
@@ -201,16 +190,15 @@ static void deform_matrices_EM(ModifierData *md,
 static void deform_matrices(ModifierData *md,
                             const ModifierEvalContext *ctx,
                             Mesh *mesh,
-                            float (*vertexCos)[3],
-                            float (*defMats)[3][3],
-                            int verts_num)
+                            blender::MutableSpan<blender::float3> positions,
+                            blender::MutableSpan<blender::float3x3> matrices)
 {
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
   BKE_armature_deform_coords_with_mesh(amd->object,
                                        ctx->object,
-                                       vertexCos,
-                                       defMats,
-                                       verts_num,
+                                       reinterpret_cast<float(*)[3]>(positions.data()),
+                                       reinterpret_cast<float(*)[3][3]>(matrices.data()),
+                                       positions.size(),
                                        amd->deformflag,
                                        nullptr,
                                        amd->defgrp_name,
@@ -227,18 +215,18 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, nullptr, ICON_NONE);
-  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", nullptr);
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "use_deform_preserve_volume", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(col, ptr, "use_multi_modifier", UI_ITEM_NONE, nullptr, ICON_NONE);
+  col = &layout->column(true);
+  col->prop(ptr, "use_deform_preserve_volume", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(ptr, "use_multi_modifier", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumnWithHeading(layout, true, IFACE_("Bind To"));
-  uiItemR(col, ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
-  uiItemR(col, ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
+  col = &layout->column(true, IFACE_("Bind To"));
+  col->prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
+  col->prop(ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -259,7 +247,7 @@ ModifierTypeInfo modifierType_Armature = {
     /*struct_name*/ "ArmatureModifierData",
     /*struct_size*/ sizeof(ArmatureModifierData),
     /*srna*/ &RNA_ArmatureModifier,
-    /*type*/ eModifierTypeType_OnlyDeform,
+    /*type*/ ModifierTypeType::OnlyDeform,
     /*flags*/ eModifierTypeFlag_AcceptsCVs | eModifierTypeFlag_AcceptsVertexCosOnly |
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_ARMATURE,
@@ -286,4 +274,5 @@ ModifierTypeInfo modifierType_Armature = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
+    /*foreach_cache*/ nullptr,
 };

@@ -50,35 +50,31 @@
 #include "BLI_stack.h"
 #include "BLI_vector.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
-#include "BKE_context.h"
-#include "BKE_deform.h"
-#include "BKE_lib_id.h"
+#include "BKE_deform.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_modifier.h"
-#include "BKE_screen.h"
+#include "BKE_modifier.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_types.hh" /* For skin mark clear operator UI. */
 
-#include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
 
-#include "bmesh.h"
+#include "bmesh.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Generic BMesh Utilities
@@ -465,7 +461,7 @@ static Frame **collect_hull_frames(int v,
   int hull_frames_num, i;
 
   (*tothullframe) = emap[v].size();
-  hull_frames = MEM_cnew_array<Frame *>(*tothullframe, __func__);
+  hull_frames = MEM_calloc_arrayN<Frame *>(*tothullframe, __func__);
   hull_frames_num = 0;
   for (i = 0; i < emap[v].size(); i++) {
     const blender::int2 &edge = edges[emap[v][i]];
@@ -539,7 +535,7 @@ static void end_node_frames(int v,
   const float *rad = nodes[v].radius;
   float mat[3][3];
 
-  if (emap[v].size() == 0) {
+  if (emap[v].is_empty()) {
     float avg = half_v2(rad);
 
     /* For solitary nodes, just build a box (two frames) */
@@ -667,7 +663,7 @@ static SkinNode *build_frames(const blender::Span<blender::float3> vert_position
 {
   int v;
 
-  SkinNode *skin_nodes = MEM_cnew_array<SkinNode>(verts_num, __func__);
+  SkinNode *skin_nodes = MEM_calloc_arrayN<SkinNode>(verts_num, __func__);
 
   for (v = 0; v < verts_num; v++) {
     if (emap[v].size() <= 1) {
@@ -793,7 +789,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
   stack = BLI_stack_new(sizeof(stack_elem), "build_edge_mats.stack");
 
   visited_e = BLI_BITMAP_NEW(edges.size(), "build_edge_mats.visited_e");
-  emat = MEM_cnew_array<EMat>(edges.size(), __func__);
+  emat = MEM_calloc_arrayN<EMat>(edges.size(), __func__);
 
   /* Edge matrices are built from the root nodes, add all roots with
    * children to the stack */
@@ -814,7 +810,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 
         *has_valid_root = true;
       }
-      else if (edges.size() == 0) {
+      else if (edges.is_empty()) {
         /* Vertex-only mesh is valid, mark valid root as well (will display error otherwise). */
         *has_valid_root = true;
         break;
@@ -906,9 +902,9 @@ static Mesh *subdivide_base(const Mesh *orig)
       CustomData_get_layer(&orig->vert_data, CD_MVERT_SKIN));
   const blender::Span<blender::float3> orig_vert_positions = orig->vert_positions();
   const blender::Span<blender::int2> orig_edges = orig->edges();
-  const MDeformVert *origdvert = BKE_mesh_deform_verts(orig);
-  int orig_vert_num = orig->totvert;
-  int orig_edge_num = orig->totedge;
+  const MDeformVert *origdvert = orig->deform_verts().data();
+  int orig_vert_num = orig->verts_num;
+  int orig_edge_num = orig->edges_num;
 
   /* Get degree of all vertices */
   blender::Array<int> degree(orig_vert_num, 0);
@@ -929,10 +925,10 @@ static Mesh *subdivide_base(const Mesh *orig)
   blender::MutableSpan<blender::float3> out_vert_positions = result->vert_positions_for_write();
   blender::MutableSpan<blender::int2> result_edges = result->edges_for_write();
   MVertSkin *outnode = static_cast<MVertSkin *>(
-      CustomData_get_layer_for_write(&result->vert_data, CD_MVERT_SKIN, result->totvert));
+      CustomData_get_layer_for_write(&result->vert_data, CD_MVERT_SKIN, result->verts_num));
   MDeformVert *outdvert = nullptr;
   if (origdvert) {
-    outdvert = BKE_mesh_deform_verts_for_write(result);
+    outdvert = result->deform_verts_for_write().data();
   }
 
   /* Copy original vertex data */
@@ -954,7 +950,7 @@ static Mesh *subdivide_base(const Mesh *orig)
     if (origdvert) {
       const MDeformVert *dv1 = &origdvert[edge[0]];
       const MDeformVert *dv2 = &origdvert[edge[1]];
-      vgroups = MEM_cnew_array<VGroupData>(dv1->totweight, __func__);
+      vgroups = MEM_calloc_arrayN<VGroupData>(dv1->totweight, __func__);
 
       /* Only want vertex groups used by both vertices */
       for (j = 0; j < dv1->totweight; j++) {
@@ -1913,7 +1909,6 @@ static Mesh *base_skin(Mesh *origmesh, SkinModifierData *smd, eSkinErrorFlag *r_
   BMesh *bm;
   EMat *emat;
   SkinNode *skin_nodes;
-  const MDeformVert *dvert;
   bool has_valid_root = false;
 
   const MVertSkin *nodes = static_cast<const MVertSkin *>(
@@ -1921,8 +1916,8 @@ static Mesh *base_skin(Mesh *origmesh, SkinModifierData *smd, eSkinErrorFlag *r_
 
   const blender::Span<blender::float3> vert_positions = origmesh->vert_positions();
   const blender::Span<blender::int2> edges = origmesh->edges();
-  dvert = BKE_mesh_deform_verts(origmesh);
-  const int verts_num = origmesh->totvert;
+  const MDeformVert *dvert = origmesh->deform_verts().data();
+  const int verts_num = origmesh->verts_num;
 
   blender::Array<int> vert_to_edge_offsets;
   blender::Array<int> vert_to_edge_indices;
@@ -2026,43 +2021,37 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "branch_smoothing", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "branch_smoothing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Symmetry"));
-  uiItemR(row, ptr, "use_x_symmetry", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_y_symmetry", toggles_flag, nullptr, ICON_NONE);
-  uiItemR(row, ptr, "use_z_symmetry", toggles_flag, nullptr, ICON_NONE);
+  row = &layout->row(true, IFACE_("Symmetry"));
+  row->prop(ptr, "use_x_symmetry", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_y_symmetry", toggles_flag, std::nullopt, ICON_NONE);
+  row->prop(ptr, "use_z_symmetry", toggles_flag, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "use_smooth_shade", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  row = uiLayoutRow(layout, false);
-  uiItemO(row, IFACE_("Create Armature"), ICON_NONE, "OBJECT_OT_skin_armature_create");
-  uiItemO(row, nullptr, ICON_NONE, "MESH_OT_customdata_skin_add");
+  row = &layout->row(false);
+  row->op("OBJECT_OT_skin_armature_create", IFACE_("Create Armature"), ICON_NONE);
+  row->op("MESH_OT_customdata_skin_add", std::nullopt, ICON_NONE);
 
-  row = uiLayoutRow(layout, false);
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Mark Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  row = &layout->row(false);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Mark Loose"),
+                   ICON_NONE,
+                   WM_OP_EXEC_DEFAULT,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
-  uiItemFullO(row,
-              "OBJECT_OT_skin_loose_mark_clear",
-              IFACE_("Clear Loose"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_EXEC_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
+                   IFACE_("Clear Loose"),
+                   ICON_NONE,
+                   WM_OP_EXEC_DEFAULT,
+                   UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 
-  uiItemO(layout, IFACE_("Mark Root"), ICON_NONE, "OBJECT_OT_skin_root_mark");
-  uiItemO(layout, IFACE_("Equalize Radii"), ICON_NONE, "OBJECT_OT_skin_radii_equalize");
+  layout->op("OBJECT_OT_skin_root_mark", IFACE_("Mark Root"), ICON_NONE);
+  layout->op("OBJECT_OT_skin_radii_equalize", IFACE_("Equalize Radii"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -2076,7 +2065,7 @@ ModifierTypeInfo modifierType_Skin = {
     /*struct_name*/ "SkinModifierData",
     /*struct_size*/ sizeof(SkinModifierData),
     /*srna*/ &RNA_SkinModifier,
-    /*type*/ eModifierTypeType_Constructive,
+    /*type*/ ModifierTypeType::Constructive,
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SKIN,
 
@@ -2102,4 +2091,5 @@ ModifierTypeInfo modifierType_Skin = {
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
+    /*foreach_cache*/ nullptr,
 };

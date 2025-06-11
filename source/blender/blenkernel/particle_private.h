@@ -8,9 +8,7 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BKE_particle.h"
 
 struct CurveMapping;
 
@@ -38,7 +36,7 @@ void do_kink(ParticleKey *state,
              float flat,
              short type,
              short axis,
-             float obmat[4][4],
+             const float obmat[4][4],
              int smooth_start);
 float do_clump(ParticleKey *state,
                const float par_co[3],
@@ -54,7 +52,3 @@ void do_child_modifiers(const ParticleChildModifierContext *modifier_ctx,
                         float mat[4][4],
                         ParticleKey *state,
                         float t);
-
-#ifdef __cplusplus
-}
-#endif
