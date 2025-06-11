@@ -35,6 +35,7 @@
 #  endif
 
 #  include "BKE_appdir.hh"
+#  include "BKE_blender.hh"
 #  include "BKE_blender_cli_command.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_blendfile.hh"
@@ -627,6 +628,10 @@ static const char arg_handle_print_version_doc[] =
 static int arg_handle_print_version(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   print_version_full();
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
+
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
   return 0;
@@ -921,6 +926,9 @@ static int arg_handle_print_help(int /*argc*/, const char ** /*argv*/, void *dat
   bArgs *ba = (bArgs *)data;
 
   print_help(ba, false);
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
 
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
@@ -1367,7 +1375,7 @@ static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*
 
 static const char arg_handle_debug_mode_io_doc[] =
     "\n\t"
-    "Enable debug messages for I/O (Collada, ...).";
+    "Enable debug messages for I/O.";
 static int arg_handle_debug_mode_io(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.debug |= G_DEBUG_IO;
@@ -1549,7 +1557,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
       fprintf(stderr, (i + 1 != backends_supported_num) ? "%s, " : "%s", backends_supported[i]);
     }
     fprintf(stderr, "].\n");
-    return 0;
+    return 1;
   }
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
@@ -1699,9 +1707,9 @@ static int arg_handle_playback_mode(int argc, const char **argv, void * /*data*/
   /* Ignore the animation player if `-b` was given first. */
   if (G.background == 0) {
     /* Skip this argument (`-a`). */
-    WM_main_playanim(argc - 1, argv + 1);
+    const int exit_code = WM_main_playanim(argc - 1, argv + 1);
 
-    exit(EXIT_SUCCESS);
+    exit(exit_code);
   }
 
   return -2;

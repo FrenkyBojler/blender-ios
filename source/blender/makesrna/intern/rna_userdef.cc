@@ -5872,12 +5872,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Sculpt/Paint Overlay Color", "Color of texture overlay");
 
   /* VSE */
-  prop = RNA_def_property(srna, "use_sequencer_simplified_tweaking", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_SIMPLE_TWEAKING);
-  RNA_def_property_ui_text(
-      prop, "Tweak Handles", "Allows dragging handles without selecting them first");
-
   prop = RNA_def_property(srna, "connect_strips_by_default", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT);
@@ -6355,14 +6349,36 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Preferred device to select during detection (requires restarting "
                            "Blender for changes to take effect)");
 
-  prop = RNA_def_property(srna, "max_shader_compilation_subprocesses", PROP_INT, PROP_NONE);
-  RNA_def_property_range(prop, 0, INT16_MAX);
+  prop = RNA_def_property(srna, "gpu_shader_workers", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(prop,
-                           "Max Shader Compilation Subprocesses",
-                           "Max number of parallel shader compilation subprocesses, "
+                           "Shader Compilation Workers",
+                           "Number of shader compilation threads or subprocesses, "
                            "clamped at the max threads supported by the CPU "
                            "(requires restarting Blender for changes to take effect). "
-                           "Setting it to 0 disables subprocess shader compilation.");
+                           "A higher number increases the RAM usage while reducing "
+                           "compilation time. A value of 0 will use automatic configuration. "
+                           "(OpenGL only)");
+
+  static const EnumPropertyItem shader_compilation_method_items[] = {
+      {USER_SHADER_COMPILE_THREAD, "THREAD", 0, "Thread", "Use threads for compiling shaders"},
+      {USER_SHADER_COMPILE_SUBPROCESS,
+       "SUBPROCESS",
+       0,
+       "Subprocess",
+       "Use subprocesses for compiling shaders"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "shader_compilation_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, shader_compilation_method_items);
+  RNA_def_property_ui_text(prop,
+                           "Shader Compilation Method",
+                           "Compilation method used for compiling shaders in parallel. "
+                           "Subprocess requires a lot more RAM for each worker "
+                           "but might compile shaders faster on some systems. "
+                           "Requires restarting Blender for changes to take effect. "
+                           "(OpenGL only)");
 
   /* Network. */
 

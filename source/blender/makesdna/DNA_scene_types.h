@@ -2018,7 +2018,7 @@ typedef struct SceneGpencil {
   float smaa_threshold;
   float smaa_threshold_render;
   int aa_samples;
-  char _pad0[4];
+  int motion_blur_steps;
 } SceneGpencil;
 
 typedef struct SceneHydra {
@@ -2088,7 +2088,8 @@ typedef struct Scene {
   char use_nodes;
   char _pad3[1];
 
-  struct bNodeTree *nodetree;
+  struct bNodeTree *nodetree DNA_DEPRECATED;
+  struct bNodeTree *compositing_node_group;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;
@@ -2183,7 +2184,6 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
 } Scene;
 
 /** \} */
