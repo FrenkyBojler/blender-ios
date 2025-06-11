@@ -1,1 +1,2 @@
 Referenced by issue #138646, Cycles HIP RT: Certian point cloud renders stall on RDNA4
+Referenced by commit 7f380e0644ae61f1fafd60845cfe88ea373840d4, Revert "Fix: Cycles: Do not count volume bounds bounce as transparent"
