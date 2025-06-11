@@ -121,7 +121,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
     const math::Quaternion quat = math::to_quaternion(math::EulerXYZ(euler));
     orientation[i] = pxr::GfQuath(quat.w, pxr::GfVec3h(quat.x, quat.y, quat.z));
   }
-  orientations_attr.Set(orientation, timecode);
+  blender::io::usd::set_attribute(orientations_attr, orientation, timecode, usd_value_writer_);
 
   /* scales */
   pxr::UsdAttribute scales_attr = usd_instancer.CreateScalesAttr();
@@ -208,6 +208,11 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
         if (proto_index_map.find(ob_name) != proto_index_map.end()) {
           proto_indices.push_back(proto_index_map[ob_name]);
         }
+
+        /* Clear prototype's local transform to identity to avoid double transforms. The
+         * PointInstancer will fully control instance placement. */
+        float4x4 identity_transform = float4x4::identity();
+        override_transform(stage, proto_path_map[ob_name], identity_transform);
         break;
       }
       case bke::InstanceReference::Type::Collection: {
@@ -232,62 +237,36 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
 
         Vector<const bke::GeometryComponent *> components = geometry_set.get_components();
         for (const bke::GeometryComponent *comp : components) {
-          if (comp) {
-            if (const bke::Instances *instances =
-                    static_cast<const bke::InstancesComponent &>(*comp).get())
-            {
-              Span<int> reference_handles = instances->reference_handles();
-              Span<bke::InstanceReference> references = instances->references();
+          if (const bke::Instances *instances =
+                  static_cast<const bke::InstancesComponent &>(*comp).get())
+          {
+            Span<int> reference_handles = instances->reference_handles();
+            Span<bke::InstanceReference> references = instances->references();
 
-              for (int index = 0; index < reference_handles.size(); ++index) {
-                bke::InstanceReference reference = references[reference_handles[index]];
+            for (int index = 0; index < reference_handles.size(); ++index) {
+              bke::InstanceReference reference = references[reference_handles[index]];
 
-                if (reference.type() == bke::InstanceReference::Type::Collection) {
-                  Collection &collection = reference.collection();
-                  int object_num = 0;
-                  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
-                    std::string ob_name = BKE_id_name(object->id);
+              if (reference.type() == bke::InstanceReference::Type::Collection) {
+                Collection &collection = reference.collection();
+                int object_num = 0;
+                FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
+                  std::string ob_name = BKE_id_name(object->id);
 
-                    if (proto_index_map.find(ob_name) != proto_index_map.end()) {
-                      object_num += 1;
-                      proto_indices.push_back(proto_index_map[ob_name]);
+                  if (proto_index_map.find(ob_name) != proto_index_map.end()) {
+                    object_num += 1;
+                    proto_indices.push_back(proto_index_map[ob_name]);
 
-                      Span<float4x4> transforms = instances->transforms();
-                      if (transforms.size() == 1) {
-                        if (proto_path_map.find(set_name) != proto_path_map.end()) {
-                          // override position
-                          const float3 &pos = transforms[0].location();
-                          pxr::GfVec3d override_position = pxr::GfVec3d(pos.x, pos.y, pos.z);
-
-                          // override rotation
-                          const float3 euler = float3(
-                              math::to_euler(math::normalize(transforms[0])));
-                          pxr::GfVec3f override_rotation = pxr::GfVec3f(euler.x, euler.y, euler.z);
-
-                          // override scale
-                          const float3 scale_vec = math::to_scale<true>(transforms[0]);
-                          pxr::GfVec3f override_scale = pxr::GfVec3f(
-                              scale_vec.x, scale_vec.y, scale_vec.z);
-
-                          pxr::SdfPath proto_path = proto_path_map[set_name];
-                          pxr::UsdPrim prim = stage->GetPrimAtPath(proto_path);
-
-                          if (prim) {
-                            pxr::UsdGeomXformable xformable(prim);
-                            xformable.ClearXformOpOrder();
-
-                            xformable.AddTranslateOp().Set(override_position);
-                            xformable.AddRotateXYZOp().Set(override_rotation);
-                            xformable.AddScaleOp().Set(override_scale);
-                          }
-                        }
+                    Span<float4x4> transforms = instances->transforms();
+                    if (transforms.size() == 1) {
+                      if (proto_path_map.find(set_name) != proto_path_map.end()) {
+                        override_transform(stage, proto_path_map[set_name], transforms[0]);
                       }
                     }
                   }
-                  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-                  collection_instance_object_count_map.push_back(std::make_pair(i, object_num));
                 }
+                FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+                collection_instance_object_count_map.push_back(std::make_pair(i, object_num));
               }
             }
           }
@@ -309,6 +288,34 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   }
 
   stage->GetRootLayer()->Save();
+}
+
+void USDPointInstancerWriter::override_transform(pxr::UsdStageRefPtr stage,
+                                                 const pxr::SdfPath &proto_path,
+                                                 const float4x4 &transform)
+{
+  // Extract translation
+  const float3 &pos = transform.location();
+  pxr::GfVec3d override_position(pos.x, pos.y, pos.z);
+
+  // Extract rotation
+  const float3 euler = float3(math::to_euler(math::normalize(transform)));
+  pxr::GfVec3f override_rotation(euler.x, euler.y, euler.z);
+
+  // Extract scale
+  const float3 scale_vec = math::to_scale<true>(transform);
+  pxr::GfVec3f override_scale(scale_vec.x, scale_vec.y, scale_vec.z);
+
+  pxr::UsdPrim prim = stage->GetPrimAtPath(proto_path);
+  if (!prim) {
+    return;
+  }
+
+  pxr::UsdGeomXformable xformable(prim);
+  xformable.ClearXformOpOrder();
+  xformable.AddTranslateOp().Set(override_position);
+  xformable.AddRotateXYZOp().Set(override_rotation);
+  xformable.AddScaleOp().Set(override_scale);
 }
 
 template<typename T>

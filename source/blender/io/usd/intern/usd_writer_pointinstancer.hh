@@ -35,6 +35,10 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
                             const pxr::UsdGeomPointInstancer &usd_instancer,
                             const pxr::UsdTimeCode timecode);
 
+  void override_transform(pxr::UsdStageRefPtr stage,
+                          const pxr::SdfPath &proto_path,
+                          const float4x4 &transform);
+
   void handle_collection_prototypes(
       const pxr::UsdGeomPointInstancer &usd_instancer,
       const pxr::UsdTimeCode timecode,

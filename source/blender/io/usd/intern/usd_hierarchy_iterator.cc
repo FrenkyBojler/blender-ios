@@ -175,16 +175,19 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
 
     if (children != nullptr) {
       for (HierarchyContext *child_context : *children) {
+        const pxr::SdfPath parent_export_path(context->export_path);
+        const pxr::SdfPath children_original_export_path(child_context->original_export_path);
+
+        /* Detect if the parent is referencing itself via a prototype. */
+        if (parent_export_path.HasPrefix(children_original_export_path)) {
+          is_referencing_self = true;
+          break;
+        }
+
+        pxr::SdfPath prototype_path;
         if (child_context->is_instance() && child_context->duplicator != nullptr) {
-          const pxr::SdfPath parent_export_path(context->export_path);
-          const pxr::SdfPath children_original_export_path(child_context->original_export_path);
-
-          if (parent_export_path.HasPrefix(children_original_export_path)) {
-            is_referencing_self = true;
-            break;
-          }
-
-          pxr::SdfPath prototype_path;
+          /* When the current child context is point instancer's instance, use reference path
+           * (original_export_path) as the prototype path. */
           if (strlen(params_.root_prim_path) != 0) {
             prototype_path = pxr::SdfPath(std::string(params_.root_prim_path) +
                                           child_context->original_export_path);
@@ -198,6 +201,18 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
           child_context->is_point_instance = true;
         }
         else {
+          /* When the current child context is point instancer's prototype, use its own export path
+           * (export_path) as the prototype path. */
+          if (strlen(params_.root_prim_path) != 0) {
+            prototype_path = pxr::SdfPath(std::string(params_.root_prim_path) +
+                                          child_context->export_path);
+          }
+          else {
+            prototype_path = pxr::SdfPath(child_context->export_path);
+          }
+
+          prototype_paths[instancer_path].insert(
+              std::make_pair(prototype_path, child_context->object));
           child_context->is_point_proto = true;
         }
       }

@@ -165,13 +165,12 @@ bool HierarchyContext::is_point_instancer() const
     return false;
   }
 
-  const bke::GeometrySet geometry_set = bke::object_get_evaluated_geometry_set(*object);
-
   /* Collection instancers are handled elsewhere as part of Scene instancing. */
   if (object->type == OB_EMPTY && object->instance_collection != nullptr) {
     return false;
   }
 
+  const bke::GeometrySet geometry_set = bke::object_get_evaluated_geometry_set(*object);
   return geometry_set.has_instances();
 }
 
