@@ -1,1 +1,2 @@
 Referenced by issue #139870, Regression: Some objects with normal maps leak light
+Referenced by commit 34838a953186d7c8c6d1f40219964cfb7ca67849, Revert "Cycles: Fix inconsistency in Ng handling between Microfacets and other closures"
