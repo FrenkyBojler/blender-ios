@@ -11,3 +11,4 @@ Referenced by pull request #140143, Fix #140120: Multiplane Scrape behaves incor
 Referenced by commit 42b75c2cc46e333150dc58a0d8bee77971c25765, Fix #140120: Multiplane Scrape behaves incorrectly
 Referenced by pull request #140167, Fix #140162: Root and Sphere strength curves corrupt mesh
 Referenced by pull request #140181, Sculpt: Revert recently introduced brush strength curve changes
+Referenced by commit 633ca37641c18c3b0bcf8adb0c8e909e53ed6f0b, Sculpt: Revert recently introduced brush strength curve changes
