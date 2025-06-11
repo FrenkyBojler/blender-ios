@@ -350,8 +350,41 @@ class GlareOperation : public NodeOperation {
     parallel_for(highlights_size, [&](const int2 texel) {
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
 
+      float4 color;
+
+      switch (node_storage(bnode()).quality) {
+        case 0: {  // High
+          color = input.load_pixel<float4>(texel);
+          break;
+        }
+        case 1: {  // Medium
+          color = input.sample_bilinear_extended(normalized_coordinates);
+          break;
+        }
+        case 2: {  // Low
+          float2 normalized_coordinates_1 = (float2(texel) + float2(0.25f)) /
+                                            float2(highlights_size);
+          float4 color_1 = input.sample_bilinear_extended(normalized_coordinates_1);
+
+          float2 normalized_coordinates_2 = (float2(texel) + float2(0.75f, 0.25)) /
+                                            float2(highlights_size);
+          float4 color_2 = input.sample_bilinear_extended(normalized_coordinates_2);
+
+          float2 normalized_coordinates_3 = (float2(texel) + float2(0.25f, 0.75)) /
+                                            float2(highlights_size);
+          float4 color_3 = input.sample_bilinear_extended(normalized_coordinates_3);
+
+          float2 normalized_coordinates_4 = (float2(texel) + float2(0.75f)) /
+                                            float2(highlights_size);
+          float4 color_4 = input.sample_bilinear_extended(normalized_coordinates_4);
+
+          color = (color_1 + color_2 + color_3 + color_4) / 4.0f;
+          break;
+        }
+      }
+
       float4 hsva;
-      rgb_to_hsv_v(input.sample_bilinear_extended(normalized_coordinates), hsva);
+      rgb_to_hsv_v(color, hsva);
 
       /* Clamp the brightness of the highlights such that pixels whose brightness are less than the
        * threshold will be equal to the threshold and will become zero once threshold is subtracted

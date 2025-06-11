@@ -66,8 +66,42 @@ void main()
 
   float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(imageSize(output_img));
 
+  float4 color;
+
+  switch (1) {
+    case 0: {  // High
+      color = texture(input_tx, normalized_coordinates);
+      break;
+    }
+    case 1: {  // Medium
+      color = texture(input_tx, normalized_coordinates);
+      break;
+    }
+    case 2: {  // Low
+      float2 normalized_coordinates_1 = (float2(texel) + float2(0.25f)) /
+                                        float2(imageSize(output_img));
+      float4 color_1 = texture(input_tx, normalized_coordinates_1);
+
+      float2 normalized_coordinates_2 = (float2(texel) + float2(0.75f, 0.25)) /
+                                        float2(imageSize(output_img));
+      float4 color_2 = texture(input_tx, normalized_coordinates_2);
+
+      float2 normalized_coordinates_3 = (float2(texel) + float2(0.25f, 0.75)) /
+                                        float2(imageSize(output_img));
+      float4 color_3 = texture(input_tx, normalized_coordinates_3);
+
+      float2 normalized_coordinates_4 = (float2(texel) + float2(0.75f)) /
+                                        float2(imageSize(output_img));
+      float4 color_4 = texture(input_tx, normalized_coordinates_4);
+
+      color = (color_1 + color_2 + color_3 + color_4) / 4.0f;
+      break;
+    }
+  }
+  /* rgb_to_hsv(texture(input_tx, normalized_coordinates), hsva); */
+
   float4 hsva;
-  rgb_to_hsv(texture(input_tx, normalized_coordinates), hsva);
+  rgb_to_hsv(color, hsva);
 
   /* Clamp the brightness of the highlights such that pixels whose brightness are less than the
    * threshold will be equal to the threshold and will become zero once threshold is subtracted
