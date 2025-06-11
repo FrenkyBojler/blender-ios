@@ -12,6 +12,9 @@
 #  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 
+/* timeapi.h needs to be included after windows.h. */
+#  include <timeapi.h>
+
 double BLI_time_now_seconds(void)
 {
   static int hasperfcounter = -1; /* (-1 == unknown) */
@@ -57,6 +60,44 @@ void BLI_time_sleep_ms(int ms)
   Sleep(ms);
 }
 
+void _BLI_WIN32_time_sleep_duration_nanoseconds(const std::chrono::nanoseconds &sleep_period_ns)
+{
+  /* Prefer thread-safety over caching the timer with a static variable. According to
+   * https://github.com/rust-lang/rust/pull/116461/files, this costs only approximately 2000ns. */
+  HANDLE timerHandle = CreateWaitableTimerExW(
+      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+  if (!timerHandle) {
+    if (GetLastError() == ERROR_INVALID_PARAMETER) {
+      /* CREATE_WAITABLE_TIMER_HIGH_RESOLUTION is only supported since Windows 10, version 1803. */
+      DWORD duration_ms = DWORD(
+          std::chrono::duration_cast<std::chrono::microseconds>(sleep_period_ns).count());
+      Sleep(duration_ms);
+    }
+    else {
+      printf("BLI_time_sleep_duration: CreateWaitableTimerExW failed: %d\n", GetLastError());
+    }
+    return;
+  }
+
+  /* Wait time is specified in 100 nanosecond intervals. */
+  auto duration_ns = sleep_period_ns.count();
+  LARGE_INTEGER wait_time;
+  wait_time.QuadPart = -duration_ns / 100;
+  if (!SetWaitableTimer(timerHandle, &wait_time, 0, nullptr, nullptr, 0)) {
+    printf("BLI_time_sleep_duration: SetWaitableTimer failed: %d\n", GetLastError());
+    CloseHandle(timerHandle);
+    return;
+  }
+
+  if (WaitForSingleObject(timerHandle, INFINITE) != WAIT_OBJECT_0) {
+    printf("BLI_time_sleep_duration: WaitForSingleObject failed: %d\n", GetLastError());
+    CloseHandle(timerHandle);
+    return;
+  }
+
+  CloseHandle(timerHandle);
+}
+
 #else
 
 #  include <sys/time.h>
@@ -84,6 +125,9 @@ long int BLI_time_now_seconds_i()
 
 void BLI_time_sleep_ms(int ms)
 {
+  /* NOTE(@chrismile): We could also call
+   * "BLI_time_sleep_duration(std::chrono::milliseconds(ms));". But there is no evidence that this
+   * would have any advantage. */
   if (ms >= 1000) {
     sleep(ms / 1000);
     ms = (ms % 1000);
