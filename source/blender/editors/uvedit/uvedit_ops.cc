@@ -666,18 +666,40 @@ static wmOperatorStatus uv_set_texel_density_exec(bContext *C, wmOperator *op)
         }
       }
       float texel_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
-                                 edit_mode_area) / scene->unit.scale_length;
+                                 edit_mode_area) /
+                            scene->unit.scale_length;
+
       float scale = density / texel_density;
+      if (lock_x && !lock_y) {
+        scale *= scale;
+      }
+      else if (!lock_x && lock_y) {
+        scale *= scale; 
+      }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (!lock_y) {
-          luv[0] = (luv[0] - 0.5) * scale + 0.5;
+          luv[0] = (luv[0] - 0.5f) * scale + 0.5f;
         }
         if (!lock_x) {
-          luv[1] = (luv[1] - 0.5) * scale + 0.5;
+          luv[1] = (luv[1] - 0.5f) * scale + 0.5f;
         }
         changed = true;
       }
+      uv_area = 0.0f;
+      edit_mode_area = 0.0f;
+      visited_faces.clear();
+      for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        if (!visited_faces.contains(element[j].l->f)) {
+          uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
+          edit_mode_area += BM_face_calc_area(element[j].l->f);
+          visited_faces.add(element[j].l->f);
+        }
+      }
+      texel_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
+                                 edit_mode_area) /
+                            scene->unit.scale_length;
+      printf("Texel density: %f\n", texel_density);
     }
     uvedit_live_unwrap_update(sima, scene, obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
