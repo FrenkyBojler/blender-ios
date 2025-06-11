@@ -269,8 +269,7 @@ static void rna_Main_materials_gpencil_remove(Main * /*bmain*/, PointerRNA *id_p
   ID *id = static_cast<ID *>(id_ptr->data);
   Material *ma = (Material *)id;
   if (ma->gp_style) {
-    MEM_freeN(ma->gp_style);
-    ma->gp_style = nullptr;
+    MEM_SAFE_FREE(ma->gp_style);
   }
 }
 
@@ -511,7 +510,7 @@ static Brush *rna_Main_brushes_new(Main *bmain, const char *name, int mode)
 static void rna_Main_brush_gpencil_data(Main * /*bmain*/, PointerRNA *id_ptr)
 {
   ID *id = static_cast<ID *>(id_ptr->data);
-  Brush *brush = (Brush *)id;
+  Brush *brush = reinterpret_cast<Brush *>(id);
   BKE_brush_init_gpencil_settings(brush);
 }
 

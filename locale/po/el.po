@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'798f85a7108f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-06-11 11:13+0000\n"
 "PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -129,6 +129,10 @@ msgstr "Γραμμή"
 
 msgid "Random"
 msgstr "Random"
+
+
+msgid "Wire"
+msgstr "Πλέγμα"
 
 
 msgid "Parent"
@@ -355,10 +359,6 @@ msgid "Library"
 msgstr "Βιβλιοθήκη"
 
 
-msgid "Wire"
-msgstr "Πλέγμα"
-
-
 msgid "Dynamic"
 msgstr "Δυναμικό"
 
@@ -519,44 +519,44 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Select Linked"
-msgstr "Επιλογή Συνδεδεμένων"
+msgid "Text"
+msgstr "Κείμενο"
 
 
 msgid "Metaball"
 msgstr "Μετα-σφαίρα"
 
 
-msgid "Light"
-msgstr "Φως"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
-msgid "Apply"
-msgstr "Εφαρμογή"
-
-
-msgid "Track"
-msgstr "Ανίχνευση"
-
-
-msgid "Make Single User"
-msgstr "Ορισμός Ενός Χρήστη"
+msgid "Snap"
+msgstr "Προσκόλληση"
 
 
 msgid "Merge"
 msgstr "Συγχώνευση"
 
 
-msgid "Text"
-msgstr "Κείμενο"
+msgid "Light"
+msgstr "Φως"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
+msgid "Make Single User"
+msgstr "Ορισμός Ενός Χρήστη"
+
+
+msgid "Track"
+msgstr "Ανίχνευση"
+
+
+msgid "Apply"
+msgstr "Εφαρμογή"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
+
+
+msgid "Select Linked"
+msgstr "Επιλογή Συνδεδεμένων"
 
 
 msgid "Mirror"

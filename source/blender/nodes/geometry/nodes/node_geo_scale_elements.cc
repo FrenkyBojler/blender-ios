@@ -36,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
   b.add_input<decl::Vector>("Center")
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(implicit_field_inputs::position)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description(
           "Origin of the scaling for each element. If multiple elements are connected, their "
           "center is averaged");
@@ -56,8 +56,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -139,7 +139,7 @@ static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
    * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
    * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
    * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_calloc_arrayN<int>(size_t(offsets.size()), __func__);
+  int *counts = MEM_calloc_arrayN<int>(offsets.size(), __func__);
   BLI_SCOPED_DEFER([&]() { MEM_freeN(counts); })
   Array<int> results(group_indices.size());
   threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {

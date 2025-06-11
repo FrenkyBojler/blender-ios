@@ -9,7 +9,7 @@ from bpy.types import (
 )
 
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_physics_common import (
     point_cache_ui,
@@ -455,7 +455,7 @@ class SCENE_PT_animation(SceneButtonsPanel, PropertiesAnimationMixin, PropertyPa
         col.label(text="Scene")
         self.draw_action_and_slot_selector(context, col, scene)
 
-        if node_tree := scene.node_tree:
+        if node_tree := scene.compositing_node_group:
             col = layout.column(align=True)
             col.label(text="Compositing Node Tree")
             self.draw_action_and_slot_selector(context, col, node_tree)

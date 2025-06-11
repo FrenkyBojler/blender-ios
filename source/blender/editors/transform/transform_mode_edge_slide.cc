@@ -85,7 +85,7 @@ struct EdgeSlideData {
 };
 
 struct EdgeSlideParams {
-  wmOperator *op = nullptr;
+  wmOperator *op;
   float perc;
 
   /** When un-clamped - use this index: #TransDataEdgeSlideVert.dir_side. */
@@ -192,7 +192,7 @@ static bool is_vert_slide_visible_bmesh(TransInfo *t,
                                         const BMBVHTree *bmbvh,
                                         TransDataEdgeSlideVert *sv)
 {
-  /* NOTE:  */
+  /* NOTE: */
   BMIter iter_other;
   BMEdge *e;
 
@@ -254,7 +254,7 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   Array<float3> bmbvh_coord_storage;
   if (use_occlude_geometry) {
     Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);
-    Object *obedit_eval = DEG_get_evaluated_object(t->depsgraph, tc->obedit);
+    Object *obedit_eval = DEG_get_evaluated(t->depsgraph, tc->obedit);
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
 
     const Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
@@ -277,8 +277,8 @@ static void calcEdgeSlide_mval_range(TransInfo *t,
   float *loop_maxdist = nullptr;
 
   if (use_calc_direction) {
-    loop_dir = static_cast<float2 *>(MEM_callocN(sizeof(float2) * loop_nr, "sv loop_dir"));
-    loop_maxdist = static_cast<float *>(MEM_mallocN(sizeof(float) * loop_nr, "sv loop_maxdist"));
+    loop_dir = MEM_calloc_arrayN<float2>(loop_nr, "sv loop_dir");
+    loop_maxdist = MEM_malloc_arrayN<float>(loop_nr, "sv loop_maxdist");
     copy_vn_fl(loop_maxdist, loop_nr, FLT_MAX);
   }
 
@@ -471,7 +471,8 @@ static void drawEdgeSlide(TransInfo *t)
     GPU_matrix_mul(TRANS_DATA_CONTAINER_FIRST_OK(t)->obedit->object_to_world().ptr());
   }
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -501,7 +502,9 @@ static void drawEdgeSlide(TransInfo *t)
       immVertex3fv(pos, curr_sv_co_orig);
     }
     immEnd();
+    immUnbindProgram();
 
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
     {
       float *co_test = nullptr;
       if (slp->flipped) {
@@ -884,7 +887,7 @@ static void initEdgeSlide_ex(TransInfo *t,
   t->mode = TFM_EDGE_SLIDE;
 
   {
-    EdgeSlideParams *slp = static_cast<EdgeSlideParams *>(MEM_callocN(sizeof(*slp), __func__));
+    EdgeSlideParams *slp = MEM_callocN<EdgeSlideParams>(__func__);
     slp->op = op;
     slp->use_even = use_even;
     slp->flipped = flipped;

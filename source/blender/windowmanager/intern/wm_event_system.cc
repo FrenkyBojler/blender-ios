@@ -598,7 +598,7 @@ void wm_event_do_notifiers(bContext *C)
     {
       if (wm_notifier_is_clear(note)) {
         note_next = note->next;
-        MEM_freeN((void *)note);
+        MEM_freeN(note);
         continue;
       }
 
@@ -679,7 +679,7 @@ void wm_event_do_notifiers(bContext *C)
       note_next = note->next;
       if (wm_notifier_is_clear(note)) {
         BLI_remlink(&wm->runtime->notifier_queue, (void *)note);
-        MEM_freeN((void *)note);
+        MEM_freeN(note);
       }
     }
 
@@ -710,7 +710,7 @@ void wm_event_do_notifiers(bContext *C)
              BLI_pophead(&wm->runtime->notifier_queue)))
   {
     if (wm_notifier_is_clear(note)) {
-      MEM_freeN((void *)note);
+      MEM_freeN(note);
       continue;
     }
     /* NOTE: no need to set `wm->runtime->notifier_current` since it's been removed from the queue.
@@ -784,7 +784,7 @@ void wm_event_do_notifiers(bContext *C)
       }
     }
 
-    MEM_freeN((void *)note);
+    MEM_freeN(note);
   }
 #endif /* If 1 (postpone disabling for in favor of message-bus), eventually. */
 
@@ -1594,13 +1594,6 @@ static wmOperatorStatus wm_operator_invoke(bContext *C,
    * that is better not duplicated. */
   if (poll_only) {
     return wmOperatorStatus(WM_operator_poll(C, ot));
-  }
-
-  if (STREQ("WM_OT_id_linked_relocate", ot->idname)) {
-    printf("foo\n");
-  }
-  if (STREQ("OUTLINER_OT_id_linked_relocate", ot->idname)) {
-    printf("bar\n");
   }
 
   if (WM_operator_poll(C, ot)) {
@@ -2552,8 +2545,10 @@ static void wm_handler_operator_insert(wmWindow *win, wmEventHandler_Op *handler
     LISTBASE_FOREACH (wmEventHandler *, handler_iter, &win->modalhandlers) {
       if (handler_iter->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler_iter_op = (wmEventHandler_Op *)handler_iter;
-        if (handler_iter_op->op->type->flag & OPTYPE_MODAL_PRIORITY) {
-          last_priority_handler = handler_iter;
+        if (handler_iter_op->op != nullptr) {
+          if (handler_iter_op->op->type->flag & OPTYPE_MODAL_PRIORITY) {
+            last_priority_handler = handler_iter;
+          }
         }
       }
     }
@@ -3197,9 +3192,31 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
                                                        wmWindowManager *wm,
                                                        wmEventHandler_Gizmo *handler,
                                                        wmEvent *event,
+                                                       const bool always_pass,
                                                        ListBase *handlers,
                                                        const bool do_debug_handler)
 {
+  eHandlerActionFlag action = WM_HANDLER_CONTINUE;
+
+  /* NOTE(@ideasman42): early exit for always-pass events (typically timers)
+   * which pass through from running modal operators which may have started them.
+   * In the case of blocking modal operators, it's not expected that gizmos would
+   * be used at the same time as navigating or painting for example.
+   *
+   * In principle these could be handled, however in practice:
+   * `handle_highlight` & `handle_keymap` would be set to false for timers,
+   * making this function do practically nothing.
+   *
+   * Early exit to avoid complicating checks below.
+   * The early return can be replaced with checks that only run
+   * necessary logic if these events need to be handled in the future.
+   *
+   * Without this, gizmos can become highlighted and the cursor changed
+   * while navigating in the 3D viewport, see: #139681. */
+  if (always_pass) {
+    return action;
+  }
+
   /* Drag events use the previous click location to highlight the gizmos,
    * Get the highlight again in case the user dragged off the gizmo. */
   const bool is_event_drag = (event->val == KM_CLICK_DRAG);
@@ -3209,7 +3226,6 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
    * was initiated over a gizmo. */
   const bool restore_highlight_unless_activated = is_event_drag;
 
-  eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = handler->gizmo_map;
@@ -3348,7 +3364,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     /* Don't use from now on. */
     gz = nullptr;
 
-    /* Fallback to selected gizmo (when un-handled). */
+    /* Fall back to selected gizmo (when un-handled). */
     if ((action & WM_HANDLER_BREAK) == 0) {
       if (WM_gizmomap_is_any_selected(gzmap)) {
         const ListBase *groups = WM_gizmomap_group_list(gzmap);
@@ -3530,7 +3546,8 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
       }
       else if (handler_base->type == WM_HANDLER_TYPE_GIZMO) {
         wmEventHandler_Gizmo *handler = (wmEventHandler_Gizmo *)handler_base;
-        action |= wm_handlers_do_gizmo_handler(C, wm, handler, event, handlers, do_debug_handler);
+        action |= wm_handlers_do_gizmo_handler(
+            C, wm, handler, event, always_pass, handlers, do_debug_handler);
       }
       else if (handler_base->type == WM_HANDLER_TYPE_OP) {
         wmEventHandler_Op *handler = (wmEventHandler_Op *)handler_base;
@@ -4009,6 +4026,16 @@ static void wm_event_handle_xrevent(bContext *C,
 
 static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *event, ARegion *region)
 {
+  if (region->runtime->type->do_lock) {
+    /* If the region is locked, we ignore the events. Handling them can trigger depsgraph
+     * evaluations in some cases which is not safe to do because another thread may evaluate the
+     * depsgraph already. */
+    if (wm_event_always_pass(event)) {
+      return WM_HANDLER_CONTINUE;
+    }
+    return WM_HANDLER_BREAK;
+  }
+
   CTX_wm_region_set(C, region);
 
   /* Call even on non mouse events, since the. */
@@ -4103,13 +4130,13 @@ void wm_event_do_handlers(bContext *C)
 
       {
         const bool is_consecutive = WM_event_consecutive_gesture_test(event);
-        if (win->event_queue_consecutive_gesture_type != 0) {
+        if (win->event_queue_consecutive_gesture_type != EVENT_NONE) {
           if (event->type == win->event_queue_consecutive_gesture_type) {
             event->flag |= WM_EVENT_IS_CONSECUTIVE;
           }
           else if (is_consecutive || WM_event_consecutive_gesture_test_break(win, event)) {
             CLOG_INFO(WM_LOG_HANDLERS, 1, "consecutive gesture break (%d)", event->type);
-            win->event_queue_consecutive_gesture_type = 0;
+            win->event_queue_consecutive_gesture_type = EVENT_NONE;
             WM_event_consecutive_data_free(win);
           }
         }
@@ -4376,7 +4403,7 @@ static wmWindow *wm_event_find_fileselect_root_window_from_context(const bContex
     }
   }
 
-  /* Fallback to the first window. */
+  /* Fall back to the first window. */
   const wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(!ED_fileselect_handler_area_find_any_with_op(
       static_cast<const wmWindow *>(wm->windows.first)));
@@ -4397,6 +4424,53 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   /* Determined later. */
   ScrArea *root_area = nullptr;
   ARegion *root_region = nullptr;
+
+  if (!G.quiet) {
+    /* Perform some sanity checks.
+     *
+     * - Using the file-path sub-types is important because it's possible paths don't use
+     *   UTF8 compatible strings, the Python API only accounts for this for "path" sub-types.
+     *
+     * - The sub-types in the messages match the Python ID's
+     *   since this it's most likely Python developers will be encountering these messages.
+     *
+     * - These could be made into errors however that would break existing scripts.
+     */
+    const char *prefix = "fileselect_add";
+    PropertyRNA *prop;
+    const char *prop_id;
+
+    prop_id = "filepath";
+    prop = RNA_struct_find_property(op->ptr, prop_id);
+    if (prop) {
+      if (!((RNA_property_type(prop) == PROP_STRING) &&
+            (RNA_property_subtype(prop) == PROP_FILEPATH)))
+      {
+        printf("%s: \"%s\" expected a string with a 'FILE_PATH' subtype.\n", prefix, prop_id);
+      }
+    }
+    prop_id = "directory";
+    prop = RNA_struct_find_property(op->ptr, prop_id);
+    if (prop) {
+      if (!((RNA_property_type(prop) == PROP_STRING) &&
+            (RNA_property_subtype(prop) == PROP_DIRPATH)))
+      {
+        printf("%s: \"%s\" expected a string with a 'DIR_PATH' subtype.\n", prefix, prop_id);
+      }
+    }
+
+    prop_id = "filename";
+    prop = RNA_struct_find_property(op->ptr, prop_id);
+    if (prop) {
+      if (!((RNA_property_type(prop) == PROP_STRING) &&
+            (RNA_property_subtype(prop) == PROP_FILENAME)))
+      {
+        printf("%s: \"%s\" expected a string with a 'FILE_NAME' subtype.\n", prefix, prop_id);
+      }
+    }
+
+    /* Other methods could be checked too `files`, `check_existing`, `filter_glob`... etc. */
+  }
 
   /* Setting the context window unsets the context area & screen. Avoid doing that, so operators
    * calling the file browser can operate in the context the browser was opened in. */
@@ -4851,11 +4925,50 @@ bool WM_event_handler_region_v2d_mask_poll(const wmWindow * /*win*/,
   return event_or_prev_in_rect(event, &rect);
 }
 
-bool WM_event_handler_region_marker_poll(const wmWindow * /*win*/,
-                                         const ScrArea * /*area*/,
+bool WM_event_handler_region_marker_poll(const wmWindow *win,
+                                         const ScrArea *area,
                                          const ARegion *region,
                                          const wmEvent *event)
 {
+  switch (area->spacetype) {
+    case SPACE_ACTION: {
+      const SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
+      if ((saction->flag & SACTION_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_GRAPH: {
+      const SpaceGraph *sgraph = static_cast<SpaceGraph *>(area->spacedata.first);
+      if ((sgraph->flag & SIPO_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_NLA: {
+      const SpaceNla *snla = static_cast<SpaceNla *>(area->spacedata.first);
+      if ((snla->flag & SNLA_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *seq = static_cast<SpaceSeq *>(area->spacedata.first);
+      if ((seq->flag & SEQ_SHOW_MARKERS) == 0) {
+        return false;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  const ListBase *markers = ED_scene_markers_get(WM_window_get_active_scene(win),
+                                                 const_cast<ScrArea *>(area));
+  if (BLI_listbase_is_empty(markers)) {
+    return false;
+  }
+
   rcti rect = region->winrct;
   rect.ymax = rect.ymin + UI_MARKER_MARGIN_Y;
   /* TODO: investigate returning `event_or_prev_in_rect(event, &rect)` here.
@@ -5458,8 +5571,8 @@ constexpr wmTabletData wm_event_tablet_data_default()
   wmTabletData tablet_data{};
   tablet_data.active = EVT_TABLET_NONE;
   tablet_data.pressure = 1.0f;
-  tablet_data.x_tilt = 0.0f;
-  tablet_data.y_tilt = 0.0f;
+  tablet_data.tilt.x = 0.0f;
+  tablet_data.tilt.y = 0.0f;
   tablet_data.is_motion_absolute = false;
   return tablet_data;
 }
@@ -5474,8 +5587,7 @@ void wm_tablet_data_from_ghost(const GHOST_TabletData *tablet_data, wmTabletData
   if ((tablet_data != nullptr) && tablet_data->Active != GHOST_kTabletModeNone) {
     wmtab->active = int(tablet_data->Active);
     wmtab->pressure = wm_pressure_curve(tablet_data->Pressure);
-    wmtab->x_tilt = tablet_data->Xtilt;
-    wmtab->y_tilt = tablet_data->Ytilt;
+    wmtab->tilt = blender::float2(tablet_data->Xtilt, tablet_data->Ytilt);
     /* We could have a preference to support relative tablet motion (we can't detect that). */
     wmtab->is_motion_absolute = true;
     // printf("%s: using tablet %.5f\n", __func__, wmtab->pressure);
@@ -5864,8 +5976,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
         wmEvent *event_new = wm_event_add_mousemove(win, &event);
         copy_v2_v2_int(event_state->xy, event_new->xy);
         event_state->tablet.is_motion_absolute = event_new->tablet.is_motion_absolute;
-        event_state->tablet.x_tilt = event.tablet.x_tilt;
-        event_state->tablet.y_tilt = event.tablet.y_tilt;
+        event_state->tablet.tilt = event.tablet.tilt;
       }
 
       /* Also add to other window if event is there, this makes overdraws disappear nicely. */
@@ -6171,13 +6282,25 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
           customdata);
 
       int click_step;
-      if (wheelData->z > 0) {
-        event.type = WHEELUPMOUSE;
-        click_step = wheelData->z;
+      if (wheelData->axis == GHOST_kEventWheelAxisVertical) {
+        if (wheelData->value > 0) {
+          event.type = WHEELUPMOUSE;
+          click_step = wheelData->value;
+        }
+        else {
+          event.type = WHEELDOWNMOUSE;
+          click_step = -wheelData->value;
+        }
       }
       else {
-        event.type = WHEELDOWNMOUSE;
-        click_step = -wheelData->z;
+        if (wheelData->value > 0) {
+          event.type = WHEELRIGHTMOUSE;
+          click_step = wheelData->value;
+        }
+        else {
+          event.type = WHEELLEFTMOUSE;
+          click_step = -wheelData->value;
+        }
       }
       BLI_assert(click_step != 0);
 
@@ -6252,9 +6375,17 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 #ifdef WITH_INPUT_IME
     case GHOST_kEventImeCompositionStart: {
       event.val = KM_PRESS;
-      win->ime_data = static_cast<const wmIMEData *>(customdata);
-      BLI_assert(win->ime_data != nullptr);
-      win->ime_data_is_composing = true;
+      BLI_assert(customdata != nullptr);
+      /* We need to free the previously allocated data (if any). */
+      MEM_delete(win->runtime->ime_data);
+
+      /* We make a copy of the ghost custom data as it is not certain that the pointer
+       * will be valid after the event itself gets freed.
+       */
+      const wmIMEData *ghost_event_data = static_cast<const wmIMEData *>(customdata);
+      win->runtime->ime_data = MEM_new<wmIMEData>(__func__, *ghost_event_data);
+
+      win->runtime->ime_data_is_composing = true;
       event.type = WM_IME_COMPOSITE_START;
       wm_event_add_intern(win, &event);
       break;
@@ -6262,12 +6393,18 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
     case GHOST_kEventImeComposition: {
       event.val = KM_PRESS;
       event.type = WM_IME_COMPOSITE_EVENT;
+
+      /* Update our copy of the ghost custom data. */
+      MEM_delete(win->runtime->ime_data);
+      const wmIMEData *ghost_event_data = static_cast<const wmIMEData *>(customdata);
+      win->runtime->ime_data = MEM_new<wmIMEData>(__func__, *ghost_event_data);
+
       wm_event_add_intern(win, &event);
       break;
     }
     case GHOST_kEventImeCompositionEnd: {
       event.val = KM_PRESS;
-      win->ime_data_is_composing = false;
+      win->runtime->ime_data_is_composing = false;
       event.type = WM_IME_COMPOSITE_END;
       wm_event_add_intern(win, &event);
       break;
@@ -6550,7 +6687,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
   {
     return;
   }
-  /* Fallback to window. */
+  /* Fall back to window. */
   if (ELEM(region->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_TOOL_PROPS)) {
     region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   }
@@ -6637,7 +6774,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
       if (kmi->type == RIGHTMOUSE && kmi->val == KM_PRESS &&
           STR_ELEM(kmi->idname, "WM_OT_call_menu", "WM_OT_call_menu_pie", "WM_OT_call_panel"))
       {
-        name = TIP_("Options");
+        name = IFACE_("Options");
       }
       else if (ot) {
         /* Skip internal operators. */
@@ -6692,7 +6829,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
   }
   const EnumPropertyItem *items = static_cast<const EnumPropertyItem *>(keymap->modal_items);
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   for (int i = 0; items[i].identifier; i++) {
     if (!items[i].identifier[0]) {
       continue;
@@ -6712,7 +6849,7 @@ bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *la
                  op->type, items[i].value, true))
     {
       /*  Show text instead */
-      uiItemL(row, fmt::format("{}: {}", *str, items[i].name), ICON_NONE);
+      row->label(fmt::format("{}: {}", *str, items[i].name), ICON_NONE);
     }
   }
   return true;
