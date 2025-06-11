@@ -547,6 +547,7 @@ set(GLSL_SRC
   intern/shaders/subdiv_vbo_edituv_strech_angle_comp.glsl
   intern/shaders/subdiv_vbo_edituv_strech_area_comp.glsl
   intern/shaders/subdiv_vbo_lnor_comp.glsl
+  intern/shaders/subdiv_vbo_paint_overlay_flag_comp.glsl
   intern/shaders/subdiv_vbo_sculpt_data_comp.glsl
   intern/shaders/draw_aabb_lib.glsl
   intern/shaders/draw_colormanagement_lib.glsl

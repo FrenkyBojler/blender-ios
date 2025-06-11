@@ -595,8 +595,6 @@ void DRW_mesh_batch_cache_dirty_tag(Mesh *mesh, eMeshBatchDirtyMode mode)
       mesh_batch_cache_discard_uvedit_select(cache);
       break;
     case BKE_MESH_BATCH_DIRTY_SELECT_PAINT:
-      /* Paint mode selection flag is packed inside the nor attribute.
-       * Note that it can be slow if auto smooth is enabled. (see #63946) */
       discard_buffers(cache, {VBOType::PaintOverlayFlag}, {IBOType::LinesPaintMask});
       break;
     case BKE_MESH_BATCH_DIRTY_ALL:
@@ -1336,7 +1334,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
       batch_info.append(std::move(batch));
     }
     if (batches_to_create & MBC_PAINT_OVERLAY_SURFACE) {
-      BatchCreateData batch{*cache.batch.surface,
+      BatchCreateData batch{*cache.batch.paint_overlay_surface,
                             GPU_PRIM_TRIS,
                             list,
                             IBOType::Tris,
@@ -1355,7 +1353,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
           {*cache.batch.all_verts, GPU_PRIM_POINTS, list, std::nullopt, {VBOType::Position}});
     }
     if (batches_to_create & MBC_PAINT_OVERLAY_VERTS) {
-      batch_info.append({*cache.batch.all_verts,
+      batch_info.append({*cache.batch.paint_overlay_verts,
                          GPU_PRIM_POINTS,
                          list,
                          std::nullopt,

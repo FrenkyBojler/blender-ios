@@ -224,8 +224,8 @@ enum DRWBatchFlag : uint64_t {
   MBC_SCULPT_OVERLAYS = (1u << MBC_BATCH_INDEX(sculpt_overlays)),
   MBC_VIEWER_ATTRIBUTE_OVERLAY = (1u << MBC_BATCH_INDEX(surface_viewer_attribute)),
   MBC_PAINT_OVERLAY_VERTS = (1u << MBC_BATCH_INDEX(paint_overlay_verts)),
-  MBC_PAINT_OVERLAY_SURFACE = (1u << MBC_BATCH_INDEX(paint_overlay_surface)),
-  MBC_SURFACE_PER_MAT = (1u << MBC_BATCH_LEN),
+  MBC_PAINT_OVERLAY_SURFACE = (uint64_t(1u) << MBC_BATCH_INDEX(paint_overlay_surface)),
+  MBC_SURFACE_PER_MAT = (uint64_t(1u) << MBC_BATCH_LEN),
 };
 ENUM_OPERATORS(DRWBatchFlag, MBC_SURFACE_PER_MAT);
 

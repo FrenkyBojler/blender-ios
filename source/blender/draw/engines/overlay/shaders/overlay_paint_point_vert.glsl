@@ -26,7 +26,7 @@ void main()
   }
 
   final_color = (is_select) ? float4(1.0f) : theme.colors.wire;
-  final_color.a = nor.w;
+  final_color.a = float(paint_overlay_flag);
 
   gl_PointSize = theme.sizes.vert * 2.0f;
 
