@@ -24,18 +24,17 @@ namespace blender::nodes::node_composite_split_cc {
 
 static void cmp_node_split_declare(NodeDeclarationBuilder &b)
 {
-  // todo: define reasonable min max, description etc..
   b.add_input<decl::Vector>("Position")
       .dimensions(2)
       .subtype(PROP_FACTOR)
       .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
-      .description("");
+      .description("Line position where the image should be split.");
   b.add_input<decl::Float>("Rotation")
       .default_value(float(M_PI_4))
       .subtype(PROP_ANGLE)
-      .description("");
+      .description("Line angle where the image should be split.");
 
   b.add_input<decl::Color>("Image");
   b.add_input<decl::Color>("Image", "Image_001");
