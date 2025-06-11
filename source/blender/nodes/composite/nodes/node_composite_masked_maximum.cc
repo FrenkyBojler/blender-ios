@@ -32,31 +32,37 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Mask").default_value(0.5f).min(0.0f).compositor_domain_priority(0);
   b.add_input<decl::Vector>("Size")
       .dimensions(2)
-      .default_value({1.0f, 1.0f, 0.0f})
+      .default_value({0.0f, 0.0f, 0.0f})
       .min(0.0f)
       .compositor_domain_priority(1)
       .description(
           "Size from the center of the constant part of the rounded square mask to its "
           "boundaries");
+  b.add_input<decl::Float>("Rotation")
+      .default_value(0.0f)
+      .subtype(PROP_ANGLE)
+      .compositor_domain_priority(2)
+      .description("Angle to rotate the rounded square mask by");
+  b.add_input<decl::Vector>("Translation")
+      .dimensions(2)
+      .default_value({0.0f, 0.0f, 0.0f})
+      .compositor_domain_priority(3)
+      .description("Translation of the rounded square mask");
   b.add_input<decl::Float>("Roundness")
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(2)
+      .compositor_domain_priority(4)
       .description("Roundness of the rounded square mask");
   b.add_input<decl::Float>("Falloff")
       .default_value(0.0f)
       .min(0.0f)
-      .compositor_domain_priority(3)
+      .compositor_domain_priority(5)
       .description(
           "Maximal range of the linear falloff starting at the boundaries of the constant part of "
           "the rounded square mask");
-  b.add_input<decl::Float>("Rotation")
-      .default_value(0.0f)
-      .subtype(PROP_ANGLE)
-      .compositor_domain_priority(4)
-      .description("Angle to rotate the rounded square mask by");
+
   b.add_output<decl::Float>("Mask");
 }
 
@@ -72,9 +78,12 @@ class MaskedMaximumOperation : public NodeOperation {
     Result &output_mask = this->get_result("Mask");
     float3 size_single_value = get_input("Size").get_single_value_default(
         float3(1.0f, 1.0f, 0.0f));
+    float3 translation_single_value =
+        get_input("Translation").get_single_value_default(float3(1.0f, 1.0f, 0.0f));
 
     if (input_mask.is_single_value() ||
         ((size_single_value.x <= 0.0f) && (size_single_value.y <= 0.0f) &&
+         (translation_single_value.x == 0.0f) && (translation_single_value.y == 0.0f) &&
          (get_input("Falloff").get_single_value_default(1.0f) <= 0.0f)))
     {
       /* Operation does nothing and the input can be passed through. */
@@ -104,14 +113,17 @@ class MaskedMaximumOperation : public NodeOperation {
     const Result &input_size = get_input("Size");
     input_size.bind_as_texture(shader, "input_size_tx");
 
+    const Result &input_rotation = get_input("Rotation");
+    input_rotation.bind_as_texture(shader, "input_rotation_tx");
+
+    const Result &input_translation = get_input("Translation");
+    input_translation.bind_as_texture(shader, "input_translation_tx");
+
     const Result &input_roundness = get_input("Roundness");
     input_roundness.bind_as_texture(shader, "input_roundness_tx");
 
     const Result &input_falloff = get_input("Falloff");
     input_falloff.bind_as_texture(shader, "input_falloff_tx");
-
-    const Result &input_rotation = get_input("Rotation");
-    input_rotation.bind_as_texture(shader, "input_rotation_tx");
 
     output_mask.allocate_texture(domain);
     output_mask.bind_as_image(shader, "output_mask_img");
@@ -121,9 +133,10 @@ class MaskedMaximumOperation : public NodeOperation {
     GPU_shader_unbind();
     input_mask.unbind_as_texture();
     input_size.unbind_as_texture();
+    input_rotation.unbind_as_texture();
+    input_translation.unbind_as_texture();
     input_roundness.unbind_as_texture();
     input_falloff.unbind_as_texture();
-    input_rotation.unbind_as_texture();
     output_mask.unbind_as_image();
   }
 
@@ -135,65 +148,58 @@ class MaskedMaximumOperation : public NodeOperation {
     parallel_for(domain.size, [&](const int2 texel) {
       float3 size = math::max(get_input("Size").load_pixel_zero<float3, true>(texel),
                               float3(0.0f, 0.0f, 0.0f));
+      float rotation = get_input("Rotation").load_pixel_zero<float, true>(texel);
+      float3 translation = get_input("Translation").load_pixel_zero<float3, true>(texel);
       float roundness = math::clamp(
           get_input("Roundness").load_pixel_zero<float, true>(texel), 0.0f, 1.0f);
       float falloff = math::max(get_input("Falloff").load_pixel_zero<float, true>(texel), 0.0f);
-      float rotation = get_input("Rotation").load_pixel_zero<float, true>(texel);
 
       /* Calculate top right and bottom left corner of the bounding box of the rounded square mask.
        */
-      float2 computation_window_top_right_corner_float;
+      float2 bounding_box_top_right_corner_float;
       if (size.x == size.y) {
-        computation_window_top_right_corner_float = float2(math::ceil(size.x + falloff),
-                                                           math::ceil(size.y + falloff));
+        bounding_box_top_right_corner_float = float2(math::ceil(size.x + falloff),
+                                                     math::ceil(size.y + falloff));
       }
       else if (size.x == 0.0f) {
-        computation_window_top_right_corner_float = float2(0.0f, math::ceil(size.y + falloff));
+        bounding_box_top_right_corner_float = float2(0.0f, math::ceil(size.y + falloff));
       }
       else if (size.y == 0.0f) {
-        computation_window_top_right_corner_float = float2(math::ceil(size.x + falloff), 0.0f);
+        bounding_box_top_right_corner_float = float2(math::ceil(size.x + falloff), 0.0f);
       }
       else {
-        computation_window_top_right_corner_float = float2(
+        bounding_box_top_right_corner_float = float2(
             math::ceil(size.x + (falloff * math::min(size.x / size.y, 1.0f))),
             math::ceil(size.y + (falloff * math::min(size.y / size.x, 1.0f))));
       }
       if (rotation != 0.0f) {
         float2 rotated_top_right_corner = rotate_vector_2d(
-            float2(computation_window_top_right_corner_float.x,
-                   computation_window_top_right_corner_float.y),
+            float2(bounding_box_top_right_corner_float.x, bounding_box_top_right_corner_float.y),
             rotation);
         float2 rotated_bottom_right_corner = rotate_vector_2d(
-            float2(computation_window_top_right_corner_float.x,
-                   -computation_window_top_right_corner_float.y),
+            float2(bounding_box_top_right_corner_float.x, -bounding_box_top_right_corner_float.y),
             rotation);
-        computation_window_top_right_corner_float = float2(
+        bounding_box_top_right_corner_float = float2(
             math::max(math::ceil(math::abs(rotated_top_right_corner.x)),
                       math::ceil(math::abs(rotated_bottom_right_corner.x))),
             math::max(math::ceil(math::abs(rotated_top_right_corner.y)),
                       math::ceil(math::abs(rotated_bottom_right_corner.y))));
       }
-      int2 computation_window_top_right_corner = int2(computation_window_top_right_corner_float);
-      int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
+      int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
+      int2 bounding_box_bottom_left_corner = -bounding_box_top_right_corner;
       /* Crop away parts of the computation window that are outside of the domain. */
-      computation_window_top_right_corner += texel;
-      computation_window_bottom_left_corner += texel;
-      computation_window_top_right_corner = math::min(computation_window_top_right_corner,
-                                                      domain.size - int2(1, 1));
-      computation_window_bottom_left_corner = math::max(computation_window_bottom_left_corner,
-                                                        int2(0, 0));
-      computation_window_top_right_corner -= texel;
-      computation_window_bottom_left_corner -= texel;
+      bounding_box_top_right_corner += texel;
+      bounding_box_bottom_left_corner += texel;
+      bounding_box_top_right_corner = math::min(bounding_box_top_right_corner,
+                                                domain.size - int2(1, 1));
+      bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
+      bounding_box_top_right_corner -= texel;
+      bounding_box_bottom_left_corner -= texel;
       float masked_maximum = -FLT_MAX;
-      for (int y = computation_window_bottom_left_corner.y;
-           y <= computation_window_top_right_corner.y;
-           y++)
-      {
-        for (int x = computation_window_bottom_left_corner.x;
-             x <= computation_window_top_right_corner.x;
-             x++)
+      for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
+        for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++)
         {
-          float2 coord = float2(x, y);
+          float2 coord = float2(x, y) - float2(translation.x, translation.y);
           if (rotation != 0.0f) {
             coord = rotate_vector_2d(coord, -rotation);
           }

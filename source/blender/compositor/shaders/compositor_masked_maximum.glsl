@@ -137,60 +137,52 @@ void main()
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
   float4 size = max(texture_load(input_size_tx, texel), float4(0.0f, 0.0f, 0.0f, 0.0f));
+  float rotation = texture_load(input_rotation_tx, texel).x;
+  float4 translation = texture_load(input_translation_tx, texel);
   float roundness = clamp(texture_load(input_roundness_tx, texel).x, 0.0f, 1.0f);
   float falloff = max(texture_load(input_falloff_tx, texel).x, 0.0f);
-  float rotation = texture_load(input_rotation_tx, texel).x;
 
   /* Calculate top right and bottom left corner of the bounding box of the rounded square mask.
    */
-  float2 computation_window_top_right_corner_float;
+  float2 bounding_box_top_right_corner_float;
   if (size.x == size.y) {
-    computation_window_top_right_corner_float = float2(ceil(size.x + falloff),
-                                                       ceil(size.y + falloff));
+    bounding_box_top_right_corner_float = float2(ceil(size.x + falloff), ceil(size.y + falloff));
   }
   else if (size.x == 0.0f) {
-    computation_window_top_right_corner_float = float2(0.0f, ceil(size.y + falloff));
+    bounding_box_top_right_corner_float = float2(0.0f, ceil(size.y + falloff));
   }
   else if (size.y == 0.0f) {
-    computation_window_top_right_corner_float = float2(ceil(size.x + falloff), 0.0f);
+    bounding_box_top_right_corner_float = float2(ceil(size.x + falloff), 0.0f);
   }
   else {
-    computation_window_top_right_corner_float = float2(
+    bounding_box_top_right_corner_float = float2(
         ceil(size.x + (falloff * min(size.x / size.y, 1.0f))),
         ceil(size.y + (falloff * min(size.y / size.x, 1.0f))));
   }
   if (rotation != 0.0f) {
     float2 rotated_top_right_corner = rotate_vector_2d(
-        float2(computation_window_top_right_corner_float.x,
-               computation_window_top_right_corner_float.y),
+        float2(bounding_box_top_right_corner_float.x, bounding_box_top_right_corner_float.y),
         rotation);
     float2 rotated_bottom_right_corner = rotate_vector_2d(
-        float2(computation_window_top_right_corner_float.x,
-               -computation_window_top_right_corner_float.y),
+        float2(bounding_box_top_right_corner_float.x, -bounding_box_top_right_corner_float.y),
         rotation);
-    computation_window_top_right_corner_float = float2(
+    bounding_box_top_right_corner_float = float2(
         max(ceil(abs(rotated_top_right_corner.x)), ceil(abs(rotated_bottom_right_corner.x))),
         max(ceil(abs(rotated_top_right_corner.y)), ceil(abs(rotated_bottom_right_corner.y))));
   }
-  int2 computation_window_top_right_corner = int2(computation_window_top_right_corner_float);
-  int2 computation_window_bottom_left_corner = -computation_window_top_right_corner;
+  int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
+  int2 bounding_box_bottom_left_corner = -bounding_box_top_right_corner;
   /* Crop away parts of the computation window that are outside of the domain. */
-  computation_window_top_right_corner += texel;
-  computation_window_bottom_left_corner += texel;
-  computation_window_top_right_corner = min(computation_window_top_right_corner,
-                                            domain_size - int2(1, 1));
-  computation_window_bottom_left_corner = max(computation_window_bottom_left_corner, int2(0, 0));
-  computation_window_top_right_corner -= texel;
-  computation_window_bottom_left_corner -= texel;
+  bounding_box_top_right_corner += texel;
+  bounding_box_bottom_left_corner += texel;
+  bounding_box_top_right_corner = min(bounding_box_top_right_corner, domain_size - int2(1, 1));
+  bounding_box_bottom_left_corner = max(bounding_box_bottom_left_corner, int2(0, 0));
+  bounding_box_top_right_corner -= texel;
+  bounding_box_bottom_left_corner -= texel;
   float masked_maximum = -FLT_MAX;
-  for (int y = computation_window_bottom_left_corner.y; y <= computation_window_top_right_corner.y;
-       y++)
-  {
-    for (int x = computation_window_bottom_left_corner.x;
-         x <= computation_window_top_right_corner.x;
-         x++)
-    {
-      float2 coord = float2(x, y);
+  for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
+    for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++) {
+      float2 coord = float2(x, y) - float2(translation.x, translation.y);
       if (rotation != 0.0f) {
         coord = rotate_vector_2d(coord, -rotation);
       }
