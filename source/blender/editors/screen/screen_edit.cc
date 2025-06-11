@@ -883,10 +883,11 @@ void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
   if (U.tablet_mode) {
     ScrArea *area = nullptr;
     LISTBASE_FOREACH_MUTABLE (ScrArea *, ar, &CTX_wm_screen(C)->areabase) {
+      screen_area_close(C, nullptr, CTX_wm_screen(C), ar);
+    }
+    LISTBASE_FOREACH_MUTABLE (ScrArea *, ar, &CTX_wm_screen(C)->areabase) {
       ar->flag |= HEADER_NO_PULLDOWN;
-      if (!screen_area_close(C, nullptr, CTX_wm_screen(C), ar)) {
-        area = ar;
-      }
+      area = ar;
     }
     ED_area_newspace(C, area, SPACE_VIEW3D, true);
 
