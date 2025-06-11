@@ -705,7 +705,7 @@ static void space_out_cb(const wmWindow * /*win*/, void *userdata)
   float y = data->rect.ymin;
 
   if (data->dir == SCREEN_DIR_W) {
-    x -= (data->rect.xmax - data->rect.xmin) * factor;
+    x -= (data->rect.xmax - data->rect.xmin) * 0.6f * factor;
   }
   else if (data->dir == SCREEN_DIR_E) {
     x += (data->rect.xmax - data->rect.xmin) * factor;
