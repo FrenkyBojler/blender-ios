@@ -503,34 +503,54 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 
 #ifdef WITH_INPUT_NDOF
 
-void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3])
+static void wm_event_ndof_pan_get_with_sign(const wmNDOFMotionData *ndof,
+                                            const float sign,
+                                            float r_pan[3])
 {
-  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
   r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign);
   r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign);
   r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign);
 }
 
-void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3])
+static void wm_event_ndof_rotate_get_with_sign(const wmNDOFMotionData *ndof,
+                                               const float sign,
+                                               float r_rot[3])
 {
-  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
   r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -sign : sign);
   r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -sign : sign);
   r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -sign : sign);
 }
 
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3])
+{
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  wm_event_ndof_pan_get_with_sign(ndof, sign, r_pan);
+}
+
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  wm_event_ndof_rotate_get_with_sign(ndof, sign, r_rot);
+}
+
 void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3])
 {
-  r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f);
+  wm_event_ndof_pan_get_with_sign(ndof, 1.0f, r_pan);
 }
 
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
 {
-  r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -1.0f : 1.0f);
+  wm_event_ndof_rotate_get_with_sign(ndof, 1.0f, r_rot);
+}
+
+void WM_event_ndof_pan_get_inverted(const wmNDOFMotionData *ndof, float r_pan[3])
+{
+  wm_event_ndof_pan_get_with_sign(ndof, -1.0f, r_pan);
+}
+
+void WM_event_ndof_rotate_get_inverted(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+  wm_event_ndof_rotate_get_with_sign(ndof, -1.0f, r_rot);
 }
 
 float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3])

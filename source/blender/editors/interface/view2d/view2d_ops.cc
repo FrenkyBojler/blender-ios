@@ -1532,7 +1532,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   if (has_translate) {
     float pan_vec[3];
 
-    WM_event_ndof_pan_get(ndof, pan_vec);
+    WM_event_ndof_pan_get_inverted(ndof, pan_vec);
 
     pan_vec[0] *= speed;
     pan_vec[1] *= speed;
