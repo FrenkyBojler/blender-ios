@@ -626,8 +626,8 @@ static BHeadN *get_bhead(FileData *fd)
 
   if (fd) {
     if (!fd->is_eof) {
-      std::optional<BHead> bhead_opt = BLO_readfile_read_bhead(
-          fd->file, fd->blender_header.bhead_type(), false);
+      std::optional<BHead> bhead_opt = BLO_readfile_read_bhead(fd->file,
+                                                               fd->blender_header.bhead_type());
       BHead *bhead = nullptr;
       if (!bhead_opt.has_value()) {
         fd->is_eof = true;
@@ -1199,7 +1199,7 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
   read_blender_header(fd);
 
   if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-    BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on littel endian systems")
+    BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
     BKE_reportf(reports,
                 RPT_ERROR,
                 "Blend file '%s' created by a Big Endian version of Blender, support for "
@@ -5322,7 +5322,7 @@ static void convert_pointer_array_64_to_32(BlendDataReader *reader,
 {
   BLI_assert((reader->fd->flags & FD_FLAGS_SWITCH_ENDIAN) == 0);
   for (int i = 0; i < array_size; i++) {
-    dst[i] = uint32_from_uint64_ptr(src[i], false);
+    dst[i] = uint32_from_uint64_ptr(src[i]);
   }
 }
 
