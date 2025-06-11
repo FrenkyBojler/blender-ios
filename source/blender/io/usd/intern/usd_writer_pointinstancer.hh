@@ -18,18 +18,17 @@ namespace blender::io::usd {
 class USDPointInstancerWriter final : public USDAbstractWriter {
  public:
   USDPointInstancerWriter(const USDExporterContext &ctx,
-                          std::set<std::pair<pxr::SdfPath, Object *>> &paths);
+                          std::set<std::pair<pxr::SdfPath, Object *>> &prototype_paths,
+                          std::unique_ptr<USDAbstractWriter> base_writer);
   ~USDPointInstancerWriter() final = default;
-  std::set<std::pair<pxr::SdfPath, Object *>> proto_paths;
   const std::string proto_name = "Prototype";
-
-  void set_base_writer(std::unique_ptr<USDAbstractWriter> writer);
 
  protected:
   virtual void do_write(HierarchyContext &context) override;
 
  private:
   std::unique_ptr<USDAbstractWriter> base_writer_;
+  std::set<std::pair<pxr::SdfPath, Object *>> prototype_paths_;
 
   void write_attribute_data(const bke::AttributeIter &attr,
                             const pxr::UsdGeomPointInstancer &usd_instancer,

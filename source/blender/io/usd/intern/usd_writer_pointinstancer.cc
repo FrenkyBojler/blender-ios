@@ -52,15 +52,13 @@
 namespace blender::io::usd {
 
 USDPointInstancerWriter::USDPointInstancerWriter(
-    const USDExporterContext &ctx, std::set<std::pair<pxr::SdfPath, Object *>> &paths)
-    : USDAbstractWriter(ctx)
+    const USDExporterContext &ctx,
+    std::set<std::pair<pxr::SdfPath, Object *>> &prototype_paths,
+    std::unique_ptr<USDAbstractWriter> base_writer)
+    : USDAbstractWriter(ctx),
+      base_writer_(std::move(base_writer)),
+      prototype_paths_(prototype_paths)
 {
-  proto_paths = paths;
-}
-
-void USDPointInstancerWriter::set_base_writer(std::unique_ptr<USDAbstractWriter> writer)
-{
-  base_writer_ = std::move(writer);
 }
 
 void USDPointInstancerWriter::do_write(HierarchyContext &context)
@@ -155,10 +153,10 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   std::map<std::string, int> proto_index_map;
   std::map<std::string, pxr::SdfPath> proto_path_map;
 
-  if (!proto_paths.empty() && usd_instancer) {
+  if (!prototype_paths_.empty() && usd_instancer) {
     int iter = 0;
 
-    for (const std::pair<pxr::SdfPath, Object *> &entry : proto_paths) {
+    for (const std::pair<pxr::SdfPath, Object *> &entry : prototype_paths_) {
       const pxr::SdfPath &source_path = entry.first;
       Object *obj = entry.second;
 
@@ -473,7 +471,7 @@ void USDPointInstancerWriter::handle_collection_prototypes(
   pxr::UsdAttribute proto_indices_attr = usd_instancer.GetProtoIndicesAttr();
   if (!proto_indices_attr.HasAuthoredValue()) {
     std::vector<int> index;
-    for (int i = 0; i < proto_paths.size(); i++) {
+    for (int i = 0; i < prototype_paths_.size(); i++) {
       std::vector<int> current_proto_index(instance_num, i);
       index.insert(index.end(), current_proto_index.begin(), current_proto_index.end());
     }
