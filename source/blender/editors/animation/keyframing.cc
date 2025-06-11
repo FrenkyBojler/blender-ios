@@ -206,6 +206,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, K
   if (num_channels > 0) {
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   }
 
   if (confirm) {
@@ -388,6 +389,7 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
