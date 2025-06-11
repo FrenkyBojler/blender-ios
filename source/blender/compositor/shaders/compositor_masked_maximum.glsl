@@ -77,8 +77,12 @@ float compute_rounded_square_mask(float2 coord,
 
   if (size.y == 0.0f) {
     if (size.x == 0.0f) {
-      if ((falloff == 0.0f) ||
-          (!is_in_unit_rounded_square(coord / (float2(falloff, falloff)), roundness)))
+      if ((coord.x == 0.0f) && (coord.y == 0.0f)) {
+        /* coord is in the constant part of the mask. */
+        return 1.0f;
+      }
+      else if ((falloff == 0.0f) ||
+               (!is_in_unit_rounded_square(coord / (float2(falloff, falloff)), roundness)))
       {
         /* coord is outside of the mask. */
         return 0.0f;
@@ -170,9 +174,18 @@ void main()
         max(ceil(abs(rotated_top_right_corner.x)), ceil(abs(rotated_bottom_right_corner.x))),
         max(ceil(abs(rotated_top_right_corner.y)), ceil(abs(rotated_bottom_right_corner.y))));
   }
+  float2 bounding_box_bottom_left_corner_float = -bounding_box_top_right_corner_float;
+  /* Translate bounding box. */
+  bounding_box_top_right_corner_float = float2(
+      ceil(bounding_box_top_right_corner_float.x + translation.x),
+      ceil(bounding_box_top_right_corner_float.y + translation.y));
+  bounding_box_bottom_left_corner_float = float2(
+      floor(bounding_box_bottom_left_corner_float.x + translation.x),
+      floor(bounding_box_bottom_left_corner_float.y + translation.y));
+
   int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
-  int2 bounding_box_bottom_left_corner = -bounding_box_top_right_corner;
-  /* Crop away parts of the computation window that are outside of the domain. */
+  int2 bounding_box_bottom_left_corner = int2(bounding_box_bottom_left_corner_float);
+  /* Crop away parts of the bounding box that are outside of the domain. */
   bounding_box_top_right_corner += texel;
   bounding_box_bottom_left_corner += texel;
   bounding_box_top_right_corner = min(bounding_box_top_right_corner, domain_size - int2(1, 1));
