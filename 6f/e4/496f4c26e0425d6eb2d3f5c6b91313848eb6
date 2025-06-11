@@ -1,3 +1,4 @@
 Referenced by issue #90165, Outliner: Linking object hierachies to a collection is buggy
 Referenced by issue #139887, Regression: Outliner crash after excluding collection
 Referenced by pull request #140024, Fix #139887: Outliner crash after excluding collection
+Referenced by commit 39a138aa928c28e78231a95fda554c9f12261b86, Fix #139887: Outliner crash after excluding collection
