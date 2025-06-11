@@ -42,12 +42,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  if (index >= list->values().size()) {
+  const GSpan values = list->values();
+  if (index >= values.size()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const GSpan values = list->values();
   const GPointer value = values[index];
   params.set_output("Value", value);
 }

@@ -58,6 +58,9 @@ ListPtr List::ForUninitialized(const CPPType &cpp_type, int64_t size)
   return ListPtr(MEM_new<List_For_Data>(__func__, cpp_type, data, size));
 }
 
+List::List() = default;
+List::~List() = default;
+
 void List::delete_self()
 {
   MEM_delete(this);

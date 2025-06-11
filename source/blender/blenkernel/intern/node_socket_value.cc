@@ -209,7 +209,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
     kind_ = Kind::List;
-    value_.emplace(std::move(value));
+    value_.emplace<nodes::ListPtr>(std::move(value));
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
@@ -447,6 +447,7 @@ INSTANTIATE(std::string)
 INSTANTIATE(fn::GField)
 INSTANTIATE(blender::nodes::BundlePtr)
 INSTANTIATE(blender::nodes::ClosurePtr)
+INSTANTIATE(blender::nodes::ListPtr)
 
 INSTANTIATE(float4x4)
 INSTANTIATE(fn::Field<float4x4>)
