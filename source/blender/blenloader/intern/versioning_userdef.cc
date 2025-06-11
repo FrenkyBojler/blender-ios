@@ -261,6 +261,40 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 6)) {
+    /* Match the selected/unselected outline colors. */
+    copy_v4_v4_uchar(btheme->tui.wcol_box.outline_sel, U_theme_default.tui.wcol_box.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_list_item.outline_sel,
+                     U_theme_default.tui.wcol_list_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu.outline_sel, U_theme_default.tui.wcol_menu.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu_back.outline_sel,
+                     U_theme_default.tui.wcol_menu_back.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_menu_item.outline_sel,
+                     U_theme_default.tui.wcol_menu_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_num.outline_sel, U_theme_default.tui.wcol_num.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_numslider.outline_sel,
+                     U_theme_default.tui.wcol_numslider.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_option.outline_sel, U_theme_default.tui.wcol_option.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_pie_menu.outline_sel,
+                     U_theme_default.tui.wcol_pie_menu.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_progress.outline_sel,
+                     U_theme_default.tui.wcol_progress.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_pulldown.outline_sel,
+                     U_theme_default.tui.wcol_pulldown.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_radio.outline_sel, U_theme_default.tui.wcol_radio.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_regular.outline_sel,
+                     U_theme_default.tui.wcol_regular.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_scroll.outline_sel, U_theme_default.tui.wcol_scroll.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tab.outline_sel, U_theme_default.tui.wcol_tab.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_text.outline_sel, U_theme_default.tui.wcol_text.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_toggle.outline_sel, U_theme_default.tui.wcol_toggle.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tool.outline_sel, U_theme_default.tui.wcol_tool.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_toolbar_item.outline_sel,
+                     U_theme_default.tui.wcol_toolbar_item.outline);
+    copy_v4_v4_uchar(btheme->tui.wcol_tooltip.outline_sel,
+                     U_theme_default.tui.wcol_tooltip.outline);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 7)) {
     btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
   }
