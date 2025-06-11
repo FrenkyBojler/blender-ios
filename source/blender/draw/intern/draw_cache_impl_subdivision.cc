@@ -1403,6 +1403,7 @@ void draw_subdiv_build_paint_overlay_flag_buffer(const DRWSubdivCache &cache,
   GPU_vertbuf_bind_as_ssbo(cache.subdiv_face_offset_buffer, SUBDIV_FACE_OFFSET_BUF_SLOT);
   GPU_vertbuf_bind_as_ssbo(cache.extra_coarse_face_data,
                            PAINT_OVERLAY_EXTRA_COARSE_FACE_DATA_BUF_SLOT);
+  GPU_vertbuf_bind_as_ssbo(cache.verts_orig_index, PAINT_OVERLAY_EXTRA_INPUT_VERT_ORIG_INDEX_SLOT);
   GPU_vertbuf_bind_as_ssbo(&subdiv_corner_verts, PAINT_OVERLAY_FLAG_VERTEX_LOOP_MAP_BUF_SLOT);
 
   /* Outputs */

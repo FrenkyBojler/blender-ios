@@ -276,7 +276,7 @@ static const GPUVertFormat &get_normals_format()
 {
   static const GPUVertFormat format = []() {
     GPUVertFormat format{};
-    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32_32);
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
     GPU_vertformat_alias_add(&format, "lnor");
     GPU_vertformat_alias_add(&format, "vnor");
     return format;
