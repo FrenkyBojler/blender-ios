@@ -538,7 +538,10 @@ class DOPESHEET_MT_channel(Menu):
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.operator("anim.channels_delete")
-        layout.operator("action.clean", text="Clean Channels", description="Remove channel if left with single key").channels = True
+        layout.operator(
+            "action.clean",
+            text="Clean Channels",
+            description="Remove channel if left with single key").channels = True
 
         layout.separator()
         layout.operator("anim.channels_group")
