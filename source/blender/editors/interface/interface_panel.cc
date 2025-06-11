@@ -2573,7 +2573,8 @@ int ui_handler_panel_region(bContext *C,
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
-                                int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
+                                int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
+                                              aspect));
 
         UI_panel_category_active_set(region, pc_dyn->idname);
 
