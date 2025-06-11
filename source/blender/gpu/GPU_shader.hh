@@ -17,7 +17,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-#include "GPU_capabilities.hh"
 #include "GPU_common_types.hh"
 #include "GPU_shader_builtin.hh"
 
