@@ -23,21 +23,20 @@ static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<in
   }
   const OffsetIndices faces = mr.faces;
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
-    if (!selection.is_empty()) {
+    if (selection.is_empty()) {
+      flags.fill(0);
+    }
+    else {
       if (use_face_select) {
         for (const int face : range) {
-          if (selection[face]) {
-            flags.slice(faces[face]).fill(1);
-          }
+          flags.slice(faces[face]).fill(selection[face] ? 1 : 0);
         }
       }
       else {
         const Span<int> corner_verts = mr.corner_verts;
         for (const int face : range) {
           for (const int corner : faces[face]) {
-            if (selection[corner_verts[corner]]) {
-              flags[corner] = 1;
-            }
+            flags[corner] = selection[corner_verts[corner]] ? 1 : 0;
           }
         }
       }
