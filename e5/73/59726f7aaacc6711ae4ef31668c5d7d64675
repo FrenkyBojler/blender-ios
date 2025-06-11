@@ -1,1 +1,2 @@
 Referenced by pull request #140173, Fix #140152: Use correct vertex attribute type for drawing keyframes
+Referenced by commit db79a2e73731579274be7dc5f72fce17ad051986, Fix: GPU: Wrong attribute types for UNORM 8bit attributes
