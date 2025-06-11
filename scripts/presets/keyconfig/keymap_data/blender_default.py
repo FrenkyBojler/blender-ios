@@ -3060,13 +3060,13 @@ def km_sequencer(params):
         ("sequencer.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
         ("sequencer.view_frame", {"type": 'NUMPAD_0', "value": 'PRESS'}, None),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", True), ("center", False)]}),
-        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
          {"properties": [("next", False), ("center", False)]}),
+        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
+         {"properties": [("next", True), ("center", False)]}),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("next", True), ("center", True)]}),
-        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "alt": True, "repeat": True},
          {"properties": [("next", False), ("center", True)]}),
+        ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "alt": True, "repeat": True},
+         {"properties": [("next", True), ("center", True)]}),
         ("sequencer.swap", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
          {"properties": [("side", 'LEFT')]}),
         ("sequencer.swap", {"type": 'RIGHT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
@@ -4309,8 +4309,8 @@ def km_grease_pencil_fill_tool(_params):
          None),
         ("grease_pencil.fill", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
          {"properties": [("invert", True)]}),
-        # Use regular stroke operator when holding shift to draw lines.
-        ("grease_pencil.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+        # Use regular stroke operator when holding alt to draw fill guides.
+        ("grease_pencil.brush_stroke", {"type": 'LEFTMOUSE', "value": 'PRESS', "alt": True},
          None),
     ])
 
@@ -5112,9 +5112,9 @@ def km_sculpt(params):
         # Subdivision levels
         *_template_items_object_subdivision_set(),
         ("object.subdivision_set", {"type": 'ONE', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("level", -1), ("relative", True)]}),
+         {"properties": [("level", -1), ("relative", True), ("ensure_modifier", False)]}),
         ("object.subdivision_set", {"type": 'TWO', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("level", 1), ("relative", True)]}),
+         {"properties": [("level", 1), ("relative", True), ("ensure_modifier", False)]}),
         # Mask
         ("paint.mask_flood_fill", {"type": 'M', "value": 'PRESS', "alt": True},
          {"properties": [("mode", 'VALUE'), ("value", 0.0)]}),

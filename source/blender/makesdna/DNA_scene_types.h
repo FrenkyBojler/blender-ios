@@ -1426,6 +1426,15 @@ typedef struct UnifiedPaintSettings {
   /** Unified brush secondary color. */
   float secondary_rgb[3];
 
+  /** Unified color jitter settings */
+  int color_jitter_flag;
+  float hsv_jitter[3];
+
+  /** Color jitter pressure curves. */
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
+
   /** Unified brush stroke input samples. */
   int input_samples;
 
@@ -1496,20 +1505,6 @@ typedef struct UnifiedPaintSettings {
   /** ColorSpace cache to avoid locking up during sampling. */
   const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
-
-/** #UnifiedPaintSettings::flag */
-typedef enum {
-  UNIFIED_PAINT_SIZE = (1 << 0),
-  UNIFIED_PAINT_ALPHA = (1 << 1),
-  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
-  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
-  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
-  UNIFIED_PAINT_WEIGHT = (1 << 5),
-  UNIFIED_PAINT_COLOR = (1 << 6),
-  UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-
-} eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {
   char curve_type;
@@ -2023,7 +2018,7 @@ typedef struct SceneGpencil {
   float smaa_threshold;
   float smaa_threshold_render;
   int aa_samples;
-  char _pad0[4];
+  int motion_blur_steps;
 } SceneGpencil;
 
 typedef struct SceneHydra {
@@ -2093,7 +2088,8 @@ typedef struct Scene {
   char use_nodes;
   char _pad3[1];
 
-  struct bNodeTree *nodetree;
+  struct bNodeTree *nodetree DNA_DEPRECATED;
+  struct bNodeTree *compositing_node_group;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;
@@ -2188,7 +2184,6 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
 } Scene;
 
 /** \} */

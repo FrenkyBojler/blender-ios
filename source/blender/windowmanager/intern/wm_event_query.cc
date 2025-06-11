@@ -406,14 +406,6 @@ int WM_event_drag_threshold(const wmEvent *event)
      * The `event->type` would include #MOUSEMOVE which is always the case when dragging
      * and does not help us know which threshold to use. */
     if (WM_event_is_tablet(event)) {
-      /* Decrease threshold as pen pressure is increased. */
-      if (event->tablet.pressure > 0.0f && event->tablet.pressure < 1.0f) {
-        /* Pressure 0 results in max threshold, pressure 0.5 and above results in 0 pixels. */
-        const float bias = 1.0f - std::min(event->tablet.pressure * 2.0f, 1.0f);
-        drag_threshold = std::max(int(bias * float(U.drag_threshold_tablet)), 0);
-        /* Return without multiplying by resolution scale. */
-        return drag_threshold;
-      }
       drag_threshold = U.drag_threshold_tablet;
     }
     else {
@@ -511,12 +503,27 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 
 #ifdef WITH_INPUT_NDOF
 
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom)
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3])
 {
-  int z_flag = use_zoom ? NDOF_ZOOM_INVERT : NDOF_PANZ_INVERT_AXIS;
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign);
+  r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -sign : sign);
+  r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -sign : sign);
+  r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3])
+{
   r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
   r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & z_flag) ? -1.0f : 1.0f);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f);
 }
 
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
