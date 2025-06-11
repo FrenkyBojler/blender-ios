@@ -28,28 +28,101 @@ using xpbd_constraints::ConstraintTypeInfo;
 using xpbd_constraints::ConstraintVariables;
 
 struct ConstraintBundleItems {
-  static const SocketInterfaceKey stretch_constraints;
-  static const SocketInterfaceKey bending_constraints;
-  static const SocketInterfaceKey position_constraints;
-  static const SocketInterfaceKey rotation_constraints;
-  static const SocketInterfaceKey contact_constraints;
+  static const SocketInterfaceKey stretch_constraints_key;
+  static const SocketInterfaceKey bending_constraints_key;
+  static const SocketInterfaceKey position_constraints_key;
+  static const SocketInterfaceKey rotation_constraints_key;
+  static const SocketInterfaceKey contact_constraints_key;
+
+  GeometrySet stretch_constraints;
+  GeometrySet bending_constraints;
+  GeometrySet position_constraints;
+  GeometrySet rotation_constraints;
+  GeometrySet contact_constraints;
 };
 
-const SocketInterfaceKey ConstraintBundleItems::stretch_constraints = SocketInterfaceKey(
+const SocketInterfaceKey ConstraintBundleItems::stretch_constraints_key = SocketInterfaceKey(
     "Stretch");
-const SocketInterfaceKey ConstraintBundleItems::bending_constraints = SocketInterfaceKey(
+const SocketInterfaceKey ConstraintBundleItems::bending_constraints_key = SocketInterfaceKey(
     "Bending");
-const SocketInterfaceKey ConstraintBundleItems::position_constraints = SocketInterfaceKey(
+const SocketInterfaceKey ConstraintBundleItems::position_constraints_key = SocketInterfaceKey(
     "Position");
-const SocketInterfaceKey ConstraintBundleItems::rotation_constraints = SocketInterfaceKey(
+const SocketInterfaceKey ConstraintBundleItems::rotation_constraints_key = SocketInterfaceKey(
     "Rotation");
-const SocketInterfaceKey ConstraintBundleItems::contact_constraints = SocketInterfaceKey(
+const SocketInterfaceKey ConstraintBundleItems::contact_constraints_key = SocketInterfaceKey(
     "Contact");
+
+void set_constraints(BundlePtr &bundle_ptr,
+                     const SocketInterfaceKey &key,
+                     const GeometrySet &geometry)
+{
+  BLI_assert(bundle_ptr->is_mutable());
+  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+
+  static const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(
+      SOCK_GEOMETRY);
+  BLI_assert(geometry_type != nullptr);
+
+  bundle.remove(key);
+  bundle.add(key, *geometry_type, &geometry);
+}
+
+GeometrySet lookup_constraints(const Bundle &bundle, const SocketInterfaceKey &key)
+{
+  static const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(
+      SOCK_GEOMETRY);
+  BLI_assert(geometry_type != nullptr);
+
+  const std::optional<Bundle::Item> value = bundle.lookup(key);
+  if (!value) {
+    return {};
+  }
+  GeometrySet output_geometry;
+  if (!implicitly_convert_socket_value(
+          *value->type, value->value, *geometry_type, &output_geometry))
+  {
+    return {};
+  }
+  return output_geometry;
+};
+
+static BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items)
+{
+  BundlePtr bundle_ptr = Bundle::create();
+
+  set_constraints(
+      bundle_ptr, ConstraintBundleItems::stretch_constraints_key, items.stretch_constraints);
+  set_constraints(
+      bundle_ptr, ConstraintBundleItems::bending_constraints_key, items.bending_constraints);
+  set_constraints(
+      bundle_ptr, ConstraintBundleItems::position_constraints_key, items.position_constraints);
+  set_constraints(
+      bundle_ptr, ConstraintBundleItems::rotation_constraints_key, items.rotation_constraints);
+  set_constraints(
+      bundle_ptr, ConstraintBundleItems::contact_constraints_key, items.contact_constraints);
+
+  return bundle_ptr;
+}
+
+static void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items)
+{
+  items.stretch_constraints = lookup_constraints(bundle,
+                                                 ConstraintBundleItems::stretch_constraints_key);
+  items.bending_constraints = lookup_constraints(bundle,
+                                                 ConstraintBundleItems::bending_constraints_key);
+  items.position_constraints = lookup_constraints(bundle,
+                                                  ConstraintBundleItems::position_constraints_key);
+  items.rotation_constraints = lookup_constraints(bundle,
+                                                  ConstraintBundleItems::rotation_constraints_key);
+  items.contact_constraints = lookup_constraints(bundle,
+                                                 ConstraintBundleItems::contact_constraints_key);
+}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
+  b.add_input<decl::Float>("Delta Time").min(0.0f).hide_value();
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
+  b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
 
   b.add_output<decl::Geometry>("Hair").propagate_all();
 }
@@ -70,70 +143,24 @@ static void store_hair_rest_shape(GeometrySet &hair_geometry) {}
 static void init_hair_physics(GeometrySet &hair_geometry) {}
 
 /* Create internal stretch/shear and bending constraints. */
-static void generate_elastic_rod_constraints(const GeometrySet &hair_geometry,
-                                             GeometrySet &stretch_constraints,
-                                             GeometrySet &bending_constraints)
+static void generate_elastic_rod_constraints(BundlePtr &bundle, const GeometrySet &hair_geometry)
 {
+  GeometrySet stretch_constraints;
+  GeometrySet bending_constraints;
+
+  set_constraints(bundle, ConstraintBundleItems::stretch_constraints_key, stretch_constraints);
+  set_constraints(bundle, ConstraintBundleItems::bending_constraints_key, bending_constraints);
 }
 
 /* Create root attachment constraints. */
-static void generate_root_attachment_constraints(const GeometrySet &hair_geometry,
-                                                 GeometrySet &position_constraints,
-                                                 GeometrySet &rotation_constraints)
+static void generate_root_attachment_constraints(BundlePtr &bundle,
+                                                 const GeometrySet &hair_geometry)
 {
-}
+  GeometrySet position_constraints;
+  GeometrySet rotation_constraints;
 
-static BundlePtr combine_constraint_bundle(GeometrySet &stretch_constraints,
-                                           GeometrySet &bending_constraints,
-                                           GeometrySet &position_constraints,
-                                           GeometrySet &rotation_constraints,
-                                           GeometrySet &contact_constraints)
-{
-  BundlePtr bundle_ptr = Bundle::create();
-  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
-
-  // const NodeGeometryCombineBundleItem &item = storage.items[i];
-  const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(SOCK_GEOMETRY);
-  BLI_assert(geometry_type != nullptr);
-  bundle.add_new(ConstraintBundleItems::stretch_constraints, *geometry_type, &stretch_constraints);
-  bundle.add_new(ConstraintBundleItems::bending_constraints, *geometry_type, &bending_constraints);
-  bundle.add_new(
-      ConstraintBundleItems::position_constraints, *geometry_type, &position_constraints);
-  bundle.add_new(
-      ConstraintBundleItems::rotation_constraints, *geometry_type, &rotation_constraints);
-  bundle.add_new(ConstraintBundleItems::contact_constraints, *geometry_type, &contact_constraints);
-
-  return bundle_ptr;
-}
-
-static void separate_constraint_bundle(const Bundle &bundle,
-                                       GeometrySet &stretch_constraints,
-                                       GeometrySet &bending_constraints,
-                                       GeometrySet &position_constraints,
-                                       GeometrySet &rotation_constraints,
-                                       GeometrySet &contact_constraints)
-{
-  auto lookup_constraints = [&](const SocketInterfaceKey &key) -> GeometrySet {
-    const std::optional<Bundle::Item> value = bundle.lookup(key);
-    if (!value) {
-      return {};
-    }
-    const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(SOCK_GEOMETRY);
-    BLI_assert(geometry_type != nullptr);
-    GeometrySet output_geometry;
-    if (!implicitly_convert_socket_value(
-            *value->type, value->value, *geometry_type, &output_geometry))
-    {
-      return {};
-    }
-    return output_geometry;
-  };
-
-  stretch_constraints = lookup_constraints(ConstraintBundleItems::stretch_constraints);
-  bending_constraints = lookup_constraints(ConstraintBundleItems::bending_constraints);
-  position_constraints = lookup_constraints(ConstraintBundleItems::position_constraints);
-  rotation_constraints = lookup_constraints(ConstraintBundleItems::rotation_constraints);
-  contact_constraints = lookup_constraints(ConstraintBundleItems::contact_constraints);
+  set_constraints(bundle, ConstraintBundleItems::position_constraints_key, position_constraints);
+  set_constraints(bundle, ConstraintBundleItems::rotation_constraints_key, rotation_constraints);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
@@ -419,9 +446,20 @@ static void solve_constraints(GeometrySet &hair_geometry, const int iterations)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
+  const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
   const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
                                              0);
+  GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
+
+  /* Zero time step initializes the hair simulation. */
+  if (delta_time == 0.0f) {
+    store_hair_rest_shape(hair_geometry);
+    init_hair_physics(hair_geometry);
+
+    BundlePtr constraint_bundle = Bundle::create();
+    generate_elastic_rod_constraints(constraint_bundle, hair_geometry);
+    generate_root_attachment_constraints(constraint_bundle, hair_geometry);
+  }
 
   params.set_output("Hair", std::move(hair_geometry));
 }
