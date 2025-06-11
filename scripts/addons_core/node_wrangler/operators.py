@@ -678,6 +678,7 @@ class NWMergeNodes(Operator, NWBase):
         selected_vector = []  # entry = [index, loc]
         selected_z = []  # entry = [index, loc]
         selected_alphaover = []  # entry = [index, loc]
+        selected_boolean = [] # entry = [index, loc]
 
         for i, node in enumerate(nodes):
             if node.select and node.outputs:
@@ -688,6 +689,7 @@ class NWMergeNodes(Operator, NWBase):
                             ('RGBA', [t[0] for t in blend_types], selected_mix),
                             ('VALUE', [t[0] for t in operations], selected_math),
                             ('VECTOR', [], selected_vector),
+                            ('BOOLEAN', [], selected_boolean),
                     ):
                         output = get_first_enabled_output(node)
                         output_type = output.type
@@ -701,6 +703,8 @@ class NWMergeNodes(Operator, NWBase):
                                 elif output_type == 'VECTOR' and type == 'VECTOR':
                                     valid_mode = True
                                 elif type == 'GEOMETRY':
+                                    valid_mode = True
+                                elif type == 'BOOLEAN':
                                     valid_mode = True
                         # When mode is 'MIX' use mix node for both 'RGBA' and 'VALUE' output types.
                         # Cheat that output type is 'RGBA',
@@ -732,7 +736,7 @@ class NWMergeNodes(Operator, NWBase):
 
         # If no nodes are selected, do nothing and pass through.
         if not (selected_mix + selected_shader + selected_geometry + selected_math
-                + selected_vector + selected_z + selected_alphaover):
+                + selected_vector + selected_z + selected_alphaover + selected_boolean):
             return {'PASS_THROUGH'}
 
         for nodes_list in [
@@ -742,7 +746,8 @@ class NWMergeNodes(Operator, NWBase):
                 selected_math,
                 selected_vector,
                 selected_z,
-                selected_alphaover]:
+                selected_alphaover,
+                selected_boolean]:
             if not nodes_list:
                 continue
             count_before = len(nodes)
@@ -864,6 +869,11 @@ class NWMergeNodes(Operator, NWBase):
                         loc_y = loc_y - 50
                     first = 1
                     second = 2
+                elif nodes_list == selected_boolean:
+                    add = nodes.new('FunctionNodeBooleanMath')
+                    add.show_preview = False
+                    first = 0
+                    second = 1
                 add.location = loc_x, loc_y
                 loc_y += offset_y
                 add.select = True
