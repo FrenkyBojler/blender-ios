@@ -236,8 +236,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     BLI_assert_msg(tc->sorted_index_map,
                    "TransformContainer should have a valid sorted_index_map");
-    for (const int a : Span(tc->sorted_index_map, tc->data_len)) {
-      TransData *td = &tc->data[a];
+    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+      TransData *td = &tc->data[i];
       if (td->flag & TD_SELECTED) {
         td_table_len++;
       }
@@ -260,8 +260,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     BLI_assert_msg(tc->sorted_index_map,
                    "TransformContainer should have a valid sorted_index_map");
-    for (const int a : Span(tc->sorted_index_map, tc->data_len)) {
-      TransData *td = &tc->data[a];
+    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+      TransData *td = &tc->data[i];
       if (td->flag & TD_SELECTED) {
         /* Initialize, it was malloced. */
         td->rdist = 0.0f;
