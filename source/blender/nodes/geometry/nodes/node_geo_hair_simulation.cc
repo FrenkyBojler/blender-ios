@@ -4,6 +4,7 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
 #include "NOD_geometry_nodes_bundle.hh"
@@ -137,7 +138,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   UNUSED_VARS(node);
 }
 
-static void store_hair_rest_shape(GeometrySet &hair_geometry) {}
+static bool store_hair_rest_shape(GeometrySet &hair_geometry)
+{
+  CurveComponent &curves = hair_geometry.get_component_for_write<CurveComponent>();
+  Field<float3> position_field{AttributeFieldInput::Create<float3>("position")};
+  Field<float3> normal_field{std::make_shared<bke::NormalFieldInput>(false, false)};
+  return bke::try_capture_fields_on_geometry(
+      curves, {"rest_position", "rest_normal"}, AttrDomain::Point, {position_field, normal_field});
+}
 
 /* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
 static void init_hair_physics(GeometrySet &hair_geometry) {}
@@ -453,7 +461,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
-    store_hair_rest_shape(hair_geometry);
+    if (!store_hair_rest_shape(hair_geometry)) {
+      params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
+    }
     init_hair_physics(hair_geometry);
 
     BundlePtr constraint_bundle = Bundle::create();
