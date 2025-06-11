@@ -1381,7 +1381,7 @@ static bool remove_all_particle_systems_poll(bContext *C)
   if (!ED_operator_object_active_local_editable(C)) {
     return false;
   }
-  Object *ob = blender::ed::object::context_active_object(C);
+  const Object *ob = blender::ed::object::context_active_object(C);
   if (BLI_listbase_is_empty(&ob->particlesystem)) {
     return false;
   }
