@@ -56,6 +56,7 @@ void VKStateManager::issue_barrier(eGPUBarrier barrier_bits)
 void VKStateManager::texture_bind(Texture *texture, GPUSamplerState sampler, int binding)
 {
   textures_.bind(BindSpaceTextures::Type::Texture, texture, sampler, binding);
+
   is_dirty = true;
 }
 

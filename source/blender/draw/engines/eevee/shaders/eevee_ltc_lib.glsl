@@ -18,14 +18,14 @@
 #include "gpu_shader_utildefines_lib.glsl"
 
 /* Diffuse *clipped* sphere integral. */
-float ltc_diffuse_sphere_integral(sampler2DArray utility_tx, float avg_dir_z, float form_factor)
+float ltc_diffuse_sphere_integral(sampler2DArray _utility_tx, float avg_dir_z, float form_factor)
 {
 #if 1
   /* use tabulated horizon-clipped sphere */
   float2 uv = float2(avg_dir_z * 0.5f + 0.5f, form_factor);
   uv = uv * UTIL_TEX_UV_SCALE + UTIL_TEX_UV_BIAS;
 
-  return texture(utility_tx, float3(uv, UTIL_DISK_INTEGRAL_LAYER))[UTIL_DISK_INTEGRAL_COMP];
+  return texture(_utility_tx, float3(uv, UTIL_DISK_INTEGRAL_LAYER))[UTIL_DISK_INTEGRAL_COMP];
 #else
   /* Cheap approximation. Less smooth and have energy issues. */
   return max((form_factor * form_factor + avg_dir_z) / (form_factor + 1.0f), 0.0f);
@@ -177,7 +177,7 @@ void ltc_transform_quad(float3 N, float3 V, float3x3 Minv, inout float3 corners[
 /* If corners have already pass through ltc_transform_quad(),
  * then N **MUST** be float3(0.0f, 0.0f, 1.0f), corresponding to the Up axis of the shading basis.
  */
-float ltc_evaluate_quad(sampler2DArray utility_tx, float3 corners[4], float3 N)
+float ltc_evaluate_quad(sampler2DArray _utility_tx, float3 corners[4], float3 N)
 {
   /* Approximation using a sphere of the same solid angle than the quad.
    * Finding the clipped sphere diffuse integral is easier than clipping the quad. */
@@ -189,20 +189,20 @@ float ltc_evaluate_quad(sampler2DArray utility_tx, float3 corners[4], float3 N)
 
   float form_factor = length(avg_dir);
   float avg_dir_z = dot(N, avg_dir / form_factor);
-  return form_factor * ltc_diffuse_sphere_integral(utility_tx, avg_dir_z, form_factor);
+  return form_factor * ltc_diffuse_sphere_integral(_utility_tx, avg_dir_z, form_factor);
 }
 
 /* If disk does not need to be transformed and is already front facing. */
-float ltc_evaluate_disk_simple(sampler2DArray utility_tx, float disk_radius, float NL)
+float ltc_evaluate_disk_simple(sampler2DArray _utility_tx, float disk_radius, float NL)
 {
   float r_sqr = disk_radius * disk_radius;
   float form_factor = r_sqr / (1.0f + r_sqr);
-  return form_factor * ltc_diffuse_sphere_integral(utility_tx, NL, form_factor);
+  return form_factor * ltc_diffuse_sphere_integral(_utility_tx, NL, form_factor);
 }
 
 /* disk_points are WS vectors from the shading point to the disk "bounding domain" */
 float ltc_evaluate_disk(
-    sampler2DArray utility_tx, float3 N, float3 V, float3x3 Minv, float3 disk_points[3])
+    sampler2DArray _utility_tx, float3 N, float3 V, float3x3 Minv, float3 disk_points[3])
 {
   /* Construct orthonormal basis around N. */
   float3x3 T = ltc_tangent_basis(N, V);
@@ -313,5 +313,5 @@ float ltc_evaluate_disk(
 
   /* Find the sphere and compute lighting. */
   float form_factor = max(0.0f, L1 * L2 * inversesqrt((1.0f + L1 * L1) * (1.0f + L2 * L2)));
-  return form_factor * ltc_diffuse_sphere_integral(utility_tx, avg_dir.z, form_factor);
+  return form_factor * ltc_diffuse_sphere_integral(_utility_tx, avg_dir.z, form_factor);
 }

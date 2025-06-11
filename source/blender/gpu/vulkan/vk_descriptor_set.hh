@@ -15,11 +15,13 @@
 
 #include "render_graph/nodes/vk_pipeline_data.hh"
 #include "render_graph/vk_resource_access_info.hh"
+#include "vk_bindless_table.hh"
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_resource_tracker.hh"
 #include "vk_uniform_buffer.hh"
+#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 struct VKResourceBinding;
@@ -54,6 +56,7 @@ class VKDescriptorSet : NonCopyable {
    */
   struct Location {
     friend class VKDescriptorSetTracker;
+    friend class VKBindlessDescriptorPoolUpdator;
     friend class VKShaderInterface;
     friend struct VKResourceBinding;
 
@@ -89,48 +92,54 @@ class VKDescriptorSetUpdator {
                                            VKShader &shader,
                                            VkDescriptorSetLayout vk_descriptor_set_layout,
                                            render_graph::VKPipelineData &r_pipeline_data) = 0;
-  void bind_shader_resources(const VKDevice &device,
-                             const VKStateManager &state_manager,
-                             VKShader &shader,
-                             render_graph::VKResourceAccessInfo &access_info);
+  virtual void bind_shader_resources(const VKStateManager &state_manager,
+                                     VKDevice &device,
+                                     VKShader &shader,
+                                     render_graph::VKResourceAccessInfo &access_info);
   virtual void upload_descriptor_sets() = 0;
 
  private:
-  void bind_image_resource(const VKStateManager &state_manager,
+  void bind_image_resource(VKDevice &device,
+                           const VKStateManager &state_manager,
                            const VKResourceBinding &resource_binding,
                            render_graph::VKResourceAccessInfo &access_info);
-  void bind_texture_resource(const VKDevice &device,
+  void bind_texture_resource(VKDevice &device,
                              const VKStateManager &state_manager,
                              const VKResourceBinding &resource_binding,
                              render_graph::VKResourceAccessInfo &access_info);
-  void bind_storage_buffer_resource(const VKStateManager &state_manager,
+  void bind_storage_buffer_resource(VKDevice &device,
+                                    const VKStateManager &state_manager,
                                     const VKResourceBinding &resource_binding,
                                     render_graph::VKResourceAccessInfo &access_info);
-  void bind_uniform_buffer_resource(const VKStateManager &state_manager,
+  void bind_uniform_buffer_resource(VKDevice &device,
+                                    const VKStateManager &state_manager,
                                     const VKResourceBinding &resource_binding,
                                     render_graph::VKResourceAccessInfo &access_info);
-  void bind_input_attachment_resource(const VKDevice &device,
+  void bind_input_attachment_resource(VKDevice &device,
                                       const VKStateManager &state_manager,
                                       const VKResourceBinding &resource_binding,
                                       render_graph::VKResourceAccessInfo &access_info);
 
-  void bind_push_constants(VKPushConstants &push_constants,
-                           render_graph::VKResourceAccessInfo &access_info);
-
  protected:
-  virtual void bind_texel_buffer(VKVertexBuffer &vertex_buffer,
+  virtual void bind_texel_buffer(VKDevice &device,
+                                 VKVertexBuffer &vertex_buffer,
                                  VKDescriptorSet::Location location) = 0;
-  virtual void bind_buffer(VkDescriptorType vk_descriptor_type,
+  virtual void bind_buffer(VKDevice &device,
+                           VkDescriptorType vk_descriptor_type,
                            VkBuffer vk_buffer,
                            VkDeviceAddress vk_device_address,
                            VkDeviceSize buffer_offset,
                            VkDeviceSize size_in_bytes,
                            VKDescriptorSet::Location location) = 0;
-  virtual void bind_image(VkDescriptorType vk_descriptor_type,
+  virtual void bind_image(VKDevice &device,
+                          VkDescriptorType vk_descriptor_type,
                           VkSampler vk_sampler,
                           VkImageView vk_image_view,
                           VkImageLayout vk_image_layout,
                           VKDescriptorSet::Location location) = 0;
+  virtual void bind_push_constants(VKDevice &device,
+                                   VKShader &shader,
+                                   render_graph::VKResourceAccessInfo &access_info);
 };
 
 class VKDescriptorSetPoolUpdator : public VKDescriptorSetUpdator {
@@ -142,29 +151,63 @@ class VKDescriptorSetPoolUpdator : public VKDescriptorSetUpdator {
                                    VKShader &shader,
                                    VkDescriptorSetLayout vk_descriptor_set_layout,
                                    render_graph::VKPipelineData &r_pipeline_data) override;
-
   void upload_descriptor_sets() override;
 
  protected:
-  void bind_texel_buffer(VKVertexBuffer &vertex_buffer,
+  void bind_texel_buffer(VKDevice &device,
+                         VKVertexBuffer &vertex_buffer,
                          VKDescriptorSet::Location location) override;
-  void bind_buffer(VkDescriptorType vk_descriptor_type,
+  void bind_buffer(VKDevice &device,
+                   VkDescriptorType vk_descriptor_type,
                    VkBuffer vk_buffer,
                    VkDeviceAddress vk_device_address,
                    VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
                    VKDescriptorSet::Location location) override;
-  void bind_image(VkDescriptorType vk_descriptor_type,
+  void bind_image(VKDevice &device,
+                  VkDescriptorType vk_descriptor_type,
                   VkSampler vk_sampler,
                   VkImageView vk_image_view,
                   VkImageLayout vk_image_layout,
                   VKDescriptorSet::Location location) override;
 
- private:
   Vector<VkBufferView> vk_buffer_views_;
   Vector<VkDescriptorBufferInfo> vk_descriptor_buffer_infos_;
   Vector<VkDescriptorImageInfo> vk_descriptor_image_infos_;
   Vector<VkWriteDescriptorSet> vk_write_descriptor_sets_;
+};
+
+class VKBindlessDescriptorPoolUpdator : public VKDescriptorSetPoolUpdator {
+ public:
+  void allocate_new_descriptor_set(VKDevice &device,
+                                   VKContext &context,
+                                   VKShader &shader,
+                                   VkDescriptorSetLayout vk_descriptor_set_layout,
+                                   render_graph::VKPipelineData &r_pipeline_data) override;
+
+ protected:
+  void bind_texel_buffer(VKDevice &device,
+                         VKVertexBuffer &vertex_buffer,
+                         VKDescriptorSet::Location location) override;
+  void bind_buffer(VKDevice &device,
+                   VkDescriptorType vk_descriptor_type,
+                   VkBuffer vk_buffer,
+                   VkDeviceAddress vk_device_address,
+                   VkDeviceSize buffer_offset,
+                   VkDeviceSize size_in_bytes,
+                   VKDescriptorSet::Location location) override;
+  void bind_image(VKDevice &device,
+                  VkDescriptorType vk_descriptor_type,
+                  VkSampler vk_sampler,
+                  VkImageView vk_image_view,
+                  VkImageLayout vk_image_layout,
+                  VKDescriptorSet::Location location) override;
+  virtual void bind_push_constants(VKDevice &device,
+                                   VKShader &shader,
+                                   render_graph::VKResourceAccessInfo &access_info) override;
+
+ private:
+  Vector<uint32_t> bindings_table;
 };
 
 class VKDescriptorBufferUpdator : public VKDescriptorSetUpdator {
@@ -192,15 +235,18 @@ class VKDescriptorBufferUpdator : public VKDescriptorSetUpdator {
   void upload_descriptor_sets() override;
 
  protected:
-  void bind_texel_buffer(VKVertexBuffer &vertex_buffer,
+  void bind_texel_buffer(VKDevice &device,
+                         VKVertexBuffer &vertex_buffer,
                          VKDescriptorSet::Location location) override;
-  void bind_buffer(VkDescriptorType vk_descriptor_type,
+  void bind_buffer(VKDevice &device,
+                   VkDescriptorType vk_descriptor_type,
                    VkBuffer vk_buffer,
                    VkDeviceAddress vk_device_address,
                    VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
                    VKDescriptorSet::Location location) override;
-  void bind_image(VkDescriptorType vk_descriptor_type,
+  void bind_image(VKDevice &device,
+                  VkDescriptorType vk_descriptor_type,
                   VkSampler vk_sampler,
                   VkImageView vk_image_view,
                   VkImageLayout vk_image_layout,
@@ -222,6 +268,7 @@ class VKDescriptorSetTracker {
  public:
   class VKDescriptorBufferUpdator descriptor_buffers;
   class VKDescriptorSetPoolUpdator descriptor_sets;
+  class VKBindlessDescriptorPoolUpdator descriptor_sets_bindless;
 
   VKDescriptorSetTracker() {}
 

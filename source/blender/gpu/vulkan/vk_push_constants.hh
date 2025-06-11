@@ -102,7 +102,8 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
      *   device. A uniform buffer should be used as a fallback method.
      */
     static StorageType determine_storage_type(const shader::ShaderCreateInfo &info,
-                                              const VKDevice &device);
+                                              const VKDevice &device,
+                                              const uint32_t bindings_table_size);
 
     /**
      * Initialize the push constants of the given shader create info with the

@@ -316,6 +316,45 @@ class GHOST_DeviceVK {
     vulkan_12_features.shaderOutputViewportIndex = features_12.shaderOutputViewportIndex;
     vulkan_12_features.bufferDeviceAddress = features_12.bufferDeviceAddress;
     vulkan_12_features.timelineSemaphore = VK_TRUE;
+    vulkan_12_features.runtimeDescriptorArray = VK_TRUE;
+
+    /* Descriptor indexing features. */
+    vulkan_12_features.descriptorIndexing = features_12.descriptorIndexing;
+    vulkan_12_features.descriptorBindingPartiallyBound =
+        features_12.descriptorBindingPartiallyBound;
+
+    // Sampled images.
+    vulkan_12_features.shaderSampledImageArrayNonUniformIndexing =
+        features_12.shaderSampledImageArrayNonUniformIndexing;
+    vulkan_12_features.descriptorBindingSampledImageUpdateAfterBind =
+        features_12.descriptorBindingSampledImageUpdateAfterBind;
+
+    // Storage images.
+    vulkan_12_features.shaderStorageImageArrayNonUniformIndexing =
+        features_12.shaderStorageImageArrayNonUniformIndexing;
+    vulkan_12_features.descriptorBindingStorageImageUpdateAfterBind =
+        features_12.descriptorBindingStorageImageUpdateAfterBind;
+
+    // Uniform buffers.
+    vulkan_12_features.shaderUniformBufferArrayNonUniformIndexing =
+        features_12.shaderUniformBufferArrayNonUniformIndexing;
+    vulkan_12_features.descriptorBindingUniformBufferUpdateAfterBind =
+        features_12.descriptorBindingUniformBufferUpdateAfterBind;
+
+    // Storage buffers.
+    vulkan_12_features.shaderStorageBufferArrayNonUniformIndexing =
+        features_12.shaderStorageBufferArrayNonUniformIndexing;
+    vulkan_12_features.descriptorBindingStorageBufferUpdateAfterBind =
+        features_12.descriptorBindingStorageBufferUpdateAfterBind;
+
+    // Texel buffers.
+    vulkan_12_features.shaderUniformTexelBufferArrayNonUniformIndexing =
+        features_12.shaderUniformTexelBufferArrayNonUniformIndexing;
+    vulkan_12_features.shaderUniformTexelBufferArrayDynamicIndexing =
+        features_12.shaderUniformTexelBufferArrayDynamicIndexing;
+    vulkan_12_features.descriptorBindingUniformTexelBufferUpdateAfterBind =
+        features_12.descriptorBindingUniformTexelBufferUpdateAfterBind;
+
     feature_struct_ptr.push_back(&vulkan_12_features);
 
     /* Enable provoking vertex. */

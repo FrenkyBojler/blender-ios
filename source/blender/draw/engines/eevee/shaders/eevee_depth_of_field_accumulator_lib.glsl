@@ -437,9 +437,9 @@ void dof_gather_init(float base_radius,
   intersection_multiplier = pow(0.5f, lod);
 }
 
-void dof_gather_accumulator(sampler2D color_tx,
-                            sampler2D color_bilinear_tx,
-                            sampler2D coc_tx,
+void dof_gather_accumulator(sampler2D _color_tx,
+                            sampler2D _color_bilinear_tx,
+                            sampler2D _coc_tx,
                             sampler2D bkh_lut_tx, /* Renamed because of ugly macro. */
                             float base_radius,
                             float min_intersectable_radius,
@@ -507,12 +507,12 @@ void dof_gather_accumulator(sampler2D color_tx,
         float2 sample_co = center_co + offset_co * ring_radius;
         float2 sample_uv = sample_co * dof_buf.gather_uv_fac;
         if (do_fast_gather) {
-          pair_data[i].color = textureLod(color_bilinear_tx, sample_uv, lod);
+          pair_data[i].color = textureLod(_color_bilinear_tx, sample_uv, lod);
         }
         else {
-          pair_data[i].color = textureLod(color_tx, sample_uv, lod);
+          pair_data[i].color = textureLod(_color_tx, sample_uv, lod);
         }
-        pair_data[i].coc = dof_load_gather_coc(coc_tx, sample_uv, lod);
+        pair_data[i].coc = dof_load_gather_coc(_coc_tx, sample_uv, lod);
         pair_data[i].dist = ring_radius;
       }
 
@@ -566,12 +566,12 @@ void dof_gather_accumulator(sampler2D color_tx,
     float2 sample_uv = center_co * dof_buf.gather_uv_fac;
     DofGatherData center_data;
     if (do_fast_gather) {
-      center_data.color = textureLod(color_bilinear_tx, sample_uv, lod);
+      center_data.color = textureLod(_color_bilinear_tx, sample_uv, lod);
     }
     else {
-      center_data.color = textureLod(color_tx, sample_uv, lod);
+      center_data.color = textureLod(_color_tx, sample_uv, lod);
     }
-    center_data.coc = dof_load_gather_coc(coc_tx, sample_uv, lod);
+    center_data.coc = dof_load_gather_coc(_coc_tx, sample_uv, lod);
     center_data.dist = 0.0f;
 
     /* Slide 38. */
@@ -609,8 +609,8 @@ void dof_gather_accumulator(sampler2D color_tx,
  * The full pixel neighborhood is gathered.
  * \{ */
 
-void dof_slight_focus_gather(sampler2DDepth depth_tx,
-                             sampler2D color_tx,
+void dof_slight_focus_gather(sampler2DDepth _depth_tx,
+                             sampler2D _color_tx,
                              sampler2D bkh_lut_tx, /* Renamed because of ugly macro job. */
                              float radius,
                              out float4 out_color,
@@ -644,10 +644,10 @@ void dof_slight_focus_gather(sampler2DDepth depth_tx,
     for (int i = 0; i < 2; i++) {
       float2 sample_offset = ((i == 0) ? offset : -offset);
       /* OPTI: could precompute the factor. */
-      float2 sample_uv = (frag_coord + sample_offset) / float2(textureSize(depth_tx, 0));
-      float depth = reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r);
+      float2 sample_uv = (frag_coord + sample_offset) / float2(textureSize(_depth_tx, 0));
+      float depth = reverse_z::read(textureLod(_depth_tx, sample_uv, 0.0f).r);
       pair_data[i].coc = dof_coc_from_depth(dof_buf, sample_uv, depth);
-      pair_data[i].color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
+      pair_data[i].color = colorspace_safe_color(textureLod(_color_tx, sample_uv, 0.0f));
       pair_data[i].dist = ring_dist;
       if (DOF_BOKEH_TEXTURE) {
         /* Contains sub-pixel distance to bokeh shape. */
@@ -681,11 +681,11 @@ void dof_slight_focus_gather(sampler2DDepth depth_tx,
   }
 
   /* Center sample. */
-  float2 sample_uv = frag_coord / float2(textureSize(depth_tx, 0));
+  float2 sample_uv = frag_coord / float2(textureSize(_depth_tx, 0));
   DofGatherData center_data;
-  center_data.color = colorspace_safe_color(textureLod(color_tx, sample_uv, 0.0f));
+  center_data.color = colorspace_safe_color(textureLod(_color_tx, sample_uv, 0.0f));
   center_data.coc = dof_coc_from_depth(
-      dof_buf, sample_uv, reverse_z::read(textureLod(depth_tx, sample_uv, 0.0f).r));
+      dof_buf, sample_uv, reverse_z::read(textureLod(_depth_tx, sample_uv, 0.0f).r));
   center_data.coc = clamp(center_data.coc, -dof_buf.coc_abs_max, dof_buf.coc_abs_max);
   center_data.dist = 0.0f;
 

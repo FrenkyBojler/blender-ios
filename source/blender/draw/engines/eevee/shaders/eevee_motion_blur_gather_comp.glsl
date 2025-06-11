@@ -27,11 +27,11 @@ COMPUTE_SHADER_CREATE_INFO(eevee_motion_blur_gather)
 
 /* Converts uv velocity into pixel space. Assumes velocity_tx is the same resolution as the
  * target post-FX frame-buffer. */
-float4 motion_blur_sample_velocity(sampler2D velocity_tx, float2 uv)
+float4 motion_blur_sample_velocity(sampler2D _velocity_tx, float2 uv)
 {
   /* We can load velocity without velocity_resolve() since we resolved during the flatten pass. */
-  float4 velocity = velocity_unpack(texture(velocity_tx, uv));
-  return velocity * float2(textureSize(velocity_tx, 0)).xyxy * motion_blur_buf.motion_scale.xxyy;
+  float4 velocity = velocity_unpack(texture(_velocity_tx, uv));
+  return velocity * float2(textureSize(_velocity_tx, 0)).xyxy * motion_blur_buf.motion_scale.xxyy;
 }
 
 float2 spread_compare(float center_motion_length, float sample_motion_length, float offset_length)

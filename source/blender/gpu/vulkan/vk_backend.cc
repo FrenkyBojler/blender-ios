@@ -402,6 +402,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.vertex_formats.r8g8b8 = true;
     extensions.shader_output_layer = false;
     extensions.shader_output_viewport_index = false;
+    extensions.descriptor_indexing = false;
     extensions.fragment_shader_barycentric = false;
     extensions.dynamic_rendering = false;
     extensions.dynamic_rendering_local_read = false;
@@ -419,6 +420,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
       device.physical_device_vulkan_12_features_get().shaderOutputLayer;
   extensions.shader_output_viewport_index =
       device.physical_device_vulkan_12_features_get().shaderOutputViewportIndex;
+  extensions.descriptor_indexing =
+      device.physical_device_vulkan_12_features_get().descriptorIndexing;
   extensions.fragment_shader_barycentric = device.supports_extension(
       VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
   extensions.dynamic_rendering = device.supports_extension(

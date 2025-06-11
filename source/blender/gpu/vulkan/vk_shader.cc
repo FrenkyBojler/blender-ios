@@ -12,7 +12,9 @@
 
 #include "vk_shader.hh"
 
+#include "gpu_shader_create_info.hh"
 #include "vk_backend.hh"
+#include "vk_bindless_table.hh"
 #include "vk_framebuffer.hh"
 #include "vk_shader_interface.hh"
 #include "vk_shader_log.hh"
@@ -204,6 +206,12 @@ static const char *to_string(const DepthWrite &value)
   }
 }
 
+static bool is_texture_buffer(const ImageType &type)
+{
+  return type == ImageType::FloatBuffer || type == ImageType::IntBuffer ||
+         type == ImageType::UintBuffer;
+}
+
 static void print_image_type(std::ostream &os,
                              const ImageType &type,
                              const ShaderCreateInfo::Resource::BindType bind_type)
@@ -351,7 +359,7 @@ static void print_resource(std::ostream &os,
                            const VKDescriptorSet::Location location,
                            const ShaderCreateInfo::Resource &res)
 {
-  os << "layout(binding = " << uint32_t(location);
+  os << "layout(set = 0, binding = " << uint32_t(location);
   if (res.bind_type == ShaderCreateInfo::Resource::BindType::IMAGE) {
     os << ", " << to_string(res.image.format);
   }
@@ -397,12 +405,99 @@ static void print_resource(std::ostream &os,
   }
 }
 
+static void print_resource_bindless(std::ostream &os,
+                                    const uint32_t bindings_table_slot,
+                                    const ShaderCreateInfo::Resource &res)
+{
+  switch (res.bind_type) {
+    case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER: {
+      int64_t array_offset = res.storagebuf.name.find_first_of("[");
+      StringRef name_no_array = (array_offset == -1) ?
+                                    res.storagebuf.name :
+                                    StringRef(res.storagebuf.name.data(), array_offset);
+      os << "layout(set = 1, binding = " << VKBindlessTable::storage_buffer_binding
+         << ", std430) ";
+      print_qualifier(os, res.storagebuf.qualifiers);
+      os << "buffer _" << name_no_array << "_block"
+         << "{ " << res.storagebuf.type_name << " "
+         << "_" << res.storagebuf.name << "; } "
+         << "_" << name_no_array << "[];\n";
+
+      os << "#define " << name_no_array << " ("
+         << "_" << name_no_array << "["
+         << "bindings_table[" << bindings_table_slot << "]"
+         << "]."
+         << "_" << name_no_array << ")\n";
+      break;
+    }
+    case ShaderCreateInfo::Resource::UNIFORM_BUFFER: {
+      int64_t array_offset = res.uniformbuf.name.find_first_of("[");
+      StringRef name_no_array = (array_offset == -1) ?
+                                    res.uniformbuf.name :
+                                    StringRef(res.uniformbuf.name.data(), array_offset);
+      os << "layout(set = 1, binding = " << VKBindlessTable::uniform_binding << ", std140) ";
+      os << "uniform _" << name_no_array << "_block"
+         << "{ " << res.uniformbuf.type_name << " "
+         << "_" << res.uniformbuf.name << "; } "
+         << "_" << name_no_array << "[];\n";
+
+      os << "#define " << name_no_array << " ("
+         << "_" << name_no_array << "["
+         << "bindings_table[" << bindings_table_slot << "]"
+         << "]."
+         << "_" << name_no_array << ")\n";
+      break;
+    }
+    case ShaderCreateInfo::Resource::SAMPLER: {
+      // Some SAMPLER textures are actually texel buffers, which need to use a different
+      // binding slot in the descriptor set. For now we detect these by
+      // looking at the sampler type, but in the future this might be statically determined
+      // in the shader interface itself.
+      uint32_t binding = is_texture_buffer(res.sampler.type) ?
+                             VKBindlessTable::uniform_texel_buffer_binding :
+                             VKBindlessTable::combined_image_sampler_binding;
+      os << "layout(set = 1, binding = " << binding << ") ";
+      os << "uniform ";
+      print_image_type(os, res.sampler.type, res.bind_type);
+      os << "_" << res.sampler.name << "[];\n";
+
+      os << "#define " << res.sampler.name << " ("
+         << "_" << res.sampler.name << "["
+         << "bindings_table[" << bindings_table_slot << "]"
+         << "])\n";
+      break;
+    }
+    case ShaderCreateInfo::Resource::IMAGE: {
+      os << "layout(set = 1, binding = " << VKBindlessTable::storage_image_binding;
+      os << ", " << to_string(res.image.format) << ") ";
+      os << "uniform ";
+      print_qualifier(os, res.image.qualifiers);
+      print_image_type(os, res.image.type, res.bind_type);
+      os << "_" << res.image.name << "[];\n";
+
+      os << "#define " << res.image.name << " ("
+         << "_" << res.image.name << "["
+         << "bindings_table[" << bindings_table_slot << "]"
+         << "])\n";
+      break;
+    }
+  }
+}
+
 static void print_resource(std::ostream &os,
                            const VKShaderInterface &shader_interface,
                            const ShaderCreateInfo::Resource &res)
 {
   const VKDescriptorSet::Location location = shader_interface.descriptor_set_location(res);
   print_resource(os, location, res);
+}
+
+static void print_resource_bindless(std::ostream &os,
+                                    const VKShaderInterface &shader_interface,
+                                    const ShaderCreateInfo::Resource &res)
+{
+  const VKDescriptorSet::Location location = shader_interface.descriptor_set_location(res);
+  print_resource_bindless(os, location, res);
 }
 
 inline int get_location_count(const Type &type)
@@ -487,11 +582,12 @@ static std::string combine_sources(Span<StringRefNull> sources)
 {
   std::string result = fmt::to_string(fmt::join(sources, ""));
   /* Renderdoc step-by-step debugger cannot be used when using the #line directive. The indexed
-   * based is not supported as it doesn't make sense in Vulkan and Blender misuses this to store a
-   * hash. The filename based directive cannot be used as it cannot find the actual file on disk
-   * and state is set incorrectly.
+   * based is not supported as it doesn't make sense in Vulkan and Blender misuses this to store
+   * a hash. The filename based directive cannot be used as it cannot find the actual file on
+   * disk and state is set incorrectly.
    *
-   * When running in renderdoc we scramble `#line` into `//ine` to work around these limitation. */
+   * When running in renderdoc we scramble `#line` into `//ine` to work around these limitation.
+   */
   if (G.debug & G_DEBUG_GPU_RENDERDOC) {
     size_t start_pos = 0;
     while ((start_pos = result.find("#line ", start_pos)) != std::string::npos) {
@@ -635,10 +731,10 @@ bool VKShader::finalize_post()
                 finalize_shader_module(fragment_module, "fragment") &&
                 finalize_shader_module(compute_module, "compute");
 
-  /* Ensure that pipeline of compute shaders are already build. This can improve performance as it
-   * can triggers a back-end compilation step. In this step the Shader module SPIR-V is
-   * compiled to a shader program that can be executed by the device. Depending on the driver this
-   * can take some time as well. If this is done inside the main thread it will stall user
+  /* Ensure that pipeline of compute shaders are already build. This can improve performance as
+   * it can triggers a back-end compilation step. In this step the Shader module SPIR-V is
+   * compiled to a shader program that can be executed by the device. Depending on the driver
+   * this can take some time as well. If this is done inside the main thread it will stall user
    * interactivity.
    *
    * TODO: We should check if VK_EXT_graphics_pipeline_library can improve the pipeline creation
@@ -685,13 +781,19 @@ bool VKShader::is_ready() const
 bool VKShader::finalize_pipeline_layout(VKDevice &device,
                                         const VKShaderInterface &shader_interface)
 {
-  const uint32_t layout_count = vk_descriptor_set_layout_ == VK_NULL_HANDLE ? 0 : 1;
+  Vector<VkDescriptorSetLayout> layouts;
+  if (vk_descriptor_set_layout_ != VK_NULL_HANDLE) {
+    layouts.append(vk_descriptor_set_layout_);
+    if (device.extensions_get().descriptor_indexing) {
+      layouts.append(device.bindless_table.descriptor_set_layout);
+    }
+  }
   VkPipelineLayoutCreateInfo pipeline_info = {};
   VkPushConstantRange push_constant_range = {};
   pipeline_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipeline_info.flags = 0;
-  pipeline_info.setLayoutCount = layout_count;
-  pipeline_info.pSetLayouts = &vk_descriptor_set_layout_;
+  pipeline_info.setLayoutCount = layouts.size();
+  pipeline_info.pSetLayouts = layouts.data();
 
   /* Setup push constants. */
   const VKPushConstants::Layout &push_constants_layout =
@@ -759,6 +861,7 @@ void VKShader::uniform_int(int location, int comp_len, int array_size, const int
 std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) const
 {
   const VKShaderInterface &vk_interface = interface_get();
+  const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   std::stringstream ss;
 
   ss << "\n/* Specialization Constants (pass-through). */\n";
@@ -808,17 +911,32 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
 
   ss << "\n/* Pass Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-    print_resource(ss, vk_interface, res);
+    if (extensions.descriptor_indexing) {
+      print_resource_bindless(ss, vk_interface, res);
+    }
+    else {
+      print_resource(ss, vk_interface, res);
+    }
   }
 
   ss << "\n/* Batch Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-    print_resource(ss, vk_interface, res);
+    if (extensions.descriptor_indexing) {
+      print_resource_bindless(ss, vk_interface, res);
+    }
+    else {
+      print_resource(ss, vk_interface, res);
+    }
   }
 
   ss << "\n/* Geometry Resources. */\n";
   for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-    print_resource(ss, vk_interface, res);
+    if (extensions.descriptor_indexing) {
+      print_resource_bindless(ss, vk_interface, res);
+    }
+    else {
+      print_resource(ss, vk_interface, res);
+    }
   }
 
   /* Push constants. */
@@ -827,6 +945,7 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
       push_constants_layout.storage_type_get();
   if (push_constants_storage != VKPushConstants::StorageType::NONE) {
     ss << "\n/* Push Constants. */\n";
+
     if (push_constants_storage == VKPushConstants::StorageType::PUSH_CONSTANTS) {
       ss << "layout(push_constant, std430) uniform constants\n";
     }
@@ -842,9 +961,28 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
       }
       ss << ";\n";
     }
+
+    if (extensions.descriptor_indexing) {
+      size_t bindings_table_size = interface_get().bindings_table_size_get();
+      if (bindings_table_size > 0) {
+        ss << "uint pc_bindings_table[" << bindings_table_size << "]"
+           << ";\n";
+      }
+    }
+
     ss << "} PushConstants;\n";
+
     for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
       ss << "#define " << uniform.name << " (PushConstants.pc_" << uniform.name << ")\n";
+    }
+
+    if (extensions.descriptor_indexing) {
+      size_t bindings_table_size = interface_get().bindings_table_size_get();
+      if (bindings_table_size > 0) {
+        ss << "#define "
+           << "bindings_table"
+           << " (PushConstants.pc_bindings_table)\n";
+      }
     }
   }
 
@@ -890,8 +1028,8 @@ std::string VKShader::vertex_interface_declare(const shader::ShaderCreateInfo &i
   }
   ss << "\n";
 
-  /* Retarget depth from -1..1 to 0..1. This will be done by geometry stage, when geometry shaders
-   * are used. */
+  /* Retarget depth from -1..1 to 0..1. This will be done by geometry stage, when geometry
+   * shaders are used. */
   const bool retarget_depth = !has_geometry_stage;
   if (retarget_depth) {
     post_main += "gl_Position.z = (gl_Position.z + gl_Position.w) * 0.5;\n";
@@ -1044,13 +1182,19 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
           input.img_type, ImageType::Uint2DArray, ImageType::Int2DArray, ImageType::Float2DArray);
       /* Declare image. */
       using Resource = ShaderCreateInfo::Resource;
-      /* NOTE(fclem): Using the attachment index as resource index might be problematic as it might
-       * collide with other resources. */
+      /* NOTE(fclem): Using the attachment index as resource index might be problematic as it
+       * might collide with other resources. */
       Resource res(Resource::BindType::SAMPLER, input.index);
       res.sampler.type = input.img_type;
       res.sampler.sampler = GPUSamplerState::default_sampler();
       res.sampler.name = image_name;
-      print_resource(ss, interface, res);
+
+      if (extensions.descriptor_indexing) {
+        print_resource_bindless(ss, interface, res);
+      }
+      else {
+        print_resource(ss, interface, res);
+      }
 
       char swizzle[] = "xyzw";
       swizzle[to_component_count(input.type)] = '\0';

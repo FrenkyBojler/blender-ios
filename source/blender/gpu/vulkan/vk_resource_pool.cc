@@ -120,6 +120,7 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
   TimelineValue current_timeline = force ? UINT64_MAX : device.submission_finished_timeline_get();
 
   image_views_.remove_old(current_timeline, [&](VkImageView vk_image_view) {
+    device.bindless_table.removeAllWithImageView(vk_image_view);
     vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
   });
 
@@ -128,11 +129,14 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vmaDestroyImage(device.mem_allocator_get(), image_allocation.first, image_allocation.second);
   });
   buffer_views_.remove_old(current_timeline, [&](VkBufferView vk_buffer_view) {
+    device.bindless_table.removeTexelBuffer(vk_buffer_view);
     vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
   });
 
   buffers_.remove_old(current_timeline, [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
     device.resources.remove_buffer(buffer_allocation.first);
+    device.bindless_table.removeStorageBuffer(buffer_allocation.first);
+    device.bindless_table.removeUniform(buffer_allocation.first);
     vmaDestroyBuffer(
         device.mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
   });

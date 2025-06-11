@@ -10,6 +10,7 @@
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_state_manager.hh"
+#include <cstdint>
 
 namespace blender::gpu {
 
@@ -35,15 +36,18 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
   static size_t PUSH_CONSTANTS_FALLBACK_NAME_LEN = strlen(PUSH_CONSTANTS_FALLBACK_NAME);
   static char SUBPASS_FALLBACK_NAME[] = "gpu_subpass_img_0";
   static size_t SUBPASS_FALLBACK_NAME_LEN = strlen(SUBPASS_FALLBACK_NAME);
+  static char BINDINGS_TABLE_NAME[] = "bindings_table";
+  static size_t BINDINGS_TABLE_NAME_LEN = strlen(BINDINGS_TABLE_NAME);
 
   using namespace blender::gpu::shader;
   shader_builtins_ = info.builtins_;
 
   attr_len_ = info.vertex_inputs_.size();
-  uniform_len_ = info.push_constants_.size();
   constant_len_ = info.specialization_constants_.size();
   ssbo_len_ = 0;
   ubo_len_ = 0;
+  uniform_len_ = 0;
+  bindings_table_size_ = 0;
   Vector<ShaderCreateInfo::Resource> all_resources;
   all_resources.extend(info.pass_resources_);
   all_resources.extend(info.batch_resources_);
@@ -63,18 +67,37 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
         break;
     }
   }
+
   const VKDevice &device = VKBackend::get().device;
   const bool supports_local_read = device.extensions_get().dynamic_rendering_local_read;
-  uniform_len_ += info.subpass_inputs_.size();
+  const bool supports_descriptor_indexing = device.extensions_get().descriptor_indexing;
+
+  if (supports_descriptor_indexing) {
+    // We will need to store in the push constants the bindings into the global descriptor table
+    // for each resource in the interface.
+    bindings_table_size_ = ssbo_len_ + ubo_len_ + uniform_len_;
+    // Extend the bindings table to include the local read fallback textures.
+    // TODO: only do this if fallbacks are used to save push constant space.
+    bindings_table_size_ += info.subpass_inputs_.size();
+    // Allocate a uniform for the bindings table.
+    uniform_len_++;
+  }
+  uniform_len_ += info.subpass_inputs_.size() + info.push_constants_.size();
+
+  size_t names_size = info.interface_names_size_;
 
   /* Reserve 1 uniform buffer for push constants fallback. */
-  size_t names_size = info.interface_names_size_;
   const VKPushConstants::StorageType push_constants_storage_type =
-      VKPushConstants::Layout::determine_storage_type(info, device);
+      VKPushConstants::Layout::determine_storage_type(info, device, bindings_table_size_);
   if (push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
     ubo_len_++;
     names_size += PUSH_CONSTANTS_FALLBACK_NAME_LEN + 1;
   }
+
+  if (supports_descriptor_indexing) {
+    names_size += BINDINGS_TABLE_NAME_LEN + 1;
+  }
+
   names_size += info.subpass_inputs_.size() * SUBPASS_FALLBACK_NAME_LEN;
 
   int32_t input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
@@ -106,6 +129,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
       input++;
     }
   }
+
   /* Add push constant when using uniform buffer as a fallback. */
   int32_t push_constants_fallback_location = -1;
   if (push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
@@ -137,6 +161,14 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
   int32_t push_constant_location = 1024;
   for (const ShaderCreateInfo::PushConst &push_constant : info.push_constants_) {
     copy_input_name(input, push_constant.name, name_buffer_, name_buffer_offset);
+    input->location = push_constant_location++;
+    input->binding = -1;
+    input++;
+  }
+
+  if (supports_descriptor_indexing) {
+    /* Add binding table for push constants. */
+    copy_input_name(input, BINDINGS_TABLE_NAME, name_buffer_, name_buffer_offset);
     input->location = push_constant_location++;
     input->binding = -1;
     input++;
@@ -254,6 +286,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
     const VKBindType bind_type = to_bind_type(res.bind_type);
     descriptor_set_location_update(input, descriptor_set_location++, bind_type, res, arrayed);
   }
+  BLI_assert(!supports_descriptor_indexing || descriptor_set_location == bindings_table_size_);
 
   /* Post initializing push constants. */
   /* Determine the binding location of push constants fallback buffer. */
@@ -267,6 +300,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
                                    std::nullopt,
                                    VKImageViewArrayed::DONT_CARE);
   }
+
   push_constants_layout_.init(
       info, *this, push_constants_storage_type, push_constant_descriptor_set_location);
 }
@@ -407,8 +441,10 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     VKPushConstants::StorageType push_constants_storage)
 {
   BLI_assert(descriptor_set_layout_info_.bindings.is_empty());
+
   const VKExtensions &extensions = VKBackend::get().device.extensions_get();
   const bool supports_local_read = extensions.dynamic_rendering_local_read;
+  const bool supports_descriptor_indexing = extensions.descriptor_indexing;
 
   descriptor_set_layout_info_.bindings.reserve(resources_len);
   if (!(info.compute_source_.is_empty() && info.compute_source_generated.empty())) {
@@ -420,6 +456,14 @@ void VKShaderInterface::init_descriptor_set_layout_info(
   else {
     descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_ALL_GRAPHICS;
   }
+
+  // If we are using descriptor indexing, the shader descriptor layout will just
+  // contain the uniform push constant fallback buffer.
+  if (supports_descriptor_indexing) {
+    descriptor_set_layout_info_.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    return;
+  }
+
   for (int index : IndexRange(info.subpass_inputs_.size())) {
     UNUSED_VARS(index);
     // TODO: clean up remove negation.

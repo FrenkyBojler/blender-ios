@@ -99,10 +99,10 @@ float4 velocity_resolve(float4 vector, float2 uv, float depth)
  * motion data for performance reasons.
  * Returns motion vector in render UV space.
  */
-float4 velocity_resolve(sampler2D vector_tx, int2 texel, float depth)
+float4 velocity_resolve(sampler2D _vector_tx, int2 texel, float depth)
 {
-  float2 uv = (float2(texel) + 0.5f) / float2(textureSize(vector_tx, 0).xy);
-  float4 vector = texelFetch(vector_tx, texel, 0);
+  float2 uv = (float2(texel) + 0.5f) / float2(textureSize(_vector_tx, 0).xy);
+  float4 vector = texelFetch(_vector_tx, texel, 0);
   return velocity_resolve(vector, uv, depth);
 }
 

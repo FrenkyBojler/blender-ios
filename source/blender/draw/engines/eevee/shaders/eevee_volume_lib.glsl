@@ -214,7 +214,7 @@ float3 volume_light(LightData light, const bool is_directional, LightVector lv)
 #define VOLUMETRIC_SHADOW_MAX_STEP 128.0f
 
 float3 volume_shadow(
-    LightData ld, const bool is_directional, float3 P, LightVector lv, sampler3D extinction_tx)
+    LightData ld, const bool is_directional, float3 P, LightVector lv, sampler3D _extinction_tx)
 {
 #if defined(VOLUME_SHADOW)
   if (uniform_buf.volumes.shadow_steps == 0) {
@@ -247,7 +247,7 @@ float3 volume_shadow(
     float3 v_pos = drw_point_world_to_view(w_pos);
     float3 volume_co = volume_view_to_jitter(v_pos);
     /* Let the texture be clamped to edge. This reduce visual glitches. */
-    float3 s_extinction = texture(extinction_tx, volume_co).rgb;
+    float3 s_extinction = texture(_extinction_tx, volume_co).rgb;
 
     shadow *= exp(-s_extinction * dd);
   }

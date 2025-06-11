@@ -218,6 +218,7 @@ set(OPENGL_SRC
 set(VULKAN_SRC
   vulkan/vk_backend.cc
   vulkan/vk_batch.cc
+  vulkan/vk_bindless_table.cc
   vulkan/vk_buffer.cc
   vulkan/vk_common.cc
   vulkan/vk_context.cc
@@ -265,6 +266,7 @@ set(VULKAN_SRC
   vulkan/vk_vertex_buffer.cc
 
   vulkan/vk_backend.hh
+  vulkan/vk_bindless_table.hh
   vulkan/vk_batch.hh
   vulkan/vk_buffer.hh
   vulkan/vk_common.hh

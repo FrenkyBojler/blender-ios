@@ -237,6 +237,8 @@ void VKBuffer::free_immediately(VKDevice &device)
     unmap();
   }
   device.resources.remove_buffer(vk_buffer_);
+  device.bindless_table.removeStorageBuffer(vk_buffer_);
+  device.bindless_table.removeUniform(vk_buffer_);
   vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer_, allocation_);
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;

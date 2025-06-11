@@ -83,6 +83,7 @@ void VKDevice::deinit()
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
+  bindless_table.free();
   orphaned_data_render.deinit(*this);
   orphaned_data.deinit(*this);
   vmaDestroyPool(mem_allocator_, vma_pools.external_memory);
@@ -134,6 +135,7 @@ void VKDevice::init(void *ghost_context)
   pipelines.read_from_disk();
 
   samplers_.init();
+  bindless_table.init();
   init_dummy_buffer();
 
   debug::object_label(vk_handle(), "LogicalDevice");
@@ -354,6 +356,9 @@ void VKDevice::init_glsl_patch()
     ss << "#extension GL_EXT_fragment_shader_barycentric : require\n";
     ss << "#define gpu_BaryCoord gl_BaryCoordEXT\n";
     ss << "#define gpu_BaryCoordNoPersp gl_BaryCoordNoPerspEXT\n";
+  }
+  if (extensions_.descriptor_indexing) {
+    ss << "#extension GL_EXT_nonuniform_qualifier : enable\n";
   }
 
   /* GLSL Backend Lib. */

@@ -9,6 +9,7 @@
 #include "render_graph/nodes/vk_pipeline_data.hh"
 #include "render_graph/vk_command_buffer_wrapper.hh"
 #include "render_graph/vk_render_graph_links.hh"
+#include "vk_backend.hh"
 
 namespace blender::gpu::render_graph {
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
@@ -46,6 +47,7 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
   if (assign_if_different(r_bound_pipeline.vk_descriptor_set, pipeline_data.vk_descriptor_set) &&
       r_bound_pipeline.vk_descriptor_set != VK_NULL_HANDLE)
   {
+    VKDevice &device = VKBackend::get().device;
     command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
                                         pipeline_data.vk_pipeline_layout,
                                         0,
@@ -53,6 +55,16 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                         &r_bound_pipeline.vk_descriptor_set,
                                         0,
                                         nullptr);
+
+    if (device.extensions_get().descriptor_indexing) {
+      command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
+                                          pipeline_data.vk_pipeline_layout,
+                                          1,
+                                          1,
+                                          &device.bindless_table.descriptor_set,
+                                          0,
+                                          nullptr);
+    }
   }
 
   if (assign_if_different(r_bound_pipeline.descriptor_buffer_device_address,

@@ -17,6 +17,7 @@
 
 #include "render_graph/vk_render_graph.hh"
 #include "render_graph/vk_resource_state_tracker.hh"
+#include "vk_bindless_table.hh"
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 #include "vk_debug.hh"
@@ -34,6 +35,8 @@ struct VKExtensions {
   bool shader_output_viewport_index = false;
   /** Does the device support VkPhysicalDeviceVulkan12Features::shaderOutputLayer. */
   bool shader_output_layer = false;
+  /** Does the device support VkPhysicalDeviceVUlkan12Features::descriptorIndexing. */
+  bool descriptor_indexing = false;
   /**
    * Does the device support
    * VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR::fragmentShaderBarycentric.
@@ -237,6 +240,7 @@ class VKDevice : public NonCopyable {
   VKPipelinePool pipelines;
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
+  VKBindlessTable bindless_table;
 
   /**
    * This struct contains the functions pointer to extension provided functions.

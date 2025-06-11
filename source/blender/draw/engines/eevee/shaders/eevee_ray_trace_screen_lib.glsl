@@ -66,7 +66,7 @@ struct ScreenTraceHitData {
  */
 METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
                                               HiZData hiz_data,
-                                              sampler2D hiz_tx,
+                                              sampler2D _hiz_tx,
                                               float stride_rand,
                                               float roughness,
                                               const bool discard_backface,
@@ -121,7 +121,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
     t += stride;
 
     float4 ss_p = ssray.origin + ssray.direction * time;
-    depth_sample = textureLod(hiz_tx, ss_p.xy * hiz_data.uv_scale, floor(lod)).r;
+    depth_sample = textureLod(_hiz_tx, ss_p.xy * hiz_data.uv_scale, floor(lod)).r;
 
     delta = depth_sample - ss_p.z;
     /* Check if the ray is below the surface ... */
@@ -170,7 +170,7 @@ METAL_ATTR ScreenTraceHitData raytrace_screen(RayTraceData rt_data,
 #ifdef PLANAR_PROBES
 
 ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
-                                   sampler2DArrayDepth planar_depth_tx,
+                                   sampler2DArrayDepth _planar_depth_tx,
                                    PlanarProbeData planar,
                                    float stride_rand,
                                    Ray ray)
@@ -180,14 +180,14 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
     raytrace_clip_ray_to_near_plane(ray);
   }
 
-  float2 inv_texture_size = 1.0f / float2(textureSize(planar_depth_tx, 0).xy);
+  float2 inv_texture_size = 1.0f / float2(textureSize(_planar_depth_tx, 0).xy);
   /* NOTE: The 2.0 factor here is because we are applying it in NDC space. */
   ScreenSpaceRay ssray = raytrace_screenspace_ray_create(
       ray, planar.winmat, 2.0f * inv_texture_size);
 
   float prev_delta = 0.0f, prev_time = 0.0f;
   float depth_sample = reverse_z::read(
-      texture(planar_depth_tx, float3(ssray.origin.xy, planar.layer_id)).r);
+      texture(_planar_depth_tx, float3(ssray.origin.xy, planar.layer_id)).r);
   float delta = depth_sample - ssray.origin.z;
 
   float t = 0.0f, time = 0.0f;
@@ -204,7 +204,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
     float4 ss_ray = ssray.origin + ssray.direction * time;
 
-    depth_sample = reverse_z::read(texture(planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
+    depth_sample = reverse_z::read(texture(_planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
 
     delta = depth_sample - ss_ray.z;
     /* Check if the ray is below the surface. */

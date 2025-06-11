@@ -196,7 +196,7 @@ float light_sphere_disk_radius(float sphere_radius, float distance_to_sphere)
 }
 
 float light_ltc(
-    sampler2DArray utility_tx, LightData light, float3 N, float3 V, LightVector lv, float4 ltc_mat)
+    sampler2DArray _utility_tx, LightData light, float3 N, float3 V, LightVector lv, float4 ltc_mat)
 {
   if (is_sphere_light(light.type) && lv.dist < light_local_data_get(light).shape_radius) {
     /* Inside the sphere light, integrate over the hemisphere. */
@@ -223,7 +223,7 @@ float light_ltc(
 
     ltc_transform_quad(N, V, ltc_matrix(ltc_mat), corners);
 
-    return ltc_evaluate_quad(utility_tx, corners, float3(0.0f, 0.0f, 1.0f));
+    return ltc_evaluate_quad(_utility_tx, corners, float3(0.0f, 0.0f, 1.0f));
   }
   else {
     if (!is_area_light(light.type)) {
@@ -257,7 +257,7 @@ float light_ltc(
     points[1] += L;
     points[2] += L;
 
-    return ltc_evaluate_disk(utility_tx, N, V, ltc_matrix(ltc_mat), points);
+    return ltc_evaluate_disk(_utility_tx, N, V, ltc_matrix(ltc_mat), points);
   }
 }
 

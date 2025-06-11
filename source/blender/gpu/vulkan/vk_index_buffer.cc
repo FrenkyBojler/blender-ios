@@ -114,6 +114,7 @@ void VKIndexBuffer::allocate()
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                  VkMemoryPropertyFlags(0),
                  VmaAllocationCreateFlags(0));
+
   debug::object_label(buffer_.vk_handle(), "IndexBuffer");
 }
 

@@ -15,6 +15,7 @@
 
 #include "BLI_array.hh"
 
+#include "vk_bindless_table.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_push_constants.hh"
 
@@ -50,6 +51,7 @@ class VKShaderInterface : public ShaderInterface {
  private:
   /** Binding information for each shader input. */
   Array<VKResourceBinding> resource_bindings_;
+  size_t bindings_table_size_;
   VKDescriptorSetLayoutInfo descriptor_set_layout_info_;
 
   VKPushConstants::Layout push_constants_layout_;
@@ -65,6 +67,12 @@ class VKShaderInterface : public ShaderInterface {
       const shader::ShaderCreateInfo::Resource &resource) const;
   const std::optional<VKDescriptorSet::Location> descriptor_set_location(
       const shader::ShaderCreateInfo::Resource::BindType &bind_type, int binding) const;
+  const int32_t bindings_table_slot(const shader::ShaderCreateInfo::Resource &resource) const;
+
+  size_t bindings_table_size_get() const
+  {
+    return bindings_table_size_;
+  }
 
   /** Get the Layout of the shader. */
   const VKPushConstants::Layout &push_constants_layout_get() const
