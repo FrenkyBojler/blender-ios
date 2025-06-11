@@ -11,7 +11,7 @@ struct MatrixTransfer;
 }
 
 namespace blender::geometry {
-struct UVPackIsland_Params;
+class UVPackIsland_Params;
 }
 
 /** \file
