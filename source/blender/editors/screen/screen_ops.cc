@@ -798,6 +798,7 @@ static bool azone_clipped_rect_calc(const AZone *az, rcti *r_rect_clip)
         /* Only when this isn't hidden (where it's displayed as an button that expands). */
         region->runtime->visible)
     {
+      /* A floating region to be resized, clip by the visible region. */
       switch (az->edge) {
         case AE_TOP_TO_BOTTOMRIGHT:
         case AE_BOTTOM_TO_TOPLEFT: {
