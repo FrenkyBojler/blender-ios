@@ -14047,6 +14047,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSepYCCA", def_cmp_ycc);
   define("CompositorNode", "CompositorNodeSepYUVA");
   define("CompositorNode", "CompositorNodeSetAlpha", def_cmp_set_alpha);
+  define("CompositorNode", "CompositorNodeSignedDistanceField");
   define("CompositorNode", "CompositorNodeSplit", def_cmp_split);
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
   define("CompositorNode", "CompositorNodeSunBeams", def_cmp_sunbeams);

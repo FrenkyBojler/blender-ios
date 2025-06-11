@@ -98,6 +98,7 @@
 #include "compositor_read_input_info.hh"
 #include "compositor_realize_on_domain_info.hh"
 #include "compositor_scale_variable_info.hh"
+#include "compositor_signed_distance_field_info.hh"
 #include "compositor_smaa_info.hh"
 #include "compositor_split_info.hh"
 #include "compositor_summed_area_table_info.hh"

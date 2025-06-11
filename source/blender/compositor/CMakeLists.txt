@@ -246,6 +246,8 @@ set(GLSL_SRC
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
   shaders/compositor_scale_variable.glsl
+  shaders/compositor_signed_distance_field_compute_boundary.glsl
+  shaders/compositor_signed_distance_field_compute_distance.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl
   shaders/compositor_smaa_neighborhood_blending.glsl
