@@ -33,7 +33,7 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
-#define MIN_ROWS 3
+#define MIN_ROWS 5
 
 static int unpadded_item_height()
 {
