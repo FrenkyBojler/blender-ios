@@ -84,7 +84,7 @@ struct DrawGroupInputsContext {
   PointerRNA *properties_ptr;
   PointerRNA *bmain_ptr;
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
-  bool use_name_for_ids;
+  bool use_name_for_ids = false;
   std::function<PanelOpenProperty(const bNodeTreeInterfacePanel &)> panel_open_property_fn;
   std::function<SocketSearchData(const bNodeTreeInterfaceSocket &)> socket_search_data_fn;
   std::function<void(uiLayout &, int icon, const bNodeTreeInterfaceSocket &)>
