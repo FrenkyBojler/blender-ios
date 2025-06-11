@@ -141,6 +141,9 @@ template<typename T> T SocketValueVariant::extract()
     BLI_assert(static_type_is_base_socket_type<typename T::base_type>(socket_type_));
     return T(this->extract<fn::GField>());
   }
+  else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
+    return std::move(value_.get<T>());
+  }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
     switch (kind_) {
@@ -166,9 +169,6 @@ template<typename T> T SocketValueVariant::extract()
     return this->extract<GVolumeGrid>().typed<typename T::base_type>();
   }
 #endif
-  else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
-    return std::move(value_.get<T>());
-  }
   else {
     BLI_assert(static_type_is_base_socket_type<T>(socket_type_));
     if (kind_ == Kind::Single) {
