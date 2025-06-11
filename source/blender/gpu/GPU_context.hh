@@ -12,6 +12,8 @@
 
 #include "GPU_platform.hh"
 
+#include <mutex>
+
 /* GPU back-ends abstract the differences between different APIs. #GPU_context_create
  * automatically initializes the back-end, and #GPU_context_discard frees it when there
  * are no more contexts. */
@@ -78,6 +80,8 @@ void GPU_context_end_frame(GPUContext *ctx);
  */
 void GPU_context_main_lock();
 void GPU_context_main_unlock();
+
+std::mutex &GPU_context_binding_mutex();
 
 /** GPU Begin/end work blocks */
 void GPU_render_begin();

@@ -292,6 +292,12 @@ void GPU_context_main_unlock()
   main_context_mutex.unlock();
 }
 
+std::mutex &GPU_context_binding_mutex()
+{
+  static std::mutex mutex;
+  return mutex;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -552,6 +558,8 @@ GPUSecondaryContext::GPUSecondaryContext()
   /* Contexts can only be created on the main thread. */
   BLI_assert(BLI_thread_is_main());
 
+  std::lock_guard lock(GPU_context_binding_mutex());
+
   GHOST_ContextHandle main_thread_ghost_context = GHOST_GetActiveGPUContext();
   GPUContext *main_thread_gpu_context = GPU_context_active_get();
 
@@ -595,6 +603,8 @@ GPUSecondaryContext::~GPUSecondaryContext()
   /* Contexts should be destructed on the thread they were activated. */
   BLI_assert(!BLI_thread_is_main());
 
+  std::lock_guard lock(GPU_context_binding_mutex());
+
   GPU_context_discard(gpu_context_);
 
   GHOST_ReleaseGPUContext(reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
@@ -609,6 +619,8 @@ void GPUSecondaryContext::activate()
 {
   /* Contexts need to be activated in the thread they're going to be used. */
   BLI_assert(!BLI_thread_is_main());
+
+  std::lock_guard lock(GPU_context_binding_mutex());
 
   GHOST_ActivateGPUContext(reinterpret_cast<GHOST_ContextHandle>(ghost_context_));
   GPU_context_active_set(gpu_context_);

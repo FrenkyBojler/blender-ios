@@ -77,6 +77,8 @@ class ContextShared {
   {
     mutex_ = BLI_ticket_mutex_alloc();
 
+    std::lock_guard lock(GPU_context_binding_mutex());
+
     system_gpu_context_ = WM_system_gpu_context_create();
     WM_system_gpu_context_activate(system_gpu_context_);
     blender_gpu_context_ = GPU_context_create(nullptr, system_gpu_context_);
@@ -84,6 +86,8 @@ class ContextShared {
 
   ~ContextShared()
   {
+    std::lock_guard lock(GPU_context_binding_mutex());
+
     WM_system_gpu_context_activate(system_gpu_context_);
     GPU_context_active_set(blender_gpu_context_);
 
@@ -100,6 +104,8 @@ class ContextShared {
      * multiple threads. */
     BLI_ticket_mutex_lock(mutex_);
 
+    std::lock_guard lock(GPU_context_binding_mutex());
+
     GPU_render_begin();
 
     WM_system_gpu_context_activate(system_gpu_context_);
@@ -110,6 +116,8 @@ class ContextShared {
   /* Restore window drawable after disabling if restore is true. */
   void disable(bool restore = false)
   {
+    std::lock_guard lock(GPU_context_binding_mutex());
+
     GPU_context_end_frame(blender_gpu_context_);
 
     if (BLI_thread_is_main() && restore) {
