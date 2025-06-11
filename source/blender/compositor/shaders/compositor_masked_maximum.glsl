@@ -142,7 +142,6 @@ void main()
 
   float4 size = max(texture_load(input_size_tx, texel), float4(0.0f, 0.0f, 0.0f, 0.0f));
   float rotation = texture_load(input_rotation_tx, texel).x;
-  float4 translation = texture_load(input_translation_tx, texel);
   float roundness = clamp(texture_load(input_roundness_tx, texel).x, 0.0f, 1.0f);
   float falloff = max(texture_load(input_falloff_tx, texel).x, 0.0f);
 
@@ -174,17 +173,8 @@ void main()
         max(ceil(abs(rotated_top_right_corner.x)), ceil(abs(rotated_bottom_right_corner.x))),
         max(ceil(abs(rotated_top_right_corner.y)), ceil(abs(rotated_bottom_right_corner.y))));
   }
-  float2 bounding_box_bottom_left_corner_float = -bounding_box_top_right_corner_float;
-  /* Translate bounding box. */
-  bounding_box_top_right_corner_float = float2(
-      ceil(bounding_box_top_right_corner_float.x + translation.x),
-      ceil(bounding_box_top_right_corner_float.y + translation.y));
-  bounding_box_bottom_left_corner_float = float2(
-      floor(bounding_box_bottom_left_corner_float.x + translation.x),
-      floor(bounding_box_bottom_left_corner_float.y + translation.y));
-
   int2 bounding_box_top_right_corner = int2(bounding_box_top_right_corner_float);
-  int2 bounding_box_bottom_left_corner = int2(bounding_box_bottom_left_corner_float);
+  int2 bounding_box_bottom_left_corner = -bounding_box_top_right_corner;
   /* Crop away parts of the bounding box that are outside of the domain. */
   bounding_box_top_right_corner += texel;
   bounding_box_bottom_left_corner += texel;
@@ -195,7 +185,7 @@ void main()
   float masked_maximum = -FLT_MAX;
   for (int y = bounding_box_bottom_left_corner.y; y <= bounding_box_top_right_corner.y; y++) {
     for (int x = bounding_box_bottom_left_corner.x; x <= bounding_box_top_right_corner.x; x++) {
-      float2 coord = float2(x, y) - float2(translation.x, translation.y);
+      float2 coord = float2(x, y);
       if (rotation != 0.0f) {
         coord = rotate_vector_2d(coord, -rotation);
       }
