@@ -23,6 +23,10 @@
 #include "intern/GHOST_CallbackEventConsumer.hh"
 #include "intern/GHOST_XrException.hh"
 
+#include <mutex>
+
+static std::mutex context_mutex;
+
 GHOST_SystemHandle GHOST_CreateSystem()
 {
   GHOST_ISystem::createSystem(true, false);
@@ -143,6 +147,7 @@ GHOST_ContextHandle GHOST_CreateGPUContext(GHOST_SystemHandle systemhandle,
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
 
+  std::lock_guard lock(context_mutex);
   return (GHOST_ContextHandle)system->createOffscreenContext(gpuSettings);
 }
 
@@ -152,6 +157,7 @@ GHOST_TSuccess GHOST_DisposeGPUContext(GHOST_SystemHandle systemhandle,
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
 
+  std::lock_guard lock(context_mutex);
   return system->disposeContext(context);
 }
 
@@ -718,6 +724,7 @@ GHOST_TSuccess GHOST_ActivateWindowDrawingContext(GHOST_WindowHandle windowhandl
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
+  std::lock_guard lock(context_mutex);
   return window->activateDrawingContext();
 }
 
@@ -725,6 +732,7 @@ GHOST_TSuccess GHOST_ActivateGPUContext(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
   if (context) {
+    std::lock_guard lock(context_mutex);
     return context->activateDrawingContext();
   }
   GHOST_PRINTF("%s: Context not valid\n", __func__);
@@ -735,6 +743,7 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
 
+  std::lock_guard lock(context_mutex);
   return context->releaseDrawingContext();
 }
 
