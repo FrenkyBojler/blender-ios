@@ -916,8 +916,9 @@ void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &pri
         continue;
       }
 
-      /* We should only traverse through a hierarchy, and any potential instancers, if they would be
-       * included by our purpose and visibility checks, matching what is inside #collect_readers. */
+      /* We should only traverse through a hierarchy, and any potential instancers, if they would
+       * be included by our purpose and visibility checks, matching what is inside
+       * #collect_readers. */
       if (!include_by_purpose(imageable)) {
         continue;
       }
