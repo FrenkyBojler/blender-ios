@@ -33,6 +33,7 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
+#define MIN_ROWS 3
 
 static int unpadded_item_height()
 {
@@ -364,10 +365,9 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   if (!custom_height_) {
     return {};
   }
-  if (*custom_height_ < UI_UNIT_Y) {
-    return 1;
-  }
-  return round_fl_to_int(float(*custom_height_) / padded_item_height());
+  const int calculate_rows = round_fl_to_int(float(*custom_height_) / padded_item_height());
+  /* Clamp value so that resizing below 3 rows is not possible. */
+  return math::max(MIN_ROWS, calculate_rows);
 }
 
 bool AbstractTreeView::supports_scrolling() const
