@@ -798,25 +798,9 @@ static bool azone_clipped_rect_calc(const AZone *az, rcti *r_rect_clip)
         /* Only when this isn't hidden (where it's displayed as an button that expands). */
         region->runtime->visible)
     {
-      /* A floating region to be resized, clip by the visible region. */
-      const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
-                           (BLI_rcti_size_y(&region->v2d.mask) + 1);
-
       switch (az->edge) {
         case AE_TOP_TO_BOTTOMRIGHT:
         case AE_BOTTOM_TO_TOPLEFT: {
-          if (UI_panel_category_is_visible(region)) {
-            /* Don't clip if we are only showing the category tabs. */
-            uchar theme_col_tab_bg[4];
-            UI_GetThemeColor4ubv(TH_TAB_BACK, theme_col_tab_bg);
-            const bool transparent = (theme_col_tab_bg[3] == 0);
-            if (!transparent &&
-                BLI_rcti_size_y(&region->winrct) <=
-                    int(float(UI_PANEL_CATEGORY_MARGIN_WIDTH + UI_PANEL_MARGIN_Y) / aspect))
-            {
-              return false;
-            }
-          }
           r_rect_clip->xmin = max_ii(
               r_rect_clip->xmin,
               (region->winrct.xmin +
@@ -831,18 +815,6 @@ static bool azone_clipped_rect_calc(const AZone *az, rcti *r_rect_clip)
         }
         case AE_LEFT_TO_TOPRIGHT:
         case AE_RIGHT_TO_TOPLEFT: {
-          if (UI_panel_category_is_visible(region)) {
-            /* Don't clip if we are only showing the category tabs. */
-            uchar theme_col_tab_bg[4];
-            UI_GetThemeColor4ubv(TH_TAB_BACK, theme_col_tab_bg);
-            const bool transparent = (theme_col_tab_bg[3] == 0);
-            if (!transparent &&
-                BLI_rcti_size_x(&region->winrct) <=
-                    int(float(UI_PANEL_CATEGORY_MARGIN_WIDTH + UI_PANEL_MARGIN_X) / aspect))
-            {
-              return false;
-            }
-          }
           r_rect_clip->ymin = max_ii(
               r_rect_clip->ymin,
               (region->winrct.ymin +

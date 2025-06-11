@@ -3376,6 +3376,18 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     mask.xmax -= round_fl_to_int(UI_view2d_scale_get_x(&region->v2d) *
                                  UI_PANEL_CATEGORY_MARGIN_WIDTH);
   }
+
+  /* Hide scrollbars if only showing category tabs. */
+  if (UI_panel_category_is_visible(region)) {
+    const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
+    if (BLI_rcti_size_x(&region->winrct) <=
+        int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect))
+    {
+      v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
+    }
+  }
+
   UI_view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
 }
 
