@@ -2692,7 +2692,6 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
   threading::parallel_for_each(clipboard.layers, [&](Clipboard::ClipboardLayer &layer) {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         layer.curves, selection_domain, CD_PROP_BOOL);
-    ed::curves::fill_selection_true(selection.span);
     selection.finish();
   });
 
