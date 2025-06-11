@@ -234,6 +234,11 @@ class MeshState {
   }
 };
 
+static std::string shape_key_attribute_name(const KeyBlock &kb)
+{
+  return fmt::format(".kb:{}", kb.name);
+}
+
 /** Support shape keys by propagating them through geometry nodes as attributes. */
 static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
 {
@@ -243,9 +248,8 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
       /* The basis key will just recieve values from the mesh positions. */
       continue;
     }
-    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
-    attributes.add<float3>(attribute_name,
+    attributes.add<float3>(shape_key_attribute_name(*kb),
                            bke::AttrDomain::Point,
                            bke::AttributeInitVArray(VArray<float3>::ForSpan(key_data)));
   }
@@ -256,8 +260,8 @@ static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
-    const VArray attr = *attributes.lookup<float3>(attribute_name, bke::AttrDomain::Point);
+    const VArray attr = *attributes.lookup<float3>(shape_key_attribute_name(*kb),
+                                                   bke::AttrDomain::Point);
     if (!attr) {
       continue;
     }
@@ -279,8 +283,7 @@ static void remove_shape_key_attributes(Mesh &mesh, const Key &key)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    const std::string attribute_name = fmt::format(".kb:{}", kb->name);
-    attributes.remove(attribute_name);
+    attributes.remove(shape_key_attribute_name(*kb));
   }
 }
 
