@@ -605,7 +605,7 @@ void uiItemEnumO_string(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout,
                   blender::StringRefNull opname,
                   blender::StringRefNull propname);
-
+// foo
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
                              std::optional<blender::StringRef> name,
