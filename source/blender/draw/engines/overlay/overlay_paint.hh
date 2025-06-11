@@ -116,7 +116,7 @@ class Paints : Overlay {
         sub.shader_set(shadeless ? res.shaders->paint_weight.get() :
                                    res.shaders->paint_weight_fake_shading.get());
         sub.bind_texture("colorramp", &res.weight_ramp_tx);
-        sub.push_constant("drawContours", draw_contours);
+        sub.push_constant("draw_contours", draw_contours);
         sub.push_constant("opacity", state.overlay.weight_paint_mode_opacity);
         if (!shadeless) {
           /* Arbitrary light to give a hint of the geometry behind the weights. */
@@ -147,10 +147,10 @@ class Paints : Overlay {
         pass.shader_set(res.shaders->paint_texture.get());
         pass.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
         pass.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-        pass.bind_texture("maskImage", mask_texture);
+        pass.bind_texture("mask_image", mask_texture);
         pass.push_constant("maskPremult", mask_premult);
-        pass.push_constant("maskInvertStencil", mask_inverted);
-        pass.push_constant("maskColor", float3(paint_settings.stencil_col));
+        pass.push_constant("mask_invert_stencil", mask_inverted);
+        pass.push_constant("mask_color", float3(paint_settings.stencil_col));
         pass.push_constant("opacity", state.overlay.texture_paint_mode_opacity);
       }
     }
@@ -225,7 +225,7 @@ class Paints : Overlay {
     {
       /* NOTE(fclem): Why do we need original mesh here, only to get the flag? */
       const Mesh &mesh_orig = DRW_object_get_data_for_drawing<Mesh>(
-          *DEG_get_original_object(ob_ref.object));
+          *DEG_get_original(ob_ref.object));
       const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
       const bool use_vert_selection = (mesh_orig.editflag & ME_EDIT_PAINT_VERT_SEL);
       /* Texture paint mode only draws the face selection without wires or vertices as we don't
@@ -234,7 +234,7 @@ class Paints : Overlay {
 
       if ((use_face_selection || show_wires_) && !in_texture_paint_mode) {
         gpu::Batch *geom = DRW_cache_mesh_surface_edges_get(ob_ref.object);
-        paint_region_edge_ps_->push_constant("useSelect", use_face_selection);
+        paint_region_edge_ps_->push_constant("use_select", use_face_selection);
         paint_region_edge_ps_->draw(geom, manager.unique_handle(ob_ref));
       }
       if (use_face_selection) {

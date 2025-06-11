@@ -89,7 +89,6 @@ struct RenderJob : public RenderJobBase {
   ScrArea *area;
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
-  bool supports_glsl_draw;
   bool interface_locked;
 };
 
@@ -523,9 +522,9 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
   rr = RE_AcquireResultRead(rj->re);
 
   if (rr) {
-    /* malloc OK here, stats_draw is not in tile threads */
+    /* `malloc` is OK here, `stats_draw` is not in tile threads. */
     if (rr->text == nullptr) {
-      rr->text = static_cast<char *>(MEM_callocN(IMA_MAX_RENDER_TEXT_SIZE, "rendertext"));
+      rr->text = MEM_calloc_arrayN<char>(IMA_MAX_RENDER_TEXT_SIZE, "rendertext");
     }
 
     make_renderinfo_string(rs, rj->scene, rj->v3d_override, rr->error, rr->text);
@@ -659,9 +658,7 @@ static void image_rect_update(void *rjv, RenderResult *rr, rcti *renrect)
      * this case GLSL doesn't have original float buffer to
      * operate with.
      */
-    if (!rj->supports_glsl_draw || ibuf->channels == 1 ||
-        ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL)
-    {
+    if (ibuf->channels == 1 || ED_draw_imbuf_method(ibuf) != IMAGE_DRAW_METHOD_GLSL) {
       image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, &tile_rect, offset_x, offset_y, viewname);
     }
     ImageTile *image_tile = BKE_image_get_tile(ima, 0);
@@ -792,7 +789,7 @@ static void render_endjob(void *rjv)
   }
 
   /* XXX above function sets all tags in nodes */
-  ntreeCompositClearTags(rj->scene->nodetree);
+  ntreeCompositClearTags(rj->scene->compositing_node_group);
 
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
@@ -877,7 +874,7 @@ static bool render_break(void * /*rjv*/)
   return false;
 }
 
-/* runs in thread, no cursor setting here works. careful with notifiers too (malloc conflicts) */
+/* runs in thread, no cursor setting here works. careful with notifiers too (`malloc` conflicts) */
 /* maybe need a way to get job send notifier? */
 static void render_drawlock(void *rjv, bool lock)
 {
@@ -1027,7 +1024,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   blender::seq::cache_cleanup(scene);
 
   /* store spare
-   * get view3d layer, local layer, make this nice api call to render
+   * get view3d layer, local layer, make this nice API call to render
    * store spare */
 
   /* ensure at least 1 area shows result */
@@ -1048,7 +1045,6 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->orig_layer = 0;
   rj->last_layer = 0;
   rj->area = area;
-  rj->supports_glsl_draw = IMB_colormanagement_support_glsl_draw(&scene->view_settings);
 
   BKE_color_managed_display_settings_copy(&rj->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&rj->view_settings, &scene->view_settings);
@@ -1153,7 +1149,7 @@ void RENDER_OT_render(wmOperatorType *ot)
   ot->description = "Render active scene";
   ot->idname = "RENDER_OT_render";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_render_invoke;
   ot->modal = screen_render_modal;
   ot->cancel = screen_render_cancel;

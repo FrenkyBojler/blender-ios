@@ -732,7 +732,7 @@ static void rna_ActionConstraint_action_set(PointerRNA *ptr, PointerRNA value, R
    * `OBSlot`. The assignment to the Action Constraint would not see a 'virgin' slot, and thus not
    * auto-select `OBSlot`. This behavior makes sense when assigning Actions in the Action editor
    * (it shouldn't automatically pick the first slot of matching ID type), but for the Action
-   * Constraint I (Sybren) feel that it could be a bit more 'enthousiastic' in auto-picking a slot.
+   * Constraint I (Sybren) feel that it could be a bit more 'enthusiastic' in auto-picking a slot.
    *
    * Note that this is the same behavior as for NLA strips, albeit for a slightly different
    * reason. Because of that it's not sharing code with the NLA.
@@ -1421,7 +1421,7 @@ static void rna_def_constraint_track_to(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_target_z", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", TARGET_Z_UP);
   RNA_def_property_ui_text(
-      prop, "Target Z", "Target's Z axis, not World Z axis, will constraint the Up direction");
+      prop, "Target Z", "Target's Z axis, not World Z axis, will constrain the Up direction");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   RNA_define_lib_overridable(false);
@@ -1848,6 +1848,12 @@ static void rna_def_constraint_action(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem mix_mode_items[] = {
+      {ACTCON_MIX_REPLACE,
+       "REPLACE",
+       0,
+       "Replace",
+       "Replace the original transformation with the action channels"},
+      RNA_ENUM_ITEM_SEPR,
       {ACTCON_MIX_BEFORE_FULL,
        "BEFORE_FULL",
        0,

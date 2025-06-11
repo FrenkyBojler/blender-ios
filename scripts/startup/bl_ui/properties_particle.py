@@ -15,7 +15,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
 )
 from bl_ui.utils import PresetPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_physics_common import (
     point_cache_ui,
@@ -95,6 +95,7 @@ class PARTICLE_MT_context_menu(Menu):
             "particle.duplicate_particle_system",
             icon='DUPLICATE',
         )
+        layout.operator("particle.particle_system_remove_all", text="Remove All Particle Systems")
 
 
 class PARTICLE_PT_hair_dynamics_presets(PresetPanel, Panel):

@@ -498,9 +498,13 @@ void *MEM_lockfree_calloc_arrayN_aligned(const size_t len,
                                          const size_t alignment,
                                          const char *str)
 {
+  /* There is no lower level #calloc with an alignment parameter, so unless the alignment is less
+   * than or equal to what we'd get by default, we have to fall back to #memset unfortunately. */
+  if (alignment <= MEM_MIN_CPP_ALIGNMENT) {
+    return MEM_lockfree_calloc_arrayN(len, size, str);
+  }
+
   size_t bytes_num;
-  /* There is no lower level #calloc with an alignment parameter, so we have to fallback to using
-   * #memset unfortunately. */
   void *ptr = mem_lockfree_malloc_arrayN_aligned(len, size, alignment, str, bytes_num);
   if (!ptr) {
     return nullptr;
@@ -515,7 +519,8 @@ void MEM_lockfree_printmemlist() {}
 
 void mem_lockfree_clearmemlist() {}
 
-/* unused */
+/* Unused. */
+
 void MEM_lockfree_callbackmemlist(void (*func)(void *))
 {
   (void)func; /* Ignored. */
@@ -560,7 +565,8 @@ uint MEM_lockfree_get_memory_blocks_in_use()
   return uint(memory_usage_block_num());
 }
 
-/* dummy */
+/* Dummy. */
+
 void MEM_lockfree_reset_peak_memory()
 {
   memory_usage_peak_reset();

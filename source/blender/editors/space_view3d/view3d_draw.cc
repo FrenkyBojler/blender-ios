@@ -64,7 +64,6 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
-#include "GPU_material.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 #include "GPU_viewport.hh"
@@ -277,7 +276,7 @@ static void view3d_stereo3d_setup(
     float shiftx;
 
     data = (Camera *)v3d->camera->data;
-    data_eval = (Camera *)DEG_get_evaluated_id(depsgraph, &data->id);
+    data_eval = DEG_get_evaluated(depsgraph, data);
 
     shiftx = data_eval->shiftx;
 
@@ -390,7 +389,7 @@ static void view3d_camera_border(const Scene *scene,
 {
   CameraParams params;
   rctf rect_view, rect_camera;
-  Object *camera_eval = DEG_get_evaluated_object(depsgraph, v3d->camera);
+  Object *camera_eval = DEG_get_evaluated(depsgraph, v3d->camera);
 
   /* get viewport viewplane */
   BKE_camera_params_init(&params);
@@ -569,7 +568,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   y2i = int(y2 + (1.0f - 0.0001f));
 
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* First, solid lines. */
   {
@@ -803,7 +802,7 @@ static void drawrenderborder(ARegion *region, View3D *v3d)
 {
   /* use the same program for everything */
   uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_line_width(1.0f);
 
@@ -998,8 +997,9 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
   immBegin(GPU_PRIM_LINES, 6);
@@ -1044,8 +1044,9 @@ static void draw_ndof_guide_orbit_axis(const RegionView3D *rv3d)
   GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
@@ -1142,8 +1143,8 @@ static void draw_ndof_guide_orbit_center(const RegionView3D *rv3d)
   GPU_depth_mask(false); /* Don't overwrite the Z-buffer. */
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint col = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
   immUniform1f("size", 7.0f);
@@ -1261,9 +1262,12 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
           else if (cam->type == CAM_ORTHO) {
             name = IFACE_("Camera Orthographic");
           }
-          else {
-            BLI_assert(cam->type == CAM_PANO);
+          else if (cam->type == CAM_PANO) {
             name = IFACE_("Camera Panoramic");
+          }
+          else {
+            BLI_assert(cam->type == CAM_CUSTOM);
+            name = IFACE_("Camera Custom");
           }
         }
         else {
@@ -1287,7 +1291,7 @@ static void draw_viewport_name(ARegion *region, View3D *v3d, int xoffset, int *y
   int name_array_len = 1;
 
   /* 6 is the maximum size of the axis roll text. */
-  /* increase size for unicode languages (Chinese in utf-8...) */
+  /* increase size for unicode languages (Chinese in UTF8...). */
   char tmpstr[96 + 6];
 
   if (RV3D_VIEW_IS_AXIS(rv3d->view) && (rv3d->view_axis_roll != RV3D_VIEW_AXIS_ROLL_0)) {
@@ -1524,7 +1528,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_CENTER) {
     /* Draw this only when orbiting and auto orbit-center is enabled */
-    if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO)) {
+    if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO)) {
       if (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID) {
         /* When the center is locked, the auto-center is not used. */
         if (!(v3d->ob_center_cursor || v3d->ob_center)) {
@@ -1680,7 +1684,6 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);
   BKE_image_free_old_gputextures(bmain);
-  GPU_pass_cache_garbage_collect();
 
   /* No depth test for drawing action zones afterwards. */
   GPU_depth_test(GPU_DEPTH_NONE);
@@ -2028,6 +2031,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                                true,
                                desired_format,
                                GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
+                               false,
                                err_out);
     if (ofs == nullptr) {
       DRW_gpu_context_disable();
@@ -2044,7 +2048,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
     Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
-    const Object *camera_eval = DEG_get_evaluated_object(depsgraph, camera);
+    const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
 
     BKE_camera_params_init(&params);
     /* fallback for non camera objects */
@@ -2224,7 +2228,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
 
   {
     CameraParams params;
-    const Object *view_camera_eval = DEG_get_evaluated_object(
+    const Object *view_camera_eval = DEG_get_evaluated(
         depsgraph, BKE_camera_multiview_render(scene, v3d.camera, viewname));
 
     BKE_camera_params_init(&params);
@@ -2304,7 +2308,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
   if (v3d->runtime.flag & V3D_RUNTIME_DEPTHBUF_OVERRIDDEN) {
     return;
   }
-  Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+  Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
 
   BLI_assert(region->regiontype == RGN_TYPE_WINDOW);
   UNUSED_VARS_NDEBUG(region);
@@ -2409,7 +2413,7 @@ void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d)
   r_d->w = w;
   r_d->h = h;
 
-  r_d->depths = static_cast<float *>(MEM_mallocN(sizeof(float) * w * h, "View depths Subset"));
+  r_d->depths = MEM_malloc_arrayN<float>(w * h, "View depths Subset");
 
   {
     GPUViewport *viewport = WM_draw_region_get_viewport(region);

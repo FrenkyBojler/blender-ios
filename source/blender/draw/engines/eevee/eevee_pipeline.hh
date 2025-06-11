@@ -5,7 +5,7 @@
 /** \file
  * \ingroup eevee
  *
- * Shading passes contain drawcalls specific to shading pipelines.
+ * Shading passes contain draw-calls specific to shading pipelines.
  * They are shared across views.
  * This file is only for shading passes. Other passes are declared in their own module.
  */
@@ -246,10 +246,15 @@ struct DeferredLayerBase {
     int count = count_bits_i(closure_bits_ &
                              (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_CLEARCOAT |
                               CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
-    /* Count the additional infos layer needed by some closures. */
+    /* Count the additional information layer needed by some closures. */
     count += count_bits_i(closure_bits_ &
                           (CLOSURE_SSS | CLOSURE_TRANSLUCENT | CLOSURE_REFRACTION));
     return count;
+  }
+
+  eClosureBits closure_bits_get() const
+  {
+    return closure_bits_;
   }
 
   void gbuffer_pass_sync(Instance &inst);
@@ -332,6 +337,11 @@ class DeferredLayer : DeferredLayerBase {
     return closure_bits_ & CLOSURE_TRANSMISSION;
   }
 
+  /* Do we compute indirect lighting inside the light eval pass. */
+  static bool do_merge_direct_indirect_eval(const Instance &inst);
+  /* Is the radiance split for the lighting pass. */
+  static bool do_split_direct_indirect_radiance(const Instance &inst);
+
   /* Returns the radiance buffer to feed the next layer. */
   GPUTexture *render(View &main_view,
                      View &render_view,
@@ -399,6 +409,11 @@ class DeferredPipeline {
   bool is_empty() const
   {
     return opaque_layer_.is_empty() && refraction_layer_.is_empty();
+  }
+
+  eClosureBits closure_bits_get() const
+  {
+    return opaque_layer_.closure_bits_get() | refraction_layer_.closure_bits_get();
   }
 
  private:

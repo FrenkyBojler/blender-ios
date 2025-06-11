@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e1163bf1330a')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'798f85a7108f')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-14 10:01+0000\n"
+"POT-Creation-Date: 2025-06-11 11:13+0000\n"
 "PO-Revision-Date: 2025-04-14 08:34+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -3217,6 +3217,14 @@ msgid "Bone Collections that contain this bone"
 msgstr "Kolekcje kości, do których należy ta kość"
 
 
+msgid "B-Bone"
+msgstr "Giętka kość"
+
+
+msgid "Envelope"
+msgstr "Obwiednia"
+
+
 msgid "Envelope Deform Distance"
 msgstr "Zasięg deformacji obwiedni"
 
@@ -6242,10 +6250,6 @@ msgstr "Celuj związanym obiektem w kierunku obiektu docelowego"
 
 msgid "Target Z"
 msgstr "Cel Z"
-
-
-msgid "Target's Z axis, not World Z axis, will constraint the Up direction"
-msgstr "Oś Z lokalna obiektu docelowego a nie oś świata będzie określać kierunek 'do góry'"
 
 
 msgid "Cache File"
@@ -9359,14 +9363,6 @@ msgid "Feature Set"
 msgstr "Zestaw funkcji"
 
 
-msgid "B-Bone"
-msgstr "Giętka kość"
-
-
-msgid "Envelope"
-msgstr "Obwiednia"
-
-
 msgid "Theme"
 msgstr "Motyw"
 
@@ -11584,42 +11580,6 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
-
-
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
-msgid "Metaball"
-msgstr "Metakula"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
-
-
-msgid "Apply"
-msgstr "Zastosuj"
-
-
-msgid "Track"
-msgstr "Ścieżka"
-
-
-msgid "Quick Effects"
-msgstr "Szybkie efekty"
-
-
 msgid "Show/Hide"
 msgstr "Pokaż/Ukryj"
 
@@ -11628,28 +11588,12 @@ msgid "Clean Up"
 msgstr "Sprzątanie"
 
 
-msgid "Asset"
-msgstr "Prefabrykat"
-
-
-msgid "Convert"
-msgstr "Konwertuj"
-
-
-msgid "Bone Collections"
-msgstr "Kolekcja kości"
-
-
-msgid "Face Data"
-msgstr "Dane ściany"
-
-
-msgid "Merge"
-msgstr "Scal"
-
-
 msgid "Text"
 msgstr "Tekst"
+
+
+msgid "Metaball"
+msgstr "Metakula"
 
 
 msgid "Snap"
@@ -11660,20 +11604,72 @@ msgid "Proportional Editing Falloff"
 msgstr "Proporcjonalne edytowanie spadku"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
+msgid "Convert"
+msgstr "Konwertuj"
+
+
+msgid "Merge"
+msgstr "Scal"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Face Data"
+msgstr "Dane ściany"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Asset"
+msgstr "Prefabrykat"
+
+
+msgid "Quick Effects"
+msgstr "Szybkie efekty"
+
+
+msgid "Track"
+msgstr "Ścieżka"
+
+
+msgid "Apply"
+msgstr "Zastosuj"
+
+
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
 
 
 msgid "Local View"
 msgstr "Widok lokalny"
 
 
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
+msgid "Bone Collections"
+msgstr "Kolekcja kości"
+
+
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
 
 
 msgid "Navigation"
 msgstr "Nawigacja"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
 
 
 msgid "Catalog"
@@ -12361,12 +12357,12 @@ msgid "Select Pattern"
 msgstr "Zaznacz według wzoru"
 
 
+msgid "Starting"
+msgstr "Zaczęto"
+
+
 msgid "Show Preview"
 msgstr "Pokaż podgląd"
-
-
-msgid "How much sharp corners will be rounded"
-msgstr "Jak bardzo ostre rogi będą zaokrąglone"
 
 
 msgid "Rounding"
@@ -12430,8 +12426,8 @@ msgid "Shadow"
 msgstr "Cień"
 
 
-msgid "Glare "
-msgstr "Blask "
+msgid "Glare"
+msgstr "Blask"
 
 
 msgid "Glare Type"
@@ -15260,6 +15256,10 @@ msgid "Delete with Reconnect"
 msgstr "Usuń z ponownym połączeniem"
 
 
+msgid "Open a predefined panel"
+msgstr "Otwiera predefiniowany panel"
+
+
 msgid "Clear Viewer"
 msgstr "Wyczyść widok"
 
@@ -17001,10 +17001,6 @@ msgid "Name of the menu"
 msgstr "Nazwa menu"
 
 
-msgid "Open a predefined panel"
-msgstr "Otwiera predefiniowany panel"
-
-
 msgctxt "Operator"
 msgid "Clear Recent Files List"
 msgstr "Wyczyść listę ostatnio otwartych plików"
@@ -18028,18 +18024,6 @@ msgid "Memory cache limit (in megabytes)"
 msgstr "Limit pamięci podręcznej (w megabajtach)"
 
 
-msgid "Requires fast storage, but uses minimum CPU resources"
-msgstr "Wymaga szybkiej pamięci masowej, ale wykorzystuje minimalne zasoby procesora"
-
-
-msgid "Doesn't require fast storage and uses less CPU resources"
-msgstr "Nie wymaga szybkiej pamięci masowej i wykorzystuje mniej zasobów procesora"
-
-
-msgid "Works on slower storage devices and uses most CPU resources"
-msgstr "Działa na wolniejszych urządzeniach pamięci masowej i wykorzystuje większość zasobów procesora"
-
-
 msgid "5 Samples"
 msgstr "5 próbek"
 
@@ -18170,10 +18154,6 @@ msgstr "Grubsze linie niż domyślnie"
 
 msgid "Changes the size of the fonts and widgets in the interface"
 msgstr "Zmienia rozmiar czcionek i widżetów w interfejsie"
-
-
-msgid "Open menu buttons and pulldowns automatically when the mouse is hovering"
-msgstr "Otwiera menu rozwijane oraz przyciski menu automatycznie po najechaniu myszką"
 
 
 msgid "Ask for confirmation when quitting with unsaved changes"
@@ -18536,10 +18516,6 @@ msgstr "Renderowanie w rozdzielczości 12,5%"
 
 msgid "Resolution Scale"
 msgstr "Skala rozdzielczości"
-
-
-msgid "Display in Material Preview mode"
-msgstr "Wyświetla w trybie podglądu materiału"
 
 
 msgid "Text Color"
@@ -19417,10 +19393,6 @@ msgid "Transform Preview"
 msgstr "Podgląd transformacji"
 
 
-msgid "Columns"
-msgstr "Kolumny"
-
-
 msgid "Line Numbers"
 msgstr "Numery linii"
 
@@ -19564,6 +19536,10 @@ msgstr "Wartość koloru"
 
 msgid "Vector Value"
 msgstr "Wartość wektora"
+
+
+msgid "Columns"
+msgstr "Kolumny"
 
 
 msgctxt "Sequence"
@@ -19838,11 +19814,6 @@ msgstr "Świat"
 
 
 msgctxt "View3D"
-msgid "Viewport"
-msgstr "Rzutnia"
-
-
-msgctxt "View3D"
 msgid "Screen"
 msgstr "Ekran"
 
@@ -19854,10 +19825,6 @@ msgstr "Oba"
 
 msgid "Show material color"
 msgstr "Wyświetla kolor materiału"
-
-
-msgid "Show scene in a single color"
-msgstr "Rysuj scenę używając pojedynczego koloru"
 
 
 msgid "Lighting Method for Solid/Texture Viewport Shading"
@@ -20332,11 +20299,6 @@ msgstr "Płaszczyzna Y"
 msgctxt "WindowManager"
 msgid "Z Plane"
 msgstr "Płaszczyzna Z"
-
-
-msgctxt "WindowManager"
-msgid "TrackBall"
-msgstr "TrackBall"
 
 
 msgctxt "WindowManager"
@@ -21737,11 +21699,6 @@ msgstr "Wyłącz podczas renderowania"
 
 
 msgctxt "Operator"
-msgid "ID Data"
-msgstr "ID danych"
-
-
-msgctxt "Operator"
 msgid "Paste Data-Blocks"
 msgstr "Wklej bloki danych"
 
@@ -21927,14 +21884,6 @@ msgstr "Kanał źródłowy"
 
 msgid "Cut To"
 msgstr "Przytnij do"
-
-
-msgid "No active context"
-msgstr "Brak aktywnej zawartości"
-
-
-msgid "Invalid id"
-msgstr "Nieprawidłowy identyfikator"
 
 
 msgctxt "Text"
@@ -22370,10 +22319,6 @@ msgid "Console Scrollback Lines"
 msgstr "Linie przewijania konsoli"
 
 
-msgid "Cache Limit"
-msgstr "Limit pamięci podręcznej"
-
-
 msgid "View Name"
 msgstr "Wyświetl nazwę"
 
@@ -22725,6 +22670,11 @@ msgstr "Pusty"
 
 
 msgctxt "Operator"
+msgid "Point Cloud"
+msgstr "Chmura punktów"
+
+
+msgctxt "Operator"
 msgid "Speaker"
 msgstr "Głośnik"
 
@@ -22965,11 +22915,6 @@ msgstr "Tekst atrybutu"
 msgctxt "Operator"
 msgid "Viewport Render Animation"
 msgstr "Renderuj animację rzutni"
-
-
-msgctxt "Operator"
-msgid "Point Cloud"
-msgstr "Chmura punktów"
 
 
 msgctxt "Operator"
@@ -24705,10 +24650,6 @@ msgid "Can't edit external library data"
 msgstr "Nie można edytować zewnętrznych danych biblioteki"
 
 
-msgid "Close"
-msgstr "Zamknięty"
-
-
 msgid "No filepath given"
 msgstr "Nie podano ścieżki pliku"
 
@@ -24848,6 +24789,10 @@ msgstr "Musisz również zaznaczyć sznur połączonych wierzchołków"
 
 msgid "No intersections found"
 msgstr "Nie odnaleziono krzyżowania się"
+
+
+msgid "Close"
+msgstr "Zamknięty"
 
 
 msgid "Pan View"
@@ -25016,10 +24961,6 @@ msgstr "Aktywny obiekt nie jest zaznaczoną siatką"
 
 msgid "No mesh data to join"
 msgstr "Brak danych siatki do złączenia"
-
-
-msgid "Selected meshes must have equal numbers of vertices"
-msgstr "Zaznaczone siatki muszą posiadać równą liczbę wierzchołków"
 
 
 msgid "No additional selected meshes with equal vertex count to join"
@@ -26728,24 +26669,8 @@ msgid "File '%s' could not be loaded"
 msgstr "Plik '%s' nie mógł być załadowany"
 
 
-msgid "No valid inputs to swap"
-msgstr "Brak prawidłowych wejść do zamiany"
-
-
 msgid "Please select two strips"
 msgstr "Proszę zaznaczyć dwa paski"
-
-
-msgid "One of the effect inputs is unset, cannot swap"
-msgstr "Jedeno z wejść efektu jest nie ustanowione, zamiana niemożliwa"
-
-
-msgid "New effect needs more input strips"
-msgstr "Nowy efekt potrzebuje paska źródłowego"
-
-
-msgid "No active sequence!"
-msgstr "Brak aktywnej sekwencji!"
 
 
 msgid "Rows:"
@@ -28054,10 +27979,6 @@ msgid "Levels Viewport"
 msgstr "Poziomy rzutni"
 
 
-msgid "Bake Path"
-msgstr "Wypal ścieżkę"
-
-
 msgid "Delete Bake"
 msgstr "Usuń przeliczenie"
 
@@ -28106,10 +28027,6 @@ msgid "Quality:"
 msgstr "Jakość:"
 
 
-msgid "Center:"
-msgstr "Centrum:"
-
-
 msgid "Path:"
 msgstr "Ścieżka:"
 
@@ -28120,10 +28037,6 @@ msgstr "Warstwa:"
 
 msgid "File Subpath:"
 msgstr "Podścieżka pliku:"
-
-
-msgid "Glare"
-msgstr "Blask"
 
 
 msgid "Dot"
@@ -28210,6 +28123,10 @@ msgstr "Pozostałe"
 
 msgid "Bounding box volume must be greater than 0"
 msgstr "Kubatura prostopadłościanu brzegowego musi być większa niż 0"
+
+
+msgid "Bake Path"
+msgstr "Wypal ścieżkę"
 
 
 msgid "BSDF"
@@ -28815,198 +28732,6 @@ msgstr "Wszystkie wtyczki zainstalowane przez użytkownika"
 
 msgid "Import-Export"
 msgstr "Import-Eksport"
-
-
-msgid "English (English)"
-msgstr "Angielski (English)"
-
-
-msgid "Japanese (日本語)"
-msgstr "Japoński (日本語)"
-
-
-msgid "Dutch (Nederlands)"
-msgstr "Holenderski (Nederlands)"
-
-
-msgid "Italian (Italiano)"
-msgstr "Włoski (Italiano)"
-
-
-msgid "German (Deutsch)"
-msgstr "Niemiecki (Deutsch)"
-
-
-msgid "Finnish (Suomi)"
-msgstr "Fiński (Suomi)"
-
-
-msgid "Swedish (Svenska)"
-msgstr "Szwedzki (Svenska)"
-
-
-msgid "French (Français)"
-msgstr "Francuski (Français)"
-
-
-msgid "Spanish (Español)"
-msgstr "Hiszpański (Español)"
-
-
-msgid "Catalan (Català)"
-msgstr "Kataloński (Català)"
-
-
-msgid "Czech (Čeština)"
-msgstr "Czeski (Čeština)"
-
-
-msgid "Portuguese (Português)"
-msgstr "Portugalski (Português)"
-
-
-msgid "Simplified Chinese (简体中文)"
-msgstr "Chiński uproszczony (简体中文)"
-
-
-msgid "Traditional Chinese (繁體中文)"
-msgstr "Chiński tradycyjny (繁體中文)"
-
-
-msgid "Russian (Русский)"
-msgstr "Rosyjski (Русский)"
-
-
-msgid "Croatian (Hrvatski)"
-msgstr "Chorwacki (Hrvatski)"
-
-
-msgid "Serbian (Српски)"
-msgstr "Serbski (Српски)"
-
-
-msgid "Ukrainian (Українська)"
-msgstr "Ukraiński (Українська)"
-
-
-msgid "Polish (Polski)"
-msgstr "Polski (Polski)"
-
-
-msgid "Romanian (Român)"
-msgstr "Rumuński (Român)"
-
-
-msgid "Arabic (ﺔﻴﺑﺮﻌﻟﺍ)"
-msgstr "Arabski (ﺔﻴﺑﺮﻌﻟﺍ)"
-
-
-msgid "Bulgarian (Български)"
-msgstr "Bułgarski (Български)"
-
-
-msgid "Greek (Ελληνικά)"
-msgstr "Grecki (Ελληνικά)"
-
-
-msgid "Korean (한국어)"
-msgstr "Koreański (한국어)"
-
-
-msgid "Nepali (नेपाली)"
-msgstr "Nepalski (नेपाली)"
-
-
-msgid "Persian (ﯽﺳﺭﺎﻓ)"
-msgstr "Perski (ﯽﺳﺭﺎﻓ)"
-
-
-msgid "Indonesian (Bahasa indonesia)"
-msgstr "Indonezyjski (Bahasa indonesia)"
-
-
-msgid "Serbian Latin (Srpski latinica)"
-msgstr "Serbski alfabet łaciński (Srpski latinica)"
-
-
-msgid "Kyrgyz (Кыргыз тили)"
-msgstr "Kirgiski (Кыргыз тили)"
-
-
-msgid "Turkish (Türkçe)"
-msgstr "Turecki (Türkçe)"
-
-
-msgid "Hungarian (Magyar)"
-msgstr "Węgierski (Magyar)"
-
-
-msgid "Brazilian Portuguese (Português do Brasil)"
-msgstr "Portugalski Brazylia (Português do Brasil)"
-
-
-msgid "Hebrew (תירִבְעִ)"
-msgstr "Hebrajski (תירִבְעִ)"
-
-
-msgid "Estonian (Eesti keel)"
-msgstr "Estoński (Eesti keel)"
-
-
-msgid "Esperanto (Esperanto)"
-msgstr "Esperanto (Esperanto)"
-
-
-msgid "Amharic (አማርኛ)"
-msgstr "Amharski (አማርኛ)"
-
-
-msgid "Uzbek (Oʻzbek)"
-msgstr "Uzbecki (Oʻzbek)"
-
-
-msgid "Uzbek Cyrillic (Ўзбек)"
-msgstr "Uzbecki Cyrylica (Ўзбек)"
-
-
-msgid "Hindi (हिन्दी)"
-msgstr "Hinduski (हिन्दी)"
-
-
-msgid "Vietnamese (Tiếng Việt)"
-msgstr "Wietnamski (Tiếng Việt)"
-
-
-msgid "Thai (ภาษาไทย)"
-msgstr "Tajski (ภาษาไทย)"
-
-
-msgid "Slovak (Slovenčina)"
-msgstr "Słowacki (Slovenčina)"
-
-
-msgid "Georgian (ქართული)"
-msgstr "Gruziński (ქართული)"
-
-
-msgid "Belarusian (беларуску)"
-msgstr "Białoruski (беларуску)"
-
-
-msgid "Danish (Dansk)"
-msgstr "Duński (Dansk)"
-
-
-msgid "Complete"
-msgstr "Zakończono"
-
-
-msgid "In Progress"
-msgstr "W trakcie"
-
-
-msgid "Starting"
-msgstr "Zaczęto"
 
 
 msgid "Blend Radius"

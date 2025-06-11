@@ -183,8 +183,8 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
     if (socket_type == nullptr) {
       continue;
     }
-    eNodeSocketDatatype from = (eNodeSocketDatatype)socket.type;
-    eNodeSocketDatatype to = (eNodeSocketDatatype)socket_type->type;
+    eNodeSocketDatatype from = eNodeSocketDatatype(socket.type);
+    eNodeSocketDatatype to = socket_type->type;
     if (socket.in_out == SOCK_OUT) {
       std::swap(from, to);
     }
@@ -295,12 +295,14 @@ static void gather_socket_link_operations(const bContext &C,
       }
       const bNodeTreeInterfaceSocket &interface_socket =
           reinterpret_cast<const bNodeTreeInterfaceSocket &>(item);
+      if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT)) {
+        return true;
+      }
       {
         const bke::bNodeSocketType *from_typeinfo = bke::node_socket_type_find(
             interface_socket.socket_type);
-        const eNodeSocketDatatype from = from_typeinfo ? eNodeSocketDatatype(from_typeinfo->type) :
-                                                         SOCK_CUSTOM;
-        const eNodeSocketDatatype to = eNodeSocketDatatype(socket.typeinfo->type);
+        const eNodeSocketDatatype from = from_typeinfo ? from_typeinfo->type : SOCK_CUSTOM;
+        const eNodeSocketDatatype to = socket.typeinfo->type;
         if (node_tree.typeinfo->validate_link && !node_tree.typeinfo->validate_link(from, to)) {
           return true;
         }
@@ -349,6 +351,19 @@ static void link_drag_search_update_fn(
   }
 }
 
+static bNode *get_new_linked_node(bNodeSocket &socket, const Span<bNode *> new_nodes)
+{
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (new_nodes.contains(link->fromnode)) {
+      return link->fromnode;
+    }
+    if (new_nodes.contains(link->tonode)) {
+      return link->tonode;
+    }
+  }
+  return nullptr;
+}
+
 static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
 {
   Main &bmain = *CTX_data_main(C);
@@ -370,18 +385,27 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
     return;
   }
 
-  /* For now, assume that only one node is created by the callback. */
-  BLI_assert(new_nodes.size() == 1);
-  bNode *new_node = new_nodes.first();
+  /* Used to position the new nodes where the cursor is. */
+  const float2 cursor_offset = (storage.cursor / UI_SCALE_FAC) + float2(0.0f, 20.0f);
 
-  new_node->location[0] = storage.cursor.x / UI_SCALE_FAC;
-  new_node->location[1] = storage.cursor.y / UI_SCALE_FAC + 20;
-  if (storage.in_out() == SOCK_IN) {
-    new_node->location[0] -= new_node->width;
+  /* Used to position the new nodes so that the newly linked socket is aligned to the cursor. */
+  float2 link_offset{};
+  node_tree.ensure_topology_cache();
+  if (bNode *new_directly_linked_node = get_new_linked_node(storage.from_socket, new_nodes)) {
+    link_offset -= new_directly_linked_node->location;
+    if (storage.in_out() == SOCK_IN) {
+      link_offset.x -= new_directly_linked_node->width;
+    }
   }
 
-  bke::node_set_selected(*new_node, true);
-  bke::node_set_active(node_tree, *new_node);
+  const float2 offset_in_tree = cursor_offset + link_offset;
+  for (bNode *new_node : new_nodes) {
+    /* The node may have an initial offset already, so use +=. */
+    new_node->location[0] += offset_in_tree.x;
+    new_node->location[1] += offset_in_tree.y;
+    bke::node_set_selected(*new_node, true);
+  }
+  bke::node_set_active(node_tree, *new_nodes[0]);
 
   /* Ideally it would be possible to tag the node tree in some way so it updates only after the
    * translate operation is finished, but normally moving nodes around doesn't cause updates. */
@@ -416,7 +440,7 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
                               ICON_VIEWZOOM,
                               sizeof(storage.search),
                               storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
-                              10,
+                              0,
                               UI_searchbox_size_x(),
                               UI_UNIT_Y,
                               "");

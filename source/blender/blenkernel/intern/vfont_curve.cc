@@ -121,8 +121,8 @@ static VChar *vfont_char_find(const VFontData *vfd, char32_t charcode)
 static VChar *vfont_char_ensure_with_lock(VFont *vfont, char32_t charcode)
 {
   VChar *che;
-  VFontData *vfd = vfont->data;
-  if (vfd) {
+  if (vfont && vfont->data) {
+    VFontData *vfd = vfont->data;
     BLI_rw_mutex_lock(&vfont_rwlock, THREAD_LOCK_READ);
     che = vfont_char_find(vfd, charcode);
     BLI_rw_mutex_unlock(&vfont_rwlock);
@@ -601,8 +601,6 @@ static void vfont_info_context_init(VFontInfoContext *vfinfo_ctx, const Curve *c
   BLI_assert(!vfinfo_ctx->vfont);
   BLI_assert(!vfinfo_ctx->vfd);
 
-  /* The caller must ensure this is never null. */
-  BLI_assert(cu->vfont);
   vfinfo_ctx->vfont = cu->vfont;
   vfinfo_ctx->vfd = vfont_data_ensure_with_lock(vfinfo_ctx->vfont);
 }
@@ -773,7 +771,7 @@ static bool vfont_to_curve(Object *ob,
 
     if (BKE_vfont_select_get(ob, &selstart, &selend)) {
       ef->selboxes_len = (selend - selstart) + 1;
-      ef->selboxes = MEM_calloc_arrayN<EditFontSelBox>(size_t(ef->selboxes_len), "font selboxes");
+      ef->selboxes = MEM_calloc_arrayN<EditFontSelBox>(ef->selboxes_len, "font selboxes");
     }
     else {
       ef->selboxes_len = 0;
@@ -1776,7 +1774,7 @@ static bool vfont_to_curve(Object *ob,
     }
 
     if (ef == nullptr) {
-      MEM_freeN((void *)mem);
+      MEM_freeN(mem);
     }
     return true;
   }
@@ -1788,7 +1786,7 @@ static bool vfont_to_curve(Object *ob,
   }
   else {
     if (ef == nullptr) {
-      MEM_freeN((void *)mem);
+      MEM_freeN(mem);
     }
   }
 

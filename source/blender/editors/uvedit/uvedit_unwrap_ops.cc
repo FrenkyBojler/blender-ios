@@ -902,8 +902,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
   const int *origPolyIndices = static_cast<const int *>(
       CustomData_get_layer(&subdiv_mesh->face_data, CD_ORIGINDEX));
 
-  faceMap = static_cast<BMFace **>(
-      MEM_mallocN(subdiv_mesh->faces_num * sizeof(BMFace *), "unwrap_edit_face_map"));
+  faceMap = MEM_malloc_arrayN<BMFace *>(subdiv_mesh->faces_num, "unwrap_edit_face_map");
 
   BM_mesh_elem_index_ensure(em->bm, BM_VERT);
   BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
@@ -913,8 +912,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     faceMap[i] = BM_face_at_index(em->bm, origPolyIndices[i]);
   }
 
-  edgeMap = static_cast<BMEdge **>(
-      MEM_mallocN(subdiv_mesh->edges_num * sizeof(BMEdge *), "unwrap_edit_edge_map"));
+  edgeMap = MEM_malloc_arrayN<BMEdge *>(subdiv_mesh->edges_num, "unwrap_edit_edge_map");
 
   /* map subsurfed edges to original editEdges */
   for (int i = 0; i < subdiv_mesh->edges_num; i++) {
@@ -1276,7 +1274,7 @@ void UV_OT_minimize_stretch(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_GRAB_CURSOR_XY | OPTYPE_BLOCKING;
   ot->description = "Reduce UV stretching by relaxing angles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = minimize_stretch_exec;
   ot->invoke = minimize_stretch_invoke;
   ot->modal = minimize_stretch_modal;
@@ -1893,28 +1891,28 @@ static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   {
-    uiItemR(layout, op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
-    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "rotate"));
-    uiItemR(sub, op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemS(layout);
+    layout->prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout *sub = &layout->row(true);
+    sub->active_set(RNA_boolean_get(op->ptr, "rotate"));
+    sub->prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->separator();
   }
-  uiItemR(layout, op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  layout->prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->separator();
   {
-    uiItemR(layout, op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = uiLayoutRow(layout, true);
-    uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "pin"));
-    uiItemR(sub, op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
-    uiItemS(layout);
+    layout->prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout *sub = &layout->row(true);
+    sub->active_set(RNA_boolean_get(op->ptr, "pin"));
+    sub->prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
+    layout->separator();
   }
-  uiItemR(layout, op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemS(layout);
+  layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->separator();
 }
 
 static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1951,7 +1949,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 #endif
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pack_islands_exec;
 
 #ifdef USE_INTERACTIVE_PACK
@@ -2059,7 +2057,7 @@ void UV_OT_average_islands_scale(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = average_islands_scale_exec;
   ot->poll = ED_operator_uvedit;
 
@@ -2145,8 +2143,8 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit, wmWindow *win_mod
   /* Create or increase size of g_live_unwrap.handles array */
   if (g_live_unwrap.handles == nullptr) {
     g_live_unwrap.len_alloc = 32;
-    g_live_unwrap.handles = static_cast<ParamHandle **>(MEM_mallocN(
-        sizeof(ParamHandle *) * g_live_unwrap.len_alloc, "uvedit_live_unwrap_liveHandles"));
+    g_live_unwrap.handles = MEM_malloc_arrayN<ParamHandle *>(g_live_unwrap.len_alloc,
+                                                             "uvedit_live_unwrap_liveHandles");
     g_live_unwrap.len = 0;
   }
   if (g_live_unwrap.len >= g_live_unwrap.len_alloc) {
@@ -2893,34 +2891,34 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   uiLayout *col;
 
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, &ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col = &layout->column(true);
+  col->prop(&ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   bool is_slim = RNA_enum_get(op->ptr, "method") == UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH;
 
   if (is_slim) {
-    uiItemR(col, &ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, &ptr, "no_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "no_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-    uiItemS(col);
-    uiItemR(col, &ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->separator();
+    col->prop(&ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_boolean_get(op->ptr, "use_weights")) {
-      col = uiLayoutColumn(layout, true);
-      uiItemR(col, &ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(col, &ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col = &layout->column(true);
+      col->prop(&ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col->prop(&ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
   else {
-    uiItemR(col, &ptr, "fill_holes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(&ptr, "fill_holes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  uiItemS(col);
-  uiItemR(col, &ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "use_subsurf_data", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemS(col);
-  uiItemR(col, &ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, &ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->separator();
+  col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void UV_OT_unwrap(wmOperatorType *ot)
@@ -2940,7 +2938,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
   ot->idname = "UV_OT_unwrap";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unwrap_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -3197,8 +3195,7 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     BLI_assert(offsets.uv >= 0);
-    ThickFace *thick_faces = static_cast<ThickFace *>(
-        MEM_mallocN(sizeof(*thick_faces) * em->bm->totface, __func__));
+    ThickFace *thick_faces = MEM_malloc_arrayN<ThickFace>(em->bm->totface, __func__);
 
     uint thick_faces_len = 0;
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -3350,7 +3347,7 @@ void UV_OT_smart_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = smart_project_exec;
   ot->poll = ED_operator_uvmap;
   ot->invoke = smart_project_invoke;
@@ -3569,7 +3566,7 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = uv_from_view_invoke;
   ot->exec = uv_from_view_exec;
   ot->poll = uv_from_view_poll;
@@ -3629,7 +3626,7 @@ void UV_OT_reset(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reset_exec;
   ot->poll = ED_operator_uvmap;
 }
@@ -3920,7 +3917,7 @@ void UV_OT_sphere_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sphere_project_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -4108,7 +4105,7 @@ void UV_OT_cylinder_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = cylinder_project_exec;
   ot->poll = ED_operator_uvmap;
 
@@ -4244,7 +4241,7 @@ void UV_OT_cube_project(wmOperatorType *ot)
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = cube_project_exec;
   ot->poll = ED_operator_uvmap;
 

@@ -293,7 +293,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
 
   /* preview range */
   UI_view2d_view_ortho(v2d);
-  ANIM_draw_previewrange(C, v2d, 0);
+  ANIM_draw_previewrange(scene, v2d, 0);
 
   /* callback */
   UI_view2d_view_ortho(v2d);
