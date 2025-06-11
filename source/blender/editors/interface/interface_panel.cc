@@ -1256,8 +1256,8 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
 
-  /* Panel shadow. */
-  if (!is_subpanel && has_header) {
+  /* Draw shadow on top-level panels with headers during drag or region overlap. */
+  if (!is_subpanel && has_header && (region->overlap || is_dragging)) {
     /* Make shadow wider (at least 16px) while the panel is being dragged. */
     const float shadow_width = is_dragging ? max_ii(16, UI_ThemeMenuShadowWidth()) :
                                              UI_ThemeMenuShadowWidth();
