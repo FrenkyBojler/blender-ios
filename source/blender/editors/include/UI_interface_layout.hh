@@ -112,6 +112,12 @@ struct uiLayout : uiItem {
    */
   void active_set(bool active);
 
+  bool active_default() const;
+  void active_default_set(bool active_default);
+
+  bool activate_init() const;
+  void activate_init_set(bool activate_init);
+
   blender::ui::EmbossType emboss() const;
   void emboss_set(blender::ui::EmbossType emboss);
 
@@ -381,6 +387,24 @@ inline bool uiLayout::active() const
 inline void uiLayout::active_set(bool active)
 {
   active_ = active;
+}
+
+inline bool uiLayout::active_default() const
+{
+  return active_default_;
+}
+inline void uiLayout::active_default_set(bool active_default)
+{
+  active_default_ = active_default;
+}
+
+inline bool uiLayout::activate_init() const
+{
+  return activate_init_;
+}
+inline void uiLayout::activate_init_set(bool activate_init)
+{
+  activate_init_ = activate_init;
 }
 
 inline float uiLayout::scale_x() const
