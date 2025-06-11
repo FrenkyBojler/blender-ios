@@ -558,8 +558,9 @@ void *MEM_guarded_mallocN(size_t len, const char *str)
     }
 
 #ifdef DEBUG_MEMCOUNTER
-    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL)
+    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL) {
       memcount_raise(__func__);
+    }
     memh->_count = _mallocn_count++;
 #endif
     return (++memh);
@@ -648,8 +649,9 @@ void *MEM_guarded_mallocN_aligned(size_t len,
     }
 
 #ifdef DEBUG_MEMCOUNTER
-    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL)
+    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL) {
       memcount_raise(__func__);
+    }
     memh->_count = _mallocn_count++;
 #endif
     return (++memh);
@@ -672,8 +674,9 @@ void *MEM_guarded_callocN(size_t len, const char *str)
   if (memh) {
     make_memhead_header(memh, len, str, AllocationType::ALLOC_FREE);
 #ifdef DEBUG_MEMCOUNTER
-    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL)
+    if (_mallocn_count == DEBUG_MEMCOUNTER_ERROR_VAL) {
       memcount_raise(__func__);
+    }
     memh->_count = _mallocn_count++;
 #endif
     return (++memh);
@@ -997,8 +1000,9 @@ short MEM_guarded_testN(void *vmemh)
   mem_lock_thread();
 
   membl = membase->first;
-  if (membl)
+  if (membl) {
     membl = MEMNEXT(membl);
+  }
 
   while (membl) {
     if (vmemh == membl + 1) {
@@ -1123,10 +1127,12 @@ static void addtail(volatile localListBase *listbase, void *vlink)
   /* for a generic API error checks here is fine but
    * the limited use here they will never be nullptr */
 #if 0
-  if (link == nullptr)
+  if (link == nullptr) {
     return;
-  if (listbase == nullptr)
+  }
+  if (listbase == nullptr) {
     return;
+  }
 #endif
 
   link->next = nullptr;
@@ -1148,10 +1154,12 @@ static void remlink(volatile localListBase *listbase, void *vlink)
   /* for a generic API error checks here is fine but
    * the limited use here they will never be nullptr */
 #if 0
-  if (link == nullptr)
+  if (link == nullptr) {
     return;
-  if (listbase == nullptr)
+  }
+  if (listbase == nullptr) {
     return;
+  }
 #endif
 
   if (link->next) {
@@ -1187,8 +1195,9 @@ static void rem_memblock(MemHead *memh)
   atomic_sub_and_fetch_z(&mem_in_use, memh->len);
 
 #ifdef DEBUG_MEMDUPLINAME
-  if (memh->need_free_name)
+  if (memh->need_free_name) {
     free((char *)memh->name);
+  }
 #endif
 
   if (UNLIKELY(malloc_debug_memset && memh->len)) {
