@@ -1413,12 +1413,12 @@ static int rna_UILayout_op_context_get(PointerRNA *ptr)
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)
 {
-  return uiLayoutGetEnabled(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->enabled();
 }
 
 static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetEnabled(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->enabled_set(value);
 }
 
 #  if 0

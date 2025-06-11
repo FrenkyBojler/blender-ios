@@ -5101,11 +5101,6 @@ uiLayout &uiLayout::split(float percentage, bool align)
   return *split;
 }
 
-void uiLayoutSetEnabled(uiLayout *layout, bool enabled)
-{
-  layout->enabled_ = enabled;
-}
-
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert)
 {
   layout->redalert_ = redalert;
@@ -5159,11 +5154,6 @@ float uiLayoutGetSearchWeight(uiLayout *layout)
 Panel *uiLayoutGetRootPanel(uiLayout *layout)
 {
   return layout->root_->block->panel;
-}
-
-bool uiLayoutGetEnabled(uiLayout *layout)
-{
-  return layout->enabled_;
 }
 
 bool uiLayoutGetRedAlert(uiLayout *layout)
