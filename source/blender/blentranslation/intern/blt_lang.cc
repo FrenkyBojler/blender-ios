@@ -50,25 +50,18 @@ static int num_locales_menu = 0;
 
 static void free_locales()
 {
-  if (locales) {
+  if (locales_menu) {
     int idx = num_locales_menu - 1; /* Last item does not need to be freed! */
     while (idx--) {
-      MEM_freeN(locales_menu[idx].identifier);
+      MEM_freeN(locales_menu[idx].identifier); /* Also frees locales's relevant value! */
       MEM_freeN(locales_menu[idx].name);
-      MEM_freeN(locales_menu[idx].description); /* Also frees locales's relevant value! */
+      MEM_freeN(locales_menu[idx].description);
     }
-    int id = num_locales;
-    while (id--) {
-      if (locales[id]) {
-        MEM_freeN(locales[id]);
-        locales[id] = nullptr;
-      }
-    }
-
-    MEM_freeN(locales);
-    locales = nullptr;
   }
   MEM_SAFE_FREE(locales_menu);
+  /* Allocated strings in #locales are shared with #locales_menu[idx].identifier, which are already
+   * freed above, or are static strings. */
+  MEM_SAFE_FREE(locales);
   num_locales = num_locales_menu = 0;
 }
 
@@ -152,19 +145,24 @@ static void fill_locales()
           if (id == 0) {
             /* The DEFAULT/Automatic item... */
             if (BLI_strnlen(loc, 2)) {
-              locales[id] = BLI_strdup("");
+              MEM_freeN(desc); /* Not used here. */
+              locales[id] = "";
               /* Keep this tip in sync with the one in rna_userdef
                * (rna_enum_language_default_items). */
               locales_menu[idx].description = BLI_strdup(
                   "Automatically choose system's defined language "
                   "if available, or fall-back to English");
             }
+            /* Menu "label", not to be stored in locales!
+             * NOTE: Not used since Blender 4.5. */
+            else {
+              locales_menu[idx].description = desc;
+            }
           }
           else {
-            locales[id] = BLI_strdup(loc);
-            locales_menu[idx].description = BLI_strdup(desc);
+            locales[id] = loc;
+            locales_menu[idx].description = desc;
           }
-          MEM_freeN(desc);
           idx++;
         }
       }
