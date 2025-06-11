@@ -77,7 +77,6 @@ struct CDataFile {
 
   FILE *readf;
   FILE *writef;
-  int switchendian;
   size_t dataoffset;
 };
 
@@ -138,7 +137,6 @@ static bool cdf_read_header(CDataFile *cdf)
     return false;
   }
 
-  cdf->switchendian = false;
   header->endian = cdf_endian();
 
   /* NOTE: this is endianness-sensitive.
