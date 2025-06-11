@@ -842,7 +842,7 @@ const bTheme U_theme_default = {
   },
   .space_node = {
     .asset_shelf = {
-      .header_back = RGBA(0x1d1d1dff),
+      .header_back = RGBA(0x181818ff),
       .back = RGBA(0x303030ff),
     },
     .back = RGBA(0x1d1d1d00),
