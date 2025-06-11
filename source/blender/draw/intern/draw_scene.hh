@@ -9,10 +9,17 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include <array>
+#include <functional>
+
 struct Object;
 struct LightLinking;
 namespace blender::bke {
 struct GeometrySet;
+}
+struct DRWContext;
+namespace blender::draw {
+class ObjectRef;
 }
 
 namespace blender::draw {
@@ -121,5 +128,7 @@ struct DrawInstances {
 class DrawScene {
   Map<DrawObjectKey, DrawInstances> instances;
 };
+
+void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback);
 
 }  // namespace blender::draw

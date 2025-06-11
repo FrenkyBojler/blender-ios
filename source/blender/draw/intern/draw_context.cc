@@ -78,6 +78,7 @@
 #include "draw_common_c.hh"
 #include "draw_context_private.hh"
 #include "draw_manager_text.hh"
+#include "draw_scene.hh"
 #include "draw_shader.hh"
 #include "draw_subdivision.hh"
 #include "draw_view_c.hh"
@@ -1214,7 +1215,6 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   View3D *v3d = draw_ctx.v3d;
 
-  const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
   /* Check if scene needs to perform the populate loop */
   const bool internal_engine = (engine_type->flag & RE_INTERNAL) != 0;
   const bool draw_type_render = v3d->shading.type == OB_RENDER;
@@ -1228,23 +1228,9 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects for internal engines or when overlays are enabled */
     if (do_populate_loop) {
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      if (v3d->flag2 & V3D_SHOW_VIEWER) {
-        deg_iter_settings.viewer_path = &v3d->viewer_path;
-      }
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-          continue;
-        }
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
-        }
-        blender::draw::ObjectRef ob_ref(data_, ob);
+      foreach_obref_in_scene(draw_ctx, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
-      }
-      DEG_OBJECT_ITER_END;
+      });
     }
   });
 
