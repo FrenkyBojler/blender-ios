@@ -72,9 +72,19 @@ function(add_blender_test_io testname)
   )
 endfunction()
 
+set(BLENDER_TEST_USER_RESOURCES_DIR ${CMAKE_INSTALL_PREFIX}/test_resource_folder)
+add_test(
+  NAME resource_dir_ensure
+  COMMAND "${TEST_PYTHON_EXE}" "${CMAKE_SOURCE_DIR}/tests/ui_simulate/modules/resource_folder_ensure.py" "${BLENDER_TEST_USER_RESOURCES_DIR}"
+)
+set_tests_properties(resource_dir_ensure PROPERTIES FIXTURES_SETUP resource_dir)
+
 if(WITH_UI_TESTS)
   if(WITH_UI_TESTS_HEADLESS)
     set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
+    list(APPEND _blender_headless_env_vars
+      "BLENDER_USER_RESOURCES=${BLENDER_TEST_USER_RESOURCES_DIR}"
+    )
 
     # Currently only WAYLAND is supported, support for others may be added later.
     # In this case none of the WESTON environment variables will be used.
@@ -126,13 +136,14 @@ if(WITH_UI_TESTS)
     endfunction()
   else()
     function(add_blender_test_ui testname)
+      set(_blender_env_vars "BLENDER_USER_RESOURCES=${BLENDER_TEST_USER_RESOURCES_DIR}")
       # Remove `--background`
       set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
       list(REMOVE_ITEM EXE_PARAMS --background)
 
       add_blender_test_impl(
         "${testname}"
-        ""
+        "${_blender_env_vars}"
         "${TEST_BLENDER_EXE}"
         --factory-startup
         -p 0 0 800 600
@@ -1322,6 +1333,7 @@ if(WITH_UI_TESTS)
       --
       --tests "${ui_test}"
     )
+    set_tests_properties("ui_${ui_test}" PROPERTIES FIXTURES_REQUIRED resource_dir)
   endforeach()
   unset(_ui_tests)
 endif()

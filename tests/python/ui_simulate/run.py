@@ -23,6 +23,7 @@ For an editor to follow the tests:
 
 import os
 import sys
+from modules.resource_folder_ensure import ensure_directory
 
 
 def create_parser():
@@ -146,6 +147,12 @@ def main():
     if "bpy" in sys.modules:
         raise Exception("Cannot run inside Blender")
 
+    cwd = os.getcwd()
+    resource_path = os.path.join(cwd, "test_resource_folder")
+    resource_dir_is_valid = ensure_directory(resource_path)
+    if not resource_dir_is_valid:
+        print("Unable to create empty directory, workspace tests may fail")
+
     parser = create_parser()
     args = parser.parse_args()
 
@@ -165,6 +172,11 @@ def main():
     env.update({
         "LSAN_OPTIONS": "exitcode=0",
     })
+
+    if resource_dir_is_valid:
+        env.update({
+            "BLENDER_USER_RESOURCES": resource_path
+        })
 
     # We could support multiple tests per Blender session.
     results = []
