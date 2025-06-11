@@ -27,7 +27,7 @@ static LineartEdge *lineart_line_get_connected(LineartBoundingArea *ba,
                                                LineartVert **new_vt,
                                                int match_flag,
                                                uint8_t match_isec_mask,
-                                               Object *match_isec_object)
+                                               void *match_isec_object)
 {
   for (int i = 0; i < ba->line_count; i++) {
     LineartEdge *n_e = ba->linked_lines[i];
@@ -1084,10 +1084,10 @@ void MOD_lineart_chain_clear_picked_flag(LineartCache *lc)
   }
 }
 
-LineartElementLinkNode *lineart_find_matching_eln_obj(ListBase *elns, Object *ob)
+LineartElementLinkNode *lineart_find_matching_eln_obj(ListBase *elns, void *instance)
 {
   LISTBASE_FOREACH (LineartElementLinkNode *, eln, elns) {
-    if (eln->object_ref == ob) {
+    if (eln->object_ref == instance) {
       return eln;
     }
   }

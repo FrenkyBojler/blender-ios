@@ -13,6 +13,8 @@
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
+#include "BLI_vector.hh"
+#include "BLI_vector_list.hh"
 
 #include "ED_grease_pencil.hh"
 
@@ -206,7 +208,7 @@ struct LineartEdge {
    * TODO: If really need more savings, we can allocate this in a "extended" way too, but we need
    * another bit in flags to be able to show the difference.
    */
-  Object *object_ref;
+  void *object_ref;
 };
 
 struct LineartEdgeChain {
@@ -232,8 +234,8 @@ struct LineartEdgeChain {
    * local_index=lineart_index-index_offset. */
   uint32_t index_offset;
 
-  Object *object_ref;
-  Object *silhouette_backdrop;
+  void *object_ref;
+  void *silhouette_backdrop;
 };
 
 struct LineartEdgeChainItem {
@@ -288,6 +290,21 @@ struct LineartPendingEdges {
   LineartEdge **array;
   int max;
   int next;
+};
+
+struct LineartInstance {
+  LineartInstance *next, *prev;
+  
+  Object *object_eval;
+  Object *object;
+  ListBase children;
+  LineartInstance* parent;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_1(LineartInstance, object);
+  uint64_t hash() const
+  {
+    return uint64_t(this->object);
+  }
 };
 
 struct LineartData {
@@ -448,6 +465,9 @@ struct LineartCache {
 
   /** Cache only contains edge types specified in this variable. */
   uint16_t all_enabled_edge_types;
+
+  /** Cached scene hierarchy for line selection among instances. */
+  LineartInstance scene_root;
 };
 
 #define DBL_TRIANGLE_LIM 1e-8
@@ -508,7 +528,7 @@ struct LineartRenderTaskInfo {
 
 struct LineartObjectInfo {
   LineartObjectInfo *next;
-  Object *original_ob;
+  LineartInstance* instance;
   Object *original_ob_eval; /* For evaluated materials */
   Mesh *original_me;
   double model_view_proj[4][4];

@@ -26,10 +26,12 @@ struct ViewerPath;
 /**
  * \return a #ListBase of #DupliObject.
  */
-ListBase *object_duplilist(Depsgraph *depsgraph,
-                           Scene *sce,
-                           Object *ob,
-                           blender::Set<const Object *> *include_objects = nullptr);
+ListBase *object_duplilist(
+    Depsgraph *depsgraph,
+    Scene *sce,
+    Object *ob,
+    blender::Set<const Object *> *include_objects = nullptr,
+    blender::Vector<blender::Vector<Object *>> *recorded_parents_stack = nullptr);
 /**
  * \return a #ListBase of #DupliObject for the preview geometry referenced by the #ViewerPath.
  */
@@ -92,6 +94,10 @@ struct DupliObject {
    */
   int instance_idx[4];
   const blender::bke::GeometrySet *instance_data[4];
+
+  /* Parents stack of this instance, from the outer most to inner most. This
+   * is only available if DupliContext:: */
+  blender::Vector<Object *>* parents_stack;
 
   /* Random ID for shading */
   unsigned int random_id;

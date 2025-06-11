@@ -237,6 +237,12 @@ struct DEGObjectIterSettings {
    * instances are in it). Pointers in this span should be the original data-block.
    */
   blender::Set<const Object *> *included_objects;
+
+  /**
+   * If not empty, then each DupliObject will record a vector of its parent objects. Note that
+   * #DEGObjectIterSettings does not own the memory, this is supplied and cleaned by the user.
+   */
+  blender::Vector<blender::Vector<Object*>> *parents_stack;
 };
 
 /**

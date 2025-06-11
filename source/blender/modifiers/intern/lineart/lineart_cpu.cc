@@ -27,6 +27,7 @@
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
+#include "BKE_duplilist.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
@@ -762,7 +763,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
                                          double view_dir[3],
                                          bool allow_boundaries,
                                          double m_view_projection[4][4],
-                                         Object *ob,
+                                         LineartInstance *ob,
                                          int *r_v_count,
                                          int *r_e_count,
                                          int *r_t_count,
@@ -1219,7 +1220,6 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
   double(*m_view_projection)[4] = ld->conf.view_projection;
   int i;
   int v_count = 0, t_count = 0, e_count = 0;
-  Object *ob;
   bool allow_boundaries = ld->conf.allow_boundaries;
   double cam_pos[3];
   double clip_start = ld->conf.near_clip, clip_end = ld->conf.far_clip;
@@ -1307,7 +1307,6 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
     if (eln->flags & LRT_ELEMENT_IS_ADDITIONAL) {
       continue;
     }
-    ob = static_cast<Object *>(eln->object_ref);
     for (i = 0; i < eln->element_count; i++) {
       /* Select the triangle in the array. */
       tri = static_cast<LineartTriangle *>(
@@ -1328,7 +1327,7 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
                                    view_dir,
                                    allow_boundaries,
                                    m_view_projection,
-                                   ob,
+                                   static_cast<LineartInstance *>(eln->object_ref),
                                    &v_count,
                                    &e_count,
                                    &t_count,
@@ -2000,7 +1999,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   LineartTriangle *la_tri_arr = static_cast<LineartTriangle *>(lineart_mem_acquire_thread(
       &la_data->render_data_pool, corner_tris.size() * la_data->sizeof_triangle));
 
-  Object *orig_ob = ob_info->original_ob;
+  Object *orig_ob = ob_info->instance->object;
 
   BLI_spin_lock(&la_data->lock_task);
   LineartElementLinkNode *elem_link_node = static_cast<LineartElementLinkNode *>(
@@ -2012,7 +2011,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
 
   elem_link_node->obindex = ob_info->obindex;
   elem_link_node->element_count = mesh->verts_num;
-  elem_link_node->object_ref = orig_ob;
+  elem_link_node->object_ref = ob_info->instance;
   ob_info->v_eln = elem_link_node;
 
   bool use_auto_smooth = false;
@@ -2041,7 +2040,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   int usage = ob_info->usage;
 
   elem_link_node->element_count = corner_tris.size();
-  elem_link_node->object_ref = orig_ob;
+  elem_link_node->object_ref = ob_info->instance;
   elem_link_node->flags = eLineArtElementNodeFlag(
       elem_link_node->flags |
       ((usage == OBJECT_LRT_NO_INTERSECTION) ? LRT_ELEMENT_NO_INTERSECTION : 0));
@@ -2177,7 +2176,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
                                                     sizeof(LineartElementLinkNode)));
   BLI_spin_unlock(&la_data->lock_task);
   elem_link_node->element_count = allocate_la_e;
-  elem_link_node->object_ref = orig_ob;
+  elem_link_node->object_ref = ob_info->instance;
   elem_link_node->obindex = ob_info->obindex;
 
   LineartElementLinkNode *shadow_eln = nullptr;
@@ -2227,7 +2226,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
         }
       }
       la_edge->flags = use_type;
-      la_edge->object_ref = orig_ob;
+      la_edge->object_ref = ob_info->instance;
       la_edge->edge_identifier = LRT_EDGE_IDENTIFIER(ob_info, la_edge);
       BLI_addtail(&la_edge->segments, la_seg);
 
@@ -2272,7 +2271,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
       la_edge->v1 = &la_v_arr[edge[0]];
       la_edge->v2 = &la_v_arr[edge[1]];
       la_edge->flags = MOD_LINEART_EDGE_FLAG_LOOSE;
-      la_edge->object_ref = orig_ob;
+      la_edge->object_ref = ob_info->instance;
       la_edge->edge_identifier = LRT_EDGE_IDENTIFIER(ob_info, la_edge);
       BLI_addtail(&la_edge->segments, la_seg);
       if (ELEM(usage,
@@ -2319,7 +2318,7 @@ static uchar lineart_intersection_mask_check(Collection *c, Object *ob)
     }
   }
 
-  if (BKE_collection_has_object(c, (Object *)(ob->id.orig_id))) {
+  if (BKE_collection_has_object(c, ob)) {
     if (c->lineart_flags & COLLECTION_LRT_USE_INTERSECTION_MASK) {
       return c->lineart_intersection_mask;
     }
@@ -2340,7 +2339,7 @@ static uchar lineart_intersection_priority_check(Collection *c, Object *ob)
       return result;
     }
   }
-  if (BKE_collection_has_object(c, (Object *)(ob->id.orig_id))) {
+  if (BKE_collection_has_object(c, ob)) {
     if (c->lineart_flags & COLLECTION_LRT_USE_INTERSECTION_PRIORITY) {
       return c->lineart_intersection_priority;
     }
@@ -2366,7 +2365,7 @@ static int lineart_usage_check(Collection *c, Object *ob, bool is_render)
   }
 
   if (c->gobject.first) {
-    if (BKE_collection_has_object(c, (Object *)(ob->id.orig_id))) {
+    if (BKE_collection_has_object(c, ob)) {
       if ((is_render && (c->flag & COLLECTION_HIDE_RENDER)) ||
           ((!is_render) && (c->flag & COLLECTION_HIDE_VIEWPORT)))
       {
@@ -2468,8 +2467,7 @@ static bool lineart_geometry_check_visible(double model_view_proj[4][4],
 static void lineart_object_load_single_instance(LineartData *ld,
                                                 Depsgraph *depsgraph,
                                                 Scene *scene,
-                                                Object *ob,
-                                                Object *ref_ob,
+                                                LineartInstance *instance,
                                                 const float use_mat[4][4],
                                                 bool is_render,
                                                 LineartObjectLoadTaskInfo *olti,
@@ -2478,6 +2476,8 @@ static void lineart_object_load_single_instance(LineartData *ld,
 {
   LineartObjectInfo *obi = static_cast<LineartObjectInfo *>(
       lineart_mem_acquire(&ld->render_data_pool, sizeof(LineartObjectInfo)));
+  Object *ob = instance->object;
+  Object *ob_eval = instance->object_eval;
   obi->usage = lineart_usage_check(scene->master_collection, ob, is_render);
   obi->override_intersection_mask = lineart_intersection_mask_check(scene->master_collection, ob);
   obi->intersection_priority = lineart_intersection_priority_check(scene->master_collection, ob);
@@ -2498,7 +2498,7 @@ static void lineart_object_load_single_instance(LineartData *ld,
     return;
   }
   if (ob->type == OB_MESH) {
-    use_mesh = BKE_object_get_evaluated_mesh(ob);
+    use_mesh = BKE_object_get_evaluated_mesh(ob_eval);
     if ((!use_mesh) || use_mesh->runtime->edit_mesh) {
       /* If the object is being edited, then the mesh is not evaluated fully into the final
        * result, do not load them. This could be caused by incorrect evaluation order due to
@@ -2507,7 +2507,7 @@ static void lineart_object_load_single_instance(LineartData *ld,
     }
   }
   else {
-    use_mesh = BKE_mesh_new_from_object(depsgraph, ob, true, true, true);
+    use_mesh = BKE_mesh_new_from_object(depsgraph, ob_eval, true, true, true);
   }
 
   /* In case we still can not get any mesh geometry data from the object, same as above. */
@@ -2532,9 +2532,90 @@ static void lineart_object_load_single_instance(LineartData *ld,
   copy_m4d_m4(obi->normal, imat);
 
   obi->original_me = use_mesh;
-  obi->original_ob = (ref_ob->id.orig_id ? (Object *)ref_ob->id.orig_id : ref_ob);
-  obi->original_ob_eval = DEG_get_evaluated(depsgraph, obi->original_ob);
+  obi->instance = instance;
+  obi->original_ob_eval = DEG_get_evaluated(depsgraph, instance->object);
   lineart_geometry_load_assign_thread(olti, obi, thread_count, use_mesh->faces_num);
+}
+
+static LineartInstance *lineart_ensure_instance_node(LineartInstance &root,
+                                                     blender::Span<Object *> parents,
+                                                     Object *object)
+{
+
+  if (parents.size() == 0) {
+    LineartInstance *this_instance = MEM_callocN<LineartInstance>(__func__);
+    this_instance->parent = &root;
+    this_instance->object_eval = object;
+    this_instance->object = object->id.orig_id ? (Object *)object->id.orig_id : object;
+    BLI_addtail(&root.children, this_instance);
+    return this_instance;
+  }
+
+  Object *first_parent = parents.first();
+  LineartInstance *found_instance = nullptr;
+  LISTBASE_FOREACH (LineartInstance *, child, &root.children) {
+    if (child->object == first_parent) {
+      found_instance = child;
+      break;
+    }
+  }
+
+  if (found_instance == nullptr) {
+    LineartInstance *new_instance = MEM_callocN<LineartInstance>(__func__);
+    new_instance->parent = &root;
+    new_instance->object_eval = first_parent;
+    new_instance->object = first_parent->id.orig_id ? (Object *)first_parent->id.orig_id :
+                                                      first_parent;
+    BLI_addtail(&root.children, new_instance);
+    found_instance = new_instance;
+  }
+
+  BLI_assert(found_instance != nullptr);
+  blender::Span<Object *> test_next = parents.drop_front(1);
+  return lineart_ensure_instance_node(*found_instance, test_next, object);
+}
+
+static void lineart_delete_instance_nodes(LineartInstance &root)
+{
+  LISTBASE_FOREACH_MUTABLE (LineartInstance *, child, &root.children) {
+    lineart_delete_instance_nodes(*child);
+    MEM_freeN(child);
+  }
+}
+
+static void lineart_print_instance_nodes(const LineartInstance &root, int level)
+{
+  for (int i = 0; i < level; i++) {
+    printf("  ");
+  }
+  printf("%s\n", root.object ? BKE_id_name(root.object->id) : "root");
+  LISTBASE_FOREACH (LineartInstance *, child, &root.children) {
+    lineart_print_instance_nodes(*child, level + 1);
+  }
+}
+
+static bool lineart_collection_contains_lineart_instance(Collection &collection,
+                                                         const LineartInstance &instance,
+                                                         bool child_visible)
+{
+  Object* ob=instance.object;
+
+  /* Do not take into account of objects from instanced collection. */
+  if(ob->type==OB_EMPTY && ob->instance_collection){
+    child_visible = false;
+  }
+  
+  if(!child_visible){
+    if (BKE_collection_has_object(&collection, instance.object)) {
+      child_visible = true;
+    }
+  }
+
+  bool parent_visible=child_visible;
+  if (instance.parent && instance.parent->object) {
+    parent_visible = lineart_collection_contains_lineart_instance(collection, *instance.parent, child_visible);
+  }
+  return parent_visible;
 }
 
 void lineart_main_load_geometries(Depsgraph *depsgraph,
@@ -2544,7 +2625,8 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
                                   bool allow_duplicates,
                                   bool do_shadow_casting,
                                   ListBase *shadow_elns,
-                                  blender::Set<const Object *> *included_objects)
+                                  blender::Set<const Object *> *included_objects,
+                                  LineartCache *cache)
 {
   double proj[4][4], view[4][4], result[4][4];
   float inv[4][4];
@@ -2609,10 +2691,13 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
     flags |= DEG_ITER_OBJECT_FLAG_DUPLI;
   }
 
+  blender::Vector<blender::Vector<Object *>> parents_stack;
+
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = flags;
   deg_iter_settings.included_objects = included_objects;
+  deg_iter_settings.parents_stack = &parents_stack;
 
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
 
@@ -2631,11 +2716,19 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
     }
 
     if (BKE_object_visibility(eval_ob, eval_mode) & OB_VISIBLE_SELF) {
+
+      DupliObject *dob = data_.dupli_object_current;
+      blender::Span<Object *> parents_stack = {};
+      if (dob && dob->parents_stack) {
+        parents_stack = dob->parents_stack->as_span();
+      }
+      LineartInstance *instance = lineart_ensure_instance_node(
+          cache->scene_root, parents_stack, ob);
+
       lineart_object_load_single_instance(ld,
                                           depsgraph,
                                           scene,
-                                          eval_ob,
-                                          eval_ob,
+                                          instance,
                                           eval_ob->object_to_world().ptr(),
                                           is_render,
                                           olti,
@@ -3581,6 +3674,7 @@ void MOD_lineart_clear_cache(LineartCache **lc)
   if (!(*lc)) {
     return;
   }
+  lineart_delete_instance_nodes((*lc)->scene_root);
   lineart_mem_destroy(&((*lc)->chain_data_pool));
   MEM_freeN(*lc);
   (*lc) = nullptr;
@@ -4694,8 +4788,8 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
       LineartElementLinkNode *eln2 = obi1 == obi2 ? eln1 :
                                                     lineart_find_matching_eln(
                                                         &ld->geom.line_buffer_pointers, obi2);
-      Object *ob1 = eln1 ? static_cast<Object *>(eln1->object_ref) : nullptr;
-      Object *ob2 = eln2 ? static_cast<Object *>(eln2->object_ref) : nullptr;
+      void *ob1 = eln1 ? eln1->object_ref : nullptr;
+      void *ob2 = eln2 ? eln2->object_ref : nullptr;
       if (e->t1->intersection_priority > e->t2->intersection_priority) {
         e->object_ref = ob1;
       }
@@ -5081,7 +5175,8 @@ bool MOD_lineart_compute_feature_lines_v3(Depsgraph *depsgraph,
                                lmd.calculation_flags & MOD_LINEART_ALLOW_DUPLI_OBJECTS,
                                false,
                                shadow_elns,
-                               included_objects);
+                               included_objects,
+                               lc);
 
   if (shadow_generated) {
     lineart_main_transform_and_add_shadow(ld, shadow_veln, shadow_eeln);
@@ -5268,6 +5363,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
 
   bool inverse_silhouette = modifier_flags & MOD_LINEART_INVERT_SILHOUETTE_FILTER;
 
+  lineart_print_instance_nodes(cache->scene_root, 0);
+
   blender::Vector<LineartChainWriteInfo> writer;
   writer.reserve(128);
   int total_point_count = 0;
@@ -5283,11 +5380,14 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     if (ec->level > level_end || ec->level < level_start) {
       continue;
     }
-    if (orig_ob && orig_ob != ec->object_ref) {
+
+    LineartInstance *instance = reinterpret_cast<LineartInstance *>(ec->object_ref);
+
+    if (orig_ob && orig_ob != instance->object) {
       continue;
     }
-    if (orig_col && ec->object_ref) {
-      if (BKE_collection_has_object_recursive_instanced(orig_col, ec->object_ref)) {
+    if (orig_col && instance) {
+      if (lineart_collection_contains_lineart_instance(*orig_col, *instance, false)) {
         if (modifier_flags & MOD_LINEART_INVERT_COLLECTION) {
           continue;
         }
@@ -5347,12 +5447,13 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     }
     if (silhouette_mode && (ec->type & (MOD_LINEART_EDGE_FLAG_CONTOUR))) {
       bool is_silhouette = false;
+      LineartInstance *backdrop_instance = reinterpret_cast<LineartInstance *>(
+          ec->silhouette_backdrop);
       if (orig_col) {
-        if (!ec->silhouette_backdrop) {
+        if (!backdrop_instance) {
           is_silhouette = true;
         }
-        else if (!BKE_collection_has_object_recursive_instanced(orig_col, ec->silhouette_backdrop))
-        {
+        else if (!lineart_collection_contains_lineart_instance(*orig_col, *backdrop_instance, false)) {
           is_silhouette = true;
         }
       }
@@ -5363,7 +5464,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       }
 
       if ((silhouette_mode == LINEART_SILHOUETTE_FILTER_INDIVIDUAL || orig_ob) &&
-          ec->silhouette_backdrop != ec->object_ref)
+          ec->silhouette_backdrop != backdrop_instance)
       {
         is_silhouette = true;
       }
@@ -5424,7 +5525,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     int src_deform_group = -1;
     Mesh *src_mesh = nullptr;
     if (source_vgname && vgroup_weights) {
-      Object *eval_ob = DEG_get_evaluated(depsgraph, cwi.chain->object_ref);
+      LineartInstance *instance = reinterpret_cast<LineartInstance *>(cwi.chain->object_ref);
+      Object *eval_ob = DEG_get_evaluated(depsgraph, instance->object);
       if (eval_ob && eval_ob->type == OB_MESH) {
         src_mesh = BKE_object_get_evaluated_mesh(eval_ob);
         src_dvert = src_mesh->deform_verts_for_write().data();

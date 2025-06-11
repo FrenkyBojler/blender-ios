@@ -1260,7 +1260,8 @@ bool lineart_main_try_generate_shadow_v3(Depsgraph *depsgraph,
                                lmd->flags & MOD_LINEART_ALLOW_DUPLI_OBJECTS,
                                true,
                                nullptr,
-                               included_objects);
+                               included_objects,
+                               lmd->cache);
 
   if (!ld->geom.vertex_buffer_pointers.first) {
     /* No geometry loaded, return early. */

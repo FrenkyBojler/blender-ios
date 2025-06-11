@@ -117,6 +117,12 @@ struct DupliContext {
   Vector<Object *> *instance_stack;
 
   /**
+   * If set, then `parents_stack` in each DupliObject will contain a copy of `instance_stack` at
+   * that particular instance.
+   */
+  Vector<Vector<Object *>> *recorded_parents_stack;
+
+  /**
    * Older code relies on the "dupli generator type" for various visibility or processing
    * decisions. However, new code uses geometry instances in places that weren't using the dupli
    * system previously. To fix this, keep track of the last dupli generator type that wasn't a
@@ -158,7 +164,8 @@ static void init_context(DupliContext *r_ctx,
                          const float space_mat[4][4],
                          blender::Set<const Object *> *include_objects,
                          Vector<Object *> &instance_stack,
-                         Vector<short> &dupli_gen_type_stack)
+                         Vector<short> &dupli_gen_type_stack,
+                         Vector<Vector<Object*>>* recorded_parents_stack)
 {
   r_ctx->depsgraph = depsgraph;
   r_ctx->scene = scene;
@@ -187,6 +194,7 @@ static void init_context(DupliContext *r_ctx,
   r_ctx->preview_base_geometry = nullptr;
 
   r_ctx->include_objects = include_objects;
+  r_ctx->recorded_parents_stack = recorded_parents_stack;
 }
 
 /**
@@ -336,6 +344,12 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   if (ctx->root_object != ob) {
     dob->random_id ^= BLI_hash_int(BLI_hash_string(ctx->root_object->id.name + 2));
+  }
+
+  if (ctx->recorded_parents_stack) {
+    Vector current_parent_stack = Vector(*ctx->instance_stack);
+    ctx->recorded_parents_stack->append(current_parent_stack);
+    dob->parents_stack = &ctx->recorded_parents_stack->last();
   }
 
   return dob;
@@ -1807,15 +1821,23 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 ListBase *object_duplilist(Depsgraph *depsgraph,
                            Scene *sce,
                            Object *ob,
-                           Set<const Object *> *include_objects)
+                           Set<const Object *> *include_objects,
+                           Vector<Vector<Object*>>* recorded_parents_stack)
 {
   ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
   instance_stack.append(ob);
-  init_context(
-      &ctx, depsgraph, sce, ob, nullptr, include_objects, instance_stack, dupli_gen_type_stack);
+  init_context(&ctx,
+               depsgraph,
+               sce,
+               ob,
+               nullptr,
+               include_objects,
+               instance_stack,
+               dupli_gen_type_stack,
+               recorded_parents_stack);
   if (ctx.gen) {
     ctx.duplilist = duplilist;
     ctx.gen->make_duplis(&ctx);
@@ -1834,8 +1856,15 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
   Vector<Object *> instance_stack;
   Vector<short> dupli_gen_type_stack({0});
   instance_stack.append(ob_eval);
-  init_context(
-      &ctx, depsgraph, sce, ob_eval, nullptr, nullptr, instance_stack, dupli_gen_type_stack);
+  init_context(&ctx,
+               depsgraph,
+               sce,
+               ob_eval,
+               nullptr,
+               nullptr,
+               instance_stack,
+               dupli_gen_type_stack,
+               nullptr);
   ctx.duplilist = duplilist;
 
   Object *ob_orig = DEG_get_original(ob_eval);
@@ -1874,7 +1903,7 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   Vector<short> dupli_gen_type_stack({0});
 
   init_context(
-      &ctx, &depsgraph, &scene, &ob, nullptr, nullptr, instance_stack, dupli_gen_type_stack);
+      &ctx, &depsgraph, &scene, &ob, nullptr, nullptr, instance_stack, dupli_gen_type_stack, nullptr);
   if (ctx.gen == &gen_dupli_geometry_set) {
     /* These are not legacy instances. */
     return {};
