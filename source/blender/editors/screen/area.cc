@@ -61,6 +61,11 @@
 
 static void header_edge_gradient(const ScrArea *area, const ARegion *region)
 {
+  const bool is_toolbar = (region->regiontype == RGN_TYPE_TOOLS);
+  if (is_toolbar) {
+    return;
+  }
+
   const bool is_topbar = (area->spacetype == SPACE_TOPBAR);
   const bool is_header = (ELEM(region->regiontype,
                                RGN_TYPE_HEADER,
