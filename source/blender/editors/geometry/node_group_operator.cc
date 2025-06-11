@@ -321,7 +321,7 @@ static void store_result_geometry(const bContext &C,
       PointCloud *new_points =
           geometry.get_component_for_write<bke::PointCloudComponent>().release();
       if (!new_points) {
-        CustomData_free(&points.pdata);
+        new_points->attribute_storage.wrap() = {};
         points.totpoint = 0;
         break;
       }
@@ -504,7 +504,7 @@ static Map<StringRef, ID *> gather_input_ids(const Main &bmain,
           return;
         }
         const std::optional<ID_Type> id_type = socket_type_to_id_type(
-            eNodeSocketDatatype(input->socket_typeinfo()->type));
+            input->socket_typeinfo()->type);
         if (!id_type) {
           return;
         }

@@ -236,7 +236,7 @@ typedef struct bNodeSocket {
   bool affects_node_output() const;
   /**
    * This becomes false when it is detected that the input socket is currently not used and its
-   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whoose
+   * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
    * visibility is controlled by a menu should be hidden.
    */
   bool inferred_input_socket_visibility() const;
@@ -2183,7 +2183,9 @@ typedef struct NodeGeometryClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryClosureInputItem;
 
@@ -2220,7 +2222,9 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryEvaluateClosureInputItem;
 
@@ -2228,7 +2232,9 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryEvaluateClosureOutputItem;
 
@@ -2396,6 +2402,21 @@ typedef struct NodeGeometrySeparateBundle {
   int active_index;
   char _pad[4];
 } NodeGeometrySeparateBundle;
+
+typedef struct NodeFunctionFormatStringItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+  char _pad[2];
+} NodeFunctionFormatStringItem;
+
+typedef struct NodeFunctionFormatString {
+  NodeFunctionFormatStringItem *items;
+  int items_num;
+  int next_identifier;
+  int active_index;
+  char _pad[4];
+} NodeFunctionFormatString;
 
 /* script node mode */
 enum {
@@ -2749,6 +2770,8 @@ typedef enum NodeVectorMathOperation {
   NODE_VECTOR_MATH_REFRACT = 24,
   NODE_VECTOR_MATH_FACEFORWARD = 25,
   NODE_VECTOR_MATH_MULTIPLY_ADD = 26,
+  NODE_VECTOR_MATH_POWER = 27,
+  NODE_VECTOR_MATH_SIGN = 28,
 } NodeVectorMathOperation;
 
 typedef enum NodeBooleanMathOperation {
@@ -2990,15 +3013,8 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_NEAREST = 0,
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_INTERPOLATION_ANISOTROPIC = 3,
 } CMPNodeInterpolation;
-
-/* CornerPin node interpolation option. */
-typedef enum CMPNodeCornerPinInterpolation {
-  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
-} CMPNodeCornerPinInterpolation;
 
 /* Set Alpha Node. */
 

@@ -232,14 +232,6 @@ set(SDL_HOMEPAGE https://www.libsdl.org)
 set(SDL_LICENSE SPDX:Zlib)
 set(SDL_COPYRIGHT "Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>")
 
-set(OPENCOLLADA_VERSION dfc341ab0b3b23ee307ab8660c0213e64da1eac6)
-set(OPENCOLLADA_URI https://github.com/aras-p/OpenCOLLADA/archive/${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_HASH 2120c8c02aab840e81cb87e625a608f7)
-set(OPENCOLLADA_HASH_TYPE MD5)
-set(OPENCOLLADA_FILE opencollada-${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_LICENSE SPDX:MIT)
-set(OPENCOLLADA_COPYRIGHT "Copyright (c) 2008-2009 NetAllied Systems GmbH")
-
 set(OPENCOLORIO_VERSION 2.4.1)
 set(OPENCOLORIO_URI https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/v${OPENCOLORIO_VERSION}.tar.gz)
 set(OPENCOLORIO_HASH a11368ef8f001837f29b7dd18dbd2290)
@@ -1005,9 +997,9 @@ Copyright (C) 1999-2006 Takeshi Kanno.
 Copyright (C) 2007-2009 Antony Dovgal.
 ]=])
 
-set(ZSTD_VERSION 1.5.0)
+set(ZSTD_VERSION 1.5.6)
 set(ZSTD_URI https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz)
-set(ZSTD_HASH 5194fbfa781fcf45b98c5e849651aa7b3b0a008c6b72d4a0db760f3002291e94)
+set(ZSTD_HASH 8c29e06cf42aacc1eafc4077ae2ec6c6fcb96a626157e0593d5e82a34fd403c1)
 set(ZSTD_HASH_TYPE SHA256)
 set(ZSTD_FILE zstd-${ZSTD_VERSION}.tar.gz)
 set(ZSTD_CPE "cpe:2.3:a:facebook:zstandard:${ZSTD_VERSION}:*:*:*:*:*:*:*")
@@ -1178,7 +1170,7 @@ set(IGC_LLVM_HOMEPAGE https://github.com/llvm/llvm-project/)
 set(IGC_LLVM_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
 set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana-Champaign. All rights reserved.")
 
-# WARNING WARNING WARNING
+# ******* WARNING *******
 #
 # IGC_OPENCL_CLANG contains patches for some of its dependencies.
 #
@@ -1186,7 +1178,7 @@ set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana
 # IGC_OPENCL_CLANG's patches folder and update igc.cmake to account for
 # any added or removed patches.
 #
-# WARNING WARNING WARNING
+# ******* WARNING *******
 
 set(IGC_OPENCL_CLANG_VERSION v14.0.1)
 set(IGC_OPENCL_CLANG_URI https://github.com/intel/opencl-clang/archive/${IGC_OPENCL_CLANG_VERSION}.tar.gz)

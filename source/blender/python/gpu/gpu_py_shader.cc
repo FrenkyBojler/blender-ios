@@ -59,7 +59,13 @@
   "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
   "``POLYLINE_UNIFORM_COLOR``\n" \
   "   :Attributes: vec3 pos\n" \
-  "   :Uniforms: vec2 viewportSize, float lineWidth\n"
+  "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
+  "``POINT_FLAT_COLOR``\n" \
+  "   :Attributes: vec3 pos, vec4 color\n" \
+  "   :Uniforms: float size\n" \
+  "``POLYLINE_UNIFORM_COLOR``\n" \
+  "   :Attributes: vec3 pos\n" \
+  "   :Uniforms: vec4 color, float size\n"
 
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
@@ -70,6 +76,8 @@ static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},
     {GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR, "POLYLINE_SMOOTH_COLOR"},
     {GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, "POLYLINE_UNIFORM_COLOR"},
+    {GPU_SHADER_3D_POINT_FLAT_COLOR, "POINT_FLAT_COLOR"},
+    {GPU_SHADER_3D_POINT_UNIFORM_COLOR, "POINT_UNIFORM_COLOR"},
     {0, nullptr},
 };
 
@@ -710,10 +718,10 @@ static PyObject *pygpu_shader_format_calc(BPyGPUShader *self, PyObject * /*arg*/
 
     /* WORKAROUND: Special case for POLYLINE shader. */
     if (GPU_shader_get_ssbo_binding(self->shader, "pos") >= 0) {
-      GPU_vertformat_attr_add(&ret->fmt, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      GPU_vertformat_attr_add(&ret->fmt, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
     }
     if (GPU_shader_get_ssbo_binding(self->shader, "color") >= 0) {
-      GPU_vertformat_attr_add(&ret->fmt, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      GPU_vertformat_attr_add(&ret->fmt, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
     }
   }
   else {

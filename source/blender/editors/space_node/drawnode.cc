@@ -1118,7 +1118,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
-      uiLayoutSetEmboss(layout, blender::ui::EmbossType::None);
+      layout->emboss_set(blender::ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
                    UI_ITEM_NONE,
@@ -1135,6 +1135,20 @@ static void draw_node_socket_without_value(uiLayout *layout,
                                            const StringRef text)
 {
   draw_node_socket_name_editable(layout, sock, text);
+}
+
+/* Menu sockets hide the socket name by default to save space. Some nodes have multiple menu
+ * sockets which requires showing the name anyway to avoid ambiguity. */
+static bool show_menu_socket_name(const bNode *node, const bNodeSocket *sock)
+{
+  BLI_assert(sock->type == SOCK_MENU);
+  if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
+    return true;
+  }
+  if (node->is_type("GeometryNodeSwitch")) {
+    return true;
+  }
+  return false;
 }
 
 static void std_node_socket_draw(
@@ -1313,10 +1327,7 @@ static void std_node_socket_draw(
               break;
             }
           }
-          const char *name = "";
-          if (node->is_type("GeometryNodeMenuSwitch") && sock->index() > 0) {
-            name = sock->name;
-          }
+          const char *name = show_menu_socket_name(node, sock) ? sock->name : "";
           layout->prop(ptr, "default_value", DEFAULT_FLAGS, name, ICON_NONE);
         }
       }
@@ -1610,7 +1621,7 @@ void draw_nodespace_back_pix(const bContext &C,
                       y + snode.zoom * viewer_border->ymax * ibuf->y);
 
         uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immUniformThemeColor(TH_ACTIVE);
 
@@ -1923,9 +1934,9 @@ static void set_nodelink_vertex(gpu::VertBuf *vbo,
 static void nodelink_batch_init()
 {
   GPUVertFormat format = {0};
-  uint uv_id = GPU_vertformat_attr_add(&format, "uv", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint expand_id = GPU_vertformat_attr_add(&format, "expand", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint uv_id = GPU_vertformat_attr_add(&format, "uv", gpu::VertAttrType::SFLOAT_32_32);
+  uint pos_id = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  uint expand_id = GPU_vertformat_attr_add(&format, "expand", gpu::VertAttrType::SFLOAT_32_32);
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_STATIC);
   int vcount = LINK_RESOL * 2; /* curve */
   vcount += 2;                 /* restart strip */
@@ -2009,29 +2020,29 @@ static void nodelink_batch_init()
   /* Instances data */
   GPUVertFormat format_inst = {0};
   g_batch_link.p0_id = GPU_vertformat_attr_add(
-      &format_inst, "P0", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P0", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p1_id = GPU_vertformat_attr_add(
-      &format_inst, "P1", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P1", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p2_id = GPU_vertformat_attr_add(
-      &format_inst, "P2", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P2", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.p3_id = GPU_vertformat_attr_add(
-      &format_inst, "P3", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      &format_inst, "P3", blender::gpu::VertAttrType::SFLOAT_32_32);
   g_batch_link.colid_id = GPU_vertformat_attr_add(
-      &format_inst, "colid_doarrow", GPU_COMP_U8, 4, GPU_FETCH_INT);
+      &format_inst, "colid_doarrow", blender::gpu::VertAttrType::UINT_8_8_8_8);
   g_batch_link.start_color_id = GPU_vertformat_attr_add(
-      &format_inst, "start_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      &format_inst, "start_color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   g_batch_link.end_color_id = GPU_vertformat_attr_add(
-      &format_inst, "end_color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      &format_inst, "end_color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   g_batch_link.muted_id = GPU_vertformat_attr_add(
-      &format_inst, "domuted", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      &format_inst, "domuted", blender::gpu::VertAttrType::UINT_32);
   g_batch_link.dim_factor_id = GPU_vertformat_attr_add(
-      &format_inst, "dim_factor", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      &format_inst, "dim_factor", blender::gpu::VertAttrType::SFLOAT_32);
   g_batch_link.thickness_id = GPU_vertformat_attr_add(
-      &format_inst, "thickness", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      &format_inst, "thickness", blender::gpu::VertAttrType::SFLOAT_32);
   g_batch_link.dash_params_id = GPU_vertformat_attr_add(
-      &format_inst, "dash_params", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      &format_inst, "dash_params", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   g_batch_link.has_back_link_id = GPU_vertformat_attr_add(
-      &format_inst, "has_back_link", GPU_COMP_I32, 1, GPU_FETCH_INT);
+      &format_inst, "has_back_link", blender::gpu::VertAttrType::SINT_32);
   g_batch_link.inst_vbo = GPU_vertbuf_create_with_format_ex(format_inst, GPU_USAGE_STREAM);
   /* Alloc max count but only draw the range we need. */
   GPU_vertbuf_data_alloc(*g_batch_link.inst_vbo, NODELINK_GROUP_SIZE);
