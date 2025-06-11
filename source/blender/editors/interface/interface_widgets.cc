@@ -3520,10 +3520,12 @@ static void widget_numbut_draw(const uiBut *but,
   const int handle_width = min_ii(BLI_rcti_size_x(rect) / 3, BLI_rcti_size_y(rect) * 0.7f);
   const int axis_width = min_ii(BLI_rcti_size_x(rect) / 3, U.widget_unit * zoom * 0.1333f);
   const int draw_axis = (but->rnaprop && ELEM(RNA_property_subtype(but->rnaprop),
-                                              PROP_TRANSLATION,
+                                              PROP_ACCELERATION,
+                                              PROP_AXISANGLE,
                                               PROP_EULER,
                                               PROP_QUATERNION,
-                                              PROP_AXISANGLE,
+                                              PROP_TRANSLATION,
+                                              PROP_VELOCITY,
                                               PROP_XYZ,
                                               PROP_XYZ_LENGTH));
   int roundboxalign_zone;
