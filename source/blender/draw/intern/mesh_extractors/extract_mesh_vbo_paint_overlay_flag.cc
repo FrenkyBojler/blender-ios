@@ -27,9 +27,7 @@ static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<in
       if (use_face_select) {
         for (const int face : range) {
           if (selection[face]) {
-            for (const int corner : faces[face]) {
-              flags[corner] = 1;
-            }
+            flags.slice(faces[face]).fill(1);
           }
         }
       }
@@ -48,9 +46,7 @@ static void extract_paint_overlay_flags(const MeshRenderData &mr, MutableSpan<in
       const Span<bool> hide_poly = mr.hide_poly;
       for (const int face : range) {
         if (hide_poly[face]) {
-          for (const int corner : faces[face]) {
-            flags[corner] = -1;
-          }
+          flags.slice(faces[face]).fill(-1);
         }
       }
     }
