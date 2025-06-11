@@ -42,7 +42,7 @@ static int calc_nonzero_knot_spans(const int points_num,
   /* Inner knots are always repeated once except on Bezier case. */
   const int repeat_inner = is_bezier ? order - 1 : 1;
   /* For non endpoint Bezier repeated knots are shifted by one. */
-  const int knots_before_geometry = order + int(is_bezier && !is_end_point);
+  const int knots_before_geometry = order + int(is_bezier && !is_end_point && order > 2);
   const int knots_after_geometry = order - 1 +
                                    (cyclic && mode == NURBS_KNOT_MODE_ENDPOINT ? order - 2 : 0);
 
