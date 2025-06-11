@@ -795,6 +795,8 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.end_sync(); });
 
   view_data_active->manager->end_sync();
+
+  view_data_active->depsgraph_last_update = DEG_get_update_count(depsgraph);
 }
 
 void DRWContext::engines_draw_scene()
