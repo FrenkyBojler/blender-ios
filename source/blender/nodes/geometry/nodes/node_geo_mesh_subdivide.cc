@@ -63,8 +63,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("Mesh", std::move(geometry_set));
     return;
   }
-  /* The limit is choosen so that even when just subdividing a single triangle, it would become too
-   * large to be stored in a #Mesh. */
+  /* At this limit, a subdivided single triangle would be too large to be stored in #Mesh. */
   if (level >= 16) {
     params.error_message_add(NodeWarningType::Error, TIP_("The subdivision level is too large"));
     params.set_default_remaining_outputs();
