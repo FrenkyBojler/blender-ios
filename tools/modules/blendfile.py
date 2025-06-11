@@ -697,7 +697,7 @@ class BlendFileBlockRaw:
             self.file_offset = 0
             return
         # Header can be just 8 byte because of ENDB block in old .blend files.
-        if len(data) > 15:
+        if len(data) > 8:
             blockheader = bfile.block_header_fields(*bfile.block_header_struct.unpack(data))
             self.code = blockheader[0].partition(b'\0')[0]
             if self.code != b'ENDB':
