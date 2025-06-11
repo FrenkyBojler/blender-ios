@@ -6,6 +6,7 @@
 
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
+#include "NOD_geometry_nodes_bundle.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
@@ -26,6 +27,25 @@ using xpbd_constraints::ConstraintEvalParams;
 using xpbd_constraints::ConstraintTypeInfo;
 using xpbd_constraints::ConstraintVariables;
 
+struct ConstraintBundleItems {
+  static const SocketInterfaceKey stretch_constraints;
+  static const SocketInterfaceKey bending_constraints;
+  static const SocketInterfaceKey position_constraints;
+  static const SocketInterfaceKey rotation_constraints;
+  static const SocketInterfaceKey contact_constraints;
+};
+
+const SocketInterfaceKey ConstraintBundleItems::stretch_constraints = SocketInterfaceKey(
+    "Stretch");
+const SocketInterfaceKey ConstraintBundleItems::bending_constraints = SocketInterfaceKey(
+    "Bending");
+const SocketInterfaceKey ConstraintBundleItems::position_constraints = SocketInterfaceKey(
+    "Position");
+const SocketInterfaceKey ConstraintBundleItems::rotation_constraints = SocketInterfaceKey(
+    "Rotation");
+const SocketInterfaceKey ConstraintBundleItems::contact_constraints = SocketInterfaceKey(
+    "Contact");
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
@@ -42,6 +62,78 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   UNUSED_VARS(node);
+}
+
+static void store_hair_rest_shape(GeometrySet &hair_geometry) {}
+
+/* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
+static void init_hair_physics(GeometrySet &hair_geometry) {}
+
+/* Create internal stretch/shear and bending constraints. */
+static void generate_elastic_rod_constraints(const GeometrySet &hair_geometry,
+                                             GeometrySet &stretch_constraints,
+                                             GeometrySet &bending_constraints)
+{
+}
+
+/* Create root attachment constraints. */
+static void generate_root_attachment_constraints(const GeometrySet &hair_geometry,
+                                                 GeometrySet &position_constraints,
+                                                 GeometrySet &rotation_constraints)
+{
+}
+
+static BundlePtr combine_constraint_bundle(GeometrySet &stretch_constraints,
+                                           GeometrySet &bending_constraints,
+                                           GeometrySet &position_constraints,
+                                           GeometrySet &rotation_constraints,
+                                           GeometrySet &contact_constraints)
+{
+  BundlePtr bundle_ptr = Bundle::create();
+  Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
+
+  // const NodeGeometryCombineBundleItem &item = storage.items[i];
+  const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(SOCK_GEOMETRY);
+  BLI_assert(geometry_type != nullptr);
+  bundle.add_new(ConstraintBundleItems::stretch_constraints, *geometry_type, &stretch_constraints);
+  bundle.add_new(ConstraintBundleItems::bending_constraints, *geometry_type, &bending_constraints);
+  bundle.add_new(
+      ConstraintBundleItems::position_constraints, *geometry_type, &position_constraints);
+  bundle.add_new(
+      ConstraintBundleItems::rotation_constraints, *geometry_type, &rotation_constraints);
+  bundle.add_new(ConstraintBundleItems::contact_constraints, *geometry_type, &contact_constraints);
+
+  return bundle_ptr;
+}
+
+static void separate_constraint_bundle(const Bundle &bundle,
+                                       GeometrySet &stretch_constraints,
+                                       GeometrySet &bending_constraints,
+                                       GeometrySet &position_constraints,
+                                       GeometrySet &rotation_constraints,
+                                       GeometrySet &contact_constraints)
+{
+  auto lookup_constraints = [&](const SocketInterfaceKey &key) -> GeometrySet {
+    const std::optional<Bundle::Item> value = bundle.lookup(key);
+    if (!value) {
+      return {};
+    }
+    const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(SOCK_GEOMETRY);
+    BLI_assert(geometry_type != nullptr);
+    GeometrySet output_geometry;
+    if (!implicitly_convert_socket_value(
+            *value->type, value->value, *geometry_type, &output_geometry))
+    {
+      return {};
+    }
+    return output_geometry;
+  };
+
+  stretch_constraints = lookup_constraints(ConstraintBundleItems::stretch_constraints);
+  bending_constraints = lookup_constraints(ConstraintBundleItems::bending_constraints);
+  position_constraints = lookup_constraints(ConstraintBundleItems::position_constraints);
+  rotation_constraints = lookup_constraints(ConstraintBundleItems::rotation_constraints);
+  contact_constraints = lookup_constraints(ConstraintBundleItems::contact_constraints);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
