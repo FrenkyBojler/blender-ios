@@ -363,6 +363,13 @@ static Material *get_or_create_material(Main *bmain,
     return *found_mat;
   }
 
+  /* Check if a material with this name already exists in the main database */
+  Material *existing_mat = (Material *)BKE_libblock_find_name(bmain, ID_MA, name.c_str());
+  if (existing_mat != nullptr) {
+    created_materials.add_new(name, existing_mat);
+    return existing_mat;
+  }
+
   /* We have not, will have to create it. Create a new default
    * MTLMaterial too, in case the OBJ file tries to use a material
    * that was not in the MTL file. */

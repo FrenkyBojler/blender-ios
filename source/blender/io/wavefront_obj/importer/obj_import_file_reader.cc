@@ -850,11 +850,23 @@ MTLParser::MTLParser(StringRefNull mtl_library, StringRefNull obj_filepath)
   char obj_file_dir[FILE_MAXDIR];
   BLI_path_split_dir_part(obj_filepath.data(), obj_file_dir, FILE_MAXDIR);
   BLI_path_join(mtl_file_path_, FILE_MAX, obj_file_dir, mtl_library.data());
+  
+  /* Normalize the path to handle different paths pointing to the same file */
+  BLI_path_normalize(mtl_file_path_);
+  
   BLI_path_split_dir_part(mtl_file_path_, mtl_dir_path_, FILE_MAXDIR);
 }
 
 void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_materials)
 {
+  /* Static cache to avoid parsing the same MTL file multiple times */
+  static Map<std::string, bool> parsed_mtl_files;
+  
+  /* Check if we've already parsed this exact MTL file */
+  if (parsed_mtl_files.contains(mtl_file_path_)) {
+    return;
+  }
+  
   size_t buffer_len;
   void *buffer = BLI_file_read_text_as_mem(mtl_file_path_, 0, &buffer_len);
   if (buffer == nullptr) {
@@ -942,5 +954,8 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
   }
 
   MEM_freeN(buffer);
+  
+  /* Mark this MTL file as parsed */
+  parsed_mtl_files.add(mtl_file_path_, true);
 }
 }  // namespace blender::io::obj
