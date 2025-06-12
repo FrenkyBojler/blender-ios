@@ -294,7 +294,13 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
                      U_theme_default.tui.wcol_tooltip.outline);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 7)) {
+  if (!USER_VERSION_ATLEAST(500, 9)) {
+    copy_v4_v4_uchar(btheme->tui.panel_header, U_theme_default.tui.panel_header);
+    copy_v4_v4_uchar(btheme->tui.panel_back, U_theme_default.tui.panel_back);
+    copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 10)) {
     btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
   }
