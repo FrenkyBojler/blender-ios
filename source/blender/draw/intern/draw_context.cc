@@ -694,9 +694,13 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 ObjectRef::ObjectRef(Object *ob) : object(ob) {}
 
 ObjectRef::ObjectRef(Object &ob,
+                     Object *dupli_parent,
                      const DrawObjectKey &draw_object_key,
                      const DrawInstances &instances)
-    : draw_object_key_(&draw_object_key), draw_instances_(&instances), object(&ob)
+    : dupli_parent_(dupli_parent),
+      draw_object_key_(&draw_object_key),
+      draw_instances_(&instances),
+      object(&ob)
 {
 }
 

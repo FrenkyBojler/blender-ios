@@ -121,34 +121,30 @@ class ObjectRef {
 
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   ObjectRef(Object *ob);
-  ObjectRef(Object &ob, const DrawObjectKey &draw_object_key, const DrawInstances &draw_instances);
+  ObjectRef(Object &ob,
+            Object *dupli_parent,
+            const DrawObjectKey &draw_object_key,
+            const DrawInstances &draw_instances);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
-    if (draw_object_key_) {
-      return true;
-    }
-
-    return dupli_object_ != nullptr;
+    return dupli_parent_ != nullptr;
   }
 
   bool is_active(const Object *active_object) const
   {
-    if (draw_object_key_) {
-      return bool(draw_object_key_->flags & DrawObjectFlags::IsActive);
-    }
-
-    return (dupli_object_ ? dupli_parent_ : object) == active_object;
+    return (dupli_parent_ ? dupli_parent_ : object) == active_object;
   }
 
   float random() const
   {
     if (draw_object_key_) {
-      return bool(draw_object_key_->flags & DrawObjectFlags::IsActive);
+      /* TODO: This should return a Span. */
+      return 0.0;
     }
 
-    if (dupli_object_ == nullptr) {
+    if (dupli_parent_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
       return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
@@ -173,8 +169,9 @@ class ObjectRef {
 
   LightLinking *light_linking() const
   {
+    /* TODO: Remove. */
     if (draw_object_key_) {
-      return draw_object_key_->light_linking;
+      return object->light_linking;
     }
 
     /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
@@ -220,7 +217,7 @@ class ObjectRef {
   float4x4 particles_matrix() const
   {
     if (draw_object_key_) {
-      /* TODO: return span of matrices. */
+      /* TODO: return Span of matrices. */
     }
 
     /* TODO: Pass particle systems as a separate ObRef? */
@@ -268,10 +265,6 @@ class ObjectRef {
                                     eObjectMode ob_mode,
                                     eContextObjectMode ctx_mode) const
   {
-    if (draw_object_key_) {
-      return bool(draw_object_key_->flags & DrawObjectFlags::ParentInEditPaintMode);
-    }
-
     /* TODO: Deduplicate code with Overlay engine.
      * Move to BKE ? Or check if T72490 is still relevant. */
 
