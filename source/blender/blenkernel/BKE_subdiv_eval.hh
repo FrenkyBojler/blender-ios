@@ -62,9 +62,9 @@ void eval_limit_point_and_normal(
 
 /* Evaluate smoothly interpolated vertex data (such as ORCO). */
 void eval_vertex_data(Subdiv *subdiv,
-                      const int ptex_face_index,
-                      const float u,
-                      const float v,
+                      int ptex_face_index,
+                      float u,
+                      float v,
                       float r_vertex_data[]);
 
 /* Evaluate face-varying layer (such as UV). */
