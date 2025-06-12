@@ -830,9 +830,16 @@ std::optional<Span<float>> orig_mask_data_lookup_mesh(const Object &object,
 std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
                                                        const bke::pbvh::GridsNode &node);
 
-inline bool brush_type_is_mask(const int tool)
+inline bool brush_type_is_paint(const int tool)
 {
-  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
+  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+}
+
+inline bool brush_uses_vector_displacement(const Brush &brush)
+{
+  return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
+         brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
+         brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
 /** Retrieve or calculate the object space radius depending on brush settings. */
@@ -977,24 +984,19 @@ void multiplane_scrape_preview_draw(uint gpuattr,
 
 namespace blender::ed::sculpt_paint {
 
+// float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::StrokeCache &cache);
+
 // void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot);
 
-inline bool brush_type_is_paint(const int tool)
+inline bool brush_type_is_mask(const int tool)
 {
-  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
 }
 
 BLI_INLINE bool brush_type_is_attribute_only(const int tool)
 {
   return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
          ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
-}
-
-inline bool brush_uses_vector_displacement(const Brush &brush)
-{
-  return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
-         brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
-         brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
 }  // namespace blender::ed::sculpt_paint

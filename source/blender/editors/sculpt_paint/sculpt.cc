@@ -1440,111 +1440,6 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
     }
   }
 }
-static void calc_area_normal_and_center_node_mesh(const Object &object,
-                                                  const Span<float3> vert_positions,
-                                                  const Span<float3> vert_normals,
-                                                  const Span<bool> hide_vert,
-                                                  const Brush &brush,
-                                                  const bool use_area_nos,
-                                                  const bool use_area_cos,
-                                                  const bke::pbvh::MeshNode &node,
-                                                  SampleLocalData &tls,
-                                                  AreaNormalCenterData &anctd,
-                                                  const bke::pbvh::Tree &pbvh)
-{
-  const SculptSession &ss = *object.sculpt;
-  const float3 &location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm : ss.cursor_view_normal;
-  const float position_radius = area_normal_and_center_get_position_radius(ss, brush);
-  const float position_radius_sq = position_radius * position_radius;
-  const float position_radius_inv = math::rcp(position_radius);
-  const float normal_radius = area_normal_and_center_get_normal_radius(ss, brush);
-  const float normal_radius_sq = normal_radius * normal_radius;
-  const float normal_radius_inv = math::rcp(normal_radius);
-
-  // Check if node_idx_ is valid
-  if (node.node_idx_ < 0 || node.node_idx_ >= pbvh.node_unique_offsets.size()) {
-    return;
-  }
-
-  // Get the vertex range for this node from the contiguous storage
-  const IndexRange vertex_range = pbvh.node_all_offset_indices[node.node_idx_];
-  const int start_offset = vertex_range.start();
-  const int num_verts = vertex_range.size();
-
-  if (ss.cache && !ss.cache->accum) {
-    if (const std::optional<OrigPositionData> orig_data = orig_position_data_lookup_mesh(object,
-                                                                                         node))
-    {
-      const Span<float3> orig_positions = orig_data->positions;
-      const Span<float3> orig_normals = orig_data->normals;
-
-      tls.distances.reinitialize(num_verts);
-      const MutableSpan<float> distances_sq = tls.distances;
-
-      // Original positions are already in a contiguous array with their own indexing
-      // so we use 0 as the start offset for them
-      const eBrushFalloffShape falloff_shape = eBrushFalloffShape(brush.falloff_shape);
-      calc_brush_distances_squared(ss, orig_positions, 0, num_verts, falloff_shape, distances_sq);
-
-      for (int i = 0; i < num_verts; i++) {
-        const int vert = start_offset + i;
-        if (!hide_vert.is_empty() && hide_vert[vert]) {
-          continue;
-        }
-        const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-        const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-        if (!normal_test_r && !area_test_r) {
-          continue;
-        }
-        const float3 &normal = orig_normals[i];
-        const float distance = std::sqrt(distances_sq[i]);
-        const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-        if (area_test_r) {
-          accumulate_area_center(
-              location, orig_positions[i], distance, position_radius_inv, flip_index, anctd);
-        }
-        if (normal_test_r) {
-          accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
-        }
-      }
-      return;
-    }
-  }
-
-  tls.distances.reinitialize(num_verts);
-  const MutableSpan<float> distances_sq = tls.distances;
-
-  // Use the new version of calc_brush_distances_squared with start_offset and num_verts
-  calc_brush_distances_squared(ss,
-                               vert_positions,
-                               start_offset,
-                               num_verts,
-                               eBrushFalloffShape(brush.falloff_shape),
-                               distances_sq);
-
-  for (int i = 0; i < num_verts; i++) {
-    const int vert = start_offset + i;
-    if (!hide_vert.is_empty() && hide_vert[vert]) {
-      continue;
-    }
-    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
-      continue;
-    }
-    const float3 &normal = vert_normals[vert];
-    const float distance = std::sqrt(distances_sq[i]);
-    const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
-      accumulate_area_center(
-          location, vert_positions[vert], distance, position_radius_inv, flip_index, anctd);
-    }
-    if (normal_test_r) {
-      accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
-    }
-  }
-}
 
 static void calc_area_normal_and_center_node_grids(const Object &object,
                                                    const Brush &brush,
@@ -1850,8 +1745,7 @@ void calc_area_center(const Depsgraph &depsgraph,
                                                     true,
                                                     nodes[i],
                                                     tls,
-                                                    anctd,
-                                                    pbvh);
+                                                    anctd);
             });
             return anctd;
           },
@@ -1951,8 +1845,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                                     false,
                                                     nodes[i],
                                                     tls,
-                                                    anctd,
-                                                    pbvh);
+                                                    anctd);
             });
             return anctd;
           },
@@ -2151,8 +2044,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
                                                     true,
                                                     nodes[i],
                                                     tls,
-                                                    anctd,
-                                                    pbvh);
+                                                    anctd);
             });
             return anctd;
           },
@@ -5789,7 +5681,6 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   WM_event_add_modal_handler(C, op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
-
   return OPERATOR_RUNNING_MODAL;
 }
 

@@ -136,7 +136,6 @@ struct MeshNode : public Node {
 
   /** Indices into the #Mesh::faces() array. Refers to a subset of Tree::prim_indices_. */
   Span<int> face_indices_;
-  int node_idx_ = -1;
 
   /**
    * Array of indices into the mesh's vertex array. Contains the indices of all vertices used by
@@ -258,10 +257,6 @@ class Tree {
 
  public:
   std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
-  Vector<int> node_unique_offsets;
-  Vector<int> node_all_offsets;
-  OffsetIndices<int> node_unique_offset_indices;
-  OffsetIndices<int> node_all_offset_indices;
   pixels::PBVHData *pixels_ = nullptr;
 
   std::unique_ptr<DrawCache> draw_data;
@@ -628,7 +623,6 @@ void node_update_visibility_grids(const BitGroupVector<> &grid_hidden, GridsNode
 void node_update_visibility_bmesh(BMeshNode &node);
 
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
-void update_node_bounds_mesh(Span<float3> positions, MeshNode &node, Tree &pbvh);
 void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
 

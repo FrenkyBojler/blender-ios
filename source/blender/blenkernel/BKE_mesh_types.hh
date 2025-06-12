@@ -132,16 +132,19 @@ struct BVHNodeOffsets {
   Vector<int> group_unique_offsets;
   Vector<int> group_all_offsets;
   Vector<int> group_face_offsets;
-  Vector<int> new_face_order;
+  Vector<int> parent_offsets;
+  Vector<int> children_offsets;
 
   BVHNodeOffsets(Vector<int> unique_offsets,
                  Vector<int> all_offsets,
                  Vector<int> face_offsets,
-                 Vector<int> new_face_order)
+                 Vector<int> parent_offsets,
+                 Vector<int> children_offsets)
       : group_unique_offsets(std::move(unique_offsets)),
         group_all_offsets(std::move(all_offsets)),
         group_face_offsets(std::move(face_offsets)),
-        new_face_order(std::move(new_face_order))
+        parent_offsets(std::move(parent_offsets)),
+        children_offsets(std::move(children_offsets))
   {
   }
 };
