@@ -1,1 +1,2 @@
 Referenced by issue #125759, Deprecate and Remove Big-Endian Support
+Referenced by commit 18635b604cff72300b34ebabf9ffcd9bb01a31f3, Fix missing update for `blender_theme_as_c` script after BE removal.
