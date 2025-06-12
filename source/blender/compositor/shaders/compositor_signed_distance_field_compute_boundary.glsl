@@ -25,7 +25,7 @@ void main()
       const int2 offset = int2(i, j);
 
       /* Exempt the center pixel. */
-      if (offset == int2(0)) {
+      if (all(equal(offset, int2(0)))) {
         continue;
       }
 
