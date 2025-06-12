@@ -449,6 +449,8 @@ struct uiHandleButtonData {
   int draglasty = 0;
   int dragstartx = 0;
   int dragstarty = 0;
+  blender::float2 relative_drag = {0.0f, 0.0f};
+
   bool dragchange = false;
   bool draglock = false;
   int dragsel = 0;
@@ -7087,10 +7089,6 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
 
-  /* When `use_continuous_grab` or `shift` is `true`, #mval stores the HSV cursor positon as mouse
-   * position to make delta movements within the circe, otherwise uses the real mouse position. */
-  static float mval[2];
-
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
   if (is_begin) {
@@ -7100,18 +7098,19 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     if (shift) {
       float hsvo[3], rgbo[3];
 
-      /* calculate original hsv again */
+      /* Get original hsv. */
       copy_v3_v3(hsvo, hsv);
       copy_v3_v3(rgbo, data->origvec);
       ui_scene_linear_to_perceptual_space(but, rgbo);
       ui_color_picker_rgb_to_hsv_compat(rgbo, hsvo);
 
-      /* and original position */
-      ui_hsvcircle_pos_from_vals(cpicker, &rect, hsvo, &mval[0], &mval[1]);
+      /* Get original color pick position within the circle. */
+      ui_hsvcircle_pos_from_vals(
+          cpicker, &rect, hsvo, &data->relative_drag[0], &data->relative_drag[1]);
     }
     else {
-      mval[0] = mx;
-      mval[1] = my;
+      data->relative_drag[0] = mx;
+      data->relative_drag[1] = my;
     }
   }
 
@@ -7122,27 +7121,27 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
 
   if (use_continuous_grab || shift) {
     const float fac = ui_mouse_scale_warp_factor(shift);
-    mval[0] = (mx - float(data->draglastx)) * fac + mval[0];
-    mval[1] = (my - float(data->draglasty)) * fac + mval[1];
+    data->relative_drag[0] += (mx - float(data->draglastx)) * fac;
+    data->relative_drag[1] += (my - float(data->draglasty)) * fac;
 
     const float radius = min_ff(BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect)) / 2.0f;
     const float cent[2] = {BLI_rctf_cent_x(&but->rect), BLI_rctf_cent_y(&but->rect)};
-    const float len = len_v2v2(cent, mval);
+    const float len = len_v2v2(cent, data->relative_drag);
 
     if (len > radius) {
-      dist_ensure_v2_v2fl(mval, cent, radius);
+      dist_ensure_v2_v2fl(data->relative_drag, cent, radius);
     }
   }
   else {
-    mval[0] = mx;
-    mval[1] = my;
+    data->relative_drag[0] = mx;
+    data->relative_drag[1] = my;
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
   if (use_continuous_grab) {
     /* OK but can go outside bounds */
-    data->ungrab_mval[0] = mval[0];
-    data->ungrab_mval[1] = mval[1];
+    data->ungrab_mval[0] = data->relative_drag[0];
+    data->ungrab_mval[1] = data->relative_drag[1];
   }
 #endif
   /* exception, when using color wheel in 'locked' value state:
@@ -7161,7 +7160,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
 
-  ui_hsvcircle_vals_from_pos(&rect, mval[0], mval[1], hsv, hsv + 1);
+  ui_hsvcircle_vals_from_pos(&rect, data->relative_drag[0], data->relative_drag[1], hsv, hsv + 1);
 
   if ((cpicker->use_color_cubic) && (U.color_picker_type == USER_CP_CIRCLE_HSV)) {
     hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
