@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_common_color_utils.glsl"
+#include "gpu_shader_compositor_texture_utilities.glsl"
 
 /* A Quadratic Polynomial smooth minimum function *without* normalization, based on:
  *
@@ -64,41 +65,52 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(imageSize(output_img));
 
-  float4 color;
+  float4 color = float4(0.0f);
 
-  switch (1) {
-    case 0: {  // High
+  switch (quality_setting) {
+    case 0: {  /* High */
+      color = texture_load(input_tx, texel);
+      break;
+    }
+
+    /* Medium Quality:
+     * A single-stage bilinear interpolation is applied using the texture
+     * function. This function takes normalized texture coordinates (i.e., mapped to [0,1]) and
+     * returns the interpolated color value. */
+    case 1: {  /* Medium */
+      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(imageSize(output_img));
       color = texture(input_tx, normalized_coordinates);
       break;
     }
-    case 1: {  // Medium
-      color = texture(input_tx, normalized_coordinates);
-      break;
-    }
-    case 2: {  // Low
-      float2 normalized_coordinates_1 = (float2(texel) + float2(0.25f)) /
-                                        float2(imageSize(output_img));
-      float4 color_1 = texture(input_tx, normalized_coordinates_1);
 
-      float2 normalized_coordinates_2 = (float2(texel) + float2(0.75f, 0.25)) /
+    /* Low Quality:
+     * A two-stage bilinear interpolation approach is used to approximate smoother results.
+     * In the first stage, four samples are taken at fractional offsets around the texel
+     * center using texture. Each of these samples is a bilinearly
+     * interpolated color. In the second stage, the final color is computed as the average of
+     * these four interpolated values. */
+    case 2: {  /* Low */
+      float2 upper_left_coordinates = (float2(texel) + float2(0.25f)) /
                                         float2(imageSize(output_img));
-      float4 color_2 = texture(input_tx, normalized_coordinates_2);
+      float4 upper_left_color = texture(input_tx, upper_left_coordinates);
 
-      float2 normalized_coordinates_3 = (float2(texel) + float2(0.25f, 0.75)) /
+      float2 upper_right_coordinates = (float2(texel) + float2(0.75f, 0.25)) /
                                         float2(imageSize(output_img));
-      float4 color_3 = texture(input_tx, normalized_coordinates_3);
+      float4 upper_right_color = texture(input_tx, upper_right_coordinates);
 
-      float2 normalized_coordinates_4 = (float2(texel) + float2(0.75f)) /
+      float2 lower_left_coordinates = (float2(texel) + float2(0.25f, 0.75)) /
                                         float2(imageSize(output_img));
-      float4 color_4 = texture(input_tx, normalized_coordinates_4);
+      float4 lower_left_color = texture(input_tx, lower_left_coordinates);
 
-      color = (color_1 + color_2 + color_3 + color_4) / 4.0f;
+      float2 lower_right_coordinates = (float2(texel) + float2(0.75f)) /
+                                        float2(imageSize(output_img));
+      float4 lower_right_color = texture(input_tx, lower_right_coordinates);
+
+      color = (upper_left_color + upper_right_color + lower_left_color + lower_right_color) / 4.0f;
       break;
     }
   }
-  /* rgb_to_hsv(texture(input_tx, normalized_coordinates), hsva); */
 
   float4 hsva;
   rgb_to_hsv(color, hsva);

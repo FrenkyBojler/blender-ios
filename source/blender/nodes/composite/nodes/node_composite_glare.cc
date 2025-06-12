@@ -316,6 +316,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
     GPU_shader_uniform_1f(shader, "highlights_smoothness", this->get_highlights_smoothness());
     GPU_shader_uniform_1f(shader, "max_brightness", this->get_maximum_brightness());
+    GPU_shader_uniform_1f(shader, "quality_setting", node_storage(bnode()).quality);
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
@@ -347,38 +348,52 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
+    const int quality = node_storage(bnode()).quality;
+
     parallel_for(highlights_size, [&](const int2 texel) {
-      float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
+      float4 color = float4(0.0f);
 
-      float4 color;
-
-      switch (node_storage(bnode()).quality) {
-        case 0: {  // High
+      switch (quality) {
+        case 0: { /* High */
           color = input.load_pixel<float4>(texel);
           break;
         }
-        case 1: {  // Medium
+
+        /* Medium Quality:
+         * A single-stage bilinear interpolation is applied using the sample_bilinear_extended
+         * function. This function takes normalized texture coordinates (i.e., mapped to [0,1]) and
+         * returns the interpolated color value. */
+        case 1: { /* Medium */
+          float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
           color = input.sample_bilinear_extended(normalized_coordinates);
           break;
         }
-        case 2: {  // Low
-          float2 normalized_coordinates_1 = (float2(texel) + float2(0.25f)) /
-                                            float2(highlights_size);
-          float4 color_1 = input.sample_bilinear_extended(normalized_coordinates_1);
 
-          float2 normalized_coordinates_2 = (float2(texel) + float2(0.75f, 0.25)) /
-                                            float2(highlights_size);
-          float4 color_2 = input.sample_bilinear_extended(normalized_coordinates_2);
+          /* Low Quality:
+           * A two-stage bilinear interpolation approach is used to approximate smoother results.
+           * In the first stage, four samples are taken at fractional offsets around the texel
+           * center using sample_bilinear_extended. Each of these samples is a bilinearly
+           * interpolated color. In the second stage, the final color is computed as the average of
+           * these four interpolated values. */
+        case 2: { /* Low */
+          float2 upper_left_coordinates = (float2(texel) + float2(0.25f)) /
+                                          float2(highlights_size);
+          float4 upper_left_color = input.sample_bilinear_extended(upper_left_coordinates);
 
-          float2 normalized_coordinates_3 = (float2(texel) + float2(0.25f, 0.75)) /
-                                            float2(highlights_size);
-          float4 color_3 = input.sample_bilinear_extended(normalized_coordinates_3);
+          float2 upper_right_coordinates = (float2(texel) + float2(0.75f, 0.25)) /
+                                           float2(highlights_size);
+          float4 upper_right_color = input.sample_bilinear_extended(upper_right_coordinates);
 
-          float2 normalized_coordinates_4 = (float2(texel) + float2(0.75f)) /
-                                            float2(highlights_size);
-          float4 color_4 = input.sample_bilinear_extended(normalized_coordinates_4);
+          float2 lower_left_coordinates = (float2(texel) + float2(0.25f, 0.75)) /
+                                          float2(highlights_size);
+          float4 lower_left_color = input.sample_bilinear_extended(lower_left_coordinates);
 
-          color = (color_1 + color_2 + color_3 + color_4) / 4.0f;
+          float2 lower_right_coordinates = (float2(texel) + float2(0.75f)) /
+                                           float2(highlights_size);
+          float4 lower_right_color = input.sample_bilinear_extended(lower_right_coordinates);
+
+          color = (upper_left_color + upper_right_color + lower_left_color + lower_right_color) /
+                  4.0f;
           break;
         }
       }
