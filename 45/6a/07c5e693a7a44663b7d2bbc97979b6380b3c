@@ -1,3 +1,4 @@
 Referenced by issue #109399, Blender LTS: Maintenance Task 3.6
 Referenced by issue #137870, ASAN-reported heap buffer overflows resulting from missing file loading checks
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
+Referenced by pull request #140297, Improve Blender resilience to blendfile DNA data corruption.
