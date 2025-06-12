@@ -502,8 +502,7 @@ struct UVGroups {
 
     /* Now, count and set the index for the corners being transformed. */
     this->sd_len = 0;
-    BLI_assert_msg(tc->sorted_index_map,
-                   "TransformContainer should have a valid sorted_index_map");
+    BLI_assert(tc->sorted_index_map);
     for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
       TransData *td = &tc->data[i];
       if (!(td->flag & TD_SELECTED)) {
@@ -841,8 +840,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     /* First we just need to "clean up" the neighboring loops.
      * This way we can identify where a group of sliding edges starts and where it ends. */
-    BLI_assert_msg(tc->sorted_index_map,
-                   "TransformContainer should have a valid sorted_index_map");
+    BLI_assert(tc->sorted_index_map);
     for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
       TransData *td = &tc->data[i];
       if (!(td->flag & TD_SELECTED)) {

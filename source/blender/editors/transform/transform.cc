@@ -1952,8 +1952,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         continue;
       }
 
-      BLI_assert_msg(tc->sorted_index_map,
-                     "TransformContainer should have a valid sorted_index_map");
+      BLI_assert(tc->sorted_index_map);
       const int first_selected_index = tc->sorted_index_map[0];
       TransData *td = &tc->data[first_selected_index];
       if (td->flag & TD_SELECTED) {

@@ -234,8 +234,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
   /* Count number of selected. */
   int td_table_len = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    BLI_assert_msg(tc->sorted_index_map,
-                   "TransformContainer should have a valid sorted_index_map");
+    BLI_assert(tc->sorted_index_map);
     for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
       TransData *td = &tc->data[i];
       if (td->flag & TD_SELECTED) {
@@ -258,8 +257,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   int td_table_index = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    BLI_assert_msg(tc->sorted_index_map,
-                   "TransformContainer should have a valid sorted_index_map");
+    BLI_assert(tc->sorted_index_map);
     for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
       TransData *td = &tc->data[i];
       if (td->flag & TD_SELECTED) {

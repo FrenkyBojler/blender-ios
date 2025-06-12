@@ -1374,8 +1374,7 @@ void tranform_snap_target_median_calc(const TransInfo *t, float r_median[3])
     float v[3];
     zero_v3(v);
 
-    BLI_assert_msg(tc->sorted_index_map,
-                   "TransformContainer should have a valid sorted_index_map");
+    BLI_assert(tc->sorted_index_map);
     for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
       TransData *td = &tc->data[i];
       if (!(td->flag & TD_SELECTED)) {
@@ -1465,8 +1464,7 @@ static void snap_source_closest_fn(TransInfo *t)
     /* Object mode. */
     if (t->options & CTX_OBJECT) {
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        BLI_assert_msg(tc->sorted_index_map,
-                       "TransformContainer should have a valid sorted_index_map");
+        BLI_assert(tc->sorted_index_map);
         for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
           TransData *td = &tc->data[i];
           if (!(td->flag & TD_SELECTED)) {
@@ -1525,8 +1523,7 @@ static void snap_source_closest_fn(TransInfo *t)
     }
     else {
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        BLI_assert_msg(tc->sorted_index_map,
-                       "TransformContainer should have a valid sorted_index_map");
+        BLI_assert(tc->sorted_index_map);
         for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
           TransData *td = &tc->data[i];
           if (!(td->flag & TD_SELECTED)) {

@@ -2161,7 +2161,7 @@ Array<TransDataVertSlideVert> transform_mesh_vert_slide_data_create(
     const TransDataContainer *tc, Vector<float3> &r_loc_dst_buffer)
 {
   int td_selected_len = 0;
-  BLI_assert_msg(tc->sorted_index_map, "TransformContainer should have a valid sorted_index_map");
+  BLI_assert(tc->sorted_index_map);
   for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
     TransData *td = &tc->data[i];
     if (!(td->flag & TD_SELECTED)) {
@@ -2297,7 +2297,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_edge_slide_data_create(const TransD
   /* Ensure valid selection. */
   BMIter iter;
   BMVert *v;
-  BLI_assert_msg(tc->sorted_index_map, "TransformContainer should have a valid sorted_index_map");
+  BLI_assert(tc->sorted_index_map);
   for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
     TransData *td = &tc->data[i];
     if (!(td->flag & TD_SELECTED)) {
