@@ -150,10 +150,10 @@ class DisplaceOperation : public NodeOperation {
     const int2 size = domain.size;
 
     if (interpolation == Interpolation::Anisotropic) {
-      compute_anisotropic(size, image, output, input_displacement, x_scale, y_scale);
+      this->compute_anisotropic(size, image, output, input_displacement, x_scale, y_scale);
     }
     else {
-      compute_interpolation(
+      this->compute_interpolation(
           interpolation, size, image, output, input_displacement, x_scale, y_scale);
     }
   }
