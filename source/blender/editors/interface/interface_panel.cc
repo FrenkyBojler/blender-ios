@@ -2526,9 +2526,9 @@ static int ui_handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
-static void ui_panel_region_width_set(ARegion *region, const float aspect, int unscale_size)
+static void ui_panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
 {
-  const float size_new = unscale_size / aspect;
+  const float size_new = unscaled_size / aspect;
   if (region->alignment & RGN_ALIGN_RIGHT) {
     region->winrct.xmin = region->winrct.xmax - (size_new * UI_SCALE_FAC);
   }
@@ -2574,21 +2574,20 @@ int ui_handler_panel_region(bContext *C,
       if (pc_dyn) {
         const bool already_active = STREQ(pc_dyn->idname,
                                           UI_panel_category_active_get(region, false));
+        UI_panel_category_active_set(region, pc_dyn->idname);
+
         const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                              (BLI_rcti_size_y(&region->v2d.mask) + 1);
         const bool too_narrow = BLI_rcti_size_x(&region->winrct) <=
                                 int(std::ceil(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC /
                                               aspect));
-
-        UI_panel_category_active_set(region, pc_dyn->idname);
-
         if (too_narrow) {
-          /* Enlarge. */
+          /* Enlarge region. */
           ui_panel_region_width_set(region, aspect, 250.0f);
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
         else if (already_active) {
-          /* Minimize. */
+          /* Minimize region. */
           ui_panel_region_width_set(region, aspect, UI_PANEL_CATEGORY_MIN_WIDTH);
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
