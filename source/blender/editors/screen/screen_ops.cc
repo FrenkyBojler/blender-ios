@@ -66,6 +66,7 @@
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
 #include "ED_sequencer.hh"
+#include "ED_space_graph.hh"
 #include "ED_view3d.hh"
 
 #include "RNA_access.hh"
@@ -1495,7 +1496,7 @@ static void area_dupli_fn(bScreen * /*screen*/, ScrArea *area, void *user_data)
   ScrArea *area_src = static_cast<ScrArea *>(user_data);
   ED_area_data_copy(area, area_src, true);
   ED_area_tag_redraw(area);
-};
+}
 
 /* operator callback */
 static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 position)
@@ -1752,7 +1753,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      const int x1 = area->winx - (AREAMINX * UI_SCALE_FAC);
+      const int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
         *bigger = min_ii(*bigger, x1);
@@ -3331,24 +3332,45 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \name Jump to Key-Frame Operator
  * \{ */
 
-/* function to be called outside UI context, or for redo */
-static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+static void keylist_from_dopesheet(bContext &C, AnimKeylist &keylist)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
-  bDopeSheet ads = {nullptr};
-  const bool next = RNA_boolean_get(op->ptr, "next");
-  bool done = false;
+  bAnimContext ac;
 
-  /* sanity checks */
-  if (scene == nullptr) {
-    return OPERATOR_CANCELLED;
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
+  }
+  BLI_assert(ac.area->spacetype == SPACE_ACTION);
+  summary_to_keylist(&ac, &keylist, 0, {-FLT_MAX, FLT_MAX});
+}
+
+static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+    return;
   }
 
-  const float cfra = BKE_scene_frame_get(scene);
+  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  /* Initialize binary-tree-list for getting keyframes. */
-  AnimKeylist *keylist = ED_keylist_create();
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+    if (!fcu->bezt) {
+      continue;
+    }
+
+    const bool use_nla_mapping = true;
+    fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+}
+
+/* This is used for all editors where a more specific function isn't implemented. */
+static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+{
+  bDopeSheet ads = {nullptr};
+  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3357,27 +3379,62 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   /* populate tree with keyframe nodes */
-  scene_to_keylist(&ads, scene, keylist, 0, {-FLT_MAX, FLT_MAX});
+  scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
+  Object *ob = CTX_data_active_object(&C);
   if (ob) {
-    ob_to_keylist(&ads, ob, keylist, 0, {-FLT_MAX, FLT_MAX});
+    ob_to_keylist(&ads, ob, &keylist, 0, {-FLT_MAX, FLT_MAX});
 
     if (ob->type == OB_GREASE_PENCIL) {
       const bool active_layer_only = !(scene->flag & SCE_KEYS_NO_SELONLY);
       grease_pencil_data_block_to_keylist(
-          nullptr, static_cast<const GreasePencil *>(ob->data), keylist, 0, active_layer_only);
+          nullptr, static_cast<const GreasePencil *>(ob->data), &keylist, 0, active_layer_only);
     }
   }
 
   {
-    Mask *mask = CTX_data_edit_mask(C);
+    Mask *mask = CTX_data_edit_mask(&C);
     if (mask) {
       MaskLayer *masklay = BKE_mask_layer_active(mask);
-      mask_to_keylist(&ads, masklay, keylist);
+      mask_to_keylist(&ads, masklay, &keylist);
     }
   }
+}
+
+/* function to be called outside UI context, or for redo */
+static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  const bool next = RNA_boolean_get(op->ptr, "next");
+  bool done = false;
+
+  /* sanity checks */
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  AnimKeylist *keylist = ED_keylist_create();
+
+  ScrArea *area = CTX_wm_area(C);
+  switch (area ? eSpace_Type(area->spacetype) : SPACE_EMPTY) {
+    case SPACE_ACTION: {
+      keylist_from_dopesheet(*C, *keylist);
+      break;
+    }
+
+    case SPACE_GRAPH:
+      keylist_from_graph_editor(*C, *keylist);
+      break;
+
+    default:
+      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      break;
+  }
+
+  /* Initialize binary-tree-list for getting keyframes. */
   ED_keylist_prepare_for_direct_access(keylist);
 
+  const float cfra = BKE_scene_frame_get(scene);
   /* find matching keyframe in the right direction */
   const ActKeyColumn *ak;
 
@@ -3428,8 +3485,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 
 static bool keyframe_jump_poll(bContext *C)
 {
-  /* There is a keyframe jump operator specifically for the Graph Editor. */
-  return operator_screenactive_norender(C) && !ED_operator_graphedit_active(C);
+  return operator_screenactive_norender(C);
 }
 
 static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
@@ -4441,7 +4497,7 @@ static void SCREEN_OT_area_join(wmOperatorType *ot)
   ot->description = "Join selected areas into new window";
   ot->idname = "SCREEN_OT_area_join";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = area_join_exec;
   ot->invoke = area_join_invoke;
   ot->modal = area_join_modal;
@@ -4495,76 +4551,62 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
 
   /* Vertical Split */
   PointerRNA ptr;
-  uiItemFullO(layout,
-              "SCREEN_OT_area_split",
-              IFACE_("Vertical Split"),
-              ICON_SPLIT_VERTICAL,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &ptr);
+  ptr = layout->op("SCREEN_OT_area_split",
+                   IFACE_("Vertical Split"),
+                   ICON_SPLIT_VERTICAL,
+                   WM_OP_INVOKE_DEFAULT,
+                   UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_V);
 
   /* Horizontal Split */
-  uiItemFullO(layout,
-              "SCREEN_OT_area_split",
-              IFACE_("Horizontal Split"),
-              ICON_SPLIT_HORIZONTAL,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &ptr);
+  ptr = layout->op("SCREEN_OT_area_split",
+                   IFACE_("Horizontal Split"),
+                   ICON_SPLIT_HORIZONTAL,
+                   WM_OP_INVOKE_DEFAULT,
+                   UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
 
   if (sa1 && sa2) {
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* Join needs two very similar areas. */
   if (sa1 && sa2) {
     eScreenDir dir = area_getorientation(sa1, sa2);
     if (dir != SCREEN_DIR_NONE) {
-      uiItemFullO(layout,
-                  "SCREEN_OT_area_join",
-                  ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Up") : IFACE_("Join Right"),
-                  ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_UP : ICON_AREA_JOIN,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_NONE,
-                  &ptr);
+      ptr = layout->op("SCREEN_OT_area_join",
+                       ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Up") :
+                                                               IFACE_("Join Right"),
+                       ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_UP : ICON_AREA_JOIN,
+                       WM_OP_EXEC_DEFAULT,
+                       UI_ITEM_NONE);
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
 
-      uiItemFullO(
-          layout,
+      ptr = layout->op(
           "SCREEN_OT_area_join",
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Down") : IFACE_("Join Left"),
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_DOWN : ICON_AREA_JOIN_LEFT,
-          nullptr,
           WM_OP_EXEC_DEFAULT,
-          UI_ITEM_NONE,
-          &ptr);
+          UI_ITEM_NONE);
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
 
-      uiItemS(layout);
+      layout->separator();
     }
   }
 
   /* Swap just needs two areas. */
   if (sa1 && sa2) {
-    uiItemFullO(layout,
-                "SCREEN_OT_area_swap",
-                IFACE_("Swap Areas"),
-                ICON_AREA_SWAP,
-                nullptr,
-                WM_OP_EXEC_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
+    ptr = layout->op("SCREEN_OT_area_swap",
+                     IFACE_("Swap Areas"),
+                     ICON_AREA_SWAP,
+                     WM_OP_EXEC_DEFAULT,
+                     UI_ITEM_NONE);
     RNA_int_set_array(&ptr, "cursor", event->xy);
   }
 
@@ -4580,7 +4622,7 @@ static void SCREEN_OT_area_options(wmOperatorType *ot)
   ot->description = "Operations for splitting and merging";
   ot->idname = "SCREEN_OT_area_options";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_area_options_invoke;
 
   ot->poll = ED_operator_screen_mainwinactive;
@@ -4624,7 +4666,7 @@ static void SCREEN_OT_spacedata_cleanup(wmOperatorType *ot)
   ot->description = "Remove unused settings for invisible editors";
   ot->idname = "SCREEN_OT_spacedata_cleanup";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = spacedata_cleanup_exec;
   ot->poll = WM_operator_winactive;
 }
@@ -4672,7 +4714,7 @@ static void SCREEN_OT_repeat_last(wmOperatorType *ot)
   ot->description = "Repeat last action";
   ot->idname = "SCREEN_OT_repeat_last";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = repeat_last_exec;
 
   ot->poll = repeat_history_poll;
@@ -4705,12 +4747,9 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
        lastop = lastop->prev, i--)
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
-      uiItemIntO(layout,
-                 WM_operatortype_name(lastop->type, lastop->ptr).c_str(),
-                 ICON_NONE,
-                 op->type->idname,
-                 "index",
-                 i);
+      PointerRNA op_ptr = layout->op(
+          op->type, WM_operatortype_name(lastop->type, lastop->ptr), ICON_NONE);
+      RNA_int_set(&op_ptr, "index", i);
     }
   }
 
@@ -4742,7 +4781,7 @@ static void SCREEN_OT_repeat_history(wmOperatorType *ot)
   ot->description = "Display menu for previous actions performed";
   ot->idname = "SCREEN_OT_repeat_history";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = repeat_history_invoke;
   ot->exec = repeat_history_exec;
   ot->poll = repeat_history_poll;
@@ -4776,7 +4815,7 @@ static void SCREEN_OT_redo_last(wmOperatorType *ot)
   ot->description = "Display parameters for last action performed";
   ot->idname = "SCREEN_OT_redo_last";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = redo_last_invoke;
   ot->poll = repeat_history_poll;
 }
@@ -4947,7 +4986,7 @@ static void SCREEN_OT_region_quadview(wmOperatorType *ot)
   ot->description = "Split selected area into camera, front, right, and top views";
   ot->idname = "SCREEN_OT_region_quadview";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_quadview_exec;
   ot->poll = ED_operator_region_view3d_active;
   ot->flag = 0;
@@ -4999,7 +5038,7 @@ static void SCREEN_OT_region_toggle(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_toggle";
   ot->description = "Hide or unhide the region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_toggle_exec;
   ot->poll = region_toggle_poll;
   ot->flag = 0;
@@ -5067,7 +5106,7 @@ static void SCREEN_OT_region_flip(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_flip";
   ot->description = "Toggle the region's alignment (left/right or top/bottom)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = region_flip_exec;
   ot->poll = region_flip_poll;
   ot->flag = 0;
@@ -5097,9 +5136,9 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Expand/Collapse Header Menus";
   ot->idname = "SCREEN_OT_header_toggle_menus";
-  ot->description = "Expand or collapse the header pulldown menus";
+  ot->description = "Expand or collapse the header pull-down menus";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = header_toggle_menus_exec;
   ot->poll = ED_operator_areaactive;
   ot->flag = 0;
@@ -5119,37 +5158,30 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 
   PointerRNA ptr;
 
-  uiItemFullO(layout,
-              "SCREEN_OT_area_join",
-              IFACE_("Move/Split Area"),
-              ICON_AREA_DOCK,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &ptr);
+  ptr = layout->op("SCREEN_OT_area_join",
+                   IFACE_("Move/Split Area"),
+                   ICON_AREA_DOCK,
+                   WM_OP_INVOKE_DEFAULT,
+                   UI_ITEM_NONE);
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout,
-          area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-          ICON_NONE,
-          "SCREEN_OT_screen_full_area");
+  layout->op("SCREEN_OT_screen_full_area",
+             area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+             ICON_NONE);
 
   if (area->spacetype != SPACE_FILE && !area->full) {
-    uiItemFullO(layout,
-                "SCREEN_OT_screen_full_area",
-                IFACE_("Full Screen Area"),
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &ptr);
+    ptr = layout->op("SCREEN_OT_screen_full_area",
+                     IFACE_("Full Screen Area"),
+                     ICON_NONE,
+                     WM_OP_INVOKE_DEFAULT,
+                     UI_ITEM_NONE);
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  uiItemO(layout, std::nullopt, ICON_NONE, "SCREEN_OT_area_dupli");
-  uiItemS(layout);
-  uiItemO(layout, std::nullopt, ICON_X, "SCREEN_OT_area_close");
+  layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
+  layout->separator();
+  layout->op("SCREEN_OT_area_close", std::nullopt, ICON_X);
 }
 
 void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
@@ -5159,32 +5191,27 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
     PointerRNA ptr = RNA_pointer_create_discrete(
         (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-      uiItemR(layout, &ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
+      layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
 
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-    uiLayout *col = uiLayoutColumn(layout, false);
-    uiLayoutSetActive(col, (region_header->flag & RGN_FLAG_HIDDEN) == 0);
+    uiLayout *col = &layout->column(false);
+    col->active_set((region_header->flag & RGN_FLAG_HIDDEN) == 0);
 
     if (BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
-      uiItemR(col,
-              &ptr,
-              "show_region_tool_header",
-              UI_ITEM_NONE,
-              IFACE_("Show Tool Settings"),
-              ICON_NONE);
+      col->prop(
+          &ptr, "show_region_tool_header", UI_ITEM_NONE, IFACE_("Show Tool Settings"), ICON_NONE);
     }
 
-    uiItemO(col,
+    col->op("SCREEN_OT_header_toggle_menus",
             IFACE_("Show Menus"),
-            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT,
-            "SCREEN_OT_header_toggle_menus");
+            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT);
   }
 
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
-    uiItemS(layout);
+    layout->separator();
     ED_screens_region_flip_menu_create(C, layout, nullptr);
-    uiItemS(layout);
+    layout->separator();
     screen_area_menu_items(area, layout);
   }
 }
@@ -5196,11 +5223,11 @@ void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
         (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
-    uiItemR(layout, &ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
+    layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  uiItemS(layout);
+  layout->separator();
   screen_area_menu_items(area, layout);
 }
 
@@ -5214,34 +5241,24 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
                                                                     IFACE_("Flip to Bottom");
 
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  uiItemO(layout, but_flip_str, ICON_NONE, "SCREEN_OT_region_flip");
+  layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
 
 static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesView, &U);
-  uiItemR(
-      layout, &ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
-  uiItemR(layout,
-          &ptr,
-          "show_statusbar_scene_duration",
-          UI_ITEM_NONE,
-          IFACE_("Scene Duration"),
-          ICON_NONE);
-  uiItemR(layout, &ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
+  layout->prop(
+      &ptr, "show_statusbar_scene_duration", UI_ITEM_NONE, IFACE_("Scene Duration"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
   if (GPU_mem_stats_supported()) {
-    uiItemR(layout, &ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
+    layout->prop(&ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
   }
-  uiItemR(layout,
-          &ptr,
-          "show_extensions_updates",
-          UI_ITEM_NONE,
-          IFACE_("Extensions Updates"),
-          ICON_NONE);
-  uiItemR(
-      layout, &ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
+  layout->prop(
+      &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
+  layout->prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
 }
 
 static wmOperatorStatus screen_context_menu_invoke(bContext *C,
@@ -5273,11 +5290,15 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
       uiLayout *layout = UI_popup_menu_layout(pup);
+
+      /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
+      layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+      layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
+
       ED_screens_region_flip_menu_create(C, layout, nullptr);
       const ScrArea *area = CTX_wm_area(C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
-        uiItemMenuF(
-            layout, IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+        layout->menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       }
       UI_popup_menu_end(C, pup);
     }
@@ -5293,7 +5314,7 @@ static void SCREEN_OT_region_context_menu(wmOperatorType *ot)
   ot->description = "Display region context menu";
   ot->idname = "SCREEN_OT_region_context_menu";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_context_menu_invoke;
 }
 
@@ -5467,8 +5488,7 @@ static void screen_animation_region_tag_redraw(
     }
 
     if (area->spacetype == SPACE_SEQ) {
-      const SpaceSeq *sseq = static_cast<const SpaceSeq *>(area->spacedata.first);
-      if (!blender::ed::vse::has_playback_animation(sseq, scene)) {
+      if (!blender::ed::vse::has_playback_animation(scene)) {
         return;
       }
     }
@@ -5692,7 +5712,7 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
   ot->description = "Step through animation by position";
   ot->idname = "SCREEN_OT_animation_step";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = screen_animation_step_invoke;
 
   ot->poll = operator_screenactive_norender;
@@ -5834,7 +5854,7 @@ static void SCREEN_OT_animation_play(wmOperatorType *ot)
   ot->description = "Play animation";
   ot->idname = "SCREEN_OT_animation_play";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_animation_play_exec;
 
   ot->poll = operator_screenactive_norender;
@@ -5884,7 +5904,7 @@ static void SCREEN_OT_animation_cancel(wmOperatorType *ot)
   ot->description = "Cancel animation, returning to the original frame";
   ot->idname = "SCREEN_OT_animation_cancel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_animation_cancel_exec;
 
   ot->poll = ED_operator_screenactive;
@@ -5944,7 +5964,7 @@ static void SCREEN_OT_box_select(wmOperatorType *ot)
   ot->name = "Box Select";
   ot->idname = "SCREEN_OT_box_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = box_select_exec;
   ot->invoke = WM_gesture_box_invoke;
   ot->modal = WM_gesture_box_modal;
@@ -5995,7 +6015,7 @@ static void SCREEN_OT_back_to_previous(wmOperatorType *ot)
   ot->description = "Revert back to the original screen layout, before fullscreen area overlay";
   ot->idname = "SCREEN_OT_back_to_previous";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fullscreen_back_exec;
   ot->poll = ED_operator_screenactive;
 }
@@ -6070,7 +6090,7 @@ static std::string userpref_show_get_description(bContext *C,
       return fmt::format(fmt::runtime(TIP_("Show {} preferences")), section_name);
     }
   }
-  /* Fallback to default. */
+  /* Fall back to default. */
   return "";
 }
 
@@ -6083,7 +6103,7 @@ static void SCREEN_OT_userpref_show(wmOperatorType *ot)
   ot->description = "Edit user preferences and system settings";
   ot->idname = "SCREEN_OT_userpref_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = userpref_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
   ot->get_description = userpref_show_get_description;
@@ -6182,7 +6202,7 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
   ot->description = "Show drivers editor in a separate window";
   ot->idname = "SCREEN_OT_drivers_editor_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = drivers_editor_show_exec;
   ot->poll = ED_operator_screenactive_nobackground; /* Not in background as this opens a window. */
 }
@@ -6236,7 +6256,7 @@ static void SCREEN_OT_info_log_show(wmOperatorType *ot)
   ot->description = "Show info log in a separate window";
   ot->idname = "SCREEN_OT_info_log_show";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = info_log_show_exec;
   ot->poll = ED_operator_screenactive_nobackground;
 }
@@ -6268,7 +6288,7 @@ static void SCREEN_OT_new(wmOperatorType *ot)
   ot->description = "Add a new screen";
   ot->idname = "SCREEN_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_new_exec;
   ot->poll = WM_operator_winactive;
 }
@@ -6297,7 +6317,7 @@ static void SCREEN_OT_delete(wmOperatorType *ot)
   ot->description = "Delete active screen";
   ot->idname = "SCREEN_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = screen_delete_exec;
 }
 
@@ -6445,7 +6465,7 @@ static void SCREEN_OT_region_blend(wmOperatorType *ot)
   ot->idname = "SCREEN_OT_region_blend";
   ot->description = "Blend in and out overlapping region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = region_blend_invoke;
 
   /* flags */
@@ -6513,7 +6533,7 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
   ot->description = "Set the space type or cycle subtype";
   ot->idname = "SCREEN_OT_space_type_set_or_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = space_type_set_or_cycle_exec;
   ot->poll = space_type_set_or_cycle_poll;
 
@@ -6595,7 +6615,7 @@ static void SCREEN_OT_space_context_cycle(wmOperatorType *ot)
   ot->description = "Cycle through the editor context by activating the next/previous one";
   ot->idname = "SCREEN_OT_space_context_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = space_context_cycle_invoke;
   ot->poll = space_context_cycle_poll;
 
@@ -6661,7 +6681,7 @@ static void SCREEN_OT_workspace_cycle(wmOperatorType *ot)
   ot->description = "Cycle through workspaces";
   ot->idname = "SCREEN_OT_workspace_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = space_workspace_cycle_invoke;
   ot->poll = ED_operator_screenactive;
 

@@ -43,6 +43,7 @@ set(SRC_OSL
   node_point_info.osl
   node_scatter_volume.osl
   node_absorption_volume.osl
+  node_volume_coefficients.osl
   node_principled_volume.osl
   node_holdout.osl
   node_hsv.osl
@@ -115,6 +116,7 @@ set(SRC_OSL
 file(GLOB SRC_OSL_HEADER_DIST ${OSL_SHADER_DIR}/*.h)
 
 set(SRC_OSL_HEADERS
+  int_vector_types.h
   node_color.h
   node_color_blend.h
   node_fractal_voronoi.h

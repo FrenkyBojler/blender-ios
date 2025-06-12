@@ -158,7 +158,7 @@ class AnimDataConvertor {
    * destination ID.
    *
    * \note All paths here are relative the their respective (source or destination) root path.
-   * \note If this array is empty, all FCurves starting with `root_path_source` will be 'rebased'
+   * \note If this array is empty, all FCurves starting with `root_path_source` will be "rebased"
    * on `root_path_dst`.
    */
   const Array<AnimDataFCurveConvertor> fcurve_convertors;
@@ -1036,6 +1036,7 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
   BLI_assert(!grease_pencil.id.properties);
   if (gpd.id.properties) {
     grease_pencil.id.properties = IDP_CopyProperty(gpd.id.properties);
+    grease_pencil.id.system_properties = IDP_CopyProperty(gpd.id.properties);
   }
 
   /** Convert Grease Pencil data flag. */

@@ -121,7 +121,7 @@ class NWLazyMix(Operator, NWBase):
 
 
 class NWLazyConnect(Operator, NWBase):
-    """Connect two nodes without clicking a specific socket (automatically determined"""
+    """Connect two nodes without clicking a specific socket (automatically determined)"""
     bl_idname = "node.nw_lazy_connect"
     bl_label = "Lazy Connect"
     bl_options = {'REGISTER', 'UNDO'}
@@ -2223,11 +2223,13 @@ class NWSaveViewer(bpy.types.Operator, ExportHelper):
                 '.tif': 'TIFF'}
             basename, ext = path.splitext(fp)
             old_render_format = context.scene.render.image_settings.file_format
+            old_tree_type = context.space_data.tree_type
             context.scene.render.image_settings.file_format = formats[self.filename_ext]
             context.area.type = "IMAGE_EDITOR"
             context.area.spaces[0].image = bpy.data.images['Viewer Node']
             context.area.spaces[0].image.save_render(fp)
             context.area.type = "NODE_EDITOR"
+            context.space_data.tree_type = old_tree_type
             context.scene.render.image_settings.file_format = old_render_format
             return {'FINISHED'}
 

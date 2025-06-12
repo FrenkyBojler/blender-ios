@@ -15,6 +15,7 @@
 #include "scene/pass.h"
 #include "scene/scene.h"
 
+#include "session/display_driver.h"
 #include "session/tile.h"
 
 #include "util/log.h"
@@ -496,10 +497,15 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
     return;
   }
 
+  GraphicsInteropDevice interop_device;
+  if (display_) {
+    interop_device = display_->graphics_interop_get_device();
+  }
+
   Device *effective_denoise_device;
   Device *cpu_fallback_device = cpu_device_.get();
   const DenoiseParams effective_denoise_params = get_effective_denoise_params(
-      denoise_device_, cpu_fallback_device, params, effective_denoise_device);
+      denoise_device_, cpu_fallback_device, params, interop_device, effective_denoise_device);
 
   bool need_to_recreate_denoiser = false;
   if (denoiser_) {
@@ -540,7 +546,7 @@ void PathTrace::set_denoiser_params(const DenoiseParams &params)
 
   if (need_to_recreate_denoiser) {
     denoiser_ = Denoiser::create(
-        effective_denoise_device, cpu_fallback_device, effective_denoise_params);
+        effective_denoise_device, cpu_fallback_device, effective_denoise_params, interop_device);
 
     if (denoiser_) {
       /* Only take into account the "immediate" cancel to have interactive rendering responding to
@@ -648,10 +654,10 @@ void PathTrace::set_display_driver(unique_ptr<DisplayDriver> driver)
   }
 }
 
-void PathTrace::clear_display()
+void PathTrace::zero_display()
 {
   if (display_) {
-    display_->clear();
+    display_->zero();
   }
 }
 
@@ -1329,7 +1335,7 @@ string PathTrace::full_report() const
 
 void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bool reset)
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   if (guiding_params_.modified(guiding_params)) {
     guiding_params_ = guiding_params;
 
@@ -1429,7 +1435,7 @@ void PathTrace::set_guiding_params(const GuidingParams &guiding_params, const bo
 
 void PathTrace::guiding_prepare_structures()
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   const bool train = (guiding_params_.training_samples == 0) ||
                      (guiding_field_->GetIteration() < guiding_params_.training_samples);
 
@@ -1454,7 +1460,7 @@ void PathTrace::guiding_prepare_structures()
 
 void PathTrace::guiding_update_structures()
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   VLOG_WORK << "Update path guiding structures";
 
   VLOG_DEBUG << "Number of surface samples: " << guiding_sample_data_storage_->GetSizeSurface();

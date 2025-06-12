@@ -167,7 +167,7 @@ static void screen_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_SCR = {
-    /*id_code*/ ID_SCR,
+    /*id_code*/ bScreen::id_type,
     /*id_filter*/ FILTER_ID_SCR,
     /* NOTE: Can actually link to any ID type through UI (e.g. Outliner Editor).
      * This is handled separately though. */
@@ -862,7 +862,7 @@ ARegion *BKE_area_find_region_active_win(const ScrArea *area)
     return region;
   }
 
-  /* fallback to any */
+  /* fall back to any */
   return BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 }
 
@@ -877,6 +877,16 @@ ARegion *BKE_area_find_region_xy(const ScrArea *area, const int regiontype, cons
       if (BLI_rcti_isect_pt_v(&region->winrct, xy)) {
         return region;
       }
+    }
+  }
+  return nullptr;
+}
+
+ARegion *BKE_screen_find_region_type(const bScreen *screen, const int region_type)
+{
+  LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
+    if (region_type == region->regiontype) {
+      return region;
     }
   }
   return nullptr;

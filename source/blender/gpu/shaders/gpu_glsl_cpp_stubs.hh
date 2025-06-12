@@ -139,6 +139,9 @@ template<typename T, int Sz> struct VecOp {
 template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
   using VecT = VecBase<T, Sz>;
 
+  SwizzleBase() = default;
+  SwizzleBase(T) {}
+
   constexpr VecT operator=(const VecT &) RET;
   operator VecT() const RET;
 };
@@ -157,7 +160,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZ(T) \
   SWIZZLE_XY(T) \
-  SwizzleBase<T, 2> xz, yz, zx, zy, zz, zw; \
+  SwizzleBase<T, 2> xz, yz, zx, zy, zz; \
   SwizzleBase<T, 3> xxz, xyz, xzx, xzy, xzz, yxz, yyz, yzx, yzy, yzz, zxx, zxy, zxz, zyx, zyy, \
       zyz, zzx, zzy, zzz; \
   SwizzleBase<T, 4> xxxz, xxyz, xxzx, xxzy, xxzz, xyxz, xyyz, xyzx, xyzy, xyzz, xzxx, xzxy, xzxz, \
@@ -179,7 +182,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZW(T) \
   SWIZZLE_XYZ(T) \
-  SwizzleBase<T, 2> xw, yw, wx, wy, wz, ww; \
+  SwizzleBase<T, 2> xw, yw, zw, wx, wy, wz, ww; \
   SwizzleBase<T, 3> xxw, xyw, xzw, xwx, xwy, xwz, xww, yxw, yyw, yzw, ywx, ywy, ywz, yww, zxw, \
       zyw, zzw, zwx, zwy, zwz, zww, wxx, wxy, wxz, wxw, wyx, wyy, wyz, wyw, wzx, wzy, wzz, wzw, \
       wwx, wwy, wwz, www; \
@@ -511,7 +514,12 @@ RESHAPE(float3x3, float3x4, m[0].xyz, m[1].xyz, m[2].xyz)
 /** \name Sampler Types
  * \{ */
 
-template<typename T, int Dimensions, bool Cube = false, bool Array = false, bool Atomic = false>
+template<typename T,
+         int Dimensions,
+         bool Cube = false,
+         bool Array = false,
+         bool Atomic = false,
+         bool Depth = false>
 struct SamplerBase {
   static constexpr int coord_dim = Dimensions + int(Cube) + int(Array);
   static constexpr int deriv_dim = Dimensions + int(Cube);
@@ -581,10 +589,10 @@ using isampler2DAtomic = SamplerBase<int, 2, false, false, true>;
 using isampler2DArrayAtomic = SamplerBase<int, 2, false, true, true>;
 using isampler3DAtomic = SamplerBase<int, 3, false, false, true>;
 
-using depth2D = sampler2D;
-using depth2DArray = sampler2DArray;
-using depthCube = samplerCube;
-using depthCubeArray = samplerCubeArray;
+using sampler2DDepth = SamplerBase<float, 2, false, false, false, true>;
+using sampler2DArrayDepth = SamplerBase<float, 2, false, true, false, true>;
+using samplerCubeDepth = SamplerBase<float, 2, true, false, false, true>;
+using samplerCubeArrayDepth = SamplerBase<float, 2, true, true, false, true>;
 
 /* Sampler Buffers do not have LOD. */
 float4 texelFetch(samplerBuffer, int) RET;
@@ -597,7 +605,7 @@ uint4 texelFetch(usamplerBuffer, int) RET;
 /** \name Image Types
  * \{ */
 
-template<typename T, int Dimensions, bool Array = false> struct ImageBase {
+template<typename T, int Dimensions, bool Array = false, bool Atomic = false> struct ImageBase {
   static constexpr int coord_dim = Dimensions + int(Array);
 
   using int_coord_type = VecBase<int, coord_dim>;
@@ -658,6 +666,14 @@ using iimage1DArray = ImageBase<int, 1, true>;
 using iimage2DArray = ImageBase<int, 2, true>;
 using uimage1DArray = ImageBase<uint, 1, true>;
 using uimage2DArray = ImageBase<uint, 2, true>;
+
+using iimage2DAtomic = ImageBase<int, 2, false, true>;
+using iimage3DAtomic = ImageBase<int, 3, false, true>;
+using uimage2DAtomic = ImageBase<uint, 2, false, true>;
+using uimage3DAtomic = ImageBase<uint, 3, false, true>;
+
+using iimage2DArrayAtomic = ImageBase<int, 2, true, true>;
+using uimage2DArrayAtomic = ImageBase<uint, 2, true, true>;
 
 /* Forbid Cube and cube arrays. Bind them as 3D textures instead. */
 
@@ -822,12 +838,13 @@ uint floatBitsToUint(float) RET;
 float intBitsToFloat(int) RET;
 float uintBitsToFloat(uint) RET;
 
-namespace gl_FragmentShader {
 /* Derivative functions. */
-template<typename T> T dFdx(T) RET;
-template<typename T> T dFdy(T) RET;
-template<typename T> T fwidth(T) RET;
-}  // namespace gl_FragmentShader
+template<typename T> T gpu_dfdx(T) RET;
+template<typename T> T gpu_dfdy(T) RET;
+template<typename T> T gpu_fwidth(T) RET;
+
+/* Discards the output of the current fragment shader invocation and halts its execution. */
+void gpu_discard_fragment() {}
 
 /* Geometric functions. */
 template<typename T, int D> VecBase<T, D> faceforward(VecOp<T, D>, VecOp<T, D>, VecOp<T, D>) RET;
@@ -931,9 +948,6 @@ extern const uint gl_LocalInvocationIndex;
 /* Pass argument by copy (default). */
 #define in
 
-/* Discards the output of the current fragment shader invocation and halts its execution. */
-#define discard
-
 /* Decorate a variable in global scope that is common to all threads in a thread-group. */
 #define shared
 
@@ -991,7 +1005,7 @@ void groupMemoryBarrier() {}
 
 /** \} */
 
-/* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
+/* Use to suppress `-Wimplicit-fallthrough` (in place of `break`). */
 #ifndef ATTR_FALLTHROUGH
 #  ifdef __GNUC__
 #    define ATTR_FALLTHROUGH __attribute__((fallthrough))
@@ -1016,4 +1030,70 @@ void groupMemoryBarrier() {}
 
 #define GLSL_CPP_STUBS
 
+/* List of reserved keywords in GLSL. */
+#define common common_is_reserved_glsl_keyword_do_not_use
+#define partition partition_is_reserved_glsl_keyword_do_not_use
+#define active active_is_reserved_glsl_keyword_do_not_use
+#define class class_is_reserved_glsl_keyword_do_not_use
+#define union union_is_reserved_glsl_keyword_do_not_use
+// #define enum /* Supported. */
+#define typedef typedef_is_reserved_glsl_keyword_do_not_use
+// #define template /* Needed for Stubs. */
+#define this this_is_reserved_glsl_keyword_do_not_use
+#define packed packed_is_reserved_glsl_keyword_do_not_use
+#define resource resource_is_reserved_glsl_keyword_do_not_use
+#define goto goto_is_reserved_glsl_keyword_do_not_use
+// #define inline  /* Supported. */
+#define noinline noinline_is_reserved_glsl_keyword_do_not_use
+#define public public_is_reserved_glsl_keyword_do_not_use
+// #define static /* Supported. */
+// #define extern /* Needed for Stubs. */
+#define external external_is_reserved_glsl_keyword_do_not_use
+#define interface interface_is_reserved_glsl_keyword_do_not_use
+#define long long_is_reserved_glsl_keyword_do_not_use
+// #define short /* Supported. */
+// #define half /* Supported. */
+#define fixed fixed_is_reserved_glsl_keyword_do_not_use
+#define unsigned unsigned_is_reserved_glsl_keyword_do_not_use
+#define superp superp_is_reserved_glsl_keyword_do_not_use
+#define input input_is_reserved_glsl_keyword_do_not_use
+#define output output_is_reserved_glsl_keyword_do_not_use
+#define hvec2 hvec2_is_reserved_glsl_keyword_do_not_use
+#define hvec3 hvec3_is_reserved_glsl_keyword_do_not_use
+#define hvec4 hvec4_is_reserved_glsl_keyword_do_not_use
+#define fvec2 fvec2_is_reserved_glsl_keyword_do_not_use
+#define fvec3 fvec3_is_reserved_glsl_keyword_do_not_use
+#define fvec4 fvec4_is_reserved_glsl_keyword_do_not_use
+#define sampler3DRect sampler3DRect_is_reserved_glsl_keyword_do_not_use
+#define filter filter_is_reserved_glsl_keyword_do_not_use
+#define sizeof sizeof_is_reserved_glsl_keyword_do_not_use
+#define cast cast_is_reserved_glsl_keyword_do_not_use
+// #define namespace /* Needed for Stubs. */
+// #define using /* Needed for Stubs. */
+#define row_major row_major_is_reserved_glsl_keyword_do_not_use
+
+#ifdef GPU_SHADER_LIBRARY
+#  define GPU_VERTEX_SHADER
+#  define GPU_FRAGMENT_SHADER
+#  define GPU_COMPUTE_SHADER
+#endif
+
+/* Resource accessor. */
+#define specialization_constant_get(create_info, _res) _res
+#define push_constant_get(create_info, _res) _res
+#define interface_get(create_info, _res) _res
+#define attribute_get(create_info, _res) _res
+#define buffer_get(create_info, _res) _res
+#define sampler_get(create_info, _res) _res
+#define image_get(create_info, _res) _res
+
 #include "GPU_shader_shared_utils.hh"
+
+#ifdef __GNUC__
+/* Avoid warnings caused by our own unroll attributes. */
+#  ifdef __clang__
+#    pragma GCC diagnostic ignored "-Wunknown-attributes"
+#  else
+#    pragma GCC diagnostic ignored "-Wattributes"
+#  endif
+#endif

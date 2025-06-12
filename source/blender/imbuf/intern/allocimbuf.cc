@@ -28,17 +28,7 @@
 
 #include "GPU_texture.hh"
 
-static SpinLock refcounter_spin;
-
-void imb_refcounter_lock_init()
-{
-  BLI_spin_init(&refcounter_spin);
-}
-
-void imb_refcounter_lock_exit()
-{
-  BLI_spin_end(&refcounter_spin);
-}
+#include "atomic_ops.h"
 
 #ifndef WIN32
 static SpinLock mmap_spin;
@@ -171,32 +161,12 @@ auto imb_steal_buffer_data(BufferType &buffer) -> decltype(BufferType::data)
   return nullptr;
 }
 
-void IMB_free_mipmaps(ImBuf *ibuf)
-{
-  int a;
-
-  /* Do not trust ibuf->miptot, in some cases IMB_remakemipmap can leave unfreed unused levels,
-   * leading to memory leaks... */
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    if (ibuf->mipmap[a] != nullptr) {
-      IMB_freeImBuf(ibuf->mipmap[a]);
-      ibuf->mipmap[a] = nullptr;
-    }
-  }
-
-  ibuf->miptot = 0;
-}
-
 void IMB_free_float_pixels(ImBuf *ibuf)
 {
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->float_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_float_data;
 }
 
@@ -205,11 +175,7 @@ void IMB_free_byte_pixels(ImBuf *ibuf)
   if (ibuf == nullptr) {
     return;
   }
-
   imb_free_buffer(ibuf->byte_buffer);
-
-  IMB_free_mipmaps(ibuf);
-
   ibuf->flags &= ~IB_byte_data;
 }
 
@@ -250,17 +216,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
     return;
   }
 
-  bool needs_free = false;
-
-  BLI_spin_lock(&refcounter_spin);
-  if (ibuf->refcounter > 0) {
-    ibuf->refcounter--;
-  }
-  else {
-    needs_free = true;
-  }
-  BLI_spin_unlock(&refcounter_spin);
-
+  bool needs_free = atomic_sub_and_fetch_int32(&ibuf->refcounter, 1) < 0;
   if (needs_free) {
     /* Include this check here as the path may be manipulated after creation. */
     BLI_assert_msg(!(ibuf->filepath[0] == '/' && ibuf->filepath[1] == '/'),
@@ -277,9 +233,7 @@ void IMB_freeImBuf(ImBuf *ibuf)
 
 void IMB_refImBuf(ImBuf *ibuf)
 {
-  BLI_spin_lock(&refcounter_spin);
-  ibuf->refcounter++;
-  BLI_spin_unlock(&refcounter_spin);
+  atomic_add_and_fetch_int32(&ibuf->refcounter, 1);
 }
 
 ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
@@ -288,9 +242,7 @@ ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
     return nullptr;
   }
 
-  BLI_spin_lock(&refcounter_spin);
-  const bool is_single = (ibuf->refcounter == 0);
-  BLI_spin_unlock(&refcounter_spin);
+  const bool is_single = (atomic_load_int32(&ibuf->refcounter) == 0);
   if (is_single) {
     return ibuf;
   }
@@ -383,11 +335,8 @@ bool IMB_alloc_float_pixels(ImBuf *ibuf, const uint channels, bool initialize_pi
     return false;
   }
 
-  /* NOTE: Follows the historical code.
-   * Is unclear if it is desired or not to free mipmaps. If mipmaps are to be preserved a simple
-   * `imb_free_buffer(ibuf->float_buffer)` can be used instead. */
   if (ibuf->float_buffer.data) {
-    IMB_free_float_pixels(ibuf); /* frees mipmap too, hrm */
+    IMB_free_float_pixels(ibuf);
   }
 
   if (!imb_alloc_buffer(
@@ -410,8 +359,6 @@ bool IMB_alloc_byte_pixels(ImBuf *ibuf, bool initialize_pixels)
     return false;
   }
 
-  /* Don't call IMB_free_byte_pixels, it frees mipmaps,
-   * this call is used only too give float buffers display. */
   imb_free_buffer(ibuf->byte_buffer);
 
   if (!imb_alloc_buffer(
@@ -624,7 +571,7 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
 {
   ImBuf *ibuf2, tbuf;
   int flags = IB_uninitialized_pixels;
-  int a, x, y;
+  int x, y;
 
   if (ibuf1 == nullptr) {
     return nullptr;
@@ -680,12 +627,9 @@ ImBuf *IMB_dupImBuf(const ImBuf *ibuf1)
   tbuf.byte_buffer = ibuf2->byte_buffer;
   tbuf.float_buffer = ibuf2->float_buffer;
   tbuf.encoded_buffer = ibuf2->encoded_buffer;
-  for (a = 0; a < IMB_MIPMAP_LEVELS; a++) {
-    tbuf.mipmap[a] = nullptr;
-  }
   tbuf.dds_data.data = nullptr;
 
-  /* set malloc flag */
+  /* Set `malloc` flag. */
   tbuf.refcounter = 0;
 
   /* for now don't duplicate metadata */
@@ -710,7 +654,6 @@ size_t IMB_get_pixel_count(const ImBuf *ibuf)
 
 size_t IMB_get_size_in_memory(const ImBuf *ibuf)
 {
-  int a;
   size_t size = 0, channel_size = 0;
 
   size += sizeof(ImBuf);
@@ -724,14 +667,6 @@ size_t IMB_get_size_in_memory(const ImBuf *ibuf)
   }
 
   size += channel_size * IMB_get_pixel_count(ibuf) * size_t(ibuf->channels);
-
-  if (ibuf->miptot) {
-    for (a = 0; a < ibuf->miptot; a++) {
-      if (ibuf->mipmap[a]) {
-        size += IMB_get_size_in_memory(ibuf->mipmap[a]);
-      }
-    }
-  }
 
   return size;
 }

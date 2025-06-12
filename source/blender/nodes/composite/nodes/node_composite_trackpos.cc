@@ -37,7 +37,7 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>("X");
   b.add_output<decl::Float>("Y");
-  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY);
+  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY).dimensions(2);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -78,7 +78,7 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
     NodeTrackPosData *data = (NodeTrackPosData *)node->storage;
     PointerRNA tracking_ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTracking, tracking);
 
-    col = uiLayoutColumn(layout, false);
+    col = &layout->column(false);
     uiItemPointerR(col, ptr, "tracking_object", &tracking_ptr, "objects", "", ICON_OBJECT_DATA);
 
     tracking_object = BKE_tracking_object_get_named(tracking, data->tracking_object);
@@ -89,16 +89,16 @@ static void node_composit_buts_trackpos(uiLayout *layout, bContext *C, PointerRN
       uiItemPointerR(col, ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
-      uiItemR(layout, ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
+      layout->prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
 
-    uiItemR(layout, ptr, "position", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "position", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
     if (ELEM(node->custom1,
              CMP_NODE_TRACK_POSITION_RELATIVE_FRAME,
              CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME))
     {
-      uiItemR(layout, ptr, "frame_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "frame_relative", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     }
   }
 }
@@ -352,7 +352,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_trackpos_cc
 
-void register_node_type_cmp_trackpos()
+static void register_node_type_cmp_trackpos()
 {
   namespace file_ns = blender::nodes::node_composite_trackpos_cc;
 
@@ -373,3 +373,4 @@ void register_node_type_cmp_trackpos()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_trackpos)
