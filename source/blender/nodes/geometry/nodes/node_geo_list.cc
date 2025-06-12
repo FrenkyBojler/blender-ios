@@ -78,7 +78,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   evaluator.add_with_destination(std::move(field), span);
   evaluator.evaluate();
 
-  params.set_output("List", nodes::ListPtr(new List(cpp_type, std::move(array_data), count)));
+  params.set_output(
+"List", nodes::ListPtr(MEM_new<List>(__func__, cpp_type, std::move(array_data), count)));
 }
 
 static void node_rna(StructRNA *srna)
