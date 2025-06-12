@@ -29,7 +29,8 @@ class PROPERTIES_HT_header(Header):
                 space.show_properties_bone or
                 space.show_properties_bone_constraints or
                 space.show_properties_material or
-                space.show_properties_texture
+                space.show_properties_texture or
+                space.show_properties_strip
                 )
 
     def draw(self, context):
@@ -119,6 +120,7 @@ class PROPERTIES_PT_options(Panel):
         col.prop(space, "show_properties_bone_constraints")
         col.prop(space, "show_properties_material")
         col.prop(space, "show_properties_texture")
+        col.prop(space, "show_properties_strip")
 
 
 class PropertiesAnimationMixin:

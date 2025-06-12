@@ -60,6 +60,7 @@ _modules = [
     "properties_texture",
     "properties_world",
     "properties_collection",
+    "properties_strip",
     "generic_ui_list",
 
     # Generic Space Modules

@@ -343,6 +343,36 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
       }
     }
   }
+
+  /* For Video Editing template. */
+  if (STRPREFIX(workspace->id.name + 2, "Video Editing")) {
+    LISTBASE_FOREACH (WorkSpaceLayout *, layout, &workspace->layouts) {
+      bScreen *screen = layout->screen;
+      if (screen) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_SEQ) {
+              if (((SpaceSeq *)sl)->view == SEQ_VIEW_PREVIEW) {
+                continue;
+              }
+
+              ListBase *regionbase = (sl == area->spacedata.first) ? &area->regionbase :
+                                                                     &sl->regionbase;
+              ARegion *sidebar = BKE_region_find_in_listbase_by_type(regionbase, RGN_TYPE_UI);
+              sidebar->flag |= RGN_FLAG_HIDDEN;
+            }
+
+            if (sl->spacetype == SPACE_PROPERTIES) {
+              SpaceProperties *properties = reinterpret_cast<SpaceProperties *>(sl);
+              properties->visible_tabs = 1 << BCONTEXT_SCENE | 1 << BCONTEXT_RENDER |
+                                         1 << BCONTEXT_OUTPUT | 1 << BCONTEXT_STRIP;
+              properties->mainb = properties->mainbo = properties->mainbuser = BCONTEXT_STRIP;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)

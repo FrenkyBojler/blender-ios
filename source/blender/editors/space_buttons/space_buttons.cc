@@ -172,24 +172,16 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 
   /* These can be reordered freely. */
   constexpr std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
-      "show_properties_tool",
-      "show_properties_render",
-      "show_properties_output",
-      "show_properties_view_layer",
-      "show_properties_scene",
-      "show_properties_world",
-      "show_properties_collection",
-      "show_properties_object",
-      "show_properties_modifiers",
-      "show_properties_effects",
-      "show_properties_particles",
-      "show_properties_physics",
-      "show_properties_constraints",
-      "show_properties_data",
-      "show_properties_bone",
-      "show_properties_bone_constraints",
-      "show_properties_material",
-      "show_properties_texture",
+      "show_properties_tool",        "show_properties_render",
+      "show_properties_output",      "show_properties_view_layer",
+      "show_properties_scene",       "show_properties_world",
+      "show_properties_collection",  "show_properties_object",
+      "show_properties_modifiers",   "show_properties_effects",
+      "show_properties_particles",   "show_properties_physics",
+      "show_properties_constraints", "show_properties_data",
+      "show_properties_bone",        "show_properties_bone_constraints",
+      "show_properties_material",    "show_properties_texture",
+      "show_properties_strip",
   };
 
   for (blender::StringRefNull item : filter_items) {
@@ -253,6 +245,10 @@ blender::Vector<eSpaceButtons_Context> ED_buttons_tabs_list(const SpacePropertie
 
   add_tab(BCONTEXT_TEXTURE);
 
+  add_spacer();
+
+  add_tab(BCONTEXT_STRIP);
+
   return tabs;
 }
 
@@ -295,6 +291,8 @@ static const char *buttons_main_region_context_string(const short mainb)
       return "bone_constraint";
     case BCONTEXT_TOOL:
       return "tool";
+    case BCONTEXT_STRIP:
+      return "strip";
   }
 
   /* All the cases should be handled. */
@@ -756,6 +754,9 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           buttons_area_redraw(area, BCONTEXT_SCENE);
           break;
         case ND_RENDER_RESULT:
+          break;
+        case ND_SEQUENCER:
+          ED_area_tag_redraw(area);
           break;
         case ND_MODE:
         case ND_LAYER:

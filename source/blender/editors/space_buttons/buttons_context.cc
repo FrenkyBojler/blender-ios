@@ -24,6 +24,7 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
@@ -37,6 +38,8 @@
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
 #include "BKE_screen.hh"
+
+#include "SEQ_select.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -524,6 +527,29 @@ static bool buttons_context_path_texture(const bContext *C,
   return true;
 }
 
+static bool buttons_context_path_strip(ButsContextPath *path)
+{
+  PointerRNA *ptr = &path->ptr[path->len - 1];
+  /* If we already have a (pinned) strip, we're done. */
+  if (RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+    return true;
+  }
+
+  if (buttons_context_path_scene(path)) {
+    Scene *scene = static_cast<Scene *>(path->ptr[path->len - 1].data);
+    Strip *active_strip = blender::seq::select_active_get(scene);
+    if (active_strip == nullptr) {
+      return false;
+    }
+
+    path->ptr[path->len] = RNA_pointer_create_discrete(&scene->id, &RNA_Strip, active_strip);
+    path->len++;
+    return true;
+  }
+
+  return false;
+}
+
 #ifdef WITH_FREESTYLE
 static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
 {
@@ -577,7 +603,8 @@ static bool buttons_context_path(
               BCONTEXT_RENDER,
               BCONTEXT_OUTPUT,
               BCONTEXT_VIEW_LAYER,
-              BCONTEXT_WORLD))
+              BCONTEXT_WORLD,
+              BCONTEXT_STRIP))
     {
       path->ptr[path->len] = RNA_pointer_create_discrete(nullptr, &RNA_ViewLayer, view_layer);
       path->len++;
@@ -645,6 +672,9 @@ static bool buttons_context_path(
       break;
     case BCONTEXT_BONE_CONSTRAINT:
       found = buttons_context_path_pose_bone(path);
+      break;
+    case BCONTEXT_STRIP:
+      found = buttons_context_path_strip(path);
       break;
     default:
       found = false;
@@ -1194,7 +1224,7 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
-  if (!path) {
+  if (!path || sbuts->mainb == BCONTEXT_STRIP) {
     return;
   }
 
