@@ -73,8 +73,8 @@ function(add_blender_test_io testname)
 endfunction()
 
 if(WITH_UI_TESTS)
+  set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
   if(WITH_UI_TESTS_HEADLESS)
-    set(_blender_headless_env_vars "BLENDER_BIN=${TEST_BLENDER_EXE}")
 
     # Currently only WAYLAND is supported, support for others may be added later.
     # In this case none of the WESTON environment variables will be used.
@@ -104,43 +104,29 @@ if(WITH_UI_TESTS)
         )
       endif()
     endif()
-
-    function(add_blender_test_ui testname)
-      # Remove `--background` so headless execution uses a GUI
-      # (within a headless graphical environment).
-      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-      list(REMOVE_ITEM EXE_PARAMS --background)
-      add_blender_test_impl(
-        "${testname}"
-        "${_blender_headless_env_vars}"
-        "${TEST_PYTHON_EXE}"
-        "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
-        # NOTE: attempting to maximize the window causes problems with a headless `weston`,
-        # while this could be investigated, use windowed mode instead.
-        # Use a window size that balances software GPU rendering with enough room to use the UI.
-        --factory-startup
-        -p 0 0 800 600
-        "${EXE_PARAMS}"
-        "${ARGN}"
-      )
-    endfunction()
   else()
-    function(add_blender_test_ui testname)
-      # Remove `--background`
-      set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
-      list(REMOVE_ITEM EXE_PARAMS --background)
-
-      add_blender_test_impl(
-        "${testname}"
-        ""
-        "${TEST_BLENDER_EXE}"
-        --factory-startup
-        -p 0 0 800 600
-        ${EXE_PARAMS}
-        ${ARGN}
-      )
-    endfunction()
+    list(APPEND _blender_headless_env_vars
+      "PASS_THROUGH=1"
+    )
   endif()
+  function(add_blender_test_ui testname)
+    # Remove `--background`a
+    set(EXE_PARAMS ${TEST_BLENDER_EXE_PARAMS})
+    list(REMOVE_ITEM EXE_PARAMS --background)
+    add_blender_test_impl(
+      "${testname}"
+      "${_blender_headless_env_vars}"
+      "${TEST_PYTHON_EXE}"
+      "${CMAKE_SOURCE_DIR}/tests/utils/blender_headless.py"
+      # NOTE: attempting to maximize the window causes problems with a headless `weston`,
+      # while this could be investigated, use windowed mode instead.
+      # Use a window size that balances software GPU rendering with enough room to use the UI.
+      --factory-startup
+      -p 0 0 800 600
+      "${EXE_PARAMS}"
+      "${ARGN}"
+    )
+  endfunction()
 endif()
 
 # Run Python script outside Blender.
