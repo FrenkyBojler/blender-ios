@@ -372,7 +372,7 @@
     .select_thresh = 0.01f, \
  \
     .selectmode = SCE_SELECT_VERTEX, \
-    .uv_flag = UV_SYNC_SELECTION, \
+    .uv_flag = UV_FLAG_SYNC_SELECT, \
     .uv_selectmode = UV_SELECT_VERTEX, \
     .autokey_mode = AUTOKEY_MODE_NORMAL, \
  \

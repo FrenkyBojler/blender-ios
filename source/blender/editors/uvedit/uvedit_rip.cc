@@ -744,7 +744,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 
-  if (ts->uv_flag & UV_SYNC_SELECTION) {
+  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     uvedit_select_prepare_sync_select(scene, bm);
     BLI_assert(bm->uv_sync_select_valid);
   }
@@ -892,7 +892,7 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
     }
   }
   if (changed) {
-    if (ts->uv_flag & UV_SYNC_SELECTION) {
+    if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
       BM_mesh_uvselect_flush_from_loop_verts(bm);
     }
     else {
@@ -923,7 +923,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (ts->uv_flag & UV_SYNC_SELECTION) {
+  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     /* Important because in sync selection we *must* be able to de-select individual loops. */
     if (ED_uvedit_sync_uvselect_ignore(ts)) {
       BKE_report(op->reports,
@@ -949,7 +949,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  if (ts->uv_flag & UV_SYNC_SELECTION) {
+  if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
     /* While this is almost always true, any mis-match (from multiple scenes for example).
      * Will not work properly. */
     EDBM_selectmode_set_multi_ex(scene, objects, ts->selectmode);

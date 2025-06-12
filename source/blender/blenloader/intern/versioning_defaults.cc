@@ -382,7 +382,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   copy_v2_fl2(scene->safe_areas.title, 0.1f, 0.05f);
   copy_v2_fl2(scene->safe_areas.action, 0.035f, 0.035f);
 
-  ts->uv_flag |= UV_SYNC_SELECTION;
+  ts->uv_flag |= UV_FLAG_SYNC_SELECT;
 
   /* Default Rotate Increment. */
   const float default_snap_angle_increment = DEG2RADF(5.0f);
