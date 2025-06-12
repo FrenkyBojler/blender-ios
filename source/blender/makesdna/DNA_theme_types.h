@@ -108,13 +108,14 @@ typedef struct uiStyle {
 
 typedef struct uiWidgetColors {
   unsigned char outline[4];
+  unsigned char outline_sel[4];
   unsigned char inner[4];
   unsigned char inner_sel[4];
   unsigned char item[4];
   unsigned char text[4];
   unsigned char text_sel[4];
   unsigned char shaded;
-  char _pad0[7];
+  char _pad0[3];
   short shadetop, shadedown;
   float roundness;
 } uiWidgetColors;
@@ -241,10 +242,8 @@ typedef struct ThemeSpace {
   unsigned char header_text_hi[4];
 
   /* region tabs */
-  unsigned char tab_active[4];
-  unsigned char tab_inactive[4];
   unsigned char tab_back[4];
-  unsigned char tab_outline[4];
+  char _pad2[4];
 
   /* button/tool regions */
   /** Region background. */
