@@ -52,7 +52,10 @@ class VIEWLAYER_PT_layer(ViewLayerButtonsPanel, Panel):
 
 class VIEWLAYER_PT_layer_passes(ViewLayerButtonsPanel, Panel):
     bl_label = "Passes"
-    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'BLENDER_WORKBENCH',
+    }
 
     def draw(self, context):
         pass
@@ -81,6 +84,7 @@ class VIEWLAYER_PT_eevee_next_layer_passes_data(ViewLayerButtonsPanel, Panel):
         sub = col.column()
         sub.active = not scene.render.use_motion_blur
         sub.prop(view_layer, "use_pass_vector")
+        col.prop(view_layer, "use_pass_grease_pencil", text="Grease Pencil")
 
 
 class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
@@ -99,10 +103,12 @@ class VIEWLAYER_PT_workbench_layer_passes_data(ViewLayerButtonsPanel, Panel):
         col = layout.column()
         col.prop(view_layer, "use_pass_combined")
         col.prop(view_layer, "use_pass_z")
+        col.prop(view_layer, "use_pass_grease_pencil", text="Grease Pencil")
 
 
 class VIEWLAYER_PT_eevee_next_layer_passes_light(ViewLayerButtonsPanel, Panel):
     bl_label = "Light"
+    bl_translation_context = i18n_contexts.render_layer
     bl_parent_id = "VIEWLAYER_PT_layer_passes"
     COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
 
@@ -116,15 +122,15 @@ class VIEWLAYER_PT_eevee_next_layer_passes_light(ViewLayerButtonsPanel, Panel):
         view_layer_eevee = view_layer.eevee
 
         col = layout.column(heading="Diffuse", align=True)
-        col.prop(view_layer, "use_pass_diffuse_direct", text="Light")
+        col.prop(view_layer, "use_pass_diffuse_direct", text="Light", text_ctxt=i18n_contexts.render_layer)
         col.prop(view_layer, "use_pass_diffuse_color", text="Color")
 
         col = layout.column(heading="Specular", align=True)
-        col.prop(view_layer, "use_pass_glossy_direct", text="Light")
+        col.prop(view_layer, "use_pass_glossy_direct", text="Light", text_ctxt=i18n_contexts.render_layer)
         col.prop(view_layer, "use_pass_glossy_color", text="Color")
 
         col = layout.column(heading="Volume", heading_ctxt=i18n_contexts.id_id, align=True)
-        col.prop(view_layer_eevee, "use_pass_volume_direct", text="Light")
+        col.prop(view_layer_eevee, "use_pass_volume_direct", text="Light", text_ctxt=i18n_contexts.render_layer)
 
         col = layout.column(heading="Other", align=True)
         col.prop(view_layer, "use_pass_emit", text="Emission")
@@ -257,11 +263,32 @@ class VIEWLAYER_PT_filter(ViewLayerButtonsPanel, Panel):
         col.prop(view_layer, "use_solid", text="Surfaces")
         col.prop(view_layer, "use_strand", text="Curves")
         col.prop(view_layer, "use_volumes", text="Volumes")
+        col.prop(view_layer, "use_grease_pencil", text="Grease Pencil")
 
         col = layout.column(heading="Use")
         sub = col.row()
         sub.prop(view_layer, "use_motion_blur", text="Motion Blur")
         sub.active = scene.render.use_motion_blur
+
+
+class VIEWLAYER_PT_override(ViewLayerButtonsPanel, Panel):
+    bl_label = "Override"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE_NEXT',
+        'CYCLES',
+    }
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        view_layer = context.view_layer
+
+        layout.prop(view_layer, "material_override")
+        layout.prop(view_layer, "world_override")
+        layout.prop(view_layer, "samples")
 
 
 class VIEWLAYER_PT_layer_custom_props(PropertyPanel, Panel):
@@ -283,6 +310,7 @@ classes = (
     VIEWLAYER_PT_layer_passes_aov,
     VIEWLAYER_PT_layer_passes_lightgroups,
     VIEWLAYER_PT_filter,
+    VIEWLAYER_PT_override,
     VIEWLAYER_PT_layer_custom_props,
     VIEWLAYER_UL_aov,
 )

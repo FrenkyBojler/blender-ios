@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -78,6 +79,10 @@ struct BrushPainter {
   const Paint *paint;
   Brush *brush;
 
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
+  std::optional<blender::float3> initial_hsv_jitter;
+
   bool firsttouch; /* first paint op */
 
   ImagePool *pool;   /* image pool */
@@ -140,11 +145,14 @@ static BrushPainter *brush_painter_2d_new(Scene *scene,
                                           Brush *brush,
                                           bool invert)
 {
-  BrushPainter *painter = MEM_cnew<BrushPainter>(__func__);
+  BrushPainter *painter = MEM_new<BrushPainter>(__func__);
 
   painter->brush = brush;
   painter->scene = scene;
   painter->paint = paint;
+  if (BKE_brush_color_jitter_get_settings(scene, paint, brush)) {
+    painter->initial_hsv_jitter = seed_hsv_jitter();
+  }
   painter->firsttouch = true;
   painter->cache_invert = invert;
 
@@ -217,7 +225,7 @@ static ushort *brush_painter_mask_ibuf_new(BrushPainter *painter, const int size
   ushort *mask, *m;
   int x, y, thread = 0;
 
-  mask = static_cast<ushort *>(MEM_mallocN(sizeof(ushort) * size * size, __func__));
+  mask = MEM_malloc_arrayN<ushort>(size * size, __func__);
   m = mask;
 
   for (y = 0; y < size; y++) {
@@ -302,14 +310,12 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter,
 
   /* create brush image buffer if it didn't exist yet */
   if (!cache->tex_mask) {
-    cache->tex_mask = static_cast<ushort *>(
-        MEM_mallocN(sizeof(ushort) * diameter * diameter, __func__));
+    cache->tex_mask = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
   }
 
   /* create new texture image buffer with coordinates relative to old */
   tex_mask_old = cache->tex_mask_old;
-  cache->tex_mask_old = static_cast<ushort *>(
-      MEM_mallocN(sizeof(ushort) * diameter * diameter, __func__));
+  cache->tex_mask_old = MEM_malloc_arrayN<ushort>(diameter * diameter, __func__);
 
   if (tex_mask_old) {
     ImBuf maskibuf;
@@ -379,7 +385,7 @@ static ImBuf *brush_painter_imbuf_new(
   BrushPainterCache *cache = &tile->cache;
 
   const char *display_device = scene->display_settings.display_device;
-  ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+  const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
 
   rctf tex_mapping = painter->tex_mapping;
   ImagePool *pool = painter->pool;
@@ -392,13 +398,14 @@ static ImBuf *brush_painter_imbuf_new(
   float brush_rgb[3];
 
   /* allocate image buffer */
-  ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_rectfloat : IB_rect);
+  ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_float_data : IB_byte_data);
 
   /* get brush color */
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
     paint_brush_color_get(scene,
                           paint,
                           brush,
+                          painter->initial_hsv_jitter,
                           use_color_correction,
                           cache->invert,
                           distance,
@@ -470,7 +477,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   BrushPainterCache *cache = &tile->cache;
 
   const char *display_device = scene->display_settings.display_device;
-  ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+  const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
 
   rctf tex_mapping = painter->tex_mapping;
   ImagePool *pool = painter->pool;
@@ -488,8 +495,16 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
 
   /* get brush color */
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_DRAW) {
-    paint_brush_color_get(
-        scene, paint, brush, use_color_correction, cache->invert, 0.0f, 1.0f, display, brush_rgb);
+    paint_brush_color_get(scene,
+                          paint,
+                          brush,
+                          painter->initial_hsv_jitter,
+                          use_color_correction,
+                          cache->invert,
+                          0.0f,
+                          1.0f,
+                          display,
+                          brush_rgb);
   }
   else {
     brush_rgb[0] = 1.0f;
@@ -587,7 +602,7 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter,
   int imbflag, destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
 
   /* create brush image buffer if it didn't exist yet */
-  imbflag = (cache->use_float) ? IB_rectfloat : IB_rect;
+  imbflag = (cache->use_float) ? IB_float_data : IB_byte_data;
   if (!cache->ibuf) {
     cache->ibuf = IMB_allocImBuf(diameter, diameter, 32, imbflag);
   }
@@ -712,10 +727,12 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
 
   bool do_random = false;
   bool do_partial_update = false;
-  bool update_color = ((brush->flag & BRUSH_USE_GRADIENT) && (ELEM(brush->gradient_stroke_mode,
-                                                                   BRUSH_GRADIENT_SPACING_REPEAT,
-                                                                   BRUSH_GRADIENT_SPACING_CLAMP) ||
-                                                              (cache->last_pressure != pressure)));
+  bool update_color = ((brush->flag & BRUSH_USE_GRADIENT) &&
+                       (ELEM(brush->gradient_stroke_mode,
+                             BRUSH_GRADIENT_SPACING_REPEAT,
+                             BRUSH_GRADIENT_SPACING_CLAMP) ||
+                        (cache->last_pressure != pressure))) ||
+                      BKE_brush_color_jitter_get_settings(scene, painter->paint, brush);
   float tex_rotation = -brush->mtex.rot;
   float mask_rotation = -brush->mask_mtex.rot;
 
@@ -1015,7 +1032,7 @@ static void paint_2d_lift_soften(ImagePaintState *s,
       }
 
       if (count > 0.0f) {
-        mul_v4_fl(outrgb, 1.0f / float(count));
+        mul_v4_fl(outrgb, 1.0f / count);
 
         if (sharpen) {
           /* subtract blurred image from normal image gives high pass filter */
@@ -1299,13 +1316,14 @@ static int paint_2d_op(void *state,
                        const float pos[2])
 {
   ImagePaintState *s = ((ImagePaintState *)state);
+  const ImagePaintSettings &image_paint_settings = s->scene->toolsettings->imapaint;
   ImBuf *clonebuf = nullptr, *frombuf;
   ImBuf *canvas = tile->canvas;
   ImBuf *ibufb = tile->cache.ibuf;
   ImagePaintRegion region[4];
   short paint_tile = s->symmetry & (PAINT_TILE_X | PAINT_TILE_Y);
   short blend = s->blend;
-  const float *offset = s->brush->clone.offset;
+  const float *offset = image_paint_settings.clone_offset;
   float liftpos[2];
   float mask_max = BKE_brush_alpha_get(s->scene, s->brush);
   int bpos[2], blastpos[2], bliftpos[2];
@@ -1420,11 +1438,12 @@ static int paint_2d_op(void *state,
   return 1;
 }
 
-static int paint_2d_canvas_set(ImagePaintState *s)
+static int paint_2d_canvas_set(ImagePaintState *s, const Paint *paint)
 {
   /* set clone canvas */
   if (s->brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE) {
-    Image *ima = s->brush->clone.image;
+    const ImagePaintSettings &image_paint_settings = s->scene->toolsettings->imapaint;
+    Image *ima = image_paint_settings.clone;
     ImBuf *ibuf = BKE_image_acquire_ibuf(ima, nullptr, nullptr);
 
     if (!ima || !ibuf || !(ibuf->byte_buffer.data || ibuf->float_buffer.data)) {
@@ -1436,15 +1455,15 @@ static int paint_2d_canvas_set(ImagePaintState *s)
 
     /* temporarily add float rect for cloning */
     if (s->tiles[0].canvas->float_buffer.data && !s->clonecanvas->float_buffer.data) {
-      IMB_float_from_rect(s->clonecanvas);
+      IMB_float_from_byte(s->clonecanvas);
     }
     else if (!s->tiles[0].canvas->float_buffer.data && !s->clonecanvas->byte_buffer.data) {
-      IMB_rect_from_float(s->clonecanvas);
+      IMB_byte_from_float(s->clonecanvas);
     }
   }
 
   /* set masking */
-  s->do_masking = paint_use_opacity_masking(s->brush);
+  s->do_masking = paint_use_opacity_masking(s->scene, paint, s->brush);
 
   return 1;
 }
@@ -1454,7 +1473,8 @@ static void paint_2d_canvas_free(ImagePaintState *s)
   for (int i = 0; i < s->num_tiles; i++) {
     BKE_image_release_ibuf(s->image, s->tiles[i].canvas, nullptr);
   }
-  BKE_image_release_ibuf(s->brush->clone.image, s->clonecanvas, nullptr);
+  const ImagePaintSettings &image_paint_settings = s->scene->toolsettings->imapaint;
+  BKE_image_release_ibuf(image_paint_settings.clone, s->clonecanvas, nullptr);
 
   if (s->blurkernel) {
     paint_delete_blur_kernel(s->blurkernel);
@@ -1582,7 +1602,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   const Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 
-  ImagePaintState *s = MEM_cnew<ImagePaintState>(__func__);
+  ImagePaintState *s = MEM_callocN<ImagePaintState>(__func__);
 
   s->sima = CTX_wm_space_image(C);
   s->v2d = &CTX_wm_region(C)->v2d;
@@ -1606,7 +1626,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
   }
 
   s->num_tiles = BLI_listbase_count(&s->image->tiles);
-  s->tiles = MEM_cnew_array<ImagePaintTile>(s->num_tiles, __func__);
+  s->tiles = MEM_calloc_arrayN<ImagePaintTile>(s->num_tiles, __func__);
   for (int i = 0; i < s->num_tiles; i++) {
     s->tiles[i].iuser = sima->iuser;
   }
@@ -1646,7 +1666,7 @@ void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
     s->tiles[tile_idx].uv_origin[1] = ((tile->tile_number - 1001) / 10);
   }
 
-  if (!paint_2d_canvas_set(s)) {
+  if (!paint_2d_canvas_set(s, paint)) {
     MEM_freeN(s->tiles);
 
     MEM_freeN(s);
@@ -1712,7 +1732,7 @@ void paint_2d_stroke_done(void *ps)
   for (int i = 0; i < s->num_tiles; i++) {
     brush_painter_cache_2d_free(&s->tiles[i].cache);
   }
-  MEM_freeN(s->painter);
+  MEM_delete(s->painter);
   MEM_freeN(s->tiles);
   paint_brush_exit_tex(s->brush);
 
@@ -1838,15 +1858,14 @@ void paint_2d_bucket_fill(const bContext *C,
   }
 
   do_float = (ibuf->float_buffer.data != nullptr);
-  /* first check if our image is float. If it is not we should correct the color to
-   * be in gamma space. strictly speaking this is not correct, but blender does not paint
-   * byte images in linear space */
+  /* First check if our image is float. If it is we should correct the color to be in linear space.
+   */
   if (!do_float) {
-    linearrgb_to_srgb_uchar3((uchar *)&color_b, color);
+    rgb_float_to_uchar((uchar *)&color_b, color);
     *(((char *)&color_b) + 3) = strength * 255;
   }
   else {
-    copy_v3_v3(color_f, color);
+    srgb_to_linearrgb_v3_v3(color_f, color);
     color_f[3] = strength;
   }
 
@@ -1880,7 +1899,6 @@ void paint_2d_bucket_fill(const bContext *C,
     BLI_bitmap *touched;
     size_t coordinate;
     int width = ibuf->x;
-    int minx = ibuf->x, miny = ibuf->y, maxx = 0, maxy = 0;
     float pixel_color[4];
     /* We are comparing to sum of three squared values
      * (assumed in range [0,1]), so need to multiply... */
@@ -1943,19 +1961,6 @@ void paint_2d_bucket_fill(const bContext *C,
             x_px + 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
         paint_2d_fill_add_pixel_float(
             x_px + 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-
-        if (x_px > maxx) {
-          maxx = x_px;
-        }
-        if (x_px < minx) {
-          minx = x_px;
-        }
-        if (y_px > maxy) {
-          maxy = y_px;
-        }
-        if (x_px > miny) {
-          miny = y_px;
-        }
       }
     }
     else {
@@ -1987,19 +1992,6 @@ void paint_2d_bucket_fill(const bContext *C,
             x_px + 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
         paint_2d_fill_add_pixel_byte(
             x_px + 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-
-        if (x_px > maxx) {
-          maxx = x_px;
-        }
-        if (x_px < minx) {
-          minx = x_px;
-        }
-        if (y_px > maxy) {
-          maxy = y_px;
-        }
-        if (x_px > miny) {
-          miny = y_px;
-        }
       }
     }
 

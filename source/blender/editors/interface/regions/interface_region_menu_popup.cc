@@ -44,6 +44,7 @@
 #include "interface_regions_intern.hh"
 
 using blender::StringRef;
+using blender::StringRefNull;
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -126,7 +127,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
   }
 
   /* get */
-  LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
+  for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
@@ -135,7 +136,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
     }
     if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & UI_BUT_HAS_SEP_CHAR))
     {
-      return but_iter;
+      return but_iter.get();
     }
   }
 
@@ -184,7 +185,7 @@ static void ui_popup_menu_create_block(bContext *C,
 {
   const uiStyle *style = UI_style_get_dpi();
 
-  pup->block = UI_block_begin(C, nullptr, block_name, UI_EMBOSS_PULLDOWN);
+  pup->block = UI_block_begin(C, nullptr, block_name, blender::ui::EmbossType::Pulldown);
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
@@ -208,7 +209,7 @@ static void ui_popup_menu_create_block(bContext *C,
   const wmOperatorCallContext opcontext = pup->but ? WM_OP_INVOKE_REGION_WIN :
                                                      WM_OP_EXEC_REGION_WIN;
 
-  uiLayoutSetOperatorContext(pup->layout, opcontext);
+  pup->layout->operator_context_set(opcontext);
 
   if (pup->but) {
     if (pup->but->context) {
@@ -232,9 +233,9 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
       pup->block->handle = nullptr;
     }
 
-    if (uiLayoutGetUnitsX(pup->layout) != 0.0f) {
+    if (pup->layout->ui_units_x() != 0.0f) {
       /* Use the minimum width from the layout if it's set. */
-      minwidth = uiLayoutGetUnitsX(pup->layout) * UI_UNIT_X;
+      minwidth = pup->layout->ui_units_x() * UI_UNIT_X;
     }
 
     pup->layout = nullptr;
@@ -317,16 +318,16 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         /* position mouse at 0.8*width of the button and below the tile
          * on the first item */
         offset[0] = 0;
-        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
+        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
           offset[0] = min_ii(offset[0],
                              -(but_iter->rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter->rect)));
         }
 
         offset[1] = 2.1 * UI_UNIT_Y;
 
-        LISTBASE_FOREACH (uiBut *, but_iter, &block->buttons) {
-          if (ui_but_is_editable(but_iter)) {
-            but_activate = but_iter;
+        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+          if (ui_but_is_editable(but_iter.get())) {
+            but_activate = but_iter.get();
             break;
           }
         }
@@ -462,7 +463,7 @@ static void create_title_button(uiLayout *layout, const char *title, int icon)
     but->drawflag = UI_BUT_TEXT_LEFT;
   }
 
-  uiItemS(layout);
+  layout->separator();
 }
 
 uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
@@ -477,7 +478,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
   ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
-  pup->block->handle = MEM_cnew<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   if (title[0]) {
     create_title_button(pup->layout, title, icon);
@@ -529,7 +530,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     return true;
   }
   UI_block_layout_resolve(pup->block, nullptr, nullptr);
-  MEM_freeN(pup->block->handle);
+  MEM_delete(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
   return false;
@@ -573,7 +574,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
       layout = UI_popup_menu_layout(pup);
     }
     else {
-      uiItemS(layout);
+      layout->separator();
     }
 
     /* split each newline into a label */
@@ -587,7 +588,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
         BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
         msg = buf;
       }
-      uiItemL(layout, msg, icon);
+      layout->label(msg, icon);
       icon = ICON_NONE;
     } while ((msg = msg_next) && *msg);
   }
@@ -628,7 +629,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
   }
 }
 
-int UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
+wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
 {
   MenuType *mt = WM_menutype_find(idname, true);
 
@@ -785,25 +786,21 @@ void UI_popup_block_template_confirm(uiBlock *block,
 
 void UI_popup_block_template_confirm_op(uiLayout *layout,
                                         wmOperatorType *ot,
-                                        const char *confirm_text,
-                                        const char *cancel_text,
+                                        const std::optional<StringRef> confirm_text_opt,
+                                        const std::optional<StringRef> cancel_text_opt,
                                         const int icon,
                                         bool cancel_default,
                                         PointerRNA *r_ptr)
 {
   uiBlock *block = uiLayoutGetBlock(layout);
 
-  if (confirm_text == nullptr) {
-    confirm_text = IFACE_("OK");
-  }
-  if (cancel_text == nullptr) {
-    cancel_text = IFACE_("Cancel");
-  }
+  const StringRef confirm_text = confirm_text_opt.value_or(IFACE_("OK"));
+  const StringRef cancel_text = cancel_text_opt.value_or(IFACE_("Cancel"));
 
   /* Use a split so both buttons are the same size. */
-  const bool show_confirm = confirm_text[0] != '\0';
-  const bool show_cancel = cancel_text[0] != '\0';
-  uiLayout *row = (show_confirm && show_cancel) ? uiLayoutSplit(layout, 0.5f, false) : layout;
+  const bool show_confirm = !confirm_text.is_empty();
+  const bool show_cancel = !cancel_text.is_empty();
+  uiLayout *row = (show_confirm && show_cancel) ? &layout->split(0.5f, false) : layout;
 
   /* When only one button is shown, make it default. */
   if (!show_confirm) {
@@ -815,20 +812,13 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
       return nullptr;
     }
     uiBlock *block = uiLayoutGetBlock(row);
-    const uiBut *but_ref = (uiBut *)block->buttons.last;
-    uiItemFullO_ptr(row,
-                    ot,
-                    confirm_text,
-                    icon,
-                    nullptr,
-                    uiLayoutGetOperatorContext(row),
-                    UI_ITEM_NONE,
-                    r_ptr);
+    const uiBut *but_ref = block->last_but();
+    *r_ptr = row->op(ot, confirm_text, icon, row->operator_context(), UI_ITEM_NONE);
 
-    if (but_ref == block->buttons.last) {
+    if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
       return nullptr;
     }
-    return static_cast<uiBut *>(block->buttons.last);
+    return block->buttons.last().get();
   };
 
   auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> uiBut * {

@@ -15,7 +15,7 @@ from bpy.app.translations import (
     pgettext_rpt as rpt_,
 )
 from bl_ui.utils import PresetPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_physics_common import (
     point_cache_ui,
@@ -95,6 +95,7 @@ class PARTICLE_MT_context_menu(Menu):
             "particle.duplicate_particle_system",
             icon='DUPLICATE',
         )
+        layout.operator("particle.particle_system_remove_all", text="Remove All Particle Systems")
 
 
 class PARTICLE_PT_hair_dynamics_presets(PresetPanel, Panel):
@@ -184,8 +185,10 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel, Panel):
         if ob:
             row = layout.row()
 
-            row.template_list("PARTICLE_UL_particle_systems", "particle_systems", ob, "particle_systems",
-                              ob.particle_systems, "active_index", rows=3)
+            row.template_list(
+                "PARTICLE_UL_particle_systems", "particle_systems", ob, "particle_systems",
+                ob.particle_systems, "active_index", rows=3,
+            )
 
             col = row.column(align=True)
             col.operator("object.particle_system_add", icon='ADD', text="")
@@ -1132,7 +1135,7 @@ class PARTICLE_PT_physics_fluid_interaction(ParticleButtonsPanel, Panel):
         row = layout.row()
         row.template_list(
             "UI_UL_list", "particle_targets", psys, "targets",
-                          psys, "active_particle_target_index", rows=4,
+            psys, "active_particle_target_index", rows=4,
         )
 
         col = row.column()

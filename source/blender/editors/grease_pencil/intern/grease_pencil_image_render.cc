@@ -2,28 +2,28 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_grease_pencil.hh"
 #include "BLI_color.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_vector.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_camera.h"
 #include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_image.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 
-#include "BLI_math_vector.hh"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
 
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_primitive.hh"
-#include "GPU_shader_builtin.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -31,9 +31,12 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
+#include "GPU_primitive.hh"
+#include "GPU_shader_builtin.hh"
 #include "GPU_shader_shared.hh"
 #include "GPU_state.hh"
 #include "GPU_texture.hh"
+#include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_format.hh"
 
 namespace blender::ed::greasepencil::image_render {
@@ -43,7 +46,10 @@ constexpr const bool enable_debug_gpu_capture = true;
 
 RegionViewData region_init(ARegion &region, const int2 &win_size)
 {
-  const RegionViewData data = {int2{region.winx, region.winy}, region.winrct};
+  RegionView3D &rv3d = *static_cast<RegionView3D *>(region.regiondata);
+
+  const RegionViewData data = {
+      int2{region.winx, region.winy}, region.winrct, ED_view3d_mats_rv3d_backup(&rv3d)};
 
   /* Resize region. */
   region.winrct.xmin = 0;
@@ -58,9 +64,14 @@ RegionViewData region_init(ARegion &region, const int2 &win_size)
 
 void region_reset(ARegion &region, const RegionViewData &data)
 {
-  region.winx = data.region_winsize.x;
-  region.winy = data.region_winsize.y;
-  region.winrct = data.region_winrct;
+  RegionView3D &rv3d = *static_cast<RegionView3D *>(region.regiondata);
+
+  region.winx = data.winsize.x;
+  region.winy = data.winsize.y;
+  region.winrct = data.winrct;
+
+  ED_view3d_mats_rv3d_restore(&rv3d, data.rv3d_store);
+  ED_view3D_mats_rv3d_free(data.rv3d_store);
 }
 
 GPUOffScreen *image_render_begin(const int2 &win_size)
@@ -71,7 +82,7 @@ GPUOffScreen *image_render_begin(const int2 &win_size)
 
   char err_out[256] = "unknown";
   GPUOffScreen *offscreen = GPU_offscreen_create(
-      win_size.x, win_size.y, true, GPU_RGBA8, GPU_TEXTURE_USAGE_HOST_READ, err_out);
+      win_size.x, win_size.y, true, GPU_RGBA8, GPU_TEXTURE_USAGE_HOST_READ, false, err_out);
   if (offscreen == nullptr) {
     return nullptr;
   }
@@ -95,7 +106,7 @@ Image *image_render_end(Main &bmain, GPUOffScreen *buffer)
   GPU_matrix_pop();
 
   const int2 win_size = {GPU_offscreen_width(buffer), GPU_offscreen_height(buffer)};
-  const uint imb_flag = IB_rect;
+  const uint imb_flag = IB_byte_data;
   ImBuf *ibuf = IMB_allocImBuf(win_size.x, win_size.y, 32, imb_flag);
   if (ibuf->float_buffer.data) {
     GPU_offscreen_read_color(buffer, GPU_DATA_FLOAT, ibuf->float_buffer.data);
@@ -104,7 +115,7 @@ Image *image_render_end(Main &bmain, GPUOffScreen *buffer)
     GPU_offscreen_read_color(buffer, GPU_DATA_UBYTE, ibuf->byte_buffer.data);
   }
   if (ibuf->float_buffer.data && ibuf->byte_buffer.data) {
-    IMB_rect_from_float(ibuf);
+    IMB_byte_from_float(ibuf);
   }
 
   Image *ima = BKE_image_add_from_imbuf(&bmain, ibuf, "Grease Pencil Fill");
@@ -210,9 +221,11 @@ void draw_dot(const float4x4 &transform,
               const ColorGeometry4f &color)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint attr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  uint attr_size = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
-  uint attr_color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  uint attr_pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint attr_size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  uint attr_color = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
@@ -233,9 +246,10 @@ void draw_polyline(const float4x4 &transform,
                    const float line_width)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  const uint attr_pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   GPU_line_width(line_width);
@@ -305,11 +319,11 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
   /* Format is matching shader manual load. Keep in sync with #GreasePencilStrokeData.
    * Only the name of the first attribute is important. */
   const uint attr_pos = GPU_vertformat_attr_add(
-      format, "gp_vert_data", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      format, "gp_vert_data", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_thickness = GPU_vertformat_attr_add(
-      format, "thickness", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+      format, "thickness", blender::gpu::VertAttrType::SFLOAT_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_GPENCIL_STROKE);
   GPUUniformBuf *ubo = create_shader_ubo(rv3d, win_size, object, cap_start, cap_end, fill_stroke);
@@ -366,7 +380,7 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
 
     /* TODO(fclem): get rid of this dummy VBO. */
     GPUVertFormat format = {0};
-    GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+    GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
     blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(*vbo, 1);
 
@@ -397,10 +411,12 @@ static void draw_dots(const float4x4 &transform,
   }
 
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint attr_size = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  const uint attr_pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint attr_size = GPU_vertformat_attr_add(
+      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
   GPU_program_point_size(true);
@@ -449,9 +465,10 @@ void draw_circles(const float4x4 &transform,
   };
 
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  const uint attr_pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
 
   const float scale = math::average(math::to_scale(transform));
 
@@ -515,9 +532,10 @@ void draw_lines(const float4x4 &transform,
                 float line_width)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint attr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  const uint attr_pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const uint attr_color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   GPU_line_width(line_width);
@@ -568,7 +586,8 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
       "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int8_t> stroke_end_caps = *attributes.lookup_or_default<int8_t>(
       "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
-  const VArray<int> materials = *attributes.lookup<int>("material_index", bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Curve, 0);
 
   /* Note: Serial loop without GrainSize, since immediate mode drawing can't happen in worker
    * threads, has to be from the main thread. */

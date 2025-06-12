@@ -5,8 +5,6 @@
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_mesh.hh"
 
-#include "UI_resources.hh"
-
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -15,9 +13,11 @@ namespace blender::nodes::node_geo_mesh_subdivide_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Int>("Level").default_value(1).min(0).max(6);
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
 
 #ifdef WITH_OPENSUBDIV
@@ -58,9 +58,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 #ifdef WITH_OPENSUBDIV
   /* See CCGSUBSURF_LEVEL_MAX for max limit. */
-  const int level = clamp_i(params.extract_input<int>("Level"), 0, 11);
+  const int level = std::max(params.extract_input<int>("Level"), 0);
   if (level == 0) {
     params.set_output("Mesh", std::move(geometry_set));
+    return;
+  }
+  /* At this limit, a subdivided single triangle would be too large to be stored in #Mesh. */
+  if (level >= 16) {
+    params.error_message_add(NodeWarningType::Error, TIP_("The subdivision level is too large"));
+    params.set_default_remaining_outputs();
     return;
   }
 
@@ -80,10 +86,16 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_SUBDIVIDE_MESH, "Subdivide Mesh", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeSubdivideMesh", GEO_NODE_SUBDIVIDE_MESH);
+  ntype.ui_name = "Subdivide Mesh";
+  ntype.ui_description =
+      "Divide mesh faces into smaller ones without changing the shape or volume, using linear "
+      "interpolation to place the new vertices";
+  ntype.enum_name_legacy = "SUBDIVIDE_MESH";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

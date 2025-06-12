@@ -10,9 +10,10 @@
 
 #include "BLI_assert.h"
 #include "BLI_linklist.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -37,7 +38,6 @@
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "COM_algorithm_extract_alpha.hh"
 #include "COM_node_operation.hh"
@@ -96,7 +96,7 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
 
   /* Replace if types don't match. */
   if (sock && sock->type != type) {
-    blender::bke::node_remove_socket(ntree, node, sock);
+    blender::bke::node_remove_socket(*ntree, *node, *sock);
     sock = nullptr;
   }
 
@@ -108,10 +108,10 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
     }
     else {
       sock = blender::bke::node_add_static_socket(
-          ntree, node, SOCK_OUT, type, PROP_NONE, name, name);
+          *ntree, *node, SOCK_OUT, type, PROP_NONE, name, name);
     }
     /* extra socket info */
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
   }
 
@@ -127,6 +127,34 @@ static void cmp_node_image_add_pass_output(bNodeTree *ntree,
   BLI_insertlinkafter(&node->outputs, after_sock, sock);
 
   BLI_linklist_append(available_sockets, sock);
+}
+
+static eNodeSocketDatatype socket_type_from_pass(const RenderPass *pass)
+{
+  switch (pass->channels) {
+    case 1:
+      return SOCK_FLOAT;
+    case 2:
+    case 3:
+      if (STR_ELEM(pass->chan_id, "RGB", "rgb")) {
+        return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
+      }
+    case 4:
+      if (STR_ELEM(pass->chan_id, "RGBA", "rgba")) {
+        return SOCK_RGBA;
+      }
+      else {
+        return SOCK_VECTOR;
+      }
+    default:
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return SOCK_FLOAT;
 }
 
 static void cmp_node_image_create_outputs(bNodeTree *ntree,
@@ -158,14 +186,7 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree,
 
       if (rl) {
         LISTBASE_FOREACH (RenderPass *, rpass, &rl->passes) {
-          eNodeSocketDatatype type;
-          if (rpass->channels == 1) {
-            type = SOCK_FLOAT;
-          }
-          else {
-            type = SOCK_RGBA;
-          }
-
+          const eNodeSocketDatatype type = socket_type_from_pass(rpass);
           cmp_node_image_add_pass_output(ntree,
                                          node,
                                          rpass->name,
@@ -289,8 +310,7 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
     if (engine_type && engine_type->update_render_passes) {
       ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&scene->view_layers, node->custom1);
       if (view_layer) {
-        RLayerUpdateData *data = (RLayerUpdateData *)MEM_mallocN(sizeof(RLayerUpdateData),
-                                                                 "render layer update data");
+        RLayerUpdateData *data = MEM_mallocN<RLayerUpdateData>("render layer update data");
         data->available_sockets = available_sockets;
         data->prev_index = -1;
         node->storage = data;
@@ -307,6 +327,11 @@ static void cmp_node_rlayer_create_outputs(bNodeTree *ntree,
         {
           node_cmp_rlayers_register_pass(
               ntree, node, scene, view_layer, RE_PASSNAME_FREESTYLE, SOCK_RGBA);
+        }
+
+        if (view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS) {
+          node_cmp_rlayers_register_pass(
+              ntree, node, scene, view_layer, RE_PASSNAME_GREASE_PENCIL, SOCK_RGBA);
         }
 
         MEM_freeN(data);
@@ -368,7 +393,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
     sock_next = sock->next;
     if (BLI_linklist_index(available_sockets.list, sock) >= 0) {
       sock->flag &= ~SOCK_HIDDEN;
-      blender::bke::node_set_socket_availability(ntree, sock, true);
+      blender::bke::node_set_socket_availability(*ntree, *sock, true);
     }
     else {
       bNodeLink *link;
@@ -378,11 +403,11 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node, bool rl
         }
       }
       if (!link && (!rlayer || sock_index >= NUM_LEGACY_SOCKETS)) {
-        MEM_freeN(sock->storage);
-        blender::bke::node_remove_socket(ntree, node, sock);
+        MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
+        blender::bke::node_remove_socket(*ntree, *node, *sock);
       }
       else {
-        blender::bke::node_set_socket_availability(ntree, sock, false);
+        blender::bke::node_set_socket_availability(*ntree, *sock, false);
       }
     }
   }
@@ -404,7 +429,7 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
 
 static void node_composit_init_image(bNodeTree *ntree, bNode *node)
 {
-  ImageUser *iuser = MEM_cnew<ImageUser>(__func__);
+  ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -418,10 +443,10 @@ static void node_composit_free_image(bNode *node)
 {
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    MEM_freeN(sock->storage);
+    MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
   }
 
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<ImageUser *>(node->storage));
 }
 
 static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
@@ -440,7 +465,7 @@ static void node_composit_copy_image(bNodeTree * /*dst_ntree*/,
   }
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class ImageOperation : public NodeOperation {
  public:
@@ -449,6 +474,10 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!is_socket_available(output)) {
+        continue;
+      }
+
       compute_output(output->identifier);
     }
   }
@@ -473,6 +502,7 @@ class ImageOperation : public NodeOperation {
       extract_alpha(context(), cached_image, result);
     }
     else {
+      result.set_type(cached_image.type());
       result.set_precision(cached_image.precision());
       result.wrap_external(cached_image);
     }
@@ -503,23 +533,28 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_image_cc
 
-void register_node_type_cmp_image()
+static void register_node_type_cmp_image()
 {
   namespace file_ns = blender::nodes::node_composite_image_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_IMAGE, "Image", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeImage", CMP_NODE_IMAGE);
+  ntype.ui_name = "Image";
+  ntype.ui_description = "Input image or movie file";
+  ntype.enum_name_legacy = "IMAGE";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = file_ns::node_composit_init_image;
   blender::bke::node_type_storage(
-      &ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
+      ntype, "ImageUser", file_ns::node_composit_free_image, file_ns::node_composit_copy_image);
   ntype.updatefunc = file_ns::cmp_node_image_update;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   ntype.labelfunc = node_image_label;
   ntype.flag |= NODE_PREVIEW;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_image)
 
 /* **************** RENDER RESULT ******************** */
 
@@ -552,7 +587,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
   for (bNodeSocket *sock = (bNodeSocket *)node->outputs.first; sock;
        sock = sock->next, sock_index++)
   {
-    NodeImageLayer *sockdata = MEM_cnew<NodeImageLayer>(__func__);
+    NodeImageLayer *sockdata = MEM_callocN<NodeImageLayer>(__func__);
     sock->storage = sockdata;
 
     STRNCPY(sockdata->pass_name, node_cmp_rlayers_sock_to_pass(sock_index));
@@ -571,11 +606,11 @@ static bool node_composit_poll_rlayers(const blender::bke::bNodeType * /*ntype*/
   Scene *scene;
 
   /* XXX ugly: check if ntree is a local scene node tree.
-   * Render layers node can only be used in local `scene->nodetree`,
+   * Render layers node can only be used in local `scene->compositing_node_group`,
    * since it directly links to the scene.
    */
   for (scene = (Scene *)G.main->scenes.first; scene; scene = (Scene *)scene->id.next) {
-    if (scene->nodetree == ntree) {
+    if (scene->compositing_node_group == ntree) {
       break;
     }
   }
@@ -593,7 +628,7 @@ static void node_composit_free_rlayers(bNode *node)
   /* free extra socket info */
   LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
     if (sock->storage) {
-      MEM_freeN(sock->storage);
+      MEM_freeN(reinterpret_cast<NodeImageLayer *>(sock->storage));
     }
   }
 }
@@ -631,9 +666,9 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
     return;
   }
 
-  col = uiLayoutColumn(layout, false);
-  row = uiLayoutRow(col, true);
-  uiItemR(row, ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  col = &layout->column(false);
+  row = &col->row(true);
+  row->prop(ptr, "layer", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "layer");
   const char *layer_name;
@@ -646,20 +681,13 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   scn_ptr = RNA_pointer_get(ptr, "scene");
   RNA_string_get(&scn_ptr, "name", scene_name);
 
-  PointerRNA op_ptr;
-  uiItemFullO(row,
-              "RENDER_OT_render",
-              "",
-              ICON_RENDER_STILL,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  PointerRNA op_ptr = row->op(
+      "RENDER_OT_render", "", ICON_RENDER_STILL, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class RenderLayerOperation : public NodeOperation {
  public:
@@ -685,6 +713,10 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
+      if (!is_socket_available(output)) {
+        continue;
+      }
+
       if (STR_ELEM(output->identifier, "Image", "Alpha")) {
         continue;
       }
@@ -694,10 +726,10 @@ class RenderLayerOperation : public NodeOperation {
         continue;
       }
 
-      this->context().populate_meta_data_for_pass(
-          scene, view_layer, output->identifier, result.meta_data);
+      const char *pass_name = this->get_pass_name(output->identifier);
+      this->context().populate_meta_data_for_pass(scene, view_layer, pass_name, result.meta_data);
 
-      const Result pass = this->context().get_pass(scene, view_layer, output->identifier);
+      const Result pass = this->context().get_pass(scene, view_layer, pass_name);
       this->execute_pass(pass, result);
     }
   }
@@ -716,6 +748,13 @@ class RenderLayerOperation : public NodeOperation {
       return;
     }
 
+    /* Vector sockets are 3D by default, so we need to overwrite the type if the pass turned out to
+     * be 4D. */
+    if (result.type() == ResultType::Float3 && pass.type() == ResultType::Float4) {
+      result.set_type(pass.type());
+    }
+    result.set_precision(pass.precision());
+
     if (this->context().use_gpu()) {
       this->execute_pass_gpu(pass, result);
     }
@@ -726,8 +765,6 @@ class RenderLayerOperation : public NodeOperation {
 
   void execute_pass_gpu(const Result &pass, Result &result)
   {
-    result.set_precision(pass.precision());
-
     GPUShader *shader = this->context().get_shader(this->get_shader_name(pass, result),
                                                    result.precision());
     GPU_shader_bind(shader);
@@ -760,14 +797,15 @@ class RenderLayerOperation : public NodeOperation {
     switch (pass.type()) {
       case ResultType::Float:
         return "compositor_read_input_float";
-      case ResultType::Vector:
-        return "compositor_read_input_vector";
-      case ResultType::Color:
-        return "compositor_read_input_color";
       case ResultType::Float3:
-        return "compositor_read_input_vector";
-      default:
-        /* Other types are internal and needn't be handled by operations. */
+      case ResultType::Color:
+      case ResultType::Float4:
+        return "compositor_read_input_float4";
+      case ResultType::Int:
+      case ResultType::Int2:
+      case ResultType::Float2:
+      case ResultType::Bool:
+        /* Not supported. */
         break;
     }
 
@@ -787,14 +825,21 @@ class RenderLayerOperation : public NodeOperation {
     /* Special case for alpha output. */
     if (pass.type() == ResultType::Color && result.type() == ResultType::Float) {
       parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel(texel, float4(pass.load_pixel(texel + lower_bound).w));
+        result.store_pixel(texel, pass.load_pixel<float4>(texel + lower_bound).w);
       });
     }
     else {
       parallel_for(result.domain().size, [&](const int2 texel) {
-        result.store_pixel(texel, pass.load_pixel(texel + lower_bound));
+        result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
       });
     }
+  }
+
+  /* Get the name of the pass corresponding to the output with the given identifier. */
+  const char *get_pass_name(StringRef identifier)
+  {
+    DOutputSocket output = this->node().output_by_identifier(identifier);
+    return static_cast<NodeImageLayer *>(output->storage)->pass_name;
   }
 };
 
@@ -805,28 +850,33 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_render_layer_cc
 
-void register_node_type_cmp_rlayers()
+static void register_node_type_cmp_rlayers()
 {
   namespace file_ns = blender::nodes::node_composite_render_layer_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT);
+  cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
+  ntype.ui_name = "Render Layers";
+  ntype.ui_description = "Input render passes from a scene render";
+  ntype.enum_name_legacy = "R_LAYERS";
+  ntype.nclass = NODE_CLASS_INPUT;
   blender::bke::node_type_socket_templates(&ntype, nullptr, cmp_node_rlayers_out);
   ntype.draw_buttons = file_ns::node_composit_buts_viewlayers;
   ntype.initfunc_api = file_ns::node_composit_init_rlayers;
   ntype.poll = file_ns::node_composit_poll_rlayers;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.realtime_compositor_unsupported_message = N_(
-      "Render passes not supported in the Viewport compositor");
+  ntype.compositor_unsupported_message = N_(
+      "Render passes in the Viewport compositor are only supported in EEVEE");
   ntype.flag |= NODE_PREVIEW;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   std::nullopt,
                                   file_ns::node_composit_free_rlayers,
                                   file_ns::node_composit_copy_rlayers);
   ntype.updatefunc = file_ns::cmp_node_rlayers_update;
   ntype.initfunc = node_cmp_rlayers_outputs;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rlayers)

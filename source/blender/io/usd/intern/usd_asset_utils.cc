@@ -9,6 +9,8 @@
 #include <pxr/usd/ar/packageUtils.h>
 #include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/ar/writableAsset.h>
+#include <pxr/usd/usd/common.h>
+#include <pxr/usd/usd/stage.h>
 
 #include "BKE_appdir.hh"
 #include "BKE_idprop.hh"
@@ -354,7 +356,7 @@ std::string get_export_textures_dir(const pxr::UsdStageRefPtr stage)
   pxr::SdfLayerHandle layer = stage->GetRootLayer();
 
   if (layer->IsAnonymous()) {
-    WM_reportf(
+    WM_global_reportf(
         RPT_WARNING, "%s: Can't generate a textures directory path for anonymous stage", __func__);
     return "";
   }
@@ -362,7 +364,7 @@ std::string get_export_textures_dir(const pxr::UsdStageRefPtr stage)
   const pxr::ArResolvedPath &stage_path = layer->GetResolvedPath();
 
   if (stage_path.empty()) {
-    WM_reportf(RPT_WARNING, "%s: Can't get resolved path for stage", __func__);
+    WM_global_reportf(RPT_WARNING, "%s: Can't get resolved path for stage", __func__);
     return "";
   }
 
@@ -394,7 +396,7 @@ bool should_import_asset(const std::string &path)
     return true;
   }
 
-  if (is_udim_path(path) && parent_dir_exists_on_file_system(path.c_str())) {
+  if (is_udim_path(path) && parent_dir_exists_on_file_system(path)) {
     return false;
   }
 
@@ -501,7 +503,7 @@ void ensure_usd_source_path_prop(const std::string &path, ID *id)
     return;
   }
 
-  const char *prop_name = "usd_source_path";
+  const StringRef prop_name = "usd_source_path";
 
   if (IDP_GetPropertyFromGroup(idgroup, prop_name)) {
     return;
@@ -529,7 +531,7 @@ std::string get_usd_source_path(ID *id)
     return "";
   }
 
-  const char *prop_name = "usd_source_path";
+  const StringRef prop_name = "usd_source_path";
   const IDProperty *prop = IDP_GetPropertyFromGroup(idgroup, prop_name);
   if (!prop) {
     return "";
@@ -568,8 +570,7 @@ std::string get_relative_path(const std::string &path, const std::string &anchor
     return rel_path + 2;
   }
 
-  /* if we got here, the paths may be URIs or files on on the
-   * file system. */
+  /* If we got here, the paths may be URIs or files on the file system. */
 
   /* We don't have a library to compute relative paths for URIs
    * so we use the standard file-system calls to do so. This
@@ -619,9 +620,7 @@ std::string get_relative_path(const std::string &path, const std::string &anchor
   STRNCPY(result_path, resolved_path.c_str());
   BLI_path_rel(result_path, anchor_parent_dir);
 
-  if ((result_path[0] != '\0') && (BLI_strnlen(result_path, FILE_MAX) > 2) &&
-      (result_path[0] == '/') && (result_path[1] == '/'))
-  {
+  if (BLI_path_is_rel(result_path)) {
     /* Strip the Blender relative path marker, and set paths to Unix-style. */
     BLI_string_replace_char(result_path, '\\', '/');
     return std::string(result_path + 2);
@@ -643,10 +642,10 @@ void USD_path_abs(char *path, const char *basepath, bool for_import)
         BLI_strncpy(path, path_str.c_str(), FILE_MAX);
         return;
       }
-      WM_reportf(RPT_ERROR,
-                 "In %s: resolved path %s exceeds path buffer length.",
-                 __func__,
-                 path_str.c_str());
+      WM_global_reportf(RPT_ERROR,
+                        "In %s: resolved path %s exceeds path buffer length.",
+                        __func__,
+                        path_str.c_str());
     }
   }
 

@@ -13,7 +13,6 @@
 #include "mathutils.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_utildefines.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -40,11 +39,8 @@ short euler_order_from_string(const char *str, const char *error_prefix)
 {
   if (str[0] && str[1] && str[2] && str[3] == '\0') {
 
-#ifdef __LITTLE_ENDIAN__
-#  define MAKE_ID3(a, b, c) ((a) | ((b) << 8) | ((c) << 16))
-#else
-#  define MAKE_ID3(a, b, c) (((a) << 24) | ((b) << 16) | ((c) << 8))
-#endif
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID3(a, b, c) ((a) | ((b) << 8) | ((c) << 16))
 
     switch (*((const PY_INT32_T *)str)) {
       case MAKE_ID3('X', 'Y', 'Z'):
@@ -779,9 +775,14 @@ static PyGetSetDef Euler_getseters[] = {
 /** \name Euler Type: Method Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Euler_methods[] = {
@@ -800,8 +801,12 @@ static PyMethodDef Euler_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */

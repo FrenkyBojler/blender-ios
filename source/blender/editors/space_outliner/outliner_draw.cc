@@ -10,7 +10,6 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_legacy_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_force_types.h"
@@ -19,7 +18,11 @@
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_fileops.h"
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -43,8 +46,10 @@
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 
 #include "ANIM_bone_collections.hh"
+#include "ANIM_keyframing.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -272,7 +277,7 @@ static void outliner_object_set_flag_recursive_fn(bContext *C,
   StructRNA *struct_rna = ob ? &RNA_Object : &RNA_ObjectBase;
   void *data = ob ? (void *)ob : (void *)base;
 
-  PointerRNA ptr = RNA_pointer_create(id, struct_rna, data);
+  PointerRNA ptr = RNA_pointer_create_discrete(id, struct_rna, data);
   PropertyRNA *base_or_object_prop = RNA_struct_type_find_property(struct_rna, propname);
   const bool value = RNA_property_boolean_get(&ptr, base_or_object_prop);
 
@@ -293,9 +298,11 @@ static void outliner_object_set_flag_recursive_fn(bContext *C,
         if (base_iter == nullptr) {
           continue;
         }
-        ptr = RNA_pointer_create(&scene->id, &RNA_ObjectBase, base_iter);
+        ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ObjectBase, base_iter);
       }
       RNA_property_boolean_set(&ptr, base_or_object_prop, value);
+      blender::animrig::autokeyframe_property(
+          C, scene, &ptr, base_or_object_prop, -1, BKE_scene_frame_get(scene), true);
     }
   }
 
@@ -316,7 +323,7 @@ static void outliner_object_set_flag_recursive_fn(bContext *C,
 static void outliner__object_set_flag_recursive_fn(bContext *C, void *poin, void *poin2)
 {
   Object *ob = static_cast<Object *>(poin);
-  char *propname = static_cast<char *>(poin2);
+  const char *propname = static_cast<const char *>(poin2);
   outliner_object_set_flag_recursive_fn(C, nullptr, ob, propname);
 }
 
@@ -326,7 +333,7 @@ static void outliner__object_set_flag_recursive_fn(bContext *C, void *poin, void
 static void outliner__base_set_flag_recursive_fn(bContext *C, void *poin, void *poin2)
 {
   Base *base = static_cast<Base *>(poin);
-  char *propname = static_cast<char *>(poin2);
+  const char *propname = static_cast<const char *>(poin2);
   outliner_object_set_flag_recursive_fn(C, base, nullptr, propname);
 }
 
@@ -340,7 +347,7 @@ static void outliner_layer_or_collection_pointer_create(Scene *scene,
     *ptr = RNA_id_pointer_create(&collection->id);
   }
   else {
-    *ptr = RNA_pointer_create(&scene->id, &RNA_LayerCollection, layer_collection);
+    *ptr = RNA_pointer_create_discrete(&scene->id, &RNA_LayerCollection, layer_collection);
   }
 }
 
@@ -354,7 +361,7 @@ static void outliner_base_or_object_pointer_create(
   else {
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_base_find(view_layer, ob);
-    *ptr = RNA_pointer_create(&scene->id, &RNA_ObjectBase, base);
+    *ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ObjectBase, base);
   }
 }
 
@@ -368,9 +375,10 @@ static void outliner_collection_set_flag_recursive(Scene *scene,
                                                    PropertyRNA *base_or_object_prop,
                                                    const bool value)
 {
-  if (layer_collection && layer_collection->flag & LAYER_COLLECTION_EXCLUDE) {
+  if (!layer_collection) {
     return;
   }
+
   PointerRNA ptr;
   outliner_layer_or_collection_pointer_create(scene, layer_collection, collection, &ptr);
   if (layer_or_collection_prop && !RNA_property_editable(&ptr, layer_or_collection_prop)) {
@@ -380,7 +388,7 @@ static void outliner_collection_set_flag_recursive(Scene *scene,
   RNA_property_boolean_set(&ptr, layer_or_collection_prop, value);
 
   /* Set the same flag for the nested objects as well. */
-  if (base_or_object_prop) {
+  if (base_or_object_prop && !(layer_collection->flag & LAYER_COLLECTION_EXCLUDE)) {
     /* NOTE: We can't use BKE_collection_object_cache_get()
      * otherwise we would not take collection exclusion into account. */
     LISTBASE_FOREACH (CollectionObject *, cob, &layer_collection->collection->gobject) {
@@ -439,7 +447,7 @@ static bool outliner_collection_is_isolated(Scene *scene,
 {
   PointerRNA ptr;
   outliner_layer_or_collection_pointer_create(scene, layer_collection, collection, &ptr);
-  const bool value = RNA_property_boolean_get(&ptr, (PropertyRNA *)layer_or_collection_prop);
+  const bool value = RNA_property_boolean_get(&ptr, layer_or_collection_prop);
   Collection *collection_ensure = collection ? collection : layer_collection->collection;
   const Collection *collection_ensure_cmp = collection_cmp ? collection_cmp :
                                                              layer_collection_cmp->collection;
@@ -505,7 +513,7 @@ void outliner_collection_isolate_flag(Scene *scene,
                                       const bool value)
 {
   PointerRNA ptr;
-  const bool is_hide = strstr(propname, "hide_") != nullptr;
+  const bool is_hide = strstr(propname, "hide_") || STREQ(propname, "exclude");
 
   LayerCollection *top_layer_collection = layer_collection ?
                                               static_cast<LayerCollection *>(
@@ -579,7 +587,7 @@ void outliner_collection_isolate_flag(Scene *scene,
   else {
     CollectionParent *parent;
     Collection *child = collection;
-    while ((parent = static_cast<CollectionParent *>(child->runtime.parents.first))) {
+    while ((parent = static_cast<CollectionParent *>(child->runtime->parents.first))) {
       if (parent->collection->flag & COLLECTION_IS_MASTER) {
         break;
       }
@@ -612,7 +620,7 @@ static void outliner_collection_set_flag_recursive_fn(bContext *C,
   StructRNA *struct_rna = collection ? &RNA_Collection : &RNA_LayerCollection;
   void *data = collection ? (void *)collection : (void *)layer_collection;
 
-  PointerRNA ptr = RNA_pointer_create(id, struct_rna, data);
+  PointerRNA ptr = RNA_pointer_create_discrete(id, struct_rna, data);
   outliner_layer_or_collection_pointer_create(scene, layer_collection, collection, &ptr);
   PropertyRNA *layer_or_collection_prop = RNA_struct_type_find_property(struct_rna, propname);
   const bool value = RNA_property_boolean_get(&ptr, layer_or_collection_prop);
@@ -658,7 +666,7 @@ static void view_layer__layer_collection_set_flag_recursive_fn(bContext *C,
                                                                void *poin2)
 {
   LayerCollection *layer_collection = static_cast<LayerCollection *>(poin);
-  char *propname = static_cast<char *>(poin2);
+  const char *propname = static_cast<const char *>(poin2);
   outliner_collection_set_flag_recursive_fn(C, layer_collection, nullptr, propname);
 }
 
@@ -669,7 +677,7 @@ static void view_layer__layer_collection_set_flag_recursive_fn(bContext *C,
 static void view_layer__collection_set_flag_recursive_fn(bContext *C, void *poin, void *poin2)
 {
   LayerCollection *layer_collection = static_cast<LayerCollection *>(poin);
-  char *propname = static_cast<char *>(poin2);
+  const char *propname = static_cast<const char *>(poin2);
   outliner_collection_set_flag_recursive_fn(
       C, layer_collection, layer_collection->collection, propname);
 }
@@ -681,7 +689,7 @@ static void view_layer__collection_set_flag_recursive_fn(bContext *C, void *poin
 static void scenes__collection_set_flag_recursive_fn(bContext *C, void *poin, void *poin2)
 {
   Collection *collection = static_cast<Collection *>(poin);
-  char *propname = static_cast<char *>(poin2);
+  const char *propname = static_cast<const char *>(poin2);
   outliner_collection_set_flag_recursive_fn(C, nullptr, collection, propname);
 }
 
@@ -928,6 +936,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           undo_str = "Rename Bone Collection";
           break;
         }
+
+        case TSE_ACTION_SLOT: {
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          undo_str = "Rename Action Slot";
+          break;
+        }
       }
     }
     tselem->flag &= ~TSE_TEXTBUT;
@@ -1073,7 +1087,8 @@ static bool outliner_restrict_properties_collection_set(Scene *scene,
   /* Create the PointerRNA. */
   *collection_ptr = RNA_id_pointer_create(&collection->id);
   if (layer_collection != nullptr) {
-    *layer_collection_ptr = RNA_pointer_create(&scene->id, &RNA_LayerCollection, layer_collection);
+    *layer_collection_ptr = RNA_pointer_create_discrete(
+        &scene->id, &RNA_LayerCollection, layer_collection);
   }
 
   /* Update the restriction column values for the collection children. */
@@ -1212,7 +1227,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
           Base *base = (te->directdata) ? (Base *)te->directdata :
                                           BKE_view_layer_base_find(view_layer, ob);
           if (base) {
-            PointerRNA base_ptr = RNA_pointer_create(&scene->id, &RNA_ObjectBase, base);
+            PointerRNA base_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ObjectBase, base);
             bt = uiDefIconButR_prop(block,
                                     UI_BTYPE_ICON_TOGGLE,
                                     0,
@@ -1309,7 +1324,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
       else if (tselem->type == TSE_CONSTRAINT) {
         bConstraint *con = (bConstraint *)te->directdata;
 
-        PointerRNA ptr = RNA_pointer_create(tselem->id, &RNA_Constraint, con);
+        PointerRNA ptr = RNA_pointer_create_discrete(tselem->id, &RNA_Constraint, con);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_HIDE) {
           bt = uiDefIconButR_prop(block,
@@ -1335,7 +1350,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
       else if (tselem->type == TSE_MODIFIER) {
         ModifierData *md = (ModifierData *)te->directdata;
 
-        PointerRNA ptr = RNA_pointer_create(tselem->id, &RNA_Modifier, md);
+        PointerRNA ptr = RNA_pointer_create_discrete(tselem->id, &RNA_Modifier, md);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
           bt = uiDefIconButR_prop(block,
@@ -1351,7 +1366,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   -1,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           if (!props_active.modifier_show_viewport) {
             UI_but_flag_enable(bt, UI_BUT_INACTIVE);
@@ -1372,7 +1387,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   -1,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
           if (!props_active.modifier_show_render) {
             UI_but_flag_enable(bt, UI_BUT_INACTIVE);
@@ -1385,7 +1400,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
         Object *ob = (Object *)tselem->id;
         bArmature *arm = static_cast<bArmature *>(ob->data);
 
-        PointerRNA ptr = RNA_pointer_create(&arm->id, &RNA_Bone, bone);
+        PointerRNA ptr = RNA_pointer_create_discrete(&arm->id, &RNA_Bone, bone);
 
         if (space_outliner->show_restrict_flags & SO_RESTRICT_VIEWPORT) {
           bt = uiDefIconButR_prop(block,
@@ -1519,11 +1534,11 @@ static void outliner_draw_restrictbuts(uiBlock *block,
         PointerRNA ptr;
         PropertyRNA *hide_prop;
         if (node.is_layer()) {
-          ptr = RNA_pointer_create(tselem->id, &RNA_GreasePencilLayer, &node);
+          ptr = RNA_pointer_create_discrete(tselem->id, &RNA_GreasePencilLayer, &node);
           hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayer, "hide");
         }
         else if (node.is_group()) {
-          ptr = RNA_pointer_create(tselem->id, &RNA_GreasePencilLayerGroup, &node);
+          ptr = RNA_pointer_create_discrete(tselem->id, &RNA_GreasePencilLayerGroup, &node);
           hide_prop = RNA_struct_type_find_property(&RNA_GreasePencilLayerGroup, "hide");
         }
 
@@ -1541,9 +1556,9 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                   -1,
                                   0,
                                   0,
-                                  nullptr);
+                                  std::nullopt);
           UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
-          if (node.parent_group() && node.parent_group()->is_visible()) {
+          if (node.parent_group() && !node.parent_group()->is_visible()) {
             UI_but_flag_enable(bt, UI_BUT_INACTIVE);
           }
         }
@@ -1576,7 +1591,11 @@ static void outliner_draw_restrictbuts(uiBlock *block,
                                       -1,
                                       0,
                                       0,
-                                      nullptr);
+                                      std::nullopt);
+              UI_but_func_set(bt,
+                              view_layer__layer_collection_set_flag_recursive_fn,
+                              layer_collection,
+                              (char *)"exclude");
               UI_but_flag_enable(bt, UI_BUT_DRAG_LOCK);
             }
 
@@ -1800,7 +1819,7 @@ static void outliner_draw_userbuts(uiBlock *block,
     }
 
     uiBut *bt;
-    const char *tip = nullptr;
+    std::optional<StringRef> tip;
     const int real_users = id->us - ID_FAKE_USERS(id);
     const bool has_fake_user = id->flag & ID_FLAG_FAKEUSER;
     const bool is_linked = ID_IS_LINKED(id);
@@ -1945,7 +1964,7 @@ static void outliner_draw_overrides_rna_buts(uiBlock *block,
                                     ptr,
                                     prop,
                                     -1,
-                                    (prop_type == PROP_ENUM) ? nullptr : "",
+                                    (prop_type == PROP_ENUM) ? std::nullopt : std::optional(""),
                                     ICON_NONE,
                                     x + pad_x,
                                     te->ys + pad_y,
@@ -1968,16 +1987,13 @@ static void outliner_draw_overrides_rna_buts(uiBlock *block,
 
 static bool outliner_but_identity_cmp_context_id_fn(const uiBut *a, const uiBut *b)
 {
-  const PointerRNA *idptr_a = UI_but_context_ptr_get(a, "id", &RNA_ID);
-  const PointerRNA *idptr_b = UI_but_context_ptr_get(b, "id", &RNA_ID);
-  if (!idptr_a || !idptr_b) {
+  const std::optional<int64_t> session_uid_a = UI_but_context_int_get(a, "session_uid");
+  const std::optional<int64_t> session_uid_b = UI_but_context_int_get(b, "session_uid");
+  if (!session_uid_a || !session_uid_b) {
     return false;
   }
-  const ID *id_a = (const ID *)idptr_a->data;
-  const ID *id_b = (const ID *)idptr_b->data;
-
   /* Using session UID to compare is safer than using the pointer. */
-  return id_a->session_uid == id_b->session_uid;
+  return session_uid_a == session_uid_b;
 }
 
 static void outliner_draw_overrides_restrictbuts(Main *bmain,
@@ -2024,8 +2040,7 @@ static void outliner_draw_overrides_restrictbuts(Main *bmain,
                                UI_UNIT_X,
                                UI_UNIT_Y,
                                "");
-    PointerRNA idptr = RNA_id_pointer_create(&id);
-    UI_but_context_ptr_set(block, but, "id", &idptr);
+    UI_but_context_int_set(block, but, "session_uid", id.session_uid);
     UI_but_func_identity_compare_set(but, outliner_but_identity_cmp_context_id_fn);
     UI_but_flag_enable(but, UI_BUT_DRAG_LOCK);
   }
@@ -2037,7 +2052,8 @@ static void outliner_draw_separator(ARegion *region, const int x)
 
   GPU_line_width(1.0f);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_BACK, -15, -200);
 
@@ -2089,7 +2105,7 @@ static void outliner_draw_rnabuts(uiBlock *block,
                         &ptr,
                         prop,
                         -1,
-                        nullptr,
+                        std::nullopt,
                         ICON_NONE,
                         sizex,
                         te->ys,
@@ -2267,7 +2283,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
   draw_active_icon = draw_active_icon || object_data_shared;
 
   int icon;
-  const char *tip;
+  StringRef tip;
   if (draw_active_icon) {
     icon = UI_icon_from_object_mode(ob_active->mode);
     tip = object_data_shared ? TIP_("Change the object in the current mode") :
@@ -2279,7 +2295,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
         "Change the object in the current mode\n"
         " \u2022 Ctrl to add to the current mode");
   }
-  UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
   uiBut *but = uiDefIconBut(block,
                             UI_BTYPE_ICON_TOGGLE,
                             0,
@@ -2358,7 +2374,7 @@ static StringRefNull outliner_draw_get_warning_tree_element(const SpaceOutliner 
 
 static void outliner_draw_warning_tree_element(uiBlock *block,
                                                const SpaceOutliner *space_outliner,
-                                               StringRefNull warning_msg,
+                                               const StringRef warning_msg,
                                                const bool use_mode_column,
                                                const int te_ys)
 {
@@ -2367,7 +2383,7 @@ static void outliner_draw_warning_tree_element(uiBlock *block,
                                        UI_UNIT_X :
                                        0;
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
   uiBut *but = uiDefIconBut(block,
                             UI_BTYPE_ICON_TOGGLE,
                             0,
@@ -2379,7 +2395,7 @@ static void outliner_draw_warning_tree_element(uiBlock *block,
                             nullptr,
                             0.0,
                             0.0,
-                            warning_msg.c_str());
+                            warning_msg);
   /* No need for undo here, this is a pure info widget. */
   UI_but_flag_disable(but, UI_BUT_UNDO);
 }
@@ -2469,9 +2485,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       return ICON_OUTLINER_DATA_MESH;
     case ID_CU_LEGACY: {
       const Curve *cu = (Curve *)id;
-      const short obtype = BKE_curve_type_get(cu);
-
-      switch (obtype) {
+      switch (cu->ob_type) {
         case OB_FONT:
           return ICON_OUTLINER_DATA_FONT;
         case OB_SURF:
@@ -2541,7 +2555,7 @@ static BIFIconID tree_element_get_icon_from_id(const ID *id)
       if (id->tag & ID_TAG_MISSING) {
         return ICON_LIBRARY_DATA_BROKEN;
       }
-      else if (((Library *)id)->runtime.parent) {
+      else if (((Library *)id)->runtime->parent) {
         return ICON_LIBRARY_DATA_INDIRECT;
       }
       else {
@@ -2598,6 +2612,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 
   if (tselem->type != TSE_SOME_ID) {
     switch (tselem->type) {
+      case TSE_ACTION_SLOT:
+        data.icon = ICON_ACTION_SLOT;
+        break;
       case TSE_ANIM_DATA:
         data.icon = ICON_ANIM_DATA; /* XXX */
         break;
@@ -2776,54 +2793,53 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
       case TSE_BONE_COLLECTION:
         data.icon = ICON_GROUP_BONE;
         break;
-      case TSE_SEQUENCE: {
-        const TreeElementSequence *te_seq = tree_element_cast<TreeElementSequence>(te);
-        switch (te_seq->get_sequence_type()) {
-          case SEQ_TYPE_SCENE:
+      case TSE_STRIP: {
+        const TreeElementStrip *te_strip = tree_element_cast<TreeElementStrip>(te);
+        switch (te_strip->get_strip_type()) {
+          case STRIP_TYPE_SCENE:
             data.icon = ICON_SCENE_DATA;
             break;
-          case SEQ_TYPE_MOVIECLIP:
+          case STRIP_TYPE_MOVIECLIP:
             data.icon = ICON_TRACKER;
             break;
-          case SEQ_TYPE_MASK:
+          case STRIP_TYPE_MASK:
             data.icon = ICON_MOD_MASK;
             break;
-          case SEQ_TYPE_MOVIE:
+          case STRIP_TYPE_MOVIE:
             data.icon = ICON_FILE_MOVIE;
             break;
-          case SEQ_TYPE_SOUND_RAM:
+          case STRIP_TYPE_SOUND_RAM:
             data.icon = ICON_SOUND;
             break;
-          case SEQ_TYPE_IMAGE:
+          case STRIP_TYPE_IMAGE:
             data.icon = ICON_FILE_IMAGE;
             break;
-          case SEQ_TYPE_COLOR:
-          case SEQ_TYPE_ADJUSTMENT:
+          case STRIP_TYPE_COLOR:
+          case STRIP_TYPE_ADJUSTMENT:
             data.icon = ICON_COLOR;
             break;
-          case SEQ_TYPE_TEXT:
+          case STRIP_TYPE_TEXT:
             data.icon = ICON_FONT_DATA;
             break;
-          case SEQ_TYPE_ADD:
-          case SEQ_TYPE_SUB:
-          case SEQ_TYPE_MUL:
-          case SEQ_TYPE_OVERDROP:
-          case SEQ_TYPE_ALPHAOVER:
-          case SEQ_TYPE_ALPHAUNDER:
-          case SEQ_TYPE_COLORMIX:
-          case SEQ_TYPE_MULTICAM:
-          case SEQ_TYPE_TRANSFORM:
-          case SEQ_TYPE_SPEED:
-          case SEQ_TYPE_GLOW:
-          case SEQ_TYPE_GAUSSIAN_BLUR:
+          case STRIP_TYPE_ADD:
+          case STRIP_TYPE_SUB:
+          case STRIP_TYPE_MUL:
+          case STRIP_TYPE_ALPHAOVER:
+          case STRIP_TYPE_ALPHAUNDER:
+          case STRIP_TYPE_COLORMIX:
+          case STRIP_TYPE_MULTICAM:
+          case STRIP_TYPE_TRANSFORM:
+          case STRIP_TYPE_SPEED:
+          case STRIP_TYPE_GLOW:
+          case STRIP_TYPE_GAUSSIAN_BLUR:
             data.icon = ICON_SHADERFX;
             break;
-          case SEQ_TYPE_CROSS:
-          case SEQ_TYPE_GAMCROSS:
-          case SEQ_TYPE_WIPE:
+          case STRIP_TYPE_CROSS:
+          case STRIP_TYPE_GAMCROSS:
+          case STRIP_TYPE_WIPE:
             data.icon = ICON_ARROW_LEFTRIGHT;
             break;
-          case SEQ_TYPE_META:
+          case STRIP_TYPE_META:
             data.icon = ICON_SEQ_STRIP_META;
             break;
           default:
@@ -2832,10 +2848,10 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         }
         break;
       }
-      case TSE_SEQ_STRIP:
+      case TSE_STRIP_DATA:
         data.icon = ICON_LIBRARY_DATA_DIRECT;
         break;
-      case TSE_SEQUENCE_DUP:
+      case TSE_STRIP_DUP:
         data.icon = ICON_SEQ_STRIP_DUPLICATE;
         break;
       case TSE_RNA_STRUCT: {
@@ -3168,7 +3184,9 @@ static void outliner_draw_iconrow(uiBlock *block,
                 TSE_EBONE,
                 TSE_POSE_CHANNEL,
                 TSE_BONE_COLLECTION,
-                TSE_DEFGROUP))
+                TSE_DEFGROUP,
+                TSE_ACTION_SLOT,
+                TSE_NLA_TRACK))
       {
         outliner_draw_iconrow_doit(block, te, xmax, offsx, ys, alpha_fac, active, 1);
       }
@@ -3269,7 +3287,8 @@ static bool element_should_draw_faded(const TreeViewContext &tvc,
                                (const Base *)te->directdata :
                                BKE_view_layer_base_find((ViewLayer *)tvc.view_layer, (Object *)ob);
         const bool is_visible = (base != nullptr) &&
-                                (base->flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT);
+                                (base->flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) &&
+                                !(te->flag & TE_CHILD_NOT_IN_COLLECTION);
 
         return !is_visible;
       }
@@ -3379,11 +3398,19 @@ static void outliner_draw_tree_element(uiBlock *block,
           /* Active items like camera or material. */
           icon_bgcolor[3] = 0.2f;
           active = OL_DRAWSEL_ACTIVE;
+          if (te->idcode == ID_SCE) {
+            UI_GetThemeColor3ubv(TH_TEXT_HI, text_color);
+            text_color[3] = 255;
+          }
         }
       }
     }
     else {
       active = tree_element_type_active_state_get(tvc, te, tselem);
+      if (active != OL_DRAWSEL_NONE) {
+        UI_GetThemeColor3ubv(TH_TEXT_HI, text_color);
+        text_color[3] = 255;
+      }
     }
 
     /* Active circle. */
@@ -3642,7 +3669,7 @@ static void outliner_draw_hierarchy_lines(SpaceOutliner *space_outliner,
                                           int *starty)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   uchar col[4];
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
@@ -3676,10 +3703,11 @@ static void outliner_draw_struct_marks(ARegion *region,
     if (TSELEM_OPEN(tselem, space_outliner)) {
       if (tselem->type == TSE_RNA_STRUCT) {
         GPUVertFormat *format = immVertexFormat();
-        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+        uint pos = GPU_vertformat_attr_add(
+            format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immThemeColorShadeAlpha(TH_BACK, -15, -200);
-        immRecti(pos, 0, *starty + 1, int(region->v2d.cur.xmax), *starty + UI_UNIT_Y - 1);
+        immRectf(pos, 0, *starty + 1, int(region->v2d.cur.xmax), *starty + UI_UNIT_Y - 1);
         immUnbindProgram();
       }
     }
@@ -3689,7 +3717,8 @@ static void outliner_draw_struct_marks(ARegion *region,
       outliner_draw_struct_marks(region, space_outliner, &te->subtree, starty);
       if (tselem->type == TSE_RNA_STRUCT) {
         GPUVertFormat *format = immVertexFormat();
-        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        uint pos = GPU_vertformat_attr_add(
+            format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         immThemeColorShadeAlpha(TH_BACK, -15, -200);
 
@@ -3725,11 +3754,11 @@ static void outliner_draw_highlights(uint pos,
     /* Selection status. */
     if ((tselem->flag & TSE_ACTIVE) && (tselem->flag & TSE_SELECTED)) {
       immUniformColor4fv(col_active);
-      immRecti(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
+      immRectf(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
     }
     else if (tselem->flag & TSE_SELECTED) {
       immUniformColor4fv(col_selection);
-      immRecti(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
+      immRectf(pos, 0, start_y, int(region->v2d.cur.xmax), start_y + UI_UNIT_Y);
     }
 
     /* Highlights. */
@@ -3743,7 +3772,7 @@ static void outliner_draw_highlights(uint pos,
 
         if (tselem->flag & TSE_DRAG_BEFORE) {
           immUniformColor4fv(col);
-          immRecti(pos,
+          immRectf(pos,
                    start_x,
                    start_y + UI_UNIT_Y - U.pixelsize,
                    end_x,
@@ -3751,11 +3780,11 @@ static void outliner_draw_highlights(uint pos,
         }
         else if (tselem->flag & TSE_DRAG_AFTER) {
           immUniformColor4fv(col);
-          immRecti(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
+          immRectf(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
         }
         else {
           immUniformColor3fvAlpha(col, col[3] * 0.5f);
-          immRecti(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
         }
       }
       else {
@@ -3763,12 +3792,12 @@ static void outliner_draw_highlights(uint pos,
           /* Search match highlights. We don't expand items when searching in the data-blocks,
            * but we still want to highlight any filter matches. */
           immUniformColor4fv(col_searchmatch);
-          immRecti(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, start_x, start_y, end_x, start_y + UI_UNIT_Y);
         }
         else if (tselem->flag & TSE_HIGHLIGHTED) {
           /* Mouse hover highlight. */
           immUniformColor4fv(col_highlight);
-          immRecti(pos, 0, start_y, end_x, start_y + UI_UNIT_Y);
+          immRectf(pos, 0, start_y, end_x, start_y + UI_UNIT_Y);
         }
       }
     }
@@ -3794,7 +3823,7 @@ static void outliner_draw_highlights(ARegion *region,
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   outliner_draw_highlights(pos,
                            region,
@@ -3820,11 +3849,13 @@ static void outliner_draw_tree(uiBlock *block,
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
+  short columns_offset = use_mode_column ? UI_UNIT_X : 0;
+
   /* Move the tree a unit left in view layer mode */
-  short columns_offset = (use_mode_column && (space_outliner->outlinevis == SO_SCENES)) ?
-                             UI_UNIT_X :
-                             0;
-  if (!use_mode_column && (space_outliner->outlinevis == SO_VIEW_LAYER)) {
+  if ((space_outliner->outlinevis == SO_VIEW_LAYER) &&
+      !(space_outliner->filter & SO_FILTER_NO_COLLECTION) &&
+      (space_outliner->filter & SO_FILTER_NO_VIEW_LAYERS))
+  {
     columns_offset -= UI_UNIT_X;
   }
 
@@ -3897,7 +3928,7 @@ static void outliner_back(ARegion *region)
   ystart = UI_UNIT_Y * (ystart / (UI_UNIT_Y)) - OL_Y_OFFSET;
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -4019,7 +4050,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   /* Draw outliner stuff (background, hierarchy lines and names). */
   const float right_column_width = outliner_right_columns_width(space_outliner);
   outliner_back(region);
-  block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   outliner_draw_tree(block,
                      tvc,
                      region,
@@ -4034,7 +4065,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   outliner_tree_dimensions(space_outliner, &tree_width, &tree_height);
 
   /* Default to no emboss for outliner UI. */
-  UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
 
   if (space_outliner->outlinevis == SO_DATA_API) {
     int buttons_start_x = outliner_data_api_buttons_start_x(tree_width);
@@ -4042,9 +4073,9 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     outliner_draw_separator(region, buttons_start_x);
     outliner_draw_separator(region, buttons_start_x + OL_RNA_COL_SIZEX);
 
-    UI_block_emboss_set(block, UI_EMBOSS);
+    UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     outliner_draw_rnabuts(block, region, space_outliner, buttons_start_x);
-    UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
+    UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
   }
   else if (ELEM(space_outliner->outlinevis, SO_ID_ORPHANS, SO_LIBRARIES)) {
     outliner_draw_userbuts(block, region, space_outliner);
@@ -4053,10 +4084,10 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     const int x = region->v2d.cur.xmax - right_column_width;
     outliner_draw_separator(region, x);
     if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_PROPERTIES) {
-      UI_block_emboss_set(block, UI_EMBOSS);
+      UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
       UI_block_flag_enable(block, UI_BLOCK_NO_DRAW_OVERRIDDEN_STATE);
       outliner_draw_overrides_rna_buts(block, region, space_outliner, &space_outliner->tree, x);
-      UI_block_emboss_set(block, UI_EMBOSS_NONE_OR_STATUS);
+      UI_block_emboss_set(block, blender::ui::EmbossType::NoneOrStatus);
     }
     else if (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES) {
       outliner_draw_overrides_restrictbuts(
@@ -4086,7 +4117,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
     outliner_draw_warning_column(block, space_outliner, use_mode_column);
   }
 
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   /* Draw edit buttons if necessary. */
   if (te_edit) {
@@ -4108,4 +4139,10 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 int ED_outliner_icon_from_id(const ID &id)
 {
   return blender::ed::outliner::tree_element_get_icon_from_id(&id);
+}
+
+bool ED_outliner_support_searching(const SpaceOutliner *space_outliner)
+{
+  return !((space_outliner->outlinevis == SO_OVERRIDES_LIBRARY) &&
+           (space_outliner->lib_override_view_mode == SO_LIB_OVERRIDE_VIEW_HIERARCHIES));
 }

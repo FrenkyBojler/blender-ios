@@ -12,11 +12,14 @@
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -58,11 +61,11 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   SpaceGraph *sipo;
 
   /* Graph Editor - general stuff */
-  sipo = static_cast<SpaceGraph *>(MEM_callocN(sizeof(SpaceGraph), "init graphedit"));
+  sipo = MEM_callocN<SpaceGraph>("init graphedit");
   sipo->spacetype = SPACE_GRAPH;
 
   /* allocate DopeSheet data for Graph Editor */
-  sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+  sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
   sipo->ads->source = (ID *)scene;
 
   /* settings for making it easier by default to just see what you're interested in tweaking */
@@ -139,10 +142,10 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
 {
   SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
 
-  /* init dopesheet data if non-existent (i.e. for old files) */
+  /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
-    sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = win ? (ID *)WM_window_get_active_scene(win) : nullptr;
   }
 
@@ -158,7 +161,7 @@ static SpaceLink *graph_duplicate(SpaceLink *sl)
 {
   SpaceGraph *sipon = static_cast<SpaceGraph *>(MEM_dupallocN(sl));
 
-  memset(&sipon->runtime, 0x0, sizeof(sipon->runtime));
+  sipon->runtime = SpaceGraph_Runtime{};
 
   /* clear or remove stuff from old */
   BLI_duplicatelist(&sipon->runtime.ghost_curves, &((SpaceGraph *)sl)->runtime.ghost_curves);
@@ -188,7 +191,8 @@ static void draw_normalization_borders(Scene *scene, View2D *v2d)
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_BACK, -25, -180);
@@ -212,20 +216,24 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
+  const int min_height = UI_ANIM_MINY;
+
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
 
   UI_view2d_view_ortho(v2d);
 
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-  UI_view2d_draw_lines_y__values(v2d);
+  if (region->winy > min_height) {
+    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    UI_view2d_draw_lines_y__values(v2d);
+  }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame (in F-Curve mode only) */
-  if (sipo->mode != SIPO_MODE_DRIVERS) {
+  if (sipo->mode != SIPO_MODE_DRIVERS && region->winy > min_height) {
     ANIM_draw_framerange(scene, v2d);
   }
 
@@ -253,7 +261,8 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   }
 
   if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -306,7 +315,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   /* preview range */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     UI_view2d_view_ortho(v2d);
-    ANIM_draw_previewrange(C, v2d, 0);
+    ANIM_draw_previewrange(scene, v2d, 0);
   }
 
   /* callback */
@@ -324,6 +333,7 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool minimized = (region->winy < UI_ANIM_MINY);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -331,10 +341,10 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
   /* Driver Editor's X axis is not time. */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     /* scrubbing region */
-    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME);
+    ED_time_scrub_draw_current_frame(region, scene, sipo->flag & SIPO_DRAWTIME, !minimized);
   }
 
-  if (region->winy > HEADERY * UI_SCALE_FAC) {
+  if (!minimized) {
     /* scrollers */
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
@@ -538,14 +548,14 @@ static void graph_region_message_subscribe(const wmRegionMessageSubscribeParams 
     }
   }
 
-  /* All dopesheet filter settings, etc. affect the drawing of this editor,
+  /* All dope-sheet filter settings, etc. affect the drawing of this editor,
    * also same applies for all animation-related data-types that may appear here,
    * so just whitelist the entire structs for updates
    */
   {
     wmMsgParams_RNA msg_key_params = {{}};
     StructRNA *type_array[] = {
-        &RNA_DopeSheet, /* dopesheet filters */
+        &RNA_DopeSheet, /* dope-sheet filters */
 
         &RNA_ActionGroup, /* channel groups */
         &RNA_FCurve,      /* F-Curve */
@@ -832,7 +842,7 @@ static void graph_id_remap(ScrArea * /*area*/,
   }
 
   mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->filter_grp), ID_REMAP_APPLY_DEFAULT);
-  mappings.apply(reinterpret_cast<ID **>(&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
+  mappings.apply((&sgraph->ads->source), ID_REMAP_APPLY_DEFAULT);
 }
 
 static void graph_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
@@ -896,7 +906,7 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   SpaceGraph *sipo = (SpaceGraph *)sl;
 
   BLO_read_struct(reader, bDopeSheet, &sipo->ads);
-  memset(&sipo->runtime, 0x0, sizeof(sipo->runtime));
+  sipo->runtime = SpaceGraph_Runtime{};
 }
 
 static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -944,7 +954,7 @@ void ED_spacetype_ipo()
   st->blend_write = graph_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = graph_main_region_init;
   art->draw = graph_main_region_draw;
@@ -956,7 +966,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -967,7 +977,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: channels */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_CHANNELS;
   /* 200 is the 'standard', but due to scrollers, we want a bit more to fit the lock icons in */
   art->prefsizex = 200 + V2D_SCROLL_WIDTH;
@@ -980,7 +990,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: UI buttons */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;

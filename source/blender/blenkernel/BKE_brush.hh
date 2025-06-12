@@ -10,11 +10,14 @@
  * General operations for brushes.
  */
 
+#include <optional>
+
 #include "BLI_span.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_color_types.h"
 #include "DNA_object_enums.h"
+#include "DNA_userdef_enums.h"
 
 enum class PaintMode : int8_t;
 struct Brush;
@@ -25,8 +28,6 @@ struct MTex;
 struct Paint;
 struct Scene;
 struct UnifiedPaintSettings;
-
-// enum eCurveMappingPreset;
 
 /* Globals for brush execution. */
 
@@ -44,6 +45,29 @@ Brush *BKE_brush_add(Main *bmain, const char *name, eObjectMode ob_mode);
  * Delete a Brush.
  */
 bool BKE_brush_delete(Main *bmain, Brush *brush);
+
+/**
+ * Perform deep-copy of a Brush and its 'children' data-blocks.
+ *
+ * \param dupflag: Controls which sub-data are also duplicated
+ * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param duplicate_options: Additional context information about current duplicate call (e.g. if
+ * it's part of a higher-level duplication or not, etc.). (see #eLibIDDuplicateFlags in
+ * BKE_lib_id.hh).
+ *
+ * \warning By default, this functions will clear all \a bmain #ID.idnew pointers
+ * (#BKE_main_id_newptr_and_tag_clear), and take care of post-duplication updates like remapping to
+ * new IDs (#BKE_libblock_relink_to_newid).
+ * If \a #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on (typically when duplication
+ * is called recursively from another parent duplication operation), the caller is responsible to
+ * handle all of these operations.
+ *
+ * \note Caller MUST handle updates of the depsgraph (#DAG_relations_tag_update).
+ */
+Brush *BKE_brush_duplicate(Main *bmain,
+                           Brush *brush,
+                           eDupli_ID_Flags dupflag,
+                           /*eLibIDDuplicateFlags*/ uint duplicate_options);
 /**
  * Add grease pencil settings.
  */
@@ -77,7 +101,7 @@ void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask);
 /**
  * Library Operations
  */
-void BKE_brush_curve_preset(Brush *b, enum eCurveMappingPreset preset);
+void BKE_brush_curve_preset(Brush *b, eCurveMappingPreset preset);
 
 /**
  * Combine the brush strength based on the distances and brush settings with the existing factors.
@@ -125,7 +149,7 @@ float BKE_brush_sample_masktex(
  * This is preferred above using mtex/mask_mtex attributes directly as due to legacy these
  * attributes got switched in sculpt mode.
  */
-const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode object_mode);
+const MTex *BKE_brush_mask_texture_get(const Brush *brush, eObjectMode object_mode);
 
 /**
  * Get the color texture for this given object mode.
@@ -133,7 +157,7 @@ const MTex *BKE_brush_mask_texture_get(const Brush *brush, const eObjectMode obj
  * This is preferred above using mtex/mask_mtex attributes directly as due to legacy these
  * attributes got switched in sculpt mode.
  */
-const MTex *BKE_brush_color_texture_get(const Brush *brush, const eObjectMode object_mode);
+const MTex *BKE_brush_color_texture_get(const Brush *brush, eObjectMode object_mode);
 
 /**
  * Radial control.
@@ -142,7 +166,23 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
 /* Unified strength size and color. */
 
+struct BrushColorJitterSettings {
+  int flag;
+  /** Jitter amounts */
+  float hue;
+  float saturation;
+  float value;
+
+  /** Jitter pressure curves. */
+  CurveMapping *curve_hue_jitter;
+  CurveMapping *curve_sat_jitter;
+  CurveMapping *curve_val_jitter;
+};
+
 const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const Brush *brush);
+std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(const Scene *scene,
+                                                                            const Paint *paint,
+                                                                            const Brush *brush);
 const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Paint *paint,
                                            const Brush *brush);
@@ -166,8 +206,6 @@ bool BKE_brush_use_locked_size(const Scene *scene, const Brush *brush);
 bool BKE_brush_use_alpha_pressure(const Brush *brush);
 bool BKE_brush_use_size_pressure(const Brush *brush);
 
-bool BKE_brush_sculpt_has_secondary_color(const Brush *brush);
-
 /**
  * Scale unprojected radius to reflect a change in the brush's 2D size.
  */
@@ -189,3 +227,37 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode);
 
 /* debugging only */
 void BKE_brush_debug_print_state(Brush *br);
+
+/* -------------------------------------------------------------------- */
+/** \name Brush Capabilities
+ * Common boolean checks used during both brush evaluation and in UI drawing
+ * via BrushCapabilities inside rna_brush.cc.
+ * \{ */
+
+namespace blender::bke::brush {
+bool supports_dyntopo(const Brush &brush);
+bool supports_accumulate(const Brush &brush);
+bool supports_topology_rake(const Brush &brush);
+bool supports_auto_smooth(const Brush &brush);
+bool supports_height(const Brush &brush);
+bool supports_plane_height(const Brush &brush);
+bool supports_plane_depth(const Brush &brush);
+bool supports_jitter(const Brush &brush);
+bool supports_normal_weight(const Brush &brush);
+bool supports_rake_factor(const Brush &brush);
+bool supports_persistence(const Brush &brush);
+bool supports_pinch_factor(const Brush &brush);
+bool supports_plane_offset(const Brush &brush);
+bool supports_random_texture_angle(const Brush &brush);
+bool supports_sculpt_plane(const Brush &brush);
+bool supports_color(const Brush &brush);
+bool supports_secondary_cursor_color(const Brush &brush);
+bool supports_smooth_stroke(const Brush &brush);
+bool supports_space_attenuation(const Brush &brush);
+bool supports_strength_pressure(const Brush &brush);
+bool supports_inverted_direction(const Brush &brush);
+bool supports_gravity(const Brush &brush);
+bool supports_tilt(const Brush &brush);
+}  // namespace blender::bke::brush
+
+/** \} */

@@ -9,17 +9,21 @@
 
 #pragma once
 
-#include <cstdio> /* Include header using off_t before poisoning it below. */
+#include <cstdio> /* IWYU pragma: keep. Include header using off_t before poisoning it below. */
+#include <optional>
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
 #endif
 
 #include "BLI_filereader.h"
+#include "BLI_map.hh"
+
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h" /* for eReportType */
 
+#include "BLO_core_bhead.hh"
+#include "BLO_core_blend_header.hh"
 #include "BLO_readfile.hh"
 
 struct BlendFileData;
@@ -37,6 +41,9 @@ struct Object;
 struct OldNewMap;
 struct UserDef;
 
+/**
+ * Store some critical information about the read blend-file.
+ */
 enum eFileDataFlag {
   FD_FLAGS_SWITCH_ENDIAN = 1 << 0,
   FD_FLAGS_FILE_POINTSIZE_IS_4 = 1 << 1,
@@ -48,6 +55,11 @@ enum eFileDataFlag {
    * 'from the future'. Improves report to the user.
    */
   FD_FLAGS_FILE_FUTURE = 1 << 5,
+  /**
+   * The blend-file has IDs with invalid names (either using the 5.0+ new 'long names', or
+   * corrupted). I.e. their names have no null char in their first 66 bytes.
+   */
+  FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
 };
 ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
 
@@ -67,6 +79,7 @@ struct FileData {
   ListBase bhead_list = {};
   enum eFileDataFlag flags = eFileDataFlag(0);
   bool is_eof = false;
+  BlenderHeader blender_header = {};
 
   FileReader *file = nullptr;
 
@@ -129,8 +142,7 @@ struct FileData {
   BHeadSort *bheadmap = nullptr;
   int tot_bheadmap = 0;
 
-  /** See: #USE_GHASH_BHEAD. */
-  GHash *bhead_idname_hash = nullptr;
+  std::optional<blender::Map<blender::StringRefNull, BHead *>> bhead_idname_map;
 
   ListBase *mainlist = nullptr;
   /** Used for undo. */
@@ -155,8 +167,6 @@ struct FileData {
   /** Opaque handle to the storage system used for non-static allocation strings. */
   void *storage_handle = nullptr;
 };
-
-#define SIZEOFBLENDERHEADER 12
 
 /***/
 void blo_join_main(ListBase *mainlist);
@@ -196,8 +206,11 @@ BHead *blo_bhead_prev(FileData *fd, BHead *thisblock) ATTR_NONNULL(1, 2);
 
 /**
  * Warning! Caller's responsibility to ensure given bhead **is** an ID one!
+ *
+ * Will return `nullptr` if the name is not valid (e.g. because it has no null-char terminator, if
+ * it was saved in a version of Blender with higher MAX_ID_NAME value).
  */
-const char *blo_bhead_id_name(const FileData *fd, const BHead *bhead);
+const char *blo_bhead_id_name(FileData *fd, const BHead *bhead);
 /**
  * Warning! Caller's responsibility to ensure given bhead **is** an ID one!
  */
@@ -245,7 +258,12 @@ void blo_do_versions_280(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_290(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_300(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_400(FileData *fd, Library *lib, Main *bmain);
-void blo_do_versions_cycles(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_410(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_420(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_430(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_440(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_450(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_500(FileData *fd, Library *lib, Main *bmain);
 
 void do_versions_after_linking_250(Main *bmain);
 void do_versions_after_linking_260(Main *bmain);
@@ -254,7 +272,12 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain);
 void do_versions_after_linking_290(FileData *fd, Main *bmain);
 void do_versions_after_linking_300(FileData *fd, Main *bmain);
 void do_versions_after_linking_400(FileData *fd, Main *bmain);
-void do_versions_after_linking_cycles(Main *bmain);
+void do_versions_after_linking_410(FileData *fd, Main *bmain);
+void do_versions_after_linking_420(FileData *fd, Main *bmain);
+void do_versions_after_linking_430(FileData *fd, Main *bmain);
+void do_versions_after_linking_440(FileData *fd, Main *bmain);
+void do_versions_after_linking_450(FileData *fd, Main *bmain);
+void do_versions_after_linking_500(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,
                              BlendfileLinkAppendContext *lapp_context,

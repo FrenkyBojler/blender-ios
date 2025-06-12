@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines the 'BPY_driver_exec' to execute python driver expressions,
+ * This file defines the #BPY_driver_exec to execute python driver expressions,
  * called by the animation system, there are also some utility functions
  * to deal with the name-space used for driver execution.
  */
@@ -15,7 +15,6 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "BKE_animsys.h"
@@ -209,7 +208,7 @@ static void bpy_pydriver_namespace_clear_self()
 
 static PyObject *bpy_pydriver_depsgraph_as_pyobject(Depsgraph *depsgraph)
 {
-  PointerRNA depsgraph_ptr = RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph);
+  PointerRNA depsgraph_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
   return pyrna_struct_CreatePyObject(&depsgraph_ptr);
 }
 
@@ -266,7 +265,6 @@ void BPY_driver_reset()
 {
   PyGILState_STATE gilstate;
   const bool use_gil = true; /* !PyC_IsInterpreterActive(); */
-
   if (use_gil) {
     gilstate = PyGILState_Ensure();
   }

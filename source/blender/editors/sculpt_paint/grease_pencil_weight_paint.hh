@@ -19,6 +19,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "BLI_kdtree.h"
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 
 #include "DNA_brush_types.h"
@@ -52,6 +53,10 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
     Vector<bool> bone_deformed_vgroups;
 
     Array<float2> point_positions;
+
+    /* A stroke point can be read-only in case of material locking. Read-only means that the
+     * vertex weight can't be changed, but the weight does count for average, blur and smear. */
+    Array<bool> point_is_read_only;
 
     /* Flag for all stroke points in a drawing: true when the point was touched by the brush during
      * a #GreasePencilStrokeOperation. */
@@ -97,7 +102,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   /* Set of locked vertex groups (object level). */
   Set<std::string> object_locked_defgroups;
 
-  ~WeightPaintOperation() override {}
+  ~WeightPaintOperation() override = default;
 
   /* Apply a weight to a point under the brush. */
   void apply_weight_to_point(const BrushPoint &point,
@@ -146,8 +151,32 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   {
     int object_defgroup_nr = BKE_object_defgroup_active_index_get(this->object) - 1;
     if (object_defgroup_nr == -1) {
-      BKE_object_defgroup_add(this->object);
-      object_defgroup_nr = 0;
+      const ListBase *defbase = BKE_object_defgroup_list(this->object);
+      if (const Object *modob = BKE_modifiers_is_deformed_by_armature(this->object)) {
+        /* This happens on a Bone select, when no vgroup existed yet. */
+        const Bone *actbone = static_cast<bArmature *>(modob->data)->act_bone;
+        if (actbone) {
+          const bPoseChannel *pchan = BKE_pose_channel_find_name(modob->pose, actbone->name);
+
+          if (pchan) {
+            bDeformGroup *dg = BKE_object_defgroup_find_name(this->object, pchan->name);
+            if (dg == nullptr) {
+              dg = BKE_object_defgroup_add_name(this->object, pchan->name);
+              object_defgroup_nr = BLI_findindex(defbase, dg);
+            }
+            else {
+              const int actdef = BLI_findindex(defbase, dg);
+              BLI_assert(actdef >= 0);
+              this->grease_pencil->vertex_group_active_index = actdef + 1;
+              object_defgroup_nr = actdef;
+            }
+          }
+        }
+      }
+      if (BLI_listbase_is_empty(defbase)) {
+        BKE_object_defgroup_add(this->object);
+        object_defgroup_nr = 0;
+      }
     }
     this->object_defgroup = static_cast<bDeformGroup *>(
         BLI_findlink(BKE_object_defgroup_list(this->object), object_defgroup_nr));
@@ -174,7 +203,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
                                      const int frame_group)
   {
     const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, this->object);
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, this->object);
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
@@ -222,6 +251,16 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
             drawing_weight_data.point_positions[point] = ED_view3d_project_float_v2_m4(
                 region, deformation.positions[point], projection);
           }
+        });
+
+        /* Get the read-only state of stroke points (can be true in case of material locking). */
+        drawing_weight_data.point_is_read_only.reinitialize(deformation.positions.size());
+        drawing_weight_data.point_is_read_only.fill(true);
+        IndexMaskMemory memory;
+        const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+            *this->object, drawing_info.drawing, drawing_info.layer_index, memory);
+        editable_points.foreach_index(GrainSize(1024), [&](const int64_t index) {
+          drawing_weight_data.point_is_read_only[index] = false;
         });
 
         /* Initialize the flag for stroke points being touched by the brush. */
