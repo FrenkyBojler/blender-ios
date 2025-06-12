@@ -35,6 +35,7 @@
 #  endif
 
 #  include "BKE_appdir.hh"
+#  include "BKE_blender.hh"
 #  include "BKE_blender_cli_command.hh"
 #  include "BKE_blender_version.h"
 #  include "BKE_blendfile.hh"
@@ -627,6 +628,10 @@ static const char arg_handle_print_version_doc[] =
 static int arg_handle_print_version(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   print_version_full();
+
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
+
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
   return 0;
@@ -922,6 +927,9 @@ static int arg_handle_print_help(int /*argc*/, const char ** /*argv*/, void *dat
 
   print_help(ba, false);
 
+  /* Handles cleanup before exit. */
+  BKE_blender_atexit();
+
   exit(EXIT_SUCCESS);
   BLI_assert_unreachable();
 
@@ -1114,11 +1122,11 @@ static int arg_handle_command_set(int argc, const char **argv, void *data)
 static const char arg_handle_disable_depsgraph_on_file_load_doc[] =
     "\n"
     "\tBackground mode: Do not systematically build and evaluate ViewLayers' dependency graphs\n"
-    "\twhen loading a blend-file in background mode (`-b` or `-c` options).\n"
+    "\twhen loading a blend-file in background mode ('-b' or '-c' options).\n"
     "\n"
     "\tScripts requiring evaluated data then need to explicitly ensure that\n"
     "\tan evaluated depsgraph is available\n"
-    "\t(e.g. by calling `depsgraph = context.evaluated_depsgraph_get()`).\n"
+    "\t(e.g. by calling 'depsgraph = context.evaluated_depsgraph_get()').\n"
     "\n"
     "\tNOTE: this is a temporary option, in the future depsgraph will never be\n"
     "\tautomatically generated on file load in background mode.";
@@ -1135,7 +1143,7 @@ static const char arg_handle_disable_liboverride_auto_resync_doc[] =
     "\tDo not perform library override automatic resync when loading a new blend-file.\n"
     "\n"
     "\tNOTE: this is an alternative way to get the same effect as when setting the\n"
-    "\t`No Override Auto Resync` User Preferences Debug option.";
+    "\t'No Override Auto Resync' User Preferences Debug option.";
 static int arg_handle_disable_liboverride_auto_resync(int /*argc*/,
                                                       const char ** /*argv*/,
                                                       void * /*data*/)
@@ -1367,7 +1375,7 @@ static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*
 
 static const char arg_handle_debug_mode_io_doc[] =
     "\n\t"
-    "Enable debug messages for I/O (Collada, ...).";
+    "Enable debug messages for I/O.";
 static int arg_handle_debug_mode_io(int /*argc*/, const char ** /*argv*/, void * /*data*/)
 {
   G.debug |= G_DEBUG_IO;
@@ -1549,7 +1557,7 @@ static int arg_handle_gpu_backend_set(int argc, const char **argv, void * /*data
       fprintf(stderr, (i + 1 != backends_supported_num) ? "%s, " : "%s", backends_supported[i]);
     }
     fprintf(stderr, "].\n");
-    return 0;
+    return 1;
   }
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
@@ -1699,9 +1707,9 @@ static int arg_handle_playback_mode(int argc, const char **argv, void * /*data*/
   /* Ignore the animation player if `-b` was given first. */
   if (G.background == 0) {
     /* Skip this argument (`-a`). */
-    WM_main_playanim(argc - 1, argv + 1);
+    const int exit_code = WM_main_playanim(argc - 1, argv + 1);
 
-    exit(EXIT_SUCCESS);
+    exit(exit_code);
   }
 
   return -2;

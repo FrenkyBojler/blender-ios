@@ -274,8 +274,8 @@ struct ExtractionGraph {
  private:
   static void delayed_extraction_free_callback(void *object)
   {
-    drw_batch_cache_generate_requested_evaluated_mesh_or_curve(reinterpret_cast<Object *>(object),
-                                                               *task_graph_ptr_);
+    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(
+        reinterpret_cast<Object *>(object), *task_graph_ptr_);
   }
 };
 
@@ -600,13 +600,13 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   if (ob_ref.is_dupli() == false) {
     return;
   }
-  if (last_key_ == ob_ref.dupli_object) {
+  if (last_key_ == ob_ref.dupli_object_) {
     /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
-  last_key_.ob = ob_ref.dupli_object->ob;
-  last_key_.ob_data = ob_ref.dupli_object->ob_data;
+  last_key_.ob = ob_ref.dupli_object_->ob;
+  last_key_.ob_data = ob_ref.dupli_object_->ob_data;
 
   if (dupli_set_ == nullptr) {
     dupli_set_ = MEM_new<blender::Set<DupliKey>>("DupliCacheManager::dupli_set_");
@@ -620,7 +620,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
      * object (e.g. Text evaluated as Mesh, Geometry node instance etc...).
      * In this case, key.ob is not going to have the same data type as ob_ref.object nor the same
      * data at all. */
-    drw_batch_cache_validate(ob_ref.object);
+    blender::draw::drw_batch_cache_validate(ob_ref.object);
   }
 }
 
@@ -658,7 +658,7 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
       ob = &tmp_object;
     }
 
-    drw_batch_cache_generate_requested(ob, *extraction.graph);
+    blender::draw::drw_batch_cache_generate_requested(ob, *extraction.graph);
   }
 
   /* TODO(fclem): Could eventually keep the set allocated. */
@@ -675,8 +675,8 @@ namespace blender::draw {
 
 ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 {
-  this->dupli_parent = iter_data.dupli_parent;
-  this->dupli_object = iter_data.dupli_object_current;
+  this->dupli_parent_ = iter_data.dupli_parent;
+  this->dupli_object_ = iter_data.dupli_object_current;
   this->object = ob;
   /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
@@ -684,8 +684,8 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 
 ObjectRef::ObjectRef(Object *ob)
 {
-  this->dupli_parent = nullptr;
-  this->dupli_object = nullptr;
+  this->dupli_parent_ = nullptr;
+  this->dupli_object_ = nullptr;
   this->object = ob;
   /* Set by the first draw-call. */
   this->handle = ResourceHandle(0);
@@ -745,7 +745,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
                                        ExtractionGraph &extraction)
 {
   if (ref.is_dupli() == false) {
-    drw_batch_cache_validate(ref.object);
+    blender::draw::drw_batch_cache_validate(ref.object);
   }
   else {
     dupli_cache.try_add(ref);
@@ -758,7 +758,7 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_generate_requested(ref.object, *extraction.graph);
+    blender::draw::drw_batch_cache_generate_requested(ref.object, *extraction.graph);
   }
   /* Batch generation for duplis happens after iter_callback. */
 }
@@ -1572,14 +1572,14 @@ void DRW_render_object_iter(
       if ((object_type_exclude_viewport & (1 << ob->type)) == 0) {
         blender::draw::ObjectRef ob_ref(data_, ob);
         if (ob_ref.is_dupli() == false) {
-          drw_batch_cache_validate(ob);
+          blender::draw::drw_batch_cache_validate(ob);
         }
         else {
           duplis.try_add(ob_ref);
         }
         callback(ob_ref, engine, depsgraph);
         if (ob_ref.is_dupli() == false) {
-          drw_batch_cache_generate_requested(ob, *extraction.graph);
+          blender::draw::drw_batch_cache_generate_requested(ob, *extraction.graph);
         }
         /* Batch generation for duplis happens after iter_callback. */
       }
@@ -2003,7 +2003,7 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->nodetree) {
+  if (!this->scene->compositing_node_group) {
     return false;
   }
 
