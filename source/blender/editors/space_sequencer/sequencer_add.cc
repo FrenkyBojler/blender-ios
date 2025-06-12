@@ -1183,7 +1183,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MOVIE);
+  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MOVIE, nullptr);
 
   const char *error_msg;
   if (!have_free_channels(C, op, 2, &error_msg)) {
@@ -1309,14 +1309,14 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
 
   layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_boolean_get(op->ptr, "move_strips")) {
-    layout->prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout &col = layout->column(true);
+    col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (RNA_struct_find_property(op->ptr, "frame_end")) {
-      layout->prop(op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op->ptr, "frame_end", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->separator();
   }
-
-  layout->separator();
 
   /* Main draw call. */
   uiDefAutoButsRNA(layout,
