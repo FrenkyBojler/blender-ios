@@ -33,7 +33,7 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
-#define MIN_ROWS 5
+#define MIN_ROWS 4
 
 static int unpadded_item_height()
 {
@@ -139,6 +139,9 @@ AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, cons
 
 void AbstractTreeView::set_default_rows(int default_rows)
 {
+  BLI_assert_msg(default_rows >= 4,
+                 "Default value is smaller than the minimum rows. Limit is required to prevent "
+                 "resizing below specific height.");
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
 }
 
@@ -366,7 +369,7 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
     return {};
   }
   const int calculate_rows = round_fl_to_int(float(*custom_height_) / padded_item_height());
-  /* Clamp value so that resizing below 3 rows is not possible. */
+  /* Clamp value to prevent resizing below minimum number of rows. */
   return math::max(MIN_ROWS, calculate_rows);
 }
 
