@@ -15,3 +15,4 @@ Referenced by issue #93963, Inconsistent displaying object data in a Viewport be
 Referenced by issue #93855, Cycles crash with edit mode and simultaneous viewport and final render
 Referenced by issue #76609, Multi-object editing is broken with linked objects with modifiers.
 Referenced by issue #72733, Issue with shared meshes overwriting modifiers
+Referenced by issue #140130, Editing shared mesh with subdivision modifier crashes on assertion
