@@ -143,7 +143,7 @@ BLI_INLINE uint32_t float_as_uint(float f)
  * Slightly modified to only use signed integers,
  * so that they can also be implemented in OSL. */
 
-BLI_INLINE int2 hash_pcg2d_i(int2 v)
+static inline int2 hash_pcg2d_i(int2 v)
 {
   v = v * int2(1664525) + int2(1013904223);
   v.x += v.y * 1664525;
@@ -154,7 +154,7 @@ BLI_INLINE int2 hash_pcg2d_i(int2 v)
   return v;
 }
 
-BLI_INLINE int3 hash_pcg3d_i(int3 v)
+static inline int3 hash_pcg3d_i(int3 v)
 {
   v = v * int3(1664525) + int3(1013904223);
   v.x += v.y * v.z;
@@ -167,7 +167,7 @@ BLI_INLINE int3 hash_pcg3d_i(int3 v)
   return v;
 }
 
-BLI_INLINE int4 hash_pcg4d_i(int4 v)
+static inline int4 hash_pcg4d_i(int4 v)
 {
   v = v * int4(1664525) + int4(1013904223);
   v.x += v.y * v.w;
@@ -311,36 +311,36 @@ float4 hash_float_to_float4(float4 k)
 
 /* Hashing a number of integers into floats in [0..1] range. */
 
-BLI_INLINE float int_to_float_01(int32_t k)
+static inline float int_to_float_01(int32_t k)
 {
   return float(k & 0x7fffffff) * (1.0f / float(0x7fffffff));
 }
 
-BLI_INLINE float2 hash_int2_to_float2(int2 k)
+static inline float2 hash_int2_to_float2(int2 k)
 {
   int2 h = hash_pcg2d_i(k);
   return float2(int_to_float_01(h.x), int_to_float_01(h.y));
 }
 
-BLI_INLINE float3 hash_int3_to_float3(int3 k)
+static inline float3 hash_int3_to_float3(int3 k)
 {
   int3 h = hash_pcg3d_i(k);
   return float3(int_to_float_01(h.x), int_to_float_01(h.y), int_to_float_01(h.z));
 }
 
-BLI_INLINE float4 hash_int4_to_float4(int4 k)
+static inline float4 hash_int4_to_float4(int4 k)
 {
   int4 h = hash_pcg4d_i(k);
   return float4(
       int_to_float_01(h.x), int_to_float_01(h.y), int_to_float_01(h.z), int_to_float_01(h.w));
 }
 
-BLI_INLINE float3 hash_int2_to_float3(int2 k)
+static inline float3 hash_int2_to_float3(int2 k)
 {
   return hash_int3_to_float3(int3(k.x, k.y, 0));
 }
 
-BLI_INLINE float3 hash_int4_to_float3(int4 k)
+static inline float3 hash_int4_to_float3(int4 k)
 {
   return hash_int4_to_float4(k).xyz();
 }
