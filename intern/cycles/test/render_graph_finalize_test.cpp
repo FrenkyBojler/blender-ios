@@ -122,6 +122,11 @@ class ShaderGraphBuilder {
     return (*this).add_connection(from, "Output::Surface");
   }
 
+  ShaderGraphBuilder &output_volume_closure(const string &from)
+  {
+    return (*this).add_connection(from, "Output::Volume");
+  }
+
   ShaderGraphBuilder &output_color(const string &from)
   {
     return (*this)
@@ -1539,6 +1544,70 @@ TEST_F(RenderGraph, constant_fold_convert_color_float_color)
                     .set("Value2", 0.0f))
       .add_connection("Attribute::Color", "MathAdd::Value1")
       .output_color("MathAdd::Value");
+
+  graph.finalize(scene.get());
+}
+
+/*
+ * Tests:
+ *  - Stochastic sampling with math multiply node.
+ */
+TEST_F(RenderGraph, stochastic_sample_math_multiply)
+{
+  EXPECT_ANY_MESSAGE(log);
+  CORRECT_INFO_MESSAGE(log, "Volume attribute node Attribute uses stochastic sampling");
+
+  builder.add_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<MathNode>(graph, "MathMultiply")
+                    .set_param("math_type", NODE_MATH_MULTIPLY))
+      .add_node(ShaderNodeBuilder<ScatterVolumeNode>(graph, "ScatterVolume"))
+      .add_connection("Attribute::Fac", "MathMultiply::Value1")
+      .add_connection("MathMultiply::Value", "ScatterVolume::Density")
+      .output_volume_closure("ScatterVolume::Volume");
+
+  graph.finalize(scene.get());
+}
+
+/*
+ * Tests:
+ *  - No stochastic sampling with math power node.
+ */
+TEST_F(RenderGraph, not_stochastic_sample_math_power)
+{
+  EXPECT_ANY_MESSAGE(log);
+  INVALID_INFO_MESSAGE(log, "Volume attribute node Attribute uses stochastic sampling");
+
+  builder.add_attribute("Attribute")
+      .add_node(
+          ShaderNodeBuilder<MathNode>(graph, "MathPower").set_param("math_type", NODE_MATH_POWER))
+      .add_node(ShaderNodeBuilder<ScatterVolumeNode>(graph, "ScatterVolume"))
+      .add_connection("Attribute::Fac", "MathPower::Value1")
+      .add_connection("MathPower::Value", "ScatterVolume::Density")
+      .output_volume_closure("ScatterVolume::Volume");
+
+  graph.finalize(scene.get());
+}
+
+/*
+ * Tests:
+ *  - Stochastic sampling temperature with map range, principled volume and mix closure.
+ */
+TEST_F(RenderGraph, stochastic_sample_principled_volume_mix)
+{
+  EXPECT_ANY_MESSAGE(log);
+  CORRECT_INFO_MESSAGE(log, "Volume attribute node Attribute uses stochastic sampling");
+
+  builder.add_attribute("Attribute")
+      .add_node(ShaderNodeBuilder<MapRangeNode>(graph, "MapRange"))
+      .add_node(ShaderNodeBuilder<MixClosureNode>(graph, "MixClosure").set("Fac", 0.5f))
+      .add_node(ShaderNodeBuilder<PrincipledVolumeNode>(graph, "PrincipledVolume1"))
+      .add_node(ShaderNodeBuilder<PrincipledVolumeNode>(graph, "PrincipledVolume2"))
+      .add_connection("Attribute::Color", "MapRange::Value")
+      .add_connection("MapRange::Result", "PrincipledVolume1::Temperature")
+      .add_connection("Attribute::Fac", "PrincipledVolume2::Density")
+      .add_connection("PrincipledVolume1::Volume", "MixClosure::Closure1")
+      .add_connection("PrincipledVolume2::Volume", "MixClosure::Closure2")
+      .output_volume_closure("MixClosure::Closure");
 
   graph.finalize(scene.get());
 }
