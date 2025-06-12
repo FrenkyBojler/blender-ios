@@ -1578,6 +1578,10 @@ typedef struct NodeScaleData {
   short interpolation;
 } NodeScaleData;
 
+typedef struct NodeDisplaceData {
+  short interpolation;
+} NodeDisplaceData;
+
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
   char plane_track_name[64];
