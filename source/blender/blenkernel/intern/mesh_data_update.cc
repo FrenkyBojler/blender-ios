@@ -1289,7 +1289,7 @@ void mesh_get_mapped_verts_coords(Mesh *mesh_eval, MutableSpan<float3> r_cos)
   if (mesh_eval->runtime->deformed_only == false) {
     MappedUserData user_data;
     r_cos.fill(float3(0));
-    user_data.vertexcos = reinterpret_cast<float (*)[3]>(r_cos.data());
+    user_data.vertexcos = reinterpret_cast<float(*)[3]>(r_cos.data());
     user_data.vertex_visit = BLI_BITMAP_NEW(r_cos.size(), "vertexcos flags");
     BKE_mesh_foreach_mapped_vert(mesh_eval, make_vertexcos__mapFunc, &user_data, MESH_FOREACH_NOP);
     MEM_freeN(user_data.vertex_visit);
