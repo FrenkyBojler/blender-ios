@@ -456,7 +456,6 @@ classes = (
     EEVEE_MATERIAL_PT_displacement,
     EEVEE_MATERIAL_PT_thickness,
     EEVEE_MATERIAL_PT_settings,
-    EEVEE_MATERIAL_PT_settings,
     EEVEE_MATERIAL_PT_settings_surface,
     EEVEE_MATERIAL_PT_settings_volume,
     MATERIAL_PT_lineart,
