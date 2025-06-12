@@ -78,6 +78,27 @@ static void rename_mesh_uv_seam_attribute(Mesh &mesh)
   STRNCPY(old_seam_layer->name, new_name.c_str());
 }
 
+static void initialize_closure_input_structure_types(bNodeTree &ntree)
+{
+  LISTBASE_FOREACH (bNode *, node, &ntree.nodes) {
+    if (node->type_legacy == GEO_NODE_EVALUATE_CLOSURE) {
+      auto *storage = static_cast<NodeGeometryEvaluateClosure *>(node->storage);
+      for (const int i : blender::IndexRange(storage->input_items.items_num)) {
+        NodeGeometryEvaluateClosureInputItem &item = storage->input_items.items[i];
+        if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+        }
+      }
+      for (const int i : blender::IndexRange(storage->output_items.items_num)) {
+        NodeGeometryEvaluateClosureOutputItem &item = storage->output_items.items[i];
+        if (item.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          item.structure_type = NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC;
+        }
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -106,6 +127,26 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 3)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_GEOMETRY) {
+        initialize_closure_input_structure_types(*ntree);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 7)) {
+    const int uv_select_island = 1 << 3;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *ts = scene->toolsettings;
+      if (ts->uv_selectmode & uv_select_island) {
+        ts->uv_selectmode = UV_SELECT_VERTEX;
+        ts->uv_flag |= UV_FLAG_ISLAND_SELECT;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 8)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type != NTREE_COMPOSIT) {
         continue;
