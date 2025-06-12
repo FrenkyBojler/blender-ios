@@ -395,12 +395,6 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
     const float3 B = sign * cross(normal, tangent);
     N = safe_normalize(to_global(color, tangent, B, normal));
 
-    if (is_zero(N)) {
-      /* Fall back to unperturbed normal. */
-      stack_store_float3(stack, normal_offset, sd->N);
-      return;
-    }
-
     /* transform to world space */
     object_normal_transform(kg, sd, &N);
 
@@ -438,7 +432,7 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
     }
   }
 
-  if (is_zero(N)) {
+  if (is_zero(N) || !isfinite_safe(N)) {
     N = sd->N;
   }
 
