@@ -9,12 +9,12 @@
 #include "BKE_subdiv_eval.hh"
 
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_task.h"
 
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_subdiv.hh"
-#include "BLI_math_vector.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -320,7 +320,7 @@ void eval_limit_point_and_derivatives(Subdiv *subdiv,
    * which there must be proper derivatives. This might break continuity of normals, but is better
    * that giving totally unusable derivatives. */
 
-  if ((is_zero_v3(r_dPdu) || is_zero_v3(r_dPdv)) || equals_v3v3(r_dPdu, r_dPdv)) {
+  if ((math::is_zero(r_dPdu) || math::is_zero(r_dPdv)) || math::is_equal(r_dPdu, r_dPdv)) {
     subdiv->evaluator->eval_output->evaluateLimit(
         ptex_face_index, u * 0.999f + 0.0005f, v * 0.999f + 0.0005f, r_P, r_dPdu, r_dPdv);
   }

@@ -552,7 +552,8 @@ void multires_reshape_evaluate_limit_at_grid(const MultiresReshapeContext *resha
   const int face_index = multires_reshape_grid_to_face_index(reshape_context,
                                                              grid_coord->grid_index);
   const int corner = multires_reshape_grid_to_corner(reshape_context, grid_coord->grid_index);
-  multires_reshape_tangent_matrix_for_corner(reshape_context, face_index, corner, dPdu, dPdv, r_tangent_matrix);
+  multires_reshape_tangent_matrix_for_corner(
+      reshape_context, face_index, corner, dPdu, dPdv, r_tangent_matrix);
 }
 
 /** \} */

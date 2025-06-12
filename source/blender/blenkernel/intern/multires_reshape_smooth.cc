@@ -1140,7 +1140,7 @@ static void reshape_subdiv_evaluate_limit_at_grid(
     const MultiresReshapeSmoothContext *reshape_smooth_context,
     const PTexCoord *ptex_coord,
     const GridCoord *grid_coord,
-    blender::float3& limit_P,
+    blender::float3 &limit_P,
     float r_tangent_matrix[3][3])
 {
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;

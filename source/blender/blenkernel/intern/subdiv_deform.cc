@@ -143,7 +143,7 @@ static void subdiv_mesh_vertex_corner(const ForeachContext *foreach_context,
   /* Displacement is accumulated in subdiv vertex position.
    * Needs to be backed up before copying data from original vertex. */
   float D[3] = {0.0f, 0.0f, 0.0f};
-  float3& vertex_co = ctx->vert_positions[coarse_vertex_index];
+  float3 &vertex_co = ctx->vert_positions[coarse_vertex_index];
   if (ctx->have_displacement) {
     copy_v3_v3(D, vertex_co);
     mul_v3_fl(D, inv_num_accumulated);
