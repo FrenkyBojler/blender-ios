@@ -1,1 +1,1 @@
-Referenced by issue #139796, Cycles: HIP stalls on classroom scene
+Referenced by issue #139796, Cycles: HIP on RDNA4 stalls in `integrator_shade_surface` in many scenes
