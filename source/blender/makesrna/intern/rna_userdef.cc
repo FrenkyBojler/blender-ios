@@ -7605,7 +7605,7 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_global_undo_edit_mode", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,
-      "Use Global Undo In Edit Mode",
+      "Global Undo In Edit Mode",
       "Instead of using specific edit mode undo systems, use global undo (can use more memory)");
 }
 
