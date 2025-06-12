@@ -324,7 +324,7 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
 
   bke::mesh_calc_edges(*mesh, false, false);
 
-  /* It's possible that the number of faces, indices, and verts remains the same but the topology
+  /* It's possible that the number of faces, indices, and verts remain the same but the topology
    * itself is different. Until finer-grained topology detection can be implemented, always tag the
    * mesh as needing updated topology mappings. Without this, a time varying mesh could trigger
    * undefined behavior. */
