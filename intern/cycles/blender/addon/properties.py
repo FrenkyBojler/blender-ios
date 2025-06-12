@@ -1912,8 +1912,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
             col.label(
-                text="HIP currently has known stability issues, that are expected to be solved before the next release.",
-                icon='INFO')
+                text="HIP has known stability issues, these are expected to be solved before the next release.",
+                icon='ERROR')
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
