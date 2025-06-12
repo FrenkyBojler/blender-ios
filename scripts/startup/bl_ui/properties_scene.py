@@ -457,7 +457,7 @@ class SCENE_PT_animation(SceneButtonsPanel, PropertiesAnimationMixin, PropertyPa
 
         if node_tree := scene.compositing_node_group:
             col = layout.column(align=True)
-            col.label(text="Compositing Node Tree")
+            col.label(text="Compositing Nodes")
             self.draw_action_and_slot_selector(context, col, node_tree)
 
 
