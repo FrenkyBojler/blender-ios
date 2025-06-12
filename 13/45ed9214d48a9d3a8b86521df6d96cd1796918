@@ -1,2 +1,3 @@
 Referenced by pull request #140132, Fix #139042: use index map instead of sorting transform system data
 Referenced by pull request #140209, Fix: Graph Editor proportional editing wrong distances
+Referenced by commit cd43760843b0496e6aa5cd157444222240277bb1, Fix: Graph Editor proportional editing wrong distances
