@@ -132,6 +132,7 @@ def make_lib():
 
     # nodes
     bpy.data.scenes["Scene"].use_nodes = True
+    bpy.data.scenes["Scene"].node_tree.nodes['Render Layers'].bl_system_properties_ensure()
     bpy.data.scenes["Scene"].node_tree.nodes['Render Layers'].bl_system_properties["prop"] =\
         bpy.data.objects['Camera']
 

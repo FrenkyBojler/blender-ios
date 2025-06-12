@@ -222,6 +222,7 @@ void RNA_def_xr(BlenderRNA *brna);
  * See also #RNA_def_struct_system_idprops_func.
  */
 PointerRNA rna_struct_system_properties_get(PointerRNA *ptr);
+void rna_struct_system_properties_ensure_func(PointerRNA ptr);
 
 void rna_def_attributes_common(StructRNA *srna, AttributeOwnerType type);
 

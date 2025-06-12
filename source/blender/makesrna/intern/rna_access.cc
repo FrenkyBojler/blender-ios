@@ -299,7 +299,8 @@ IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create)
   }
 
   if (create && *property_ptr == nullptr) {
-    *property_ptr = blender::bke::idprop::create_group(__func__, IDP_FLAG_STATIC_TYPE).release();
+    *property_ptr =
+        blender::bke::idprop::create_group("user_properties", IDP_FLAG_STATIC_TYPE).release();
   }
 
   return *property_ptr;
@@ -351,7 +352,8 @@ IDProperty *RNA_struct_system_idprops(PointerRNA *ptr, bool create)
   }
 
   if (create && *property_ptr == nullptr) {
-    *property_ptr = blender::bke::idprop::create_group(__func__, IDP_FLAG_STATIC_TYPE).release();
+    *property_ptr =
+        blender::bke::idprop::create_group("system_properties", IDP_FLAG_STATIC_TYPE).release();
   }
 
   return *property_ptr;
