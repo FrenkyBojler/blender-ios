@@ -246,7 +246,7 @@ def main():
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
-    report = EEVEEReport("Eevee Next", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
+    report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('eevee', 'opengl')
     else:
