@@ -547,7 +547,7 @@ static void execute_multi_function_on_value_variant__list(
     }
     else if (input_variant.is_list()) {
       ListPtr list = input_variant.get<ListPtr>();
-      max_size = std::max(max_size, list->values().size());
+      max_size = std::max(max_size, list->size());
     }
   }
   /* In this case, the multi-function is evaluated directly. */
@@ -566,7 +566,12 @@ static void execute_multi_function_on_value_variant__list(
     }
     else if (input_variant.is_list()) {
       ListPtr list = input_variant.get<ListPtr>();
-      params.add_readonly_single_input(GVArray::ForSpan(list->values()));
+      if (const auto *array_data = std::get_if<nodes::ArrayData>(&list->data())) {
+        params.add_readonly_single_input(GSpan(list->cpp_type(), array_data->data, list->size()));
+      }
+      else if (const auto *single_data = std::get_if<nodes::SingleData>(&list->data())) {
+        params.add_readonly_single_input(GPointer(list->cpp_type(), single_data->value));
+      }
     }
   }
   for (const int i : output_values.index_range()) {
@@ -577,9 +582,10 @@ static void execute_multi_function_on_value_variant__list(
     SocketValueVariant &output_variant = *output_values[i];
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
-    ListPtr list = List::ForUninitialized(cpp_type, max_size);
-    params.add_uninitialized_single_output(const_cast<List &>(*list).values_for_write());
-    output_variant.set(std::move(list));
+    ArrayData array_data = ArrayData::ForUninitialized(cpp_type, max_size);
+
+    params.add_uninitialized_single_output(GMutableSpan(cpp_type, array_data.data, max_size));
+    output_variant.set(ListPtr(new List(cpp_type, std::move(array_data), max_size)));
   }
   fn.call(mask, params, context);
 }

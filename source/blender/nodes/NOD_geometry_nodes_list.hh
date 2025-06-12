@@ -4,33 +4,68 @@
 
 #pragma once
 
-#include "BLI_generic_array.hh"
-#include "BLI_generic_span.hh"
+#include <variant>
+
+#include "BLI_generic_pointer.hh"
 
 #include "NOD_geometry_nodes_list_fwd.hh"
 
 namespace blender::nodes {
 
-/**
- * A bundle is a map containing keys and their corresponding values. Values are stored as the type
- * they have in Geometry Nodes (#bNodeSocketType::geometry_nodes_cpp_type).
- */
+class ArrayData {
+ public:
+  void *data;
+  /* The number of elements in the array. */
+  ImplicitSharingPtr<> sharing_info;
+  static ArrayData ForValue(const GPointer &value, int64_t size);
+  static ArrayData ForDefaultValue(const CPPType &type, int64_t size);
+  static ArrayData ForConstructed(const CPPType &type, int64_t size);
+  static ArrayData ForUninitialized(const CPPType &type, int64_t size);
+};
+
+class SingleData {
+ public:
+  void *value;
+  ImplicitSharingPtr<> sharing_info;
+  static SingleData ForValue(const GPointer &value);
+  static SingleData ForDefaultValue(const CPPType &type);
+};
+
 class List : public ImplicitSharingMixin {
  public:
-  List();
-  List(const List &other);
-  List(List &&other) noexcept;
-  List &operator=(const List &other);
-  List &operator=(List &&other) noexcept;
-  ~List();
+  using DataVariant = std::variant<ArrayData, SingleData>;
 
-  static ListPtr for_garray(GArray<> array);
-  static ListPtr ForUninitialized(const CPPType &cpp_type, int64_t size);
+ private:
+  const CPPType &cpp_type_;
+  DataVariant data_;
+  int64_t size_ = 0;
 
-  virtual GSpan values() const = 0;
-  virtual GMutableSpan values_for_write() = 0;
+ public:
+  explicit List(const CPPType &type, DataVariant data, const int64_t size)
+      : cpp_type_(type), data_(std::move(data)), size_(size)
+  {
+  }
+
+  const DataVariant &data() const;
+  const CPPType &cpp_type() const;
+  int64_t size() const;
 
   void delete_self() override;
 };
+
+inline const List::DataVariant &List::data() const
+{
+  return data_;
+}
+
+inline const CPPType &List::cpp_type() const
+{
+  return cpp_type_;
+}
+
+inline int64_t List::size() const
+{
+  return size_;
+}
 
 }  // namespace blender::nodes

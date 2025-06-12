@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_rna_define.hh"
+
+#include "RNA_enum_types.hh"
+
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -10,9 +16,6 @@ namespace blender::nodes::node_geo_list_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
-  b.add_default_layout();
   const bNode *node = b.node_or_null();
 
   if (node != nullptr) {
@@ -27,6 +30,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
     b.add_input(type, "Value").field_on_all();
   }
+}
+
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 class ListFieldContext : public FieldContext {
@@ -60,15 +68,57 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GField field = params.extract_input<GField>("Value");
+  const CPPType &cpp_type = field.cpp_type();
 
-  GArray<> array(field.cpp_type(), count);
+  nodes::ArrayData array_data = nodes::ArrayData::ForConstructed(cpp_type, count);
+  GMutableSpan span(cpp_type, array_data.data, count);
 
   ListFieldContext context{};
   fn::FieldEvaluator evaluator{context, count};
-  evaluator.add_with_destination(std::move(field), array);
+  evaluator.add_with_destination(std::move(field), span);
   evaluator.evaluate();
 
-  params.set_output("List", List::for_garray(std::move(array)));
+  params.set_output("List", nodes::ListPtr(new List(cpp_type, std::move(array_data), count)));
+}
+
+static void node_rna(StructRNA *srna)
+{
+  RNA_def_node_enum(
+      srna,
+      "data_type",
+      "Data Type",
+      "",
+      rna_enum_node_socket_data_type_items,
+      NOD_inline_enum_accessors(custom1),
+      SOCK_GEOMETRY,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+        *r_free = true;
+        return enum_items_filter(rna_enum_node_socket_data_type_items,
+                                 [](const EnumPropertyItem &item) -> bool {
+                                   if (!U.experimental.use_bundle_and_closure_nodes) {
+                                     if (ELEM(item.value, SOCK_BUNDLE, SOCK_CLOSURE)) {
+                                       return false;
+                                     }
+                                   }
+                                   return ELEM(item.value,
+                                               SOCK_FLOAT,
+                                               SOCK_INT,
+                                               SOCK_BOOLEAN,
+                                               SOCK_ROTATION,
+                                               SOCK_MATRIX,
+                                               SOCK_VECTOR,
+                                               SOCK_STRING,
+                                               SOCK_RGBA,
+                                               SOCK_GEOMETRY,
+                                               SOCK_OBJECT,
+                                               SOCK_COLLECTION,
+                                               SOCK_MATERIAL,
+                                               SOCK_IMAGE,
+                                               SOCK_MENU,
+                                               SOCK_BUNDLE,
+                                               SOCK_CLOSURE);
+                                 });
+      });
 }
 
 static void node_register()
@@ -80,7 +130,9 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(ntype);
+  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
