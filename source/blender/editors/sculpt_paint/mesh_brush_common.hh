@@ -360,6 +360,8 @@ void calc_brush_texture_factors(const SculptSession &ss,
                                 Span<float3> positions,
                                 MutableSpan<float> factors);
 
+/** Only used for assertions. */
+bool contains_nan(Span<float> values);
 /**
  * Many brushes end up calculating translations from the original positions. Instead of applying
  * these directly to the modified values, it's helpful to process them separately to easily
