@@ -120,8 +120,8 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
   return evaluate_closure_node_internally_linked_input(output_socket);
 }
 
-static void try_initialize_separate_bundle_from_origin_socket(SpaceNode &snode,
-                                                              bNode &evaluate_closure_node)
+static void try_initialize_evaluate_closure_node_from_origin_socket(SpaceNode &snode,
+                                                                    bNode &evaluate_closure_node)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &closure_socket = evaluate_closure_node.input_socket(0);
@@ -172,7 +172,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Closure");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    try_initialize_separate_bundle_from_origin_socket(snode, node);
+    try_initialize_evaluate_closure_node_from_origin_socket(snode, node);
   });
 }
 
