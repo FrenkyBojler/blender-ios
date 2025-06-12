@@ -136,7 +136,18 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 6)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 7)) {
+    const int uv_select_island = 1 << 3;
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      ToolSettings *ts = scene->toolsettings;
+      if (ts->uv_selectmode & uv_select_island) {
+        ts->uv_selectmode = UV_SELECT_VERTEX;
+        ts->uv_flag |= UV_FLAG_ISLAND_SELECT;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 8)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
