@@ -98,27 +98,35 @@ class PROPERTIES_PT_options(Panel):
 
         layout.separator()
 
-        layout.use_property_split = True
         layout.use_property_decorate = False
-        col = layout.column(heading="Visible Tabs", align=True)
-        col.prop(space, "show_properties_tool")
-        col.prop(space, "show_properties_render")
-        col.prop(space, "show_properties_output")
-        col.prop(space, "show_properties_view_layer")
-        col.prop(space, "show_properties_scene")
-        col.prop(space, "show_properties_world")
-        col.prop(space, "show_properties_collection")
-        col.prop(space, "show_properties_object")
-        col.prop(space, "show_properties_modifiers")
-        col.prop(space, "show_properties_effects")
-        col.prop(space, "show_properties_particles")
-        col.prop(space, "show_properties_physics")
-        col.prop(space, "show_properties_constraints")
-        col.prop(space, "show_properties_data")
-        col.prop(space, "show_properties_bone")
-        col.prop(space, "show_properties_bone_constraints")
-        col.prop(space, "show_properties_material")
-        col.prop(space, "show_properties_texture")
+
+        visible_tabs = [
+            ("show_properties_tool", "TOOL_SETTINGS"),
+            ("show_properties_render", "SCENE"),
+            ("show_properties_output", "OUTPUT"),
+            ("show_properties_view_layer", "RENDERLAYERS"),
+            ("show_properties_scene", "SCENE_DATA"),
+            ("show_properties_world", "WORLD"),
+            ("show_properties_collection", "OUTLINER_COLLECTION"),
+            ("show_properties_object", "OBJECT_DATA"),
+            ("show_properties_modifiers", "MODIFIER"),
+            ("show_properties_effects", "SHADERFX"),
+            ("show_properties_particles", "PARTICLES"),
+            ("show_properties_physics", "PHYSICS"),
+            ("show_properties_constraints", "CONSTRAINT"),
+            ("show_properties_data", "MESH_DATA"),
+            ("show_properties_bone", "BONE_DATA"),
+            ("show_properties_bone_constraints", "CONSTRAINT_BONE"),
+            ("show_properties_material", "MATERIAL"),
+            ("show_properties_texture", "TEXTURE"),
+        ]
+
+        col = layout.column(align=True)
+        col.label(text="Visible Tabs")
+        for prop, icon in visible_tabs:
+            row = col.row()
+            row.label(icon=icon)
+            row.prop(space, prop)
 
 
 class PropertiesAnimationMixin:
