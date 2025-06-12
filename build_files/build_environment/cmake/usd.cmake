@@ -161,7 +161,7 @@ ExternalProject_Add(external_usd
       ${PATCH_DIR}/usd_storm_vulkan.diff &&
     ${PATCH_CMD} -p 1 -d
       ${BUILD_DIR}/usd/src/external_usd <
-      ${PATCH_DIR}/usd_vulkan_amd.diff
+      ${PATCH_DIR}/usd_3666_vulkan_amd.diff
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/usd
     -Wno-dev
