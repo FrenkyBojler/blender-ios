@@ -78,6 +78,9 @@ set(SRC
   nodes/node_geo_evaluate_closure.cc
   nodes/node_geo_evaluate_on_domain.cc
   nodes/node_geo_extrude_mesh.cc
+  nodes/node_geo_field_average.cc
+  nodes/node_geo_field_min_and_max.cc
+  nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
@@ -86,6 +89,7 @@ set(SRC
   nodes/node_geo_gizmo_linear.cc
   nodes/node_geo_gizmo_transform.cc
   nodes/node_geo_grease_pencil_to_curves.cc
+  nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_to_mesh.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
@@ -95,6 +99,7 @@ set(SRC
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
   nodes/node_geo_import_text.cc
+  nodes/node_geo_import_vdb.cc
   nodes/node_geo_index_of_nearest.cc
   nodes/node_geo_index_switch.cc
   nodes/node_geo_input_active_camera.cc
@@ -105,6 +110,7 @@ set(SRC
   nodes/node_geo_input_face_smooth.cc
   nodes/node_geo_input_id.cc
   nodes/node_geo_input_index.cc
+  nodes/node_geo_input_instance_bounds.cc
   nodes/node_geo_input_instance_rotation.cc
   nodes/node_geo_input_instance_scale.cc
   nodes/node_geo_input_instance_transform.cc
@@ -196,6 +202,8 @@ set(SRC
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_name.cc
   nodes/node_geo_set_grease_pencil_color.cc
+  nodes/node_geo_set_grease_pencil_depth_mode.cc
+  nodes/node_geo_set_grease_pencil_softness.cc
   nodes/node_geo_set_id.cc
   nodes/node_geo_set_instance_transform.cc
   nodes/node_geo_set_material.cc
@@ -261,20 +269,14 @@ set(LIB
   PRIVATE bf::imbuf::movie
   PRIVATE bf::intern::guardedalloc
   bf_nodes
+  bf_io_common
+  bf_io_csv
   PRIVATE bf::intern::atomic
   PRIVATE bf::extern::fmtlib
   PRIVATE bf::extern::xxhash
   PRIVATE bf::render
   PRIVATE bf::windowmanager
 )
-
-if(WITH_IO_CSV)
-  list(APPEND LIB
-    PRIVATE bf_io_common
-    PRIVATE bf_io_csv
-  )
-  add_definitions(-DWITH_IO_CSV)
-endif()
 
 if(WITH_IO_STL)
   list(APPEND LIB
@@ -320,7 +322,7 @@ if(WITH_TBB)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENSUBDIV)

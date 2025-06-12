@@ -28,19 +28,22 @@
 
 #include <memory>
 
+#include <AudioToolbox/AudioToolbox.h>
 #include <AudioToolbox/CoreAudioClock.h>
 #include <AudioUnit/AudioUnit.h>
 
-#include "devices/OpenCloseDevice.h"
+#include "devices/MixingThreadDevice.h"
 
 AUD_NAMESPACE_BEGIN
 
 /**
  * This device plays back through CoreAudio, the Apple audio API.
  */
-class AUD_PLUGIN_API CoreAudioDevice : public OpenCloseDevice
+class AUD_PLUGIN_API CoreAudioDevice : public MixingThreadDevice
 {
 private:
+	uint32_t m_buffersize;
+
 	/**
 	 * Whether there is currently playback.
 	 */
@@ -50,9 +53,12 @@ private:
 	 * The CoreAudio AudioUnit.
 	 */
 	AudioUnit m_audio_unit;
+	bool m_active{false};
 
 	/// The CoreAudio clock referene.
 	CAClockRef m_clock_ref;
+	bool m_audio_clock_ready{false};
+	double m_synchronizerStartTime{0};
 
 	/**
 	 * Mixes the next bytes into the buffer.
@@ -65,14 +71,12 @@ private:
 	 */
 	AUD_LOCAL static OSStatus CoreAudio_mix(void* data, AudioUnitRenderActionFlags* flags, const AudioTimeStamp* time_stamp, UInt32 bus_number, UInt32 number_frames, AudioBufferList* buffer_list);
 
-	AUD_LOCAL void start();
-	AUD_LOCAL void stop();
-	AUD_LOCAL void open();
-	AUD_LOCAL void close();
-
 	// delete copy constructor and operator=
 	CoreAudioDevice(const CoreAudioDevice&) = delete;
 	CoreAudioDevice& operator=(const CoreAudioDevice&) = delete;
+
+	AUD_LOCAL void preMixingWork(bool playing) override;
+	void playing(bool playing) override;
 
 public:
 	/**

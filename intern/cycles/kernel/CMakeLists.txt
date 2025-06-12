@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-remove_extra_strict_flags()
-
 set(INC
   ..
 )
@@ -46,6 +44,7 @@ if(WITH_CYCLES_OSL)
     ${SRC_KERNEL_DEVICE_OPTIX}
     osl/services_optix.cu
     device/optix/kernel_osl.cu
+    device/optix/kernel_osl_camera.cu
   )
 endif()
 
@@ -231,6 +230,7 @@ set(SRC_KERNEL_SVM_HEADERS
 if(WITH_CYCLES_OSL)
   set(SRC_KERNEL_OSL_HEADERS
     osl/osl.h
+    osl/camera.h
     osl/closures_setup.h
     osl/closures_template.h
     osl/services_gpu.h
@@ -386,6 +386,7 @@ set(SRC_UTIL_HEADERS
   ../util/atomic.h
   ../util/color.h
   ../util/defines.h
+  ../util/guiding.h
   ../util/half.h
   ../util/hash.h
   ../util/math.h
@@ -519,7 +520,7 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
     if(CUDA_HOST_COMPILER)
       set(cuda_flags ${cuda_flags}
-        -ccbin "${CUDA_HOST_COMPILER}")
+        -ccbin="${CUDA_HOST_COMPILER}")
     endif()
 
     if(WITH_NANOVDB)
@@ -549,21 +550,18 @@ if(WITH_CYCLES_CUDA_BINARIES)
       add_custom_command(
         OUTPUT ${cuda_file}
         COMMAND ${CCACHE_PROGRAM} ${cuda_nvcc_executable} ${_cuda_nvcc_args}
-        DEPENDS ${kernel_sources}
-        VERBATIM)
+        DEPENDS ${kernel_sources})
     else()
       add_custom_command(
         OUTPUT ${cuda_file}
         COMMAND ${cuda_nvcc_executable} ${_cuda_nvcc_args}
-        DEPENDS ${kernel_sources}
-        VERBATIM)
+        DEPENDS ${kernel_sources})
     endif()
 
     add_custom_command(
       OUTPUT ${cuda_file_compressed}
       COMMAND "$<TARGET_FILE:zstd_compress>" ${cuda_file} ${cuda_file_compressed}
-      DEPENDS ${cuda_file}
-      VERBATIM)
+      DEPENDS ${cuda_file})
 
     unset(_cuda_nvcc_args)
     delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${cuda_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
@@ -600,6 +598,12 @@ if(WITH_CYCLES_CUDA_BINARIES)
       else()
         message(STATUS "CUDA binaries for ${arch} require CUDA 11 or earlier, skipped.")
       endif()
+    elseif(${arch} MATCHES "compute_7." AND DEFINED CUDA11_NVCC_EXECUTABLE)
+      # Use CUDA 11 if available for the default PTX kernel. This allows us to
+      # keep the driver requirements for user machines low.
+      set(cuda_nvcc_executable ${CUDA11_NVCC_EXECUTABLE})
+      set(cuda_toolkit_root_dir ${CUDA11_TOOLKIT_ROOT_DIR})
+      set(cuda_version 110)
     elseif(${arch} MATCHES ".*_7." AND "${CUDA_VERSION}" LESS 100)
       message(STATUS "CUDA binaries for ${arch} require CUDA 10.0+, skipped.")
     elseif(${arch} MATCHES ".*_8.")
@@ -734,13 +738,11 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIP)
     add_custom_command(
       OUTPUT ${hip_file}
       COMMAND ${hip_command} ${hip_flags}
-      DEPENDS ${kernel_sources}
-      VERBATIM)
+      DEPENDS ${kernel_sources})
     add_custom_command(
       OUTPUT ${hip_file_compressed}
       COMMAND "$<TARGET_FILE:zstd_compress>" ${hip_file} ${hip_file_compressed}
-      DEPENDS ${hip_file}
-      VERBATIM)
+      DEPENDS ${hip_file})
     delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${hip_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
     list(APPEND hip_fatbins ${hip_file_compressed})
   endmacro()
@@ -829,13 +831,11 @@ if(WITH_CYCLES_HIP_BINARIES AND WITH_CYCLES_DEVICE_HIPRT)
       OUTPUT  ${hiprt_file}
       COMMAND ${hiprt_compile_command} ${hiprt_flags}
       DEPENDS ${kernel_sources}
-      VERBATIM
     )
     add_custom_command(
       OUTPUT ${hiprt_file_compressed}
       COMMAND "$<TARGET_FILE:zstd_compress>" ${hiprt_file} ${hiprt_file_compressed}
       DEPENDS ${hiprt_file}
-      VERBATIM
     )
     delayed_install("${CMAKE_CURRENT_BINARY_DIR}" "${hiprt_file_compressed}" ${CYCLES_INSTALL_PATH}/lib)
     list(APPEND hiprt_hipfb ${hiprt_file_compressed})
@@ -862,7 +862,7 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
 
     if(CUDA_HOST_COMPILER)
       set(cuda_flags ${cuda_flags}
-        -ccbin "${CUDA_HOST_COMPILER}")
+        -ccbin="${CUDA_HOST_COMPILER}")
     endif()
 
     if(WITH_NANOVDB)
@@ -897,14 +897,12 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
         ${input}
       WORKING_DIRECTORY
         "${CMAKE_CURRENT_SOURCE_DIR}"
-      VERBATIM
     )
 
     add_custom_command(
       OUTPUT ${output_compressed}
       COMMAND "$<TARGET_FILE:zstd_compress>" ${output} ${output_compressed}
-      DEPENDS ${output}
-      VERBATIM)
+      DEPENDS ${output})
 
     list(APPEND optix_ptx ${output_compressed})
 
@@ -923,6 +921,10 @@ if(WITH_CYCLES_DEVICE_OPTIX AND WITH_CYCLES_CUDA_BINARIES)
     cycles_optix_kernel_add(
       kernel_optix_osl
       "device/optix/kernel_osl.cu"
+      "--relocatable-device-code=true")
+    cycles_optix_kernel_add(
+      kernel_optix_osl_camera
+      "device/optix/kernel_osl_camera.cu"
       "--relocatable-device-code=true")
     cycles_optix_kernel_add(
       kernel_optix_osl_services
@@ -1024,7 +1026,10 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       endif()
       if(NOT oclocids_ret EQUAL 0)
         list(REMOVE_ITEM CYCLES_ONEAPI_INTEL_BINARIES_ARCH ${device})
-        message(STATUS "Cycles oneAPI: binaries for ${device} not supported by Intel Graphics Compiler/ocloc, skipped.")
+        message(STATUS
+          "Cycles oneAPI: "
+          "binaries for ${device} not supported by Intel Graphics Compiler/ocloc, skipped."
+        )
       endif()
     endforeach()
     list(JOIN CYCLES_ONEAPI_INTEL_BINARIES_ARCH "," gen_devices_string)
@@ -1036,7 +1041,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${gen_devices_string} ")
     endif()
   else()
-      list(REMOVE_ITEM CYCLES_ONEAPI_SYCL_TARGETS spir64_gen)
+    list(REMOVE_ITEM CYCLES_ONEAPI_SYCL_TARGETS spir64_gen)
   endif()
 
   # Iterate over all targets and their options.
@@ -1060,7 +1065,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       -DWITH_EMBREE
       -DWITH_EMBREE_GPU
       -DEMBREE_MAJOR_VERSION=${EMBREE_MAJOR_VERSION}
-      -I "${EMBREE_INCLUDE_DIRS}")
+      -I"${EMBREE_INCLUDE_DIRS}")
 
     if(WIN32)
       list(APPEND sycl_compiler_flags

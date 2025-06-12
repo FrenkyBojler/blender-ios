@@ -172,6 +172,12 @@ static constexpr auto PROP_LIB_EXCEPTION_DESCR =
 static constexpr auto PROP_PROPORTIONAL_DESCR = "";
 static constexpr auto PROP_TEXTEDIT_UPDATE_DESCR = "";
 static constexpr auto PROP_PATH_OUTPUT_DESCR = "";
+static constexpr auto PROP_PATH_RELATIVE_DESCR =
+    "This path supports relative prefix \"//\" which is expanded the directory "
+    "where the current \".blend\" file is located.";
+static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
+    "This path supports the \"{variable_name}\" template syntax, which substitutes the "
+    "value of the referenced variable in place of the template expression";
 static constexpr auto PROP_ENUM_FLAG_DESCR = "";
 
 const EnumPropertyItem rna_enum_property_flag_items[] = {
@@ -191,6 +197,16 @@ const EnumPropertyItem rna_enum_property_flag_items[] = {
      "Update on every keystroke in textedit 'mode'",
      PROP_TEXTEDIT_UPDATE_DESCR},
     {PROP_PATH_OUTPUT, "OUTPUT_PATH", 0, "Output Path", PROP_PATH_OUTPUT_DESCR},
+    {PROP_PATH_SUPPORTS_BLEND_RELATIVE,
+     "PATH_SUPPORTS_BLEND_RELATIVE",
+     0,
+     "Relative Path Support",
+     PROP_PATH_RELATIVE_DESCR},
+    {PROP_PATH_SUPPORTS_TEMPLATES,
+     "SUPPORTS_TEMPLATES",
+     0,
+     "Variable expression support",
+     PROP_PATH_SUPPORTS_TEMPLATES_DESCR},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -787,6 +803,18 @@ static bool rna_Property_is_path_output_flag_get(PointerRNA *ptr)
   return (prop->flag & PROP_PATH_OUTPUT) != 0;
 }
 
+static bool rna_Property_is_path_supports_blend_relative_flag_get(PointerRNA *ptr)
+{
+  PropertyRNA *prop = (PropertyRNA *)ptr->data;
+  return (prop->flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0;
+}
+
+static bool rna_Property_is_path_supports_templates_flag_get(PointerRNA *ptr)
+{
+  PropertyRNA *prop = (PropertyRNA *)ptr->data;
+  return (prop->flag & PROP_PATH_SUPPORTS_TEMPLATES) != 0;
+}
+
 static int rna_Property_tags_get(PointerRNA *ptr)
 {
   return RNA_property_tags(static_cast<PropertyRNA *>(ptr->data));
@@ -1318,7 +1346,7 @@ struct RNACompareOverrideDiffPropPtrContext {
    * Such a callback is mandatory for REPLACE operations unless the pointer is an ID one, and
    * INSERT operations in all cases (for RNA collections).
    *
-   * \note IDproperty-based 'RNA property' are handled by default apply call, so they are
+   * \note IDproperty-based "RNA property" are handled by default apply call, so they are
    *       considered as always having an apply callback.
    */
   bool has_liboverride_apply_cb = false;
@@ -3290,6 +3318,26 @@ static void rna_def_property(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Path Output", "Property is a filename, filepath or directory output");
 
+  prop = RNA_def_property(srna, "is_path_supports_blend_relative", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_Property_is_path_supports_blend_relative_flag_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Path Relative",
+      "Property is a path which supports the \"//\" prefix, "
+      "signifying the location as relative to the \".blend\" file's directory");
+
+  prop = RNA_def_property(srna, "is_path_supports_templates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_Property_is_path_supports_templates_flag_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Variable Expression Support",
+      "Property is a path which supports the \"{variable_name}\" variable expression syntax, "
+      "which substitutes the value of the referenced variable in place of the expression");
+
   prop = RNA_def_property(srna, "tags", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_enum_items(prop, dummy_prop_tags);
@@ -3517,15 +3565,9 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
 {
   PropertyRNA *prop;
 
-  /* the itemf func is used instead, keep blender happy */
-  static const EnumPropertyItem default_dummy_items[] = {
-      {PROP_NONE, "DUMMY", 0, "Dummy", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   prop = RNA_def_property(srna, "default", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_enum_items(prop, default_dummy_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
   RNA_def_property_enum_funcs(
       prop, "rna_EnumProperty_default_get", nullptr, "rna_EnumProperty_default_itemf");
   RNA_def_property_ui_text(prop, "Default", "Default value for this enum");
@@ -3534,7 +3576,7 @@ static void rna_def_enum_property(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "default_flag", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-  RNA_def_property_enum_items(prop, default_dummy_items);
+  RNA_def_property_enum_items(prop, rna_enum_dummy_DEFAULT_items);
   RNA_def_property_enum_funcs(
       prop, "rna_EnumProperty_default_get", nullptr, "rna_EnumProperty_default_itemf");
   RNA_def_property_ui_text(prop, "Default", "Default value for this enum");

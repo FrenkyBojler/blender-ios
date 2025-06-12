@@ -16,12 +16,13 @@
 
 #include <cstdlib>
 #include <functional>
-#include <mutex>
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h" /* for ID_Type and INDEX_ID_MAX */
 
+#include "BLI_linear_allocator.hh"
+#include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_threads.h" /* for SpinLock */
 
@@ -79,6 +80,12 @@ struct Depsgraph {
   ID *get_cow_id(const ID *id_orig) const;
 
   /* Core Graph Functionality ........... */
+
+  /**
+   * Used to decrease the cost of allocating many small structs when building the graph. This is a
+   * viable strategy because the graph is rebuilt from scratch rather than changed in-place.
+   */
+  LinearAllocator<> build_allocator;
 
   /* <ID : IDNode> mapping from ID blocks to nodes representing these
    * blocks, used for quick lookups. */
@@ -186,7 +193,7 @@ struct Depsgraph {
    */
   Vector<std::function<void()>> sync_writeback_callbacks;
   /** Needs to be locked when adding a writeback callback during evaluation. */
-  std::mutex sync_writeback_callbacks_mutex;
+  Mutex sync_writeback_callbacks_mutex;
 
   MEM_CXX_CLASS_ALLOC_FUNCS("Depsgraph");
 };

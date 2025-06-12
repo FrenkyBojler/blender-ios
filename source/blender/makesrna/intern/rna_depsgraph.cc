@@ -53,7 +53,7 @@ struct RNA_DepsgraphIterator {
 #  ifdef WITH_PYTHON
   /**
    * Store the Python instance so the #BPy_StructRNA can be set as invalid iteration is completed.
-   * Otherwise accessing from Python (console auto-complete for e.g.) crashes, see: #100286. */
+   * Otherwise accessing from Python (e.g. console auto-complete) crashes, see: #100286. */
   void *py_instance;
 #  endif
 };
@@ -504,7 +504,7 @@ static PointerRNA rna_Depsgraph_updates_get(CollectionPropertyIterator *iter)
 
 static ID *rna_Depsgraph_id_eval_get(Depsgraph *depsgraph, ID *id_orig)
 {
-  return DEG_get_evaluated_id(depsgraph, id_orig);
+  return DEG_get_evaluated(depsgraph, id_orig);
 }
 
 static bool rna_Depsgraph_id_type_updated(Depsgraph *depsgraph, int id_type)

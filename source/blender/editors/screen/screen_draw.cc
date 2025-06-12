@@ -66,7 +66,7 @@ static blender::gpu::Batch *batch_screen_edges_get(int *corner_len)
 
   if (screen_edges_batch == nullptr) {
     GPUVertFormat format = {0};
-    uint pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
     GPU_vertbuf_data_alloc(*vbo, CORNER_RESOLUTION * 2 * 4 + 2);
@@ -112,7 +112,7 @@ void ED_screen_draw_edges(wmWindow *win)
   bScreen *screen = WM_window_get_active_screen(win);
   screen->do_draw = false;
 
-  if (screen->state == SCREENFULL) {
+  if (screen->state != SCREENNORMAL) {
     return;
   }
 
@@ -274,6 +274,47 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
       &rect, inner, nullptr, 1.0f, outline, width - U.pixelsize, 2.5f * UI_SCALE_FAC);
 }
 
+void screen_draw_region_scale_highlight(ARegion *region)
+{
+  rctf rect;
+  BLI_rctf_rcti_copy(&rect, &region->winrct);
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+
+  switch (region->alignment) {
+    case RGN_ALIGN_RIGHT:
+      rect.xmax = rect.xmin - U.pixelsize;
+      rect.xmin = rect.xmax - (4.0f * U.pixelsize);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
+      break;
+    case RGN_ALIGN_LEFT:
+      rect.xmin = rect.xmax + U.pixelsize;
+      rect.xmax = rect.xmin + (4.0f * U.pixelsize);
+      rect.ymax -= EDITORRADIUS;
+      rect.ymin += EDITORRADIUS;
+      break;
+    case RGN_ALIGN_TOP:
+      rect.ymax = rect.ymin - U.pixelsize;
+      rect.ymin = rect.ymax - (4.0f * U.pixelsize);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
+      break;
+    case RGN_ALIGN_BOTTOM:
+      rect.ymin = rect.ymax + U.pixelsize;
+      rect.ymax = rect.ymin + (4.0f * U.pixelsize);
+      rect.xmax -= EDITORRADIUS;
+      rect.xmin += EDITORRADIUS;
+      break;
+    default:
+      return;
+  }
+
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  UI_draw_roundbox_4fv_ex(
+      &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
+}
+
 static void screen_draw_area_drag_tip(
     const wmWindow *win, int x, int y, const ScrArea *source, const std::string &hint)
 {
@@ -421,7 +462,8 @@ void screen_draw_join_highlight(const wmWindow *win, ScrArea *sa1, ScrArea *sa2,
 static void rounded_corners(rctf rect, float color[4], int corners)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   const float rad = EDITORRADIUS;
 

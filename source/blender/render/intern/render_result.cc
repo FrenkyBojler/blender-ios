@@ -182,7 +182,7 @@ static int get_num_planes_for_pass_ibuf(const RenderPass &render_pass)
       return R_IMF_PLANES_RGBA;
   }
 
-  /* Fallback to a commonly used default value of planes for odd-ball number of channel. */
+  /* Fall back to a commonly used default value of planes for odd-ball number of channel. */
   return R_IMF_PLANES_RGBA;
 }
 
@@ -1194,7 +1194,8 @@ void render_result_rect_fill_zero(RenderResult *rr, const int view_id)
   ImBuf *ibuf = RE_RenderViewEnsureImBuf(rr, rv);
 
   if (!ibuf->float_buffer.data && !ibuf->byte_buffer.data) {
-    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * rr->rectx * rr->recty, "render_seq rect");
+    uint8_t *data = MEM_calloc_arrayN<uint8_t>(4 * size_t(rr->rectx) * size_t(rr->recty),
+                                               "render_seq rect");
     IMB_assign_byte_buffer(ibuf, data, IB_TAKE_OWNERSHIP);
     return;
   }

@@ -383,9 +383,6 @@ static void bli_load_symbols()
   }
 }
 
-/**
- * Write a backtrace into a file for systems which support it.
- */
 void BLI_system_backtrace_with_os_info(FILE *fp, const void *os_info)
 {
   const EXCEPTION_POINTERS *exception_info = static_cast<const EXCEPTION_POINTERS *>(os_info);
@@ -417,16 +414,16 @@ static void bli_windows_exception_message_get(const EXCEPTION_POINTERS *exceptio
   bli_windows_get_module_name(address, modulename, sizeof(modulename));
   DWORD threadId = GetCurrentThreadId();
 
-  snprintf(r_message,
-           512,
-           "Error   : %s\n"
-           "Address : 0x%p\n"
-           "Module  : %s\n"
-           "Thread  : %.8x\n",
-           exception_name,
-           address,
-           modulename,
-           threadId);
+  BLI_snprintf(r_message,
+               512,
+               "Error   : %s\n"
+               "Address : 0x%p\n"
+               "Module  : %s\n"
+               "Thread  : %.8x\n",
+               exception_name,
+               address,
+               modulename,
+               threadId);
 }
 
 /* -------------------------------------------------------------------- */
@@ -557,10 +554,10 @@ static void bli_show_crash_report_dialog(const char *filepath_crashlog,
                                          const char *gpu_name,
                                          const char *build_version)
 {
-  /* Redundant: InitCommonControls is already called during GHOST System initialization. */
+  /* Redundant: #InitCommonControls is already called during GHOST System initialization. */
   // InitCommonControls();
 
-  /* Convert file paths to UTF-16 to handle non-ASCII characters. */
+  /* Convert file paths to UTF16 to handle non-ASCII characters. */
   wchar_t *filepath_crashlog_utf16 = alloc_utf16_from_8(filepath_crashlog, 0);
   wchar_t *filepath_relaunch_utf16 = filepath_relaunch[0] ?
                                          alloc_utf16_from_8(filepath_relaunch, 0) :

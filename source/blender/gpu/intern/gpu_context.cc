@@ -27,23 +27,26 @@
 #include "GPU_context.hh"
 
 #include "GPU_batch.hh"
+#include "GPU_pass.hh"
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
 #include "gpu_matrix_private.hh"
 #include "gpu_private.hh"
 #include "gpu_shader_private.hh"
 
+#ifdef WITH_VULKAN_BACKEND
+#  include "vk_backend.hh"
+#endif
 #ifdef WITH_OPENGL_BACKEND
 #  include "gl_backend.hh"
 #  include "gl_context.hh"
-#endif
-#ifdef WITH_VULKAN_BACKEND
-#  include "vk_backend.hh"
 #endif
 #ifdef WITH_METAL_BACKEND
 #  include "mtl_backend.hh"
 #endif
 #include "dummy_backend.hh"
+
+#include "draw_debug.hh"
 
 #include <mutex>
 
@@ -51,7 +54,7 @@ using namespace blender::gpu;
 
 static thread_local Context *active_ctx = nullptr;
 
-static std::mutex backend_users_mutex;
+static blender::Mutex backend_users_mutex;
 static int num_backend_users = 0;
 
 static void gpu_backend_create();
@@ -127,7 +130,7 @@ VertBuf *Context::dummy_vbo_get()
 
   /* TODO(fclem): get rid of this dummy VBO. */
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "dummy", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "dummy", gpu::VertAttrType::SFLOAT_32);
   this->dummy_vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*this->dummy_vbo, 1);
   return this->dummy_vbo;
@@ -194,6 +197,9 @@ GPUContext *GPU_context_create(void *ghost_window, void *ghost_context)
   Context *ctx = GPUBackend::get()->context_alloc(ghost_window, ghost_context);
 
   GPU_context_active_set(wrap(ctx));
+
+  blender::draw::DebugDraw::get().acquire();
+
   return wrap(ctx);
 }
 
@@ -201,6 +207,8 @@ void GPU_context_discard(GPUContext *ctx_)
 {
   Context *ctx = unwrap(ctx_);
   BLI_assert(active_ctx == ctx);
+
+  blender::draw::DebugDraw::get().release();
 
   GPUBackend *backend = GPUBackend::get();
   /* Flush any remaining printf while making sure we are inside render boundaries. */
@@ -227,6 +235,7 @@ void GPU_context_active_set(GPUContext *ctx_)
   Context *ctx = unwrap(ctx_);
 
   if (active_ctx) {
+    GPU_shader_unbind();
     active_ctx->deactivate();
   }
 
@@ -234,6 +243,13 @@ void GPU_context_active_set(GPUContext *ctx_)
 
   if (ctx) {
     ctx->activate();
+    /* It can happen that the previous context drew with a different color-space.
+     * In the case where the new context is drawing with the same shader that was previously bound
+     * (shader binding optimization), the uniform would not be set again because the dirty flag
+     * would not have been set (since the color space of this new context never changed). The
+     * shader would reuse the same color-space as the previous context frame-buffer (see #137855).
+     */
+    ctx->shader_builtin_srgb_is_dirty = true;
   }
 }
 
@@ -264,7 +280,7 @@ void GPU_context_end_frame(GPUContext *ctx)
  * Used to avoid crash on some old drivers.
  * \{ */
 
-static std::mutex main_context_mutex;
+static blender::Mutex main_context_mutex;
 
 void GPU_context_main_lock()
 {
@@ -314,6 +330,8 @@ void GPU_render_step(bool force_resource_release)
     backend->render_step(force_resource_release);
     printf_begin(active_ctx);
   }
+
+  GPU_pass_cache_update();
 }
 
 /** \} */
@@ -547,7 +565,7 @@ GPUSecondaryContext::GPUSecondaryContext()
   gpu_settings.preferred_device.vendor_id = U.gpu_preferred_vendor_id;
   gpu_settings.preferred_device.device_id = U.gpu_preferred_device_id;
 
-  /* Grab the system handle.  */
+  /* Grab the system handle. */
   GHOST_SystemHandle ghost_system = reinterpret_cast<GHOST_SystemHandle>(
       GPU_backend_ghost_system_get());
   BLI_assert(ghost_system);

@@ -528,6 +528,13 @@ class Instance : public DrawEngine {
                          GPUTexture *color_tx,
                          RenderEngine *engine = nullptr)
   {
+    if (scene_state_.render_finished) {
+      /* This can happen in viewport animation renders, if the scene didn't have any updates
+       * between frames. */
+      this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
+      return;
+    }
+
     BLI_assert(scene_state_.sample == 0);
     for (auto i : IndexRange(scene_state_.samples_len)) {
       if (engine && RE_engine_test_break(engine)) {
@@ -699,7 +706,7 @@ static void workbench_render_to_image(RenderEngine *engine, RenderLayer *layer, 
   workbench::Instance instance;
 
   /* TODO(sergey): Shall render hold pointer to an evaluated camera instead? */
-  Object *camera_ob = DEG_get_evaluated_object(depsgraph, RE_GetCamera(engine->re));
+  Object *camera_ob = DEG_get_evaluated(depsgraph, RE_GetCamera(engine->re));
 
   /* Set the perspective, view and window matrix. */
   float4x4 winmat, viewmat, viewinv;
@@ -773,6 +780,7 @@ RenderEngineType DRW_engine_viewport_workbench_type = {
     /*view_draw*/ nullptr,
     /*update_script_node*/ nullptr,
     /*update_render_passes*/ &workbench_render_update_passes,
+    /*update_custom_camera*/ nullptr,
     /*draw_engine*/ nullptr,
     /*rna_ext*/
     {

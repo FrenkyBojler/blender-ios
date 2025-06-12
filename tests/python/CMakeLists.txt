@@ -4,11 +4,7 @@
 
 # Use '--write-blend=/tmp/test.blend' to view output
 
-# Some tests are interesting but take too long to run
-# and don't give deterministic results
-set(USE_EXPERIMENTAL_TESTS FALSE)
-
-set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/data)
+set(TEST_SRC_DIR ${CMAKE_SOURCE_DIR}/tests/files)
 set(TEST_PYTHON_DIR ${CMAKE_SOURCE_DIR}/tests/python)
 set(TEST_OUT_DIR ${CMAKE_BINARY_DIR}/tests)
 
@@ -228,7 +224,7 @@ add_blender_test(
 )
 
 # test running operators doesn't segfault under various conditions
-if(USE_EXPERIMENTAL_TESTS)
+if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
     script_run_operators
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_run_operators.py
@@ -575,6 +571,13 @@ if(TEST_SRC_DIR_EXISTS)
 endif()
 
 # ------------------------------------------------------------------------------
+# BRUSH TESTS
+add_blender_test(
+  bl_brush
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_brush_test.py
+)
+
+# ------------------------------------------------------------------------------
 # NODE GROUP TESTS
 # ------------------------------------------------------------------------------
 
@@ -659,7 +662,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(APPEND render_tests motion_blur reports volume)
   endif()
 
-  if(WITH_OPENVDB)
+  if(WITH_OPENVDB AND WITH_MOD_FLUID)
+    # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
   endif()
 
@@ -681,62 +685,65 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   # Cycles
   if(WITH_CYCLES)
     set(_cycles_blocklist "")
-    set(_cycles_known_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
-    if((NOT WITH_CYCLES_OSL) OR (WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL))
-      # Disable OSL tests if built without OSL or
-      # Disable OSL tests during the "normal" test phase to avoid double
-      # testing during the OSL test phase.
-      set(_cycles_blocklist OSL)
-    endif()
+    set(_cycles_all_test_devices CPU CUDA OPTIX HIP HIP-RT METAL METAL-RT ONEAPI ONEAPI-RT)
+    set(_cycles_osl_test_devices CPU OPTIX)
     foreach(_cycles_device ${CYCLES_TEST_DEVICES})
-      if(NOT ${_cycles_device} IN_LIST _cycles_known_test_devices)
+      if(NOT ${_cycles_device} IN_LIST _cycles_all_test_devices)
         message(FATAL_ERROR "Unknown Cycles test device ${_cycles_device}."
-            "Supported devices are: ${_cycles_known_test_devices}")
+            "Supported devices are: ${_cycles_all_test_devices}")
       endif()
       string(TOLOWER "${_cycles_device}" _cycles_device_lower)
       set(_cycles_render_tests bake;${render_tests};osl)
 
+      set(_cycles_osl_test_type none)
+      if(WITH_CYCLES_OSL)
+        # If the render device is CPU, or a GPU WITH_CYCLES_TEST_OSL enabled,
+        # then enable the limited OSL tests (Tests OSL camera with OSL shading turned off).
+        # This specific configuration is chosen to avoid long test times on the GPU due to
+        # OSL JIT compilation, unless the developer explicitly enables OSL tests.
+        if(("${_cycles_device_lower}" STREQUAL "cpu") OR (WITH_CYCLES_TEST_OSL AND ${_cycles_device} IN_LIST _cycles_osl_test_devices))
+          set(_cycles_osl_test_type limited)
+        endif()
+      endif()
+
       foreach(render_test ${_cycles_render_tests})
         set(_cycles_test_name "cycles_${render_test}_${_cycles_device_lower}")
         if(NOT(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL AND ("${render_test}" STREQUAL "osl")))
-          # Only run OSL basic tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
+          # Only run OSL specific tests during this phase if WITH_CYCLES_TEST_OSL isn't enabled
           add_render_test(
             ${_cycles_test_name}
             ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
             --testdir "${TEST_SRC_DIR}/render/${render_test}"
             --outdir "${TEST_OUT_DIR}/cycles"
             --device ${_cycles_device}
-            --blocklist ${_cycles_blocklist}
+            --osl "${_cycles_osl_test_type}"
           )
           if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
             set_tests_properties(${_cycles_test_name} PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
 
-        if(WITH_CYCLES_TEST_OSL AND WITH_CYCLES_OSL)
-          # OSL is only supported with CPU and OptiX
-          # TODO: Enable OptiX support once it's more stable
-          if(("${_cycles_device_lower}" STREQUAL "cpu") OR
-              ("${_cycles_device_lower}" STREQUAL "optix"))
-            add_render_test(
-              ${_cycles_test_name}_osl
-              ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
-              --testdir "${TEST_SRC_DIR}/render/${render_test}"
-              --outdir "${TEST_OUT_DIR}/cycles_osl"
-              --device ${_cycles_device}
-              --osl
-            )
-            if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
-              set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
-            endif()
+        # OSL variations of every test if WITH_CYCLES_TEST_OSL is set.
+        if(WITH_CYCLES_TEST_OSL AND NOT "${_cycles_osl_test_type}" STREQUAL "none")
+          add_render_test(
+            ${_cycles_test_name}_osl
+            ${CMAKE_CURRENT_LIST_DIR}/cycles_render_tests.py
+            --testdir "${TEST_SRC_DIR}/render/${render_test}"
+            --outdir "${TEST_OUT_DIR}/cycles_osl"
+            --device ${_cycles_device}
+            --osl "all"
+          )
+          if(NOT ("${_cycles_device_lower}" STREQUAL "cpu"))
+            set_tests_properties(${_cycles_test_name}_osl PROPERTIES RUN_SERIAL TRUE)
           endif()
         endif()
 
         unset(_cycles_test_name)
       endforeach()
+      unset(_cycles_osl_test_type)
     endforeach()
-    unset(_cycles_blocklist)
-    unset(_cycles_known_test_devices)
+    unset(_cycles_osl_test_devices)
+    unset(_cycles_all_test_devices)
   endif()
 
   if(WITH_GPU_RENDER_TESTS)
@@ -744,18 +751,15 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     list(FILTER gpu_render_tests EXCLUDE REGEX light_group|shadow_catcher|denoise|guiding|reports)
 
     set(_gpu_render_tests_arguments)
-    if(WITH_GPU_RENDER_TESTS_SILENT)
-      list(APPEND _gpu_render_tests_arguments --fail-silently)
-    endif()
 
     # Eevee Next
     if(WITH_OPENGL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_opengl_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_opengl_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_opengl"
+          --outdir "${TEST_OUT_DIR}/eevee_opengl"
           --gpu-backend opengl
           ${_gpu_render_tests_arguments}
         )
@@ -765,10 +769,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_METAL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_metal_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_metal_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_metal"
+          --outdir "${TEST_OUT_DIR}/eevee_metal"
           --gpu-backend metal
           ${_gpu_render_tests_arguments}
         )
@@ -778,10 +782,10 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
-          eevee_next_vulkan_${render_test}
-          ${CMAKE_CURRENT_LIST_DIR}/eevee_next_render_tests.py
+          eevee_vulkan_${render_test}
+          ${CMAKE_CURRENT_LIST_DIR}/eevee_render_tests.py
           --testdir "${TEST_SRC_DIR}/render/${render_test}"
-          --outdir "${TEST_OUT_DIR}/eevee_next_vulkan"
+          --outdir "${TEST_OUT_DIR}/eevee_vulkan"
           --gpu-backend vulkan
           ${_gpu_render_tests_arguments}
         )
@@ -1014,12 +1018,14 @@ endif()
 if(TEST_SRC_DIR_EXISTS)
   set(geo_node_tests
     attributes
+    closure
     curve_primitives
     curves
     curves/interpolate_curves
     foreach_geometry_element_zone
     geometry
     grease_pencil
+    import
     instance
     repeat_zone
     mesh_primitives
@@ -1076,7 +1082,7 @@ if(WITH_GPU_RENDER_TESTS AND TEST_SRC_DIR_EXISTS)
   set(render_tests
   )
 
-  if(USE_EXPERIMENTAL_TESTS)
+  if(WITH_TESTS_EXPERIMENTAL)
     # The viewport tests are flakey and difficult to keep up to date for use
     # in a CI environment due to constantly changing UI, but may still be helpful
     # for local development.
@@ -1135,6 +1141,7 @@ if(WITH_USD AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_usd_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/usd"
+    --outdir "${TEST_OUT_DIR}/io_usd"
   )
 endif()
 
@@ -1258,6 +1265,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
+
+  add_blender_test(
+    bl_sculpt_brush_curve_presets
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/brush_strength_curves_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
 endif()
 
 if(WITH_GPU_MESH_PAINT_TESTS AND TEST_SRC_DIR_EXISTS)
@@ -1295,7 +1309,9 @@ if(WITH_UI_TESTS)
     test_undo.view3d_multi_mode_select
     test_undo.view3d_sculpt_dyntopo_and_edit
     test_undo.view3d_sculpt_dyntopo_simple
+    test_undo.view3d_sculpt_dyntopo_stroke_toggle
     test_undo.view3d_sculpt_with_memfile_step
+    test_undo.view3d_sculpt_trim
     test_undo.view3d_simple
     test_undo.view3d_texture_paint_complex
     test_undo.view3d_texture_paint_simple
@@ -1312,27 +1328,6 @@ if(WITH_UI_TESTS)
   unset(_undo_tests)
 endif()
 
-
-# ------------------------------------------------------------------------------
-# COLLADA Tests
-# ------------------------------------------------------------------------------
-
-if(TEST_SRC_DIR_EXISTS)
-  function(collada_test module test_name blend_file)
-    add_blender_test(
-      bf_io_collada_${module}_${test_name}
-      ${TEST_SRC_DIR}/collada/${module}/${blend_file}
-      --python ${CMAKE_CURRENT_LIST_DIR}/${module}/test_${module}_${test_name}.py --
-      --testdir ${TEST_SRC_DIR}/collada/${module}
-    )
-  endfunction()
-
-  # Tests are disabled because they only work on Windows
-  # Tests will be redone completely to work reliable
-  #
-  # collada_test(mesh simple mesh_simple.blend)
-  # collada_test(animation simple suzannes_parent_inverse.blend)
-endif()
 
 # ------------------------------------------------------------------------------
 # VIEW LAYER Tests

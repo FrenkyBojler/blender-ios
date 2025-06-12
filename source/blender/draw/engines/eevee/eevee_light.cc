@@ -14,8 +14,11 @@
 
 #include "eevee_light.hh"
 
-#include "BLI_math_rotation.h"
 #include "DNA_defaults.h"
+#include "DNA_light_types.h"
+#include "DNA_sdna_type_ids.hh"
+
+#include "BKE_light.h"
 
 namespace blender::eevee {
 
@@ -66,7 +69,10 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = float3(&la->r) * la->energy;
+  this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  if (la->mode & LA_UNNORMALIZED) {
+    this->color *= BKE_light_area(*la, object_to_world);
+  }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);
@@ -322,11 +328,9 @@ float Light::point_radiance_get()
 
 void Light::debug_draw()
 {
-#ifndef NDEBUG
   drw_debug_sphere(transform_location(this->object_to_world),
                    local.influence_radius_max,
                    float4(0.8f, 0.3f, 0.0f, 1.0f));
-#endif
 }
 
 /** \} */
@@ -345,7 +349,13 @@ LightModule::~LightModule()
 
 void LightModule::begin_sync()
 {
-  use_scene_lights_ = inst_.use_scene_lights();
+  if (assign_if_different(use_scene_lights_, inst_.use_scene_lights())) {
+    if (inst_.is_viewport()) {
+      /* Catch lookdev viewport properties updates. */
+      inst_.sampling.reset();
+    }
+  }
+
   /* Disable sunlight if world has a volume shader as we consider the light cannot go through an
    * infinite opaque medium. */
   use_sun_lights_ = (inst_.world.has_volume_absorption() == false);
@@ -367,7 +377,7 @@ void LightModule::begin_sync()
     /* Create a placeholder light to be fed by the GPU after sunlight extraction.
      * Sunlight is disabled if power is zero. */
     ::Light la = blender::dna::shallow_copy(
-        *(const ::Light *)DNA_default_table[SDNA_TYPE_FROM_STRUCT(Light)]);
+        *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
     la.type = LA_SUN;
     /* Set on the GPU. */
     la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
