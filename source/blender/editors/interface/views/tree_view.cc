@@ -139,7 +139,7 @@ AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, cons
 
 void AbstractTreeView::set_default_rows(int default_rows)
 {
-  BLI_assert_msg(default_rows >= 4,
+  BLI_assert_msg(default_rows >= MIN_ROWS,
                  "Default value is smaller than the minimum rows. Limit is required to prevent "
                  "resizing below specific height.");
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
