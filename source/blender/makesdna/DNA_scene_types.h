@@ -2018,7 +2018,7 @@ typedef struct SceneGpencil {
   float smaa_threshold;
   float smaa_threshold_render;
   int aa_samples;
-  char _pad0[4];
+  int motion_blur_steps;
 } SceneGpencil;
 
 typedef struct SceneHydra {
@@ -2088,7 +2088,8 @@ typedef struct Scene {
   char use_nodes;
   char _pad3[1];
 
-  struct bNodeTree *nodetree;
+  struct bNodeTree *nodetree DNA_DEPRECATED;
+  struct bNodeTree *compositing_node_group;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;
@@ -2183,7 +2184,6 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
 } Scene;
 
 /** \} */
@@ -2779,8 +2779,8 @@ enum {
 
 /** #ToolSettings::uv_flag */
 enum {
-  UV_SYNC_SELECTION = 1,
-  UV_SHOW_SAME_IMAGE = 2,
+  UV_FLAG_SYNC_SELECT = 1 << 0,
+  UV_FLAG_SHOW_SAME_IMAGE = 1 << 1,
 };
 
 /** #ToolSettings::uv_selectmode */
