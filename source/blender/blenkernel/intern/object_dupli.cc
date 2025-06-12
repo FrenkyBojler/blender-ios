@@ -165,7 +165,7 @@ static void init_context(DupliContext *r_ctx,
                          blender::Set<const Object *> *include_objects,
                          Vector<Object *> &instance_stack,
                          Vector<short> &dupli_gen_type_stack,
-                         Vector<Vector<Object*>>* recorded_parents_stack)
+                         Vector<Vector<Object *>> *recorded_parents_stack)
 {
   r_ctx->depsgraph = depsgraph;
   r_ctx->scene = scene;
@@ -1822,7 +1822,7 @@ ListBase *object_duplilist(Depsgraph *depsgraph,
                            Scene *sce,
                            Object *ob,
                            Set<const Object *> *include_objects,
-                           Vector<Vector<Object*>>* recorded_parents_stack)
+                           Vector<Vector<Object *>> *recorded_parents_stack)
 {
   ListBase *duplilist = MEM_callocN<ListBase>("duplilist");
   DupliContext ctx;
@@ -1902,8 +1902,15 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
   Vector<Object *> instance_stack({&ob});
   Vector<short> dupli_gen_type_stack({0});
 
-  init_context(
-      &ctx, &depsgraph, &scene, &ob, nullptr, nullptr, instance_stack, dupli_gen_type_stack, nullptr);
+  init_context(&ctx,
+               &depsgraph,
+               &scene,
+               &ob,
+               nullptr,
+               nullptr,
+               instance_stack,
+               dupli_gen_type_stack,
+               nullptr);
   if (ctx.gen == &gen_dupli_geometry_set) {
     /* These are not legacy instances. */
     return {};

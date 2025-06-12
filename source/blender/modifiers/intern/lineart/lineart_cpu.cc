@@ -2598,22 +2598,23 @@ static bool lineart_collection_contains_lineart_instance(Collection &collection,
                                                          const LineartInstance &instance,
                                                          bool child_visible)
 {
-  Object* ob=instance.object;
+  Object *ob = instance.object;
 
   /* Do not take into account of objects from instanced collection. */
-  if(ob->type==OB_EMPTY && ob->instance_collection){
+  if (ob->type == OB_EMPTY && ob->instance_collection) {
     child_visible = false;
   }
-  
-  if(!child_visible){
+
+  if (!child_visible) {
     if (BKE_collection_has_object(&collection, instance.object)) {
       child_visible = true;
     }
   }
 
-  bool parent_visible=child_visible;
+  bool parent_visible = child_visible;
   if (instance.parent && instance.parent->object) {
-    parent_visible = lineart_collection_contains_lineart_instance(collection, *instance.parent, child_visible);
+    parent_visible = lineart_collection_contains_lineart_instance(
+        collection, *instance.parent, child_visible);
   }
   return parent_visible;
 }
@@ -5453,7 +5454,9 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
         if (!backdrop_instance) {
           is_silhouette = true;
         }
-        else if (!lineart_collection_contains_lineart_instance(*orig_col, *backdrop_instance, false)) {
+        else if (!lineart_collection_contains_lineart_instance(
+                     *orig_col, *backdrop_instance, false))
+        {
           is_silhouette = true;
         }
       }

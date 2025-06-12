@@ -131,7 +131,7 @@ void lineart_main_load_geometries(struct Depsgraph *depsgraph,
                                   bool do_shadow_casting,
                                   struct ListBase *shadow_elns,
                                   blender::Set<const Object *> *included_objects,
-                                  LineartCache* cache);
+                                  LineartCache *cache);
 /**
  * The calculated view vector will point towards the far-plane from the camera position.
  */
@@ -189,7 +189,7 @@ void lineart_main_transform_and_add_shadow(struct LineartData *ld,
                                            struct LineartElementLinkNode *eeln);
 
 LineartElementLinkNode *lineart_find_matching_eln(struct ListBase *shadow_elns, int obindex);
-LineartElementLinkNode *lineart_find_matching_eln_obj(struct ListBase *elns, void* instance);
+LineartElementLinkNode *lineart_find_matching_eln_obj(struct ListBase *elns, void *instance);
 LineartEdge *lineart_find_matching_edge(struct LineartElementLinkNode *shadow_eln,
                                         uint64_t edge_identifier);
 /**

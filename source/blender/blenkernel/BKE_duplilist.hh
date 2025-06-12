@@ -97,7 +97,7 @@ struct DupliObject {
 
   /* Parents stack of this instance, from the outer most to inner most. This
    * is only available if DupliContext:: */
-  blender::Vector<Object *>* parents_stack;
+  blender::Vector<Object *> *parents_stack;
 
   /* Random ID for shading */
   unsigned int random_id;

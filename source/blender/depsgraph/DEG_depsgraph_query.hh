@@ -242,7 +242,7 @@ struct DEGObjectIterSettings {
    * If not empty, then each DupliObject will record a vector of its parent objects. Note that
    * #DEGObjectIterSettings does not own the memory, this is supplied and cleaned by the user.
    */
-  blender::Vector<blender::Vector<Object*>> *parents_stack;
+  blender::Vector<blender::Vector<Object *>> *parents_stack;
 };
 
 /**

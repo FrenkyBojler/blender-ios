@@ -294,11 +294,11 @@ struct LineartPendingEdges {
 
 struct LineartInstance {
   LineartInstance *next, *prev;
-  
+
   Object *object_eval;
   Object *object;
   ListBase children;
-  LineartInstance* parent;
+  LineartInstance *parent;
 
   BLI_STRUCT_EQUALITY_OPERATORS_1(LineartInstance, object);
   uint64_t hash() const
@@ -528,7 +528,7 @@ struct LineartRenderTaskInfo {
 
 struct LineartObjectInfo {
   LineartObjectInfo *next;
-  LineartInstance* instance;
+  LineartInstance *instance;
   Object *original_ob_eval; /* For evaluated materials */
   Mesh *original_me;
   double model_view_proj[4][4];
