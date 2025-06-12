@@ -1730,24 +1730,34 @@ class USDExportTest(AbstractUSDTest):
             return mesh_count, instancer_count, instance_count, prototype_count
 
         point_instance_test_scenarios = [
+            # object reference treated as geometry set
             {'input_file': str(self.testdir / "usd_point_instancer_object_ref.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_object_ref.usda",
              'mesh_count': 3,
              'instancer_count': 1,
              'total_instances': 16,
              'total_prototypes': 1},
+            # collection reference from single point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
              'mesh_count': 5,
              'instancer_count': 1,
              'total_instances': 32,
              'total_prototypes': 2},
+            # collection references in nested point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
              'mesh_count': 9,
              'instancer_count': 3,
              'total_instances': 14,
-             'total_prototypes': 4}
+             'total_prototypes': 4},
+            # object reference coming from a collection with separate children
+            {'input_file': str(self.testdir / "../render/shader/texture_coordinate_camera.blend"),
+             'output_file': self.tempdir / "usd_export_point_instancer_separate_children.usda",
+             'mesh_count': 9,
+             'instancer_count': 1,
+             'total_instances': 4,
+             'total_prototypes': 2}
         ]
 
         for scenario in point_instance_test_scenarios:
