@@ -216,13 +216,22 @@ static void modifier_modify_mesh_and_geometry_set(ModifierData *md,
   const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
   if (mti->modify_geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
+      ASSERT_IS_VALID_MESH_INPUT(mesh);
+      /* For performance reasons, this should be called by the modifier and/or nodes themselves at
+       * some point. */
       BKE_mesh_wrapper_ensure_mdata(mesh);
     }
     mti->modify_geometry_set(md, &mectx, &geometry_set);
+    if (const Mesh *mesh = geometry_set.get_mesh()) {
+      ASSERT_IS_VALID_MESH_OUTPUT(const_cast<Mesh *>(mesh));
+    }
   }
   else {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
-      geometry_set.replace_mesh(BKE_modifier_modify_mesh(md, &mectx, mesh));
+      ASSERT_IS_VALID_MESH_INPUT(mesh);
+      Mesh *result = BKE_modifier_modify_mesh(md, &mectx, mesh);
+      ASSERT_IS_VALID_MESH_OUTPUT(result);
+      geometry_set.replace_mesh(result);
     }
   }
 
@@ -431,7 +440,9 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
 
     if (mti->type == ModifierTypeType::OnlyDeform) {
       if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
+        ASSERT_IS_VALID_MESH_INPUT(mesh);
         BKE_modifier_deform_verts(md, &mectx, mesh, mesh->vert_positions_for_write());
+        ASSERT_IS_VALID_MESH_OUTPUT(mesh);
       }
     }
     else {
@@ -520,8 +531,9 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         CustomData_MeshMasks_update(&temp_cddata_masks, &nextmask);
         mesh_set_only_copy(mesh_orco, &temp_cddata_masks);
 
+        ASSERT_IS_VALID_MESH_INPUT(mesh_orco);
         Mesh *mesh_orco_new = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco);
-        ASSERT_IS_VALID_MESH(mesh_orco_new);
+        ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_new);
         if (mesh_orco_new) {
           if (mesh_orco != mesh_orco_new) {
             BLI_assert(mesh_orco != mesh_input);
@@ -543,8 +555,9 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
         nextmask.pmask |= CD_MASK_ORIGINDEX;
         mesh_set_only_copy(mesh_orco_cloth, &nextmask);
 
+        ASSERT_IS_VALID_MESH_INPUT(mesh_orco_cloth);
         Mesh *mesh_orco_cloth_new = BKE_modifier_modify_mesh(md, &mectx_orco, mesh_orco_cloth);
-        ASSERT_IS_VALID_MESH(mesh_orco_cloth_new);
+        ASSERT_IS_VALID_MESH_OUTPUT(mesh_orco_cloth_new);
         if (mesh_orco_cloth_new) {
           if (mesh_orco_cloth != mesh_orco_cloth_new) {
             BLI_assert(mesh_orco != mesh_input);
@@ -585,7 +598,7 @@ static GeometrySet mesh_calc_modifiers(Depsgraph &depsgraph,
   if (const Mesh *mesh = geometry_set.get_mesh()) {
     if (CustomData_has_layer(&mesh->vert_data, CD_CLOTH_ORCO)) {
       Mesh *mesh_mut = geometry_set.get_mesh_for_write();
-      CustomData_free_layers(&mesh_mut->vert_data, CD_CLOTH_ORCO, mesh_mut->verts_num);
+      CustomData_free_layers(&mesh_mut->vert_data, CD_CLOTH_ORCO);
     }
   }
 
@@ -831,7 +844,6 @@ static void mesh_build_data(Depsgraph &depsgraph,
 
   BKE_object_eval_assign_data(&ob, &const_cast<ID &>(mesh_eval->id), false);
   ob.runtime->geometry_set_eval = new GeometrySet(std::move(geometry_set));
-
   ob.runtime->last_data_mask = dataMask;
   ob.runtime->last_need_mapping = need_mapping;
 
