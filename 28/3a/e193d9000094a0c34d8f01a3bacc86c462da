@@ -1,2 +1,3 @@
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by issue #140275, Anim: unable to change interpolation type via Key → Interpolation Type
+Referenced by commit 95e39f6ff5fb40a851808f1153b8880369a1c627, Revert "Fix: Autokeying properties does not deselect keys"
