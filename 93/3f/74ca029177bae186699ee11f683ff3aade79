@@ -1,1 +1,1 @@
-Referenced by issue #139762, animdata.cc unreachable code crash
+Referenced by issue #139762, Deleting an F-Curve from NLA strip in tweak mode crashes
