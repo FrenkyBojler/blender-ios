@@ -216,9 +216,9 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   uiLayoutSetContextPointer(layout, "modifier", &ptr);
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  uiLayoutSetUnitsX(layout, 4.0f);
+  layout->ui_units_x_set(4.0f);
 
   /* Apply. */
   if (ob->type == OB_GREASE_PENCIL) {
@@ -322,16 +322,12 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
   /* Modifier Icon. */
   sub = &layout->row(true);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+  sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
     uiLayoutSetRedAlert(sub, true);
   }
-  uiItemStringO(sub,
-                "",
-                RNA_struct_ui_icon(ptr->type),
-                "OBJECT_OT_modifier_set_active",
-                "modifier",
-                md->name);
+  PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
+  RNA_string_set(&op_ptr, "modifier", md->name);
 
   row = &layout->row(true);
 
@@ -426,20 +422,24 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   /* Delete button. */
   if (modifier_can_delete(md) && !modifier_is_simulation(md)) {
     sub = &row->row(false);
-    uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+    sub->emboss_set(blender::ui::EmbossType::None);
     sub->op("OBJECT_OT_modifier_remove", "", ICON_X);
     buttons_number++;
   }
 
   /* Switch context buttons. */
   if (modifier_is_simulation(md) == 1) {
-    uiItemStringO(
-        row, "", ICON_PROPERTIES, "WM_OT_properties_context_change", "context", "PHYSICS");
+    PointerRNA op_ptr = row->op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+    if (!RNA_pointer_is_null(&op_ptr)) {
+      RNA_string_set(&op_ptr, "context", "PHYSICS");
+    }
     buttons_number++;
   }
   else if (modifier_is_simulation(md) == 2) {
-    uiItemStringO(
-        row, "", ICON_PROPERTIES, "WM_OT_properties_context_change", "context", "PARTICLES");
+    PointerRNA op_ptr = row->op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+    if (!RNA_pointer_is_null(&op_ptr)) {
+      RNA_string_set(&op_ptr, "context", "PARTICLES");
+    }
     buttons_number++;
   }
 
