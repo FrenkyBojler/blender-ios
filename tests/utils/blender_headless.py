@@ -28,9 +28,8 @@ Environment Variables:
 - ``USE_DEBUG``: When nonzero:
   Run Blender in a debugger.
 - ``PASS_THROUGH``: When nonzero:
-  Avoid running in the any backend display server.
-  Runs the blender process as a subproccess of this file. Useful to set a
-  temporary directory to be used as the user resource directory via python.
+  Don't start a display server to run Blender in.
+  It's useful to execute Blender from this wrapper script to provide additional control of the environment.
 
 WAYLAND Environment Variables:
 
@@ -71,7 +70,7 @@ def environ_nonzero(var: str) -> bool:
 
 BLENDER_BIN = os.environ.get("BLENDER_BIN", "blender")
 
-# To avoid running in a backend server and instead
+# Skips starting a display server, run Blender in the user's environment.
 PASS_THROUGH = environ_nonzero("PASS_THROUGH")
 
 # For debugging, print out all information.
@@ -128,8 +127,8 @@ class backend_passthrough(backend_base):
                 blender_exit_code = proc_blender.returncode
             del cmd
 
-            # Forward Blender's exit code.
-            return blender_exit_code
+        # Forward Blender's exit code.
+        return blender_exit_code
 
 
 class backend_wayland(backend_base):
@@ -361,19 +360,20 @@ class backend_wayland(backend_base):
                         blender_exit_code = proc_blender.returncode
                     del cmd
 
-                    # Blender has finished, close the server.
-                    proc_server.send_signal(signal.SIGINT)
-                    # Wait for the interrupt to be handled.
-                    proc_server.communicate()
+                # Blender has finished, close the server.
+                proc_server.send_signal(signal.SIGINT)
+                # Wait for the interrupt to be handled.
+                proc_server.communicate()
 
-                    # Forward Blender's exit code.
-                    return blender_exit_code
+                # Forward Blender's exit code.
+                return blender_exit_code
 
 
 # -----------------------------------------------------------------------------
 # Main Function
 
 def main() -> int:
+    backend: type[backend_base]
     if PASS_THROUGH:
         backend = backend_passthrough
     else:
