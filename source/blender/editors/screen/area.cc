@@ -3381,7 +3381,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   int min_width = UI_panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
-                                                   40.0f * UI_SCALE_FAC / aspect;
+                                                         40.0f * UI_SCALE_FAC / aspect;
   if (BLI_rcti_size_x(&region->winrct) <= min_width) {
     v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
   }
