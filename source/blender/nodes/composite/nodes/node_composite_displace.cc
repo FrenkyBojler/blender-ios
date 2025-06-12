@@ -262,9 +262,9 @@ class DisplaceOperation : public NodeOperation {
   void compute_anisotropic(const Result &image,
                            Result &output,
                            const int2 &size,
-                           const std::array<int2, 4> window,
-                           const std::array<float2, 4> window_coordinates,
-                           const std::array<float2, 4> gradients)
+                           const std::array<int2, 4> &window,
+                           const std::array<float2, 4> &window_coordinates,
+                           const std::array<float2, 4> &gradients)
   {
     /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
     auto compute_anisotropic_pixel = [&](const int2 &texel,
