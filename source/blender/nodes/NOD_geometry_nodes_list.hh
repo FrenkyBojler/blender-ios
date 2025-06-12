@@ -15,7 +15,6 @@ namespace blender::nodes {
 class ArrayData {
  public:
   void *data;
-  /* The number of elements in the array. */
   ImplicitSharingPtr<> sharing_info;
   static ArrayData ForValue(const GPointer &value, int64_t size);
   static ArrayData ForDefaultValue(const CPPType &type, int64_t size);
