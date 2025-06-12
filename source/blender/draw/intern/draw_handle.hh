@@ -41,6 +41,8 @@
 /* ObjectKey */
 #include "DEG_depsgraph_query.hh"
 
+#include "draw_scene.hh"
+
 struct DupliCacheManager;
 
 namespace blender::draw {
@@ -111,25 +113,41 @@ class ObjectRef {
   ResourceHandleRange handle_ = {0, 0};
   ResourceHandleRange sculpt_handle_ = {0, 0};
 
+  const DrawObjectKey *draw_object_key_ = nullptr;
+  const DrawInstances *draw_instances_ = nullptr;
+
  public:
   Object *const object;
 
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
   ObjectRef(Object *ob);
+  ObjectRef(Object &ob, const DrawObjectKey &draw_object_key, const DrawInstances &draw_instances);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
+    if (draw_object_key_) {
+      return true;
+    }
+
     return dupli_object_ != nullptr;
   }
 
   bool is_active(const Object *active_object) const
   {
+    if (draw_object_key_) {
+      return bool(draw_object_key_->flags & DrawObjectFlags::IsActive);
+    }
+
     return (dupli_object_ ? dupli_parent_ : object) == active_object;
   }
 
   float random() const
   {
+    if (draw_object_key_) {
+      return bool(draw_object_key_->flags & DrawObjectFlags::IsActive);
+    }
+
     if (dupli_object_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
@@ -140,6 +158,11 @@ class ObjectRef {
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
   {
+    if (draw_object_key_) {
+      /* TODO */
+      return false;
+    }
+
     /* If requesting instance data, check the parent particle system and object. */
     if (attr.use_dupli) {
       return BKE_object_dupli_find_rgba_attribute(
@@ -150,12 +173,30 @@ class ObjectRef {
 
   LightLinking *light_linking() const
   {
+    if (draw_object_key_) {
+      return draw_object_key_->light_linking;
+    }
+
     /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
   int recalc_flags(uint64_t last_update) const
   {
+    if (draw_object_key_) {
+      int flags = 0;
+      SET_FLAG_FROM_TEST(flags,
+                         bool(draw_object_key_->flags & DrawObjectFlags::RecalcTransform),
+                         ID_RECALC_TRANSFORM);
+      SET_FLAG_FROM_TEST(flags,
+                         bool(draw_object_key_->flags & DrawObjectFlags::RecalcGeometry),
+                         ID_RECALC_GEOMETRY);
+      SET_FLAG_FROM_TEST(flags,
+                         bool(draw_object_key_->flags & DrawObjectFlags::RecalcShading),
+                         ID_RECALC_SHADING);
+      return flags;
+    }
+
     /* TODO: There should also be a way to get the the min last_update for all objects in the
      * range.  */
     auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
@@ -178,6 +219,10 @@ class ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
+    if (draw_object_key_) {
+      /* TODO: return span of matrices. */
+    }
+
     /* TODO: Pass particle systems as a separate ObRef? */
     float4x4 dupli_mat = float4x4::identity();
     if (dupli_parent_ && dupli_object_) {
@@ -197,6 +242,10 @@ class ObjectRef {
 
   int preview_instance_index() const
   {
+    if (draw_object_key_) {
+      return draw_object_key_->preview_instance_index;
+    }
+
     if (dupli_object_) {
       return dupli_object_->preview_instance_index;
     }
@@ -205,6 +254,10 @@ class ObjectRef {
 
   const blender::bke::GeometrySet *preview_base_geometry() const
   {
+    if (draw_object_key_) {
+      return draw_object_key_->preview_base_geometry;
+    }
+
     if (dupli_object_) {
       return dupli_object_->preview_base_geometry;
     }
@@ -215,6 +268,10 @@ class ObjectRef {
                                     eObjectMode ob_mode,
                                     eContextObjectMode ctx_mode) const
   {
+    if (draw_object_key_) {
+      return bool(draw_object_key_->flags & DrawObjectFlags::ParentInEditPaintMode);
+    }
+
     /* TODO: Deduplicate code with Overlay engine.
      * Move to BKE ? Or check if T72490 is still relevant. */
 

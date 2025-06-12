@@ -601,13 +601,23 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   if (ob_ref.is_dupli() == false) {
     return;
   }
-  if (last_key_ == ob_ref.dupli_object_) {
+
+  DupliKey duplikey;
+  if (ob_ref.draw_object_key_) {
+    duplikey.ob = ob_ref.draw_object_key_->object;
+    duplikey.ob_data = ob_ref.draw_object_key_->ob_data;
+  }
+  else {
+    duplikey.ob = ob_ref.dupli_object_->ob;
+    duplikey.ob_data = ob_ref.dupli_object_->ob_data;
+  }
+
+  if (last_key_ == duplikey) {
     /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
-  last_key_.ob = ob_ref.dupli_object_->ob;
-  last_key_.ob_data = ob_ref.dupli_object_->ob_data;
+  last_key_ = duplikey;
 
   if (dupli_set_ == nullptr) {
     dupli_set_ = MEM_new<blender::Set<DupliKey>>("DupliCacheManager::dupli_set_");
@@ -682,6 +692,13 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 }
 
 ObjectRef::ObjectRef(Object *ob) : object(ob) {}
+
+ObjectRef::ObjectRef(Object &ob,
+                     const DrawObjectKey &draw_object_key,
+                     const DrawInstances &instances)
+    : draw_object_key_(&draw_object_key), draw_instances_(&instances), object(&ob)
+{
+}
 
 }  // namespace blender::draw
 
