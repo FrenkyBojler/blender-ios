@@ -329,8 +329,8 @@ bool ED_uvedit_select_island_check(const ToolSettings *ts)
     return false;
   }
   if (ts->uv_flag & UV_FLAG_SYNC_SELECT) {
-    if (ts->selectmode & (SCE_SELECT_VERTEX | SCE_SELECT_EDGE)) {
-      /* Not currently supported. */
+    /* Contradictory to allow both these options. */
+    if (ts->uv_sticky == SI_STICKY_VERTEX) {
       return false;
     }
   }
