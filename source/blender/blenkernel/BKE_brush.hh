@@ -174,14 +174,15 @@ struct BrushColorJitterSettings {
   float value;
 
   /** Jitter pressure curves. */
-  struct CurveMapping *curve_hue_jitter;
-  struct CurveMapping *curve_sat_jitter;
-  struct CurveMapping *curve_val_jitter;
+  CurveMapping *curve_hue_jitter;
+  CurveMapping *curve_sat_jitter;
+  CurveMapping *curve_val_jitter;
 };
 
 const float *BKE_brush_color_get(const Scene *scene, const Paint *paint, const Brush *brush);
-const std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
-    const Scene *scene, const Paint *paint, const Brush *brush);
+std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(const Scene *scene,
+                                                                            const Paint *paint,
+                                                                            const Brush *brush);
 const float *BKE_brush_secondary_color_get(const Scene *scene,
                                            const Paint *paint,
                                            const Brush *brush);

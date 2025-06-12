@@ -1870,7 +1870,7 @@ static bool ui_item_rna_is_expand(PropertyRNA *prop, int index, const eUI_Item_F
 /**
  * Find first layout ancestor (or self) with a heading set.
  *
- * \returns the layout to add the heading to as fallback (i.e. if it can't be placed in a split
+ * \returns the layout to add the heading to as a fallback (i.e. if it can't be placed in a split
  *          layout). Its #uiLayout.heading member can be cleared to mark the heading as added (so
  *          it's not added multiple times). Returns a pointer to the heading
  */
@@ -2198,7 +2198,7 @@ void uiLayout::prop(PointerRNA *ptr,
   }
   /* End split. */
   else if (heading_layout) {
-    /* Could not add heading to split layout, fallback to inserting it to the layout with the
+    /* Could not add heading to split layout, fall back to inserting it to the layout with the
      * heading itself. */
     ui_layout_heading_label_add(heading_layout, heading_layout, false, false);
   }
@@ -3421,7 +3421,7 @@ static void menu_item_enum_opname_menu(bContext *C, uiLayout *layout, void *arg)
    * menu item name, set in uiItemMenuEnumFullO_ptr. */
   const int active = menu_item_enum_opname_menu_active(C, but, lvl);
 
-  uiLayoutSetOperatorContext(layout, lvl->opcontext);
+  layout->operator_context_set(lvl->opcontext);
   uiItemsFullEnumO(
       layout, lvl->opname, lvl->propname, op_props, lvl->opcontext, UI_ITEM_NONE, active);
 
@@ -3520,7 +3520,7 @@ static void menu_item_enum_rna_menu(bContext * /*C*/, uiLayout *layout, void *ar
 {
   MenuItemLevel *lvl = (MenuItemLevel *)(((uiBut *)arg)->func_argN);
 
-  uiLayoutSetOperatorContext(layout, lvl->opcontext);
+  layout->operator_context_set(lvl->opcontext);
   uiItemsEnumR(layout, &lvl->rnapoin, lvl->propname);
 }
 
@@ -4832,7 +4832,7 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
     STRNCPY(header_litem->open_prop_name, open_prop_name.c_str());
 
     uiLayout *row = &header_litem->row(true);
-    uiLayoutSetUnitsY(row, 1.2f);
+    row->ui_units_y_set(1.2f);
 
     uiBlock *block = uiLayoutGetBlock(row);
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
@@ -5101,11 +5101,6 @@ uiLayout &uiLayout::split(float percentage, bool align)
   return *split;
 }
 
-void uiLayoutSetActive(uiLayout *layout, bool active)
-{
-  layout->active_ = active;
-}
-
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default)
 {
   layout->active_default_ = active_default;
@@ -5136,29 +5131,9 @@ void uiLayoutSetAlignment(uiLayout *layout, char alignment)
   layout->alignment_ = alignment;
 }
 
-void uiLayoutSetScaleX(uiLayout *layout, float scale)
+void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 {
-  layout->scale_[0] = scale;
-}
-
-void uiLayoutSetScaleY(uiLayout *layout, float scale)
-{
-  layout->scale_[1] = scale;
-}
-
-void uiLayoutSetUnitsX(uiLayout *layout, float unit)
-{
-  layout->units_[0] = unit;
-}
-
-void uiLayoutSetUnitsY(uiLayout *layout, float unit)
-{
-  layout->units_[1] = unit;
-}
-
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss)
-{
-  layout->emboss_ = emboss;
+  emboss_ = emboss;
 }
 
 bool uiLayoutGetPropSep(uiLayout *layout)
@@ -5196,11 +5171,6 @@ Panel *uiLayoutGetRootPanel(uiLayout *layout)
   return layout->root_->block->panel;
 }
 
-bool uiLayoutGetActive(uiLayout *layout)
-{
-  return layout->active_;
-}
-
 bool uiLayoutGetActiveDefault(uiLayout *layout)
 {
   return layout->active_default_;
@@ -5236,32 +5206,12 @@ int uiLayoutGetWidth(uiLayout *layout)
   return layout->w_;
 }
 
-float uiLayoutGetScaleX(uiLayout *layout)
+blender::ui::EmbossType uiLayout::emboss() const
 {
-  return layout->scale_[0];
-}
-
-float uiLayoutGetScaleY(uiLayout *layout)
-{
-  return layout->scale_[1];
-}
-
-float uiLayoutGetUnitsX(uiLayout *layout)
-{
-  return layout->units_[0];
-}
-
-float uiLayoutGetUnitsY(uiLayout *layout)
-{
-  return layout->units_[1];
-}
-
-blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout)
-{
-  if (layout->emboss_ == blender::ui::EmbossType::Undefined) {
-    return layout->root_->block->emboss;
+  if (emboss_ == blender::ui::EmbossType::Undefined) {
+    return root_->block->emboss;
   }
-  return layout->emboss_;
+  return emboss_;
 }
 
 int uiLayoutListItemPaddingWidth()
@@ -5768,9 +5718,9 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout)
   return layout->root_->block;
 }
 
-wmOperatorCallContext uiLayoutGetOperatorContext(uiLayout *layout)
+wmOperatorCallContext uiLayout::operator_context() const
 {
-  return layout->root_->opcontext;
+  return root_->opcontext;
 }
 
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout)
@@ -5882,9 +5832,9 @@ bool uiLayoutGetFixedSize(uiLayout *layout)
   return bool(layout->flag_ & uiItemInternalFlag::FixedSize);
 }
 
-void uiLayoutSetOperatorContext(uiLayout *layout, wmOperatorCallContext opcontext)
+void uiLayout::operator_context_set(wmOperatorCallContext opcontext)
 {
-  layout->root_->opcontext = opcontext;
+  root_->opcontext = opcontext;
 }
 
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv)
