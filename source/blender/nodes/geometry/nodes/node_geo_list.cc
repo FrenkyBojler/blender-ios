@@ -23,8 +23,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_output(type, "List").structure_type(StructureType::List);
   }
 
-  b.add_input<decl::Int>("Count").default_value(1).min(0).description(
-      "The number of elements in the list");
+  b.add_input<decl::Int>("Count")
+      .default_value(1)
+      .min(0)
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .description("The number of elements in the list");
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
