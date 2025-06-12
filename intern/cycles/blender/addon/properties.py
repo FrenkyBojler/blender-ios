@@ -1912,7 +1912,7 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
 
-            row_status = col.row()
+            row_status = col.split(factor=0.7)
             row_status.label(text="HIP has known stability issues", icon='ERROR')
             row_status.operator(
                 "wm.url_open",
