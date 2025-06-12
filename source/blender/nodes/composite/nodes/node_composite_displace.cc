@@ -150,56 +150,109 @@ class DisplaceOperation : public NodeOperation {
     const int2 size = domain.size;
 
     if (interpolation == Interpolation::Anisotropic) {
-      /* In order to perform EWA sampling, we need to compute the partial derivative of the
-       * displaced coordinates along the x and y directions using a finite difference
-       * approximation. But in order to avoid loading multiple neighboring displacement values for
-       * each pixel, we operate on the image in 2x2 blocks of pixels, where the derivatives are
-       * computed horizontally and vertically across the 2x2 block such that odd texels use a
-       * forward finite difference equation while even invocations use a backward finite difference
-       * equation. */
-      parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
-        /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
-         * and upper pixels. */
-        const std::array<int2, 4> window = compute_window(base_texel);
-        const std::array<float2, 4> window_coordinates = compute_window_coordinates(
-            window, size, input_displacement, x_scale, y_scale);
-        const std::array<float2, 4> gradients = compute_gradient(window_coordinates, size);
-        compute_anisotropic(image, output, size, window, window_coordinates, gradients);
-      });
+      compute_anisotropic(size, image, output, input_displacement, x_scale, y_scale);
     }
     else {
-      parallel_for(size, [&](const int2 base_texel) {
-        const float2 coordinates = compute_coordinates(
-            base_texel, size, input_displacement, x_scale, y_scale);
-        switch (interpolation) {
-          /* The anisotropic case requires gradient computation and is handled separately. */
-          case Interpolation::Anisotropic:
-            BLI_assert_unreachable();
-            break;
-          case Interpolation::Nearest:
-            output.store_pixel(base_texel, image.sample_nearest_zero(coordinates));
-            break;
-          case Interpolation::Bilinear:
-            output.store_pixel(base_texel, image.sample_bilinear_zero(coordinates));
-            break;
-          case Interpolation::Bicubic:
-            output.store_pixel(base_texel, image.sample_cubic_wrap(coordinates, false, false));
-            break;
-        }
-      });
+      compute_interpolation(
+          interpolation, size, image, output, input_displacement, x_scale, y_scale);
     }
   }
 
-  std::array<int2, 4> compute_window(const int2 &base_texel) const
+  void compute_interpolation(const Interpolation &interpolation,
+                             const int2 &size,
+                             const Result &image,
+                             Result &output,
+                             const Result &input_displacement,
+                             const Result &x_scale,
+                             const Result &y_scale) const
   {
-    const int x = base_texel.x * 2;
-    const int y = base_texel.y * 2;
+    parallel_for(size, [&](const int2 base_texel) {
+      const float2 coordinates = compute_coordinates(
+          base_texel, size, input_displacement, x_scale, y_scale);
+      switch (interpolation) {
+        /* The anisotropic case requires gradient computation and is handled separately. */
+        case Interpolation::Anisotropic:
+          BLI_assert_unreachable();
+          break;
+        case Interpolation::Nearest:
+          output.store_pixel(base_texel, image.sample_nearest_zero(coordinates));
+          break;
+        case Interpolation::Bilinear:
+          output.store_pixel(base_texel, image.sample_bilinear_zero(coordinates));
+          break;
+        case Interpolation::Bicubic:
+          output.store_pixel(base_texel, image.sample_cubic_wrap(coordinates, false, false));
+          break;
+      }
+    });
+  }
 
-    const int2 lower_left_texel = int2(x, y);
-    const int2 lower_right_texel = int2(x + 1, y);
-    const int2 upper_left_texel = int2(x, y + 1);
-    const int2 upper_right_texel = int2(x + 1, y + 1);
-    return {lower_left_texel, lower_right_texel, upper_left_texel, upper_right_texel};
+  /* In order to perform EWA sampling, we need to compute the partial derivative of the
+   * displaced coordinates along the x and y directions using a finite difference
+   * approximation. But in order to avoid loading multiple neighboring displacement values for
+   * each pixel, we operate on the image in 2x2 blocks of pixels, where the derivatives are
+   * computed horizontally and vertically across the 2x2 block such that odd texels use a
+   * forward finite difference equation while even invocations use a backward finite difference
+   * equation. */
+  void compute_anisotropic(const int2 &size,
+                           const Result &image,
+                           Result &output,
+                           const Result &input_displacement,
+                           const Result &x_scale,
+                           const Result &y_scale) const
+  {
+    auto compute_anisotropic_pixel = [&](const int2 &texel,
+                                         const float2 &coordinates,
+                                         const float2 &x_gradient,
+                                         const float2 &y_gradient) {
+      /* Sample the input using the displaced coordinates passing in the computed gradients in
+       * order to utilize the anisotropic filtering capabilities of the sampler. */
+      output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
+    };
+    parallel_for(math::divide_ceil(size, int2(2)), [&](const int2 base_texel) {
+      /* Compute each of the pixels in the 2x2 block, making sure to exempt out of bounds right
+       * and upper pixels. */
+      const int x = base_texel.x * 2;
+      const int y = base_texel.y * 2;
+
+      const int2 lower_left_texel = int2(x, y);
+      const int2 lower_right_texel = int2(x + 1, y);
+      const int2 upper_left_texel = int2(x, y + 1);
+      const int2 upper_right_texel = int2(x + 1, y + 1);
+
+      const float2 lower_left_coordinates = compute_coordinates(
+          lower_left_texel, size, input_displacement, x_scale, y_scale);
+      const float2 lower_right_coordinates = compute_coordinates(
+          lower_right_texel, size, input_displacement, x_scale, y_scale);
+      const float2 upper_left_coordinates = compute_coordinates(
+          upper_left_texel, size, input_displacement, x_scale, y_scale);
+      const float2 upper_right_coordinates = compute_coordinates(
+          upper_right_texel, size, input_displacement, x_scale, y_scale);
+
+      /* Compute the partial derivatives using finite difference. Divide by the input size since
+       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
+      const float2 lower_x_gradient = (lower_right_coordinates - lower_left_coordinates) / size.x;
+      const float2 left_y_gradient = (upper_left_coordinates - lower_left_coordinates) / size.y;
+      const float2 right_y_gradient = (upper_right_coordinates - lower_right_coordinates) / size.y;
+      const float2 upper_x_gradient = (upper_right_coordinates - upper_left_coordinates) / size.x;
+
+      /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
+
+      compute_anisotropic_pixel(
+          lower_left_texel, lower_left_coordinates, lower_x_gradient, left_y_gradient);
+      if (lower_right_texel.x != size.x) {
+        compute_anisotropic_pixel(
+            lower_right_texel, lower_right_coordinates, lower_x_gradient, right_y_gradient);
+      }
+      if (upper_left_texel.y != size.y) {
+        compute_anisotropic_pixel(
+            upper_left_texel, upper_left_coordinates, upper_x_gradient, left_y_gradient);
+      }
+      if (upper_right_texel.x != size.x && upper_right_texel.y != size.y) {
+        compute_anisotropic_pixel(
+            upper_right_texel, upper_right_coordinates, upper_x_gradient, right_y_gradient);
+      }
+    });
   }
 
   float2 compute_coordinates(const int2 &texel,
@@ -221,83 +274,6 @@ class DisplaceOperation : public NodeOperation {
     return coordinates - displacement;
   }
 
-  std::array<float2, 4> compute_window_coordinates(const std::array<int2, 4> &texels,
-                                                   const int2 &size,
-                                                   const Result &input_displacement,
-                                                   const Result &x_scale,
-                                                   const Result &y_scale) const
-  {
-    const auto [lower_left_texel, lower_right_texel, upper_left_texel, upper_right_texel] = texels;
-    const float2 lower_left_coordinates = compute_coordinates(
-        lower_left_texel, size, input_displacement, x_scale, y_scale);
-    const float2 lower_right_coordinates = compute_coordinates(
-        lower_right_texel, size, input_displacement, x_scale, y_scale);
-    const float2 upper_left_coordinates = compute_coordinates(
-        upper_left_texel, size, input_displacement, x_scale, y_scale);
-    const float2 upper_right_coordinates = compute_coordinates(
-        upper_right_texel, size, input_displacement, x_scale, y_scale);
-    return {lower_left_coordinates,
-            lower_right_coordinates,
-            upper_left_coordinates,
-            upper_right_coordinates};
-  }
-
-  std::array<float2, 4> compute_gradient(const std::array<float2, 4> &window_coordinates,
-                                         const int2 &size) const
-  {
-    const auto [lower_left_coordinates,
-                lower_right_coordinates,
-                upper_left_coordinates,
-                upper_right_coordinates] = window_coordinates;
-
-    /* Compute the partial derivatives using finite difference. Divide by the input size since
-     * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-    const float2 lower_x_gradient = (lower_right_coordinates - lower_left_coordinates) / size.x;
-    const float2 left_y_gradient = (upper_left_coordinates - lower_left_coordinates) / size.y;
-    const float2 right_y_gradient = (upper_right_coordinates - lower_right_coordinates) / size.y;
-    const float2 upper_x_gradient = (upper_right_coordinates - upper_left_coordinates) / size.x;
-    return {lower_x_gradient, upper_x_gradient, left_y_gradient, right_y_gradient};
-  }
-
-  void compute_anisotropic(const Result &image,
-                           Result &output,
-                           const int2 &size,
-                           const std::array<int2, 4> &window,
-                           const std::array<float2, 4> &window_coordinates,
-                           const std::array<float2, 4> &gradients)
-  {
-    /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
-    auto compute_anisotropic_pixel = [&](const int2 &texel,
-                                         const float2 &coordinates,
-                                         const float2 &x_gradient,
-                                         const float2 &y_gradient) {
-      /* Sample the input using the displaced coordinates passing in the computed gradients in
-       * order to utilize the anisotropic filtering capabilities of the sampler. */
-      output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
-    };
-
-    const auto [lower_left_texel, lower_right_texel, upper_left_texel, upper_right_texel] = window;
-    const auto [lower_left_coordinates,
-                lower_right_coordinates,
-                upper_left_coordinates,
-                upper_right_coordinates] = window_coordinates;
-    const auto [lower_x_gradient, upper_x_gradient, left_y_gradient, right_y_gradient] = gradients;
-
-    compute_anisotropic_pixel(
-        lower_left_texel, lower_left_coordinates, lower_x_gradient, left_y_gradient);
-    if (lower_right_texel.x != size.x) {
-      compute_anisotropic_pixel(
-          lower_right_texel, lower_right_coordinates, lower_x_gradient, right_y_gradient);
-    }
-    if (upper_left_texel.y != size.y) {
-      compute_anisotropic_pixel(
-          upper_left_texel, upper_left_coordinates, upper_x_gradient, left_y_gradient);
-    }
-    if (upper_right_texel.x != size.x && upper_right_texel.y != size.y) {
-      compute_anisotropic_pixel(
-          upper_right_texel, upper_right_coordinates, upper_x_gradient, right_y_gradient);
-    }
-  }
   const char *get_shader_name() const
   {
     if (this->get_interpolation() == Interpolation::Anisotropic) {
