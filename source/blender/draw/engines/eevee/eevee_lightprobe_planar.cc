@@ -15,7 +15,9 @@ using namespace blender::math;
 
 void PlanarProbe::set_view(const draw::View &view, int layer_id)
 {
-  this->viewmat = view.viewmat() * reflection_matrix_get();
+  /* Invert the up axis to avoid changing handedness (see #137022). */
+  this->viewmat = from_scale<float4x4>(float3(1, -1, 1)) * view.viewmat() *
+                  reflection_matrix_get();
   this->winmat = view.winmat();
   this->world_to_object_transposed = float3x4(transpose(world_to_plane));
   this->normal = normalize(plane_to_world.z_axis());
@@ -148,7 +150,8 @@ void PlanarProbeModule::viewport_draw(View &view, GPUFrameBuffer *view_fb)
 
   viewport_display_ps_.init();
   viewport_display_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH |
-                                 DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_CULL_BACK);
+                                 DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state |
+                                 DRW_STATE_CULL_BACK);
   viewport_display_ps_.framebuffer_set(&view_fb);
   viewport_display_ps_.shader_set(inst_.shaders.static_shader_get(DISPLAY_PROBE_PLANAR));
   SphereProbeData &world_data = *static_cast<SphereProbeData *>(&inst_.light_probes.world_sphere_);

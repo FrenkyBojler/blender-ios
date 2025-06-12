@@ -58,7 +58,7 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
     iuser->scene = scene;
   }
 
-  memset(opts, 0, sizeof(*opts));
+  *opts = ImageSaveOptions{};
 
   opts->bmain = bmain;
   opts->scene = scene;
@@ -215,7 +215,10 @@ static void image_save_post(ReportList *reports,
                             bool *r_colorspace_changed)
 {
   if (!ok) {
-    BKE_reportf(reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Could not write image: %s",
+                errno ? strerror(errno) : "internal error, see console");
     return;
   }
 
@@ -331,8 +334,7 @@ static bool image_save_single(ReportList *reports,
 
   /* we need renderresult for exr and rendered multiview */
   rr = BKE_image_acquire_renderresult(opts->scene, ima);
-  const bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 :
-                            BLI_listbase_count_at_most(&ima->views, 2) < 2;
+  const bool is_mono = !(rr ? RE_ResultIsMultiView(rr) : BKE_image_is_multiview(ima));
   const bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
@@ -1081,7 +1083,7 @@ bool BKE_image_render_write(ReportList *reports,
                                                &format->linear_colorspace_settings);
   }
 
-  const bool is_mono = BLI_listbase_count_at_most(&rr->views, 2) < 2;
+  const bool is_mono = !RE_ResultIsMultiView(rr);
   const bool is_exr_rr = ELEM(
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);

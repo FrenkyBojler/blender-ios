@@ -189,7 +189,7 @@ struct MeshBatchList {
 
 #define MBC_BATCH_INDEX(batch) (offsetof(MeshBatchList, batch) / sizeof(void *))
 
-enum DRWBatchFlag {
+enum DRWBatchFlag : uint64_t {
   MBC_SURFACE = (1u << MBC_BATCH_INDEX(surface)),
   MBC_SURFACE_WEIGHTS = (1u << MBC_BATCH_INDEX(surface_weights)),
   MBC_EDIT_TRIANGLES = (1u << MBC_BATCH_INDEX(edit_triangles)),
@@ -225,7 +225,7 @@ enum DRWBatchFlag {
 };
 ENUM_OPERATORS(DRWBatchFlag, MBC_SURFACE_PER_MAT);
 
-BLI_STATIC_ASSERT(MBC_BATCH_LEN < 32, "Number of batches exceeded the limit of bit fields");
+BLI_STATIC_ASSERT(MBC_BATCH_LEN < 64, "Number of batches exceeded the limit of bit fields");
 
 struct MeshExtractLooseGeom {
   /** Indices of all vertices not used by edges in the #Mesh or #BMesh. */
@@ -295,22 +295,20 @@ struct MeshBatchCache {
 
   DRW_MeshCDMask cd_used, cd_needed, cd_used_over_time;
 
-  DRW_Attributes attr_used, attr_needed, attr_used_over_time;
+  VectorSet<std::string> attr_used, attr_needed, attr_used_over_time;
 
   int lastmatch;
 
   /* Valid only if edge_detection is up to date. */
   bool is_manifold;
 
+  bool no_loose_wire;
+
   /* Total areas for drawing UV Stretching. Contains the summed area in mesh
    * space (`tot_area`) and the summed area in uv space (`tot_uvarea`).
    *
    * Only valid after `DRW_mesh_batch_cache_create_requested` has been called. */
   float tot_area, tot_uv_area;
-
-  bool no_loose_wire;
-
-  eV3DShadingColorType color_type;
 };
 
 #define MBC_EDITUV \

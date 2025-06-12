@@ -707,7 +707,7 @@ BlenderRNA *RNA_create()
   /* We need both alias and static (on-disk) DNA names. */
   const bool do_alias = true;
 
-  DefRNA.sdna = DNA_sdna_from_data(DNAstr, DNAlen, false, false, do_alias, &error_message);
+  DefRNA.sdna = DNA_sdna_from_data(DNAstr, DNAlen, false, do_alias, &error_message);
   if (DefRNA.sdna == nullptr) {
     CLOG_ERROR(&LOG, "Failed to decode SDNA: %s.", error_message);
     DefRNA.error = true;
@@ -1557,6 +1557,12 @@ void RNA_def_parameter_clear_flags(PropertyRNA *prop,
   prop->flag_parameter &= ~flag_parameter;
 }
 
+void RNA_def_property_path_template_type(PropertyRNA *prop,
+                                         PropertyPathTemplateType path_template_type)
+{
+  prop->path_template_type = path_template_type;
+}
+
 void RNA_def_property_subtype(PropertyRNA *prop, PropertySubType subtype)
 {
   prop->subtype = subtype;
@@ -1714,7 +1720,7 @@ void RNA_def_property_ui_range(
     DefRNA.error = true;
   }
 
-  if (step < 0 || step > 100) {
+  if (step < 0 || step > 1000) {
     CLOG_ERROR(&LOG, "\"%s.%s\", step outside range.", srna->identifier, prop->identifier);
     DefRNA.error = true;
   }
@@ -1926,7 +1932,7 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
         /* If this is larger, this is likely a string which can sometimes store enums. */
         if (PropertyDefRNA *dp = rna_find_struct_property_def(srna, prop)) {
           if (dp->dnatype == nullptr || dp->dnatype[0] == '\0') {
-            /* Unfortunately this happens when #PropertyDefRNA::dnastructname is for e.g.
+            /* Unfortunately this happens when #PropertyDefRNA::dnastructname is for example
              * `type->region_type` there isn't a convenient way to access the int size. */
           }
           else if (dp->dnaarraylength > 1) {
@@ -3785,6 +3791,34 @@ void RNA_def_property_boolean_default_func(PropertyRNA *prop, const char *get_de
   }
 }
 
+void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_default)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing");
+    return;
+  }
+  switch (prop->type) {
+    case PROP_ENUM: {
+      EnumPropertyRNA *eprop = reinterpret_cast<EnumPropertyRNA *>(prop);
+      if (prop->arraydimension) {
+        /* Not supported yet. */
+        BLI_assert_unreachable();
+        CLOG_ERROR(&LOG, "enums don't support arrays");
+        return;
+      }
+      eprop->get_default = (PropEnumGetFuncEx)get_default;
+      break;
+    }
+    default: {
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not enum.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+    }
+  }
+}
+
 void RNA_def_property_srna(PropertyRNA *prop, const char *type)
 {
   const char *error = nullptr;
@@ -4752,7 +4786,7 @@ void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropert
 
   if (tot == 0) {
     *items = MEM_calloc_arrayN<EnumPropertyItem>(8, __func__);
-/* Ensure we get crashes on missing calls to 'RNA_enum_item_end', see #74227. */
+/* Ensure we get crashes on missing calls to #RNA_enum_item_end, see #74227. */
 #ifndef NDEBUG
     memset(*items, 0xff, sizeof(EnumPropertyItem[8]));
 #endif
@@ -4834,13 +4868,13 @@ void RNA_def_struct_free_pointers(BlenderRNA *brna, StructRNA *srna)
           BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, nullptr, nullptr);
         }
       }
-      MEM_freeN((void *)srna->identifier);
+      MEM_freeN(srna->identifier);
     }
     if (srna->name) {
-      MEM_freeN((void *)srna->name);
+      MEM_freeN(srna->name);
     }
     if (srna->description) {
-      MEM_freeN((void *)srna->description);
+      MEM_freeN(srna->description);
     }
   }
 }
@@ -4861,10 +4895,10 @@ void RNA_def_func_free_pointers(FunctionRNA *func)
 {
   if (func->flag & FUNC_FREE_POINTERS) {
     if (func->identifier) {
-      MEM_freeN((void *)func->identifier);
+      MEM_freeN(func->identifier);
     }
     if (func->description) {
-      MEM_freeN((void *)func->description);
+      MEM_freeN(func->description);
     }
   }
 }
@@ -4978,13 +5012,13 @@ void RNA_def_property_free_pointers(PropertyRNA *prop)
     }
 
     if (prop->identifier) {
-      MEM_freeN((void *)prop->identifier);
+      MEM_freeN(prop->identifier);
     }
     if (prop->name) {
-      MEM_freeN((void *)prop->name);
+      MEM_freeN(prop->name);
     }
     if (prop->description) {
-      MEM_freeN((void *)prop->description);
+      MEM_freeN(prop->description);
     }
     if (prop->py_data) {
       MEM_freeN(prop->py_data);
@@ -4994,21 +5028,21 @@ void RNA_def_property_free_pointers(PropertyRNA *prop)
       case PROP_BOOLEAN: {
         BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
         if (bprop->defaultarray) {
-          MEM_freeN((void *)bprop->defaultarray);
+          MEM_freeN(bprop->defaultarray);
         }
         break;
       }
       case PROP_INT: {
         IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
         if (iprop->defaultarray) {
-          MEM_freeN((void *)iprop->defaultarray);
+          MEM_freeN(iprop->defaultarray);
         }
         break;
       }
       case PROP_FLOAT: {
         FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
         if (fprop->defaultarray) {
-          MEM_freeN((void *)fprop->defaultarray);
+          MEM_freeN(fprop->defaultarray);
         }
         break;
       }
@@ -5017,25 +5051,25 @@ void RNA_def_property_free_pointers(PropertyRNA *prop)
 
         for (a = 0; a < eprop->totitem; a++) {
           if (eprop->item[a].identifier) {
-            MEM_freeN((void *)eprop->item[a].identifier);
+            MEM_freeN(eprop->item[a].identifier);
           }
           if (eprop->item[a].name) {
-            MEM_freeN((void *)eprop->item[a].name);
+            MEM_freeN(eprop->item[a].name);
           }
           if (eprop->item[a].description) {
-            MEM_freeN((void *)eprop->item[a].description);
+            MEM_freeN(eprop->item[a].description);
           }
         }
 
         if (eprop->item) {
-          MEM_freeN((void *)eprop->item);
+          MEM_freeN(eprop->item);
         }
         break;
       }
       case PROP_STRING: {
         StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
         if (sprop->defaultvalue) {
-          MEM_freeN((void *)sprop->defaultvalue);
+          MEM_freeN(sprop->defaultvalue);
         }
         break;
       }

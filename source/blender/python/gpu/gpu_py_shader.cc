@@ -13,6 +13,7 @@
 
 #include "BLI_utildefines.h"
 
+#include "GPU_context.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
@@ -58,7 +59,13 @@
   "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
   "``POLYLINE_UNIFORM_COLOR``\n" \
   "   :Attributes: vec3 pos\n" \
-  "   :Uniforms: vec2 viewportSize, float lineWidth\n"
+  "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
+  "``POINT_FLAT_COLOR``\n" \
+  "   :Attributes: vec3 pos, vec4 color\n" \
+  "   :Uniforms: float size\n" \
+  "``POLYLINE_UNIFORM_COLOR``\n" \
+  "   :Attributes: vec3 pos\n" \
+  "   :Uniforms: vec4 color, float size\n"
 
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
@@ -69,6 +76,8 @@ static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},
     {GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR, "POLYLINE_SMOOTH_COLOR"},
     {GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, "POLYLINE_UNIFORM_COLOR"},
+    {GPU_SHADER_3D_POINT_FLAT_COLOR, "POINT_FLAT_COLOR"},
+    {GPU_SHADER_3D_POINT_UNIFORM_COLOR, "POINT_UNIFORM_COLOR"},
     {0, nullptr},
 };
 
@@ -108,6 +117,25 @@ static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *
 static PyObject *pygpu_shader__tp_new(PyTypeObject * /*type*/, PyObject *args, PyObject *kwds)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  if (GPU_backend_get_type() == GPU_BACKEND_VULKAN) {
+    PyErr_SetString(PyExc_Exception,
+                    "Direct shader creation is not supported on Vulkan. "
+                    "Use gpu.shader.create_from_info(shader_info) instead.");
+    return nullptr;
+  }
+
+  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    PyErr_SetString(PyExc_Exception,
+                    "Direct shader creation is not supported on Metal. "
+                    "Use gpu.shader.create_from_info(shader_info) instead.");
+    return nullptr;
+  }
+
+  PyErr_WarnEx(PyExc_DeprecationWarning,
+               "Direct shader creation is deprecated. "
+               "Use gpu.shader.create_from_info(shader_info) instead.",
+               1);
 
   struct {
     const char *vertexcode;
@@ -690,10 +718,10 @@ static PyObject *pygpu_shader_format_calc(BPyGPUShader *self, PyObject * /*arg*/
 
     /* WORKAROUND: Special case for POLYLINE shader. */
     if (GPU_shader_get_ssbo_binding(self->shader, "pos") >= 0) {
-      GPU_vertformat_attr_add(&ret->fmt, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      GPU_vertformat_attr_add(&ret->fmt, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
     }
     if (GPU_shader_get_ssbo_binding(self->shader, "color") >= 0) {
-      GPU_vertformat_attr_add(&ret->fmt, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      GPU_vertformat_attr_add(&ret->fmt, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
     }
   }
   else {
@@ -734,7 +762,9 @@ static PyObject *pygpu_shader_attrs_info_get(BPyGPUShader *self, PyObject * /*ar
         continue;
       }
 
-      type = STREQ(name, "pos") ? int(Type::VEC3) : STREQ(name, "color") ? int(Type::VEC4) : -1;
+      type = STREQ(name, "pos")   ? int(Type::float3_t) :
+             STREQ(name, "color") ? int(Type::float4_t) :
+                                    -1;
       PyObject *py_type;
       if (type != -1) {
         py_type = PyUnicode_InternFromString(
@@ -898,6 +928,8 @@ PyDoc_STRVAR(
     pygpu_shader__tp_doc,
     ".. class:: GPUShader(vertexcode, fragcode, geocode=None, libcode=None, defines=None, "
     "name='pyGPUShader')\n"
+    "\n"
+    "   Deprecated, use gpu.shader.create_from_info(shader_info) instead.\n"
     "\n"
     "   GPUShader combines multiple GLSL shaders into a program used for drawing.\n"
     "   It must contain at least a vertex and fragment shaders.\n"

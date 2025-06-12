@@ -1302,7 +1302,7 @@ static PyObject *bpy_bmesh_from_object(BPy_BMesh *self, PyObject *args, PyObject
 
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
   scene_eval = DEG_get_evaluated_scene(depsgraph);
-  ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  ob_eval = DEG_get_evaluated(depsgraph, ob);
   bool need_free = false;
 
   /* Write the display mesh into the dummy mesh */
@@ -4630,7 +4630,7 @@ int BPy_BMElem_CheckHType(PyTypeObject *type, const char htype)
 
 char *BPy_BMElem_StringFromHType_ex(const char htype, char ret[32])
 {
-  /* zero to ensure string is always nullptr terminated */
+  /* Zero to ensure string is always null terminated. */
   const char *ret_array[4];
   int i = 0;
   if (htype & BM_VERT) {
@@ -4653,7 +4653,7 @@ char *BPy_BMElem_StringFromHType_ex(const char htype, char ret[32])
 }
 char *BPy_BMElem_StringFromHType(const char htype)
 {
-  /* zero to ensure string is always nullptr terminated */
+  /* Zero to ensure string is always null terminated. */
   static char ret[32];
   return BPy_BMElem_StringFromHType_ex(htype, ret);
 }

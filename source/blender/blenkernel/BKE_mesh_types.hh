@@ -9,7 +9,6 @@
  */
 
 #include <memory>
-#include <mutex>
 #include <variant>
 
 #include "BLI_array.hh"
@@ -18,8 +17,10 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_customdata_types.h"
@@ -99,13 +100,19 @@ struct LooseVertCache : public LooseGeomCache {};
 
 /** Similar to #VArraySpan but with the ability to be resized and updated. */
 class NormalsCache {
-  std::variant<Vector<float3>, Span<float3>> data_;
-
  public:
+  /**
+   * Signals that the data from the corresponding "true normals" cache can be used instead. Used to
+   * avoid referencing the data from another shared cache while not still not fetching the custom
+   * normal attribute on every cache request.
+   */
+  struct UseTrueCache {};
+  std::variant<UseTrueCache, Vector<float3>, Span<float3>> data;
+
   MutableSpan<float3> ensure_vector_size(const int size);
   Span<float3> get_span() const;
+  /** \note The caller must ensure that the data is valid as long as the cache. */
   void store_varray(const VArray<float3> &data);
-  void store_span(Span<float3> data);
   void store_vector(Vector<float3> &&data);
 };
 
@@ -130,10 +137,10 @@ struct MeshRuntime {
    * threads, access and use must be protected by the #eval_mutex lock.
    */
   Mesh *mesh_eval = nullptr;
-  std::mutex eval_mutex;
+  Mutex eval_mutex;
 
   /** Needed to ensure some thread-safety during render data pre-processing. */
-  std::mutex render_mutex;
+  Mutex render_mutex;
 
   /** Implicit sharing user count for #Mesh::face_offset_indices. */
   const ImplicitSharingInfo *face_offsets_sharing_info = nullptr;
@@ -184,13 +191,15 @@ struct MeshRuntime {
   SharedCache<std::unique_ptr<BVHTree, BVHTreeDeleter>> bvh_cache_loose_edges_no_hidden;
 
   SharedCache<std::optional<int>> max_material_index;
+  SharedCache<VectorSet<int>> used_material_indices;
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
 
   /**
-   * Grids representation for multi-resolution sculpting. When this is set, the mesh will be empty,
-   * since it is conceptually replaced with the limited data stored in the grids.
+   * Grids representation for multi-resolution sculpting. When this is set, the mesh data
+   * corresponds to the unsubdivided base mesh; it is conceptually replaced with the limited
+   * data stored in the grids.
    */
   std::unique_ptr<SubdivCCG> subdiv_ccg;
   int subdiv_ccg_tot_level = 0;
