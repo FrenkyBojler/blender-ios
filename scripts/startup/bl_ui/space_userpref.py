@@ -968,7 +968,6 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeNLAEditor",
         "ThemeNodeEditor",
         "ThemeOutliner",
-        "ThemePanelColors",
         "ThemePreferences",
         "ThemeProperties",
         "ThemeSequenceEditor",
@@ -1061,7 +1060,7 @@ class PreferenceThemeWidgetColorPanel:
 
         layout.use_property_split = True
 
-        flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
         col.prop(widget_style, "text")
@@ -1071,7 +1070,10 @@ class PreferenceThemeWidgetColorPanel:
         col = flow.column(align=True)
         col.prop(widget_style, "inner", slider=True)
         col.prop(widget_style, "inner_sel", text="Selected", slider=True)
+
+        col = flow.column(align=True)
         col.prop(widget_style, "outline")
+        col.prop(widget_style, "outline_sel", text="Selected", slider=True)
 
         col.separator()
 
@@ -1101,6 +1103,28 @@ class PreferenceThemeWidgetShadePanel:
         widget_style = getattr(ui, self.wcol)
 
         self.layout.prop(widget_style, "show_shaded", text="")
+
+
+class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
+    bl_label = "Panel"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "USERPREF_PT_theme_user_interface"
+
+    def draw_centered(self, context, layout):
+        theme = context.preferences.themes[0]
+        ui = theme.user_interface
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
+
+        col = flow.column()
+        col.prop(ui, "panel_header", text="Header")
+
+        col = flow.column(align=True)
+        col.prop(ui, "panel_back", text="Background")
+        col.prop(ui, "panel_sub_back", text="Sub-Panel")
+
+        col = flow.column()
+        col.prop(ui, "panel_roundness", text="Roundness")
 
 
 class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
@@ -1174,7 +1198,6 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
 
         col = flow.column()
         col.prop(ui, "widget_emboss")
-        col.prop(ui, "panel_roundness")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
@@ -2968,6 +2991,7 @@ classes = (
 
     USERPREF_MT_interface_theme_presets,
     USERPREF_PT_theme,
+    USERPREF_PT_theme_interface_panel,
     USERPREF_PT_theme_interface_gizmos,
     USERPREF_PT_theme_interface_icons,
     USERPREF_PT_theme_interface_state,
