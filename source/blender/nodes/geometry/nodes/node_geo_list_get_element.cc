@@ -18,7 +18,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Int>("Index").min(0).supports_field();
+  b.add_input<decl::Int>("Index")
+      .min(0)
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
+      .supports_field();
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
