@@ -132,9 +132,10 @@ static void layer_search_update_fn(
 
   LayerSearchData *data = static_cast<LayerSearchData *>(arg);
 
-  /* Put this in global space so this list won't get destructed after this function returns. Can't
-   * put this in `LayerSearchData`, it needs to not have destructers because it's gonna be
-   * MEM_freeN()'ed by the button. See the `is_trivially_destructible_v<LayerSearchData>` part. */
+  /* Use static lifetime for `filtered_layer_info` so it won't get destructed after this function
+   * returns. Can't put this in `LayerSearchData`, it needs to not have destructers because it's
+   * going to be MEM_freeN()'ed by the button. See the
+   * `is_trivially_destructible_v<LayerSearchData>` part. */
   static Vector<LayerSearchInfo> filtered_layer_info = {};
   filtered_layer_info = get_layer_names_from_context(*C, *data);
 

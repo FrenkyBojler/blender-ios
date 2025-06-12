@@ -33,8 +33,8 @@ static void node_register()
 
   geo_node_type_base(
       &ntype, "GeometryNodeInputNamedLayerSelection", GEO_NODE_INPUT_NAMED_LAYER_SELECTION);
-  ntype.ui_name = "Named Layer/Group Selection";
-  ntype.ui_description = "Output a selection of a Grease Pencil layer or group";
+  ntype.ui_name = "Named Layer Selection";
+  ntype.ui_description = "Output a layer selection based on the name of a layer or group";
   ntype.enum_name_legacy = "INPUT_NAMED_LAYER_SELECTION";
   ntype.nclass = NODE_CLASS_INPUT;
   blender::bke::node_type_size(ntype, 160, 140, NODE_DEFAULT_MAX_WIDTH);

@@ -21,10 +21,11 @@
 
 #include "UI_interface_c.hh"  // IWYU pragma: export
 
-using blender::bke::greasepencil::LayerSearchInfo;
-
 namespace blender::nodes::geo_eval_log {
 struct GeometryAttributeInfo;
+}
+namespace blender::bke::greasepencil {
+struct LayerSearchInfo;
 }
 
 struct ARegion;

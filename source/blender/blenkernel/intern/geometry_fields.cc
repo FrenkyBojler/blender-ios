@@ -544,10 +544,7 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
   IndexMaskMemory memory;
   const IndexMask selection_mask = grease_pencil.layer_selection_by_name(selection_name, memory);
 
-  auto layer_is_selected = [selection_name,
-                            &grease_pencil,
-                            size = mask.min_array_size(),
-                            selection_mask](const int layer_i) {
+  auto layer_is_selected = [&grease_pencil, selection_mask](const int layer_i) {
     if (layer_i < 0 || layer_i >= grease_pencil.layers().size()) {
       return false;
     }
