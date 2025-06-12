@@ -14,6 +14,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_geometry_set.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender::nodes::xpbd_constraints {
 
 struct ConstraintTypeInfo;
@@ -179,6 +181,27 @@ using ConstraintPositionLinearSolveElementsFunc =
 /** \name Constraint Types
  * \{ */
 
+struct ConstraintBundleItems {
+  static const SocketInterfaceKey stretch_constraints_key;
+  static const SocketInterfaceKey bending_constraints_key;
+  static const SocketInterfaceKey position_constraints_key;
+  static const SocketInterfaceKey rotation_constraints_key;
+  static const SocketInterfaceKey contact_constraints_key;
+
+  bke::GeometrySet stretch_constraints;
+  bke::GeometrySet bending_constraints;
+  bke::GeometrySet position_constraints;
+  bke::GeometrySet rotation_constraints;
+  bke::GeometrySet contact_constraints;
+};
+
+void set_constraints(BundlePtr &bundle_ptr,
+                     const SocketInterfaceKey &key,
+                     const bke::GeometrySet &geometry);
+bke::GeometrySet lookup_constraints(const Bundle &bundle, const SocketInterfaceKey &key);
+BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items);
+void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items);
+
 struct ConstraintTypeInfo {
   using ErrorFn = ConstraintEvalParams::ErrorFn;
 
@@ -195,11 +218,7 @@ struct ConstraintTypeInfo {
   ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
 
-const ConstraintTypeInfo &get_info__position_goal(bool debug_check);
-const ConstraintTypeInfo &get_info__rotation_goal(bool debug_check);
-const ConstraintTypeInfo &get_info__stretch_shear(bool debug_check);
-const ConstraintTypeInfo &get_info__bend_twist(bool debug_check);
-const ConstraintTypeInfo &get_info__contact(bool debug_check);
+const ConstraintTypeInfo &get_info(const SocketInterfaceKey &key, bool debug_check);
 
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
 Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);

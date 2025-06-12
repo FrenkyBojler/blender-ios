@@ -661,7 +661,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     solver_test.position_goal.goal_position = {float3(0.0f), float3(1, -1, 2)};
 
     add_constraint_data(
-        xpbd_constraints::get_info__position_goal(true),
+        xpbd_constraints::get_info(
+            xpbd_constraints::ConstraintBundleItems::position_constraints_key, true),
         {AttributeInfo{"point1", solver_test.position_goal.point1.as_span()},
          AttributeInfo{"lambda", solver_test.position_goal.lambdas.as_span()},
          AttributeInfo{"goal_position", solver_test.position_goal.goal_position.as_span()},
@@ -677,7 +678,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
                                                math::to_quaternion(math::EulerXYZ(0, 10, 10))};
 
     add_constraint_data(
-        xpbd_constraints::get_info__rotation_goal(true),
+        xpbd_constraints::get_info(
+            xpbd_constraints::ConstraintBundleItems::rotation_constraints_key, true),
         {AttributeInfo{"point1", solver_test.rotation_goal.point1.as_span()},
          AttributeInfo{"lambda", solver_test.rotation_goal.lambdas.as_span()},
          AttributeInfo{"goal_rotation", solver_test.rotation_goal.goal_rotation.as_span()},
@@ -693,7 +695,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     solver_test.stretch_shear.edge_lengths = {0.8f, 2.5f};
 
     add_constraint_data(
-        xpbd_constraints::get_info__stretch_shear(true),
+        xpbd_constraints::get_info(
+            xpbd_constraints::ConstraintBundleItems::stretch_constraints_key, true),
         {AttributeInfo{"point1", solver_test.stretch_shear.point1.as_span()},
          AttributeInfo{"point2", solver_test.stretch_shear.point2.as_span()},
          AttributeInfo{"lambda", solver_test.stretch_shear.lambdas.as_span()},
@@ -710,7 +713,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     solver_test.bend_twist.darboux_vector = {float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
 
     add_constraint_data(
-        xpbd_constraints::get_info__bend_twist(true),
+        xpbd_constraints::get_info(
+            xpbd_constraints::ConstraintBundleItems::bending_constraints_key, true),
         {AttributeInfo{"point1", solver_test.bend_twist.point1.as_span()},
          AttributeInfo{"point2", solver_test.bend_twist.point2.as_span()},
          AttributeInfo{"lambda", solver_test.bend_twist.lambdas.as_span()},
@@ -733,7 +737,8 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
         float3(0.0f, 0.0f, -1.0f), float3(0.3f, 0.4f, 1.0f), float3(0.0f, 0.0f, 1.0f)};
 
     add_constraint_data(
-        xpbd_constraints::get_info__contact(true),
+        xpbd_constraints::get_info(
+            xpbd_constraints::ConstraintBundleItems::contact_constraints_key, true),
         {AttributeInfo{"point1", solver_test.contact.point1.as_span()},
          AttributeInfo{"collider_index", solver_test.contact.collider_index.as_span()},
          AttributeInfo{"lambda", solver_test.contact.lambdas.as_span()},
