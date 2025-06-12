@@ -26,6 +26,7 @@
 
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.hh"
+#include "WM_api.hh"
 
 #include "intern/bone_collections_internal.hh"
 
@@ -706,6 +707,7 @@ void ANIM_armature_bonecoll_remove(bArmature *armature, BoneCollection *bcoll)
 {
   ANIM_armature_bonecoll_remove_from_index(armature,
                                            armature_bonecoll_find_index(armature, bcoll));
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 template<typename MaybeConstBoneCollection>
