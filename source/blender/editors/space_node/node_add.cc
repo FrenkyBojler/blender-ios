@@ -1615,7 +1615,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", DATA_("Compositing Node Tree"), MAX_ID_NAME - 2, "Name", "");
+  RNA_def_string(ot->srna, "name", DATA_("Compositing Nodes"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */
