@@ -148,7 +148,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   /* prototypes relations */
   const pxr::SdfPath protoParentPath = usd_path.AppendChild(pxr::TfToken("Prototypes"));
   pxr::UsdPrim prototypesOver = stage->DefinePrim(protoParentPath);
-  pxr::SdfPathVector new_proto_paths_str;
+  pxr::SdfPathVector proto_wrapper_paths;
 
   std::map<std::string, int> proto_index_map;
   std::map<std::string, pxr::SdfPath> proto_path_map;
@@ -165,7 +165,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
       }
 
       const pxr::SdfPath proto_path = protoParentPath.AppendChild(
-          pxr::TfToken(proto_name + "_" + std::to_string(iter)));
+          pxr::TfToken(proto_name_ + "_" + std::to_string(iter)));
 
       pxr::UsdPrim prim = stage->DefinePrim(proto_path);
 
@@ -173,7 +173,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
        * exists.  */
       stage->DefinePrim(source_path);
       prim.GetReferences().AddReference(pxr::SdfReference("", source_path));
-      new_proto_paths_str.push_back(proto_path);
+      proto_wrapper_paths.push_back(proto_path);
 
       std::string ob_name = BKE_id_name(obj->id);
       proto_index_map[ob_name] = iter;
@@ -181,7 +181,7 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
 
       ++iter;
     }
-    usd_instancer.GetPrototypesRel().SetTargets(new_proto_paths_str);
+    usd_instancer.GetPrototypesRel().SetTargets(proto_wrapper_paths);
     prototypesOver.GetPrim().SetSpecifier(pxr::SdfSpecifierOver);
     stage->GetRootLayer()->Save();
   }
@@ -194,87 +194,19 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
 
   Span<int> reference_handles = instances->reference_handles();
   Span<bke::InstanceReference> references = instances->references();
+  std::map<std::string, int> final_proto_index_map;
 
   for (int i = 0; i < instance_num; i++) {
     bke::InstanceReference reference = references[reference_handles[i]];
 
-    switch (reference.type()) {
-      case bke::InstanceReference::Type::Object: {
-        Object &object = reference.object();
-        std::string ob_name = BKE_id_name(object.id);
-
-        if (proto_index_map.find(ob_name) != proto_index_map.end()) {
-          proto_indices.push_back(proto_index_map[ob_name]);
-        }
-
-        /* Clear prototype's local transform to identity to avoid double transforms. The
-         * PointInstancer will fully control instance placement. */
-        float4x4 identity_transform = float4x4::identity();
-        override_transform(stage, proto_path_map[ob_name], identity_transform);
-        break;
-      }
-      case bke::InstanceReference::Type::Collection: {
-        Collection &collection = reference.collection();
-        FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
-          std::string ob_name = BKE_id_name(object->id);
-
-          if (proto_index_map.find(ob_name) != proto_index_map.end()) {
-            proto_indices.push_back(proto_index_map[ob_name]);
-          }
-        }
-        FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-        break;
-      }
-      case bke::InstanceReference::Type::GeometrySet: {
-        bke::GeometrySet geometry_set = reference.geometry_set();
-        std::string set_name = geometry_set.name;
-
-        if (proto_index_map.find(set_name) != proto_index_map.end()) {
-          proto_indices.push_back(proto_index_map[set_name]);
-        }
-
-        Vector<const bke::GeometryComponent *> components = geometry_set.get_components();
-        for (const bke::GeometryComponent *comp : components) {
-          if (const bke::Instances *instances =
-                  static_cast<const bke::InstancesComponent &>(*comp).get())
-          {
-            Span<int> reference_handles = instances->reference_handles();
-            Span<bke::InstanceReference> references = instances->references();
-
-            for (int index = 0; index < reference_handles.size(); ++index) {
-              bke::InstanceReference reference = references[reference_handles[index]];
-
-              if (reference.type() == bke::InstanceReference::Type::Collection) {
-                Collection &collection = reference.collection();
-                int object_num = 0;
-                FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
-                  std::string ob_name = BKE_id_name(object->id);
-
-                  if (proto_index_map.find(ob_name) != proto_index_map.end()) {
-                    object_num += 1;
-                    proto_indices.push_back(proto_index_map[ob_name]);
-
-                    Span<float4x4> transforms = instances->transforms();
-                    if (transforms.size() == 1) {
-                      if (proto_path_map.find(set_name) != proto_path_map.end()) {
-                        override_transform(stage, proto_path_map[set_name], transforms[0]);
-                      }
-                    }
-                  }
-                }
-                FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
-
-                collection_instance_object_count_map.push_back(std::make_pair(i, object_num));
-              }
-            }
-          }
-        }
-        break;
-      }
-      case bke::InstanceReference::Type::None: {
-        break;
-      }
-    }
+    process_instance_reference(reference,
+                               i,
+                               proto_index_map,
+                               final_proto_index_map,
+                               proto_path_map,
+                               stage,
+                               proto_indices,
+                               collection_instance_object_count_map);
   }
 
   blender::io::usd::set_attribute(proto_indices_attr, proto_indices, timecode, usd_value_writer_);
@@ -285,7 +217,154 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
         usd_instancer, timecode, instance_num, collection_instance_object_count_map);
   }
 
+  /* Clean unused prototype. When finding prototype paths under the context of a point instancer,
+   * all the prototypes are collected, even those used by lower-level nested child PointInstancers.
+   * It can happen that different levels in nested PointInstancers share the same prototypes, but
+   * if not, we need to clean the extra prototypes from the prototype relationship for a cleaner
+   * USD export. */
+  compact_prototypes(usd_instancer, timecode, proto_wrapper_paths);
+
   stage->GetRootLayer()->Save();
+}
+
+void USDPointInstancerWriter::process_instance_reference(
+    const bke::InstanceReference &reference,
+    int instance_index,
+    std::map<std::string, int> &proto_index_map,
+    std::map<std::string, int> &final_proto_index_map,
+    std::map<std::string, pxr::SdfPath> &proto_path_map,
+    pxr::UsdStageRefPtr stage,
+    pxr::VtArray<int> &proto_indices,
+    std::vector<std::pair<int, int>> &collection_instance_object_count_map)
+{
+  switch (reference.type()) {
+    case bke::InstanceReference::Type::Object: {
+      Object &object = reference.object();
+      std::string ob_name = BKE_id_name(object.id);
+
+      if (proto_index_map.find(ob_name) != proto_index_map.end()) {
+        proto_indices.push_back(proto_index_map[ob_name]);
+
+        final_proto_index_map[ob_name] = proto_index_map[ob_name];
+
+        /* If the reference is Object, clear prototype's local transform to identity to avoid
+         * double transforms. The PointInstancer will fully control instance placement. */
+        override_transform(stage, proto_path_map[ob_name], float4x4::identity());
+      }
+      break;
+    }
+
+    case bke::InstanceReference::Type::Collection: {
+      Collection &collection = reference.collection();
+      int object_num = 0;
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (&collection, object) {
+        std::string ob_name = BKE_id_name(object->id);
+
+        if (proto_index_map.find(ob_name) != proto_index_map.end()) {
+          object_num += 1;
+          proto_indices.push_back(proto_index_map[ob_name]);
+
+          final_proto_index_map[ob_name] = proto_index_map[ob_name];
+        }
+      }
+      FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+      collection_instance_object_count_map.push_back(std::make_pair(instance_index, object_num));
+      break;
+    }
+
+    case bke::InstanceReference::Type::GeometrySet: {
+      bke::GeometrySet geometry_set = reference.geometry_set();
+      std::string set_name = geometry_set.name;
+
+      if (proto_index_map.find(set_name) != proto_index_map.end()) {
+        proto_indices.push_back(proto_index_map[set_name]);
+
+        final_proto_index_map[set_name] = proto_index_map[set_name];
+      }
+
+      Vector<const bke::GeometryComponent *> components = geometry_set.get_components();
+      for (const bke::GeometryComponent *comp : components) {
+        if (const bke::Instances *instances =
+                static_cast<const bke::InstancesComponent &>(*comp).get())
+        {
+          Span<int> ref_handles = instances->reference_handles();
+          Span<bke::InstanceReference> refs = instances->references();
+
+          /* If the top-level GeometrySet is not in proto_index_map, recursively traverse child
+           * InstanceReferences to resolve prototype indices. If the name matches proto_index_map,
+           * skip traversal to avoid duplicates, since GeometrySet names may overlap with object
+           * names. */
+          if (proto_index_map.find(set_name) == proto_index_map.end()) {
+            for (int index = 0; index < ref_handles.size(); ++index) {
+              const bke::InstanceReference &child_ref = refs[ref_handles[index]];
+
+              /* Recursively traverse nested GeometrySets to resolve prototype indices for all
+               * instances. */
+              process_instance_reference(child_ref,
+                                         instance_index,
+                                         proto_index_map,
+                                         final_proto_index_map,
+                                         proto_path_map,
+                                         stage,
+                                         proto_indices,
+                                         collection_instance_object_count_map);
+            }
+          }
+
+          /* If the reference is GeometrySet, then override the transform with the transform of the
+           * Instance inside this Geometryset. */
+          Span<float4x4> transforms = instances->transforms();
+          if (transforms.size() == 1) {
+            if (proto_path_map.find(set_name) != proto_path_map.end()) {
+              override_transform(stage, proto_path_map[set_name], transforms[0]);
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    case bke::InstanceReference::Type::None:
+    default:
+      break;
+  }
+}
+
+void USDPointInstancerWriter::compact_prototypes(const pxr::UsdGeomPointInstancer &usd_instancer,
+                                                 const pxr::UsdTimeCode timecode,
+                                                 const pxr::SdfPathVector &proto_paths)
+{
+  pxr::UsdAttribute proto_indices_attr = usd_instancer.GetProtoIndicesAttr();
+  pxr::VtArray<int> proto_indices;
+  if (!proto_indices_attr.Get(&proto_indices, timecode)) {
+    return;
+  }
+
+  ///* Find actually used prototype indices */
+  std::set<int> used_proto_indices(proto_indices.begin(), proto_indices.end());
+
+  std::map<int, int> remap;
+  int new_index = 0;
+  for (int i = 0; i < proto_paths.size(); ++i) {
+    if (used_proto_indices.count(i)) {
+      remap[i] = new_index++;
+    }
+  }
+
+  ///* Remap protoIndices */
+  for (int &idx : proto_indices) {
+    idx = remap[idx];
+  }
+  proto_indices_attr.Set(proto_indices, timecode);
+
+  pxr::SdfPathVector compact_proto_paths;
+  for (int i = 0; i < proto_paths.size(); ++i) {
+    if (used_proto_indices.count(i)) {
+      compact_proto_paths.push_back(proto_paths[i]);
+    }
+  }
+
+  usd_instancer.GetPrototypesRel().SetTargets(compact_proto_paths);
 }
 
 void USDPointInstancerWriter::override_transform(pxr::UsdStageRefPtr stage,

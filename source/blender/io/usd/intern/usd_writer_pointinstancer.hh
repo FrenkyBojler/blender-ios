@@ -21,7 +21,6 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
                           std::set<std::pair<pxr::SdfPath, Object *>> &prototype_paths,
                           std::unique_ptr<USDAbstractWriter> base_writer);
   ~USDPointInstancerWriter() final = default;
-  const std::string proto_name = "Prototype";
 
  protected:
   virtual void do_write(HierarchyContext &context) override;
@@ -29,10 +28,24 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
  private:
   std::unique_ptr<USDAbstractWriter> base_writer_;
   std::set<std::pair<pxr::SdfPath, Object *>> prototype_paths_;
+  const std::string proto_name_ = "Prototype";
 
   void write_attribute_data(const bke::AttributeIter &attr,
                             const pxr::UsdGeomPointInstancer &usd_instancer,
                             const pxr::UsdTimeCode timecode);
+
+  void process_instance_reference(const bke::InstanceReference &reference,
+                                  int instance_index,
+                                  std::map<std::string, int> &proto_index_map,
+                                  std::map<std::string, int> &final_proto_index_map,
+                                  std::map<std::string, pxr::SdfPath> &proto_path_map,
+                                  pxr::UsdStageRefPtr stage,
+                                  pxr::VtArray<int> &proto_indices,
+                                  std::vector<std::pair<int, int>> &collection_instance_object_count_map);
+
+  void compact_prototypes(const pxr::UsdGeomPointInstancer &usd_instancer,
+                          const pxr::UsdTimeCode timecode,
+                          const pxr::SdfPathVector &proto_paths);
 
   void override_transform(pxr::UsdStageRefPtr stage,
                           const pxr::SdfPath &proto_path,
