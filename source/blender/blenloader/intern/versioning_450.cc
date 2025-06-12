@@ -4424,7 +4424,7 @@ static void do_version_flip_node_options_to_inputs(bNodeTree *node_tree, bNode *
   }
 }
 
-static void do_version_subdivision_level_input_clamping(bNodeTree &tree)
+static void clamp_subdivision_node_level_input(bNodeTree &tree)
 {
   blender::Map<bNodeSocket *, bNodeLink *> links_to_level_and_max_inputs;
   LISTBASE_FOREACH (bNodeLink *, link, &tree.links) {
@@ -6368,7 +6368,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 87)) {
     FOREACH_NODETREE_BEGIN (bmain, tree, id) {
       if (tree->type == NTREE_GEOMETRY) {
-        do_version_subdivision_level_input_clamping(*tree);
+        clamp_subdivision_node_level_input(*tree);
       }
     }
     FOREACH_NODETREE_END;
