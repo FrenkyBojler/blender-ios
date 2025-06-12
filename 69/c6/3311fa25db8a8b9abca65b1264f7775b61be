@@ -2,3 +2,4 @@ Referenced by commit da7e7a0e80e, Fix: Handle null Action during armature export
 Referenced by issue #132651, Regression: Multires with color attribute in material view leads to a crash
 Referenced by issue #132381, Fix: Handle null Action during armature export
 Referenced by issue #135767, Grease Pencil: Separate by layer clears material user count
+Referenced by issue #139079, Crash when changing scene
