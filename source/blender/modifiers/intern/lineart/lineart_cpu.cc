@@ -2619,6 +2619,31 @@ static bool lineart_collection_contains_lineart_instance(Collection &collection,
   return parent_visible;
 }
 
+static bool lineart_collection_instancer_has_lineart_instance(const Object *instancer,
+                                                              const LineartInstance &instance)
+{
+  const LineartInstance *p = &instance;
+  while (p) {
+    if (p->object == instancer) {
+      return true;
+    }
+    p = p->parent;
+  }
+  return false;
+}
+
+static bool lineart_instance_from_any_instancer(const LineartInstance &instance)
+{
+  const LineartInstance *p = &instance;
+  while (p) {
+    if (p->object && p->object->type == OB_EMPTY && p->object->instance_collection) {
+      return true;
+    }
+    p = p->parent;
+  }
+  return false;
+}
+
 void lineart_main_load_geometries(Depsgraph *depsgraph,
                                   Scene *scene,
                                   Object *camera /* Still use camera arg for convenience. */,
@@ -5364,7 +5389,14 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
 
   bool inverse_silhouette = modifier_flags & MOD_LINEART_INVERT_SILHOUETTE_FILTER;
 
-  lineart_print_instance_nodes(cache->scene_root, 0);
+  if (G.debug_value == 4000) {
+    lineart_print_instance_nodes(cache->scene_root, 0);
+  }
+
+  // Support filtering collection instancer object
+  if (orig_ob && orig_ob->type == OB_EMPTY && orig_ob->instance_collection) {
+    orig_col = orig_ob->instance_collection;
+  }
 
   blender::Vector<LineartChainWriteInfo> writer;
   writer.reserve(128);
@@ -5384,10 +5416,19 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
 
     LineartInstance *instance = reinterpret_cast<LineartInstance *>(ec->object_ref);
 
-    if (orig_ob && orig_ob != instance->object) {
-      continue;
+    if (orig_ob) {
+      if (!orig_col) { /* Filtering strokes from "normal" objects. */
+        if (orig_ob != instance->object || lineart_instance_from_any_instancer(*instance)) {
+          continue;
+        }
+      }
+      else { /* Filtering strokes from the child instances of a collection instancer object */
+        if (!lineart_collection_instancer_has_lineart_instance(orig_ob, *instance)) {
+          continue;
+        }
+      }
     }
-    if (orig_col && instance) {
+    else if (orig_col && instance) {
       if (lineart_collection_contains_lineart_instance(*orig_col, *instance, false)) {
         if (modifier_flags & MOD_LINEART_INVERT_COLLECTION) {
           continue;
