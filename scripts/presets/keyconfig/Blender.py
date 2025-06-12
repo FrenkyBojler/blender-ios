@@ -139,6 +139,16 @@ class Prefs(bpy.types.KeyConfigPreferences):
         update=update_fn,
     )
 
+    use_invert_up_down_time_navigation: BoolProperty(
+        name="Invert Up/Down Time Navigation",
+        description=(
+            "Go to next/previous event (keyframe, sequencer strip) "
+            "using up/down arrows and page up/page down, respectively"
+        ),
+        default=False,
+        update=update_fn,
+    )
+
     gizmo_action: EnumProperty(
         name="Activate Gizmo",
         translation_context=i18n_contexts.editor_view3d,
@@ -297,6 +307,9 @@ class Prefs(bpy.types.KeyConfigPreferences):
         row = sub.row()
         row.prop(self, "use_select_all_toggle")
 
+        row = sub.row()
+        row.prop(self, "use_invert_up_down_time_navigation")
+
         if show_developer_ui:
             row = sub.row()
             row.prop(self, "use_region_toggle_pie")
@@ -352,6 +365,7 @@ def load():
             use_v3d_mmb_pan=(kc_prefs.v3d_mmb_action == 'PAN'),
             v3d_alt_mmb_drag_action=kc_prefs.v3d_alt_mmb_drag_action,
             use_select_all_toggle=kc_prefs.use_select_all_toggle,
+            use_invert_up_down_time_navigation=kc_prefs.use_invert_up_down_time_navigation,
             use_v3d_tab_menu=kc_prefs.use_v3d_tab_menu,
             use_v3d_shade_ex_pie=kc_prefs.use_v3d_shade_ex_pie,
             use_gizmo_drag=(is_select_left and kc_prefs.gizmo_action == 'DRAG'),
