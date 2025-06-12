@@ -968,7 +968,6 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeNLAEditor",
         "ThemeNodeEditor",
         "ThemeOutliner",
-        "ThemePanelColors",
         "ThemePreferences",
         "ThemeProperties",
         "ThemeSequenceEditor",
@@ -1106,6 +1105,29 @@ class PreferenceThemeWidgetShadePanel:
         self.layout.prop(widget_style, "show_shaded", text="")
 
 
+class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
+    bl_label = "Panel"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "USERPREF_PT_theme_user_interface"
+
+    def draw_centered(self, context, layout):
+        theme = context.preferences.themes[0]
+        ui = theme.user_interface
+
+        flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
+
+        col = flow.column()
+        col.prop(ui, "panel_header", text="Header")
+
+        col = col.column(align=True)
+        col.prop(ui, "panel_back", text="Background")
+        col.prop(ui, "panel_sub_back", text="Sub-Panel")
+
+        col = flow.column()
+        col.prop(ui, "panel_outline", text="Outline")
+        col.prop(ui, "panel_roundness", text="Roundness")
+
+
 class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
     bl_label = "State"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1179,10 +1201,6 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col = flow.column(align=True)
         col.prop(ui, "menu_shadow_fac")
         col.prop(ui, "menu_shadow_width", text="Shadow Width")
-
-        col = flow.column(align=True)
-        col.prop(ui, "panel_roundness")
-        col.prop(ui, "panel_outline")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
@@ -2976,6 +2994,7 @@ classes = (
 
     USERPREF_MT_interface_theme_presets,
     USERPREF_PT_theme,
+    USERPREF_PT_theme_interface_panel,
     USERPREF_PT_theme_interface_gizmos,
     USERPREF_PT_theme_interface_icons,
     USERPREF_PT_theme_interface_state,
