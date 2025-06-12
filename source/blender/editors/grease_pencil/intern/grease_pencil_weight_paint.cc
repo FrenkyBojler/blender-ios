@@ -60,13 +60,13 @@ Set<std::string> get_bone_deformed_vertex_group_names(const Object &object)
     {
       continue;
     }
-    GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+    GreasePencilArmatureModifierData *gamd = reinterpret_cast<GreasePencilArmatureModifierData *>(
         md);
-    if (!amd->object || !amd->object->pose) {
+    if (!gamd->object || !gamd->object->pose) {
       continue;
     }
 
-    bPose *pose = amd->object->pose;
+    bPose *pose = gamd->object->pose;
     LISTBASE_FOREACH (bPoseChannel *, channel, &pose->chanbase) {
       if (channel->bone->flag & BONE_NO_DEFORM) {
         continue;
@@ -684,7 +684,7 @@ static void GREASE_PENCIL_OT_weight_invert(wmOperatorType *ot)
   ot->idname = "GREASE_PENCIL_OT_weight_invert";
   ot->description = "Invert the weight of active vertex group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = grease_pencil_weight_invert_exec;
   ot->poll = grease_pencil_vertex_group_weight_poll;
 

@@ -134,8 +134,8 @@ void uiTemplateMovieClip(uiLayout *layout,
     uiLayout *split = &row->split(0.0f, false);
     row = &split->row(true);
 
-    uiItemR(row, &clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
-    uiItemO(row, "", ICON_FILE_REFRESH, "clip.reload");
+    row->prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
+    row->op("clip.reload", "", ICON_FILE_REFRESH);
 
     uiLayout *col = &layout->column(false);
     uiTemplateColorspaceSettings(col, &clipptr, "colorspace_settings");
@@ -451,7 +451,7 @@ void uiTemplateMarker(uiLayout *layout,
     BKE_movieclip_get_size(clip, user, &width, &height);
 
     if (track->flag & TRACK_LOCKED) {
-      uiLayoutSetActive(layout, false);
+      layout->active_set(false);
       uiBlock *block = layout->absolute_block();
       uiDefBut(block,
                UI_BTYPE_LABEL,
@@ -518,7 +518,7 @@ void uiTemplateMarker(uiLayout *layout,
                  tip);
 
     uiLayout *col = &layout->column(true);
-    uiLayoutSetActive(col, (cb->marker_flag & MARKER_DISABLED) == 0);
+    col->active_set((cb->marker_flag & MARKER_DISABLED) == 0);
 
     block = col->absolute_block();
     UI_block_align_begin(block);
@@ -803,7 +803,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
   }
   UNUSED_VARS(ofs);
 
-  uiItemL(col, str, ICON_NONE);
+  col->label(str, ICON_NONE);
 
   /* Display current frame number. */
   int framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, user->framenr);
@@ -813,7 +813,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
   else {
     SNPRINTF(str, RPT_("Frame: - / %d"), clip->len);
   }
-  uiItemL(col, str, ICON_NONE);
+  col->label(str, ICON_NONE);
 
   /* Display current file name if it's a sequence clip. */
   if (clip->source == MCLIP_SRC_SEQUENCE) {
@@ -830,7 +830,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
 
     SNPRINTF(str, RPT_("File: %s"), file);
 
-    uiItemL(col, str, ICON_NONE);
+    col->label(str, ICON_NONE);
   }
 
   IMB_freeImBuf(ibuf);

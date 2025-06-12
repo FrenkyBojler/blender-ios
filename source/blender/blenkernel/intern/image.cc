@@ -1556,11 +1556,6 @@ static uintptr_t image_mem_size(Image *image)
       }
 
       size += IMB_get_size_in_memory(ibuf);
-
-      for (int level = 0; level < IMB_MIPMAP_LEVELS; level++) {
-        ImBuf *ibufm = ibuf->mipmap[level];
-        size += IMB_get_size_in_memory(ibufm);
-      }
     }
     IMB_moviecacheIter_free(iter);
   }
@@ -2010,7 +2005,7 @@ void BKE_image_stamp_buf(Scene *scene,
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  ColorManagedDisplay *display;
+  const ColorManagedDisplay *display;
   const char *display_device;
 
   /* vars for calculating wordwrap */
@@ -2994,13 +2989,6 @@ static void image_walk_id_all_users(
       }
       break;
     }
-    case ID_SCE: {
-      Scene *scene = (Scene *)id;
-      if (scene->nodetree && scene->use_nodes && !skip_nested_nodes) {
-        image_walk_ntree_all_users(scene->nodetree, &scene->id, customdata, callback);
-      }
-      break;
-    }
     default:
       break;
   }
@@ -3172,7 +3160,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
     return;
   }
 
-  std::scoped_lock lock(ima->runtime->cache_mutex);
+  ima->runtime->cache_mutex.lock();
 
   switch (signal) {
     case IMA_SIGNAL_FREE:
@@ -3356,13 +3344,17 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       break;
   }
 
+  /* NOTE: It is important that the image is unlocked before calling the node tree updates since
+   * its update functions might need to acquire image buffers from this image. */
+  ima->runtime->cache_mutex.unlock();
+
   BKE_ntree_update_tag_id_changed(bmain, &ima->id);
   BKE_ntree_update(*bmain);
 }
 
 /**
  * \return render-pass for a given pass index and active view.
- * fallback to available if there are missing passes for active view.
+ * fall back to available if there are missing passes for active view.
  */
 static RenderPass *image_render_pass_get(RenderLayer *rl,
                                          const int pass,
@@ -3393,7 +3385,7 @@ static RenderPass *image_render_pass_get(RenderLayer *rl,
     }
   }
 
-  /* fallback to the first pass in the layer */
+  /* fall back to the first pass in the layer */
   if (rpass_ret == nullptr) {
     rp_index = 0;
     rpass_ret = static_cast<RenderPass *>(rl->passes.first);
@@ -4986,19 +4978,20 @@ ImagePool *BKE_image_pool_new()
 void BKE_image_pool_free(ImagePool *pool)
 {
   /* Use single lock to dereference all the image buffers. */
-  std::scoped_lock lock(pool->mutex);
-  for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
-       item != nullptr;
-       item = item->next)
   {
-    if (item->ibuf != nullptr) {
-      std::scoped_lock lock(item->image->runtime->cache_mutex);
-      IMB_freeImBuf(item->ibuf);
+    std::scoped_lock lock(pool->mutex);
+    for (ImagePoolItem *item = static_cast<ImagePoolItem *>(pool->image_buffers.first);
+         item != nullptr;
+         item = item->next)
+    {
+      if (item->ibuf != nullptr) {
+        std::scoped_lock lock(item->image->runtime->cache_mutex);
+        IMB_freeImBuf(item->ibuf);
+      }
     }
+
+    BLI_mempool_destroy(pool->memory_pool);
   }
-
-  BLI_mempool_destroy(pool->memory_pool);
-
   MEM_delete(pool);
 }
 

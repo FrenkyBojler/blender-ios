@@ -160,7 +160,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZ(T) \
   SWIZZLE_XY(T) \
-  SwizzleBase<T, 2> xz, yz, zx, zy, zz, zw; \
+  SwizzleBase<T, 2> xz, yz, zx, zy, zz; \
   SwizzleBase<T, 3> xxz, xyz, xzx, xzy, xzz, yxz, yyz, yzx, yzy, yzz, zxx, zxy, zxz, zyx, zyy, \
       zyz, zzx, zzy, zzz; \
   SwizzleBase<T, 4> xxxz, xxyz, xxzx, xxzy, xxzz, xyxz, xyyz, xyzx, xyzy, xyzz, xzxx, xzxy, xzxz, \
@@ -182,7 +182,7 @@ template<typename T, int Sz> struct SwizzleBase : VecOp<T, Sz> {
 
 #define SWIZZLE_XYZW(T) \
   SWIZZLE_XYZ(T) \
-  SwizzleBase<T, 2> xw, yw, wx, wy, wz, ww; \
+  SwizzleBase<T, 2> xw, yw, zw, wx, wy, wz, ww; \
   SwizzleBase<T, 3> xxw, xyw, xzw, xwx, xwy, xwz, xww, yxw, yyw, yzw, ywx, ywy, ywz, yww, zxw, \
       zyw, zzw, zwx, zwy, zwz, zww, wxx, wxy, wxz, wxw, wyx, wyy, wyz, wyw, wzx, wzy, wzz, wzw, \
       wwx, wwy, wwz, www; \
@@ -1071,6 +1071,21 @@ void groupMemoryBarrier() {}
 // #define namespace /* Needed for Stubs. */
 // #define using /* Needed for Stubs. */
 #define row_major row_major_is_reserved_glsl_keyword_do_not_use
+
+#ifdef GPU_SHADER_LIBRARY
+#  define GPU_VERTEX_SHADER
+#  define GPU_FRAGMENT_SHADER
+#  define GPU_COMPUTE_SHADER
+#endif
+
+/* Resource accessor. */
+#define specialization_constant_get(create_info, _res) _res
+#define push_constant_get(create_info, _res) _res
+#define interface_get(create_info, _res) _res
+#define attribute_get(create_info, _res) _res
+#define buffer_get(create_info, _res) _res
+#define sampler_get(create_info, _res) _res
+#define image_get(create_info, _res) _res
 
 #include "GPU_shader_shared_utils.hh"
 

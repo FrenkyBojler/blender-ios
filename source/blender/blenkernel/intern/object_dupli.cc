@@ -550,7 +550,9 @@ static void make_duplis_collection(const DupliContext *ctx)
     }
 
     if (ctx->include_objects) {
-      if (!ctx->include_objects->contains(cob)) {
+      Object *original_object = cob->id.orig_id ? reinterpret_cast<Object *>(cob->id.orig_id) :
+                                                  cob;
+      if (!ctx->include_objects->contains(original_object)) {
         continue;
       }
     }
@@ -1847,7 +1849,7 @@ ListBase *object_duplilist_preview(Depsgraph *depsgraph,
       continue;
     }
     if (const geo_log::ViewerNodeLog *viewer_log =
-            geo_log::GeoModifierLog::find_viewer_node_log_for_path(*viewer_path))
+            geo_log::GeoNodesLog::find_viewer_node_log_for_path(*viewer_path))
     {
       ctx.preview_base_geometry = &viewer_log->geometry;
       make_duplis_geometry_set_impl(&ctx,

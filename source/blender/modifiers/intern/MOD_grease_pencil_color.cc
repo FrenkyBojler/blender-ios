@@ -209,11 +209,11 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "hue", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "saturation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "value", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "hue", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "saturation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "value", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
   if (uiLayout *influence_panel = layout->panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))
@@ -223,7 +223,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

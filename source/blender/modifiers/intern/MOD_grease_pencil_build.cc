@@ -558,7 +558,7 @@ static float get_build_factor(const GreasePencilBuildTimeMode time_mode,
       return percentage * (1.0f + fade);
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_DRAWSPEED:
       /* The "drawing speed" is written as an attribute called 'delta_time' (for each point). If
-       * this attribute doesn't exist, we fallback to the "frames" mode. */
+       * this attribute doesn't exist, we fall back to the "frames" mode. */
       if (!curves.attributes().contains("delta_time")) {
         return build_factor_frames;
       }
@@ -751,9 +751,9 @@ static void panel_draw(const bContext *C, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   /* First: Build mode and build settings. */
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_SEQUENTIAL) {
-    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT) {
     /* Concurrent mode doesn't support MOD_GREASE_PENCIL_BUILD_TIMEMODE_DRAWSPEED, so unset it. */
@@ -761,35 +761,35 @@ static void panel_draw(const bContext *C, Panel *panel)
       RNA_enum_set(ptr, "time_mode", MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES);
       time_mode = MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES;
     }
-    uiItemR(layout, ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "transition", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  uiItemS(layout);
+  layout->separator();
 
   /* Second: Time mode and time settings. */
 
-  uiItemR(layout, ptr, "time_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "time_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (mode == MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT) {
-    uiItemR(layout, ptr, "concurrent_time_alignment", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "concurrent_time_alignment", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   switch (time_mode) {
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_DRAWSPEED:
-      uiItemR(layout, ptr, "speed_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      uiItemR(layout, ptr, "speed_maxgap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "speed_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "speed_maxgap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_FRAMES:
-      uiItemR(layout, ptr, "length", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
+      layout->prop(ptr, "length", UI_ITEM_NONE, IFACE_("Frames"), ICON_NONE);
       if (mode != MOD_GREASE_PENCIL_BUILD_MODE_ADDITIVE) {
-        uiItemR(layout, ptr, "start_delay", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        layout->prop(ptr, "start_delay", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
       break;
     case MOD_GREASE_PENCIL_BUILD_TIMEMODE_PERCENTAGE:
-      uiItemR(layout, ptr, "percentage_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout->prop(ptr, "percentage_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     default:
       break;
   }
-  uiItemS(layout);
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->separator();
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PanelLayout restrict_frame_range_layout = layout->panel_prop_with_bool_header(
       C,
       ptr,
@@ -800,22 +800,22 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (uiLayout *panel = restrict_frame_range_layout.body) {
     const bool active = RNA_boolean_get(ptr, "use_restrict_frame_range");
     uiLayout *col = &panel->column(false);
-    uiLayoutSetActive(col, active);
-    uiItemR(col, ptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
-    uiItemR(col, ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+    col->active_set(active);
+    col->prop(ptr, "frame_start", UI_ITEM_NONE, IFACE_("Start"), ICON_NONE);
+    col->prop(ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
   PanelLayout fading_layout = layout->panel_prop_with_bool_header(
       C, ptr, "open_fading_panel", ptr, "use_fading", IFACE_("Fading"));
   if (uiLayout *panel = fading_layout.body) {
     const bool active = RNA_boolean_get(ptr, "use_fading");
     uiLayout *col = &panel->column(false);
-    uiLayoutSetActive(col, active);
+    col->active_set(active);
 
-    uiItemR(col, ptr, "fade_factor", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
+    col->prop(ptr, "fade_factor", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 
     uiLayout *subcol = &col->column(true);
-    uiItemR(subcol, ptr, "fade_thickness_strength", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
-    uiItemR(subcol, ptr, "fade_opacity_strength", UI_ITEM_NONE, IFACE_("Opacity"), ICON_NONE);
+    subcol->prop(ptr, "fade_thickness_strength", UI_ITEM_NONE, IFACE_("Thickness"), ICON_NONE);
+    subcol->prop(ptr, "fade_opacity_strength", UI_ITEM_NONE, IFACE_("Opacity"), ICON_NONE);
 
     uiItemPointerR(col,
                    ptr,
@@ -833,7 +833,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

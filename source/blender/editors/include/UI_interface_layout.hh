@@ -58,6 +58,15 @@ struct uiItem {
   uiItem(const uiItem &) = default;
   virtual ~uiItem() = default;
 };
+
+enum eUI_Item_Flag : uint16_t;
+
+enum class LayoutSeparatorType : int8_t {
+  Auto,
+  Space,
+  Line,
+};
+
 /**
  * NOTE: `uiLayout` properties should be considered private outside `interface_layout.cc`,
  * incoming refactors would remove public access and add public read/write function methods.
@@ -95,6 +104,37 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  bool active() const;
+  /**
+   * Sets the active state of the layout and its items.
+   * When false the layout and its buttons are grayed out, user can still interact with them but
+   * generally they will not have an active use.
+   */
+  void active_set(bool active);
+
+  blender::ui::EmbossType emboss() const;
+  void emboss_set(blender::ui::EmbossType emboss);
+
+  wmOperatorCallContext operator_context() const;
+  /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
+  void operator_context_set(wmOperatorCallContext opcontext);
+
+  float scale_x() const;
+  void scale_x_set(float scale);
+
+  float scale_y() const;
+  void scale_y_set(float scale);
+
+  float ui_units_x() const;
+  /** Sets a fixed width size for this layout. */
+  void ui_units_x_set(float width);
+
+  float ui_units_y() const;
+  /** Sets a fixed height size for this layout. */
+  void ui_units_y_set(float height);
+
+  /** Sub-layout items. */
+
   uiLayout &absolute(bool align);
   uiBlock *absolute_block();
 
@@ -112,7 +152,7 @@ struct uiLayout : uiItem {
    * Add a new column sub-layout, items placed in this sub-layout are added vertically one under
    * each other in a column.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &column(bool align, blender::StringRef heading);
@@ -126,7 +166,7 @@ struct uiLayout : uiItem {
    * Add a new row sub-layout, items placed in this sub-layout are added horizontally next to each
    * other in row.
    * \param heading: Heading label to set to the first child element added in the sub-layout
-   * through #uiItemFullR. When property split is used, this heading label is set in the split
+   * through #uiLayout::prop. When property split is used, this heading label is set in the split
    * label column when there is no label defined.
    */
   uiLayout &row(bool align, blender::StringRef heading);
@@ -233,6 +273,150 @@ struct uiLayout : uiItem {
    * \param percentage: Width percent to split.
    */
   uiLayout &split(float percentage, bool align);
+
+  /** Items. */
+
+  /** Adds a label item that will display text and/or icon in the layout. */
+  void label(blender::StringRef name, int icon);
+
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(MenuType *mt, std::optional<blender::StringRef> name, int icon);
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * If menu fails to poll with `WM_menutype_poll` it will not be added into the layout.
+   */
+  void menu(blender::StringRef menuname, std::optional<blender::StringRef> name, int icon);
+
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * \param name: Label to show in the menu button.
+   * \param func: Function that generates the menu layout.
+   * \param arg: Pointer to data used as last argument in \a func.
+   */
+  void menu_fn(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *arg);
+  /**
+   * Adds a menu item, which is a button that when active will display a menu.
+   * \param name: Label to show in the menu button.
+   * \param func: Function that generates the menu layout.
+   * \param argN: Pointer to data used as last argument in \a func, it will be
+   * freed with the menu button.
+   */
+  void menu_fn_argN_free(blender::StringRefNull name, int icon, uiMenuCreateFunc func, void *argN);
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param ot: Operator to add.
+   * \param name: Text to show in the layout.
+   * \returns Operator pointer to write properties.
+   */
+  PointerRNA op(wmOperatorType *ot, std::optional<blender::StringRef> name, int icon);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param opname: Operator id name.
+   * \param name: Text to show in the layout.
+   * \returns Operator pointer to write properties, might be #PointerRNA_NULL if operator does not
+   * exists.
+   */
+  PointerRNA op(blender::StringRefNull opname, std::optional<blender::StringRef> name, int icon);
+
+  /**
+   * Adds a operator item, places a button in the layout to call the operator.
+   * \param opname: Operator id name.
+   * \param name: Text to show in the layout.
+   * \param context: Operator call context for #WM_operator_name_call.
+   * \returns Operator pointer to write properties, might be #PointerRNA_NULL if operator does not
+   * exists.
+   */
+  PointerRNA op(blender::StringRefNull opname,
+                std::optional<blender::StringRef> name,
+                int icon,
+                wmOperatorCallContext context,
+                eUI_Item_Flag flag);
+  /**
+   * Adds a RNA property item, and exposes it into the layout.
+   * \param ptr: RNA pointer to the struct owner of \a prop.
+   * \param prop: The property in \a ptr to add.
+   * \param index: When \a prop is a array property, indicates what entry to expose through the
+   * layout, #RNA_NO_INDEX (-1) means all.
+   */
+  void prop(PointerRNA *ptr,
+            PropertyRNA *prop,
+            int index,
+            int value,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRef> name_opt,
+            int icon,
+            std::optional<blender::StringRef> placeholder = std::nullopt);
+  /** Adds a RNA property item, and exposes it into the layout. */
+  void prop(PointerRNA *ptr,
+            blender::StringRefNull propname,
+            eUI_Item_Flag flag,
+            std::optional<blender::StringRef> name,
+            int icon);
+
+  /** Adds a separator item, that adds empty space between items. */
+  void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
+};
+
+inline bool uiLayout::active() const
+{
+  return active_;
+}
+inline void uiLayout::active_set(bool active)
+{
+  active_ = active;
+}
+
+inline float uiLayout::scale_x() const
+{
+  return scale_[0];
+};
+inline void uiLayout::scale_x_set(float scale)
+{
+  scale_[0] = scale;
+};
+
+inline float uiLayout::scale_y() const
+{
+  return scale_[1];
+};
+inline void uiLayout::scale_y_set(float scale)
+{
+  scale_[1] = scale;
+};
+
+inline float uiLayout::ui_units_x() const
+{
+  return units_[0];
+};
+inline void uiLayout::ui_units_x_set(float width)
+{
+  units_[0] = width;
+};
+
+inline float uiLayout::ui_units_y() const
+{
+  return units_[1];
+};
+inline void uiLayout::ui_units_y_set(float height)
+{
+  units_[1] = height;
 };
 
 enum {
@@ -256,7 +440,7 @@ enum {
   UI_LAYOUT_ALIGN_RIGHT = 3,
 };
 
-enum eUI_Item_Flag {
+enum eUI_Item_Flag : uint16_t {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
   UI_ITEM_R_EXPAND = 1 << 1,
   UI_ITEM_R_SLIDER = 1 << 2,
@@ -357,8 +541,6 @@ void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 /* Only for convenience. */
 void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
-void uiLayoutSetOperatorContext(uiLayout *layout, wmOperatorCallContext opcontext);
-void uiLayoutSetActive(uiLayout *layout, bool active);
 void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
 void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
 void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
@@ -366,18 +548,11 @@ void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
 void uiLayoutSetAlignment(uiLayout *layout, char alignment);
 void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size);
 void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect);
-void uiLayoutSetScaleX(uiLayout *layout, float scale);
-void uiLayoutSetScaleY(uiLayout *layout, float scale);
-void uiLayoutSetUnitsX(uiLayout *layout, float unit);
-void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
 void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
 
-wmOperatorCallContext uiLayoutGetOperatorContext(uiLayout *layout);
-bool uiLayoutGetActive(uiLayout *layout);
 bool uiLayoutGetActiveDefault(uiLayout *layout);
 bool uiLayoutGetActivateInit(uiLayout *layout);
 bool uiLayoutGetEnabled(uiLayout *layout);
@@ -386,11 +561,6 @@ int uiLayoutGetAlignment(uiLayout *layout);
 bool uiLayoutGetFixedSize(uiLayout *layout);
 bool uiLayoutGetKeepAspect(uiLayout *layout);
 int uiLayoutGetWidth(uiLayout *layout);
-float uiLayoutGetScaleX(uiLayout *layout);
-float uiLayoutGetScaleY(uiLayout *layout);
-float uiLayoutGetUnitsX(uiLayout *layout);
-float uiLayoutGetUnitsY(uiLayout *layout);
-blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
@@ -403,17 +573,8 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
 
-enum class LayoutSeparatorType : int8_t {
-  Auto,
-  Space,
-  Line,
-};
-
 /* items */
-void uiItemO(uiLayout *layout,
-             std::optional<blender::StringRef> name,
-             int icon,
-             blender::StringRefNull opname);
+
 void uiItemEnumO_ptr(uiLayout *layout,
                      wmOperatorType *ot,
                      std::optional<blender::StringRef> name,
@@ -444,72 +605,16 @@ void uiItemEnumO_string(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout,
                   blender::StringRefNull opname,
                   blender::StringRefNull propname);
-void uiItemBooleanO(uiLayout *layout,
-                    std::optional<blender::StringRef> name,
-                    int icon,
-                    blender::StringRefNull opname,
-                    blender::StringRefNull propname,
-                    int value);
-void uiItemIntO(uiLayout *layout,
-                std::optional<blender::StringRef> name,
-                int icon,
-                blender::StringRefNull opname,
-                blender::StringRefNull propname,
-                int value);
-void uiItemFloatO(uiLayout *layout,
-                  std::optional<blender::StringRef> name,
-                  int icon,
-                  blender::StringRefNull opname,
-                  blender::StringRefNull propname,
-                  float value);
-void uiItemStringO(uiLayout *layout,
-                   std::optional<blender::StringRef> name,
-                   int icon,
-                   blender::StringRefNull opname,
-                   blender::StringRefNull propname,
-                   const char *value);
 
-void uiItemFullO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<blender::StringRef> name,
-                     int icon,
-                     IDProperty *properties,
-                     wmOperatorCallContext context,
-                     eUI_Item_Flag flag,
-                     PointerRNA *r_opptr);
-void uiItemFullO(uiLayout *layout,
-                 blender::StringRefNull opname,
-                 std::optional<blender::StringRef> name,
-                 int icon,
-                 IDProperty *properties,
-                 wmOperatorCallContext context,
-                 eUI_Item_Flag flag,
-                 PointerRNA *r_opptr);
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,
                              std::optional<blender::StringRef> name,
                              int icon,
-                             IDProperty *properties,
                              wmOperatorCallContext context,
                              eUI_Item_Flag flag,
                              const char *menu_id, /* extra menu arg. */
                              PointerRNA *r_opptr);
 
-void uiItemR(uiLayout *layout,
-             PointerRNA *ptr,
-             blender::StringRefNull propname,
-             eUI_Item_Flag flag,
-             std::optional<blender::StringRefNull> name,
-             int icon);
-void uiItemFullR(uiLayout *layout,
-                 PointerRNA *ptr,
-                 PropertyRNA *prop,
-                 int index,
-                 int value,
-                 eUI_Item_Flag flag,
-                 std::optional<blender::StringRefNull> name_opt,
-                 int icon,
-                 std::optional<blender::StringRefNull> placeholder = std::nullopt);
 /**
  * Use a wrapper function since re-implementing all the logic in this function would be messy.
  */
@@ -605,8 +710,8 @@ struct uiPropertySplitWrapper {
 };
 
 /**
- * Normally, we handle the split layout in #uiItemFullR(), but there are other cases where the
- * logic is needed. Ideally, #uiItemFullR() could just call this, but it currently has too many
+ * Normally, we handle the split layout in #uiLayout::prop(), but there are other cases where the
+ * logic is needed. Ideally, #uiLayout::prop() could just call this, but it currently has too many
  * special needs.
  *
  * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
@@ -614,7 +719,6 @@ struct uiPropertySplitWrapper {
  */
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout);
 
-void uiItemL(uiLayout *layout, blender::StringRef name, int icon); /* label */
 uiBut *uiItemL_ex(
     uiLayout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**
@@ -629,14 +733,6 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  * Label icon for dragging.
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
-/**
- * Menu.
- */
-void uiItemM_ptr(uiLayout *layout, MenuType *mt, std::optional<blender::StringRef> name, int icon);
-void uiItemM(uiLayout *layout,
-             blender::StringRef menuname,
-             std::optional<blender::StringRef> name,
-             int icon);
 /**
  * Menu contents.
  */
@@ -657,12 +753,7 @@ void uiItemDecoratorR(uiLayout *layout,
                       PointerRNA *ptr,
                       std::optional<blender::StringRefNull> propname,
                       int index);
-/** Separator item */
-void uiItemS(uiLayout *layout);
-/** Separator item */
-void uiItemS_ex(uiLayout *layout,
-                float factor,
-                LayoutSeparatorType type = LayoutSeparatorType::Auto);
+
 /** Flexible spacing. */
 void uiItemSpacer(uiLayout *layout);
 
@@ -697,13 +788,6 @@ void uiItemPopoverPanelFromGroup(uiLayout *layout,
 /**
  * Level items.
  */
-void uiItemMenuF(
-    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *arg);
-/**
- * Version of #uiItemMenuF that free's `argN`.
- */
-void uiItemMenuFN(
-    uiLayout *layout, blender::StringRefNull, int icon, uiMenuCreateFunc func, void *argN);
 void uiItemMenuEnumFullO_ptr(uiLayout *layout,
                              const bContext *C,
                              wmOperatorType *ot,

@@ -135,7 +135,7 @@ size_t WM_operator_py_idname(char *dst, const char *src)
   if (sep) {
     const size_t sep_offset = size_t(sep - src);
 
-    /* NOTE: we use ascii `tolower` instead of system `tolower`, because the
+    /* NOTE: we use ASCII `tolower` instead of system `tolower`, because the
      * latter depends on the locale, and can lead to `idname` mismatch. */
     memcpy(dst, src, sep_offset);
     BLI_str_tolower_ascii(dst, sep_offset);
@@ -402,7 +402,7 @@ static const char *wm_context_member_from_ptr(bContext *C, const PointerRNA *ptr
         break;
       }
       if (is_id) {
-        /* Found a reference to this ID, so fallback to it if there is no direct reference. */
+        /* Found a reference to this ID, so fall back to it if there is no direct reference. */
         member_id = identifier;
       }
     }
@@ -713,7 +713,7 @@ std::optional<std::string> WM_prop_pystring_assign(bContext *C,
                                        std::nullopt;
 
   if (!lhs.has_value()) {
-    /* Fallback to `bpy.data.foo[id]` if we don't find in the context. */
+    /* Fall back to `bpy.data.foo[id]` if we don't find in the context. */
     if (std::optional<std::string> lhs_str = RNA_path_full_property_py(ptr, prop, index)) {
       lhs = lhs_str;
     }
@@ -1105,7 +1105,7 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCo
         C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
     uiLayout *layout = UI_popup_menu_layout(pup);
     /* Set this so the default execution context is the same as submenus. */
-    uiLayoutSetOperatorContext(layout, opcontext);
+    layout->operator_context_set(opcontext);
     uiItemsFullEnumO(layout,
                      op->type->idname,
                      RNA_property_identifier(prop),
@@ -1441,8 +1441,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
   }
 
   uiItemL_ex(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
-  uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
-  uiItemS_ex(layout, 0.5f);
+  layout->separator(0.2f, LayoutSeparatorType::Line);
+  layout->separator(0.5f);
 
   uiLayout *col = &layout->column(false);
   uiTemplateOperatorPropertyButs(C, col, op, UI_BUT_LABEL_ALIGN_NONE, 0);
@@ -1571,26 +1571,26 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
 
     /* Line under the title if there are properties but no message body. */
     if (data->include_properties && message_lines.size() == 0) {
-      uiItemS_ex(layout, 0.2f, LayoutSeparatorType::Line);
+      layout->separator(0.2f, LayoutSeparatorType::Line);
     };
   }
 
   /* Message lines. */
   if (message_lines.size() > 0) {
     uiLayout *lines = &layout->column(false);
-    uiLayoutSetScaleY(lines, 0.65f);
-    uiItemS_ex(lines, 0.1f);
+    lines->scale_y_set(0.65f);
+    lines->separator(0.1f);
     for (auto &st : message_lines) {
-      uiItemL(lines, st, ICON_NONE);
+      lines->label(st, ICON_NONE);
     }
   }
 
   if (data->include_properties) {
-    uiItemS_ex(layout, 0.5f);
+    layout->separator(0.5f);
     uiTemplateOperatorPropertyButs(C, layout, op, UI_BUT_LABEL_ALIGN_SPLIT_COLUMN, 0);
   }
 
-  uiItemS_ex(layout, small ? 0.1f : 1.8f);
+  layout->separator(small ? 0.1f : 1.8f);
 
   /* Clear so the OK button is left alone. */
   UI_block_func_set(block, nullptr, nullptr, nullptr);
@@ -1601,7 +1601,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   const bool windows_layout = false;
 #endif
 
-  /* Check there are no active default buttons, allowing a dialog to define it's own
+  /* Check there are no active default buttons, allowing a dialog to define its own
    * confirmation buttons which are shown instead of these, see: #124098. */
   if (!UI_block_has_active_default_button(uiLayoutGetBlock(layout))) {
     /* New column so as not to interfere with custom layouts, see: #26436. */
@@ -1611,7 +1611,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
     uiBut *cancel_but;
 
     col = &col->split(0.0f, true);
-    uiLayoutSetScaleY(col, small ? 1.0f : 1.2f);
+    col->scale_y_set(small ? 1.0f : 1.2f);
 
     if (windows_layout) {
       confirm_but = uiDefBut(col_block,
@@ -2296,7 +2296,7 @@ static void WM_OT_call_asset_shelf_popover(wmOperatorType *ot)
   ot->idname = "WM_OT_call_asset_shelf_popover";
   ot->description = "Open a predefined asset shelf in a popup";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = asset_shelf_popover_invoke;
 
   ot->flag = OPTYPE_INTERNAL;
@@ -2689,10 +2689,11 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   if (rc->texture) {
-    uint texCoord = GPU_vertformat_attr_add(format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint texCoord = GPU_vertformat_attr_add(
+        format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     /* Set up rotation if available. */
     if (rc->rot_prop) {
@@ -2846,7 +2847,7 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 

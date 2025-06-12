@@ -91,8 +91,6 @@
 #define UI_TIP_PADDING_Y 1.28f
 
 #define UI_TIP_MAXWIDTH 600
-#define UI_TIP_MAXIMAGEWIDTH 500
-#define UI_TIP_MAXIMAGEHEIGHT 300
 
 struct uiTooltipFormat {
   uiTooltipStyle style;
@@ -323,7 +321,8 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
       if (field->image->border) {
         GPU_blend(GPU_BLEND_ALPHA);
         GPUVertFormat *format = immVertexFormat();
-        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        uint pos = GPU_vertformat_attr_add(
+            format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
         float bgcolor[4];
@@ -467,7 +466,7 @@ static bool ui_tooltip_period_needed(blender::StringRef tip)
  */
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
                                                                 uiBut *but,
-                                                                bool is_label)
+                                                                bool is_quick_tip)
 {
   if (but->optype == nullptr) {
     return nullptr;
@@ -573,7 +572,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Tip. */
-  if (is_label == false) {
+  if (is_quick_tip == false) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF(expr,
@@ -615,7 +614,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Shortcut. */
-  const bool show_shortcut = is_label == false &&
+  const bool show_shortcut = is_quick_tip == false &&
                              ((but->block->flag & UI_BLOCK_SHOW_SHORTCUT_ALWAYS) == 0);
 
   if (show_shortcut) {
@@ -756,7 +755,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Python */
-  if ((is_label == false) && (U.flag & USER_TOOLTIPS_PYTHON)) {
+  if ((is_quick_tip == false) && (U.flag & USER_TOOLTIPS_PYTHON)) {
     std::string str = ui_tooltip_text_python_from_op(C, but->optype, but->opptr);
     UI_tooltip_text_field_add(*data,
                               fmt::format(fmt::runtime(TIP_("Python: {}")), str),
@@ -769,7 +768,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
   /* Keymap */
 
   /* This is too handy not to expose somehow, let's be sneaky for now. */
-  if ((is_label == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
+  if ((is_quick_tip == false) && CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF(expr,
@@ -838,7 +837,7 @@ static std::string ui_tooltip_color_string(const blender::float4 &color,
 };
 
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
-    bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_label)
+    bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_quick_tip)
 {
   char buf[512];
 
@@ -862,7 +861,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   std::string enum_tip;
 
   if (extra_icon) {
-    if (is_label) {
+    if (is_quick_tip) {
       but_label = UI_but_extra_icon_string_get_label(*extra_icon);
     }
     else {
@@ -875,7 +874,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
   else {
     const std::optional<EnumPropertyItem> enum_item = UI_but_rna_enum_item_get(*C, *but);
-    if (is_label) {
+    if (is_quick_tip) {
       but_tip_label = UI_but_string_get_tooltip_label(*but);
       but_label = UI_but_string_get_label(*but);
       enum_label = enum_item ? enum_item->name : "";
@@ -957,7 +956,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
 
   /* Don't include further details if this is just a quick label tooltip. */
-  if (is_label) {
+  if (is_quick_tip) {
     return data->fields.is_empty() ? nullptr : std::move(data);
   }
 
@@ -1072,17 +1071,23 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
-          const blender::StringRef path = but->drawstr;
-          const blender::Vector<blender::bke::path_templates::Error> errors =
-              BKE_validate_template_syntax(path);
+          const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
+          if (BKE_path_contains_template_syntax(path)) {
+            const std::optional<blender::bke::path_templates::VariableMap> variables =
+                BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
+            BLI_assert(variables.has_value());
 
-          if (!errors.is_empty()) {
-            std::string error_message("Syntax error(s):");
-            for (const blender::bke::path_templates::Error &error : errors) {
-              error_message += "\n  - " + BKE_path_template_error_to_string(error, path);
+            const blender::Vector<blender::bke::path_templates::Error> errors =
+                BKE_path_validate_template(path, *variables);
+
+            if (!errors.is_empty()) {
+              std::string error_message("Path template error(s):");
+              for (const blender::bke::path_templates::Error &error : errors) {
+                error_message += "\n  - " + BKE_path_template_error_to_string(error, path);
+              }
+              UI_tooltip_text_field_add(
+                  *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
             }
-            UI_tooltip_text_field_add(
-                *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
           }
         }
       }
@@ -1205,7 +1210,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     image_data.border = true;
     image_data.premultiplied = false;
 
-    ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
+    const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
     if (color[3] == 1.0f) {
       /* No transparency so draw the entire area solid without checkerboard. */
       image_data.background = uiTooltipImageBackground::None;
@@ -1591,7 +1596,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
  * \{ */
 
 ARegion *UI_tooltip_create_from_button_or_extra_icon(
-    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_label)
+    bContext *C, ARegion *butregion, uiBut *but, uiButExtraOpIcon *extra_icon, bool is_quick_tip)
 {
   wmWindow *win = CTX_wm_window(C);
   float init_position[2];
@@ -1601,27 +1606,27 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
   }
   std::unique_ptr<uiTooltipData> data = nullptr;
 
-  if (!is_label && but->tip_custom_func) {
+  if (!is_quick_tip && but->tip_custom_func) {
     data = ui_tooltip_data_from_custom_func(C, but);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_tool(C, but, is_label);
+    data = ui_tooltip_data_from_tool(C, but, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon, is_label);
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, nullptr, is_label);
+    data = ui_tooltip_data_from_button_or_extra_icon(C, but, nullptr, is_quick_tip);
   }
 
   if (data == nullptr) {
     return nullptr;
   }
 
-  const bool is_no_overlap = UI_but_has_tooltip_label(but) || UI_but_is_tool(but);
+  const bool is_no_overlap = UI_but_has_quick_tooltip(but) || UI_but_is_tool(but);
   rcti init_rect;
   if (is_no_overlap) {
     rctf overlap_rect_fl;
@@ -1656,9 +1661,12 @@ ARegion *UI_tooltip_create_from_button_or_extra_icon(
   return region;
 }
 
-ARegion *UI_tooltip_create_from_button(bContext *C, ARegion *butregion, uiBut *but, bool is_label)
+ARegion *UI_tooltip_create_from_button(bContext *C,
+                                       ARegion *butregion,
+                                       uiBut *but,
+                                       bool is_quick_tip)
 {
-  return UI_tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_label);
+  return UI_tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_quick_tip);
 }
 
 ARegion *UI_tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
