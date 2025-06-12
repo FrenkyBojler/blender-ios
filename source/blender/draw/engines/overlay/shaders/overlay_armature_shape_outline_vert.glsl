@@ -94,70 +94,107 @@ void geometry_main(VertOut geom_in[4],
 {
   bool is_persp = (drw_view().winmat[3][3] == 0.0f);
 
-  float3 view_vec = (is_persp) ? normalize(geom_in[1].vs_P) : float3(0.0f, 0.0f, -1.0f);
+  /*
+   * Screen Space Filter:
+   * Skip any edge whose two verts project to under 1 pixel apart,
+   * since sub-pixel edges won’t contribute visibly to the outline.
+   */
+  float2 ss_delta = geom_in[2].ss_P - geom_in[1].ss_P;
+  if (length(ss_delta) < 1.0f) {
+    return;
+  }
+
+  /*
+   * View Vector:
+   * For perspective, use the normalized view position; otherwise
+   * assume orthographic looking down -Z.
+   */
+  float3 view_vec = is_persp
+    ? normalize(geom_in[1].vs_P)
+    : float3(0.0f, 0.0f, -1.0f);
+
+  /*
+   * Edge Vectors:
+   * v10, v12, v13 are the vectors from the “center” vert (1) to the
+   * other verts of the incoming line-adjacency quad.
+   */
   float3 v10 = geom_in[0].vs_P - geom_in[1].vs_P;
   float3 v12 = geom_in[2].vs_P - geom_in[1].vs_P;
   float3 v13 = geom_in[3].vs_P - geom_in[1].vs_P;
 
+  /*
+   * Face Normals (unnormalized):
+   * Compute normals of the two triangles that share the central edge.
+   */
   float3 n0 = cross(v12, v10);
   float3 n3 = cross(v13, v12);
 
-  float fac0 = dot(view_vec, n0);
-  float fac3 = dot(view_vec, n3);
+  /*
+   * Normalize Normals:
+   * Make the silhouette-test independent of triangle size.
+   */
+  float3 n0n = normalize(n0);
+  float3 n3n = normalize(n3);
 
-  /* If one of the face is perpendicular to the view,
-   * consider it and outline edge. */
-  if (abs(fac0) > 1e-5f && abs(fac3) > 1e-5f) {
-    /* If both adjacent verts are facing the camera the same way,
-     * then it isn't an outline edge. */
+  /*
+   * Silhouette
+   * If both adjacent faces face the camera similarly (dot > eps),
+   * it’s not an outline. We raise eps to ~1° to reject numeric noise.
+   */
+  const float FACE_EPS = 0.02;
+  float fac0 = dot(view_vec, n0n);
+  float fac3 = dot(view_vec, n3n);
+  if (abs(fac0) > FACE_EPS && abs(fac3) > FACE_EPS) {
     if (sign(fac0) == sign(fac3)) {
       return;
     }
   }
 
+  /*
+   * Concave Edge Filter:
+   * If the edge is concave (interior), don’t outline it.
+   * We add a small tolerance to avoid outlining tiny bevels.
+   */
   n0 = (geom_in[0].inverted == 1) ? -n0 : n0;
-  /* Don't outline if concave edge. */
-  if (dot(n0, v13) > 0.0001f) {
+  float3 v13n = normalize(v13);
+  const float CONCAVE_EPS = 0.01;
+  if (dot(normalize(n0), v13n) > CONCAVE_EPS) {
     return;
   }
 
+  /*
+   * Compute Screen Space Edge Direction:
+   * ‘perp’ is the normalized vector between the two verts in ss,
+   * edge_dir is perpendicular to that in screen-space.
+   */
   float2 perp = normalize(geom_in[2].ss_P - geom_in[1].ss_P);
   float2 edge_dir = float2(-perp.y, perp.x);
 
-  float2 hidden_point;
-  /* Take the farthest point to compute edge direction
-   * (avoid problems with point behind near plane).
-   * If the chosen point is parallel to the edge in screen space,
-   * choose the other point anyway.
-   * This fixes some issue with cubes in orthographic views. */
-  if (geom_in[0].vs_P.z < geom_in[3].vs_P.z) {
-    hidden_point = (abs(fac0) > 1e-5f) ? geom_in[0].ss_P : geom_in[3].ss_P;
-  }
-  else {
-    hidden_point = (abs(fac3) > 1e-5f) ? geom_in[3].ss_P : geom_in[0].ss_P;
-  }
+  /*
+   * Hidden Point Winding:
+   * Pick the farthest point for robust edge-direction sign,
+   * then flip edge_dir if needed so it always points “outward.”
+   */
+  float2 hidden_point = (geom_in[0].vs_P.z < geom_in[3].vs_P.z)
+    ? ((abs(fac0) > FACE_EPS) ? geom_in[0].ss_P : geom_in[3].ss_P)
+    : ((abs(fac3) > FACE_EPS) ? geom_in[3].ss_P : geom_in[0].ss_P);
   float2 hidden_dir = normalize(hidden_point - geom_in[1].ss_P);
+  float f = dot(-hidden_dir, edge_dir);
+  edge_dir *= (f < 0.0f) ? -1.0f : 1.0f;
 
-  float fac = dot(-hidden_dir, edge_dir);
-  edge_dir *= (fac < 0.0f) ? -1.0f : 1.0f;
-
-  emit_vertex(0,
-              out_vertex_id,
-              out_primitive_id,
+  /*
+   * Emit Outline Vertices:
+   * Push the line away from the solid fill, then draw it.
+   */
+  emit_vertex(0, out_vertex_id, out_primitive_id,
               float4(geom_in[0].color_size.rgb, 1.0f),
-              geom_in[1].hs_P,
-              geom_in[1].ws_P,
-              edge_dir - perp,
-              is_persp);
+              geom_in[1].hs_P, geom_in[1].ws_P,
+              edge_dir - perp, is_persp);
 
-  emit_vertex(1,
-              out_vertex_id,
-              out_primitive_id,
+  emit_vertex(1, out_vertex_id, out_primitive_id,
               float4(geom_in[0].color_size.rgb, 1.0f),
-              geom_in[2].hs_P,
-              geom_in[2].ws_P,
-              edge_dir + perp,
-              is_persp);
+              geom_in[2].hs_P, geom_in[2].ws_P,
+              edge_dir + perp, is_persp);
 }
 
 void main()
