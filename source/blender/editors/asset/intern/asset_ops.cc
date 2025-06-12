@@ -1064,14 +1064,14 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
   wmWindow *win = CTX_wm_window(C);
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
-  /* Clamp coordinates to window bounds */
+  /* Clamp coordinates to window bounds. */
   rcti safe_rect = crop_rect;
   safe_rect.xmin = max_ii(0, crop_rect.xmin);
   safe_rect.ymin = max_ii(0, crop_rect.ymin);
   safe_rect.xmax = min_ii(dumprect_size[0] - 1, crop_rect.xmax);
   safe_rect.ymax = min_ii(dumprect_size[1] - 1, crop_rect.ymax);
 
-  /* Validate rectangle */
+  /* Validate rectangle. */
   if (!BLI_rcti_is_valid(&safe_rect)) {
     MEM_freeN(dumprect);
     return nullptr;
@@ -1315,7 +1315,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         int2 new_p1 = data->p1 + delta;
         int2 new_p2 = data->p2 + delta;
 
-        // Apply movement only if the entire rectangle stays within window bounds
+        /* Apply movement only if the entire rectangle stays within window bounds. */
         if (is_within_window(new_p1) && is_within_window(new_p2)) {
           data->p1 = new_p1;
           data->p2 = new_p2;
@@ -1340,13 +1340,13 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
             int2 temp_p2 = data->drag_end;
             square_points(temp_p1, temp_p2);
 
-            // Check if the resulting square is fully within the window
+            /* Check if the resulting square is fully within the window. */
             if (is_within_window(temp_p1) && is_within_window(temp_p2)) {
               data->p2 = temp_p2;
             }
             else {
-              // Clamp to window boundaries, which may turn the shape into a rectangle if the
-              // square would extend outside the window
+              /* Clamp to window boundaries, which may turn the shape into a rectangle if the
+               * square would extend outside the window. */
               data->p2 = clamp_to_window(temp_p2);
             }
           }
