@@ -200,6 +200,10 @@ static void mesh_copy_data(Main *bmain,
       MEM_dupallocN(mesh_src->active_color_attribute));
   mesh_dst->default_color_attribute = static_cast<char *>(
       MEM_dupallocN(mesh_src->default_color_attribute));
+  mesh_dst->active_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->active_uv_map_attribute));
+  mesh_dst->default_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->default_uv_map_attribute));
 
   CustomData_init_from(
       &mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_dst->verts_num);
@@ -247,6 +251,8 @@ static void mesh_free_data(ID *id)
   BLI_freelistN(&mesh->vertex_group_names);
   MEM_SAFE_FREE(mesh->active_color_attribute);
   MEM_SAFE_FREE(mesh->default_color_attribute);
+  MEM_SAFE_FREE(mesh->active_uv_map_attribute);
+  MEM_SAFE_FREE(mesh->default_uv_map_attribute);
   mesh->attribute_storage.wrap().~AttributeStorage();
   if (mesh->face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
@@ -302,6 +308,29 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
 
+  if (U.experimental.use_attribute_storage_write) {
+    /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
+     * reserved for future runtime use (names stored on #Mesh). */
+    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      mesh->active_uv_map_attribute = const_cast<char *>(
+          scope.allocator().copy_string(name).c_str());
+    }
+    else {
+      mesh->active_uv_map_attribute = nullptr;
+    }
+    if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+      mesh->default_uv_map_attribute = const_cast<char *>(
+          scope.allocator().copy_string(name).c_str());
+    }
+    else {
+      mesh->default_uv_map_attribute = nullptr;
+    }
+  }
+  else {
+    mesh->active_uv_map_attribute = nullptr;
+    mesh->default_uv_map_attribute = nullptr;
+  }
+
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
     mesh->verts_num = 0;
@@ -345,6 +374,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BKE_defbase_blend_write(writer, &mesh->vertex_group_names);
   BLO_write_string(writer, mesh->active_color_attribute);
   BLO_write_string(writer, mesh->default_color_attribute);
+  BLO_write_string(writer, mesh->active_uv_map_attribute);
+  BLO_write_string(writer, mesh->default_uv_map_attribute);
 
   BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
   BLO_write_struct_array(writer, MSelect, mesh->totselect, mesh->mselect);
@@ -409,6 +440,8 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   }
   BLO_read_string(reader, &mesh->active_color_attribute);
   BLO_read_string(reader, &mesh->default_color_attribute);
+  BLO_read_string(reader, &mesh->active_uv_map_attribute);
+  BLO_read_string(reader, &mesh->default_uv_map_attribute);
 
   /* Forward compatibility. To be removed when runtime format changes. */
   blender::bke::mesh_convert_storage_to_customdata(*mesh);
