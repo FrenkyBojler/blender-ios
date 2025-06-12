@@ -196,9 +196,6 @@ void importer_main(Main *bmain,
                    const OBJImportParams &import_params,
                    size_t read_buffer_size)
 {
-  /* Static material cache to share materials across multiple imports */
-  static Map<std::string, Material *> global_material_cache;
-
   /* List of geometries to be parsed from OBJ file. */
   Vector<std::unique_ptr<Geometry>> all_geometries;
   /* Container for vertex and UV vertex coordinates. */
@@ -207,14 +204,10 @@ void importer_main(Main *bmain,
   Map<std::string, std::unique_ptr<MTLMaterial>> materials;
   Map<std::string, Material *> created_materials;
 
-  /* Copy existing materials from global cache to local cache */
-  for (auto item : global_material_cache.items()) {
-    created_materials.add(item.key, item.value);
-  }
-
   OBJParser obj_parser{import_params, read_buffer_size};
   obj_parser.parse(all_geometries, global_vertices);
 
+  /* Parse all referenced MTL files */
   for (StringRefNull mtl_library : obj_parser.mtl_libraries()) {
     MTLParser mtl_parser{mtl_library, import_params.filepath};
     mtl_parser.parse_and_store(materials);
@@ -223,6 +216,8 @@ void importer_main(Main *bmain,
   if (import_params.clear_selection) {
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
+  
+  /* Create Blender objects from the parsed geometries */
   geometry_to_blender_objects(bmain,
                               scene,
                               view_layer,
@@ -231,10 +226,5 @@ void importer_main(Main *bmain,
                               global_vertices,
                               materials,
                               created_materials);
-
-  /* Update global material cache with newly created materials */
-  for (auto item : created_materials.items()) {
-    global_material_cache.add_overwrite(item.key, item.value);
-  }
 }
 }  // namespace blender::io::obj

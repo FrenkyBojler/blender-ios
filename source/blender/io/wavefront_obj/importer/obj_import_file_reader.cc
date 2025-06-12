@@ -859,14 +859,6 @@ MTLParser::MTLParser(StringRefNull mtl_library, StringRefNull obj_filepath)
 
 void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_materials)
 {
-  /* Static cache to avoid parsing the same MTL file multiple times */
-  static Map<std::string, bool> parsed_mtl_files;
-  
-  /* Check if we've already parsed this exact MTL file */
-  if (parsed_mtl_files.contains(mtl_file_path_)) {
-    return;
-  }
-  
   size_t buffer_len;
   void *buffer = BLI_file_read_text_as_mem(mtl_file_path_, 0, &buffer_len);
   if (buffer == nullptr) {
@@ -887,13 +879,8 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
 
     if (parse_keyword(p, end, "newmtl")) {
       StringRef mat_name = StringRef(p, end).trim();
-      if (r_materials.contains(mat_name)) {
-        material = nullptr;
-      }
-      else {
-        material =
-            r_materials.lookup_or_add(string(mat_name), std::make_unique<MTLMaterial>()).get();
-      }
+      /* Always try to get or create the material, even if it already exists */
+      material = r_materials.lookup_or_add(string(mat_name), std::make_unique<MTLMaterial>()).get();
     }
     else if (material != nullptr) {
       if (parse_keyword(p, end, "Ns")) {
@@ -954,8 +941,5 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
   }
 
   MEM_freeN(buffer);
-  
-  /* Mark this MTL file as parsed */
-  parsed_mtl_files.add(mtl_file_path_, true);
 }
 }  // namespace blender::io::obj
