@@ -1704,7 +1704,7 @@ class USDExportTest(AbstractUSDTest):
 
                 if prim_type_name == "PointInstancer":
                     point_instancer = UsdGeom.PointInstancer(prim)
-                    if point_instancer:  # Check if the prim is a valid PointInstancer
+                    if point_instancer:
 
                         # get instance count
                         positions_attr = point_instancer.GetPositionsAttr()
@@ -1719,9 +1719,9 @@ class USDExportTest(AbstractUSDTest):
                             target_prims = prototypes_rel.GetTargets()
                             prototype_count += len(target_prims)
 
-                #show all prims and types
-                #output_string = f"  Path: {prim_path}, Type: {prim_type_name}"
-                #print(output_string)
+                # show all prims and types
+                # output_string = f"  Path: {prim_path}, Type: {prim_type_name}"
+                # print(output_string)
 
             stats = UsdUtils.ComputeUsdStageStats(stage)
             mesh_count = stats['primary']['primCountsByType']['Mesh']
@@ -1751,7 +1751,6 @@ class USDExportTest(AbstractUSDTest):
         ]
 
         for scenario in point_instance_test_scenarios:
-            # test instance on points using object reference
             bpy.ops.wm.open_mainfile(filepath=scenario['input_file'])
 
             export_path = scenario['output_file']
@@ -1759,10 +1758,10 @@ class USDExportTest(AbstractUSDTest):
                 filepath=str(export_path)
             )
 
-            # The USD should contain no instances.
             stage = Usd.Stage.Open(str(export_path))
 
-            mesh_count, instancer_count, instance_count, proto_count = confirm_point_instancing_stats(stage, scenario['mesh_count'], scenario['instancer_count'], scenario['total_instances'], scenario['total_prototypes'])
+            mesh_count, instancer_count, instance_count, proto_count = confirm_point_instancing_stats(
+                stage, scenario['mesh_count'], scenario['instancer_count'], scenario['total_instances'], scenario['total_prototypes'])
             self.assertEqual(scenario['mesh_count'], mesh_count, "Unexpected number of primary meshes")
             self.assertEqual(scenario['instancer_count'], instancer_count, "Unexpected number of point instancers")
             self.assertEqual(scenario['total_instances'], instance_count, "Unexpected number of total instances")

@@ -34,14 +34,15 @@ class USDPointInstancerWriter final : public USDAbstractWriter {
                             const pxr::UsdGeomPointInstancer &usd_instancer,
                             const pxr::UsdTimeCode timecode);
 
-  void process_instance_reference(const bke::InstanceReference &reference,
-                                  int instance_index,
-                                  std::map<std::string, int> &proto_index_map,
-                                  std::map<std::string, int> &final_proto_index_map,
-                                  std::map<std::string, pxr::SdfPath> &proto_path_map,
-                                  pxr::UsdStageRefPtr stage,
-                                  pxr::VtArray<int> &proto_indices,
-                                  std::vector<std::pair<int, int>> &collection_instance_object_count_map);
+  void process_instance_reference(
+      const bke::InstanceReference &reference,
+      int instance_index,
+      std::map<std::string, int> &proto_index_map,
+      std::map<std::string, int> &final_proto_index_map,
+      std::map<std::string, pxr::SdfPath> &proto_path_map,
+      pxr::UsdStageRefPtr stage,
+      pxr::VtArray<int> &proto_indices,
+      std::vector<std::pair<int, int>> &collection_instance_object_count_map);
 
   void compact_prototypes(const pxr::UsdGeomPointInstancer &usd_instancer,
                           const pxr::UsdTimeCode timecode,
