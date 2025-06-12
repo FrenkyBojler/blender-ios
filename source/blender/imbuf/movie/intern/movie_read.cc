@@ -666,6 +666,81 @@ static void float_planar_to_interleaved(const AVFrame *frame, const int rotation
   }
 }
 
+static float hlg_to_linear(float v)
+{
+  /* Apply HLG EOTF to get display-referred linear value,
+   * https://en.wikipedia.org/wiki/Hybrid_log%E2%80%93gamma */
+  if (v <= 0.5f)
+    v = v * v * (1.0f / 3.0f);
+  else
+    v = (expf((v - 0.55991073f) / 0.17883277f) + 0.28466892f) / 12.0f;
+
+  /* How to convert from display-referred linear into scene linear is
+   * an open question. Here we try to empirically do something
+   * close to what Apple platforms seem to be doing (e.g. on MacBookPro). */
+  float gamma = 1.15f;
+  float peak = 300.0f;
+  float nits = powf(v, gamma) * peak;
+  return nits / 100.0f; /* Scale to Blender's 1.0 = 100 nits. */
+}
+
+static float pq_to_linear(float v)
+{
+  /* Apply PQ EOTF to get scene linear value,
+   * https://en.wikipedia.org/wiki/Perceptual_quantizer */
+  const float m1 = 2610.0f / 16384.0f;
+  const float m2 = 2523.0f / 32.0f;
+  const float c1 = 3424.0f / 4096.0f;
+  const float c2 = 2413.0f / 128.0f;
+  const float c3 = 2392.0f / 128.0f;
+
+  float vpow = powf(v, 1.0f / m2);
+  float num = max_ff(vpow - c1, 0.0f);
+  float denom = max_ff(c2 - c3 * vpow, FLT_MIN);
+  float res = powf(num / denom, 1.0f / m1);
+  return res * (10000.0f / 100.0f); /* Scale to Blender's 1.0 = 100 nits. */
+}
+
+static void float_decode_color(const AVColorTransferCharacteristic trc,
+                               AVColorPrimaries primaries,
+                               AVColorSpace colorspace,
+                               ImBuf *ibuf)
+{
+  using namespace blender;
+  if (trc == AVCOL_TRC_ARIB_STD_B67 && primaries == AVCOL_PRI_BT2020 &&
+      colorspace == AVCOL_SPC_BT2020_NCL)
+  {
+    /* HLG decoding. */
+    threading::parallel_for(
+        IndexRange(IMB_get_pixel_count(ibuf)), 32 * 1024, [&](const IndexRange range) {
+          float *pix = ibuf->float_buffer.data + range.first() * 4;
+          for ([[maybe_unused]] const int64_t i : range) {
+            pix[0] = hlg_to_linear(pix[0]);
+            pix[1] = hlg_to_linear(pix[1]);
+            pix[2] = hlg_to_linear(pix[2]);
+            pix += 4;
+          }
+        });
+    ibuf->float_buffer.colorspace = colormanage_colorspace_get_named("Linear Rec.2020");
+  }
+  else if (trc == AVCOL_TRC_SMPTEST2084 && primaries == AVCOL_PRI_BT2020 &&
+           colorspace == AVCOL_SPC_BT2020_NCL)
+  {
+    /* PQ decoding. */
+    threading::parallel_for(
+        IndexRange(IMB_get_pixel_count(ibuf)), 32 * 1024, [&](const IndexRange range) {
+          float *pix = ibuf->float_buffer.data + range.first() * 4;
+          for ([[maybe_unused]] const int64_t i : range) {
+            pix[0] = pq_to_linear(pix[0]);
+            pix[1] = pq_to_linear(pix[1]);
+            pix[2] = pq_to_linear(pix[2]);
+            pix += 4;
+          }
+        });
+    ibuf->float_buffer.colorspace = colormanage_colorspace_get_named("Linear Rec.2020");
+  }
+}
+
 /**
  * Postprocess the image in anim->pFrame and do color conversion and de-interlacing stuff.
  *
@@ -717,6 +792,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
     ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
     float_planar_to_interleaved(anim->pFrameRGB, anim->video_rotation, ibuf);
+    float_decode_color(input->color_trc, input->color_primaries, input->colorspace, ibuf);
     already_rotated = true;
   }
   else {
