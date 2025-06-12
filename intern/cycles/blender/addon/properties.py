@@ -1911,9 +1911,13 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             row = col.row()
             row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
-            col.label(
-                text="HIP has known stability issues, these are expected to be solved before the next release.",
-                icon='ERROR')
+
+            row_status = col.row()
+            row_status.label(text="HIP has known stability issues", icon='ERROR')
+            row_status.operator(
+                "wm.url_open",
+                text='#140278',
+                icon='URL').url = "https://projects.blender.org/blender/blender/issues/140278"
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
