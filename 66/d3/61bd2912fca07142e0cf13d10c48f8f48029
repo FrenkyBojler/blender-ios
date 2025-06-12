@@ -1,2 +1,3 @@
 Referenced by issue #140028, Vulkan: Random crash when viewport render mode is ON
 Referenced by issue #140215, Vulkan: Playback speed regression.
+Referenced by pull request #140263, Fix #140215: Vulkan: performance descriptor buffers
