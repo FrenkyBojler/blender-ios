@@ -931,14 +931,6 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
 
-    if (!DNA_struct_member_exists(fd->filesdna, "SceneEEVEE", "float", "gtao_thickness")) {
-      SceneEEVEE default_eevee = *DNA_struct_default_get(SceneEEVEE);
-      LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        scene->eevee.gtao_thickness = default_eevee.gtao_thickness;
-        scene->eevee.gtao_focus = default_eevee.gtao_focus;
-      }
-    }
-
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "data_display_size")) {
       LightProbe default_probe = *DNA_struct_default_get(LightProbe);
       LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
