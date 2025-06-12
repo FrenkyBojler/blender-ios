@@ -6872,7 +6872,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
     }
   }
 
-  if (use_continuous_grab) {
+  if (use_continuous_grab || shift) {
     rcti rect;
     BLI_rcti_rctf_copy(&rect, &but->rect);
 
