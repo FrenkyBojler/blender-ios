@@ -1,2 +1,3 @@
 Referenced by pull request #140149, UI: Remove asset-view template
 Referenced by commit 30644d20a857a9890fcb98a42c72207c116096dc, Cleanup: Assets: Remove now unused asset handle functions & file
+Referenced by commit 85878cf541322377448376c8cdc3a6fee57ffb27, Assets: Remove asset handle RNA type
