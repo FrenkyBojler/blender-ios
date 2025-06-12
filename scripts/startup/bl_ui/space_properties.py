@@ -5,6 +5,9 @@
 from bpy.types import Header, Panel
 from rna_prop_ui import PropertyPanel
 from bl_ui import anim
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+)
 
 
 class PROPERTIES_HT_header(Header):
@@ -101,32 +104,32 @@ class PROPERTIES_PT_options(Panel):
         layout.use_property_decorate = False
 
         visible_tabs = [
-            ("show_properties_tool", "TOOL_SETTINGS"),
-            ("show_properties_render", "SCENE"),
-            ("show_properties_output", "OUTPUT"),
-            ("show_properties_view_layer", "RENDERLAYERS"),
-            ("show_properties_scene", "SCENE_DATA"),
-            ("show_properties_world", "WORLD"),
-            ("show_properties_collection", "OUTLINER_COLLECTION"),
-            ("show_properties_object", "OBJECT_DATA"),
-            ("show_properties_modifiers", "MODIFIER"),
-            ("show_properties_effects", "SHADERFX"),
-            ("show_properties_particles", "PARTICLES"),
-            ("show_properties_physics", "PHYSICS"),
-            ("show_properties_constraints", "CONSTRAINT"),
-            ("show_properties_data", "MESH_DATA"),
-            ("show_properties_bone", "BONE_DATA"),
-            ("show_properties_bone_constraints", "CONSTRAINT_BONE"),
-            ("show_properties_material", "MATERIAL"),
-            ("show_properties_texture", "TEXTURE"),
+            ("show_properties_tool", "Tool", 'TOOL_SETTINGS'),
+            ("show_properties_render", "Render", 'SCENE'),
+            ("show_properties_output", "Output", 'OUTPUT'),
+            ("show_properties_view_layer", "View Layer", 'RENDERLAYERS'),
+            ("show_properties_scene", "Scene", 'SCENE_DATA'),
+            ("show_properties_world", "World", 'WORLD'),
+            ("show_properties_collection", "Collection", 'OUTLINER_COLLECTION'),
+            ("show_properties_object", "Object", 'OBJECT_DATA'),
+            ("show_properties_modifiers", "Modifiers", 'MODIFIER'),
+            ("show_properties_effects", "Effects", 'SHADERFX'),
+            ("show_properties_particles", "Particles", 'PARTICLES'),
+            ("show_properties_physics", "Physics", 'PHYSICS'),
+            ("show_properties_constraints", "Constraints", 'CONSTRAINT'),
+            ("show_properties_data", "Data", 'MESH_DATA'),
+            ("show_properties_bone", "Bone", 'BONE_DATA'),
+            ("show_properties_bone_constraints", "Bone Constraints", 'CONSTRAINT_BONE'),
+            ("show_properties_material", "Material", 'MATERIAL'),
+            ("show_properties_texture", "Texture", 'TEXTURE'),
         ]
 
         col = layout.column(align=True)
         col.label(text="Visible Tabs")
-        for prop, icon in visible_tabs:
-            row = col.row()
-            row.label(icon=icon)
-            row.prop(space, prop)
+        for prop, name, icon in visible_tabs:
+            row = col.row(align=True)
+            row.label(text=iface_(name), icon=icon)
+            row.prop(space, prop, text="")
 
 
 class PropertiesAnimationMixin:
