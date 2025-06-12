@@ -1122,6 +1122,7 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         col = flow.column(align=True)
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
+        col.prop(ui, "panel_popup_sub_back", text="Popup Sub-Panel")
 
         col = flow.column()
         col.prop(ui, "panel_roundness", text="Roundness")

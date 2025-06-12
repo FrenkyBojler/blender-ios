@@ -299,6 +299,9 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     copy_v4_v4_uchar(btheme->tui.panel_back, U_theme_default.tui.panel_back);
     copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
   }
+  if (!USER_VERSION_ATLEAST(500, 10)) {
+    copy_v4_v4_uchar(btheme->tui.panel_popup_sub_back, U_theme_default.tui.panel_popup_sub_back);
+  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

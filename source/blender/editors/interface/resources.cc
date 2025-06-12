@@ -280,6 +280,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_PANEL_SUB_BACK:
           cp = btheme->tui.panel_sub_back;
           break;
+        case TH_PANEL_POPUP_SUB_BACK:
+          cp = btheme->tui.panel_popup_sub_back;
+          break;
 
         case TH_BUTBACK:
           cp = ts->button;
