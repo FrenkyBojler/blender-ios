@@ -1043,17 +1043,6 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
   editbmesh_calc_modifiers(
       depsgraph, scene, obedit, dataMask, &me_cage, &me_final, &non_mesh_components);
 
-  /* Object has edit_mesh but is not in edit mode (object shares mesh datablock with another object
-   * with is in edit mode).
-   * Convert edit mesh to mesh until the draw manager can draw mesh wrapper which is not in the
-   * edit mode. */
-  if (!(obedit.mode & OB_MODE_EDIT)) {
-    BKE_mesh_wrapper_ensure_mdata(me_final);
-    if (me_final != me_cage) {
-      BKE_mesh_wrapper_ensure_mdata(me_cage);
-    }
-  }
-
   const bool is_mesh_eval_owned = (me_final != mesh->runtime->mesh_eval);
   BKE_object_eval_assign_data(&obedit, &me_final->id, is_mesh_eval_owned);
 
@@ -1300,7 +1289,7 @@ void mesh_get_mapped_verts_coords(Mesh *mesh_eval, MutableSpan<float3> r_cos)
   if (mesh_eval->runtime->deformed_only == false) {
     MappedUserData user_data;
     r_cos.fill(float3(0));
-    user_data.vertexcos = reinterpret_cast<float(*)[3]>(r_cos.data());
+    user_data.vertexcos = reinterpret_cast<float (*)[3]>(r_cos.data());
     user_data.vertex_visit = BLI_BITMAP_NEW(r_cos.size(), "vertexcos flags");
     BKE_mesh_foreach_mapped_vert(mesh_eval, make_vertexcos__mapFunc, &user_data, MESH_FOREACH_NOP);
     MEM_freeN(user_data.vertex_visit);
