@@ -116,6 +116,8 @@ set(SRC
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh
+  NOD_geometry_nodes_list.hh
+  NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh
