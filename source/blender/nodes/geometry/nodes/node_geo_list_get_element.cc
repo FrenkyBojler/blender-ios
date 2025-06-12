@@ -48,7 +48,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const GPointer value = values[index];
+  const GPointer value(values.type(), values[index]);
   params.set_output("Value", value);
 }
 
