@@ -247,12 +247,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
     layout->prop(ptr, "use_remove_disconnected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     row = &layout->row(false);
-    uiLayoutSetActive(row, RNA_boolean_get(ptr, "use_remove_disconnected"));
+    row->active_set(RNA_boolean_get(ptr, "use_remove_disconnected"));
     layout->prop(ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   layout->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 
 #else  /* WITH_MOD_REMESH */
   layout->label(RPT_("Built without Remesh modifier"), ICON_NONE);

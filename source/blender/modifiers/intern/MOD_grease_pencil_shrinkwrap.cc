@@ -274,9 +274,8 @@ static void panel_draw(const bContext *C, Panel *panel)
 
     layout->prop(ptr, "cull_face", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     col = &layout->column(false);
-    uiLayoutSetActive(col,
-                      RNA_boolean_get(ptr, "use_negative_direction") &&
-                          RNA_enum_get(ptr, "cull_face") != 0);
+    col->active_set(RNA_boolean_get(ptr, "use_negative_direction") &&
+                    RNA_enum_get(ptr, "cull_face") != 0);
     col->prop(ptr, "use_invert_cull", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -299,7 +298,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

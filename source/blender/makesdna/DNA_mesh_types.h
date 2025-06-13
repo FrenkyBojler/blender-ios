@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_defs.h"
 #include "DNA_session_uid_types.h"
@@ -20,6 +21,7 @@
 
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_memory_counter_fwd.hh"
+#  include "BLI_vector_set.hh"
 
 namespace blender {
 template<typename T> struct Bounds;
@@ -92,6 +94,12 @@ typedef struct Mesh {
    * Avoid accessing directly when possible.
    */
   int *face_offset_indices;
+
+  /**
+   * Vertex, edge, face, and corner generic attributes. Currently unused at runtime, but used for
+   * forward compatibility when reading files (see #122398).
+   */
+  struct AttributeStorage attribute_storage;
 
   CustomData vert_data;
   CustomData edge_data;
@@ -315,6 +323,9 @@ typedef struct Mesh {
 
   /** Get the largest material index used by the mesh or `nullopt` if it has no faces. */
   std::optional<int> material_index_max() const;
+
+  /** Get all the material indices actually used by the mesh. */
+  const blender::VectorSet<int> &material_indices_used() const;
 
   /**
    * Cached map containing the index of the face using each face corner.

@@ -25,7 +25,7 @@ static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
 {
-  uiItemS(layout);
+  layout->separator();
 
   if (title) {
     layout->label(title, ICON_NONE);
@@ -49,11 +49,11 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
     }
 
     uiLayout *box = &flow->box();
-    uiLayoutSetActive(box, is_set);
+    box->active_set(is_set);
     uiLayout *row = &box->row(false);
 
     /* property value */
-    uiItemFullR(row, ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (is_set) {
       /* unset operator */

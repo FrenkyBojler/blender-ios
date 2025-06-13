@@ -679,11 +679,6 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     return;
   }
 
-  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
-    WM_cursor_set(win, wmcursor);
-    return;
-  }
-
   const View2D *v2d = &region->v2d;
   if (UI_view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy)) {
     WM_cursor_set(win, wmcursor);
@@ -717,28 +712,28 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   StripSelection selection = pick_strip_and_handle(scene, &region->v2d, mouse_co_view);
 
-  if (selection.seq1 == nullptr) {
+  if (selection.strip1 == nullptr) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  if (is_mouse_over_retiming_key(scene, selection.seq1, &region->v2d, area, mouse_co_region)) {
+  if (is_mouse_over_retiming_key(scene, selection.strip1, &region->v2d, area, mouse_co_region)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  if (!can_select_handle(scene, selection.seq1, v2d)) {
+  if (!can_select_handle(scene, selection.strip1, v2d)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  if (selection.seq1 != nullptr && selection.seq2 != nullptr) {
+  if (selection.strip1 != nullptr && selection.strip2 != nullptr) {
     wmcursor = WM_CURSOR_BOTH_HANDLES;
   }
-  else if (selection.handle == SEQ_HANDLE_LEFT) {
+  else if (selection.handle == STRIP_HANDLE_LEFT) {
     wmcursor = WM_CURSOR_LEFT_HANDLE;
   }
-  else if (selection.handle == SEQ_HANDLE_RIGHT) {
+  else if (selection.handle == STRIP_HANDLE_RIGHT) {
     wmcursor = WM_CURSOR_RIGHT_HANDLE;
   }
 
@@ -852,6 +847,84 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
 
   /* Context changes. */
   switch (wmn->category) {
+    case NC_OBJECT: /* To handle changes in 3D viewport. */
+      switch (wmn->data) {
+        case ND_BONE_ACTIVE:
+        case ND_BONE_SELECT:
+        case ND_BONE_COLLECTION:
+        case ND_TRANSFORM:
+        case ND_POSE:
+        case ND_DRAW:
+        case ND_MODIFIER:
+        case ND_SHADERFX:
+        case ND_CONSTRAINT:
+        case ND_KEYS:
+        case ND_PARTICLE:
+        case ND_POINTCACHE:
+        case ND_LOD:
+        case ND_DRAW_ANIMVIZ:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      switch (wmn->action) {
+        case NA_ADDED:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_GEOM: /* To handle changes in 3D viewport. */
+      switch (wmn->data) {
+        case ND_DATA:
+        case ND_VERTEX_GROUP:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      switch (wmn->action) {
+        case NA_EDITED:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_MATERIAL: /* To handle changes in 3D viewport. */
+      switch (wmn->data) {
+        case ND_SHADING:
+        case ND_NODES:
+        case ND_SHADING_DRAW:
+        case ND_SHADING_LINKS:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_NODE: /* To handle changes in 3D viewport. */
+      ED_region_tag_redraw(region);
+      break;
+    case NC_WORLD: /* To handle changes in 3D viewport. */
+      switch (wmn->data) {
+        case ND_WORLD_DRAW:
+        case ND_WORLD:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_LAMP: /* To handle changes in 3D viewport. */
+      switch (wmn->data) {
+        case ND_LIGHTING:
+        case ND_LIGHTING_DRAW:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_LIGHTPROBE: /* To handle changes in 3D viewport. */
+    case NC_IMAGE:
+    case NC_TEXTURE:
+      ED_region_tag_redraw(region);
+      break;
+    case NC_MOVIECLIP: /* To handle changes in 3D viewport. */
+      if (wmn->data == ND_DISPLAY || wmn->action == NA_EDITED) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+
     case NC_GPENCIL:
       if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
         ED_region_tag_redraw(region);
@@ -859,6 +932,12 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       break;
     case NC_SCENE:
       switch (wmn->data) {
+        /* To handle changes in 3D viewport. */
+        case ND_LAYER_CONTENT:
+        case ND_LAYER:
+        case ND_TRANSFORM:
+        case ND_OB_VISIBLE:
+        /* VSE related. */
         case ND_FRAME:
         case ND_MARKERS:
         case ND_SEQUENCER:
@@ -870,6 +949,11 @@ static void sequencer_preview_region_listener(const wmRegionListenerParams *para
       break;
     case NC_ANIMATION:
       switch (wmn->data) {
+        /* To handle changes in 3D viewport. */
+        case ND_NLA_ACTCHANGE:
+        case ND_NLA:
+        case ND_ANIMCHAN:
+        /* VSE related. */
         case ND_KEYFRAME:
           ED_region_tag_redraw(region);
           break;

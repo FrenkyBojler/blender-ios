@@ -668,7 +668,7 @@ class ConvertKuwaharaOperation : public NodeOperation {
         weighted_sum += color_mean * weight;
       }
 
-      /* Fallback to the original color if all sector weights are zero due to very high standard
+      /* Fall back to the original color if all sector weights are zero due to very high standard
        * deviation and sharpness. */
       if (sum_of_weights == 0.0f) {
         weighted_sum = center_color;
@@ -829,7 +829,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_kuwahara_cc
 
-void register_node_type_cmp_kuwahara()
+static void register_node_type_cmp_kuwahara()
 {
   namespace file_ns = blender::nodes::node_composite_kuwahara_cc;
 
@@ -851,3 +851,4 @@ void register_node_type_cmp_kuwahara()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_kuwahara)

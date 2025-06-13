@@ -181,7 +181,7 @@ void OBJECT_OT_voxel_remesh(wmOperatorType *ot)
       "will be lost";
   ot->idname = "OBJECT_OT_voxel_remesh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = object_remesh_poll;
   ot->exec = voxel_remesh_exec;
 
@@ -271,7 +271,8 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
 
-  uint pos3d = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos3d = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_matrix_push();
   GPU_matrix_mul(cd->active_object->object_to_world().ptr());
@@ -613,7 +614,7 @@ void OBJECT_OT_voxel_size_edit(wmOperatorType *ot)
   ot->description = "Modify the mesh voxel size interactively used in the voxel remesher";
   ot->idname = "OBJECT_OT_voxel_size_edit";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = voxel_size_edit_poll;
   ot->invoke = voxel_size_edit_invoke;
   ot->modal = voxel_size_edit_modal;
@@ -1126,7 +1127,7 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
       "layers will be lost";
   ot->idname = "OBJECT_OT_quadriflow_remesh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = object_remesh_poll;
   ot->poll_property = quadriflow_poll_property;
   ot->check = quadriflow_check;

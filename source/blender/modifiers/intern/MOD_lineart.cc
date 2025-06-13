@@ -263,7 +263,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "thickness", UI_ITEM_R_SLIDER, IFACE_("Line Thickness"), ICON_NONE);
   col->prop(ptr, "opacity", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -283,7 +283,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   uiLayout *sub = &layout->row(false);
-  uiLayoutSetActive(sub, has_light);
+  sub->active_set(has_light);
   sub->prop(
       ptr, "shadow_region_filtering", UI_ITEM_NONE, IFACE_("Illumination Filtering"), ICON_NONE);
 
@@ -293,7 +293,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
   sub->prop(ptr, "use_contour", UI_ITEM_NONE, "", ICON_NONE);
 
   uiLayout *entry = &sub->row(true);
-  uiLayoutSetActive(entry, RNA_boolean_get(ptr, "use_contour"));
+  entry->active_set(RNA_boolean_get(ptr, "use_contour"));
   entry->prop(ptr, "silhouette_filtering", UI_ITEM_NONE, "", ICON_NONE);
 
   const int silhouette_filtering = RNA_enum_get(ptr, "silhouette_filtering");
@@ -320,7 +320,7 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
   col->prop(ptr, "use_loose", UI_ITEM_NONE, IFACE_("Loose"), ICON_NONE);
 
   entry = &col->column(false);
-  uiLayoutSetActive(entry, has_light);
+  entry->active_set(has_light);
 
   sub = &entry->row(false);
   sub->prop(ptr, "use_light_contour", UI_ITEM_NONE, IFACE_("Light Contour"), ICON_NONE);
@@ -369,7 +369,7 @@ static void options_light_reference_draw(const bContext * /*C*/, Panel *panel)
   layout->prop(ptr, "light_contour_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *remaining = &layout->column(false);
-  uiLayoutSetActive(remaining, has_light);
+  remaining->active_set(has_light);
 
   remaining->prop(ptr, "shadow_camera_size", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -400,7 +400,7 @@ static void options_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayout *row = &layout->row(false, IFACE_("Custom Camera"));
   row->prop(ptr, "use_custom_camera", UI_ITEM_NONE, "", ICON_NONE);
   uiLayout *subrow = &row->row(true);
-  uiLayoutSetActive(subrow, RNA_boolean_get(ptr, "use_custom_camera"));
+  subrow->active_set(RNA_boolean_get(ptr, "use_custom_camera"));
   uiLayoutSetPropSep(subrow, true);
   subrow->prop(ptr, "source_camera", UI_ITEM_NONE, "", ICON_OBJECT_DATA);
 
@@ -435,7 +435,7 @@ static void occlusion_panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   layout = &layout->column(false);
-  uiLayoutSetActive(layout, show_in_front);
+  layout->active_set(show_in_front);
 
   layout->prop(ptr, "use_multiple_levels", UI_ITEM_NONE, IFACE_("Range"), ICON_NONE);
 
@@ -470,7 +470,7 @@ static void material_mask_panel_draw_header(const bContext * /*C*/, Panel *panel
   const bool show_in_front = RNA_boolean_get(&ob_ptr, "show_in_front");
 
   uiLayoutSetEnabled(layout, !is_baked);
-  uiLayoutSetActive(layout, show_in_front && anything_showing_through(ptr));
+  layout->active_set(show_in_front && anything_showing_through(ptr));
 
   layout->prop(ptr, "use_material_mask", UI_ITEM_NONE, IFACE_("Material Mask"), ICON_NONE);
 }
@@ -482,7 +482,7 @@ static void material_mask_panel_draw(const bContext * /*C*/, Panel *panel)
 
   const bool is_baked = RNA_boolean_get(ptr, "is_baked");
   uiLayoutSetEnabled(layout, !is_baked);
-  uiLayoutSetActive(layout, anything_showing_through(ptr));
+  layout->active_set(anything_showing_through(ptr));
 
   uiLayoutSetPropSep(layout, true);
 
@@ -493,7 +493,7 @@ static void material_mask_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_material_mask_bits");
   for (int i = 0; i < 8; i++) {
-    uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
+    sub->prop(ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
       sub = &col->row(true);
     }
@@ -512,14 +512,14 @@ static void intersection_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_intersection"));
+  layout->active_set(RNA_boolean_get(ptr, "use_intersection"));
 
   uiLayout *col = &layout->column(true);
   uiLayout *sub = &col->row(true, IFACE_("Collection Masks"));
 
   PropertyRNA *prop = RNA_struct_find_property(ptr, "use_intersection_mask");
   for (int i = 0; i < 8; i++) {
-    uiItemFullR(sub, ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
+    sub->prop(ptr, prop, i, 0, UI_ITEM_R_TOGGLE, " ", ICON_NONE);
     if (i == 3) {
       sub = &col->row(true);
     }
@@ -569,7 +569,7 @@ static void face_mark_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, use_mark);
+  layout->active_set(use_mark);
 
   layout->prop(ptr, "use_face_mark_invert", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "use_face_mark_boundaries", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -668,14 +668,14 @@ static void bake_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayout *col = &layout->column(false);
   uiLayoutSetEnabled(col, !is_baked);
-  uiItemO(col, std::nullopt, ICON_NONE, "OBJECT_OT_lineart_bake_strokes");
-  uiItemBooleanO(
-      col, IFACE_("Bake All"), ICON_NONE, "OBJECT_OT_lineart_bake_strokes", "bake_all", true);
+  col->op("OBJECT_OT_lineart_bake_strokes", std::nullopt, ICON_NONE);
+  PointerRNA op_ptr = col->op("OBJECT_OT_lineart_bake_strokes", IFACE_("Bake All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "bake_all", true);
 
   col = &layout->column(false);
-  uiItemO(col, std::nullopt, ICON_NONE, "OBJECT_OT_lineart_clear");
-  uiItemBooleanO(
-      col, IFACE_("Clear All"), ICON_NONE, "OBJECT_OT_lineart_clear", "clear_all", true);
+  col->op("OBJECT_OT_lineart_clear", std::nullopt, ICON_NONE);
+  op_ptr = col->op("OBJECT_OT_lineart_clear", IFACE_("Clear All"), ICON_NONE);
+  RNA_boolean_set(&op_ptr, "clear_all", true);
 }
 
 static void composition_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -697,7 +697,7 @@ static void composition_panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   uiLayout *col = &layout->column(false);
-  uiLayoutSetActive(col, !show_in_front);
+  col->active_set(!show_in_front);
 
   col->prop(ptr, "stroke_depth_offset", UI_ITEM_R_SLIDER, IFACE_("Depth Offset"), ICON_NONE);
   col->prop(ptr,

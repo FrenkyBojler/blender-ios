@@ -33,13 +33,15 @@ static void cmp_node_boxmask_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Value").subtype(PROP_FACTOR).default_value(1.0f).min(0.0f).max(1.0f);
   b.add_input<decl::Vector>("Position")
       .subtype(PROP_FACTOR)
-      .default_value({0.5f, 0.5f, 0.0f})
+      .dimensions(2)
+      .default_value({0.5f, 0.5f})
       .min(-0.5f)
       .max(1.5f)
       .compositor_expects_single_value();
   b.add_input<decl::Vector>("Size")
       .subtype(PROP_FACTOR)
-      .default_value({0.2f, 0.1f, 0.0f})
+      .dimensions(2)
+      .default_value({0.2f, 0.1f})
       .min(0.0f)
       .max(1.0f)
       .compositor_expects_single_value();
@@ -257,18 +259,14 @@ class BoxMaskOperation : public NodeOperation {
 
   float2 get_location()
   {
-    return math::clamp(
-        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy(),
-        float2(-0.5f),
-        float2(1.5f));
+    return this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy();
   }
 
   float2 get_size()
   {
-    return math::clamp(
-        this->get_input("Size").get_single_value_default(float3(0.2f, 0.1f, 0.0f)).xy(),
+    return math::max(
         float2(0.0f),
-        float2(1.0f));
+        this->get_input("Size").get_single_value_default(float3(0.2f, 0.1f, 0.0f)).xy());
   }
 
   float get_angle()
@@ -284,7 +282,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_boxmask_cc
 
-void register_node_type_cmp_boxmask()
+static void register_node_type_cmp_boxmask()
 {
   namespace file_ns = blender::nodes::node_composite_boxmask_cc;
 
@@ -304,3 +302,4 @@ void register_node_type_cmp_boxmask()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_boxmask)

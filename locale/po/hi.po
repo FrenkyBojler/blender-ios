@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
+"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-05 08:47+0000\n"
+"POT-Creation-Date: 2025-06-03 09:10+0000\n"
 "PO-Revision-Date: 2025-04-14 08:23+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -577,6 +577,18 @@ msgstr "सीधे"
 
 msgid "Curved"
 msgstr "घुमावदार"
+
+
+msgid "Stick"
+msgstr "छड़ी"
+
+
+msgid "Envelope"
+msgstr "आवरण"
+
+
+msgid "Wire"
+msgstr "तार"
 
 
 msgid "Head"
@@ -1595,18 +1607,6 @@ msgid "Layers"
 msgstr "परतें"
 
 
-msgid "Stick"
-msgstr "छड़ी"
-
-
-msgid "Envelope"
-msgstr "आवरण"
-
-
-msgid "Wire"
-msgstr "तार"
-
-
 msgid "Rest Position"
 msgstr "शेष स्थिति"
 
@@ -2584,6 +2584,30 @@ msgid "Mask"
 msgstr "आवरण"
 
 
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
 msgid "Light"
 msgstr "प्रकाश"
 
@@ -2604,20 +2628,12 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
-
-
-msgid "Names"
-msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2630,22 +2646,6 @@ msgstr "हड्डी विकल्प को सक्षम करें"
 
 msgid "Merge"
 msgstr "विलय करें"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
 
 
 msgid "Basic"
@@ -3027,6 +3027,10 @@ msgstr "खोज का चयन करें"
 
 msgid "Custom Color"
 msgstr "रुचिनुकूल रंग"
+
+
+msgid "Starting"
+msgstr "प्रारम्भ"
 
 
 msgid "Meta"
@@ -4082,6 +4086,10 @@ msgstr "युगल हटाएँ"
 msgctxt "Operator"
 msgid "Copy Pose"
 msgstr "मुद्रा की प्रतिलिपि बनाएँ"
+
+
+msgid "Parents"
+msgstr "कारण"
 
 
 msgctxt "Operator"
@@ -5573,11 +5581,6 @@ msgstr "दृश्य..."
 
 
 msgctxt "Operator"
-msgid "Cross"
-msgstr "पार"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "मार्जन"
 
@@ -5795,10 +5798,6 @@ msgstr "सक्रिय समूह से हटाएँ"
 msgctxt "Operator"
 msgid "Remove from All"
 msgstr "सब से हटाएँ"
-
-
-msgid "Parents"
-msgstr "कारण"
 
 
 msgctxt "Operator"
@@ -6817,8 +6816,4 @@ msgstr "सम्पन्न"
 
 msgid "In Progress"
 msgstr "प्रगति में"
-
-
-msgid "Starting"
-msgstr "प्रारम्भ"
 

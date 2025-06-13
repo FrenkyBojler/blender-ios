@@ -89,8 +89,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   /* Add the X, Y labels manually because size is a #PROP_PIXEL. */
   col = &layout->column(true);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "offset");
-  uiItemFullR(col, ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Offset X"), ICON_NONE);
-  uiItemFullR(col, ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  col->prop(ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Offset X"), ICON_NONE);
+  col->prop(ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   layout->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -114,8 +114,8 @@ static void blur_panel_draw(const bContext * /*C*/, Panel *panel)
   /* Add the X, Y labels manually because size is a #PROP_PIXEL. */
   col = &layout->column(true);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "blur");
-  uiItemFullR(col, ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Blur X"), ICON_NONE);
-  uiItemFullR(col, ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  col->prop(ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Blur X"), ICON_NONE);
+  col->prop(ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   layout->prop(ptr, "samples", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -137,7 +137,7 @@ static void wave_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_wave"));
+  layout->active_set(RNA_boolean_get(ptr, "use_wave"));
 
   layout->prop(ptr, "orientation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout->prop(ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);

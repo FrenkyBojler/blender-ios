@@ -85,6 +85,7 @@ class TransformOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
@@ -101,7 +102,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_transform_cc
 
-void register_node_type_cmp_transform()
+static void register_node_type_cmp_transform()
 {
   namespace file_ns = blender::nodes::node_composite_transform_cc;
 
@@ -118,3 +119,4 @@ void register_node_type_cmp_transform()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_transform)

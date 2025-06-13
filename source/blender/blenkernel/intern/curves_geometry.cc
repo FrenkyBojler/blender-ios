@@ -26,7 +26,10 @@
 #include "DNA_material_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
+#include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
@@ -65,6 +68,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   this->curve_num = curve_num;
   CustomData_reset(&this->point_data);
   CustomData_reset(&this->curve_data);
+  new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
   BLI_listbase_clear(&this->vertex_group_names);
 
   this->attributes_for_write().add<float3>(
@@ -107,6 +111,8 @@ CurvesGeometry::CurvesGeometry(const CurvesGeometry &other)
 
   CustomData_init_from(&other.point_data, &this->point_data, CD_MASK_ALL, other.point_num);
   CustomData_init_from(&other.curve_data, &this->curve_data, CD_MASK_ALL, other.curve_num);
+
+  new (&this->attribute_storage.wrap()) AttributeStorage(other.attribute_storage.wrap());
 
   this->point_num = other.point_num;
   this->curve_num = other.curve_num;
@@ -167,6 +173,9 @@ CurvesGeometry::CurvesGeometry(CurvesGeometry &&other)
   this->curve_data = other.curve_data;
   CustomData_reset(&other.curve_data);
 
+  new (&this->attribute_storage.wrap())
+      AttributeStorage(std::move(other.attribute_storage.wrap()));
+
   this->point_num = other.point_num;
   other.point_num = 0;
 
@@ -200,6 +209,7 @@ CurvesGeometry::~CurvesGeometry()
 {
   CustomData_free(&this->point_data);
   CustomData_free(&this->curve_data);
+  this->attribute_storage.wrap().~AttributeStorage();
   BLI_freelistN(&this->vertex_group_names);
   if (this->runtime) {
     implicit_sharing::free_shared_data(&this->curve_offsets,
@@ -764,15 +774,14 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         }
         const int knots_num = curves::nurbs::knots_num(points.size(), order, is_cyclic);
         knots.reinitialize(knots_num);
-        /* Some curves edit tools might not support custom knots, for example GP extrude.
-         * These tools create empty `custom_knots` with mode NURBS_KNOT_MODE_CUSTOM. */
-        if (mode == NURBS_KNOT_MODE_CUSTOM && !custom_knots.is_empty()) {
-          bke::curves::nurbs::copy_custom_knots(
-              order, is_cyclic, custom_knots.slice(custom_knots_by_curve[curve_index]), knots);
-        }
-        else {
-          curves::nurbs::calculate_knots(points.size(), mode, order, is_cyclic, knots);
-        }
+        curves::nurbs::load_curve_knots(mode,
+                                        points.size(),
+                                        order,
+                                        is_cyclic,
+                                        custom_knots_by_curve[curve_index],
+                                        custom_knots,
+                                        knots);
+
         curves::nurbs::calculate_basis_cache(
             points.size(), evaluated_points.size(), order, is_cyclic, knots, r_data[curve_index]);
       }
@@ -1579,6 +1588,15 @@ void CurvesGeometry::remove_curves(const IndexMask &curves_to_delete,
   *this = curves_copy_curve_selection(*this, curves_to_copy, attribute_filter);
 }
 
+static void reverse_custom_knots(MutableSpan<float> custom_knots)
+{
+  const float last = custom_knots.last();
+  custom_knots.reverse();
+  for (float &knot_value : custom_knots) {
+    knot_value = last - knot_value;
+  }
+}
+
 template<typename T>
 static void reverse_curve_point_data(const CurvesGeometry &curves,
                                      const IndexMask &curve_selection,
@@ -1640,6 +1658,17 @@ void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
     attribute.finish();
     return;
   });
+
+  if (this->nurbs_has_custom_knots()) {
+    const OffsetIndices custom_knots_by_curve = this->nurbs_custom_knots_by_curve();
+    MutableSpan<float> custom_knots = this->nurbs_custom_knots_for_write();
+    curves_to_reverse.foreach_index(GrainSize(256), [&](const int64_t curve) {
+      const IndexRange curve_knots = custom_knots_by_curve[curve];
+      if (!custom_knots.is_empty()) {
+        reverse_custom_knots(custom_knots.slice(curve_knots));
+      }
+    });
+  }
 
   /* In order to maintain the shape of Bezier curves, handle attributes must reverse, but also the
    * values for the left and right must swap. Use a utility to swap and reverse at the same time,
@@ -1844,6 +1873,7 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 
   CustomData_blend_read(&reader, &this->point_data, this->point_num);
   CustomData_blend_read(&reader, &this->curve_data, this->curve_num);
+  this->attribute_storage.wrap().blend_read(reader);
 
   if (this->curve_offsets) {
     this->runtime->curve_offsets_sharing_info = BLO_read_shared(
@@ -1852,6 +1882,9 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
           return implicit_sharing::info_for_mem_free(this->curve_offsets);
         });
   }
+
+  /* Forward compatibility. To be removed when runtime format changes. */
+  curves_convert_storage_to_customdata(*this);
 
   BLO_read_struct_list(&reader, bDeformGroup, &this->vertex_group_names);
 
@@ -1867,12 +1900,24 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-CurvesGeometry::BlendWriteData CurvesGeometry::blend_write_prepare()
+void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
 {
-  CurvesGeometry::BlendWriteData write_data;
-  CustomData_blend_write_prepare(this->point_data, write_data.point_layers);
-  CustomData_blend_write_prepare(this->curve_data, write_data.curve_layers);
-  return write_data;
+  attribute_storage_blend_write_prepare(this->attribute_storage.wrap(),
+                                        {{AttrDomain::Point, &write_data.point_layers},
+                                         {AttrDomain::Curve, &write_data.curve_layers}},
+                                        write_data.attribute_data);
+  CustomData_blend_write_prepare(this->point_data,
+                                 AttrDomain::Point,
+                                 this->points_num(),
+                                 write_data.point_layers,
+                                 write_data.attribute_data);
+  CustomData_blend_write_prepare(this->curve_data,
+                                 AttrDomain::Curve,
+                                 this->curves_num(),
+                                 write_data.curve_layers,
+                                 write_data.attribute_data);
+  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
@@ -1883,6 +1928,7 @@ void CurvesGeometry::blend_write(BlendWriter &writer,
       &writer, &this->point_data, write_data.point_layers, this->point_num, CD_MASK_ALL, &id);
   CustomData_blend_write(
       &writer, &this->curve_data, write_data.curve_layers, this->curve_num, CD_MASK_ALL, &id);
+  this->attribute_storage.wrap().blend_write(writer, write_data.attribute_data);
 
   if (this->curve_offsets) {
     BLO_write_shared(

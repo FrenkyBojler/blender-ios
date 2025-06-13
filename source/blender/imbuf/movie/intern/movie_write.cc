@@ -351,7 +351,7 @@ static const AVCodec *get_av1_encoder(
        * where using a different encoder is desirable, such as in #103849. */
       codec = avcodec_find_encoder_by_name("librav1e");
       if (!codec) {
-        /* Fallback to `libaom-av1` if librav1e is not found. */
+        /* Fall back to `libaom-av1` if librav1e is not found. */
         codec = avcodec_find_encoder_by_name("libaom-av1");
       }
       break;
@@ -818,6 +818,7 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   const bool is_10_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_10;
   const bool is_12_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_12;
+  const bool is_16_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_16;
   if (is_10_bpp) {
     c->pix_fmt = AV_PIX_FMT_YUV420P10LE;
   }
@@ -865,6 +866,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GRAY12;
       }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GRAY16;
+      }
     }
     else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGB32;
@@ -873,6 +877,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       }
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GBRAP12;
+      }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRAP16;
       }
     }
     else { /* RGB */
@@ -883,12 +890,21 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GBRP12;
       }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRP16;
+      }
     }
   }
 
   if (codec_id == AV_CODEC_ID_QTRLE) {
-    if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_ARGB;
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_RGB24;
     }
   }
 
@@ -909,8 +925,14 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_PNG) {
-    if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGBA;
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_RGB24;
     }
   }
   if (codec_id == AV_CODEC_ID_PRORES) {
@@ -1000,7 +1022,8 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
   else {
     /* Output pixel format is different, allocate frame for conversion. */
-    AVPixelFormat src_format = is_10_bpp || is_12_bpp ? AV_PIX_FMT_GBRAPF32LE : AV_PIX_FMT_RGBA;
+    AVPixelFormat src_format = is_10_bpp || is_12_bpp || is_16_bpp ? AV_PIX_FMT_GBRAPF32LE :
+                                                                     AV_PIX_FMT_RGBA;
     context->img_convert_frame = alloc_frame(src_format, c->width, c->height);
     context->img_convert_ctx = ffmpeg_sws_get_context(
         c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
@@ -1350,7 +1373,9 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-      filepath, FILE_MAX, BKE_build_template_variables(BKE_main_blendfile_path_from_global(), rd));
+      filepath,
+      FILE_MAX,
+      BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(), rd));
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     return false;

@@ -328,7 +328,7 @@ static void nla_panel_animdata(const bContext *C, Panel *panel)
     row->label("", ICON_RIGHTARROW);                           /* expander */
     row->label(IFACE_("Animation Data"), ICON_ANIM_DATA);      /* animdata */
 
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* Active Action Properties ------------------------------------- */
@@ -441,24 +441,23 @@ static void nla_panel_properties(const bContext *C, Panel *panel)
      * - blend in/out can only be set when auto-blending is off.
      */
 
-    uiItemS(layout);
+    layout->separator();
 
     column = &layout->column(true);
-    uiLayoutSetActive(column, RNA_boolean_get(&strip_ptr, "use_auto_blend") == false);
+    column->active_set(RNA_boolean_get(&strip_ptr, "use_auto_blend") == false);
     column->prop(&strip_ptr, "blend_in", UI_ITEM_NONE, IFACE_("Blend In"), ICON_NONE);
     column->prop(&strip_ptr, "blend_out", UI_ITEM_NONE, IFACE_("Out"), ICON_NONE);
 
     row = &column->row(true);
-    uiLayoutSetActive(row, RNA_boolean_get(&strip_ptr, "use_animated_influence") == false);
+    row->active_set(RNA_boolean_get(&strip_ptr, "use_animated_influence") == false);
     row->prop(
         &strip_ptr, "use_auto_blend", UI_ITEM_NONE, std::nullopt, ICON_NONE); /* XXX as toggle? */
 
     /* settings */
     column = &layout->column(true, IFACE_("Playback"));
     row = &column->row(true);
-    uiLayoutSetActive(row,
-                      !(RNA_boolean_get(&strip_ptr, "use_animated_influence") ||
-                        RNA_boolean_get(&strip_ptr, "use_animated_time")));
+    row->active_set(!(RNA_boolean_get(&strip_ptr, "use_animated_influence") ||
+                      RNA_boolean_get(&strip_ptr, "use_animated_time")));
     row->prop(&strip_ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     column->prop(&strip_ptr, "use_animated_time_cyclic", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -517,11 +516,11 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
 
   row = &layout->row(false, IFACE_("Sync Length"));
   row->prop(&strip_ptr, "use_sync_length", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemO(row, IFACE_("Now"), ICON_FILE_REFRESH, "NLA_OT_action_sync_length");
+  row->op("NLA_OT_action_sync_length", IFACE_("Now"), ICON_FILE_REFRESH);
 
   /* action usage */
   column = &layout->column(true);
-  uiLayoutSetActive(column, RNA_boolean_get(&strip_ptr, "use_animated_time") == false);
+  column->active_set(RNA_boolean_get(&strip_ptr, "use_animated_time") == false);
   column->prop(&strip_ptr, "scale", UI_ITEM_NONE, IFACE_("Playback Scale"), ICON_NONE);
   column->prop(&strip_ptr, "repeat", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -641,8 +640,8 @@ static void nla_panel_modifiers(const bContext *C, Panel *panel)
 
     /* copy/paste (as sub-row) */
     row = &row->row(true);
-    uiItemO(row, "", ICON_COPYDOWN, "NLA_OT_fmodifier_copy");
-    uiItemO(row, "", ICON_PASTEDOWN, "NLA_OT_fmodifier_paste");
+    row->op("NLA_OT_fmodifier_copy", "", ICON_COPYDOWN);
+    row->op("NLA_OT_fmodifier_paste", "", ICON_PASTEDOWN);
   }
 
   ANIM_fmodifier_panels(C, strip_ptr.owner_id, &strip->modifiers, nla_fmodifier_panel_id);

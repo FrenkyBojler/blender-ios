@@ -69,6 +69,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
 #include "ANIM_versioning.hh"
@@ -802,7 +803,7 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 {
   bAction *act;
 
-  act = static_cast<bAction *>(BKE_id_new(bmain, ID_AC, name));
+  act = BKE_id_new<bAction>(bmain, name);
 
   return act;
 }
@@ -1230,13 +1231,17 @@ bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
   }
 
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan && (pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+  if (pchan && (pchan->bone->flag & BONE_SELECTED) &&
+      blender::animrig::bone_is_visible_pchan(arm, pchan))
+  {
     return pchan;
   }
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     if (pchan->bone != nullptr) {
-      if ((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+      if ((pchan->bone->flag & BONE_SELECTED) &&
+          blender::animrig::bone_is_visible_pchan(arm, pchan))
+      {
         return pchan;
       }
     }
@@ -1334,6 +1339,9 @@ void BKE_pose_copy_data_ex(bPose **dst,
 
     if (pchan->prop) {
       pchan->prop = IDP_CopyProperty_ex(pchan->prop, flag);
+    }
+    if (pchan->system_properties) {
+      pchan->system_properties = IDP_CopyProperty_ex(pchan->system_properties, flag);
     }
 
     pchan->draw_data = nullptr; /* Drawing cache, no need to copy. */
@@ -1532,6 +1540,10 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
     IDP_FreeProperty_ex(pchan->prop, do_id_user);
     pchan->prop = nullptr;
   }
+  if (pchan->system_properties) {
+    IDP_FreeProperty_ex(pchan->system_properties, do_id_user);
+    pchan->system_properties = nullptr;
+  }
 
   /* Cached data, for new draw manager rendering code. */
   MEM_SAFE_FREE(pchan->draw_data);
@@ -1659,12 +1671,20 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
   /* id-properties */
   if (pchan->prop) {
-    /* unlikely but possible it exists */
+    /* Unlikely, but possible that it exists. */
     IDP_FreeProperty(pchan->prop);
     pchan->prop = nullptr;
   }
   if (pchan_from->prop) {
     pchan->prop = IDP_CopyProperty(pchan_from->prop);
+  }
+  if (pchan->system_properties) {
+    /* Unlikely, but possible that it exists. */
+    IDP_FreeProperty(pchan->system_properties);
+    pchan->system_properties = nullptr;
+  }
+  if (pchan_from->system_properties) {
+    pchan->system_properties = IDP_CopyProperty(pchan_from->system_properties);
   }
 
   /* custom shape */
@@ -2069,6 +2089,8 @@ void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
     if (chan->prop) {
       IDP_BlendWrite(writer, chan->prop);
     }
+    /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+     * the matching call to #BLO_read_struct). */
 
     BKE_constraint_blend_write(writer, &chan->constraints);
 
@@ -2133,6 +2155,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
 
     BLO_read_struct(reader, IDProperty, &pchan->prop);
     IDP_BlendDataRead(reader, &pchan->prop);
+    BLO_read_struct(reader, IDProperty, &pchan->system_properties);
+    IDP_BlendDataRead(reader, &pchan->system_properties);
 
     BLO_read_struct(reader, bMotionPath, &pchan->mpath);
     if (pchan->mpath) {

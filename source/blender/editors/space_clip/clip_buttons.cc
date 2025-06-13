@@ -135,7 +135,7 @@ void uiTemplateMovieClip(uiLayout *layout,
     row = &split->row(true);
 
     row->prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
-    uiItemO(row, "", ICON_FILE_REFRESH, "clip.reload");
+    row->op("clip.reload", "", ICON_FILE_REFRESH);
 
     uiLayout *col = &layout->column(false);
     uiTemplateColorspaceSettings(col, &clipptr, "colorspace_settings");
@@ -451,7 +451,7 @@ void uiTemplateMarker(uiLayout *layout,
     BKE_movieclip_get_size(clip, user, &width, &height);
 
     if (track->flag & TRACK_LOCKED) {
-      uiLayoutSetActive(layout, false);
+      layout->active_set(false);
       uiBlock *block = layout->absolute_block();
       uiDefBut(block,
                UI_BTYPE_LABEL,
@@ -518,7 +518,7 @@ void uiTemplateMarker(uiLayout *layout,
                  tip);
 
     uiLayout *col = &layout->column(true);
-    uiLayoutSetActive(col, (cb->marker_flag & MARKER_DISABLED) == 0);
+    col->active_set((cb->marker_flag & MARKER_DISABLED) == 0);
 
     block = col->absolute_block();
     UI_block_align_begin(block);

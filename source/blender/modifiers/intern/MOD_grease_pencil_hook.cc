@@ -290,7 +290,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     bool use_falloff = RNA_enum_get(ptr, "falloff_type") != eWarp_Falloff_None;
 
     uiLayout *row = &sub->row(false);
-    uiLayoutSetActive(row, use_falloff);
+    row->active_set(use_falloff);
     row->prop(ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     sub->prop(ptr, "use_falloff_uniform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -308,7 +308,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
