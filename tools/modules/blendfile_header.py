@@ -2,13 +2,18 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-from dataclasses import dataclass
-import logging
+'''
+This module contains utility classes for reading headers in .blend files.
+
+This is a pure Python implementation of the corresponding C++ code in Blender
+in BLO_core_blend_header.hh and BLO_core_bhead.hh.
+'''
+
 import os
 import struct
 import typing
 
-log = logging.getLogger("blendfile_header")
+from dataclasses import dataclass
 
 
 @dataclass
@@ -118,11 +123,6 @@ class BlendFileHeader:
             self.version = int(byte_13_16)
 
     def create_block_header_struct(self) -> BlockHeaderStruct:
-        """
-        Returns a Struct instance for parsing data block headers and a corresponding
-        Python class for accessing the right members. Ddepending on the .blend file,
-        the order of the data members in the block header may be different.
-        """
         assert self.file_format_version in (0, 1)
         endian_str = b'<' if self.is_little_endian else b'>'
         if self.file_format_version == 1:
@@ -175,6 +175,14 @@ class BlendFileHeader:
 
 
 class BlockHeader:
+    """
+    A .blend file consists of a sequence of blocks whereby each block has a header.
+    This class can parse a header block in a specific .blend file.
+
+    Note the binary representation of this header is different for different files.
+    This class provides a unified interface for these underlying representations.
+    """
+
     __slots__ = (
         "code",
         "size",
@@ -211,9 +219,9 @@ class BlockHeader:
             self.count = 0
             return
 
-        blockheader = block_header_struct.parse(data)
-        self.code = blockheader.code.partition(b'\0')[0]
-        self.size = blockheader.len
-        self.addr_old = blockheader.old
-        self.sdna_index = blockheader.SDNAnr
-        self.count = blockheader.nr
+        header = block_header_struct.parse(data)
+        self.code = header.code.partition(b'\0')[0]
+        self.size = header.len
+        self.addr_old = header.old
+        self.sdna_index = header.SDNAnr
+        self.count = header.nr
