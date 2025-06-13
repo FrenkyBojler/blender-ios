@@ -1,2 +1,3 @@
 Referenced by issue #126879, Crash on appending collection twice that contains a nested liboverride collection (request to backport, fixed in main)
 Referenced by issue #126705, Materials aren't carried out to the realized Geometry Nodes instances
+Referenced by issue #140339, Crash with "Spin" tool in "Edit Mode" Toggle Maximize Area
