@@ -686,7 +686,7 @@ namespace blender::draw {
 
 ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
     : dupli_object_(iter_data.dupli_object_current),
-      dupli_parent_(iter_data.dupli_parent),
+      dupli_parent_(dupli_object_ ? iter_data.dupli_parent : nullptr),
       object(ob)
 {
 }

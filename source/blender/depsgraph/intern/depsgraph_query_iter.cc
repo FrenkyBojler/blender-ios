@@ -139,8 +139,10 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       }
     }
 
-    DEG_iterator_free_temp_object_properties(data->dupli_object_current->ob,
-                                             &data->temp_dupli_object);
+    if (data->dupli_object_current) {
+      DEG_iterator_free_temp_object_properties(data->dupli_object_current->ob,
+                                               &data->temp_dupli_object);
+    }
 
     data->dupli_object_current = dob;
 
