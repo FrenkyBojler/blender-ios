@@ -1132,7 +1132,7 @@ inline int knots_num(const int points_num, const int8_t order, const bool cyclic
   return points_num + order + cyclic * (order - 1);
 }
 
-inline int num_control_points(const int points_num, const int8_t order, const bool cyclic)
+inline int control_points_num(const int points_num, const int8_t order, const bool cyclic)
 {
   return points_num + cyclic * (order - 1);
 }
