@@ -47,6 +47,7 @@
 #include "MOV_read.hh"
 #include "MOV_util.hh"
 
+#include "BKE_blender.hh"
 #include "BKE_image.hh"
 
 #include "BIF_glutil.hh"
@@ -64,8 +65,6 @@
 
 #include "BLF_api.hh"
 #include "GHOST_C-api.h"
-
-#include "DEG_depsgraph.hh"
 
 #include "wm_window_private.hh"
 
@@ -588,9 +587,9 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
   eGPUDataFormat data;
   bool glsl_used = false;
   GPUVertFormat *imm_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   uint texCoord = GPU_vertformat_attr_add(
-      imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   void *buffer_cache_handle = nullptr;
   void *display_buffer = ocio_transform_ibuf(
@@ -763,7 +762,8 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_matrix_push();
     GPU_matrix_identity_set();
 
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor3ub(0, 255, 0);
@@ -2167,8 +2167,6 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   /* We still miss freeing a lot!
    * But many areas could skip initialization too for anim play. */
 
-  DEG_free_node_types();
-
   BLF_exit();
 
   /* NOTE: Must happen before GPU Context destruction as GPU resources are released via
@@ -2187,6 +2185,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   GHOST_DisposeWindow(ps.ghost_data.system, ps.ghost_data.window);
 
+  GHOST_DisposeSystem(ps.ghost_data.system);
+
   /* Early exit, IMB and BKE should be exited only in end. */
   if (ps.argv_next) {
     args_next->argc = ps.argc_next;
@@ -2194,8 +2194,6 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
     /* No exit code, keep running. */
     return std::nullopt;
   }
-
-  GHOST_DisposeSystem(ps.ghost_data.system);
 
   return EXIT_SUCCESS;
 }
@@ -2248,15 +2246,8 @@ int WM_main_playanim(int argc, const char **argv)
   AUD_exitOnce();
 #endif
 
-  /* NOTE(@ideasman42): Not useful unless all subsystems are properly shutdown. */
-  if (false) {
-    const int totblock = MEM_get_memory_blocks_in_use();
-    if (totblock != 0) {
-      /* Prints many `bAKey`, `bArgument` messages which are tricky to fix. */
-      printf("Error Totblock: %d\n", totblock);
-      MEM_printmemlist();
-    }
-  }
+  /* Cleanup sub-systems started before this function was called. */
+  BKE_blender_atexit();
 
   return exit_code.value();
 }
