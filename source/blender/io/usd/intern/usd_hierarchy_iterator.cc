@@ -227,7 +227,7 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
           RPT_WARNING,
           "One or more objects used as prototypes in 'Instance on Points' nodes either do not "
           "have 'As Instance' enabled in their 'Object Info' nodes, or the prototype is the "
-          "base geometry input itself—both cases prevent valid point instancer export. If it's "
+          "base geometry input itself. Both cases prevent valid point instancer export. If it's "
           "the former, enable 'As Instance' to avoid incorrect self-referencing.");
 
       prototype_paths[instancer_path].clear();
@@ -244,7 +244,10 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_transform_writer(
 {
   /* transform writer is always called before data writers, so determin if the Xform's children is
    * a point instancer before writing data */
-  determine_point_instancers(context);
+  if (params_.use_instancing) {
+    determine_point_instancers(context);
+  }
+
   return new USDTransformWriter(create_usd_export_context(context));
 }
 
@@ -258,7 +261,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
   switch (context->object->type) {
     case OB_MESH:
       if (usd_export_context.export_params.export_meshes) {
-        if (context->is_point_instancer() && !proto_paths.empty()) {
+        if (params_.use_instancing && context->is_point_instancer() && !proto_paths.empty()) {
           USDExporterContext mesh_context = create_point_instancer_context(context,
                                                                            usd_export_context);
           std::unique_ptr<USDMeshWriter> mesh_writer = std::make_unique<USDMeshWriter>(
@@ -300,7 +303,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
     case OB_CURVES_LEGACY:
     case OB_CURVES:
       if (usd_export_context.export_params.export_curves) {
-        if (context->is_point_instancer() && !proto_paths.empty()) {
+        if (params_.use_instancing && context->is_point_instancer() && !proto_paths.empty()) {
           USDExporterContext curves_context = create_point_instancer_context(context,
                                                                              usd_export_context);
           std::unique_ptr<USDCurvesWriter> curves_writer = std::make_unique<USDCurvesWriter>(
@@ -335,7 +338,7 @@ AbstractHierarchyWriter *USDHierarchyIterator::create_data_writer(const Hierarch
       break;
     case OB_POINTCLOUD:
       if (usd_export_context.export_params.export_points) {
-        if (context->is_point_instancer() && !proto_paths.empty()) {
+        if (params_.use_instancing && context->is_point_instancer() && !proto_paths.empty()) {
           USDExporterContext point_cloud_context = create_point_instancer_context(
               context, usd_export_context);
           std::unique_ptr<USDPointsWriter> point_cloud_writer = std::make_unique<USDPointsWriter>(

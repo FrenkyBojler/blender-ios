@@ -1765,7 +1765,8 @@ class USDExportTest(AbstractUSDTest):
 
             export_path = scenario['output_file']
             self.export_and_validate(
-                filepath=str(export_path)
+                filepath=str(export_path),
+                use_instancing=True
             )
 
             stage = Usd.Stage.Open(str(export_path))
