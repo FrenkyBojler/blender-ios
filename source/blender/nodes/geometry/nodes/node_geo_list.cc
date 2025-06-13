@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_output(type, "List").structure_type(StructureType::List);
   }
 
-  b.add_input<decl::Int>("Count").default_value(1).min(0).description(
+  b.add_input<decl::Int>("Count").default_value(1).min(1).description(
       "The number of elements in the list");
 
   if (node != nullptr) {
@@ -63,6 +63,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const int count = params.extract_input<int>("Count");
   if (count <= 0) {
+    params.error_message_add(NodeWarningType::Error, "Count must be greater than 0");
     params.set_default_remaining_outputs();
     return;
   }
