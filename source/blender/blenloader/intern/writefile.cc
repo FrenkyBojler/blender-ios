@@ -742,10 +742,12 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
     return;
   }
   /* Write new #LargeBHead8 headers if enabled. Older Blender versions can't read those. */
-  if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
-    static_assert(sizeof(BHead) == sizeof(LargeBHead8));
-    mywrite(wd, &bhead, sizeof(bhead));
-    return;
+  if (!USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) {
+    if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
+      static_assert(sizeof(BHead) == sizeof(LargeBHead8));
+      mywrite(wd, &bhead, sizeof(bhead));
+      return;
+    }
   }
   /* Write older #SmallBHead8 headers so that Blender versions that don't support #LargeBHead8 can
    * read the file. */
@@ -781,7 +783,9 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
-  if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
+  if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
+      USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
+  {
     if (len_in_bytes > INT32_MAX) {
       CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
       return;
@@ -852,7 +856,10 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
     return;
   }
 
-  if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 && len > INT_MAX) {
+  if ((!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
+       USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format)) &&
+      len > INT_MAX)
+  {
     BLI_assert_msg(0, "Cannot write chunks bigger than INT_MAX.");
     return;
   }
@@ -1353,7 +1360,9 @@ static int write_id_direct_linked_data_process_cb(LibraryIDLinkCallbackData *cb_
 
 static std::string get_blend_file_header()
 {
-  if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1) {
+  if (SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 &&
+      !USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
+  {
     const int header_size_in_bytes = SIZEOFBLENDERHEADER_VERSION_1;
 
     /* New blend file header format. */
