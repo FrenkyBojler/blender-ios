@@ -96,9 +96,9 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   if (transforms.size() != instance_num) {
     BKE_reportf(this->reports(),
                 RPT_ERROR,
-                "Instances number '%d' doesn't match transforms size '%lld'",
+                "Instances number '%d' doesn't match transforms size '%d'",
                 instance_num,
-                transforms.size());
+                int(transforms.size()));
     return;
   }
 
@@ -559,28 +559,13 @@ void USDPointInstancerWriter::handle_collection_prototypes(
   }
 }
 
-static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
-    const bke::AttrDomain blender_domain, std::string attr_name)
-{
-  switch (blender_domain) {
-    case bke::AttrDomain::Instance:
-      if (attr_name == "uv_map" || attr_name == "UVMap") {
-        return pxr::UsdGeomTokens->faceVarying;
-      }
-    default:
-      return std::nullopt;
-  }
-}
-
 void USDPointInstancerWriter::write_attribute_data(const bke::AttributeIter &attr,
                                                    const pxr::UsdGeomPointInstancer &usd_instancer,
                                                    const pxr::UsdTimeCode timecode)
 {
-  const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain,
-                                                                              attr.name.c_str());
   const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(attr.data_type);
 
-  if (!pv_interp || !pv_type) {
+  if (!pv_type) {
     BKE_reportf(this->reports(),
                 RPT_WARNING,
                 "Attribute '%s' (Blender domain %d, type %d) cannot be converted to USD",
@@ -630,7 +615,7 @@ void USDPointInstancerWriter::write_attribute_data(const bke::AttributeIter &att
       make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_instancer);
 
-  pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
+  pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type);
 
   copy_blender_attribute_to_primvar(
       attribute, attr.data_type, timecode, pv_attr, usd_value_writer_);
