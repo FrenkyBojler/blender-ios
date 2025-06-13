@@ -92,8 +92,8 @@ def RKS_ITER_selected_item(ksi, context, ks):
     elif context.selected_objects:
         for ob in context.selected_objects:
             ksi.generate(context, ks, ob)
-    elif context.selected_sequences:
-        for strip in context.selected_sequences:
+    elif context.selected_strips:
+        for strip in context.selected_strips:
             ksi.generate(context, ks, strip)
 
 
