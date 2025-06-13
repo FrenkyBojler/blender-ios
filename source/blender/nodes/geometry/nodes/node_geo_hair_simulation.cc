@@ -8,10 +8,11 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
 
+#include "GEO_hair_solver.hh"
+
 #include "NOD_geo_hair_constraints.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
-#include "NOD_xpbd_solver.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -26,8 +27,9 @@ using geometry::hair_constraints::ConstraintEvalParams;
 using geometry::hair_constraints::ConstraintType;
 using geometry::hair_constraints::ConstraintTypeInfo;
 using geometry::hair_constraints::ConstraintVariables;
+using geometry::hair_solver::ConstraintEvalData;
+using geometry::hair_solver::VariableIndexArrays;
 using hair_constraints::ConstraintBundleItems;
-using xpbd_constraints::ConstraintEvalData;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -151,12 +153,12 @@ static void do_position_constraints_iteration(const ConstraintEvalParams &eval_p
 {
   IndexMaskMemory memory;
 
-  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
-  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+  Array<VariableIndexArrays> indices_by_type(constraint_data.size());
+  geometry::hair_solver::read_constraint_topology(constraint_data, indices_by_type);
 
   for (const int constraint_i : constraint_data.index_range()) {
     ConstraintEvalData &data = constraint_data[constraint_i];
-    const xpbd_constraints::VariableIndexArrays &indices = indices_by_type[constraint_i];
+    const VariableIndexArrays &indices = indices_by_type[constraint_i];
     if (!data.geometry) {
       continue;
     }
@@ -175,12 +177,12 @@ static void do_velocity_constraints_iteration(const ConstraintEvalParams &eval_p
 {
   IndexMaskMemory memory;
 
-  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
-  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+  Array<VariableIndexArrays> indices_by_type(constraint_data.size());
+  geometry::hair_solver::read_constraint_topology(constraint_data, indices_by_type);
 
   for (const int constraint_i : constraint_data.index_range()) {
     ConstraintEvalData &data = constraint_data[constraint_i];
-    const xpbd_constraints::VariableIndexArrays &indices = indices_by_type[constraint_i];
+    const VariableIndexArrays &indices = indices_by_type[constraint_i];
     if (!data.geometry) {
       continue;
     }

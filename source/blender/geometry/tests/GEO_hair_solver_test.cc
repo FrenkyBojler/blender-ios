@@ -9,23 +9,19 @@
 #include "BKE_pointcloud.hh"
 
 #include "GEO_hair_constraint_functions.hh"
-
-#include "NOD_geo_hair_constraints.hh"
-#include "NOD_xpbd_solver.hh"
-
-#include "CLG_log.h"
+#include "GEO_hair_solver.hh"
 
 #include "testing/testing.h"
 
 #include <iostream>
 
-namespace blender::nodes::tests {
+namespace blender::geometry::tests {
 
 using geometry::hair_constraints::ConstraintEvalParams;
 using geometry::hair_constraints::ConstraintType;
 using geometry::hair_constraints::ConstraintTypeInfo;
 using geometry::hair_constraints::ConstraintVariables;
-using xpbd_constraints::ConstraintEvalData;
+using geometry::hair_solver::ConstraintEvalData;
 
 #define EXPECT_EIGEN_MATRIX_NEAR(a, b, eps) \
   do { \
@@ -85,14 +81,10 @@ class XPBDSolverTest : public testing::Test {
  public:
   static void SetUpTestSuite()
   {
-    CLG_init();
     BKE_idtype_init();
   }
 
-  static void TearDownTestSuite()
-  {
-    CLG_exit();
-  }
+  static void TearDownTestSuite() {}
 
   void SetUp() override {}
 
@@ -401,8 +393,9 @@ TEST_F(XPBDSolverTest, GlobalSolverUnconstrained)
   SolverTestData solver_test = simple_solver_data({}, false);
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   /* Print matrix for debugging purposes if necessary. */
@@ -444,8 +437,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
   const auto &test_data = solver_test.position_goal;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(23, H.rows());
@@ -513,8 +507,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
   const auto &test_data = solver_test.rotation_goal;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(27, H.rows());
@@ -588,8 +583,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_StretchShear)
   const auto &test_data = solver_test.stretch_shear;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(27, H.rows());
@@ -699,8 +695,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
   const auto &test_data = solver_test.bend_twist;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(27, H.rows());
@@ -792,8 +789,9 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_Contact)
   const auto &test_data = solver_test.contact;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   const Eigen::SparseMatrix<float> &H = system.matrix;
   const Eigen::VectorXf &b = system.target;
   EXPECT_EQ(23, H.rows());
@@ -918,8 +916,9 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
       {ConstraintType::PositionGoal, ConstraintType::BendTwist, ConstraintType::Contact}, false);
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(
-      solver_test.params, solver_test.data, solver_test.vars, true, memory);
+  geometry::hair_solver::GlobalSolverSystem system =
+      geometry::hair_solver::build_global_solve_system(
+          solver_test.params, solver_test.data, solver_test.vars, true, memory);
   /* Print matrix for debugging purposes if necessary. */
   if (false) {
     const Eigen::IOFormat format;
@@ -927,9 +926,9 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
     std::cout << system.target.format(format) << std::endl;
   }
 
-  xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
+  geometry::hair_solver::SolverResult result = geometry::hair_solver::solve_global_system(
       std::move(system), solver_test.vars, solver_test.data);
-  EXPECT_EQ(result, xpbd_constraints::SolverResult::Success);
+  EXPECT_EQ(result, geometry::hair_solver::SolverResult::Success);
 }
 
-}  // namespace blender::nodes::tests
+}  // namespace blender::geometry::tests

@@ -8,13 +8,14 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_hair_solver.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_hair_constraints.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
 
@@ -33,7 +34,7 @@ namespace blender::nodes::node_geo_xpbd_constraint_residuals_cc {
 using geometry::hair_constraints::ConstraintEvalParams;
 using geometry::hair_constraints::ConstraintTypeInfo;
 using geometry::hair_constraints::ConstraintVariables;
-using xpbd_constraints ::ConstraintEvalData;
+using geometry::hair_solver::ConstraintEvalData;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -205,7 +206,8 @@ static void node_geo_exec(GeoNodeExecParams params)
        * colliders. */
       eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-      xpbd_constraints::compute_residuals(eval_params, vars, constraint_data, *residual_output_id);
+      geometry::hair_solver::compute_residuals(
+          eval_params, vars, constraint_data, *residual_output_id);
     }
   }
 

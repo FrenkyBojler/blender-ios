@@ -143,7 +143,6 @@ set(SRC
   NOD_texture.h
   NOD_value_elem.hh
   NOD_value_elem_eval.hh
-  NOD_xpbd_solver.hh
   intern/node_common.h
   intern/node_exec.hh
   intern/node_util.hh

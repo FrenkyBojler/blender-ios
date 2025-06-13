@@ -9,6 +9,7 @@
 #include "BKE_instances.hh"
 
 #include "GEO_hair_constraint_functions.hh"
+#include "GEO_hair_solver.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -16,7 +17,6 @@
 #include "NOD_geo_hair_constraints.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
 
@@ -32,11 +32,14 @@
 
 namespace blender::nodes::node_geo_solve_xpbd_constraints_cc {
 
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
 using geometry::hair_constraints::DebugRecorder;
-using xpbd_constraints::ConstraintEvalData;
-using xpbd_constraints::ConstraintEvalParams;
-using xpbd_constraints::ConstraintTypeInfo;
-using xpbd_constraints::ConstraintVariables;
+using geometry::hair_solver::ConstraintEvalData;
+using geometry::hair_solver::GlobalSolverSystem;
+using geometry::hair_solver::SolverResult;
+using geometry::hair_solver::VariableIndexArrays;
 
 constexpr float default_fps = 1.0f / 25.0f;
 
@@ -218,24 +221,24 @@ static void do_global_solve(const EvaluationTarget /*target*/,
   constexpr bool debug_output = false;
 
   IndexMaskMemory memory;
-  xpbd_constraints::GlobalSolverSystem system = build_global_solve_system(
+  GlobalSolverSystem system = build_global_solve_system(
       eval_params, constraint_data, variables, eval_params.debug_check, memory);
 
   Eigen::VectorXf solution;
-  xpbd_constraints::SolverResult result = xpbd_constraints::solve_global_system(
+  SolverResult result = geometry::hair_solver::solve_global_system(
       std::move(system), variables, constraint_data, debug_output ? &solution : nullptr);
   // BLI_assert(result == xpbd_constraints::SolverResult::Success);
   switch (result) {
-    case xpbd_constraints::SolverResult::Success:
+    case SolverResult::Success:
       /* Continue. */
       break;
-    case xpbd_constraints::SolverResult::NumericalIssue:
+    case SolverResult::NumericalIssue:
       eval_params.error_message_add("Global Solver: Numerical Issue");
       return;
-    case xpbd_constraints::SolverResult::NoConvergence:
+    case SolverResult::NoConvergence:
       eval_params.error_message_add("Global Solver: No Convergence");
       return;
-    case xpbd_constraints::SolverResult::InvalidInput:
+    case SolverResult::InvalidInput:
       eval_params.error_message_add("Global Solver: Invalid Input");
       return;
   }
@@ -264,12 +267,12 @@ static void do_gauss_seidel_iteration(const EvaluationTarget target,
 {
   IndexMaskMemory memory;
 
-  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
-  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+  Array<VariableIndexArrays> indices_by_type(constraint_data.size());
+  geometry::hair_solver::read_constraint_topology(constraint_data, indices_by_type);
 
   for (const int constraint_i : constraint_data.index_range()) {
     ConstraintEvalData &data = constraint_data[constraint_i];
-    const xpbd_constraints::VariableIndexArrays &indices = indices_by_type[constraint_i];
+    const VariableIndexArrays &indices = indices_by_type[constraint_i];
     if (!data.geometry) {
       continue;
     }
@@ -301,8 +304,8 @@ static void do_jacobi_iteration(const EvaluationTarget target,
 
   IndexMaskMemory memory;
 
-  Array<xpbd_constraints::VariableIndexArrays> indices_by_type(constraint_data.size());
-  xpbd_constraints::read_constraint_topology(constraint_data, indices_by_type);
+  Array<VariableIndexArrays> indices_by_type(constraint_data.size());
+  geometry::hair_solver::read_constraint_topology(constraint_data, indices_by_type);
 
   switch (target) {
     case EvaluationTarget::Positions: {

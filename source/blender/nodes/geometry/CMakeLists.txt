@@ -244,7 +244,6 @@ set(SRC
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
   nodes/node_geo_xpbd_constraint_residuals.cc
-  nodes/node_geo_xpbd_solver.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh
@@ -383,22 +382,3 @@ blender_set_target_unity_build(bf_nodes_geometry 10)
 
 # RNA_prototypes.hh
 add_dependencies(bf_nodes_geometry bf_rna)
-
-
-if(WITH_GTESTS)
-  set(TEST_SRC
-    nodes/node_geo_xpbd_constraints_test.cc
-  )
-  set(TEST_INC
-    ../../blenkernel
-    ../../blenlib
-    ../../geometry
-    ../../makesdna
-    ../../../../intern/guardedalloc
-  )
-  set(TEST_LIB
-    PRIVATE bf::intern::clog
-    PRIVATE bf::functions
-  )
-  blender_add_test_suite_lib(nodes_geometry "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
-endif()

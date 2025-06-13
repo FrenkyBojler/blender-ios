@@ -9,6 +9,7 @@ set(INC
 )
 
 set(INC_SYS
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -167,6 +168,7 @@ if(WITH_GTESTS)
   )
   set(TEST_SRC
     tests/GEO_hair_constraints_test.cc
+    tests/GEO_hair_solver_test.cc
     tests/GEO_merge_curves_test.cc
   )
   set(TEST_LIB
