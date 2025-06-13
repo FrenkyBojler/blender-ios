@@ -258,7 +258,7 @@ void calculate_basis_cache(const int points_num,
   MutableSpan<float> basis_weights(basis_cache.weights);
   MutableSpan<int> basis_start_indices(basis_cache.start_indices);
 
-  const int last_control_point_index = num_control_points(points_num, order, cyclic);
+  const int last_control_point_index = control_points_num(points_num, order, cyclic);
 
   int eval_point = 0;
 
