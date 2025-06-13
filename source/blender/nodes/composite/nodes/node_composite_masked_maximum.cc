@@ -56,7 +56,7 @@ static void cmp_node_masked_maximum_declare(NodeDeclarationBuilder &b)
       .compositor_domain_priority(4)
       .description("Roundness of the rounded square mask");
   b.add_input<decl::Float>("Falloff")
-      .default_value(0.0f)
+      .default_value(1.0f)
       .min(0.0f)
       .compositor_domain_priority(5)
       .description(
