@@ -157,7 +157,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * drop target of the view includes them, but they are not interactive (e.g. no mouse-hover
    * highlight).
    *
-   * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain height. */
+   * \note Value should be greater than #MIN_ROWS. This is to prevent resizing below certain
+   * height. */
   void set_default_rows(int default_rows);
 
  protected:
