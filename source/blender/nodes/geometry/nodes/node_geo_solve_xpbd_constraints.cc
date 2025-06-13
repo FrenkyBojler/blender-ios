@@ -8,6 +8,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_hair_constraints.hh"
+
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -332,8 +334,9 @@ static void do_jacobi_iteration(const EvaluationTarget target,
                 const float norm = 1.0f / float(weight);
                 const float3 delta_pos = point_delta_positions[point] * norm;
                 const float4 delta_rot = point_delta_rotations[point] * norm;
-                xpbd_constraints::apply_position_impulse(delta_pos, variables.positions[point]);
-                xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+                geometry::hair_constraints::apply_position_impulse(delta_pos,
+                                                                   variables.positions[point]);
+                geometry::hair_constraints::apply_rotation_impulse<linearized_quaternion>(
                     delta_rot, variables.rotations[point]);
               }
             }
@@ -370,8 +373,9 @@ static void do_jacobi_iteration(const EvaluationTarget target,
                 const float norm = 1.0f / float(weight);
                 const float3 delta_vel = point_delta_velocities[point] * norm;
                 const float3 delta_angvel = point_delta_angular_velocities[point] * norm;
-                xpbd_constraints::apply_velocity_impulse(delta_vel, variables.velocities[point]);
-                xpbd_constraints::apply_angular_velocity_impulse(
+                geometry::hair_constraints::apply_velocity_impulse(delta_vel,
+                                                                   variables.velocities[point]);
+                geometry::hair_constraints::apply_angular_velocity_impulse(
                     delta_angvel, variables.angular_velocities[point]);
               }
             }

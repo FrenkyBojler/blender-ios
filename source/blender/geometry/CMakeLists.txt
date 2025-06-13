@@ -19,6 +19,7 @@ set(SRC
   intern/extract_elements.cc
   intern/fillet_curves.cc
   intern/fit_curves.cc
+  intern/hair_simulation.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
   intern/merge_curves.cc
@@ -63,6 +64,8 @@ set(SRC
   GEO_extract_elements.hh
   GEO_fillet_curves.hh
   GEO_fit_curves.hh
+  GEO_hair_constraints.hh
+  GEO_hair_simulation.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
   GEO_merge_curves.hh
@@ -159,6 +162,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    tests/GEO_hair_constraints_test.cc
     tests/GEO_merge_curves_test.cc
   )
   set(TEST_LIB

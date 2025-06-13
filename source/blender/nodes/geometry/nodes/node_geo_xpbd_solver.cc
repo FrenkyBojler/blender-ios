@@ -6,6 +6,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
+#include "GEO_hair_constraints.hh"
+
 #include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
@@ -164,7 +166,8 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
       /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
       const int point = indices[index];
       if (points_range.contains(point)) {
-        xpbd_constraints::apply_position_impulse(delta_pos[index], variables.positions[point]);
+        geometry::hair_constraints::apply_position_impulse(delta_pos[index],
+                                                           variables.positions[point]);
       }
     });
   }
@@ -174,7 +177,7 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
     group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
       const int point = indices[index];
       if (points_range.contains(point)) {
-        xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+        geometry::hair_constraints::apply_rotation_impulse<linearized_quaternion>(
             delta_rot[index], variables.rotations[point]);
       }
     });
@@ -226,7 +229,8 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
       /* Gauss-Seidel solver has a unique source for each point and can just write to it. */
       const int point = indices[index];
       if (points_range.contains(point)) {
-        xpbd_constraints::apply_velocity_impulse(delta_vel[index], variables.velocities[point]);
+        geometry::hair_constraints::apply_velocity_impulse(delta_vel[index],
+                                                           variables.velocities[point]);
       }
     });
   }
@@ -236,8 +240,8 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
     group_and_active_mask.foreach_index(GrainSize(4096), [&](const int index) {
       const int point = indices[index];
       if (points_range.contains(point)) {
-        xpbd_constraints::apply_angular_velocity_impulse(delta_angvel[index],
-                                                         variables.angular_velocities[point]);
+        geometry::hair_constraints::apply_angular_velocity_impulse(
+            delta_angvel[index], variables.angular_velocities[point]);
       }
     });
   }
@@ -1237,12 +1241,13 @@ SolverResult solve_global_system(GlobalSolverSystem &&system,
   for (const int point_index : variables.positions.index_range()) {
     const IndexRange rows = position_rows.slice(point_index * 3, 3);
     const float3 delta_pos = {x[rows[0]], x[rows[1]], x[rows[2]]};
-    xpbd_constraints::apply_position_impulse(delta_pos, variables.positions[point_index]);
+    geometry::hair_constraints::apply_position_impulse(delta_pos,
+                                                       variables.positions[point_index]);
   }
   for (const int point_index : variables.rotations.index_range()) {
     const IndexRange rows = rotation_rows.slice(point_index * 4, 4);
     const float4 delta_rot = {x[rows[0]], x[rows[1]], x[rows[2]], x[rows[3]]};
-    xpbd_constraints::apply_rotation_impulse<linearized_quaternion>(
+    geometry::hair_constraints::apply_rotation_impulse<linearized_quaternion>(
         delta_rot, variables.rotations[point_index]);
   }
 

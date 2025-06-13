@@ -7,6 +7,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_pointcloud.hh"
 
+#include "GEO_hair_constraints.hh"
+
 #include "NOD_xpbd_constraints.hh"
 
 #include "node_geometry_util.hh"
@@ -136,27 +138,27 @@ static void eval_positions(const ConstraintEvalParams &params,
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
       const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
-      xpbd_constraints::eval_position_goal(goal,
-                                           alpha,
-                                           gamma,
-                                           lambda,
-                                           positions[point],
-                                           old_positions[point],
-                                           residual,
-                                           delta_lambda,
-                                           delta_position);
+      geometry::hair_constraints::eval_position_goal(goal,
+                                                     alpha,
+                                                     gamma,
+                                                     lambda,
+                                                     positions[point],
+                                                     old_positions[point],
+                                                     residual,
+                                                     delta_lambda,
+                                                     delta_position);
     }
     else {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
-      xpbd_constraints::eval_position_goal(goal,
-                                           alpha,
-                                           0.0f,
-                                           lambda,
-                                           positions[point],
-                                           float3(0.0f),
-                                           residual,
-                                           delta_lambda,
-                                           delta_position);
+      geometry::hair_constraints::eval_position_goal(goal,
+                                                     alpha,
+                                                     0.0f,
+                                                     lambda,
+                                                     positions[point],
+                                                     float3(0.0f),
+                                                     residual,
+                                                     delta_lambda,
+                                                     delta_position);
     }
 
     lambda += delta_lambda;
@@ -224,7 +226,7 @@ static void linear_solve_elements(const ConstraintEvalParams &params,
 
     alphas[pos] = alphas_attr[index];
     betas[pos] = betas_attr[index];
-    xpbd_constraints::eval_position_goal_elements(
+    geometry::hair_constraints::eval_position_goal_elements(
         goal, positions[point], residuals[pos], position_gradients[pos]);
   });
 }
@@ -420,30 +422,31 @@ static void eval_positions(const ConstraintEvalParams &params,
       const float3 weight_rot = math::safe_rcp(params.local_inertia[point]);
       const float3 alpha = alphas[index] * params.inv_delta_time_squared;
       const float3 gamma = alphas[index] * betas[index] * params.inv_delta_time;
-      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(weight_rot,
-                                                                   goal,
-                                                                   alpha,
-                                                                   gamma,
-                                                                   lambda,
-                                                                   rotations[point],
-                                                                   old_rotations[point],
-                                                                   residual,
-                                                                   delta_lambda,
-                                                                   delta_rotation);
+      geometry::hair_constraints::eval_rotation_goal2<linearized_quaternion>(weight_rot,
+                                                                             goal,
+                                                                             alpha,
+                                                                             gamma,
+                                                                             lambda,
+                                                                             rotations[point],
+                                                                             old_rotations[point],
+                                                                             residual,
+                                                                             delta_lambda,
+                                                                             delta_rotation);
     }
     else {
       const float3 weight_rot = math::safe_rcp(params.local_inertia[point]);
       const float alpha = alphas[index] * params.inv_delta_time_squared;
-      xpbd_constraints::eval_rotation_goal2<linearized_quaternion>(weight_rot,
-                                                                   goal,
-                                                                   alpha,
-                                                                   0.0f,
-                                                                   lambda,
-                                                                   rotations[point],
-                                                                   math::Quaternion::identity(),
-                                                                   residual,
-                                                                   delta_lambda,
-                                                                   delta_rotation);
+      geometry::hair_constraints::eval_rotation_goal2<linearized_quaternion>(
+          weight_rot,
+          goal,
+          alpha,
+          0.0f,
+          lambda,
+          rotations[point],
+          math::Quaternion::identity(),
+          residual,
+          delta_lambda,
+          delta_rotation);
     }
 
     lambda += delta_lambda;
@@ -514,7 +517,7 @@ static void linear_solve_elements(const ConstraintEvalParams &params,
 
     alphas[pos] = alphas_attr[index];
     betas[pos] = betas_attr[index];
-    xpbd_constraints::eval_rotation_goal_elements(
+    geometry::hair_constraints::eval_rotation_goal_elements(
         goal, rotations[point], residuals[pos], rotation_gradients[pos]);
   });
 }
@@ -727,28 +730,29 @@ static void eval_positions(const ConstraintEvalParams &params,
     if constexpr (use_damping) {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
       const float gamma = alphas[index] * betas[index] * params.inv_delta_time;
-      xpbd_constraints::eval_position_stretch_shear<linearized_quaternion>(weight_pos1,
-                                                                           weight_pos2,
-                                                                           weight_rot,
-                                                                           edge_length,
-                                                                           alpha,
-                                                                           gamma,
-                                                                           lambda,
-                                                                           positions[point1],
-                                                                           positions[point2],
-                                                                           rotations[point1],
-                                                                           old_positions[point1],
-                                                                           old_positions[point2],
-                                                                           old_rotations[point1],
-                                                                           residual,
-                                                                           delta_lambda,
-                                                                           delta_pos1,
-                                                                           delta_pos2,
-                                                                           delta_rot1);
+      geometry::hair_constraints::eval_position_stretch_shear<linearized_quaternion>(
+          weight_pos1,
+          weight_pos2,
+          weight_rot,
+          edge_length,
+          alpha,
+          gamma,
+          lambda,
+          positions[point1],
+          positions[point2],
+          rotations[point1],
+          old_positions[point1],
+          old_positions[point2],
+          old_rotations[point1],
+          residual,
+          delta_lambda,
+          delta_pos1,
+          delta_pos2,
+          delta_rot1);
     }
     else {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
-      xpbd_constraints::eval_position_stretch_shear<linearized_quaternion>(
+      geometry::hair_constraints::eval_position_stretch_shear<linearized_quaternion>(
           weight_pos1,
           weight_pos2,
           weight_rot,
@@ -842,14 +846,14 @@ static void linear_solve_elements(const ConstraintEvalParams &params,
 
     alphas[pos] = alphas_attr[index];
     betas[pos] = betas_attr[index];
-    xpbd_constraints::eval_stretch_shear_elements(edge_length,
-                                                  positions[point1],
-                                                  positions[point2],
-                                                  rotations[point1],
-                                                  residuals[pos],
-                                                  position_gradients1[pos],
-                                                  position_gradients2[pos],
-                                                  rotation_gradients[pos]);
+    geometry::hair_constraints::eval_stretch_shear_elements(edge_length,
+                                                            positions[point1],
+                                                            positions[point2],
+                                                            rotations[point1],
+                                                            residuals[pos],
+                                                            position_gradients1[pos],
+                                                            position_gradients2[pos],
+                                                            rotation_gradients[pos]);
   });
 }
 
@@ -1090,24 +1094,25 @@ static void eval_positions(const ConstraintEvalParams &params,
     if constexpr (use_damping) {
       const float3 alpha = alphas[index] * params.inv_delta_time_squared;
       const float3 gamma = alphas[index] * betas[index] * params.inv_delta_time;
-      xpbd_constraints::eval_position_bend_twist<linearized_quaternion>(weight_rot1,
-                                                                        weight_rot2,
-                                                                        darboux_vector,
-                                                                        alpha,
-                                                                        gamma,
-                                                                        lambda,
-                                                                        rotations[point1],
-                                                                        rotations[point2],
-                                                                        old_rotations[point1],
-                                                                        old_rotations[point2],
-                                                                        residual,
-                                                                        delta_lambda,
-                                                                        delta_rotation1,
-                                                                        delta_rotation2);
+      geometry::hair_constraints::eval_position_bend_twist<linearized_quaternion>(
+          weight_rot1,
+          weight_rot2,
+          darboux_vector,
+          alpha,
+          gamma,
+          lambda,
+          rotations[point1],
+          rotations[point2],
+          old_rotations[point1],
+          old_rotations[point2],
+          residual,
+          delta_lambda,
+          delta_rotation1,
+          delta_rotation2);
     }
     else {
       const float alpha = alphas[index] * params.inv_delta_time_squared;
-      xpbd_constraints::eval_position_bend_twist<linearized_quaternion>(
+      geometry::hair_constraints::eval_position_bend_twist<linearized_quaternion>(
           weight_rot1,
           weight_rot2,
           darboux_vector,
@@ -1203,12 +1208,12 @@ static void linear_solve_elements(const ConstraintEvalParams &params,
 
     alphas[pos] = alphas_attr[index];
     betas[pos] = betas_attr[index];
-    xpbd_constraints::eval_bend_twist_elements(darboux_vector,
-                                               rotations[point1],
-                                               rotations[point2],
-                                               residuals[pos],
-                                               rotation_gradients1[pos],
-                                               rotation_gradients2[pos]);
+    geometry::hair_constraints::eval_bend_twist_elements(darboux_vector,
+                                                         rotations[point1],
+                                                         rotations[point2],
+                                                         residuals[pos],
+                                                         rotation_gradients1[pos],
+                                                         rotation_gradients2[pos]);
   });
 }
 
@@ -1467,25 +1472,25 @@ static void eval_positions(const ConstraintEvalParams &params,
     float3 delta_pos_collider;
     float4 delta_rot1, delta_rot_collider;
     const float alpha = alphas[index] * params.inv_delta_time_squared;
-    last_active = xpbd_constraints::eval_position_contact(weight_pos1,
-                                                          weight_pos2,
-                                                          weight_rot1,
-                                                          weight_rot2,
-                                                          local_position1,
-                                                          local_position2,
-                                                          normal,
-                                                          alpha,
-                                                          lambda,
-                                                          positions[point1],
-                                                          collider_position,
-                                                          rotations[point1],
-                                                          collider_rotation,
-                                                          residual,
-                                                          delta_lambda,
-                                                          delta_pos1,
-                                                          delta_pos_collider,
-                                                          delta_rot1,
-                                                          delta_rot_collider);
+    last_active = geometry::hair_constraints::eval_position_contact(weight_pos1,
+                                                                    weight_pos2,
+                                                                    weight_rot1,
+                                                                    weight_rot2,
+                                                                    local_position1,
+                                                                    local_position2,
+                                                                    normal,
+                                                                    alpha,
+                                                                    lambda,
+                                                                    positions[point1],
+                                                                    collider_position,
+                                                                    rotations[point1],
+                                                                    collider_rotation,
+                                                                    residual,
+                                                                    delta_lambda,
+                                                                    delta_pos1,
+                                                                    delta_pos_collider,
+                                                                    delta_rot1,
+                                                                    delta_rot_collider);
 
     /* Accumulate "active" flags over the entire time step. */
     if (last_active) {
@@ -1635,30 +1640,30 @@ static void eval_velocities(const ConstraintEvalParams &params,
     /* TODO Weights should at least be formal parameters for consistency, even if unused
      * internally. */
     UNUSED_VARS(weight_pos1, weight_pos2, weight_rot1, weight_rot2);
-    xpbd_constraints::eval_velocity_contact(orig_velocity1,
-                                            orig_collider_velocity,
-                                            orig_angular_velocity1,
-                                            orig_collider_angular_velocity,
-                                            local_position1,
-                                            local_position2,
-                                            normal,
-                                            restitution,
-                                            friction,
-                                            lambda_restitution,
-                                            lambda_friction,
-                                            velocities[point1],
-                                            collider_velocity,
-                                            angular_velocities[point1],
-                                            collider_angular_velocity,
-                                            threshold_normal_velocity,
-                                            residual_restitution,
-                                            residual_friction,
-                                            delta_lambda_restitution,
-                                            delta_lambda_friction,
-                                            delta_vel1,
-                                            delta_vel_collider,
-                                            delta_angvel1,
-                                            delta_angvel_collider);
+    geometry::hair_constraints::eval_velocity_contact(orig_velocity1,
+                                                      orig_collider_velocity,
+                                                      orig_angular_velocity1,
+                                                      orig_collider_angular_velocity,
+                                                      local_position1,
+                                                      local_position2,
+                                                      normal,
+                                                      restitution,
+                                                      friction,
+                                                      lambda_restitution,
+                                                      lambda_friction,
+                                                      velocities[point1],
+                                                      collider_velocity,
+                                                      angular_velocities[point1],
+                                                      collider_angular_velocity,
+                                                      threshold_normal_velocity,
+                                                      residual_restitution,
+                                                      residual_friction,
+                                                      delta_lambda_restitution,
+                                                      delta_lambda_friction,
+                                                      delta_vel1,
+                                                      delta_vel_collider,
+                                                      delta_angvel1,
+                                                      delta_angvel_collider);
 
     /* Accumulate "active" flags over the entire time step. */
     lambda_restitution += delta_lambda_restitution;
@@ -1739,7 +1744,7 @@ static void linear_solve_elements(const ConstraintEvalParams &params,
 
     float3 collider_position_gradient;
     float4 collider_rotation_gradient;
-    const bool active = xpbd_constraints::eval_contact_position_elements(
+    const bool active = geometry::hair_constraints::eval_contact_position_elements(
         local_positions1[index],
         local_positions2[index],
         normals[index],

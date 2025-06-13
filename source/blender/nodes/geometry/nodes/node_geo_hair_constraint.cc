@@ -7,6 +7,8 @@
 
 #include "FN_multi_function_builder.hh"
 
+#include "GEO_hair_constraints.hh"
+
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
@@ -15,7 +17,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "node_function_util.hh"
+#include "node_geometry_util.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -71,26 +73,26 @@ template<typename ExecPreset> static auto stretch_shear_multifunction(ExecPreset
          float3 &position2_out,
          math::Quaternion &rotation_out) -> void {
         if (linearized_rotation) {
-          xpbd_constraints::apply_position_stretch_shear<true>(weight_pos1,
-                                                               weight_pos2,
-                                                               weight_rot,
-                                                               edge_length,
-                                                               alpha,
-                                                               lambda,
-                                                               position1,
-                                                               position2,
-                                                               rotation);
+          geometry::hair_constraints::apply_position_stretch_shear<true>(weight_pos1,
+                                                                         weight_pos2,
+                                                                         weight_rot,
+                                                                         edge_length,
+                                                                         alpha,
+                                                                         lambda,
+                                                                         position1,
+                                                                         position2,
+                                                                         rotation);
         }
         else {
-          xpbd_constraints::apply_position_stretch_shear<false>(weight_pos1,
-                                                                weight_pos2,
-                                                                weight_rot,
-                                                                edge_length,
-                                                                alpha,
-                                                                lambda,
-                                                                position1,
-                                                                position2,
-                                                                rotation);
+          geometry::hair_constraints::apply_position_stretch_shear<false>(weight_pos1,
+                                                                          weight_pos2,
+                                                                          weight_rot,
+                                                                          edge_length,
+                                                                          alpha,
+                                                                          lambda,
+                                                                          position1,
+                                                                          position2,
+                                                                          rotation);
         }
         lambda_out = lambda;
         position1_out = position1;
@@ -128,11 +130,11 @@ template<typename ExecPreset> static auto bend_twist_multifunction(ExecPreset ex
          math::Quaternion &rotation_out1,
          math::Quaternion &rotation_out2) -> void {
         if (linearized_rotation) {
-          xpbd_constraints::apply_position_bend_twist<true>(
+          geometry::hair_constraints::apply_position_bend_twist<true>(
               weight_rot1, weight_rot2, darboux_vector, alpha, lambda, rotation1, rotation2);
         }
         else {
-          xpbd_constraints::apply_position_bend_twist<false>(
+          geometry::hair_constraints::apply_position_bend_twist<false>(
               weight_rot1, weight_rot2, darboux_vector, alpha, lambda, rotation1, rotation2);
         }
         lambda_out = lambda;
@@ -185,19 +187,19 @@ template<typename ExecPreset> static auto contact_position_multifunction(ExecPre
          float3 &position2_out,
          math::Quaternion &rotation1_out,
          math::Quaternion &rotation2_out) -> void {
-        xpbd_constraints::apply_position_contact(weight_pos1,
-                                                 weight_pos2,
-                                                 weight_rot1,
-                                                 weight_rot2,
-                                                 local_position1,
-                                                 local_position2,
-                                                 normal,
-                                                 alpha,
-                                                 lambda,
-                                                 position1,
-                                                 position2,
-                                                 rotation1,
-                                                 rotation2);
+        geometry::hair_constraints::apply_position_contact(weight_pos1,
+                                                           weight_pos2,
+                                                           weight_rot1,
+                                                           weight_rot2,
+                                                           local_position1,
+                                                           local_position2,
+                                                           normal,
+                                                           alpha,
+                                                           lambda,
+                                                           position1,
+                                                           position2,
+                                                           rotation1,
+                                                           rotation2);
         lambda_out = lambda;
         position1_out = position1;
         position2_out = position2;
@@ -381,9 +383,8 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeConstraint", FN_NODE_CONSTRAINT);
-  ntype.ui_name = "Evaluate Constraint";
-  ntype.enum_name_legacy = "CONSTRAINT";
+  geo_node_type_base(&ntype, "GeometryNodeHairConstraint");
+  ntype.ui_name = "Evaluate Hair Constraint";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
