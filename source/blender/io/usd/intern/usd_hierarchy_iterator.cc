@@ -175,13 +175,15 @@ void USDHierarchyIterator::determine_point_instancers(const HierarchyContext *co
 
     if (children != nullptr) {
       for (HierarchyContext *child_context : *children) {
-        const pxr::SdfPath parent_export_path(context->export_path);
-        const pxr::SdfPath children_original_export_path(child_context->original_export_path);
+        if (!child_context->original_export_path.empty()) {
+          const pxr::SdfPath parent_export_path(context->export_path);
+          const pxr::SdfPath children_original_export_path(child_context->original_export_path);
 
-        /* Detect if the parent is referencing itself via a prototype. */
-        if (parent_export_path.HasPrefix(children_original_export_path)) {
-          is_referencing_self = true;
-          break;
+          /* Detect if the parent is referencing itself via a prototype. */
+          if (parent_export_path.HasPrefix(children_original_export_path)) {
+            is_referencing_self = true;
+            break;
+          }
         }
 
         pxr::SdfPath prototype_path;
