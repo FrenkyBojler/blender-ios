@@ -9,6 +9,7 @@
 #include "BLI_span.hh"
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
 #include "BKE_scene.hh"
@@ -211,8 +212,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      return BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(),
-                                                          scene);
+      return BKE_build_template_variables_for_render_path(scene);
     }
   }
 
@@ -223,8 +223,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   return std::nullopt;
 }
 
-VariableMap BKE_build_template_variables_for_render_path(const char *library_blend_file_path,
-                                                         const Scene *scene)
+VariableMap BKE_build_template_variables_for_render_path(const Scene *scene)
 {
   VariableMap variables;
 
@@ -241,13 +240,14 @@ VariableMap BKE_build_template_variables_for_render_path(const char *library_ble
   }
 
   /* ID-owning blend filepath variables. */
-  if (library_blend_file_path) {
+  if (scene) {
+    const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(&scene->id);
     variables.add_filename(
-        "blend_name", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_name", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_name(
-        "blend_dir_name", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_name", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_abs_path(
-        "blend_dir", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
   /* Render resolution and fps. */

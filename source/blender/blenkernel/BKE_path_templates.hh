@@ -169,23 +169,19 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  * This is typically used to create the variables passed to
  * `BKE_path_apply_template()`.
  *
- * \param library_blend_file_path: full path (including the file name) to the
- * blend file that actually contains the ID that the path being evaluated is
- * from. Typically you should fetch this with `ID_BLEND_PATH()`, but there are
- * exceptions.
- *
- * \param render_data: used for output resolution and fps. Note for the future:
- * when we add a "current frame number" variable it should *not* come from this
- * parameter, but be passed separately. This is because the callers of this
- * function sometimes have the current frame defined separately from the
- * available RenderData (see e.g. `do_makepicstring()`).
+ * \param scene: used to generate most of the variables, such as output
+ * resolution and fps. Note for the future: when we add a "current frame number"
+ * variable it should *not* come from this parameter, but be passed separately.
+ * This is because the callers of this function sometimes have the current frame
+ * defined separately from the available RenderData (see e.g.
+ * `do_makepicstring()`).
  *
  * \see BKE_path_apply_template()
  *
  * \see BLI_path_abs()
  */
 blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
-    const char *blend_file_path, const Scene *scene);
+    const Scene *scene);
 
 /**
  * Check if a path contains any templating syntax at all.
