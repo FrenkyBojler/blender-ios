@@ -352,10 +352,12 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
+    const int quality = static_cast<CMPNodeGlareQuality>(node_storage(bnode()).quality);
+
     parallel_for(highlights_size, [&](const int2 texel) {
       float4 color = float4(0.0f);
 
-      switch (static_cast<CMPNodeGlareQuality>(node_storage(bnode()).quality)) {
+      switch (quality) {
         case CMP_NODE_GLARE_QUALITY_HIGH: {
           color = input.load_pixel<float4>(texel);
           break;
