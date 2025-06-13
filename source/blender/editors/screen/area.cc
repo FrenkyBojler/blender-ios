@@ -202,60 +202,39 @@ static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2
 /**
  * \brief Edge widgets to show hidden panels such as the toolbar and headers.
  */
-static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge)
+static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZone *az)
 {
-  const float size = 0.2f * U.widget_unit;
-  const float l = 1.0f;  /* arrow length */
-  const float s = 0.25f; /* arrow thickness */
-  const float hl = l / 2.0f;
-  const float points[6][2] = {
-      {0, -hl}, {l, hl}, {l - s, hl + s}, {0, s + s - hl}, {s - l, hl + s}, {-l, hl}};
-  const float center[2] = {(x1 + x2) / 2, (y1 + y2) / 2};
-
-  int axis;
-  int sign;
-  switch (edge) {
+  int icon = ICON_REGION_RIGHT;
+  float x = x1;
+  float y = y1;
+  switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:
-      axis = 0;
-      sign = 1;
+      x = x1 + (2.0f * UI_SCALE_FAC);
+      y = y1 - (az->active ? 4.0f : 3.0f * UI_SCALE_FAC);
+      icon = ICON_REGION_TOP;
       break;
     case AE_TOP_TO_BOTTOMRIGHT:
-      axis = 0;
-      sign = -1;
+      x = x1 + (2.0f * UI_SCALE_FAC);
+      y = y1 - (az->active ? 2.0f : 3.0f * UI_SCALE_FAC);
+      icon = ICON_REGION_BOTTOM;
       break;
     case AE_LEFT_TO_TOPRIGHT:
-      axis = 1;
-      sign = 1;
+      x = x1 - (az->active ? 4.0f : 3.0f * UI_SCALE_FAC);
+      y = y1 + (2.0f * UI_SCALE_FAC);
+      icon = ICON_REGION_RIGHT;
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      axis = 1;
-      sign = -1;
+      x = x1 - (az->active ? 2.0f : 3.0f * UI_SCALE_FAC);
+      y = y1 + (2.0f * UI_SCALE_FAC);
+      icon = ICON_REGION_LEFT;
       break;
     default:
       BLI_assert(0);
       return;
   }
 
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4f(0.8f, 0.8f, 0.8f, 0.4f);
-
-  immBegin(GPU_PRIM_TRI_FAN, 6);
-  for (int i = 0; i < 6; i++) {
-    if (axis == 0) {
-      immVertex2f(pos, center[0] + points[i][0] * size, center[1] + points[i][1] * sign * size);
-    }
-    else {
-      immVertex2f(pos, center[0] + points[i][1] * sign * size, center[1] + points[i][0] * size);
-    }
-  }
-  immEnd();
-
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
+  uchar color[4] = {255, 255, 255, az->active ? 180 : 110};
+  UI_icon_draw_ex(x, y, icon, UI_INV_SCALE_FAC, 1.0f, 0.0f, color, false, UI_NO_ICON_OVERLAY_TEXT);
 }
 
 static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *az)
@@ -289,7 +268,7 @@ static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *a
   rect.ymax = float(az->y2) - U.pixelsize;
   UI_draw_roundbox_aa(&rect, true, 4.0f, color);
 
-  draw_azone_arrow(float(az->x1), float(az->y1), float(az->x2), float(az->y2), az->edge);
+  draw_azone_arrow(float(az->x1), float(az->y1), float(az->x2), float(az->y2), az);
 }
 
 static void area_azone_tag_update(ScrArea *area)

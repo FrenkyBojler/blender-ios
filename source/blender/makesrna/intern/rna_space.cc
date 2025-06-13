@@ -3786,7 +3786,14 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
 
   if (region_type_mask & (1 << RGN_TYPE_TOOL_HEADER)) {
     region_type_mask &= ~(1 << RGN_TYPE_TOOL_HEADER);
-    DEF_SHOW_REGION_PROPERTY(show_region_tool_header, "Tool Settings", "");
+    prop = RNA_def_property(srna, "show_region_tool_header", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_tool_header_get),
+                                   STRINGIFY(rna_Space_show_region_tool_header_set));
+    RNA_def_property_ui_text(prop, "Tool Settings", "");
+    RNA_def_property_ui_icon(prop, ICON_HEADER_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_tool_header_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_HEADER)) {
     region_type_mask &= ~(1 << RGN_TYPE_HEADER);
@@ -3798,7 +3805,14 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
   }
   if (region_type_mask & (1 << RGN_TYPE_TOOLS)) {
     region_type_mask &= ~(1 << RGN_TYPE_TOOLS);
-    DEF_SHOW_REGION_PROPERTY(show_region_toolbar, "Toolbar", "");
+    prop = RNA_def_property(srna, "show_region_toolbar", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_toolbar_get),
+                                   STRINGIFY(rna_Space_show_region_toolbar_set));
+    RNA_def_property_ui_text(prop, "Toolbar", "");
+    RNA_def_property_ui_icon(prop, ICON_LEFT_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_toolbar_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_TOOL_PROPS)) {
     region_type_mask &= ~(1 << RGN_TYPE_TOOL_PROPS);
@@ -3806,19 +3820,45 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
   }
   if (region_type_mask & (1 << RGN_TYPE_CHANNELS)) {
     region_type_mask &= ~(1 << RGN_TYPE_CHANNELS);
-    DEF_SHOW_REGION_PROPERTY(show_region_channels, "Channels", "");
+    prop = RNA_def_property(srna, "show_region_channels", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_channels_get),
+                                   STRINGIFY(rna_Space_show_region_channels_set));
+    RNA_def_property_ui_text(prop, "Channels", "");
+    RNA_def_property_ui_icon(prop, ICON_LEFT_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_channels_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_UI)) {
     region_type_mask &= ~(1 << RGN_TYPE_UI);
-    DEF_SHOW_REGION_PROPERTY(show_region_ui, "Sidebar", "");
+    prop = RNA_def_property(srna, "show_region_ui", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(
+        prop, STRINGIFY(rna_Space_show_region_ui_get), STRINGIFY(rna_Space_show_region_ui_set));
+    RNA_def_property_ui_text(prop, "Sidebar", "");
+    RNA_def_property_ui_icon(prop, ICON_RIGHT_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_ui_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_HUD)) {
     region_type_mask &= ~(1 << RGN_TYPE_HUD);
-    DEF_SHOW_REGION_PROPERTY(show_region_hud, "Adjust Last Operation", "");
+    prop = RNA_def_property(srna, "show_region_hud", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(
+        prop, STRINGIFY(rna_Space_show_region_hud_get), STRINGIFY(rna_Space_show_region_hud_set));
+    RNA_def_property_ui_text(prop, "Adjust Last Operation", "");
+    RNA_def_property_ui_icon(prop, ICON_HUD_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_hud_update));
   }
   if (region_type_mask & ((1 << RGN_TYPE_ASSET_SHELF) | (1 << RGN_TYPE_ASSET_SHELF_HEADER))) {
     region_type_mask &= ~((1 << RGN_TYPE_ASSET_SHELF) | (1 << RGN_TYPE_ASSET_SHELF_HEADER));
-    DEF_SHOW_REGION_PROPERTY(show_region_asset_shelf, "Asset Shelf", "");
+    prop = RNA_def_property(srna, "show_region_asset_shelf", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_asset_shelf_get),
+                                   STRINGIFY(rna_Space_show_region_asset_shelf_set));
+    RNA_def_property_ui_text(prop, "Asset Shelf", "");
+    RNA_def_property_ui_icon(prop, ICON_FOOTER_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_asset_shelf_update));
   }
   BLI_assert(region_type_mask == 0);
 }

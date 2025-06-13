@@ -2029,7 +2029,12 @@ void uiLayout::prop(PointerRNA *ptr,
       if (type == PROP_BOOLEAN) {
         if ((is_array == false) || (index != RNA_NO_INDEX)) {
           if (prop_flag & PROP_ICONS_CONSECUTIVE) {
-            icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
+            if (RNA_property_ui_icon(prop) != ICON_NONE) {
+              icon = RNA_property_ui_icon(prop);
+            }
+            else {
+              icon = ICON_CHECKBOX_DEHLT; /* but->iconadd will set to correct icon */
+            }
           }
           else if (is_array) {
             icon = RNA_property_boolean_get_index(ptr, prop, index) ? ICON_CHECKBOX_HLT :

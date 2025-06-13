@@ -366,6 +366,8 @@ if(WITH_BLENDER)
       folder_redirect
       fontpreview
       font_data
+      footer_off
+      footer_on
       force_boid
       force_charge
       force_curve
@@ -418,6 +420,8 @@ if(WITH_BLENDER)
       handle_autoclamped
       handle_free
       handle_vector
+      header_off
+      header_on
       heart
       help
       hide_off
@@ -426,6 +430,8 @@ if(WITH_BLENDER)
       holdout_on
       home
       hook
+      hud_off
+      hud_on
       image
       image_alpha
       image_background
@@ -495,6 +501,8 @@ if(WITH_BLENDER)
       lattice_data
       layer_active
       layer_used
+      left_off
+      left_on
       library_data_broken
       library_data_direct
       library_data_override
@@ -751,6 +759,10 @@ if(WITH_BLENDER)
       record_off
       record_on
       recover_last
+      region_bottom
+      region_left
+      region_right
+      region_top
       remove
       renderlayers
       render_animation
@@ -766,9 +778,10 @@ if(WITH_BLENDER)
       restrict_select_on
       restrict_view_off
       restrict_view_on
-      rew
       rightarrow
       rightarrow_thin
+      right_off
+      right_on
       rigid_body
       rigid_body_constraint
       rna
