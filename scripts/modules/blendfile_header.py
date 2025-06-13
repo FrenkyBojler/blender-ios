@@ -16,6 +16,10 @@ import typing
 from dataclasses import dataclass
 
 
+class BlendHeaderError(Exception):
+    pass
+
+
 @dataclass
 class BHead4:
     code: bytes
@@ -80,7 +84,7 @@ class BlendFileHeader:
 
         bytes_0_6 = file.read(7)
         if bytes_0_6 != b'BLENDER':
-            raise RuntimeError("invalid first bytes %r" % bytes_0_6)
+            raise BlendHeaderError("invalid first bytes %r" % bytes_0_6)
         self.magic = bytes_0_6
 
         byte_7 = file.read(1)
@@ -92,32 +96,32 @@ class BlendFileHeader:
             elif byte_7 == b'-':
                 self.pointer_size = 8
             else:
-                raise RuntimeError("invalid pointer size %r" % byte_7)
+                raise BlendHeaderError("invalid pointer size %r" % byte_7)
             byte_8 = file.read(1)
             if byte_8 == b'v':
                 self.is_little_endian = True
             elif byte_8 == b'V':
                 self.is_little_endian = False
             else:
-                raise RuntimeError("invalid endian indicator %r" % byte_8)
+                raise BlendHeaderError("invalid endian indicator %r" % byte_8)
             bytes_9_11 = file.read(3)
             self.version = int(bytes_9_11)
         else:
             byte_8 = file.read(1)
             header_size = int(byte_7 + byte_8)
             if header_size != 17:
-                raise RuntimeError("unknown file header size %d" % header_size)
+                raise BlendHeaderError("unknown file header size %d" % header_size)
             byte_9 = file.read(1)
             if byte_9 != b'-':
-                raise RuntimeError("invalid file header")
+                raise BlendHeaderError("invalid file header")
             self.pointer_size = 8
             byte_10_11 = file.read(2)
             self.file_format_version = int(byte_10_11)
             if self.file_format_version != 1:
-                raise RuntimeError("unsupported file format version %r" % self.file_format_version)
+                raise BlendHeaderError("unsupported file format version %r" % self.file_format_version)
             byte_12 = file.read(1)
             if byte_12 != b'v':
-                raise RuntimeError("invalid file header")
+                raise BlendHeaderError("invalid file header")
             self.is_little_endian = True
             byte_13_16 = file.read(4)
             self.version = int(byte_13_16)
@@ -207,11 +211,11 @@ class BlockHeader:
 
         if len(data) != block_header_struct.size:
             if len(data) != 8:
-                raise RuntimeError("invalid block header size")
+                raise BlendHeaderError("invalid block header size")
             legacy_endb = struct.Struct(b'4sI')
             endb_header = legacy_endb.unpack(data)
             if endb_header[0] != b'ENDB':
-                raise RuntimeError("invalid block header")
+                raise BlendHeaderError("invalid block header")
             self.code = b'ENDB'
             self.size = 0
             self.addr_old = 0

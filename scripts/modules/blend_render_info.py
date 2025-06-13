@@ -66,7 +66,7 @@ def _read_blend_rend_chunk_from_file(blendfile, filepath):
 
     try:
         blender_header = blendfile_header.BlendFileHeader(blendfile)
-    except RuntimeError:
+    except blendfile_header.BlendHeaderError:
         sys.stderr.write("Not a blend file: {:s}\n".format(filepath))
         return []
 
