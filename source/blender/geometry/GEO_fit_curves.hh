@@ -30,12 +30,14 @@ enum class FitMethod {
  * \param corners: Boolean value for each input point. When this is true, the point is treated as a
  * corner in the curve fitting. The resulting bézier curve will include this point and the handles
  * will be "free", resulting in a sharp corner.
+ * \param guide_data: Extra data used to influence the fit.
  * \param method: The fitting algorithm to use. See #FitMethod.
  */
 bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_curves,
                                               const IndexMask &curve_selection,
                                               const VArray<float> &thresholds,
                                               const VArray<bool> &corners,
+                                              const VArray<float> &guide_data,
                                               FitMethod method,
                                               const bke::AttributeFilter &attribute_filter);
 

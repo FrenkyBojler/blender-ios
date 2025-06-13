@@ -4422,13 +4422,14 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
 
 static const bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
                                                  const IndexMask &selection,
+                                                 const VArray<float> &guide_data,
                                                  const float threshold)
 {
   const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
   /* TODO: Detect or manually provide corners. */
   const VArray<bool> corners = VArray<bool>::ForSingle(false, curves.points_num());
   return geometry::fit_poly_to_bezier_curves(
-      curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
+      curves, selection, thresholds, corners, guide_data, geometry::FitMethod::Refit, {});
 }
 
 static void convert_to_catmull_rom(bke::CurvesGeometry &curves,
@@ -4483,6 +4484,7 @@ static void convert_to_poly(bke::CurvesGeometry &curves, const IndexMask &select
 
 static void convert_to_bezier(bke::CurvesGeometry &curves,
                               const IndexMask &selection,
+                              const VArray<float> &guide_data,
                               const float threshold)
 {
   if (curves.is_single_type(CURVE_TYPE_BEZIER)) {
@@ -4492,7 +4494,7 @@ static void convert_to_bezier(bke::CurvesGeometry &curves,
   const IndexMask poly_curves_selection = curves.indices_for_curve_type(
       CURVE_TYPE_POLY, selection, memory);
   if (!poly_curves_selection.is_empty()) {
-    curves = fit_poly_curves(curves, poly_curves_selection, threshold);
+    curves = fit_poly_curves(curves, poly_curves_selection, guide_data, threshold);
   }
 
   geometry::ConvertCurvesOptions options;
@@ -4505,6 +4507,7 @@ static void convert_to_bezier(bke::CurvesGeometry &curves,
 
 static void convert_to_nurbs(bke::CurvesGeometry &curves,
                              const IndexMask &selection,
+                             const VArray<float> &guide_data,
                              const float threshold)
 {
   if (curves.is_single_type(CURVE_TYPE_NURBS)) {
@@ -4515,7 +4518,7 @@ static void convert_to_nurbs(bke::CurvesGeometry &curves,
   const IndexMask poly_curves_selection = curves.indices_for_curve_type(
       CURVE_TYPE_POLY, selection, memory);
   if (!poly_curves_selection.is_empty()) {
-    curves = fit_poly_curves(curves, poly_curves_selection, threshold);
+    curves = fit_poly_curves(curves, poly_curves_selection, guide_data, threshold);
   }
 
   geometry::ConvertCurvesOptions options;
@@ -4534,6 +4537,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
 
   const CurveType dst_type = CurveType(RNA_enum_get(op->ptr, "type"));
   const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float radius_influence = RNA_float_get(op->ptr, "radius_influence");
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4546,6 +4550,10 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
       return;
     }
 
+    const VArray<float> radii = info.drawing.radii();
+    const VArray<float> guide_data = VArray<float>::ForFunc(
+        curves.points_num(), [&](const int index) { return radii[index] * radius_influence; });
+
     switch (dst_type) {
       case CURVE_TYPE_CATMULL_ROM:
         convert_to_catmull_rom(curves, strokes, threshold);
@@ -4554,10 +4562,10 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext *C, wmOpe
         convert_to_poly(curves, strokes);
         break;
       case CURVE_TYPE_BEZIER:
-        convert_to_bezier(curves, strokes, threshold);
+        convert_to_bezier(curves, strokes, guide_data, threshold);
         break;
       case CURVE_TYPE_NURBS:
-        convert_to_nurbs(curves, strokes, threshold);
+        convert_to_nurbs(curves, strokes, guide_data, threshold);
         break;
     }
 
@@ -4592,6 +4600,9 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
   }
 
   layout->prop(&ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (dst_type != CURVE_TYPE_CATMULL_ROM) {
+    layout->prop(&ptr, "radius_influence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
@@ -4622,6 +4633,16 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
       0.0f,
       100.0f);
   RNA_def_property_subtype(prop, PROP_DISTANCE);
+
+  prop = RNA_def_float(ot->srna,
+                       "radius_influence",
+                       1.0f,
+                       0.0f,
+                       1000.0f,
+                       "Radius influence",
+                       "The influence that radius has in the conversion",
+                       0.0f,
+                       10000.0f);
 }
 
 /** \} */

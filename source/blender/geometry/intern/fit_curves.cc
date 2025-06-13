@@ -20,6 +20,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                               const IndexMask &curve_selection,
                                               const VArray<float> &thresholds,
                                               const VArray<bool> &corners,
+                                              const VArray<float> &guide_data,
                                               const FitMethod method,
                                               const bke::AttributeFilter &attribute_filter)
 {
@@ -47,7 +48,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
   MutableSpan<int8_t> dst_curve_types = dst_curves.curve_types_for_write();
 
   /* NOTE: These spans own the data from the curve fit C-API. */
-  Array<MutableSpan<float3>> cubic_array_per_curve(curve_selection.size());
+  Array<MutableSpan<float4>> cubic_array_per_curve(curve_selection.size());
   Array<MutableSpan<int>> corner_indices_per_curve(curve_selection.size());
   Array<MutableSpan<int>> original_indices_per_curve(curve_selection.size());
 
@@ -57,6 +58,12 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     const Span<float3> curve_positions = src_positions.slice(points);
     const bool is_cyclic = src_cyclic[curve_i];
     const float epsilon = thresholds[curve_i];
+
+    Array<float4> positions_and_radius(curve_positions.size());
+
+    for (const int i : curve_positions.index_range()) {
+      positions_and_radius[i] = float4(curve_positions[i], guide_data[points[i]]);
+    }
 
     /* Both curve fitting algorithms expect the first and last points for non-cyclic curves to be
      * treated as if they were corners. */
@@ -89,9 +96,9 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     uint32_t corner_index_array_size = 0;
     int error = 1;
     if (method == FitMethod::Split) {
-      error = curve_fit_cubic_to_points_fl(curve_positions.cast<float>().data(),
-                                           curve_positions.size(),
-                                           3,
+      error = curve_fit_cubic_to_points_fl(positions_and_radius.as_span().cast<float>().data(),
+                                           positions_and_radius.size(),
+                                           4,
                                            epsilon,
                                            flag,
                                            src_corners_ptr,
@@ -103,20 +110,21 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
                                            &corner_index_array_size);
     }
     else if (method == FitMethod::Refit) {
-      error = curve_fit_cubic_to_points_refit_fl(curve_positions.cast<float>().data(),
-                                                 curve_positions.size(),
-                                                 3,
-                                                 epsilon,
-                                                 flag,
-                                                 src_corners_ptr,
-                                                 src_corners.size(),
-                                                 /* Don't use automatic corner detection. */
-                                                 FLT_MAX,
-                                                 &cubic_array,
-                                                 &cubic_array_size,
-                                                 &orig_index_map,
-                                                 &corner_index_array,
-                                                 &corner_index_array_size);
+      error = curve_fit_cubic_to_points_refit_fl(
+          positions_and_radius.as_span().cast<float>().data(),
+          positions_and_radius.size(),
+          4,
+          epsilon,
+          flag,
+          src_corners_ptr,
+          src_corners.size(),
+          /* Don't use automatic corner detection. */
+          FLT_MAX,
+          &cubic_array,
+          &cubic_array_size,
+          &orig_index_map,
+          &corner_index_array,
+          &corner_index_array_size);
     }
 
     if (error) {
@@ -134,8 +142,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     dst_curve_sizes[curve_i] = dst_points_num;
     dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
 
-    cubic_array_per_curve[pos] = MutableSpan<float3>(reinterpret_cast<float3 *>(cubic_array),
-                                                     dst_points_num * 3);
+    cubic_array_per_curve[pos] = MutableSpan<float4>(reinterpret_cast<float4 *>(cubic_array),
+                                                     dst_points_num * 4);
     corner_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(corner_index_array),
                                                      corner_index_array_size);
     original_indices_per_curve[pos] = MutableSpan<int>(reinterpret_cast<int *>(orig_index_map),
@@ -221,16 +229,16 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       return;
     }
 
-    const Span<float3> cubic_array = cubic_array_per_curve[pos];
-    BLI_assert(dst_points.size() * 3 == cubic_array.size());
+    const Span<float4> cubic_array = cubic_array_per_curve[pos];
+    BLI_assert(dst_points.size() * 4 == cubic_array.size());
     MutableSpan<float3> left_handles = dst_handles_left.slice(dst_points);
     MutableSpan<float3> right_handles = dst_handles_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {
       for (const int i : range) {
         const int index = i * 3;
-        positions[i] = cubic_array[index + 1];
-        left_handles[i] = cubic_array[index];
-        right_handles[i] = cubic_array[index + 2];
+        positions[i] = float3(cubic_array[index + 1]);
+        left_handles[i] = float3(cubic_array[index]);
+        right_handles[i] = float3(cubic_array[index + 2]);
       }
     });
 
@@ -259,7 +267,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
       dst_curves.attributes_for_write());
 
   /* Free all the data from the C-API. */
-  for (MutableSpan<float3> cubic_array : cubic_array_per_curve) {
+  for (MutableSpan<float4> cubic_array : cubic_array_per_curve) {
     free(cubic_array.data());
   }
   for (MutableSpan<int> corner_indices : corner_indices_per_curve) {
