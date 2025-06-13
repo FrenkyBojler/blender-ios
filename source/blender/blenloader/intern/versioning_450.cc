@@ -3822,6 +3822,8 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
 
   /* If Relative is not enabled or no image is connected, nothing else to do. */
   if (!bool(node->custom2) || !image_link) {
+    MEM_freeN(storage);
+    node->storage = nullptr;
     return;
   }
 
