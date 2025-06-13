@@ -16,15 +16,16 @@ namespace blender {
  */
 template<typename T> class Span;
 
-namespace tests {
+}  // namespace blender
+
+namespace blender::tests {
 
 /* These strings are passed on the CLI with the --test-asset-dir and --test-release-dir arguments.
  * The arguments are added automatically when invoking tests via `ctest`. */
 const std::string &flags_test_asset_dir();   /* tests/files in the Blender repository. */
 const std::string &flags_test_release_dir(); /* bin/{blender version} in the build directory. */
 
-}  // namespace tests
-}  // namespace blender
+}  // namespace blender::tests
 
 #define EXPECT_V2_NEAR(a, b, eps) \
   { \
@@ -145,8 +146,10 @@ template<typename T>
 inline void EXPECT_EQ_SPAN(const blender::Span<T> expected, const blender::Span<T> actual)
 {
   EXPECT_EQ(expected.size(), actual.size());
-  for (const int64_t i : expected.index_range()) {
-    EXPECT_EQ(expected[i], actual[i]) << "Element mismatch at index " << i;
+  if (expected.size() == actual.size()) {
+    for (const int64_t i : expected.index_range()) {
+      EXPECT_EQ(expected[i], actual[i]) << "Element mismatch at index " << i;
+    }
   }
 }
 
