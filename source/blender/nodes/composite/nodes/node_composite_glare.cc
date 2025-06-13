@@ -316,7 +316,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_1f(shader, "threshold", this->get_threshold());
     GPU_shader_uniform_1f(shader, "highlights_smoothness", this->get_highlights_smoothness());
     GPU_shader_uniform_1f(shader, "max_brightness", this->get_maximum_brightness());
-    GPU_shader_uniform_1f(shader, "quality_setting", node_storage(bnode()).quality);
+    GPU_shader_uniform_1i(shader, "quality_setting", node_storage(bnode()).quality);
 
     const Result &input_image = get_input("Image");
     GPU_texture_filter_mode(input_image, true);
