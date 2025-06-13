@@ -201,8 +201,8 @@ class BlockHeader:
             if len(data) != 8:
                 raise RuntimeError("invalid block header size")
             legacy_endb = struct.Struct(b'4sI')
-            blockheader = legacy_endb.unpack(data)
-            if blockheader[0] != b'ENDB':
+            endb_header = legacy_endb.unpack(data)
+            if endb_header[0] != b'ENDB':
                 raise RuntimeError("invalid block header")
             self.code = b'ENDB'
             self.size = 0
