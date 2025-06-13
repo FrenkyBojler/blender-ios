@@ -169,6 +169,9 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  * This is typically used to create the variables passed to
  * `BKE_path_apply_template()`.
  *
+ * \param path_owner_id: the ID that actually owns the path that's going to be
+ * processed.
+ *
  * \param scene: used to generate most of the variables, such as output
  * resolution and fps. Note for the future: when we add a "current frame number"
  * variable it should *not* come from this parameter, but be passed separately.
@@ -181,7 +184,7 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  * \see BLI_path_abs()
  */
 blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
-    const Scene *scene);
+    const ID *path_owner_id, const Scene *scene);
 
 /**
  * Check if a path contains any templating syntax at all.

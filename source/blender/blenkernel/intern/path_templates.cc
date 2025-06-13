@@ -212,7 +212,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      return BKE_build_template_variables_for_render_path(scene);
+      return BKE_build_template_variables_for_render_path(ptr->owner_id, scene);
     }
   }
 
@@ -223,7 +223,8 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   return std::nullopt;
 }
 
-VariableMap BKE_build_template_variables_for_render_path(const Scene *scene)
+VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id,
+                                                         const Scene *scene)
 {
   VariableMap variables;
 
@@ -240,8 +241,8 @@ VariableMap BKE_build_template_variables_for_render_path(const Scene *scene)
   }
 
   /* ID-owning blend filepath variables. */
-  if (scene) {
-    const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(&scene->id);
+  if (path_owner_id) {
+    const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(
         "blend_name", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_name(
