@@ -396,6 +396,7 @@ bool CTX_data_editable_objects(const bContext *C, blender::Vector<PointerRNA> *l
 bool CTX_data_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
 bool CTX_data_selected_objects(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_strips(const bContext *C, blender::Vector<PointerRNA> *list);
 bool CTX_data_selected_bases(const bContext *C, blender::Vector<PointerRNA> *list);
 
 bool CTX_data_visible_objects(const bContext *C, blender::Vector<PointerRNA> *list);

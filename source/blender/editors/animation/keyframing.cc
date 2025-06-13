@@ -55,6 +55,7 @@
 #include "ANIM_keyingsets.hh"
 #include "ANIM_rna.hh"
 
+#include "RNA_path.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -319,6 +320,11 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 
   switch (context_mode) {
     case CTX_MODE_OBJECT: {
+      ScrArea *area = CTX_wm_area(C);
+      if (area && area->spacetype == SPACE_SEQ) {
+        CTX_data_selected_strips(C, r_selection);
+        break;
+      }
       CTX_data_selected_objects(C, r_selection);
       break;
     }
@@ -859,6 +865,183 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   }
 
   return true;
+}
+
+static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
+{
+  ReportList *reports = nullptr;
+  /* don't touch protected F-Curves */
+  if (BKE_fcurve_is_protected(fcu)) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Not deleting keyframe for locked F-Curve '%s', object '%s'",
+                fcu->rna_path,
+                scene->id.name + 2);
+    return false;
+  }
+  return true;
+}
+
+static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
+{
+  using namespace blender::animrig;
+  Scene *scene = CTX_data_scene(C);
+  const float cfra = BKE_scene_frame_get(scene);
+
+  int selected_strips_len = 0;
+  int selected_strips_success_len = 0;
+  int success_multi = 0;
+
+  int success = 0;
+
+  blender::Vector<PointerRNA> selection;
+  const bool found_selection = get_selection(C, &selection);
+
+  if (selection.is_empty()) {
+    BKE_reportf(op->reports, RPT_WARNING, "Nothing selected to key");
+    return OPERATOR_CANCELLED;
+  }
+
+  blender::Set<ID *> ids;
+
+  blender::Vector<std::string> selected_rna_paths;
+
+  for (PointerRNA &id_ptr : selection) {
+    /* get strips rna_path used later to compare if a fcurve belongs to a selected strip*/
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
+      selected_rna_paths.append(*rna_path);
+    }
+  }
+
+  const bool confirm = op->flag & OP_IS_INVOKE;
+  if ((scene->adt) && (scene->adt->action)) {
+    AnimData *adt = scene->adt;
+    bAction *act = adt->action;
+    const float cfra_unmap = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+
+    Action &action = act->wrap();
+    if (action.is_action_layered()) {
+      blender::Vector<FCurve *> modified_fcurves;
+      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+        bool fcurve_belongs_to_selected_strip = false;
+        /* check if fcurve belongs to a selected strip */
+        for (const std::string &strip_path : selected_rna_paths) {
+          if (fcurve.rna_path &&
+              std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+          {
+            fcurve_belongs_to_selected_strip = true;
+            break;
+          }
+        }
+        if (!can_delete_scene_key(&fcurve, scene) || !fcurve_belongs_to_selected_strip) {
+          return;
+        }
+        if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
+          modified_fcurves.append(&fcurve);
+        }
+      });
+
+      success += modified_fcurves.size();
+      for (FCurve *fcurve : modified_fcurves) {
+        if (BKE_fcurve_is_empty(fcurve)) {
+          action_fcurve_remove(action, *fcurve);
+        }
+      }
+    }
+    else {
+      FCurve *fcn;
+      for (FCurve *fcu = static_cast<FCurve *>(act->curves.first); fcu; fcu = fcn) {
+        fcn = fcu->next;
+        if (!can_delete_scene_key(fcn, scene)) {
+          continue;
+        }
+        /* Delete keyframes on current frame
+         * WARNING: this can delete the next F-Curve, hence the "fcn" copying.
+         */
+        success += delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
+      }
+    }
+
+    if (scene->adt->action) {
+      /* The Action might have been unassigned, if it is legacy and the last
+       * F-Curve was removed. */
+      DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+    }
+    if (success) {
+      selected_strips_success_len += 1;
+      success_multi += success;
+    }
+  }
+
+  if (selected_strips_success_len) {
+    /* Key-frames on strips has been moved, so make sure related editors are informed. */
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    WM_event_add_notifier(C, NC_ANIMATION, nullptr);
+  }
+
+  if (confirm) {
+    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    if (selected_strips_success_len) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "%d strip(s) successfully had %d keyframes removed",
+                  selected_strips_success_len,
+                  success_multi);
+    }
+    else {
+      BKE_reportf(
+          op->reports, RPT_ERROR, "No keyframes removed from %d strip(s)", selected_strips_len);
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus delete_key_vse_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
+
+  if (ks == nullptr) {
+    return delete_key_vse_without_keying_set(C, op);
+  }
+
+  return delete_key_using_keying_set(C, op, ks);
+}
+
+static wmOperatorStatus delete_key_vse_invoke(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Delete keyframes from selected objects?"),
+                                  nullptr,
+                                  IFACE_("Delete"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return delete_key_vse_exec(C, op);
+}
+
+void ANIM_OT_keyframe_delete_vse(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Delete Keyframe";
+  ot->description = "Remove keyframes on current frame for selected objects and bones";
+  ot->idname = "ANIM_OT_keyframe_delete_vse";
+
+  /* callbacks */
+  ot->invoke = delete_key_vse_invoke;
+  ot->exec = delete_key_vse_exec;
+
+  ot->poll = ED_operator_areaactive;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  WM_operator_properties_confirm_or_exec(ot);
 }
 
 static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
