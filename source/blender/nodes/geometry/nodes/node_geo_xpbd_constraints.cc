@@ -1904,19 +1904,54 @@ static void node_register()
 
 }  // namespace contact
 
-const SocketInterfaceKey ConstraintBundleItems::stretch_constraints_key = SocketInterfaceKey(
-    "Stretch");
-const SocketInterfaceKey ConstraintBundleItems::bending_constraints_key = SocketInterfaceKey(
-    "Bending");
-const SocketInterfaceKey ConstraintBundleItems::position_constraints_key = SocketInterfaceKey(
-    "Position");
-const SocketInterfaceKey ConstraintBundleItems::rotation_constraints_key = SocketInterfaceKey(
-    "Rotation");
-const SocketInterfaceKey ConstraintBundleItems::contact_constraints_key = SocketInterfaceKey(
-    "Contact");
+static const SocketInterfaceKey stretch_shear_key = SocketInterfaceKey("StretchShear");
+static const SocketInterfaceKey bend_twist_key = SocketInterfaceKey("BendTwist");
+static const SocketInterfaceKey position_goal_key = SocketInterfaceKey("PositionGoal");
+static const SocketInterfaceKey rotation_goal_key = SocketInterfaceKey("RotationGoal");
+static const SocketInterfaceKey contact_key = SocketInterfaceKey("Contact");
+
+const SocketInterfaceKey &constraint_type_to_socket_key(const ConstraintType type)
+{
+  switch (type) {
+    case ConstraintType::StretchShear:
+      return stretch_shear_key;
+    case ConstraintType::BendTwist:
+      return bend_twist_key;
+    case ConstraintType::PositionGoal:
+      return position_goal_key;
+    case ConstraintType::RotationGoal:
+      return rotation_goal_key;
+    case ConstraintType::Contact:
+      return contact_key;
+  }
+  BLI_assert_unreachable();
+  return stretch_shear_key;
+}
+
+ConstraintType socket_key_to_constraint_type(const SocketInterfaceKey &key)
+{
+  if (key.matches(stretch_shear_key)) {
+    return ConstraintType::StretchShear;
+  }
+  if (key.matches(bend_twist_key)) {
+    return ConstraintType::BendTwist;
+  }
+  if (key.matches(position_goal_key)) {
+    return ConstraintType::PositionGoal;
+  }
+  if (key.matches(rotation_goal_key)) {
+    return ConstraintType::RotationGoal;
+  }
+  if (key.matches(contact_key)) {
+    return ConstraintType::Contact;
+  }
+
+  BLI_assert_unreachable();
+  return ConstraintType::StretchShear;
+}
 
 void set_constraints(BundlePtr &bundle_ptr,
-                     const SocketInterfaceKey &key,
+                     const ConstraintType type,
                      const bke::GeometrySet &geometry)
 {
   BLI_assert(bundle_ptr->is_mutable());
@@ -1926,16 +1961,18 @@ void set_constraints(BundlePtr &bundle_ptr,
       SOCK_GEOMETRY);
   BLI_assert(geometry_type != nullptr);
 
+  const SocketInterfaceKey &key = constraint_type_to_socket_key(type);
   bundle.remove(key);
   bundle.add(key, *geometry_type, &geometry);
 }
 
-bke::GeometrySet lookup_constraints(const Bundle &bundle, const SocketInterfaceKey &key)
+bke::GeometrySet lookup_constraints(const Bundle &bundle, const ConstraintType type)
 {
   static const bke::bNodeSocketType *geometry_type = bke::node_socket_type_find_static(
       SOCK_GEOMETRY);
   BLI_assert(geometry_type != nullptr);
 
+  const SocketInterfaceKey &key = constraint_type_to_socket_key(type);
   const std::optional<Bundle::Item> value = bundle.lookup(key);
   if (!value) {
     return {};
@@ -1953,41 +1990,31 @@ BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items)
 {
   BundlePtr bundle_ptr = Bundle::create();
 
-  set_constraints(
-      bundle_ptr, ConstraintBundleItems::stretch_constraints_key, items.stretch_constraints);
-  set_constraints(
-      bundle_ptr, ConstraintBundleItems::bending_constraints_key, items.bending_constraints);
-  set_constraints(
-      bundle_ptr, ConstraintBundleItems::position_constraints_key, items.position_constraints);
-  set_constraints(
-      bundle_ptr, ConstraintBundleItems::rotation_constraints_key, items.rotation_constraints);
-  set_constraints(
-      bundle_ptr, ConstraintBundleItems::contact_constraints_key, items.contact_constraints);
+  set_constraints(bundle_ptr, ConstraintType::StretchShear, items.stretch_constraints);
+  set_constraints(bundle_ptr, ConstraintType::BendTwist, items.bending_constraints);
+  set_constraints(bundle_ptr, ConstraintType::PositionGoal, items.position_constraints);
+  set_constraints(bundle_ptr, ConstraintType::RotationGoal, items.rotation_constraints);
+  set_constraints(bundle_ptr, ConstraintType::Contact, items.contact_constraints);
 
   return bundle_ptr;
 }
 
 void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items)
 {
-  items.stretch_constraints = lookup_constraints(bundle,
-                                                 ConstraintBundleItems::stretch_constraints_key);
-  items.bending_constraints = lookup_constraints(bundle,
-                                                 ConstraintBundleItems::bending_constraints_key);
-  items.position_constraints = lookup_constraints(bundle,
-                                                  ConstraintBundleItems::position_constraints_key);
-  items.rotation_constraints = lookup_constraints(bundle,
-                                                  ConstraintBundleItems::rotation_constraints_key);
-  items.contact_constraints = lookup_constraints(bundle,
-                                                 ConstraintBundleItems::contact_constraints_key);
+  items.stretch_constraints = lookup_constraints(bundle, ConstraintType::StretchShear);
+  items.bending_constraints = lookup_constraints(bundle, ConstraintType::BendTwist);
+  items.position_constraints = lookup_constraints(bundle, ConstraintType::PositionGoal);
+  items.rotation_constraints = lookup_constraints(bundle, ConstraintType::RotationGoal);
+  items.contact_constraints = lookup_constraints(bundle, ConstraintType::Contact);
 }
 
-using ConstraintTypeInfoMap = Map<std::string, ConstraintTypeInfo>;
+using ConstraintTypeInfoMap = Map<ConstraintType, ConstraintTypeInfo>;
 
 template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
 {
   ConstraintTypeInfoMap info_map;
   info_map.add_new(
-      ConstraintBundleItems::stretch_constraints_key.identifiers().first(),
+      ConstraintType::StretchShear,
       ConstraintTypeInfo{"Stretch/Shear Constraints",
                          "Enforces edge length and aligns forward direction with the edge vector",
                          2,
@@ -1998,7 +2025,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
                          {},
                          stretch_shear::linear_solve_elements});
   info_map.add_new(
-      ConstraintBundleItems::bending_constraints_key.identifiers().first(),
+      ConstraintType::BendTwist,
       ConstraintTypeInfo{
           "Bend/Twist Constraints",
           "Enforces angles between neighboring edges to their relative rest orientation",
@@ -2009,7 +2036,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
           bend_twist::eval_positions<debug_check>,
           {},
           bend_twist::linear_solve_elements});
-  info_map.add_new(ConstraintBundleItems::position_constraints_key.identifiers().first(),
+  info_map.add_new(ConstraintType::PositionGoal,
                    ConstraintTypeInfo{"Position Goal Constraints",
                                       "Set position of a point to a target vector",
                                       0,
@@ -2019,7 +2046,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
                                       position_goal::eval_positions<debug_check>,
                                       {},
                                       position_goal::linear_solve_elements});
-  info_map.add_new(ConstraintBundleItems::rotation_constraints_key.identifiers().first(),
+  info_map.add_new(ConstraintType::RotationGoal,
                    ConstraintTypeInfo{"Rotation Goal Constraints",
                                       "Set orientation of an edge to a target rotation",
                                       1,
@@ -2029,7 +2056,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
                                       rotation_goal::eval_positions<debug_check>,
                                       {},
                                       rotation_goal::linear_solve_elements});
-  info_map.add_new(ConstraintBundleItems::contact_constraints_key.identifiers().first(),
+  info_map.add_new(ConstraintType::Contact,
                    ConstraintTypeInfo{"Contact Constraints",
                                       "Keep contact points from penetrating",
                                       4,
@@ -2042,12 +2069,11 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
   return info_map;
 }
 
-const ConstraintTypeInfo &get_info(const SocketInterfaceKey &key, const bool debug_check)
+const ConstraintTypeInfo &get_info(const ConstraintType type, const bool debug_check)
 {
   static const ConstraintTypeInfoMap info_map = create_type_info_map<false>();
   static const ConstraintTypeInfoMap info_map_debug = create_type_info_map<true>();
-  return debug_check ? info_map_debug.lookup(key.identifiers().first()) :
-                       info_map.lookup(key.identifiers().first());
+  return debug_check ? info_map_debug.lookup(type) : info_map.lookup(type);
 }
 
 Span<ConstraintTypeInfo> get_constraint_info(const bool debug_output)
@@ -2056,18 +2082,18 @@ Span<ConstraintTypeInfo> get_constraint_info(const bool debug_output)
    * Later constraints have less residual error, and the last constraint type is solved exactly.
    */
   static Array<ConstraintTypeInfo> constraint_info = {
-      get_info(ConstraintBundleItems::bending_constraints_key, true),
-      get_info(ConstraintBundleItems::stretch_constraints_key, true),
-      get_info(ConstraintBundleItems::rotation_constraints_key, true),
-      get_info(ConstraintBundleItems::position_constraints_key, true),
-      get_info(ConstraintBundleItems::contact_constraints_key, true),
+      get_info(ConstraintType::BendTwist, true),
+      get_info(ConstraintType::StretchShear, true),
+      get_info(ConstraintType::RotationGoal, true),
+      get_info(ConstraintType::PositionGoal, true),
+      get_info(ConstraintType::Contact, true),
   };
   static Array<ConstraintTypeInfo> constraint_info_debug = {
-      get_info(ConstraintBundleItems::bending_constraints_key, false),
-      get_info(ConstraintBundleItems::stretch_constraints_key, false),
-      get_info(ConstraintBundleItems::rotation_constraints_key, false),
-      get_info(ConstraintBundleItems::position_constraints_key, false),
-      get_info(ConstraintBundleItems::contact_constraints_key, false),
+      get_info(ConstraintType::BendTwist, false),
+      get_info(ConstraintType::StretchShear, false),
+      get_info(ConstraintType::RotationGoal, false),
+      get_info(ConstraintType::PositionGoal, false),
+      get_info(ConstraintType::Contact, false),
   };
   return debug_output ? constraint_info_debug : constraint_info;
 }

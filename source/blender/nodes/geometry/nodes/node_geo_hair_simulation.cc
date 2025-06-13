@@ -25,6 +25,7 @@ namespace blender::nodes::node_geo_hair_simulation_cc {
 using xpbd_constraints::ConstraintBundleItems;
 using xpbd_constraints::ConstraintEvalData;
 using xpbd_constraints::ConstraintEvalParams;
+using xpbd_constraints::ConstraintType;
 using xpbd_constraints::ConstraintTypeInfo;
 using xpbd_constraints::ConstraintVariables;
 
@@ -70,10 +71,8 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle, const GeometrySe
 
   UNUSED_VARS(hair_geometry);
 
-  xpbd_constraints::set_constraints(
-      bundle, ConstraintBundleItems::stretch_constraints_key, stretch_constraints);
-  xpbd_constraints::set_constraints(
-      bundle, ConstraintBundleItems::bending_constraints_key, bending_constraints);
+  xpbd_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
+  xpbd_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
 }
 
 /* Create root attachment constraints. */
@@ -85,10 +84,8 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
 
   UNUSED_VARS(hair_geometry);
 
-  xpbd_constraints::set_constraints(
-      bundle, ConstraintBundleItems::position_constraints_key, position_constraints);
-  xpbd_constraints::set_constraints(
-      bundle, ConstraintBundleItems::rotation_constraints_key, rotation_constraints);
+  xpbd_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
+  xpbd_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)

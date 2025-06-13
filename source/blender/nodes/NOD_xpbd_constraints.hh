@@ -181,26 +181,13 @@ using ConstraintPositionLinearSolveElementsFunc =
 /** \name Constraint Types
  * \{ */
 
-struct ConstraintBundleItems {
-  static const SocketInterfaceKey stretch_constraints_key;
-  static const SocketInterfaceKey bending_constraints_key;
-  static const SocketInterfaceKey position_constraints_key;
-  static const SocketInterfaceKey rotation_constraints_key;
-  static const SocketInterfaceKey contact_constraints_key;
-
-  bke::GeometrySet stretch_constraints;
-  bke::GeometrySet bending_constraints;
-  bke::GeometrySet position_constraints;
-  bke::GeometrySet rotation_constraints;
-  bke::GeometrySet contact_constraints;
+enum class ConstraintType {
+  StretchShear,
+  BendTwist,
+  PositionGoal,
+  RotationGoal,
+  Contact,
 };
-
-void set_constraints(BundlePtr &bundle_ptr,
-                     const SocketInterfaceKey &key,
-                     const bke::GeometrySet &geometry);
-bke::GeometrySet lookup_constraints(const Bundle &bundle, const SocketInterfaceKey &key);
-BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items);
-void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items);
 
 struct ConstraintTypeInfo {
   using ErrorFn = ConstraintEvalParams::ErrorFn;
@@ -218,10 +205,32 @@ struct ConstraintTypeInfo {
   ConstraintPositionLinearSolveElementsFunc linear_solve_elements;
 };
 
-const ConstraintTypeInfo &get_info(const SocketInterfaceKey &key, bool debug_check);
+const ConstraintTypeInfo &get_info(ConstraintType type, bool debug_check);
 
 Span<ConstraintTypeInfo> get_constraint_info(bool debug_output);
 Span<ConstraintTypeInfo> get_constraint_info_ordered(bool debug_output);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Constraint Bundle Access
+ * \{ */
+
+const SocketInterfaceKey &constraint_type_to_socket_key(ConstraintType type);
+ConstraintType socket_key_to_constraint_type(const SocketInterfaceKey &key);
+
+struct ConstraintBundleItems {
+  bke::GeometrySet stretch_constraints;
+  bke::GeometrySet bending_constraints;
+  bke::GeometrySet position_constraints;
+  bke::GeometrySet rotation_constraints;
+  bke::GeometrySet contact_constraints;
+};
+
+void set_constraints(BundlePtr &bundle_ptr, ConstraintType type, const bke::GeometrySet &geometry);
+bke::GeometrySet lookup_constraints(const Bundle &bundle, ConstraintType type);
+BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items);
+void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items);
 
 /** \} */
 
