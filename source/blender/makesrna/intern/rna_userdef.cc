@@ -7554,8 +7554,7 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop,
       "Write Legacy Blend File Format",
       "Use file format used before Blender 5.0. This format is more limited "
-      "because it can't store individual arrays than 2GB. However, it may have better "
-      "compatibility with tools that don't support the new format yet");
+      "but it may have better compatibility with tools that don't support the new format yet");
 
   prop = RNA_def_property(srna, "use_all_linked_data_direct", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
