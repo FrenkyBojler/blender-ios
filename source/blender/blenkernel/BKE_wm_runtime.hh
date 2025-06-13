@@ -13,9 +13,24 @@ struct GSet;
 struct wmIMEData;
 #endif
 
+#include "BLI_map.hh"
 #include "DNA_windowmanager_types.h"
 
 namespace blender::bke {
+
+struct AssetLibraryLoadingStatus {
+  float timeout;
+  std::chrono::time_point<std::chrono::steady_clock> last_updated_time_point;
+
+  enum Status {
+    Loading,
+    Finished,
+    Cancelled,
+  } status;
+
+  /** Update the last update time point, effectively resetting the timout timer. */
+  void touch();
+};
 
 struct WindowManagerRuntime {
   /** Indicates whether interface is locked for user interaction. */
@@ -40,8 +55,17 @@ struct WindowManagerRuntime {
   /** The current notifier in the `notifier_queue` being handled (clear instead of freeing). */
   const wmNotifier *notifier_current = nullptr;
 
+  Map<std::string /*url*/, AssetLibraryLoadingStatus> asset_library_statuses;
+
   WindowManagerRuntime();
   ~WindowManagerRuntime();
+
+  void asset_library_status_ensure_loading(StringRef url, float timeout);
+  std::optional<AssetLibraryLoadingStatus::Status> asset_library_status_get(StringRef url);
+  void asset_library_status_set_finished(StringRef url);
+  void asset_library_status_set_cancelled(StringRef url);
+
+  void asset_library_status_handle_timeout(StringRef url);
 };
 
 struct WindowRuntime {

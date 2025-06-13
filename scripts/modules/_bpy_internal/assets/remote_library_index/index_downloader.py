@@ -24,9 +24,13 @@ class RemoteAssetListingDownloader:
 
     OnDoneCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
     _on_done_callback: OnDoneCallback
+    OnUpdateCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
+    _on_update_callback: OnUpdateCallback
 
     _bgdownloader: http_dl.BackgroundDownloader
     _num_asset_pages_pending: int
+
+    _is_success: bool
 
     _DOWNLOAD_POLL_INTERVAL: float = 0.01
     """How often the background download process is polled, in seconds.
@@ -39,6 +43,7 @@ class RemoteAssetListingDownloader:
         self,
         remote_url: str,
         local_path: Path | str,
+        on_update_callback: OnUpdateCallback,
         on_done_callback: OnDoneCallback,
     ) -> None:
         """Create a downloader for the remote index of this library.
@@ -60,8 +65,11 @@ class RemoteAssetListingDownloader:
         self._remote_url = remote_url
         self._local_path = Path(local_path)
         self._on_done_callback = on_done_callback
+        self._on_update_callback = on_update_callback
 
         self._num_asset_pages_pending = 0
+        self._is_finished = False
+        self._is_success = False
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event
@@ -198,6 +206,7 @@ class RemoteAssetListingDownloader:
             return
 
         self.report({'INFO'}, "Asset library index downloaded")
+        self._is_success = True
         self.shutdown()
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
@@ -217,6 +226,8 @@ class RemoteAssetListingDownloader:
 
     def shutdown(self) -> None:
         """Stop the background downloader and call the 'done' callback."""
+
+        self._is_finished = True
 
         # The timer is no longer necessary, the bg_downloader.shutdown() call
         # takes care of the last queued messages.
@@ -255,6 +266,8 @@ class RemoteAssetListingDownloader:
                 "Unexpected error downloading remote asset library ilisting from %s to %s",
                 self._remote_url,
                 self._local_path)
+
+        self._on_update_callback(self)
 
         return self._DOWNLOAD_POLL_INTERVAL
 

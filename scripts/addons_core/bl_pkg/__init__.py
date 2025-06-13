@@ -444,10 +444,17 @@ def remote_asset_libraries_sync(library: bpy.types.UserAssetLibrary, *args) -> N
     # Create the downloader and start downloading.
     from _bpy_internal.assets.remote_library_index import index_downloader
 
+    # Communicate to the asset system that we started loading a library. It will let asset browsers
+    # and other UIs displaying this library indicate that loading is ongoing then, until finished.
+    wm = bpy.context.window_manager
+    wm.asset_library_status_is_loading(library.remote_url)
+
     downloader = index_downloader.RemoteAssetListingDownloader(
         library.remote_url,
         library.path,
-        _remote_asset_libraries_sync_done)
+        _remote_asset_libraries_sync_update,
+        _remote_asset_libraries_sync_done,
+    )
     downloader.download_and_process()
 
     # Just to keep the Python object referenced:
@@ -462,6 +469,18 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
     still called.
     """
     _downloaders.remove(downloader)
+
+    wm = bpy.context.window_manager
+    if downloader._is_success:
+        wm.asset_library_status_finished_loading(downloader._remote_url)
+    else:
+        wm.asset_library_status_cancelled_loading(downloader._remote_url)
+
+def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
+    # Only call `asset_library_status_is_loading()` if the loading is still going on.
+    if not downloader._is_finished:
+        wm = bpy.context.window_manager
+        wm.asset_library_status_is_loading(downloader._remote_url)
 
 
 @bpy.app.handlers.persistent

@@ -201,8 +201,8 @@ class ConditionalDownloader:
                         http_req_descr, content_length, num_downloaded_bytes
                     )
 
-                    if num_downloaded_bytes > content_length:
-                        raise ResponseTooLargeError(http_req_descr)
+                    # if num_downloaded_bytes > content_length:
+                    #     raise ResponseTooLargeError(http_req_descr)
 
             # File was downloaded succesfully, store the metadata.
             meta = HTTPMetadata(

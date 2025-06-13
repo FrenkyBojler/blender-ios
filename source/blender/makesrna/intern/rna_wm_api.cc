@@ -781,6 +781,22 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
+static void rna_asset_library_loading_status_is_loading(wmWindowManager *wm,
+                                                        const char *url,
+                                                        float timeout)
+{
+  wm->runtime->asset_library_status_ensure_loading(url, timeout);
+}
+static void rna_asset_library_loading_status_finished_loading(wmWindowManager *wm, const char *url)
+{
+  wm->runtime->asset_library_status_set_finished(url);
+}
+static void rna_asset_library_loading_status_cancelled_loading(wmWindowManager *wm,
+                                                               const char *url)
+{
+  wm->runtime->asset_library_status_set_cancelled(url);
+}
+
 #else
 
 #  define WM_GEN_INVOKE_EVENT (1 << 0)
@@ -1488,6 +1504,44 @@ void RNA_api_keyconfigs(StructRNA *srna)
       false,
       "Keep Properties",
       "Operator properties are kept to allow the operators to be registered again in the future");
+}
+
+void RNA_api_asset_library_loading_status(StructRNA *srna)
+{
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  func = RNA_def_function(
+      srna, "asset_library_status_is_loading", "rna_asset_library_loading_status_is_loading");
+  parm = RNA_def_string(
+      func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_float(
+      func,
+      "timeout",
+      0.3,
+      0.0,
+      FLT_MAX,
+      "Timeout",
+      "Maximum time in seconds after which the asset library loading will be considered "
+      "cancelled, if no further status reporting is done (e.g. by repeated calls to "
+      "`asset_library_status_is_loading()`). Defaults to 0.3 seconds.",
+      0.0,
+      FLT_MAX);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_finished_loading",
+                          "rna_asset_library_loading_status_finished_loading");
+  parm = RNA_def_string(
+      func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_cancelled_loading",
+                          "rna_asset_library_loading_status_cancelled_loading");
+  parm = RNA_def_string(
+      func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 }
 
 #endif

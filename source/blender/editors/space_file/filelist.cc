@@ -9,6 +9,7 @@
 /* global includes */
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -285,6 +286,11 @@ struct FileList {
                        char dirpath[FILE_MAX_LIBEXTRA],
                        const bool do_change);
 
+  /** Called from the main thread when starting the job. */
+  void (*start_read_fn)(FileListReadJob *job_params);
+  /** Called from the main thread in regular intervals, when the read files are pulled into the
+   * main thread's file list. */
+  void (*update_fn)(FileListReadJob *job_params);
   /** Fill `filelist` (to be called by read job). */
   void (*read_job_fn)(FileListReadJob *job_params, bool *stop, bool *do_update, float *progress);
 
@@ -355,6 +361,8 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
                                                   bool *stop,
                                                   bool *do_update,
                                                   float *progress);
+static void filelist_start_read_remote_asset_library(FileListReadJob *job_params);
+static void filelist_update_remote_asset_library(FileListReadJob *job_params);
 static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
                                                bool *stop,
                                                bool *do_update,
@@ -1832,17 +1840,22 @@ void filelist_settype(FileList *filelist, short type)
   filelist->type = (eFileSelectType)type;
   filelist->tags = 0;
   filelist->indexer = &file_indexer_noop;
+  filelist->check_dir_fn = nullptr;
+  filelist->start_read_fn = nullptr;
+  filelist->update_fn = nullptr;
+  filelist->read_job_fn = nullptr;
+  filelist->prepare_filter_fn = nullptr;
+  filelist->filter_fn = nullptr;
+
   switch (filelist->type) {
     case FILE_MAIN:
       filelist->check_dir_fn = filelist_checkdir_main;
       filelist->read_job_fn = filelist_readjob_main;
-      filelist->prepare_filter_fn = nullptr;
       filelist->filter_fn = is_filtered_main;
       break;
     case FILE_LOADLIB:
       filelist->check_dir_fn = filelist_checkdir_lib;
       filelist->read_job_fn = filelist_readjob_lib;
-      filelist->prepare_filter_fn = nullptr;
       filelist->filter_fn = is_filtered_lib;
       break;
     case FILE_ASSET_LIBRARY:
@@ -1861,6 +1874,8 @@ void filelist_settype(FileList *filelist, short type)
       break;
     case FILE_ASSET_LIBRARY_REMOTE:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
+      filelist->start_read_fn = filelist_start_read_remote_asset_library;
+      filelist->update_fn = filelist_update_remote_asset_library;
       filelist->read_job_fn = filelist_readjob_remote_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
@@ -1875,7 +1890,6 @@ void filelist_settype(FileList *filelist, short type)
     default:
       filelist->check_dir_fn = filelist_checkdir_dir;
       filelist->read_job_fn = filelist_readjob_dir;
-      filelist->prepare_filter_fn = nullptr;
       filelist->filter_fn = is_filtered_file;
       break;
   }
@@ -3052,6 +3066,7 @@ struct FileListReadJob {
   blender::Mutex lock;
   char main_filepath[FILE_MAX] = "";
   Main *current_main = nullptr;
+  const wmWindowManager *wm = nullptr;
   FileList *filelist = nullptr;
 
   /** The path currently being read, relative to the filelist root directory. Needed for recursive
@@ -3071,6 +3086,11 @@ struct FileListReadJob {
   /** Trigger a call to #AS_asset_library_load() to update asset catalogs (won't reload the actual
    * assets) */
   bool reload_asset_library = false;
+  /** Is this asset library tagged as loading externally? Used for remote asset libraries to keep
+   * the filelist loading running while the library is being downloaded by other code. */
+  std::atomic<bool> is_asset_library_loading_extern = false;
+  /* TODO flag to let loading know that there are new pages to read. */
+  // std::atomic<bool> is_asset_library_updated_extern = false;
 
   /** Shallow copy of #filelist for thread-safe access.
    *
@@ -4039,6 +4059,10 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
    * below, which is allowed by the API. */
   Vector<index::RemoteListingAssetEntry> entries;
 
+  /* TODO: This has to wait (#readjob_wait_while_asset_library_loading_extern) whenever it's done
+   * reading available pages but loading is still tagged as ongoing. Should continue looking for
+   * pending pages whenever #FileListReadJob.is_asset_library_updated_extern is true. */
+  /* TODO: Somehow ignore old pages. */
   if (!index::read_remote_listing(dirpath, [&](index::RemoteListingAssetEntry &movable_entry) {
         if (*stop) {
           /* Cancel reading when requested. */
@@ -4115,6 +4139,21 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
 #endif
 }
 
+static void readjob_wait_while_asset_library_loading_extern(FileListReadJob *job_params,
+                                                            bool *stop,
+                                                            bool *do_update)
+{
+  while (job_params->is_asset_library_loading_extern) {
+    /* Active waiting. */
+    if (*stop) {
+      return;
+    }
+    /* Always set this to true so the library loading status is queried/updated while the library
+     * is loading. The actual update is only done once per timer step. */
+    *do_update = true;
+  }
+}
+
 static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
                                                   bool *stop,
                                                   bool *do_update,
@@ -4130,6 +4169,11 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
 
   BLI_assert(job_params->filelist->asset_library_ref != nullptr);
 
+  readjob_wait_while_asset_library_loading_extern(job_params, stop, do_update);
+  if (*stop) {
+    return;
+  }
+
   /* NOP if already read. */
   filelist_readjob_load_asset_library_data(job_params, do_update);
 
@@ -4141,6 +4185,35 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
   else {
     filelist_readjob_remote_asset_library_index_read(job_params, stop, do_update, progress);
   }
+}
+
+static void filelist_remote_asset_library_update_loading_flag(FileListReadJob *job_params)
+{
+  bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
+      &U, job_params->filelist->asset_library_ref->custom_library_index);
+
+  if (!library || !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
+    BLI_assert_unreachable();
+    job_params->is_asset_library_loading_extern = false;
+    return;
+  }
+
+  /* On timeout the loading status will be set to cancelled. */
+  job_params->wm->runtime->asset_library_status_handle_timeout(library->remote_url);
+
+  job_params->is_asset_library_loading_extern = job_params->wm->runtime->asset_library_status_get(
+                                                    library->remote_url) ==
+                                                bke::AssetLibraryLoadingStatus::Loading;
+}
+
+static void filelist_start_read_remote_asset_library(FileListReadJob *job_params)
+{
+  filelist_remote_asset_library_update_loading_flag(job_params);
+}
+
+static void filelist_update_remote_asset_library(FileListReadJob *job_params)
+{
+  filelist_remote_asset_library_update_loading_flag(job_params);
 }
 
 static void filelist_readjob_main(FileListReadJob *job_params,
@@ -4234,6 +4307,14 @@ static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
       false);
 }
 
+static void filelist_readjob_initjob(void *flrjv)
+{
+  FileListReadJob *flrj = static_cast<FileListReadJob *>(flrjv);
+  if (flrj->filelist->start_read_fn) {
+    flrj->filelist->start_read_fn(flrj);
+  }
+}
+
 /**
  * Check if the read-job is requesting a partial reread of the file list only.
  */
@@ -4294,6 +4375,10 @@ static void filelist_readjob_update(void *flrjv)
   FileListIntern *fl_intern = &flrj->filelist->filelist_intern;
   ListBase new_entries = {nullptr};
   int entries_num, new_entries_num = 0;
+
+  if (flrj->filelist->update_fn) {
+    flrj->filelist->update_fn(flrj);
+  }
 
   BLI_movelisttolist(&new_entries, &fl_intern->entries);
   entries_num = flrj->filelist->filelist.entries_num;
@@ -4390,6 +4475,7 @@ static void filelist_readjob_start_ex(FileList *filelist,
   flrj = MEM_new<FileListReadJob>(__func__);
   flrj->filelist = filelist;
   flrj->current_main = bmain;
+  flrj->wm = CTX_wm_manager(C);
   STRNCPY(flrj->main_filepath, BKE_main_blendfile_path(bmain));
   if ((filelist->flags & FL_FORCE_RESET_MAIN_FILES) && !(filelist->flags & FL_FORCE_RESET) &&
       (filelist->filelist.entries_num != FILEDIR_NBR_ENTRIES_UNSET))
@@ -4433,7 +4519,7 @@ static void filelist_readjob_start_ex(FileList *filelist,
   WM_jobs_callbacks(wm_job,
                     filelist->asset_library_ref ? assetlibrary_readjob_startjob :
                                                   filelist_readjob_startjob,
-                    nullptr,
+                    filelist_readjob_initjob,
                     filelist_readjob_update,
                     filelist_readjob_endjob);
 
