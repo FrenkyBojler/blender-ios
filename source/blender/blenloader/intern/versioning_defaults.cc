@@ -349,7 +349,7 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   scene->r.cfra = 1.0f;
 
@@ -370,9 +370,11 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
     view_layer->passflag &= ~SCE_PASS_Z;
   }
 
-  /* Display missing media by default. */
   if (scene->ed) {
+    /* Display missing media by default. */
     scene->ed->show_missing_media_flag |= SEQ_EDIT_SHOW_MISSING_MEDIA;
+    /* Turn on frame pre-fetching per default. */
+    scene->ed->cache_flag |= SEQ_CACHE_PREFETCH_ENABLE;
   }
 
   /* New EEVEE defaults. */

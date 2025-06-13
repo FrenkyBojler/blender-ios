@@ -24,7 +24,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
-#include "BLI_convexhull_2d.h"
+#include "BLI_convexhull_2d.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -438,7 +438,7 @@ static bool node_update_basis_buttons(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   uiLayoutSetContextPointer(layout, "node", &nodeptr);
@@ -521,7 +521,7 @@ static bool node_update_basis_socket(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   uiLayout *row = &layout->row(true);
@@ -1154,7 +1154,7 @@ static void node_update_basis_from_declaration(
                                                0,
                                                UI_style_get_dpi());
             if (node.is_muted()) {
-              uiLayoutSetActive(layout, false);
+              layout->active_set(false);
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             uiLayoutSetContextPointer(layout, "node", &node_ptr);
@@ -4775,10 +4775,7 @@ static void find_bounds_by_zone_recursive(const SpaceNode &snode,
   }
 
   Vector<int> convex_indices(possible_bounds.size());
-  const int convex_positions_num = BLI_convexhull_2d(
-      reinterpret_cast<float(*)[2]>(possible_bounds.data()),
-      possible_bounds.size(),
-      convex_indices.data());
+  const int convex_positions_num = BLI_convexhull_2d(possible_bounds, convex_indices.data());
   convex_indices.resize(convex_positions_num);
 
   for (const int i : convex_indices) {
@@ -5190,7 +5187,9 @@ static void node_draw_nodetree(const bContext &C,
   uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
   for (auto &&item : ntree.runtime->link_errors.items()) {
     if (const bNodeLink *link = item.key.try_find(ntree)) {
-      draw_link_errors(C, snode, *link, item.value, invalid_links_block);
+      if (!bke::node_link_is_hidden(*link)) {
+        draw_link_errors(C, snode, *link, item.value, invalid_links_block);
+      }
     }
   }
   UI_block_end(&C, &invalid_links_block);
