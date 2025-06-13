@@ -9,9 +9,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
-#include "BLI_vector.hh"
 
-#include <array>
 #include <functional>
 
 struct Object;
@@ -115,16 +113,6 @@ struct DrawObjectKey {
     }
     return true;
   }
-};
-
-struct DrawInstances {
-  Vector<float4x4, 0> object_to_world;
-  Vector<float4x4, 0> particles_object_to_world;
-  /* Persistent identifier for a dupli object, for inter-frame matching of
-   * objects with motion blur, or inter-update matching for syncing. */
-  Vector<std::array<int, /*MAX_DUPLI_RECUR*/ 8>, 0> persistent_id;
-  /* Random ID for shading */
-  Vector<unsigned int, 0> random_id;
 };
 
 void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback);

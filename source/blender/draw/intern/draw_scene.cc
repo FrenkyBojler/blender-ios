@@ -24,7 +24,6 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
 
   Object tmp_object;
   ObjectRuntimeHandle tmp_runtime;
-  DrawInstances tmp_instances;
 
   const uint64_t last_update = draw_ctx.view_data_active->depsgraph_last_update;
 
@@ -112,30 +111,6 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();
-
-#if 0
-      tmp_instances.object_to_world.clear();
-      tmp_instances.object_to_world.reserve(instances.size());
-      tmp_instances.particles_object_to_world.clear();
-      tmp_instances.particles_object_to_world.reserve(instances.size());
-      tmp_instances.persistent_id.clear();
-      tmp_instances.persistent_id.reserve(instances.size());
-      tmp_instances.random_id.clear();
-      tmp_instances.random_id.reserve(instances.size());
-
-      for (DupliObject *dupli : instances) {
-        tmp_instances.object_to_world.append(float4x4(dupli->mat));
-        if (key.object->particlesystem.first) {
-          /*TODO*/
-          tmp_instances.object_to_world.append({});
-        }
-        tmp_instances.persistent_id.append({});
-        memcpy(tmp_instances.persistent_id.last().data(),
-               dupli->persistent_id,
-               sizeof(dupli->persistent_id));
-        tmp_instances.random_id.append(dupli->random_id);
-      }
-#endif
 
       blender::draw::ObjectRef ob_ref(tmp_object, ob, key, instances);
       callback(ob_ref);
