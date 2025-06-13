@@ -377,21 +377,22 @@ class GlareOperation : public NodeOperation {
            * center of each of the corner 2x2 pixel blocks, which are themselves the average of the
            * 2x2 block due to the bilinear interpolation at the center. */
         case CMP_NODE_GLARE_QUALITY_LOW: {
-          float2 upper_left_coordinates = (float2(texel) + float2(0.25f)) /
-                                          float2(highlights_size);
-          float4 upper_left_color = input.sample_bilinear_extended(upper_left_coordinates);
 
-          float2 upper_right_coordinates = (float2(texel) + float2(0.75f, 0.25f)) /
-                                           float2(highlights_size);
-          float4 upper_right_color = input.sample_bilinear_extended(upper_right_coordinates);
-
-          float2 lower_left_coordinates = (float2(texel) + float2(0.25f, 0.75f)) /
+          float2 lower_left_coordinates = (float2(texel) + float2(0.25f)) /
                                           float2(highlights_size);
           float4 lower_left_color = input.sample_bilinear_extended(lower_left_coordinates);
 
-          float2 lower_right_coordinates = (float2(texel) + float2(0.75f)) /
+          float2 lower_right_coordinates = (float2(texel) + float2(0.75f, 0.25f)) /
                                            float2(highlights_size);
           float4 lower_right_color = input.sample_bilinear_extended(lower_right_coordinates);
+
+          float2 upper_left_coordinates = (float2(texel) + float2(0.25f, 0.75f)) /
+                                          float2(highlights_size);
+          float4 upper_left_color = input.sample_bilinear_extended(upper_left_coordinates);
+
+          float2 upper_right_coordinates = (float2(texel) + float2(0.75f)) /
+                                           float2(highlights_size);
+          float4 upper_right_color = input.sample_bilinear_extended(upper_right_coordinates);
 
           color = (upper_left_color + upper_right_color + lower_left_color + lower_right_color) /
                   4.0f;
