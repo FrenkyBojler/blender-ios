@@ -116,7 +116,8 @@ const UserDef U_default = {
 #else
     .gpu_backend = GPU_BACKEND_OPENGL,
 #endif
-    .max_shader_compilation_subprocesses = 0,
+    .gpu_shader_workers = 0,
+    .shader_compilation_method = USER_SHADER_COMPILE_THREAD,
 
     /** Initialized by: #BKE_studiolight_default. */
     .light_param = {{0}},
@@ -231,7 +232,7 @@ const UserDef U_default = {
     .statusbar_flag = STATUSBAR_SHOW_VERSION | STATUSBAR_SHOW_EXTENSIONS_UPDATES,
     .file_preview_type = USER_FILE_PREVIEW_AUTO,
 
-    .sequencer_editor_flag = USER_SEQ_ED_SIMPLE_TWEAKING | USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
+    .sequencer_editor_flag = USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT,
 
     .runtime =
         {

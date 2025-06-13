@@ -284,7 +284,7 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorAlpha(TH_TEXT, 0.2f);
 
@@ -898,12 +898,18 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   uiBlock &block_ = block();
 
   uiLayout &prev_layout = current_layout();
+
+  const int width = uiLayoutGetWidth(&prev_layout);
+  if (width < int(40 * UI_SCALE_FAC)) {
+    return;
+  }
+
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(&block_);
 
   uiLayout *overlap = &prev_layout.overlap();
 
   if (!item.is_interactive_) {
-    uiLayoutSetActive(overlap, false);
+    overlap->active_set(false);
   }
 
   uiLayout *row = &overlap->row(false);

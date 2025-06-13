@@ -1577,6 +1577,10 @@ typedef struct NodeScaleData {
   short interpolation;
 } NodeScaleData;
 
+typedef struct NodeDisplaceData {
+  short interpolation;
+} NodeDisplaceData;
+
 typedef struct NodePlaneTrackDeformData {
   char tracking_object[64];
   char plane_track_name[64];
@@ -2183,7 +2187,9 @@ typedef struct NodeGeometryClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryClosureInputItem;
 
@@ -2220,7 +2226,9 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryEvaluateClosureInputItem;
 
@@ -2228,7 +2236,9 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  char _pad[2];
+  /** #NodeSocketInterfaceStructureType.  */
+  int8_t structure_type;
+  char _pad[1];
   int identifier;
 } NodeGeometryEvaluateClosureOutputItem;
 
@@ -3007,15 +3017,8 @@ typedef enum CMPNodeInterpolation {
   CMP_NODE_INTERPOLATION_NEAREST = 0,
   CMP_NODE_INTERPOLATION_BILINEAR = 1,
   CMP_NODE_INTERPOLATION_BICUBIC = 2,
+  CMP_NODE_INTERPOLATION_ANISOTROPIC = 3,
 } CMPNodeInterpolation;
-
-/* CornerPin node interpolation option. */
-typedef enum CMPNodeCornerPinInterpolation {
-  CMP_NODE_CORNER_PIN_INTERPOLATION_NEAREST = 0,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BILINEAR = 1,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_BICUBIC = 2,
-  CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC = 3,
-} CMPNodeCornerPinInterpolation;
 
 /* Set Alpha Node. */
 

@@ -1606,6 +1606,11 @@ static void rna_def_userdef_theme_ui_wcol(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Outline", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "outline_sel", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Outline Selected", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "inner", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Inner", "");
@@ -1738,28 +1743,6 @@ static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
-static void rna_def_userdef_theme_ui_panel(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "ThemePanelColors", nullptr);
-  RNA_def_struct_sdna(srna, "uiPanelColors");
-  RNA_def_struct_ui_text(srna, "Theme Panel Color", "Theme settings for panel colors");
-
-  prop = RNA_def_property(srna, "header", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Header", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "sub_back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_ui_text(prop, "Sub Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-}
-
 static const EnumPropertyItem rna_enum_userdef_theme_background_types_items[] = {
     {TH_BACKGROUND_SINGLE_COLOR,
      "SINGLE_COLOR",
@@ -1816,7 +1799,6 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 
   rna_def_userdef_theme_ui_wcol(brna);
   rna_def_userdef_theme_ui_wcol_state(brna);
-  rna_def_userdef_theme_ui_panel(brna);
   rna_def_userdef_theme_ui_gradient(brna);
 
   srna = RNA_def_struct(brna, "ThemeUserInterface", nullptr);
@@ -1987,6 +1969,18 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
       prop, "Panel Roundness", "Roundness of the corners of panels and sub-panels");
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_float_default(prop, 0.4f);
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_header", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Panel Header", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Panel Background", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_sub_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Sub-Panel Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Transparent Grid */
@@ -2160,12 +2154,6 @@ static void rna_def_userdef_theme_space_common(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Header Text Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
-  /* panel settings */
-  prop = RNA_def_property(srna, "panelcolors", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_NEVER_NULL);
-  RNA_def_property_ui_text(prop, "Panel Colors", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   /* buttons */
   // if (!ELEM(spacetype, SPACE_PROPERTIES, SPACE_OUTLINER)) {
   prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -2199,27 +2187,10 @@ static void rna_def_userdef_theme_space_common(StructRNA *srna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* tabs */
-  prop = RNA_def_property(srna, "tab_active", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Tab Active", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "tab_inactive", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Tab Inactive", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
   prop = RNA_def_property(srna, "tab_back", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Tab Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "tab_outline", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Tab Outline", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  // }
 }
 
 static void rna_def_userdef_theme_space_gradient(BlenderRNA *brna)
@@ -5869,12 +5840,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Sculpt/Paint Overlay Color", "Color of texture overlay");
 
   /* VSE */
-  prop = RNA_def_property(srna, "use_sequencer_simplified_tweaking", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_SIMPLE_TWEAKING);
-  RNA_def_property_ui_text(
-      prop, "Tweak Handles", "Allows dragging handles without selecting them first");
-
   prop = RNA_def_property(srna, "connect_strips_by_default", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
       prop, nullptr, "sequencer_editor_flag", USER_SEQ_ED_CONNECT_STRIPS_BY_DEFAULT);
@@ -6352,14 +6317,36 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Preferred device to select during detection (requires restarting "
                            "Blender for changes to take effect)");
 
-  prop = RNA_def_property(srna, "max_shader_compilation_subprocesses", PROP_INT, PROP_NONE);
-  RNA_def_property_range(prop, 0, INT16_MAX);
+  prop = RNA_def_property(srna, "gpu_shader_workers", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, 32);
   RNA_def_property_ui_text(prop,
-                           "Max Shader Compilation Subprocesses",
-                           "Max number of parallel shader compilation subprocesses, "
+                           "Shader Compilation Workers",
+                           "Number of shader compilation threads or subprocesses, "
                            "clamped at the max threads supported by the CPU "
                            "(requires restarting Blender for changes to take effect). "
-                           "Setting it to 0 disables subprocess shader compilation.");
+                           "A higher number increases the RAM usage while reducing "
+                           "compilation time. A value of 0 will use automatic configuration. "
+                           "(OpenGL only)");
+
+  static const EnumPropertyItem shader_compilation_method_items[] = {
+      {USER_SHADER_COMPILE_THREAD, "THREAD", 0, "Thread", "Use threads for compiling shaders"},
+      {USER_SHADER_COMPILE_SUBPROCESS,
+       "SUBPROCESS",
+       0,
+       "Subprocess",
+       "Use subprocesses for compiling shaders"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "shader_compilation_method", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, shader_compilation_method_items);
+  RNA_def_property_ui_text(prop,
+                           "Shader Compilation Method",
+                           "Compilation method used for compiling shaders in parallel. "
+                           "Subprocess requires a lot more RAM for each worker "
+                           "but might compile shaders faster on some systems. "
+                           "Requires restarting Blender for changes to take effect. "
+                           "(OpenGL only)");
 
   /* Network. */
 
