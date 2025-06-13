@@ -449,7 +449,14 @@ Using low-level functions:
    obj = bpy.context.object
    obj.animation_data_create()
    obj.animation_data.action = bpy.data.actions.new(name="MyAction")
-   fcu_z = obj.animation_data.action.fcurves.new(data_path="location", index=2)
+   
+   strip = obj.animation_data.action.layers.new("MyLayer").strips.new()
+   slot = obj.animation_data.action.slots.new(obj.id_type, "MySlot")
+   obj.animation_data.action_slot = slot
+   channelbag = strip.channelbag(slot, ensure=True)
+   
+   fcu_z = channelbag.fcurves.new(data_path="location", index=2)
    fcu_z.keyframe_points.add(2)
    fcu_z.keyframe_points[0].co = 10.0, 0.0
    fcu_z.keyframe_points[1].co = 20.0, 1.0
+   
