@@ -30,8 +30,9 @@ bool eval_begin(Subdiv *subdiv,
                 OpenSubdiv_EvaluatorCache *evaluator_cache,
                 const OpenSubdiv_EvaluatorSettings *settings);
 
-/* coarse_vertex_cos is an optional argument which allows to override coordinates of the coarse
- * mesh. */
+/**
+ * \param coarse_vert_positions optional span of positions to override the mesh positions
+ */
 bool eval_begin_from_mesh(Subdiv *subdiv,
                           const Mesh *mesh,
                           Span<float3> coarse_vert_positions,
@@ -61,11 +62,8 @@ void eval_limit_point_and_normal(
     Subdiv *subdiv, int ptex_face_index, float u, float v, float r_P[3], float r_N[3]);
 
 /* Evaluate smoothly interpolated vertex data (such as ORCO). */
-void eval_vertex_data(Subdiv *subdiv,
-                      const int ptex_face_index,
-                      const float u,
-                      const float v,
-                      float r_vertex_data[]);
+void eval_vertex_data(
+    Subdiv *subdiv, int ptex_face_index, float u, float v, float r_vertex_data[]);
 
 /* Evaluate face-varying layer (such as UV). */
 void eval_face_varying(Subdiv *subdiv,
