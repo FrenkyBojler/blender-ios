@@ -223,30 +223,31 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   return std::nullopt;
 }
 
-VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_path,
+VariableMap BKE_build_template_variables_for_render_path(const char *library_blend_file_path,
                                                          const Scene *scene)
 {
   VariableMap variables;
-
-  /* ID-specific blend filepath variables. */
-  if (blend_file_path) {
-    variables.add_filename("blend_name", blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_name(
-        "blend_dir_name", blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_abs_path(
-        "blend_dir", blend_file_path, blender::StringRef(DATA_("Unsaved")));
-  }
 
   /* Global blend filepath variables. */
   {
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
     variables.add_filename(
-        "blend_name_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_name_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_name(
-        "blend_dir_name_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_name_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_abs_path(
-        "blend_dir_global", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+  }
+
+  /* ID-owning blend filepath variables. */
+  if (library_blend_file_path) {
+    variables.add_filename(
+        "blend_name", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_name(
+        "blend_dir_name", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_parent_directory_abs_path(
+        "blend_dir", library_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
   /* Render resolution and fps. */

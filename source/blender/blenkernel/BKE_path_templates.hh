@@ -169,12 +169,10 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  * This is typically used to create the variables passed to
  * `BKE_path_apply_template()`.
  *
- * \param blend_file_path: full path to the blend file, including the file name.
- * Typically you should fetch this with `ID_BLEND_PATH()`, but there are
- * exceptions. The key thing is that this should be the path to the *relevant*
- * blend file for the context that the variables are going to be used in. For
- * example, if the context is a linked ID then this path should (very likely) be
- * the path to that ID's library blend file, not the currently opened one.
+ * \param library_blend_file_path: full path (including the file name) to the
+ * blend file that actually contains the ID that the path being evaluated is
+ * from. Typically you should fetch this with `ID_BLEND_PATH()`, but there are
+ * exceptions.
  *
  * \param render_data: used for output resolution and fps. Note for the future:
  * when we add a "current frame number" variable it should *not* come from this
