@@ -6,6 +6,7 @@
  * \ingroup cmpnodes
  */
 
+#include "BLI_assert.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -16,6 +17,7 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "COM_domain.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -123,7 +125,7 @@ class MapUVOperation : public NodeOperation {
     }
 
     if (this->get_nearest_neighbour()) {
-      this->execute_cpu_nearest();
+      this->execute_cpu_interpolation();
     }
     else {
       this->execute_cpu_anisotropic();
@@ -153,19 +155,34 @@ class MapUVOperation : public NodeOperation {
     output.set_single_value(result);
   }
 
-  void execute_cpu_nearest()
+  void execute_cpu_interpolation()
   {
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
 
     const Domain domain = compute_domain();
+    const Interpolation interpolation = this->get_interpolation();
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
 
-      float4 sampled_color = input_image.sample_nearest_zero(uv_coordinates);
+      switch (interpolation) {
+        /* Anisotropic is handled separately. */
+        case Interpolation::Anisotropic:
+          BLI_assert_unreachable();
+          break;
+        case Interpolation::Nearest:
+          float4 sampled_color = input_image.sample_nearest_zero(uv_coordinates);
+          break;
+        case Interpolation::Bilinear:
+          float4 sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
+          break;
+        case Interpolation::Bicubic:
+          float4 sampled_color = input_image.sample_cubic_zero(uv_coordinates);
+          break;
+      }
 
       /* The UV input is assumed to contain an alpha channel as its third channel, since the
        * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
@@ -254,6 +271,23 @@ class MapUVOperation : public NodeOperation {
         compute_pixel(upper_right_texel, upper_right_uv, upper_x_gradient, right_y_gradient);
       }
     });
+  }
+
+  Interpolation get_interpolation() const
+  {
+    switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    BLI_assert_unreachable();
+    return Interpolation::Nearest;
   }
 
   bool get_nearest_neighbour()
