@@ -352,19 +352,16 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
-    const int quality = node_storage(bnode()).quality;
-
     parallel_for(highlights_size, [&](const int2 texel) {
       float4 color = float4(0.0f);
 
-      switch (quality) {
+      switch (static_cast<CMPNodeGlareQuality>(node_storage(bnode()).quality)) {
         case CMP_NODE_GLARE_QUALITY_HIGH: {
           color = input.load_pixel<float4>(texel);
           break;
         }
 
-        /* Medium Quality:
-         * Down-sample the image 2 times to match the output size by averaging the 2x2 block of
+        /* Down-sample the image 2 times to match the output size by averaging the 2x2 block of
          * pixels into a single output pixel. This is done due to the bilinear interpolation at the
          * center of the 2x2 block of pixels */
         case CMP_NODE_GLARE_QUALITY_MEDIUM: {
@@ -373,8 +370,7 @@ class GlareOperation : public NodeOperation {
           break;
         }
 
-          /* Low Quality:
-           * Down-sample the image 4 times to match the output size by averaging each 4x4 block of
+          /* Down-sample the image 4 times to match the output size by averaging each 4x4 block of
            * pixels into a single output pixel. This is done by averaging 4 bilinear taps at the
            * center of each of the corner 2x2 pixel blocks, which are themselves the average of the
            * 2x2 block due to the bilinear interpolation at the center. */

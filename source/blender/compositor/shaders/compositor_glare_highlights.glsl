@@ -78,8 +78,7 @@ void main()
       break;
     }
 
-    /* Medium Quality:
-     * Down-sample the image 2 times to match the output size by averaging the 2x2 block of
+    /* Down-sample the image 2 times to match the output size by averaging the 2x2 block of
      * pixels into a single output pixel. This is done due to the bilinear interpolation at the
      * center of the 2x2 block of pixels */
     case CMP_NODE_GLARE_QUALITY_MEDIUM: {
@@ -88,8 +87,7 @@ void main()
       break;
     }
 
-    /* Low Quality:
-     * Down-sample the image 4 times to match the output size by averaging each 4x4 block of
+    /* Down-sample the image 4 times to match the output size by averaging each 4x4 block of
      * pixels into a single output pixel. This is done by averaging 4 bilinear taps at the
      * center of each of the corner 2x2 pixel blocks, which are themselves the average of the
      * 2x2 block due to the bilinear interpolation at the center. */
