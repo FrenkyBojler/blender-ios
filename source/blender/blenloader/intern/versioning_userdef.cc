@@ -294,6 +294,12 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
                      U_theme_default.tui.wcol_tooltip.outline);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 9)) {
+    copy_v4_v4_uchar(btheme->tui.panel_header, U_theme_default.tui.panel_header);
+    copy_v4_v4_uchar(btheme->tui.panel_back, U_theme_default.tui.panel_back);
+    copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
@@ -1551,6 +1557,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->gpu_shader_workers > 0) {
       userdef->shader_compilation_method = USER_SHADER_COMPILE_SUBPROCESS;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 11)) {
+    userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
   }
 
   /**
