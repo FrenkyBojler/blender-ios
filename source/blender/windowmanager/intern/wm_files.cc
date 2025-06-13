@@ -3738,11 +3738,6 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     do {
       num++;
       tries++;
-      /* FIXME: MAX_ID_NAME & FILE_MAXFILE
-       *
-       * Seems like this can also overflow, since there does not seem to be any check for the
-       * 'filename' part of the filepath?
-       */
       BLI_path_sequence_encode(filepath, sizeof(filepath), head, tail, digits, num);
       in_use = BLI_exists(filepath);
     } while (in_use && tries < tries_limit && num < INT_MAX);

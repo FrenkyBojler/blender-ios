@@ -1036,8 +1036,8 @@ static void render_result_exr_file_cache_path(Scene *sce,
 
   /* FIXME: MAX_ID_NAME & FILE_MAXFILE
    *
-   * This can already easily overflow I think? `filename` itself is already `FILE_MAXFILE`, and
-   * initialized from the blendfile name itself.
+   * If #filename is already long (it is initialized from the blend-file name itself), adding the
+   * scene name can cause the file name to be truncated.
    */
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
