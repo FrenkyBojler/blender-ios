@@ -1976,109 +1976,71 @@ void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &ite
                                                  ConstraintBundleItems::contact_constraints_key);
 }
 
-template<bool debug_output> static ConstraintTypeInfo create_info__position_goal()
-{
-  return ConstraintTypeInfo{"Position Goal Constraints",
-                            "Set position of a point to a target vector",
-                            0,
-                            position_goal::get_size,
-                            position_goal::get_variable_indices,
-                            position_goal::init_step,
-                            position_goal::eval_positions<debug_output>,
-                            {},
-                            position_goal::linear_solve_elements};
-}
-
-template<bool debug_output> static ConstraintTypeInfo create_info__rotation_goal()
-{
-  return ConstraintTypeInfo{"Rotation Goal Constraints",
-                            "Set orientation of an edge to a target rotation",
-                            1,
-                            rotation_goal::get_size,
-                            rotation_goal::get_variable_indices,
-                            rotation_goal::init_step,
-                            rotation_goal::eval_positions<debug_output>,
-                            {},
-                            rotation_goal::linear_solve_elements};
-}
-
-template<bool debug_output> static ConstraintTypeInfo create_info__stretch_shear()
-{
-  return ConstraintTypeInfo{
-      "Stretch/Shear Constraints",
-      "Enforces edge length and aligns forward direction with the edge vector",
-      2,
-      stretch_shear::get_size,
-      stretch_shear::get_variable_indices,
-      stretch_shear::init_step,
-      stretch_shear::eval_positions<debug_output>,
-      {},
-      stretch_shear::linear_solve_elements};
-}
-
-template<bool debug_output> static ConstraintTypeInfo create_info__bend_twist()
-{
-  return ConstraintTypeInfo{
-      "Bend/Twist Constraints",
-      "Enforces angles between neighboring edges to their relative rest orientation",
-      3,
-      bend_twist::get_size,
-      bend_twist::get_variable_indices,
-      bend_twist::init_step,
-      bend_twist::eval_positions<debug_output>,
-      {},
-      bend_twist::linear_solve_elements};
-}
-
-template<bool debug_output> static ConstraintTypeInfo create_info__contact()
-{
-  return ConstraintTypeInfo{"Contact Constraints",
-                            "Keep contact points from penetrating",
-                            4,
-                            contact::get_size,
-                            contact::get_variable_indices,
-                            contact::init_step,
-                            contact::eval_positions<debug_output>,
-                            contact::eval_velocities<debug_output>,
-                            contact::linear_solve_elements};
-}
-
 using ConstraintTypeInfoMap = Map<std::string, ConstraintTypeInfo>;
 
-static ConstraintTypeInfoMap create_type_info_map(const bool debug_check)
+template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
 {
   ConstraintTypeInfoMap info_map;
-  if (debug_check) {
-    info_map.add_new(ConstraintBundleItems::stretch_constraints_key.identifiers().first(),
-                     create_info__stretch_shear<true>());
-    info_map.add_new(ConstraintBundleItems::bending_constraints_key.identifiers().first(),
-                     create_info__bend_twist<true>());
-    info_map.add_new(ConstraintBundleItems::position_constraints_key.identifiers().first(),
-                     create_info__position_goal<true>());
-    info_map.add_new(ConstraintBundleItems::rotation_constraints_key.identifiers().first(),
-                     create_info__rotation_goal<true>());
-    info_map.add_new(ConstraintBundleItems::contact_constraints_key.identifiers().first(),
-                     create_info__contact<true>());
-  }
-  else {
-    info_map.add_new(ConstraintBundleItems::stretch_constraints_key.identifiers().first(),
-                     create_info__stretch_shear<false>());
-    info_map.add_new(ConstraintBundleItems::bending_constraints_key.identifiers().first(),
-                     create_info__bend_twist<false>());
-    info_map.add_new(ConstraintBundleItems::position_constraints_key.identifiers().first(),
-                     create_info__position_goal<false>());
-    info_map.add_new(ConstraintBundleItems::rotation_constraints_key.identifiers().first(),
-                     create_info__rotation_goal<false>());
-    info_map.add_new(ConstraintBundleItems::contact_constraints_key.identifiers().first(),
-                     create_info__contact<false>());
-  }
+  info_map.add_new(
+      ConstraintBundleItems::stretch_constraints_key.identifiers().first(),
+      ConstraintTypeInfo{"Stretch/Shear Constraints",
+                         "Enforces edge length and aligns forward direction with the edge vector",
+                         2,
+                         stretch_shear::get_size,
+                         stretch_shear::get_variable_indices,
+                         stretch_shear::init_step,
+                         stretch_shear::eval_positions<debug_check>,
+                         {},
+                         stretch_shear::linear_solve_elements});
+  info_map.add_new(
+      ConstraintBundleItems::bending_constraints_key.identifiers().first(),
+      ConstraintTypeInfo{
+          "Bend/Twist Constraints",
+          "Enforces angles between neighboring edges to their relative rest orientation",
+          3,
+          bend_twist::get_size,
+          bend_twist::get_variable_indices,
+          bend_twist::init_step,
+          bend_twist::eval_positions<debug_check>,
+          {},
+          bend_twist::linear_solve_elements});
+  info_map.add_new(ConstraintBundleItems::position_constraints_key.identifiers().first(),
+                   ConstraintTypeInfo{"Position Goal Constraints",
+                                      "Set position of a point to a target vector",
+                                      0,
+                                      position_goal::get_size,
+                                      position_goal::get_variable_indices,
+                                      position_goal::init_step,
+                                      position_goal::eval_positions<debug_check>,
+                                      {},
+                                      position_goal::linear_solve_elements});
+  info_map.add_new(ConstraintBundleItems::rotation_constraints_key.identifiers().first(),
+                   ConstraintTypeInfo{"Rotation Goal Constraints",
+                                      "Set orientation of an edge to a target rotation",
+                                      1,
+                                      rotation_goal::get_size,
+                                      rotation_goal::get_variable_indices,
+                                      rotation_goal::init_step,
+                                      rotation_goal::eval_positions<debug_check>,
+                                      {},
+                                      rotation_goal::linear_solve_elements});
+  info_map.add_new(ConstraintBundleItems::contact_constraints_key.identifiers().first(),
+                   ConstraintTypeInfo{"Contact Constraints",
+                                      "Keep contact points from penetrating",
+                                      4,
+                                      contact::get_size,
+                                      contact::get_variable_indices,
+                                      contact::init_step,
+                                      contact::eval_positions<debug_check>,
+                                      contact::eval_velocities<debug_check>,
+                                      contact::linear_solve_elements});
   return info_map;
 }
 
 const ConstraintTypeInfo &get_info(const SocketInterfaceKey &key, const bool debug_check)
 {
-  static const ConstraintTypeInfoMap info_map = create_type_info_map(false);
-  static const ConstraintTypeInfoMap info_map_debug = create_type_info_map(true);
+  static const ConstraintTypeInfoMap info_map = create_type_info_map<false>();
+  static const ConstraintTypeInfoMap info_map_debug = create_type_info_map<true>();
   return debug_check ? info_map_debug.lookup(key.identifiers().first()) :
                        info_map.lookup(key.identifiers().first());
 }
