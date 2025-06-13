@@ -1002,22 +1002,33 @@ static inline void sort_points(int2 &p1, int2 &p2)
   }
 }
 
-/* Ensures that the x and y distance to from p1 to p2 is equal. The two points can be in any
- * spacial relation to each other i.e. if p1 was top left, it remains top left. */
-static inline void square_points(const int2 &p1, int2 &p2)
+/* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
+ * fully within the window bounds. The two points can be in any spacial relation to each other i.e.
+ * if p1 was top left, it remains top left. */
+static inline void square_points_clamped_to_window(const int2 &p1,
+                                                   int2 &p2,
+                                                   const wmWindow *window)
 {
   int2 delta = p2 - p1;
 
+  /* Determine the drag direction for each axis. */
+  const int dir_x = (delta.x >= 0) ? 1 : -1;
+  const int dir_y = (delta.y >= 0) ? 1 : -1;
+
   const int size_x = std::abs(delta.x);
   const int size_y = std::abs(delta.y);
-  if (size_x < size_y) {
-    delta.x = std::copysignf(size_y, delta.x);
-  }
-  else if (size_y < size_x) {
-    delta.y = std::copysign(size_x, delta.y);
-  }
-  p2.x = p1.x + delta.x;
-  p2.y = p1.y + delta.y;
+  int square_size = std::max(size_x, size_y);
+
+  /* Compute maximum size that fits within window bounds in the drag direction. */
+  const int max_size_x = (dir_x > 0) ? window->sizex - p1.x - 1 : p1.x;
+  const int max_size_y = (dir_y > 0) ? window->sizey - p1.y - 1 : p1.y;
+
+  /* Clamp the square size so it does not exceed window bounds. */
+  square_size = std::min(square_size, std::min(max_size_x, max_size_y));
+
+  /* Update p2 to form a clamped square in the same direction as the drag. */
+  p2.x = p1.x + dir_x * square_size;
+  p2.y = p1.y + dir_y * square_size;
 }
 
 static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
@@ -1336,23 +1347,9 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
         if (data->crossed_threshold) {
           if (data->force_square) {
-            int2 temp_p1 = data->p1;
-            int2 temp_p2 = data->drag_end;
-            square_points(temp_p1, temp_p2);
-
-            /* Check if the resulting square is fully within the window. */
-            if (is_within_window(temp_p1) && is_within_window(temp_p2)) {
-              data->p2 = temp_p2;
-            }
-            else {
-              /* Clamp to window boundaries, which may turn the shape into a rectangle if the
-               * square would extend outside the window. */
-              data->p2 = clamp_to_window(temp_p2);
-            }
+            square_points_clamped_to_window(data->p1, data->drag_end, win);
           }
-          else {
-            data->p2 = data->drag_end;
-          }
+          data->p2 = data->drag_end;
         }
       }
 
