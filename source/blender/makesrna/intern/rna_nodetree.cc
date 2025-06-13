@@ -8700,9 +8700,12 @@ static void def_cmp_map_uv(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
 
+  // TODO: change this to use the filter
   static const EnumPropertyItem filter_type_items[] = {
-      {CMP_NODE_MAP_UV_FILTERING_NEAREST, "NEAREST", 0, "Nearest", ""},
-      {CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC, "ANISOTROPIC", 0, "Anisotropic", ""},
+      {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", ""},
+      {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", ""},
+      {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", ""},
+      {CMP_NODE_INTERPOLATION_ANISOTROPIC, "ANISOTROPIC", 0, "Anisotropic", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

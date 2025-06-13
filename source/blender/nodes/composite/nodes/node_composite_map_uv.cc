@@ -11,6 +11,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_node_types.h"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
@@ -50,7 +51,7 @@ static void node_composit_buts_map_uv(uiLayout *layout, bContext * /*C*/, Pointe
 
 static void node_composit_init_map_uv(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->custom2 = CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC;
+  node->custom2 = CMP_NODE_INTERPOLATION_ANISOTROPIC;
 }
 
 using namespace blender::compositor;
@@ -78,17 +79,20 @@ class MapUVOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader(get_shader_name());
+    const Interpolation interpolation = this->get_interpolation();
+    GPUShader *shader = context().get_shader(this->get_shader_name(interpolation));
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
-    if (this->get_nearest_neighbour()) {
-      GPU_texture_mipmap_mode(input_image, false, false);
-      GPU_texture_anisotropic_filter(input_image, false);
+    if (interpolation == Interpolation::Anisotropic) {
+      GPU_texture_anisotropic_filter(input_image, true);
+      GPU_texture_mipmap_mode(input_image, true, true);
     }
     else {
-      GPU_texture_mipmap_mode(input_image, true, true);
-      GPU_texture_anisotropic_filter(input_image, true);
+      const bool use_bilinear = ELEM(
+          interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
+      GPU_texture_filter_mode(input_image, use_bilinear);
+      GPU_texture_mipmap_mode(input_image, false, false);
     }
 
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
@@ -110,35 +114,60 @@ class MapUVOperation : public NodeOperation {
     GPU_shader_unbind();
   }
 
-  char const *get_shader_name()
+  char const *get_shader_name(const Interpolation &interpolation)
   {
-    return get_nearest_neighbour() ? "compositor_map_uv_nearest_neighbour" :
-                                     "compositor_map_uv_anisotropic";
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_map_uv_anisotropic";
+        break;
+      case Interpolation::Nearest:
+      case Interpolation::Bilinear:
+      case Interpolation::Bicubic:
+        return "compositor_map_uv";
+        break;
+    }
+
+    BLI_assert_unreachable();
+    return "compositor_map_uv";
   }
 
   void execute_cpu()
   {
+    const Interpolation interpolation = this->get_interpolation();
     const Result &input_uv = get_input("UV");
     if (input_uv.is_single_value()) {
-      this->execute_single_cpu();
+      this->execute_single_cpu(interpolation);
       return;
     }
-
-    if (this->get_nearest_neighbour()) {
-      this->execute_cpu_interpolation();
+    if (interpolation == Interpolation::Anisotropic) {
+      this->execute_cpu_anisotropic();
     }
     else {
-      this->execute_cpu_anisotropic();
+      this->execute_cpu_interpolation(interpolation);
     }
   }
 
-  void execute_single_cpu()
+  void execute_single_cpu(const Interpolation &interpolation)
   {
     const Result &input_uv = get_input("UV");
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color = input_image.sample_nearest_zero(uv_coordinates);
+    float4 sampled_color{};
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        BLI_assert_unreachable();
+        break;
+      case Interpolation::Nearest:
+        sampled_color = input_image.sample_nearest_zero(uv_coordinates);
+        break;
+      case Interpolation::Bilinear:
+        sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
+        break;
+      case Interpolation::Bicubic:
+        sampled_color = input_image.sample_cubic_wrap(uv_coordinates, false, false);
+        break;
+    }
 
     /* The UV input is assumed to contain an alpha channel as its third channel, since the
      * UV coordinates might be defined in only a subset area of the UV texture as mentioned.
@@ -155,7 +184,7 @@ class MapUVOperation : public NodeOperation {
     output.set_single_value(result);
   }
 
-  void execute_cpu_interpolation()
+  void execute_cpu_interpolation(const Interpolation &interpolation)
   {
     const Result &input_image = get_input("Image");
     const Result &input_uv = get_input("UV");
@@ -167,6 +196,7 @@ class MapUVOperation : public NodeOperation {
 
     parallel_for(domain.size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
+      float4 sampled_color{};
 
       switch (interpolation) {
         /* Anisotropic is handled separately. */
@@ -174,13 +204,13 @@ class MapUVOperation : public NodeOperation {
           BLI_assert_unreachable();
           break;
         case Interpolation::Nearest:
-          float4 sampled_color = input_image.sample_nearest_zero(uv_coordinates);
+          sampled_color = input_image.sample_nearest_zero(uv_coordinates);
           break;
         case Interpolation::Bilinear:
-          float4 sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
+          sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
           break;
         case Interpolation::Bicubic:
-          float4 sampled_color = input_image.sample_cubic_zero(uv_coordinates);
+          sampled_color = input_image.sample_cubic_wrap(uv_coordinates, false, false);
           break;
       }
 
@@ -275,7 +305,7 @@ class MapUVOperation : public NodeOperation {
 
   Interpolation get_interpolation() const
   {
-    switch (node_storage(bnode()).interpolation) {
+    switch (static_cast<CMPNodeInterpolation>(bnode().custom2)) {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
         return Interpolation::Anisotropic;
       case CMP_NODE_INTERPOLATION_NEAREST:
@@ -288,11 +318,6 @@ class MapUVOperation : public NodeOperation {
 
     BLI_assert_unreachable();
     return Interpolation::Nearest;
-  }
-
-  bool get_nearest_neighbour()
-  {
-    return bnode().custom2 == CMP_NODE_MAP_UV_FILTERING_NEAREST;
   }
 };
 
