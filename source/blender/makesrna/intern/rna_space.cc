@@ -3797,11 +3797,25 @@ static void rna_def_space_generic_show_region_toggles(StructRNA *srna, int regio
   }
   if (region_type_mask & (1 << RGN_TYPE_HEADER)) {
     region_type_mask &= ~(1 << RGN_TYPE_HEADER);
-    DEF_SHOW_REGION_PROPERTY(show_region_header, "Header", "");
+    prop = RNA_def_property(srna, "show_region_header", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_header_get),
+                                   STRINGIFY(rna_Space_show_region_header_set));
+    RNA_def_property_ui_text(prop, "Header", "");
+    RNA_def_property_ui_icon(prop, ICON_HEADER_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_header_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_FOOTER)) {
     region_type_mask &= ~(1 << RGN_TYPE_FOOTER);
-    DEF_SHOW_REGION_PROPERTY(show_region_footer, "Footer", "");
+    prop = RNA_def_property(srna, "show_region_footer", PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+    RNA_def_property_boolean_funcs(prop,
+                                   STRINGIFY(rna_Space_show_region_footer_get),
+                                   STRINGIFY(rna_Space_show_region_footer_set));
+    RNA_def_property_ui_text(prop, "Footer", "");
+    RNA_def_property_ui_icon(prop, ICON_HEADER_OFF, 1);
+    RNA_def_property_update(prop, 0, STRINGIFY(rna_Space_show_region_footer_update));
   }
   if (region_type_mask & (1 << RGN_TYPE_TOOLS)) {
     region_type_mask &= ~(1 << RGN_TYPE_TOOLS);

@@ -210,21 +210,21 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZone *az)
   switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:
       x = x1 + (2.0f * UI_SCALE_FAC);
-      y = y1 - (az->active ? 4.0f : 3.0f * UI_SCALE_FAC);
+      y = y1 - (az->active ? 4.0f : 3.0f) * UI_SCALE_FAC;
       icon = ICON_REGION_TOP;
       break;
     case AE_TOP_TO_BOTTOMRIGHT:
       x = x1 + (2.0f * UI_SCALE_FAC);
-      y = y1 - (az->active ? 2.0f : 3.0f * UI_SCALE_FAC);
+      y = y1 - (az->active ? 2.0f : 3.0f) * UI_SCALE_FAC;
       icon = ICON_REGION_BOTTOM;
       break;
     case AE_LEFT_TO_TOPRIGHT:
-      x = x1 - (az->active ? 4.0f : 3.0f * UI_SCALE_FAC);
+      x = x1 - (az->active ? 4.0f : 3.0f) * UI_SCALE_FAC;
       y = y1 + (2.0f * UI_SCALE_FAC);
       icon = ICON_REGION_RIGHT;
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      x = x1 - (az->active ? 2.0f : 3.0f * UI_SCALE_FAC);
+      x = x1 - (az->active ? 2.0f : 3.0f) * UI_SCALE_FAC;
       y = y1 + (2.0f * UI_SCALE_FAC);
       icon = ICON_REGION_LEFT;
       break;
