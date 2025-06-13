@@ -849,8 +849,6 @@ static void draw_marker_areas(SpaceClip *sc,
   ClipShaderState shader_data_point = {
       GPU_SHADER_3D_POINT_UNIFORM_COLOR, tiny ? 1.0f : 2.0f, 0.0f};
 
-  GPU_line_width(1.0f);
-
   /* marker position and offset position */
   if ((track->flag & SELECT) == sel && (marker->flag & MARKER_DISABLED) == 0) {
     float pos[2], p[2];
@@ -975,6 +973,8 @@ static void draw_marker_areas(SpaceClip *sc,
 
   GPU_matrix_pop();
 
+  /* Unbinding active shader to ensure the new vertex format gets packed. */
+  clip_unbind_shader(shader_state);
   const uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   BLI_assert(pos == shdr_pos);
@@ -1042,11 +1042,6 @@ static void draw_marker_slide_zones(SpaceClip *sc,
                                     uint pos,
                                     std::optional<ClipShaderState> &shader_state)
 {
-  /* This function draws polygons that is not covered in the shader state. We reset it and make
-   * sure that the state of the GPU is unbound at the end of this function. */
-  clip_unbind_shader(shader_state);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
   float dx, dy, patdx, patdy, searchdx, searchdy;
   int tiny = sc->flag & SC_SHOW_TINY_MARKER;
   float col[3], scol[3], px[2], side;
@@ -1058,6 +1053,11 @@ static void draw_marker_slide_zones(SpaceClip *sc,
   if (!TRACK_VIEW_SELECTED(sc, track) || track->flag & TRACK_LOCKED) {
     return;
   }
+
+  /* This function draws polygons that is not covered in the shader state. We reset it and make
+   * sure that the state of the GPU is unbound at the end of this function. */
+  clip_unbind_shader(shader_state);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   track_colors(track, act, col, scol);
 
