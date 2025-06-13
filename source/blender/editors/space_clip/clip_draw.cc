@@ -36,6 +36,7 @@
 
 #include "BIF_glutil.hh"
 
+#include "GPU_debug.hh"
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
@@ -1647,6 +1648,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
 
   /* markers outline and non-selected areas */
   fp = marker_pos;
+  GPU_debug_group_begin("Clip.Marker.Outline");
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (track->flag & TRACK_HIDDEN) {
       continue;
@@ -1656,22 +1658,22 @@ static void draw_tracking_tracks(SpaceClip *sc,
 
     if (ED_space_clip_marker_is_visible(sc, tracking_object, track, marker)) {
       copy_v2_v2(cur_pos, fp ? fp : marker->pos);
-
       draw_marker_outline(sc, track, marker, cur_pos, width, height, position, active_shader);
       draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 0, position, active_shader);
       draw_marker_slide_zones(
           sc, track, marker, cur_pos, 1, 0, 0, width, height, position, active_shader);
       draw_marker_slide_zones(
           sc, track, marker, cur_pos, 0, 0, 0, width, height, position, active_shader);
-
       if (fp) {
         fp += 2;
       }
     }
   }
+  GPU_debug_group_end();
 
   /* selected areas only, so selection wouldn't be overlapped by non-selected areas */
   fp = marker_pos;
+  GPU_debug_group_begin("Clip.Marker.Selected");
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (track->flag & TRACK_HIDDEN) {
       continue;
@@ -1694,9 +1696,11 @@ static void draw_tracking_tracks(SpaceClip *sc,
       }
     }
   }
+  GPU_debug_group_end();
 
   /* active marker would be displayed on top of everything else */
   if (active_track && (active_track->flag & TRACK_HIDDEN) == 0) {
+    GPU_debug_group_begin("Clip.Marker.Active");
     const MovieTrackingMarker *marker = BKE_tracking_marker_get(active_track, framenr);
 
     if (ED_space_clip_marker_is_visible(sc, tracking_object, active_track, marker)) {
@@ -1707,9 +1711,11 @@ static void draw_tracking_tracks(SpaceClip *sc,
       draw_marker_slide_zones(
           sc, active_track, marker, cur_pos, 0, 1, 1, width, height, position, active_shader);
     }
+    GPU_debug_group_end();
   }
 
   if (sc->flag & SC_SHOW_BUNDLES) {
+    GPU_debug_group_begin("Clip.Marker.Bundles");
     float pos[4], vec[4], mat[4][4], aspy;
 
     GPU_point_size(3.0f);
@@ -1768,6 +1774,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
         }
       }
     }
+    GPU_debug_group_end();
   }
 
   clip_unbind_shader(active_shader);
@@ -1775,6 +1782,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
   GPU_matrix_pop();
 
   if (sc->flag & SC_SHOW_NAMES) {
+    GPU_debug_group_begin("Clip.Marker.Names");
     /* scaling should be cleared before drawing texts, otherwise font would also be scaled */
     fp = marker_pos;
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
@@ -1796,6 +1804,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
         }
       }
     }
+    GPU_debug_group_end();
   }
 
   GPU_matrix_pop();
@@ -2076,9 +2085,15 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
   }
 
   if (width && height) {
+    GPU_debug_group_begin("Clip.Stabilization");
     draw_stabilization_border(sc, region, width, height, zoomx, zoomy);
+    GPU_debug_group_end();
+    GPU_debug_group_begin("Clip.Tracks");
     draw_tracking_tracks(sc, scene, region, clip, width, height, zoomx, zoomy);
+    GPU_debug_group_end();
+    GPU_debug_group_begin("Clip.Distortion");
     draw_distortion(sc, region, clip, width, height, zoomx, zoomy);
+    GPU_debug_group_end();
   }
 }
 
@@ -2087,8 +2102,10 @@ void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *region
   Scene *scene = CTX_data_scene(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   if (clip) {
+    GPU_debug_group_begin("Clip.Cache");
     draw_movieclip_cache(sc, region, clip, scene);
     draw_movieclip_notes(sc, region);
+    GPU_debug_group_end();
   }
 }
 
