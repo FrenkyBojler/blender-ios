@@ -66,7 +66,7 @@ def RKS_POLL_selected_bones(_ksi, context):
 
 
 def RKS_POLL_selected_strip(_ksi, context):
-    if context.active_sequence_strip or context.selected_sequences:
+    if context.active_strip or context.selected_strips:
         return True
 
     # nothing selected
