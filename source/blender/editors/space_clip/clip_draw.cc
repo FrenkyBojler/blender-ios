@@ -76,7 +76,8 @@ void clip_ensure_shader(std::optional<ClipShaderState> &active_state,
   const bool bind_shader = !active_state.has_value();
   if (bind_shader) {
     immBindBuiltinProgram(requested_state.shader);
-    active_state = {requested_state.shader, 0.0f, 0.0f, {0.0f, 0.0f, 0.0f, 0.0f}};
+    active_state = {
+        requested_state.shader, NAN_FLT, NAN_FLT, {NAN_FLT, NAN_FLT, NAN_FLT, NAN_FLT}};
     if (ELEM(requested_state.shader, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR)) {
       float viewport[4];
       GPU_viewport_size_get_f(viewport);
@@ -97,7 +98,7 @@ void clip_ensure_shader(std::optional<ClipShaderState> &active_state,
       immUniform1f("lineWidth", active_shader.line_width);
     }
   }
-  else /* GPU_SHADER_3D_POINT_UNIFORM_COLOR */ {
+  else if (active_shader.shader == GPU_SHADER_3D_POINT_UNIFORM_COLOR) {
     if (blender::assign_if_different(active_shader.point_size, requested_state.point_size)) {
       immUniform1f("size", active_shader.point_size);
     }
@@ -656,6 +657,8 @@ static void draw_track_path(SpaceClip *sc,
   if (path != path_static) {
     MEM_freeN(path);
   }
+
+  clip_unbind_shader(shader_state);
 
 #undef MAX_STATIC_PATH
 }
@@ -1633,6 +1636,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
   }
 
   std::optional<ClipShaderState> active_shader;
+  GPU_debug_group_begin("Clip.Tracks.Path");
   if (sc->flag & SC_SHOW_TRACK_PATH) {
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
       if ((track->flag & TRACK_HIDDEN) == 0) {
@@ -1640,6 +1644,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
       }
     }
   }
+  GPU_debug_group_end();
 
   /* Unbinding active shader to ensure imm vertex format will be repacked. */
   clip_unbind_shader(active_shader);

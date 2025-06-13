@@ -69,11 +69,11 @@ struct ClipShaderState {
    */
   eGPUBuiltinShader shader;
   /** Point size for GPU_SHADER_3D_POINT_UNIFORM_COLOR. */
-  float point_size;
+  float point_size = NAN_FLT;
   /** Line width for GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR. */
-  float line_width;
+  float line_width = NAN_FLT;
   /** Uniform bound color. */
-  blender::float4 color;
+  blender::float4 color = blender::float4(NAN_FLT);
 };
 
 void clip_ensure_shader(std::optional<ClipShaderState> &active_state,
