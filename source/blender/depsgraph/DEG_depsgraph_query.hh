@@ -311,7 +311,7 @@ void DEG_iterator_objects_end(BLI_Iterator *iter);
   } \
   ((void)0)
 
-bool DEG_iterator_should_hide_dupli(eEvaluationMode eval_mode, const DupliObject *dob);
+bool DEG_iterator_should_skip_dupli(eEvaluationMode eval_mode, const DupliObject *dob);
 bool DEG_iterator_setup_temp_object(Object *dupli_parent,
                                     Object *dupli_object,
                                     ID *dupli_data,

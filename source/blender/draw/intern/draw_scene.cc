@@ -67,7 +67,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
     dupli_map.clear();
     for (DupliObject &dupli : duplilist) {
 
-      if (DEG_iterator_should_hide_dupli(eval_mode, &dupli)) {
+      if (DEG_iterator_should_skip_dupli(eval_mode, &dupli)) {
         continue;
       }
 

@@ -126,7 +126,7 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       data->dupli_object_next_index = -1;
     }
 
-    if (DEG_iterator_should_hide_dupli(data->eval_mode, dob)) {
+    if (DEG_iterator_should_skip_dupli(data->eval_mode, dob)) {
       continue;
     }
 
@@ -477,7 +477,7 @@ void DEG_iterator_ids_next(BLI_Iterator *iter)
 
 void DEG_iterator_ids_end(BLI_Iterator * /*iter*/) {}
 
-bool DEG_iterator_should_hide_dupli(eEvaluationMode eval_mode, const DupliObject *dob)
+bool DEG_iterator_should_skip_dupli(eEvaluationMode eval_mode, const DupliObject *dob)
 {
   if (dob->no_draw) {
     return true;
