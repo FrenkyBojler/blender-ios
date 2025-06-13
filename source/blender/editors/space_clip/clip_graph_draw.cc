@@ -34,6 +34,8 @@ struct TrackMotionCurveUserData {
   bool sel;
   float xscale, yscale, hsize;
   uint pos;
+  /** Current state of the bound shader. */
+  std::optional<ClipShaderState> active_shader;
 };
 
 static void tracking_segment_point_cb(void *userdata,
@@ -59,7 +61,11 @@ static void tracking_segment_start_cb(void *userdata,
 {
   TrackMotionCurveUserData *data = (TrackMotionCurveUserData *)userdata;
   SpaceClip *sc = data->sc;
-  float col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  ClipShaderState shader_data = {is_point ? GPU_SHADER_3D_POINT_UNIFORM_COLOR :
+                                            GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
+                                 3.0f,
+                                 0.0,
+                                 blender::float4()};
 
   if (!clip_graph_value_visible(sc, value_source)) {
     return;
@@ -67,27 +73,26 @@ static void tracking_segment_start_cb(void *userdata,
 
   switch (value_source) {
     case CLIP_VALUE_SOURCE_SPEED_X:
-      col[0] = 1.0f;
+      shader_data.color.x = 1.0f;
       break;
     case CLIP_VALUE_SOURCE_SPEED_Y:
-      col[1] = 1.0f;
+      shader_data.color.y = 1.0f;
       break;
     case CLIP_VALUE_SOURCE_REPROJECTION_ERROR:
-      col[2] = 1.0f;
+      shader_data.color.z = 1.0f;
       break;
   }
 
   if (track == data->act_track) {
-    col[3] = 1.0f;
-    GPU_line_width(2.0f);
+    shader_data.color.w = 1.0f;
+    shader_data.line_width = U.pixelsize * 2.0f;
   }
   else {
-    col[3] = 0.5f;
-    GPU_line_width(1.0f);
+    shader_data.color.w = 0.5f;
+    shader_data.line_width = U.pixelsize * 1.0f;
   }
 
-  immUniformColor4fv(col);
-
+  clip_ensure_shader(data->active_shader, shader_data);
   if (is_point) {
     immBeginAtMost(GPU_PRIM_POINTS, 1);
   }
@@ -128,7 +133,14 @@ static void tracking_segment_knot_cb(void *userdata,
   const bool sel = (marker->flag & sel_flag) != 0;
 
   if (sel == data->sel) {
-    immUniformThemeColor(sel ? TH_HANDLE_VERTEX_SELECT : TH_HANDLE_VERTEX);
+    ClipShaderState shader_data = {
+        GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
+        0.0f,
+        1.0f,
+
+    };
+    UI_GetThemeColor4fv(sel ? TH_HANDLE_VERTEX_SELECT : TH_HANDLE_VERTEX, shader_data.color);
+    clip_ensure_shader(data->active_shader, shader_data);
 
     GPU_matrix_push();
     GPU_matrix_translate_2f(scene_framenr, val);
@@ -140,11 +152,9 @@ static void tracking_segment_knot_cb(void *userdata,
   }
 }
 
-static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint pos)
+static void draw_tracks_motion_and_error_curves(SpaceClip *sc, TrackMotionCurveUserData &data)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  MovieTrackingTrack *active_track = tracking_object->active_track;
   const bool draw_knots = (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) != 0;
 
   int width, height;
@@ -153,20 +163,13 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint
     return;
   }
 
-  TrackMotionCurveUserData userdata;
-  userdata.sc = sc;
-  userdata.hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
-  userdata.sel = false;
-  userdata.act_track = active_track;
-  userdata.pos = pos;
-
+  data.sel = false;
   /* Non-selected knot handles. */
   if (draw_knots) {
-    UI_view2d_scale_get(v2d, &userdata.xscale, &userdata.yscale);
     clip_graph_tracking_values_iterate(sc,
                                        (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
                                        (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
-                                       &userdata,
+                                       &data,
                                        tracking_segment_knot_cb,
                                        nullptr,
                                        nullptr);
@@ -177,7 +180,7 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint
   clip_graph_tracking_values_iterate(sc,
                                      (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
                                      (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
-                                     &userdata,
+                                     &data,
                                      tracking_segment_point_cb,
                                      tracking_segment_start_cb,
                                      tracking_segment_end_cb);
@@ -185,18 +188,18 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint
 
   /* Selected knot handles on top of curves. */
   if (draw_knots) {
-    userdata.sel = true;
+    data.sel = true;
     clip_graph_tracking_values_iterate(sc,
                                        (sc->flag & SC_SHOW_GRAPH_SEL_ONLY) != 0,
                                        (sc->flag & SC_SHOW_GRAPH_HIDDEN) != 0,
-                                       &userdata,
+                                       &data,
                                        tracking_segment_knot_cb,
                                        nullptr,
                                        nullptr);
   }
 }
 
-static void draw_frame_curves(SpaceClip *sc, uint pos)
+static void draw_frame_curves(SpaceClip *sc, uint pos, TrackMotionCurveUserData &data)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -209,7 +212,9 @@ static void draw_frame_curves(SpaceClip *sc, uint pos)
   /* Indicates whether immBegin() was called. */
   bool is_lines_segment_open = false;
 
-  immUniformColor3f(0.0f, 0.0f, 1.0f);
+  ClipShaderState shader_data = {
+      GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, 1.0f, 0.0f, {0.0f, 0.0f, 1.0f, 1.0f}};
+  clip_ensure_shader(data.active_shader, shader_data);
 
   for (int i = 0; i < reconstruction->camnr; i++) {
     MovieReconstructedCamera *camera = &reconstruction->cameras[i];
@@ -256,19 +261,26 @@ void clip_draw_graph(SpaceClip *sc, ARegion *region, Scene *scene)
 
   if (clip) {
     uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-    GPU_point_size(3.0f);
+    const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
+    MovieTrackingTrack *active_track = tracking_object->active_track;
+    TrackMotionCurveUserData data{};
+    data.sc = sc;
+    data.hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
+    data.sel = false;
+    data.act_track = active_track;
+    data.pos = pos;
+    UI_view2d_scale_get(v2d, &data.xscale, &data.yscale);
 
     if (sc->flag & (SC_SHOW_GRAPH_TRACKS_MOTION | SC_SHOW_GRAPH_TRACKS_ERROR)) {
-      draw_tracks_motion_and_error_curves(v2d, sc, pos);
+      draw_tracks_motion_and_error_curves(sc, data);
     }
 
     if (sc->flag & SC_SHOW_GRAPH_FRAMES) {
-      draw_frame_curves(sc, pos);
+      draw_frame_curves(sc, pos, data);
     }
 
-    immUnbindProgram();
+    clip_unbind_shader(data.active_shader);
   }
 
   /* Frame and preview range. */

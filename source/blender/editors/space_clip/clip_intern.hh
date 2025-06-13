@@ -11,6 +11,8 @@
 #include "DNA_space_types.h"
 #include "DNA_tracking_types.h"
 
+#include "GPU_shader_builtin.hh"
+
 struct ARegion;
 struct ARegionType;
 struct MovieClip;
@@ -54,6 +56,29 @@ void CLIP_OT_dopesheet_view_all(wmOperatorType *ot);
 /* clip_draw.cc */
 
 void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region);
+
+/**
+ * GPU state for drawing lines and points in the clip editor.
+ *
+ * Used for bound shader state and desired shader state to minimize GPU state changes.
+ */
+struct ClipShaderState {
+  /**
+   * Shader (only GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, GPU_SHADER_3D_POINT_UNIFORM_COLOR and
+   * GPU_SHADER_3D_LINE_DASH_UNIFORM_COLOR are supported.)
+   */
+  eGPUBuiltinShader shader;
+  /** Point size for GPU_SHADER_3D_POINT_UNIFORM_COLOR. */
+  float point_size;
+  /** Line width for GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR. */
+  float line_width;
+  /** Uniform bound color. */
+  blender::float4 color;
+};
+
+void clip_ensure_shader(std::optional<ClipShaderState> &active_state,
+                        const ClipShaderState &requested_state);
+void clip_unbind_shader(std::optional<ClipShaderState> &active_state);
 
 /* draw grease pencil */
 
