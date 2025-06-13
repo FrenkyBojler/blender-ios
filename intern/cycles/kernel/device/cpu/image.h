@@ -327,8 +327,7 @@ template<typename TexT, typename OutT = float4> struct TextureInterpolator {
 #undef SET_CUBIC_SPLINE_WEIGHTS
 
 /* TODO: only compute randl when needed? */
-ccl_device float4 kernel_image_interp(
-    KernelGlobals kg, ShaderData *sd, const int tex_id, float2 uv, const differential2 duv)
+ccl_device float4 kernel_image_interp(KernelGlobals kg, ShaderData *sd, const int tex_id, dual2 uv)
 {
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
@@ -341,12 +340,12 @@ ccl_device float4 kernel_image_interp(
 
   if (tex.tile_descriptor_offset != UINT_MAX) {
     /* Wrapping. */
-    if (!kernel_image_tile_wrap(ExtensionType(tex.extension), uv)) {
+    if (!kernel_image_tile_wrap(ExtensionType(tex.extension), uv.val)) {
       return zero_float4();
     }
 
     /* Tile mapping */
-    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, duv, xy);
+    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, xy);
 
     if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
       if (tile_descriptor == KERNEL_TILE_LOAD_FAILED) {
@@ -366,7 +365,7 @@ ccl_device float4 kernel_image_interp(
 
     /* Convert to pixel space. */
     info = &kernel_data_fetch(image_info, tex.slot);
-    xy = make_float2(uv.x * info->width, uv.y * info->height);
+    xy = make_float2(uv.val.x * info->width, uv.val.y * info->height);
   }
 
   if (UNLIKELY(!info->data)) {
@@ -404,15 +403,17 @@ ccl_device float4 kernel_image_interp(
   }
 }
 
-ccl_device_forceinline float4 kernel_image_interp_with_udim(
-    KernelGlobals kg, ShaderData *sd, const int image_id, float2 uv, const differential2 duv)
+ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
+                                                            ShaderData *sd,
+                                                            const int image_id,
+                                                            dual2 uv)
 {
-  const int tex_id = kernel_image_udim_map(kg, image_id, uv);
+  const int tex_id = kernel_image_udim_map(kg, image_id, uv.val);
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
   }
 
-  return kernel_image_interp(kg, sd, tex_id, uv, duv);
+  return kernel_image_interp(kg, sd, tex_id, uv);
 }
 
 } /* Namespace. */

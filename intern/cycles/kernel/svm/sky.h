@@ -108,8 +108,7 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
   if (v != FLT_MAX) {
     /* Image texture lookup. */
     const float u = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-    xyz *= make_float3(
-        kernel_image_interp(kg, sd, texture_id, make_float2(u, v), differential2_zero()));
+    xyz *= make_float3(kernel_image_interp(kg, sd, texture_id, dual2(make_float2(u, v))));
   }
 
   /* convert to RGB */

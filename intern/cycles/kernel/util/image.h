@@ -83,16 +83,15 @@ ccl_device_forceinline KernelTileDescriptor
 kernel_image_tile_map(KernelGlobals kg,
                       ccl_private ShaderData *sd,
                       const ccl_global KernelImageTexture &tex,
-                      const float2 uv,
-                      const differential2 duv,
+                      const dual2 uv,
                       ccl_private float2 &xy)
 {
   /* Find mipmap level. */
 
   // TODO: make this faster
   // TODO: find good ratio, check how OIIO handles anisotropy
-  const float dudxy = len(make_float2(duv.dx.x, duv.dy.x)) * float(tex.width);
-  const float dvdxy = len(make_float2(duv.dx.y, duv.dy.y)) * float(tex.height);
+  const float dudxy = len(make_float2(uv.dx.x, uv.dy.x)) * float(tex.width);
+  const float dvdxy = len(make_float2(uv.dx.y, uv.dy.y)) * float(tex.height);
 
   /* Limit max anisotropy ratio, to avoid loading too high mip resolutions
    * for stretched UV coordinates, which don't really benefit from it anyway. */
@@ -117,7 +116,7 @@ kernel_image_tile_map(KernelGlobals kg,
   const int height = divide_up_by_shift(tex.height, level);
 
   /* Convert coordinates to pixel space. */
-  xy = uv * make_float2(width, height);
+  xy = uv.val * make_float2(width, height);
 
   /* Tile mapping */
   const int ix = clamp((int)xy.x, 0, width - 1);

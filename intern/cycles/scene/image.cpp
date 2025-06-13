@@ -1016,4 +1016,9 @@ bool ImageManager::need_update() const
   return need_update_;
 }
 
+bool ImageManager::get_use_texture_cache() const
+{
+  return use_texture_cache;
+}
+
 CCL_NAMESPACE_END

@@ -216,6 +216,24 @@ ccl_device_inline int3 operator>=(const float3 a, const float3 b)
 #  endif
 }
 
+ccl_device_inline int3 operator<(const float3 a, const float3 b)
+{
+#  ifdef __KERNEL_SSE__
+  return int3(_mm_castps_si128(_mm_cmplt_ps(a.m128, b.m128)));
+#  else
+  return make_int3(a.x < b.x, a.y < b.y, a.z < b.z);
+#  endif
+}
+
+ccl_device_inline int3 operator>(const float3 a, const float3 b)
+{
+#  ifdef __KERNEL_SSE__
+  return int3(_mm_castps_si128(_mm_cmpgt_ps(a.m128, b.m128)));
+#  else
+  return make_int3(a.x > b.x, a.y > b.y, a.z > b.z);
+#  endif
+}
+
 ccl_device_inline float dot(const float3 a, const float3 b)
 {
 #  if defined(__KERNEL_SSE42__) && defined(__KERNEL_SSE__)
@@ -551,7 +569,7 @@ ccl_device_inline float3 select(const MaskType mask, const float3 a, const float
 #  ifdef __KERNEL_SSE42__
   return float3(_mm_blendv_ps(b.m128, a.m128, _mm_castsi128_ps(mask.m128)));
 #  else
-  return float4(
+  return float3(
       _mm_or_ps(_mm_and_ps(_mm_castsi128_ps(mask), a), _mm_andnot_ps(_mm_castsi128_ps(mask), b)));
 #  endif
 #else
@@ -574,6 +592,21 @@ ccl_device_inline float3 power(const float3 v, const float e)
 ccl_device_inline float3 safe_pow(const float3 a, const float3 b)
 {
   return make_float3(safe_powf(a.x, b.x), safe_powf(a.y, b.y), safe_powf(a.z, b.z));
+}
+
+ccl_device_inline float3 safe_log(const float3 v)
+{
+  return select(v > zero_float3(), log(v), zero_float3());
+}
+
+ccl_device_inline void sincos(const float3 x, ccl_private float3 *sine, ccl_private float3 *cosine)
+{
+#if defined(__KERNEL_METAL__)
+  *sine = sincos(x, *cosine);
+#else
+  *sine = sin(x);
+  *cosine = cos(x);
+#endif
 }
 
 ccl_device_inline auto component_wise_equal(const float3 a, const float3 b)

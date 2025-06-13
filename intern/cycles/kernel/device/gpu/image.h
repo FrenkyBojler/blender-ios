@@ -87,8 +87,7 @@ ccl_device_noinline T kernel_image_interp_bicubic(const ccl_global KernelImageIn
 ccl_device float4 kernel_image_interp(KernelGlobals kg,
                                       ccl_private ShaderData *sd,
                                       const int tex_id,
-                                      float2 uv,
-                                      const differential2 duv)
+                                      dual2 uv)
 {
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
@@ -99,13 +98,13 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 
   if (tex.tile_descriptor_offset != UINT_MAX) {
     /* Wrapping. */
-    if (!kernel_image_tile_wrap(ExtensionType(tex.extension), uv)) {
+    if (!kernel_image_tile_wrap(ExtensionType(tex.extension), uv.val)) {
       return zero_float4();
     }
 
     /* Tile mapping */
     float2 xy = zero_float2();
-    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, duv, xy);
+    const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(kg, sd, tex, uv, xy);
 
     if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
       if (tile_descriptor == KERNEL_TILE_LOAD_FAILED) {
@@ -119,7 +118,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 
     /* Convert to normalized space again. */
     // TODO: avoid this, or at least turn division into multiplication
-    uv = make_float2(xy.x / info->width, xy.y / info->height);
+    uv.val = make_float2(xy.x / info->width, xy.y / info->height);
   }
   else {
     /* Full image sampling. */
@@ -136,11 +135,11 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
       texture_type == IMAGE_DATA_TYPE_HALF4 || texture_type == IMAGE_DATA_TYPE_USHORT4)
   {
     if (info->interpolation == INTERPOLATION_CUBIC || info->interpolation == INTERPOLATION_SMART) {
-      return kernel_image_interp_bicubic<float4>(*info, uv);
+      return kernel_image_interp_bicubic<float4>(*info, uv.val);
     }
     else {
       ccl_gpu_image_object_2D tex = (ccl_gpu_image_object_2D)info->data;
-      return ccl_gpu_image_object_read_2D<float4>(tex, uv.x, uv.y);
+      return ccl_gpu_image_object_read_2D<float4>(tex, uv.val.x, uv.val.y);
     }
   }
   /* float, byte and half */
@@ -148,11 +147,11 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     float f;
 
     if (info->interpolation == INTERPOLATION_CUBIC || info->interpolation == INTERPOLATION_SMART) {
-      f = kernel_image_interp_bicubic<float>(*info, uv);
+      f = kernel_image_interp_bicubic<float>(*info, uv.val);
     }
     else {
       ccl_gpu_image_object_2D tex = (ccl_gpu_image_object_2D)info->data;
-      f = ccl_gpu_image_object_read_2D<float>(tex, uv.x, uv.y);
+      f = ccl_gpu_image_object_read_2D<float>(tex, uv.val.x, uv.val.y);
     }
 
     return make_float4(f, f, f, 1.0f);
@@ -162,15 +161,14 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
                                                             ccl_private ShaderData *sd,
                                                             const int image_id,
-                                                            float2 uv,
-                                                            const differential2 duv)
+                                                            dual2 uv)
 {
-  const int tex_id = kernel_image_udim_map(kg, image_id, uv);
+  const int tex_id = kernel_image_udim_map(kg, image_id, uv.val);
   if (tex_id == KERNEL_IMAGE_NONE) {
     return IMAGE_TEXTURE_MISSING_RGBA;
   }
 
-  return kernel_image_interp(kg, sd, tex_id, uv, duv);
+  return kernel_image_interp(kg, sd, tex_id, uv);
 }
 
 CCL_NAMESPACE_END

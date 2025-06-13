@@ -107,6 +107,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
 
   while (true) {
     uint4 node = read_node(kg, &offset);
+    const bool derivative = node.x & DERIVATIVE_MASK;
     const uint node_type = node.x & ~DERIVATIVE_MASK;
 
     switch (node_type) {
@@ -170,22 +171,22 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       }
       break;
       SVM_CASE(NODE_GEOMETRY)
-      svm_node_geometry(kg, sd, stack, node.y, node.z);
+      svm_node_geometry(kg, sd, stack, node.y, node.z, derivative);
       break;
       SVM_CASE(NODE_CONVERT)
-      svm_node_convert(kg, stack, node.y, node.z, node.w);
+      svm_node_convert(kg, stack, node.y, node.z, node.w, derivative);
       break;
       SVM_CASE(NODE_TEX_COORD)
-      offset = svm_node_tex_coord(kg, sd, path_flag, stack, node, offset);
+      offset = svm_node_tex_coord(kg, sd, path_flag, stack, node, offset, derivative);
       break;
       SVM_CASE(NODE_VALUE_F)
-      svm_node_value_f(stack, node.y, node.z);
+      svm_node_value_f(stack, node.y, node.z, derivative);
       break;
       SVM_CASE(NODE_VALUE_V)
-      offset = svm_node_value_v(kg, stack, node.y, offset);
+      offset = svm_node_value_v(kg, stack, node.y, offset, derivative);
       break;
       SVM_CASE(NODE_ATTR)
-      svm_node_attr<node_feature_mask>(kg, sd, stack, node);
+      svm_node_attr<node_feature_mask>(kg, sd, stack, node, derivative);
       break;
       SVM_CASE(NODE_VERTEX_COLOR)
       svm_node_vertex_color(kg, sd, stack, node);
@@ -193,13 +194,15 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_GEOMETRY_BUMP_DX)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        svm_node_geometry_bump_dx(kg, sd, stack, node.y, node.z, __uint_as_float(node.w));
+        svm_node_geometry_bump_dx(
+            kg, sd, stack, node.y, node.z, __uint_as_float(node.w), derivative);
       }
       break;
       SVM_CASE(NODE_GEOMETRY_BUMP_DY)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        svm_node_geometry_bump_dy(kg, sd, stack, node.y, node.z, __uint_as_float(node.w));
+        svm_node_geometry_bump_dy(
+            kg, sd, stack, node.y, node.z, __uint_as_float(node.w), derivative);
       }
       break;
       SVM_CASE(NODE_SET_DISPLACEMENT)
@@ -212,10 +215,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       offset = svm_node_vector_displacement<node_feature_mask>(kg, sd, stack, node, offset);
       break;
       SVM_CASE(NODE_TEX_IMAGE)
-      svm_node_tex_image(kg, sd, stack, node);
+      svm_node_tex_image(kg, sd, stack, node, derivative);
       break;
       SVM_CASE(NODE_TEX_IMAGE_BOX)
-      svm_node_tex_image_box(kg, sd, stack, node);
+      svm_node_tex_image_box(kg, sd, stack, node, derivative);
       break;
       SVM_CASE(NODE_TEX_NOISE)
       offset = svm_node_tex_noise(kg, stack, node.y, node.z, node.w, offset);
@@ -226,13 +229,13 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_ATTR_BUMP_DX)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        svm_node_attr_bump_dx(kg, sd, stack, node);
+        svm_node_attr_bump_dx(kg, sd, stack, node, derivative);
       }
       break;
       SVM_CASE(NODE_ATTR_BUMP_DY)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        svm_node_attr_bump_dy(kg, sd, stack, node);
+        svm_node_attr_bump_dy(kg, sd, stack, node, derivative);
       }
       break;
       SVM_CASE(NODE_VERTEX_COLOR_BUMP_DX)
@@ -250,13 +253,13 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       SVM_CASE(NODE_TEX_COORD_BUMP_DX)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        offset = svm_node_tex_coord_bump_dx(kg, sd, path_flag, stack, node, offset);
+        offset = svm_node_tex_coord_bump_dx(kg, sd, path_flag, stack, node, offset, derivative);
       }
       break;
       SVM_CASE(NODE_TEX_COORD_BUMP_DY)
       IF_KERNEL_NODES_FEATURE(BUMP)
       {
-        offset = svm_node_tex_coord_bump_dy(kg, sd, path_flag, stack, node, offset);
+        offset = svm_node_tex_coord_bump_dy(kg, sd, path_flag, stack, node, offset, derivative);
       }
       break;
       SVM_CASE(NODE_CLOSURE_SET_NORMAL)
@@ -312,7 +315,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_math(stack, node.y, node.z, node.w);
       break;
       SVM_CASE(NODE_VECTOR_MATH)
-      offset = svm_node_vector_math(kg, stack, node.y, node.z, node.w, offset);
+      offset = svm_node_vector_math(kg, stack, node.y, node.z, node.w, offset, derivative);
       break;
       SVM_CASE(NODE_RGB_RAMP)
       offset = svm_node_rgb_ramp(kg, stack, node, offset);
@@ -346,7 +349,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       offset = svm_node_texture_mapping(kg, stack, node.y, node.z, offset);
       break;
       SVM_CASE(NODE_MAPPING)
-      svm_node_mapping(stack, node.y, node.z, node.w);
+      svm_node_mapping(stack, node.y, node.z, node.w, derivative);
       break;
       SVM_CASE(NODE_MIN_MAX)
       offset = svm_node_min_max(kg, stack, node.y, node.z, offset);
@@ -355,7 +358,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_camera(kg, sd, stack, node.y, node.z, node.w);
       break;
       SVM_CASE(NODE_TEX_ENVIRONMENT)
-      svm_node_tex_environment(kg, sd, stack, node);
+      svm_node_tex_environment(kg, sd, stack, node, derivative);
       break;
       SVM_CASE(NODE_TEX_SKY)
       offset = svm_node_tex_sky(kg, sd, path_flag, stack, node, offset);
@@ -400,7 +403,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       offset = svm_node_curve(kg, stack, node, offset);
       break;
       SVM_CASE(NODE_TANGENT)
-      svm_node_tangent(kg, sd, stack, node);
+      svm_node_tangent(kg, sd, stack, node, derivative);
       break;
       SVM_CASE(NODE_NORMAL_MAP)
       svm_node_normal_map(kg, sd, stack, node);
@@ -418,10 +421,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_combine_color(stack, node.y, node.z, node.w);
       break;
       SVM_CASE(NODE_SEPARATE_VECTOR)
-      svm_node_separate_vector(stack, node.y, node.z, node.w);
+      svm_node_separate_vector(stack, node.y, node.z, node.w, derivative);
       break;
       SVM_CASE(NODE_COMBINE_VECTOR)
-      svm_node_combine_vector(stack, node.y, node.z, node.w);
+      svm_node_combine_vector(stack, node.y, node.z, node.w, derivative);
       break;
       SVM_CASE(NODE_VECTOR_ROTATE)
       svm_node_vector_rotate(stack, node.y, node.z, node.w);
