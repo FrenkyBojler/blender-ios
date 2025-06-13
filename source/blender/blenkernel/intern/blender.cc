@@ -187,7 +187,12 @@ bool BKE_blender_version_is_lts()
 /** \name Blender #Global Initialize/Clear
  * \{ */
 
-void BKE_blender_globals_init()
+void BKE_blender_globals_init_main()
+{
+  BKE_blender_globals_main_replace(BKE_main_new());
+}
+
+void BKE_blender_globals_init(const bool create_main)
 {
   blender_version_init();
 
@@ -195,7 +200,9 @@ void BKE_blender_globals_init()
 
   U.savetime = 1;
 
-  BKE_blender_globals_main_replace(BKE_main_new());
+  if (create_main) {
+    BKE_blender_globals_init_main();
+  }
 
   STRNCPY(G.filepath_last_image, "//");
   G.filepath_last_blend[0] = '\0';

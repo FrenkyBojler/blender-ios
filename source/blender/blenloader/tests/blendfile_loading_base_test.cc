@@ -56,7 +56,7 @@ void BlendfileLoadingBaseTest::SetUpTestCase()
   BLI_threadapi_init();
 
   DNA_sdna_current_init();
-  BKE_blender_globals_init();
+  BKE_blender_globals_init(true);
 
   BKE_idtype_init();
   BKE_appdir_init();

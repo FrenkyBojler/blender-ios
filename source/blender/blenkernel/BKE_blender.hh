@@ -16,7 +16,8 @@ struct UserDef;
  */
 void BKE_blender_free();
 
-void BKE_blender_globals_init();
+void BKE_blender_globals_init_main();
+void BKE_blender_globals_init(bool create_main);
 void BKE_blender_globals_clear();
 
 /** Replace current global Main by the given one, freeing existing one. */

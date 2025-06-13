@@ -2164,8 +2164,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   g_audaspace.source = nullptr;
 #endif
 
-  /* We still miss freeing a lot!
-   * But many areas could skip initialization too for anim play. */
+  /* Free sub-systems the animation player is responsible for starting.
+   * The rest is handled by #BKE_blender_atexit, see early-exit logic in `creator.cc`. */
 
   BLF_exit();
 
@@ -2187,7 +2187,6 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   GHOST_DisposeSystem(ps.ghost_data.system);
 
-  /* Early exit, IMB and BKE should be exited only in end. */
   if (ps.argv_next) {
     args_next->argc = ps.argc_next;
     args_next->argv = ps.argv_next;

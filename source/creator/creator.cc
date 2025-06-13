@@ -194,12 +194,7 @@ static void callback_main_atexit(void *user_data)
   if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
     CTX_free(early_exit->C);
 
-    DEG_free_node_types();
-
-    BKE_blender_globals_clear();
     BKE_appdir_exit();
-
-    DNA_sdna_current_free();
 
     CLG_exit();
   }
@@ -436,20 +431,8 @@ int main(int argc,
   /* Initialize path to executable. */
   BKE_appdir_program_path_init(argv[0]);
 
-  BLI_threadapi_init();
-
-  DNA_sdna_current_init();
-
-  BKE_blender_globals_init(); /* `blender.cc` */
-
-  BKE_cpp_types_init();
-  BKE_idtype_init();
-  BKE_modifier_init();
-  BKE_shaderfx_init();
-  BKE_volumes_init();
-  DEG_register_node_types();
-
-  BKE_callback_global_init();
+  /* Postpone creating `G_MAIN`. */
+  BKE_blender_globals_init(false); /* `blender.cc` */
 
 /* First test for background-mode (#Global.background). */
 #ifndef WITH_PYTHON_MODULE
@@ -467,6 +450,8 @@ int main(int argc,
   /* Using preferences or user startup makes no sense for #WITH_PYTHON_MODULE. */
   G.factory_startup = true;
 #endif
+
+  BLI_threadapi_init();
 
   /* After parsing #ARG_PASS_ENVIRONMENT such as `--env-*`,
    * since they impact `BKE_appdir` behavior. */
@@ -495,6 +480,20 @@ int main(int argc,
 
   /* Continue with regular initialization, no need to use "early" exit. */
   app_init_data.early_exit = nullptr;
+
+  DNA_sdna_current_init();
+
+  BKE_cpp_types_init();
+  BKE_idtype_init();
+  BKE_modifier_init();
+  BKE_shaderfx_init();
+  BKE_volumes_init();
+
+  BKE_callback_global_init();
+
+  BKE_blender_globals_init_main();
+
+  DEG_register_node_types();
 
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
