@@ -797,7 +797,7 @@ static void set_draw_marker_area_color(const MovieTrackingTrack *track,
       UI_GetThemeColor4fv(TH_ACT_MARKER, shader_data.color);
     }
     else if (is_area_selected) {
-      UI_GetThemeColorShade4fv(TH_ACT_MARKER, 64, shader_data.color);
+      UI_GetThemeColorShade4fv(TH_LOCK_MARKER, 64, shader_data.color);
     }
     else {
       UI_GetThemeColor4fv(TH_LOCK_MARKER, shader_data.color);
