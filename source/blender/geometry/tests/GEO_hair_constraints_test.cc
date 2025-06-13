@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "GEO_hair_constraints.hh"
+#include "BLI_math_vector.hh"
+
+#include "GEO_hair_constraint_functions.hh"
 
 #include "testing/testing.h"
 

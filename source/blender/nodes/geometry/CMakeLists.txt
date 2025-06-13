@@ -92,7 +92,7 @@ set(SRC
   nodes/node_geo_grease_pencil_to_curves.cc
   nodes/node_geo_grid_info.cc
   nodes/node_geo_grid_to_mesh.cc
-  nodes/node_geo_hair_constraint.cc
+  nodes/node_geo_hair_constraints.cc
   nodes/node_geo_hair_simulation.cc
   nodes/node_geo_image.cc
   nodes/node_geo_image_info.cc
@@ -243,13 +243,13 @@ set(SRC
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
-  nodes/node_geo_xpbd_constraints.cc
   nodes/node_geo_xpbd_constraint_residuals.cc
   nodes/node_geo_xpbd_solver.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_capture_attribute.hh
   include/NOD_geo_foreach_geometry_element.hh
+  include/NOD_geo_hair_constraints.hh
   include/NOD_geo_index_switch.hh
   include/NOD_geo_menu_switch.hh
   include/NOD_geo_repeat.hh

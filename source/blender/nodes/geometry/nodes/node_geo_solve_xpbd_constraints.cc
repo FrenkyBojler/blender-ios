@@ -8,14 +8,14 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
-#include "GEO_hair_constraints.hh"
+#include "GEO_hair_constraint_functions.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geo_hair_constraints.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
@@ -32,6 +32,7 @@
 
 namespace blender::nodes::node_geo_solve_xpbd_constraints_cc {
 
+using geometry::hair_constraints::DebugRecorder;
 using xpbd_constraints::ConstraintEvalData;
 using xpbd_constraints::ConstraintEvalParams;
 using xpbd_constraints::ConstraintTypeInfo;
@@ -563,7 +564,7 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
   };
   eval_params.debug_check = debug_check;
   if (use_debug_steps) {
-    eval_params.debug_recorder = std::make_unique<xpbd_constraints::DebugRecorder>(
+    eval_params.debug_recorder = std::make_unique<DebugRecorder>(
         params.extract_input<GeometrySet>("Debug Steps"));
   }
 
@@ -615,8 +616,8 @@ static void get_constraint_data(GeoNodeExecParams params,
 {
   const BundlePtr constraints_ptr = params.extract_input<BundlePtr>("Constraints");
 
-  const Span<ConstraintTypeInfo> constraint_infos = xpbd_constraints::get_constraint_info_ordered(
-      debug_output);
+  const Span<ConstraintTypeInfo> constraint_infos =
+      geometry::hair_constraints::get_constraint_info_ordered(debug_output);
   constraint_data.reinitialize(constraint_infos.size());
 
   for (const int i : constraint_infos.index_range()) {

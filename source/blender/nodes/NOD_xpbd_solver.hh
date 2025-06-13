@@ -4,39 +4,15 @@
 
 #pragma once
 
-#include "NOD_xpbd_constraints.hh"
+#include "NOD_geo_hair_constraints.hh"
 
 #include <Eigen/Sparse>
 
 namespace blender::nodes::xpbd_constraints {
 
-/* -------------------------------------------------------------------- */
-/** \name Debug Recorder
- * \{ */
-
-struct DebugRecorder {
- private:
-  bke::GeometrySet geometry_set_;
-  bke::GeometryComponent::Type component_type_;
-
-  bke::GeometrySet debug_steps_;
-
- public:
-  DebugRecorder(const bke::GeometrySet &debug_steps);
-
-  void set_geometry(const bke::GeometrySet &geometry_set,
-                    bke::GeometryComponent::Type component_type);
-
-  void record_step(const StringRef label,
-                   bke::GeometrySet *constraints,
-                   const int constraint_type_code,
-                   const IndexMask &group_mask,
-                   const ConstraintVariables &variables);
-
-  const bke::GeometrySet &debug_steps() const;
-};
-
-/** \} */
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
 
 /* -------------------------------------------------------------------- */
 /** \name Solver Parameters

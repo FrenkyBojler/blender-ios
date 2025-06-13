@@ -8,9 +8,9 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
 
+#include "NOD_geo_hair_constraints.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
-#include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
 #include "UI_interface.hh"
@@ -22,12 +22,12 @@
 
 namespace blender::nodes::node_geo_hair_simulation_cc {
 
-using xpbd_constraints::ConstraintBundleItems;
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintType;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
+using hair_constraints::ConstraintBundleItems;
 using xpbd_constraints::ConstraintEvalData;
-using xpbd_constraints::ConstraintEvalParams;
-using xpbd_constraints::ConstraintType;
-using xpbd_constraints::ConstraintTypeInfo;
-using xpbd_constraints::ConstraintVariables;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -71,8 +71,8 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle, const GeometrySe
 
   UNUSED_VARS(hair_geometry);
 
-  xpbd_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
-  xpbd_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
 }
 
 /* Create root attachment constraints. */
@@ -84,8 +84,8 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
 
   UNUSED_VARS(hair_geometry);
 
-  xpbd_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
-  xpbd_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)

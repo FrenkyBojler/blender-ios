@@ -8,9 +8,9 @@
 #include "BKE_lib_id.hh"
 #include "BKE_pointcloud.hh"
 
-#include "GEO_hair_constraints.hh"
+#include "GEO_hair_constraint_functions.hh"
 
-#include "NOD_xpbd_constraints.hh"
+#include "NOD_geo_hair_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
 #include "CLG_log.h"
@@ -20,6 +20,12 @@
 #include <iostream>
 
 namespace blender::nodes::tests {
+
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintType;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
+using xpbd_constraints::ConstraintEvalData;
 
 #define EXPECT_EIGEN_MATRIX_NEAR(a, b, eps) \
   do { \
@@ -94,9 +100,9 @@ class XPBDSolverTest : public testing::Test {
 };
 
 struct SolverTestData {
-  xpbd_constraints::ConstraintEvalParams params;
-  xpbd_constraints::ConstraintVariables vars;
-  Vector<xpbd_constraints::ConstraintEvalData> data;
+  ConstraintEvalParams params;
+  ConstraintVariables vars;
+  Vector<ConstraintEvalData> data;
 
   /* These are the same arrays stored in point cloud attributes,
    * put here directly for convenient testing. */
@@ -144,8 +150,8 @@ struct SolverTestData {
   } contact;
 };
 
-static SolverTestData simple_solver_data(
-    const Span<xpbd_constraints::ConstraintType> constraint_types, const bool use_velocities)
+static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_types,
+                                         const bool use_velocities)
 {
   SolverTestData solver_test;
 
@@ -186,7 +192,7 @@ static SolverTestData simple_solver_data(
   }
 
   using AttributeInfo = std::pair<StringRef, GSpan>;
-  auto add_constraint_data = [&](const xpbd_constraints::ConstraintTypeInfo &type,
+  auto add_constraint_data = [&](const ConstraintTypeInfo &type,
                                  const Span<AttributeInfo> attribute_info) {
     PointCloud *constraints = BKE_pointcloud_new_nomain(attribute_info.first().second.size());
     bke::MutableAttributeAccessor attributes = constraints->attributes_for_write();
@@ -205,7 +211,7 @@ static SolverTestData simple_solver_data(
         attributes.domain_size(bke::AttrDomain::Point));
   };
 
-  if (constraint_types.contains(xpbd_constraints::ConstraintType::PositionGoal)) {
+  if (constraint_types.contains(ConstraintType::PositionGoal)) {
     solver_test.position_goal.point1 = {0, 2};
     solver_test.position_goal.lambdas = {0.2f, 3.0f};
     solver_test.position_goal.alphas = {1.5f, 0.1f};
@@ -213,14 +219,14 @@ static SolverTestData simple_solver_data(
     solver_test.position_goal.goal_position = {float3(0.0f), float3(1, -1, 2)};
 
     add_constraint_data(
-        xpbd_constraints::get_info(xpbd_constraints::ConstraintType::PositionGoal, true),
+        geometry::hair_constraints::get_info(ConstraintType::PositionGoal, true),
         {AttributeInfo{"point1", solver_test.position_goal.point1.as_span()},
          AttributeInfo{"lambda", solver_test.position_goal.lambdas.as_span()},
          AttributeInfo{"goal_position", solver_test.position_goal.goal_position.as_span()},
          AttributeInfo{"compliance", solver_test.position_goal.alphas.as_span()},
          AttributeInfo{"damping", solver_test.position_goal.betas.as_span()}});
   }
-  if (constraint_types.contains(xpbd_constraints::ConstraintType::RotationGoal)) {
+  if (constraint_types.contains(ConstraintType::RotationGoal)) {
     solver_test.rotation_goal.point1 = {1, 2};
     solver_test.rotation_goal.lambdas = {float3(0.0f, 0.5f, 1.0f), float3(0.01f, 0.0f, 0.9f)};
     solver_test.rotation_goal.alphas = {float3(0.4f, 0.1f, 0.4f), float3(0.2f, 0.0f, 1.0f)};
@@ -229,14 +235,14 @@ static SolverTestData simple_solver_data(
                                                math::to_quaternion(math::EulerXYZ(0, 10, 10))};
 
     add_constraint_data(
-        xpbd_constraints::get_info(xpbd_constraints::ConstraintType::RotationGoal, true),
+        geometry::hair_constraints::get_info(ConstraintType::RotationGoal, true),
         {AttributeInfo{"point1", solver_test.rotation_goal.point1.as_span()},
          AttributeInfo{"lambda", solver_test.rotation_goal.lambdas.as_span()},
          AttributeInfo{"goal_rotation", solver_test.rotation_goal.goal_rotation.as_span()},
          AttributeInfo{"compliance", solver_test.rotation_goal.alphas.as_span()},
          AttributeInfo{"damping", solver_test.rotation_goal.betas.as_span()}});
   }
-  if (constraint_types.contains(xpbd_constraints::ConstraintType::StretchShear)) {
+  if (constraint_types.contains(ConstraintType::StretchShear)) {
     solver_test.stretch_shear.point1 = {1, 0};
     solver_test.stretch_shear.point2 = {2, 1};
     solver_test.stretch_shear.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
@@ -245,7 +251,7 @@ static SolverTestData simple_solver_data(
     solver_test.stretch_shear.edge_lengths = {0.8f, 2.5f};
 
     add_constraint_data(
-        xpbd_constraints::get_info(xpbd_constraints::ConstraintType::StretchShear, true),
+        geometry::hair_constraints::get_info(ConstraintType::StretchShear, true),
         {AttributeInfo{"point1", solver_test.stretch_shear.point1.as_span()},
          AttributeInfo{"point2", solver_test.stretch_shear.point2.as_span()},
          AttributeInfo{"lambda", solver_test.stretch_shear.lambdas.as_span()},
@@ -253,7 +259,7 @@ static SolverTestData simple_solver_data(
          AttributeInfo{"compliance", solver_test.stretch_shear.alphas.as_span()},
          AttributeInfo{"damping", solver_test.stretch_shear.betas.as_span()}});
   }
-  if (constraint_types.contains(xpbd_constraints::ConstraintType::BendTwist)) {
+  if (constraint_types.contains(ConstraintType::BendTwist)) {
     solver_test.bend_twist.point1 = {1, 0};
     solver_test.bend_twist.point2 = {2, 1};
     solver_test.bend_twist.lambdas = {float3(-1.0f, 0.0f, 0.0f), float3(4.0f, -4.0f, 1.0f)};
@@ -262,7 +268,7 @@ static SolverTestData simple_solver_data(
     solver_test.bend_twist.darboux_vector = {float3(0.2f, 0.8f, 1.1f), float3(-0.5f, -0.5f, 2.2f)};
 
     add_constraint_data(
-        xpbd_constraints::get_info(xpbd_constraints::ConstraintType::BendTwist, true),
+        geometry::hair_constraints::get_info(ConstraintType::BendTwist, true),
         {AttributeInfo{"point1", solver_test.bend_twist.point1.as_span()},
          AttributeInfo{"point2", solver_test.bend_twist.point2.as_span()},
          AttributeInfo{"lambda", solver_test.bend_twist.lambdas.as_span()},
@@ -270,7 +276,7 @@ static SolverTestData simple_solver_data(
          AttributeInfo{"compliance", solver_test.bend_twist.alphas.as_span()},
          AttributeInfo{"damping", solver_test.bend_twist.betas.as_span()}});
   }
-  if (constraint_types.contains(xpbd_constraints::ConstraintType::Contact)) {
+  if (constraint_types.contains(ConstraintType::Contact)) {
     solver_test.contact.point1 = {1, 1, 0};
     solver_test.contact.collider_index = {1, 0, 1};
     solver_test.contact.lambdas = {0.0f, 0.2f, 1.0f};
@@ -285,7 +291,7 @@ static SolverTestData simple_solver_data(
         float3(0.0f, 0.0f, -1.0f), float3(0.3f, 0.4f, 1.0f), float3(0.0f, 0.0f, 1.0f)};
 
     add_constraint_data(
-        xpbd_constraints::get_info(xpbd_constraints::ConstraintType::Contact, true),
+        geometry::hair_constraints::get_info(ConstraintType::Contact, true),
         {AttributeInfo{"point1", solver_test.contact.point1.as_span()},
          AttributeInfo{"collider_index", solver_test.contact.collider_index.as_span()},
          AttributeInfo{"lambda", solver_test.contact.lambdas.as_span()},
@@ -434,8 +440,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_PositionGoal)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::PositionGoal},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::PositionGoal}, false);
   const auto &test_data = solver_test.position_goal;
 
   IndexMaskMemory memory;
@@ -504,8 +509,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_RotationGoal)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::RotationGoal},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::RotationGoal}, false);
   const auto &test_data = solver_test.rotation_goal;
 
   IndexMaskMemory memory;
@@ -580,8 +584,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_StretchShear)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::StretchShear},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::StretchShear}, false);
   const auto &test_data = solver_test.stretch_shear;
 
   IndexMaskMemory memory;
@@ -692,8 +695,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_BendTwist)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::BendTwist},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::BendTwist}, false);
   const auto &test_data = solver_test.bend_twist;
 
   IndexMaskMemory memory;
@@ -786,8 +788,7 @@ TEST_F(XPBDSolverTest, GlobalSolverConstraints_Contact)
 {
   constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::Contact},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data({ConstraintType::Contact}, false);
   const auto &test_data = solver_test.contact;
 
   IndexMaskMemory memory;
@@ -913,10 +914,8 @@ TEST_F(XPBDSolverTest, GlobalSolverExecute)
 {
   // constexpr float eps = 1e-6f;
 
-  SolverTestData solver_test = simple_solver_data({xpbd_constraints::ConstraintType::PositionGoal,
-                                                   xpbd_constraints::ConstraintType::BendTwist,
-                                                   xpbd_constraints::ConstraintType::Contact},
-                                                  false);
+  SolverTestData solver_test = simple_solver_data(
+      {ConstraintType::PositionGoal, ConstraintType::BendTwist, ConstraintType::Contact}, false);
 
   IndexMaskMemory memory;
   xpbd_constraints::GlobalSolverSystem system = xpbd_constraints::build_global_solve_system(

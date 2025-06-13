@@ -6,8 +6,9 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
-#include "GEO_hair_constraints.hh"
+#include "GEO_hair_constraint_functions.hh"
 
+#include "NOD_geo_hair_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
@@ -18,113 +19,9 @@
 
 namespace blender::nodes::xpbd_constraints {
 
-/* -------------------------------------------------------------------- */
-/** \name Debug Recorder
- * \{ */
-
-static void append_instance_item(GeometrySet &container,
-                                 GeometrySet item,
-                                 const StringRef name,
-                                 const float4x4 &transform = float4x4::identity())
-{
-  if (!container.has_instances()) {
-    container.replace_instances(new bke::Instances);
-  }
-  bke::Instances &instances =
-      *container.get_component_for_write<InstancesComponent>().get_for_write();
-
-  item.name = name;
-  const int handle = instances.add_new_reference(std::move(item));
-  instances.add_instance(handle, transform);
-}
-
-DebugRecorder::DebugRecorder(const bke::GeometrySet &debug_steps)
-    : component_type_(GeometryComponent::Type::PointCloud), debug_steps_(debug_steps)
-{
-}
-
-void DebugRecorder::set_geometry(const GeometrySet &geometry_set,
-                                 GeometryComponent::Type component_type)
-{
-  geometry_set_ = geometry_set;
-  component_type_ = component_type;
-}
-
-void DebugRecorder::record_step(const StringRef label,
-                                GeometrySet *constraints,
-                                const int constraint_type_code,
-                                const IndexMask &group_mask,
-                                const ConstraintVariables &variables)
-{
-  GeometrySet step_geometry;
-
-  {
-    GeometrySet updated_geometry = geometry_set_;
-    GeometryComponent &component = updated_geometry.get_component_for_write(component_type_);
-    MutableAttributeAccessor attributes = *component.attributes_for_write();
-    if (!variables.positions.is_empty()) {
-      AttributeWriter<float3> positions_writer = attributes.lookup_or_add_for_write<float3>(
-          "position", AttrDomain::Point);
-      positions_writer.varray.set_all(variables.positions);
-      positions_writer.finish();
-    }
-    if (!variables.rotations.is_empty()) {
-      AttributeWriter<math::Quaternion> rotations_writer =
-          attributes.lookup_or_add_for_write<math::Quaternion>("rotation", AttrDomain::Point);
-      rotations_writer.varray.set_all(variables.rotations);
-      rotations_writer.finish();
-    }
-    if (!variables.velocities.is_empty()) {
-      AttributeWriter<float3> velocities_writer = attributes.lookup_or_add_for_write<float3>(
-          "velocity", AttrDomain::Point);
-      velocities_writer.varray.set_all(variables.velocities);
-      velocities_writer.finish();
-    }
-    if (!variables.angular_velocities.is_empty()) {
-      AttributeWriter<float3> angular_velocities_writer =
-          attributes.lookup_or_add_for_write<float3>("angular_velocity", AttrDomain::Point);
-      angular_velocities_writer.varray.set_all(variables.angular_velocities);
-      angular_velocities_writer.finish();
-    }
-
-    append_instance_item(step_geometry, updated_geometry, "Geometry");
-  }
-
-  if (constraints) {
-    PointCloudComponent &constraint_component =
-        constraints->get_component_for_write<PointCloudComponent>();
-    MutableAttributeAccessor attributes = *constraint_component.attributes_for_write();
-    attributes.remove("group_active");
-    SpanAttributeWriter<bool> group_active_writer = attributes.lookup_or_add_for_write_span<bool>(
-        "group_active", AttrDomain::Point);
-    group_mask.foreach_index(GrainSize(4096),
-                             [&](const int index) { group_active_writer.span[index] = true; });
-    group_active_writer.finish();
-
-    append_instance_item(step_geometry, *constraints, "Constraints");
-  }
-
-  MutableAttributeAccessor instance_attributes = step_geometry
-                                                     .get_component_for_write<InstancesComponent>()
-                                                     .get_for_write()
-                                                     ->attributes_for_write();
-  AttributeWriter<int> type_code_writer = instance_attributes.lookup_or_add_for_write<int>(
-      "type_code", AttrDomain::Instance);
-  type_code_writer.varray.set(0, -1);
-  if (constraints) {
-    type_code_writer.varray.set(1, constraint_type_code);
-  }
-  type_code_writer.finish();
-
-  append_instance_item(debug_steps_, step_geometry, label);
-}
-
-const bke::GeometrySet &DebugRecorder::debug_steps() const
-{
-  return debug_steps_;
-}
-
-/** \} */
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
 
 /* -------------------------------------------------------------------- */
 /** \name Gauss-Seidel Solver

@@ -11,9 +11,9 @@
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
+#include "NOD_geo_hair_constraints.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_rna_define.hh"
-#include "NOD_xpbd_constraints.hh"
 #include "NOD_xpbd_solver.hh"
 
 #include "node_geometry_util.hh"
@@ -30,10 +30,10 @@
 
 namespace blender::nodes::node_geo_xpbd_constraint_residuals_cc {
 
-using xpbd_constraints::ConstraintEvalData;
-using xpbd_constraints::ConstraintEvalParams;
-using xpbd_constraints::ConstraintTypeInfo;
-using xpbd_constraints::ConstraintVariables;
+using geometry::hair_constraints::ConstraintEvalParams;
+using geometry::hair_constraints::ConstraintTypeInfo;
+using geometry::hair_constraints::ConstraintVariables;
+using xpbd_constraints ::ConstraintEvalData;
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -79,8 +79,8 @@ static void get_constraint_data(GeoNodeExecParams params,
 {
   const BundlePtr constraints_ptr = params.extract_input<BundlePtr>("Constraints");
 
-  const Span<ConstraintTypeInfo> constraint_infos = xpbd_constraints::get_constraint_info_ordered(
-      debug_output);
+  const Span<ConstraintTypeInfo> constraint_infos =
+      geometry::hair_constraints ::get_constraint_info_ordered(debug_output);
   constraint_data.reinitialize(constraint_infos.size());
 
   for (const int i : constraint_infos.index_range()) {

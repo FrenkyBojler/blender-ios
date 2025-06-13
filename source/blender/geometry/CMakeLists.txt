@@ -19,7 +19,9 @@ set(SRC
   intern/extract_elements.cc
   intern/fillet_curves.cc
   intern/fit_curves.cc
+  intern/hair_constraints.cc
   intern/hair_simulation.cc
+  intern/hair_solver.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
   intern/merge_curves.cc
@@ -64,8 +66,10 @@ set(SRC
   GEO_extract_elements.hh
   GEO_fillet_curves.hh
   GEO_fit_curves.hh
+  GEO_hair_constraint_functions.hh
   GEO_hair_constraints.hh
   GEO_hair_simulation.hh
+  GEO_hair_solver.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
   GEO_merge_curves.hh
