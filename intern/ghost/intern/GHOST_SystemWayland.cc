@@ -125,11 +125,6 @@ static void gwl_seat_capability_pointer_disable(GWL_Seat *seat);
 static void gwl_seat_capability_keyboard_disable(GWL_Seat *seat);
 static void gwl_seat_capability_touch_disable(GWL_Seat *seat);
 
-static void gwl_seat_cursor_anim_begin(GWL_Seat *seat);
-static void gwl_seat_cursor_anim_begin_if_needed(GWL_Seat *seat);
-static void gwl_seat_cursor_anim_end(GWL_Seat *seat);
-static void gwl_seat_cursor_anim_reset(GWL_Seat *seat);
-
 static bool gwl_registry_entry_remove_by_name(GWL_Display *display,
                                               uint32_t name,
                                               int *r_interface_slot);
@@ -438,14 +433,6 @@ static void gwl_simple_buffer_set_from_string(GWL_SimpleBuffer *buffer, const ch
  */
 #define EVDEV_OFFSET 8
 
-/**
- * Data owned by the thread that updates the cursor.
- * Exposed so the #GWL_Seat can request the thread to exit & free itself.
- */
-struct GWL_Cursor_AnimHandle {
-  std::atomic<bool> exit_pending = false;
-};
-
 struct GWL_Cursor {
 
   /** Wayland core types. */
@@ -455,11 +442,6 @@ struct GWL_Cursor {
     wl_surface *surface_cursor = nullptr;
     wl_buffer *buffer = nullptr;
     wl_cursor_image image = {0};
-    wl_cursor_theme *theme = nullptr;
-    /** Only set when the cursor is from the theme (it may be animated). */
-    const wl_cursor *theme_cursor = nullptr;
-    /** Needed so changing the theme scale can reload 'theme_cursor' at a new scale. */
-    const char *theme_cursor_name = nullptr;
   } wl;
 
   bool visible = false;
@@ -475,22 +457,6 @@ struct GWL_Cursor {
   void *custom_data = nullptr;
   /** The size of `custom_data` in bytes. */
   size_t custom_data_size = 0;
-
-  /** Use for animated cursors. */
-  GWL_Cursor_AnimHandle *anim_handle = nullptr;
-
-  /**
-   * The name of the theme (set by an environment variable).
-   * When disabled, leave as an empty string and pass in nullptr to use the default theme.
-   */
-  std::string theme_name;
-  /**
-   * The size of the cursor (when looking up a cursor theme).
-   * This must be scaled by the maximum output scale when passing to wl_cursor_theme_load.
-   * See #update_cursor_scale.
-   */
-  int theme_size = 0;
-  int custom_scale = 1;
 };
 
 /** \} */
@@ -1562,11 +1528,6 @@ static void gwl_display_destroy(GWL_Display *display)
   }
 #endif
 
-  /* Stop all animated cursors (freeing their #GWL_Cursor_AnimHandle). */
-  for (GWL_Seat *seat : display->seats) {
-    gwl_seat_cursor_anim_end(seat);
-  }
-
   /* For typical WAYLAND use this will always be set.
    * However when WAYLAND isn't running, this will early-exit and be null. */
   if (display->wl.registry) {
@@ -2269,75 +2230,6 @@ static GHOST_TTabletMode tablet_tool_map_type(enum zwp_tablet_tool_v2_type wp_ta
   return GHOST_kTabletModeStylus;
 }
 
-static const int default_cursor_size = 24;
-
-struct GWL_Cursor_ShapeInfo {
-  const char *names[GHOST_kStandardCursorNumCursors] = {nullptr};
-};
-
-static const GWL_Cursor_ShapeInfo ghost_wl_cursors = []() -> GWL_Cursor_ShapeInfo {
-  GWL_Cursor_ShapeInfo info{};
-
-#define CASE_CURSOR(shape_id, shape_name_in_theme) \
-  case shape_id: { \
-    info.names[int(shape_id)] = shape_name_in_theme; \
-  } \
-    ((void)0)
-
-  /* Use a switch to ensure missing values show a compiler warning. */
-  switch (GHOST_kStandardCursorDefault) {
-    CASE_CURSOR(GHOST_kStandardCursorDefault, "left_ptr");
-    CASE_CURSOR(GHOST_kStandardCursorRightArrow, "right_ptr");
-    CASE_CURSOR(GHOST_kStandardCursorLeftArrow, "left_ptr");
-    CASE_CURSOR(GHOST_kStandardCursorInfo, "left_ptr_help");
-    CASE_CURSOR(GHOST_kStandardCursorDestroy, "pirate");
-    CASE_CURSOR(GHOST_kStandardCursorHelp, "question_arrow");
-    CASE_CURSOR(GHOST_kStandardCursorWait, "watch");
-    CASE_CURSOR(GHOST_kStandardCursorText, "xterm");
-    CASE_CURSOR(GHOST_kStandardCursorCrosshair, "crosshair");
-    CASE_CURSOR(GHOST_kStandardCursorCrosshairA, "");
-    CASE_CURSOR(GHOST_kStandardCursorCrosshairB, "");
-    CASE_CURSOR(GHOST_kStandardCursorCrosshairC, "");
-    CASE_CURSOR(GHOST_kStandardCursorPencil, "pencil");
-    CASE_CURSOR(GHOST_kStandardCursorUpArrow, "sb_up_arrow");
-    CASE_CURSOR(GHOST_kStandardCursorDownArrow, "sb_down_arrow");
-    CASE_CURSOR(GHOST_kStandardCursorVerticalSplit, "split_v");
-    CASE_CURSOR(GHOST_kStandardCursorHorizontalSplit, "split_h");
-    CASE_CURSOR(GHOST_kStandardCursorEraser, "");
-    CASE_CURSOR(GHOST_kStandardCursorKnife, "");
-    CASE_CURSOR(GHOST_kStandardCursorEyedropper, "color-picker");
-    CASE_CURSOR(GHOST_kStandardCursorZoomIn, "zoom-in");
-    CASE_CURSOR(GHOST_kStandardCursorZoomOut, "zoom-out");
-    CASE_CURSOR(GHOST_kStandardCursorMove, "move");
-    CASE_CURSOR(GHOST_kStandardCursorHandOpen, "hand1");
-    CASE_CURSOR(GHOST_kStandardCursorHandClosed, "grabbing");
-    CASE_CURSOR(GHOST_kStandardCursorHandPoint, "hand2");
-    CASE_CURSOR(GHOST_kStandardCursorNSEWScroll, "all-scroll");
-    CASE_CURSOR(GHOST_kStandardCursorNSScroll, "size_ver");
-    CASE_CURSOR(GHOST_kStandardCursorEWScroll, "size_hor");
-    CASE_CURSOR(GHOST_kStandardCursorStop, "not-allowed");
-    CASE_CURSOR(GHOST_kStandardCursorUpDown, "sb_v_double_arrow");
-    CASE_CURSOR(GHOST_kStandardCursorLeftRight, "sb_h_double_arrow");
-    CASE_CURSOR(GHOST_kStandardCursorTopSide, "top_side");
-    CASE_CURSOR(GHOST_kStandardCursorBottomSide, "bottom_side");
-    CASE_CURSOR(GHOST_kStandardCursorLeftSide, "left_side");
-    CASE_CURSOR(GHOST_kStandardCursorRightSide, "right_side");
-    CASE_CURSOR(GHOST_kStandardCursorTopLeftCorner, "top_left_corner");
-    CASE_CURSOR(GHOST_kStandardCursorTopRightCorner, "top_right_corner");
-    CASE_CURSOR(GHOST_kStandardCursorBottomRightCorner, "bottom_right_corner");
-    CASE_CURSOR(GHOST_kStandardCursorBottomLeftCorner, "bottom_left_corner");
-    CASE_CURSOR(GHOST_kStandardCursorCopy, "copy");
-    CASE_CURSOR(GHOST_kStandardCursorLeftHandle, "");
-    CASE_CURSOR(GHOST_kStandardCursorRightHandle, "");
-    CASE_CURSOR(GHOST_kStandardCursorBothHandles, "");
-    CASE_CURSOR(GHOST_kStandardCursorBlade, "");
-    CASE_CURSOR(GHOST_kStandardCursorCustom, "");
-  }
-#undef CASE_CURSOR
-
-  return info;
-}();
-
 static constexpr const char *ghost_wl_mime_text_plain = "text/plain";
 static constexpr const char *ghost_wl_mime_text_utf8 = "text/plain;charset=utf-8";
 static constexpr const char *ghost_wl_mime_text_uri_list = "text/uri-list";
@@ -2415,16 +2307,6 @@ static void pthread_set_min_priority(pthread_t handle)
   }
 }
 
-static void thread_set_min_priority(std::thread &thread)
-{
-  constexpr bool is_pthread = std::is_same<std::thread::native_handle_type, pthread_t>();
-  if (!is_pthread) {
-    return;
-  }
-  /* The cast is "safe" as non-matching types will have returned already.
-   * This cast might be avoided with clever template use. */
-  pthread_set_min_priority(reinterpret_cast<pthread_t>(thread.native_handle()));
-}
 #endif /* USE_EVENT_BACKGROUND_THREAD */
 
 static int memfd_create_sealed(const char *name)
@@ -2772,34 +2654,14 @@ static char *read_file_as_buffer(const int fd, const bool nil_terminate, size_t 
 
 static void cursor_buffer_set_surface_impl(const wl_cursor_image *wl_image,
                                            wl_buffer *buffer,
-                                           wl_surface *wl_surface,
-                                           const int scale)
+                                           wl_surface *wl_surface)
 {
   const int32_t image_size_x = int32_t(wl_image->width);
   const int32_t image_size_y = int32_t(wl_image->height);
-  GHOST_ASSERT((image_size_x % scale) == 0 && (image_size_y % scale) == 0,
-               "The size must be a multiple of the scale!");
 
-  wl_surface_set_buffer_scale(wl_surface, scale);
   wl_surface_attach(wl_surface, buffer, 0, 0);
   wl_surface_damage(wl_surface, 0, 0, image_size_x, image_size_y);
   wl_surface_commit(wl_surface);
-}
-
-/**
- * Needed to ensure the cursor size is always a multiple of scale.
- */
-static int cursor_buffer_compatible_scale_from_image(const wl_cursor_image *wl_image, int scale)
-{
-  const int32_t image_size_x = int32_t(wl_image->width);
-  const int32_t image_size_y = int32_t(wl_image->height);
-  while (scale > 1) {
-    if ((image_size_x % scale) == 0 && (image_size_y % scale) == 0) {
-      break;
-    }
-    scale -= 1;
-  }
-  return scale;
 }
 
 static int get_cursor_shape_enum_from_ghost_shape(const GHOST_TStandardCursor shape)
@@ -2903,38 +2765,6 @@ static int get_cursor_shape_enum_from_ghost_shape(const GHOST_TStandardCursor sh
   return 0;
 }
 
-static const wl_cursor *gwl_seat_cursor_find_from_shape(GWL_Seat *seat,
-                                                        const GHOST_TStandardCursor shape,
-                                                        const char **r_cursor_name)
-{
-  /* Caller must lock `server_mutex`. */
-  GWL_Cursor *cursor = &seat->cursor;
-  wl_cursor *wl_cursor = nullptr;
-
-  const char *cursor_name = ghost_wl_cursors.names[shape];
-  if (cursor_name[0] != '\0') {
-    if (!cursor->wl.theme) {
-      /* The cursor wl_surface hasn't entered an output yet. Initialize theme with scale 1. */
-      cursor->wl.theme = wl_cursor_theme_load(
-          (cursor->theme_name.empty() ? nullptr : cursor->theme_name.c_str()),
-          cursor->theme_size,
-          seat->system->wl_shm_get());
-    }
-
-    if (cursor->wl.theme) {
-      wl_cursor = wl_cursor_theme_get_cursor(cursor->wl.theme, cursor_name);
-      if (!wl_cursor) {
-        GHOST_PRINT("cursor '" << cursor_name << "' does not exist" << std::endl);
-      }
-    }
-  }
-
-  if (r_cursor_name && wl_cursor) {
-    *r_cursor_name = cursor_name;
-  }
-  return wl_cursor;
-}
-
 /**
  * Show the buffer defined by #gwl_seat_cursor_buffer_set without changing anything else,
  * so #gwl_seat_cursor_buffer_hide can be used to display it again.
@@ -2946,17 +2776,15 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
   const GWL_Cursor *cursor = &seat->cursor;
 
   if (seat->wl.pointer) {
-    const int scale = cursor->is_custom ? cursor->custom_scale : seat->pointer.theme_scale;
-    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x) / scale;
-    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y) / scale;
+    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
+    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
     wl_pointer_set_cursor(
         seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
   }
 
   if (!seat->wp.tablet_tools.empty()) {
-    const int scale = cursor->is_custom ? cursor->custom_scale : seat->tablet.theme_scale;
-    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x) / scale;
-    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y) / scale;
+    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
+    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
     for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
       GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
           zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
@@ -2970,8 +2798,6 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
 #endif
     }
   }
-
-  gwl_seat_cursor_anim_reset(seat);
 }
 
 /**
@@ -2982,8 +2808,6 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
  */
 static void gwl_seat_cursor_buffer_hide(GWL_Seat *seat)
 {
-  gwl_seat_cursor_anim_end(seat);
-
   wl_pointer_set_cursor(seat->wl.pointer, seat->pointer.serial, nullptr, 0, 0);
   for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
     zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2, seat->tablet.serial, nullptr, 0, 0);
@@ -3000,11 +2824,9 @@ static void gwl_seat_cursor_buffer_set(const GWL_Seat *seat,
   /* This is a requirement of WAYLAND, when this isn't the case,
    * it causes Blender's window to close intermittently. */
   if (seat->wl.pointer) {
-    const int scale = cursor_buffer_compatible_scale_from_image(
-        wl_image, cursor->is_custom ? cursor->custom_scale : seat->pointer.theme_scale);
-    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
-    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
-    cursor_buffer_set_surface_impl(wl_image, buffer, cursor->wl.surface_cursor, scale);
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x);
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y);
+    cursor_buffer_set_surface_impl(wl_image, buffer, cursor->wl.surface_cursor);
     wl_pointer_set_cursor(seat->wl.pointer,
                           seat->pointer.serial,
                           visible ? cursor->wl.surface_cursor : nullptr,
@@ -3014,14 +2836,12 @@ static void gwl_seat_cursor_buffer_set(const GWL_Seat *seat,
 
   /* Set the cursor for all tablet tools as well. */
   if (!seat->wp.tablet_tools.empty()) {
-    const int scale = cursor_buffer_compatible_scale_from_image(
-        wl_image, cursor->is_custom ? cursor->custom_scale : seat->tablet.theme_scale);
-    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
-    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x);
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y);
     for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
       GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
           zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-      cursor_buffer_set_surface_impl(wl_image, buffer, tablet_tool->wl.surface_cursor, scale);
+      cursor_buffer_set_surface_impl(wl_image, buffer, tablet_tool->wl.surface_cursor);
       zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
                                     seat->tablet.serial,
                                     visible ? tablet_tool->wl.surface_cursor : nullptr,
@@ -3034,9 +2854,7 @@ static void gwl_seat_cursor_buffer_set(const GWL_Seat *seat,
 static void gwl_seat_cursor_buffer_set_current(GWL_Seat *seat)
 {
   const GWL_Cursor *cursor = &seat->cursor;
-  gwl_seat_cursor_anim_end(seat);
   gwl_seat_cursor_buffer_set(seat, &cursor->wl.image, cursor->wl.buffer);
-  gwl_seat_cursor_anim_begin_if_needed(seat);
 }
 
 enum eCursorSetMode {
@@ -3081,106 +2899,6 @@ static void gwl_seat_cursor_visible_set(GWL_Seat *seat,
   cursor->visible = visible;
   cursor->is_hardware = is_hardware;
 }
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Private Cursor Animation API
- * \{ */
-
-#ifdef USE_EVENT_BACKGROUND_THREAD
-
-static bool gwl_seat_cursor_anim_check(GWL_Seat *seat)
-{
-  const wl_cursor *wl_cursor = seat->cursor.wl.theme_cursor;
-  if (!wl_cursor) {
-    return false;
-  }
-  /* NOTE: return true to stress test animated cursor,
-   * to ensure (otherwise rare) issues are triggered more frequently. */
-  // return true;
-
-  return wl_cursor->image_count > 1;
-}
-
-static void gwl_seat_cursor_anim_begin(GWL_Seat *seat)
-{
-  /* Caller must lock `server_mutex`. */
-  GHOST_ASSERT(seat->cursor.anim_handle == nullptr, "Must be cleared");
-
-  /* Callback for updating the cursor animation. */
-  auto cursor_anim_frame_step_fn =
-      [](GWL_Seat *seat, GWL_Cursor_AnimHandle *anim_handle, int delay) {
-        /* It's possible the `wl_cursor` is reloaded while the cursor is animating.
-         * Don't access outside the lock, that's why the `delay` is passed in. */
-        std::mutex *server_mutex = seat->system->server_mutex;
-        int frame = 0;
-        while (!anim_handle->exit_pending.load()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-          if (!anim_handle->exit_pending.load()) {
-            std::lock_guard lock_server_guard{*server_mutex};
-            if (!anim_handle->exit_pending.load()) {
-              const wl_cursor *wl_cursor = seat->cursor.wl.theme_cursor;
-              frame = (frame + 1) % wl_cursor->image_count;
-              wl_cursor_image *image = wl_cursor->images[frame];
-              wl_buffer *buffer = wl_cursor_image_get_buffer(image);
-              gwl_seat_cursor_buffer_set(seat, image, buffer);
-              delay = wl_cursor->images[frame]->delay;
-              /* Without this the cursor won't update when other processes are occupied. */
-              wl_display_flush(seat->system->wl_display_get());
-            }
-          }
-        }
-        delete anim_handle;
-      };
-
-  /* Allocate so this can be set before the thread begins. */
-  GWL_Cursor_AnimHandle *anim_handle = new GWL_Cursor_AnimHandle;
-  seat->cursor.anim_handle = anim_handle;
-
-  const int delay = seat->cursor.wl.theme_cursor->images[0]->delay;
-  std::thread cursor_anim_thread(cursor_anim_frame_step_fn, seat, anim_handle, delay);
-  /* Application logic should take priority. */
-  thread_set_min_priority(cursor_anim_thread);
-  cursor_anim_thread.detach();
-}
-
-static void gwl_seat_cursor_anim_begin_if_needed(GWL_Seat *seat)
-{
-  if (gwl_seat_cursor_anim_check(seat)) {
-    gwl_seat_cursor_anim_begin(seat);
-  }
-}
-
-static void gwl_seat_cursor_anim_end(GWL_Seat *seat)
-{
-  GWL_Cursor *cursor = &seat->cursor;
-  if (cursor->anim_handle) {
-    GWL_Cursor_AnimHandle *anim_handle = cursor->anim_handle;
-    cursor->anim_handle = nullptr;
-    anim_handle->exit_pending.store(true);
-  }
-}
-
-static void gwl_seat_cursor_anim_reset(GWL_Seat *seat)
-{
-  gwl_seat_cursor_anim_end(seat);
-  gwl_seat_cursor_anim_begin_if_needed(seat);
-}
-
-#else
-
-/* Unfortunately cursor animation requires a background thread. */
-[[maybe_unused]] static bool gwl_seat_cursor_anim_check(GWL_Seat * /*seat*/)
-{
-  return false;
-}
-[[maybe_unused]] static void gwl_seat_cursor_anim_begin(GWL_Seat * /*seat*/) {}
-[[maybe_unused]] static void gwl_seat_cursor_anim_begin_if_needed(GWL_Seat * /*seat*/) {}
-[[maybe_unused]] static void gwl_seat_cursor_anim_end(GWL_Seat * /*seat*/) {}
-[[maybe_unused]] static void gwl_seat_cursor_anim_reset(GWL_Seat * /*seat*/) {}
-
-#endif /* !USE_EVENT_BACKGROUND_THREAD */
 
 /** \} */
 
@@ -3883,54 +3601,6 @@ static const wl_buffer_listener cursor_buffer_listener = {
 static CLG_LogRef LOG_WL_CURSOR_SURFACE = {"ghost.wl.handle.cursor_surface"};
 #define LOG (&LOG_WL_CURSOR_SURFACE)
 
-static bool update_cursor_scale(GWL_Cursor &cursor,
-                                wl_shm *shm,
-                                GWL_SeatStatePointer *seat_state_pointer,
-                                wl_surface *wl_surface_cursor)
-{
-  int scale = 0;
-  for (const GWL_Output *output : seat_state_pointer->outputs) {
-    int output_scale_floor = output->scale;
-
-    /* It's important to round down in the case of fractional scale,
-     * otherwise the cursor can be scaled down to be unusably small.
-     * This is especially a problem when:
-     * - The cursor theme has one size (24px for the default cursor).
-     * - The fractional scaling is set just above 1 (typically 125%).
-     *
-     * In this case the `output->scale` is rounded up to 2 and a larger cursor is requested.
-     * It's assumed a large cursor is available but that's not always the case.
-     * When only a smaller cursor is available it's still assumed to be large,
-     * fractional scaling causes the cursor to be scaled down making it ~10px. see #105895. */
-    if (output_scale_floor > 1 && output->has_scale_fractional) {
-      output_scale_floor = std::max(1, output->scale_fractional / FRACTIONAL_DENOMINATOR);
-    }
-
-    scale = std::max(output_scale_floor, scale);
-  }
-
-  if (scale > 0 && seat_state_pointer->theme_scale != scale) {
-    seat_state_pointer->theme_scale = scale;
-    if (!cursor.is_custom) {
-      if (wl_surface_cursor) {
-        wl_surface_set_buffer_scale(wl_surface_cursor, scale);
-      }
-    }
-    wl_cursor_theme_destroy(cursor.wl.theme);
-    cursor.wl.theme = wl_cursor_theme_load(
-        (cursor.theme_name.empty() ? nullptr : cursor.theme_name.c_str()),
-        scale * cursor.theme_size,
-        shm);
-    if (cursor.wl.theme_cursor) {
-      cursor.wl.theme_cursor = wl_cursor_theme_get_cursor(cursor.wl.theme,
-                                                          cursor.wl.theme_cursor_name);
-    }
-
-    return true;
-  }
-  return false;
-}
-
 static void cursor_surface_handle_enter(void *data, wl_surface *wl_surface, wl_output *wl_output)
 {
   if (!ghost_wl_output_own(wl_output)) {
@@ -3944,7 +3614,6 @@ static void cursor_surface_handle_enter(void *data, wl_surface *wl_surface, wl_o
       seat, wl_surface);
   const GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   seat_state_pointer->outputs.insert(reg_output);
-  update_cursor_scale(seat->cursor, seat->system->wl_shm_get(), seat_state_pointer, wl_surface);
 }
 
 static void cursor_surface_handle_leave(void *data, wl_surface *wl_surface, wl_output *wl_output)
@@ -3960,7 +3629,6 @@ static void cursor_surface_handle_leave(void *data, wl_surface *wl_surface, wl_o
       seat, wl_surface);
   const GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   seat_state_pointer->outputs.erase(reg_output);
-  update_cursor_scale(seat->cursor, seat->system->wl_shm_get(), seat_state_pointer, wl_surface);
 }
 
 static void cursor_surface_handle_preferred_buffer_scale(void * /*data*/,
@@ -6232,28 +5900,6 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
   seat->cursor.wl.surface_cursor = wl_compositor_create_surface(seat->system->wl_compositor_get());
   seat->cursor.visible = true;
   seat->cursor.wl.buffer = nullptr;
-  {
-    /* Use environment variables, falling back to defaults.
-     * These environment variables are used by enough WAYLAND applications
-     * that it makes sense to check them (see `Xcursor` man page). */
-    const char *env;
-
-    env = getenv("XCURSOR_THEME");
-    seat->cursor.theme_name = std::string(env ? env : "");
-
-    env = getenv("XCURSOR_SIZE");
-    seat->cursor.theme_size = default_cursor_size;
-
-    if (env && (*env != '\0')) {
-      char *env_end = nullptr;
-      /* While clamping is not needed on the WAYLAND side,
-       * GHOST's internal logic may get confused by negative values, so ensure it's at least 1. */
-      const long value = strtol(env, &env_end, 10);
-      if ((*env_end == '\0') && (value > 0)) {
-        seat->cursor.theme_size = int(value);
-      }
-    }
-  }
   wl_pointer_add_listener(seat->wl.pointer, &pointer_listener, seat);
 
   wl_surface_add_listener(seat->cursor.wl.surface_cursor, &cursor_surface_listener, seat);
@@ -6278,10 +5924,6 @@ static void gwl_seat_capability_pointer_disable(GWL_Seat *seat)
   if (seat->cursor.wl.surface_cursor) {
     wl_surface_destroy(seat->cursor.wl.surface_cursor);
     seat->cursor.wl.surface_cursor = nullptr;
-  }
-  if (seat->cursor.wl.theme) {
-    wl_cursor_theme_destroy(seat->cursor.wl.theme);
-    seat->cursor.wl.theme = nullptr;
   }
 
   wl_pointer_destroy(seat->wl.pointer);
@@ -8750,64 +8392,46 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
     return GHOST_kFailure;
   }
 
-  if (display_->wp.cursor_shape_manager) {
-    const int wl_shape = get_cursor_shape_enum_from_ghost_shape(shape);
-    if (!wl_shape) {
-      return GHOST_kFailure;
-    }
+  if (!display_->wp.cursor_shape_manager) {
+    return GHOST_kFailure;
+  }
 
-    if (seat->wl.pointer) {
-      /* Set cursor for the pointer device. */
+  const int wl_shape = get_cursor_shape_enum_from_ghost_shape(shape);
+  if (!wl_shape) {
+    return GHOST_kFailure;
+  }
+
+  if (seat->wl.pointer) {
+    /* Set cursor for the pointer device. */
+    if (!seat->cursor.wl.cursor_shape) {
+      seat->cursor.wl.cursor_shape = wp_cursor_shape_manager_v1_get_pointer(
+          display_->wp.cursor_shape_manager, seat->wl.pointer);
       if (!seat->cursor.wl.cursor_shape) {
-        seat->cursor.wl.cursor_shape = wp_cursor_shape_manager_v1_get_pointer(
-            display_->wp.cursor_shape_manager, seat->wl.pointer);
-        if (!seat->cursor.wl.cursor_shape) {
-          return GHOST_kFailure;
-        }
+        return GHOST_kFailure;
       }
-      wp_cursor_shape_device_v1_set_shape(
-          seat->cursor.wl.cursor_shape, seat->pointer.serial, wl_shape);
     }
+    wp_cursor_shape_device_v1_set_shape(
+        seat->cursor.wl.cursor_shape, seat->pointer.serial, wl_shape);
 
-    /* Set cursor for all tablet tool devices. */
-    for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
-      GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
-          zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+    GWL_Cursor *cursor = &seat->cursor;
+    cursor->visible = true;
+    cursor->is_custom = false;
+  }
+
+  /* Set cursor for all tablet tool devices. */
+  for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
+    GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
+        zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+    if (!tablet_tool->wl.cursor_shape) {
+      tablet_tool->wl.cursor_shape = wp_cursor_shape_manager_v1_get_tablet_tool_v2(
+          display_->wp.cursor_shape_manager, zwp_tablet_tool_v2);
       if (!tablet_tool->wl.cursor_shape) {
-        tablet_tool->wl.cursor_shape = wp_cursor_shape_manager_v1_get_tablet_tool_v2(
-            display_->wp.cursor_shape_manager, zwp_tablet_tool_v2);
-        if (!tablet_tool->wl.cursor_shape) {
-          return GHOST_kFailure;
-        }
+        return GHOST_kFailure;
       }
-      wp_cursor_shape_device_v1_set_shape(
-          tablet_tool->wl.cursor_shape, seat->tablet.serial, wl_shape);
     }
-    return GHOST_kSuccess;
+    wp_cursor_shape_device_v1_set_shape(
+        tablet_tool->wl.cursor_shape, seat->tablet.serial, wl_shape);
   }
-
-  const char *cursor_name = nullptr;
-  const wl_cursor *wl_cursor = gwl_seat_cursor_find_from_shape(seat, shape, &cursor_name);
-  if (wl_cursor == nullptr) {
-    return GHOST_kFailure;
-  }
-
-  GWL_Cursor *cursor = &seat->cursor;
-  wl_cursor_image *image = wl_cursor->images[0];
-  wl_buffer *buffer = wl_cursor_image_get_buffer(image);
-  if (!buffer) {
-    return GHOST_kFailure;
-  }
-
-  cursor->visible = true;
-  cursor->is_custom = false;
-  cursor->wl.buffer = buffer;
-  cursor->wl.image = *image;
-  cursor->wl.theme_cursor = wl_cursor;
-  cursor->wl.theme_cursor_name = cursor_name;
-
-  gwl_seat_cursor_buffer_set_current(seat);
-
   return GHOST_kSuccess;
 }
 
@@ -8819,18 +8443,12 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_check(const GHOST_TStandardCurs
     return GHOST_kFailure;
   }
 
-  if (display_->wp.cursor_shape_manager) {
-    const int wl_shape = get_cursor_shape_enum_from_ghost_shape(cursorShape);
-    if (!wl_shape) {
-      return GHOST_kFailure;
-    }
-    return GHOST_kSuccess;
+  if (!display_->wp.cursor_shape_manager) {
+    return GHOST_kFailure;
   }
 
-  // TODO: remove this X11 cursor query and fallback to built in cursors if shape_manager is not
-  // available.
-  const wl_cursor *wl_cursor = gwl_seat_cursor_find_from_shape(seat, cursorShape, nullptr);
-  if (wl_cursor == nullptr) {
+  const int wl_shape = get_cursor_shape_enum_from_ghost_shape(cursorShape);
+  if (!wl_shape) {
     return GHOST_kFailure;
   }
   return GHOST_kSuccess;
@@ -8974,8 +8592,6 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
   cursor->wl.image.height = uint32_t(size[1]);
   cursor->wl.image.hotspot_x = uint32_t(hot_spot[0]);
   cursor->wl.image.hotspot_y = uint32_t(hot_spot[1]);
-  cursor->wl.theme_cursor = nullptr;
-  cursor->wl.theme_cursor_name = nullptr;
 
   gwl_seat_cursor_buffer_set_current(seat);
 
@@ -9589,26 +9205,6 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
       const std::vector<GWL_Output *> &outputs = win->outputs_get();
       if (!(std::find(outputs.begin(), outputs.end(), output) == outputs.cend())) {
         win->outputs_changed_update_scale_tag();
-      }
-    }
-  }
-
-  for (GWL_Seat *seat : display_->seats) {
-    if (seat->pointer.outputs.count(output)) {
-      update_cursor_scale(seat->cursor,
-                          seat->system->wl_shm_get(),
-                          &seat->pointer,
-                          seat->cursor.wl.surface_cursor);
-    }
-
-    if (seat->tablet.outputs.count(output)) {
-      for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
-        GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
-            zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-        update_cursor_scale(seat->cursor,
-                            seat->system->wl_shm_get(),
-                            &seat->tablet,
-                            tablet_tool->wl.surface_cursor);
       }
     }
   }
