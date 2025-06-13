@@ -358,6 +358,7 @@ static void free_displacement(Displacement *displacement)
 {
   MultiresDisplacementData *data = static_cast<MultiresDisplacementData *>(
       displacement->user_data);
+  MEM_freeN(data->ptex_face_corner);
   MEM_delete(data);
 }
 
