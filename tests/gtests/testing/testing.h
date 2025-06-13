@@ -10,10 +10,10 @@
 #include <glog/logging.h>   // IWYU pragma: export
 #include <gtest/gtest.h>    // IWYU pragma: export
 
-namespace blender {
-
 /* Fwd.
  */
+namespace blender {
+
 template<typename T> class Span;
 
 }  // namespace blender
