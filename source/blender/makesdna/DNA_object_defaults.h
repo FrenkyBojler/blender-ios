@@ -10,7 +10,6 @@
 
 #include "DNA_vec_defaults.h"
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -47,7 +46,9 @@
     .empty_drawsize = 1.0, \
     .empty_image_depth = OB_EMPTY_IMAGE_DEPTH_DEFAULT, \
     .ima_ofs = {-0.5, -0.5}, \
- \
+\
+    .shadow_terminator_geometry_offset = 0.1f, \
+\
     .instance_faces_scale = 1, \
     .col_group = 0x01,  \
     .col_mask = 0xffff, \

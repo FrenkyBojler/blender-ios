@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
@@ -40,12 +41,12 @@ struct RegionView3D;
 struct RenderEngineType;
 struct Scene;
 struct ScrArea;
-struct SnapObjectContext;
 struct View3D;
 struct ViewContext;
 struct ViewLayer;
 struct ViewOpsData;
 struct bContext;
+struct bGPDlayer;
 struct bPoseChannel;
 struct bScreen;
 struct rctf;
@@ -56,8 +57,11 @@ struct wmKeyMapItem;
 struct wmOperator;
 struct wmWindow;
 struct wmWindowManager;
+namespace blender::ed::transform {
+struct SnapObjectContext;
+}
 
-/* for derivedmesh drawing callbacks, for view3d_select, .... */
+/** For mesh drawing callbacks, for viewport selection, etc. */
 struct ViewContext {
   bContext *C;
   Main *bmain;
@@ -95,6 +99,10 @@ enum eV3DCursorOrient {
 };
 
 void ED_view3d_background_color_get(const Scene *scene, const View3D *v3d, float r_color[3]);
+void ED_view3d_text_colors_get(const Scene *scene,
+                               const View3D *v3d,
+                               float r_text_color[4],
+                               float r_shadow_color[4]);
 bool ED_view3d_has_workbench_in_texture_color(const Scene *scene,
                                               const Object *ob,
                                               const View3D *v3d);
@@ -148,7 +156,7 @@ void ED_view3d_from_m4(const float mat[4][4], float ofs[3], float quat[4], const
  * \param lens: The view lens angle set for cameras and lights, normally from View3D.lens.
  */
 void ED_view3d_from_object(
-    const Object *ob, float ofs[3], float quat[4], float *dist, float *lens);
+    const Object *ob, float ofs[3], float quat[4], const float *dist, float *lens);
 /**
  * Set the object transformation from #RegionView3D members.
  * \param depsgraph: The depsgraph to get the evaluated object parent
@@ -178,22 +186,37 @@ void ED_view3d_lastview_store(RegionView3D *rv3d);
 
 /* Depth buffer */
 enum eV3DDepthOverrideMode {
-  /** Redraw viewport without Grease Pencil and Annotations. */
-  V3D_DEPTH_NO_GPENCIL = 0,
-  /** Redraw viewport with Grease Pencil and Annotations only. */
+  /** Redraw viewport with all objects. */
+  V3D_DEPTH_ALL = 0,
+  /** Redraw viewport without Grease Pencil. */
+  V3D_DEPTH_NO_GPENCIL,
+  /** Redraw viewport with Grease Pencil only. */
   V3D_DEPTH_GPENCIL_ONLY,
   /** Redraw viewport with active object only. */
   V3D_DEPTH_OBJECT_ONLY,
+  /** Redraw viewport with objects from the supplied collection only. */
+  V3D_DEPTH_SELECTED_ONLY,
 
 };
 /**
  * Redraw the viewport depth buffer.
+ * Call #ED_view3d_has_depth_buffer_updated if you want to check if the viewport already has depth
+ * buffer updated.
+ *
+ * \param use_overlay: When enabled and the `v3d` has overlays enabled, show overlays.
+ * A rule of thumb for this value is:
+ * - For viewport navigation the value should be true.
+ *   Since the user may want to inspect non-geometry contents of their scene.
+ * - For painting and other tools, the value should be false.
+ *   Since it's not typically desirable to paint onto the cameras frame or spot-light,
+ *   nor use these depths for object placement.
  */
 void ED_view3d_depth_override(Depsgraph *depsgraph,
                               ARegion *region,
                               View3D *v3d,
                               Object *obact,
                               eV3DDepthOverrideMode mode,
+                              bool use_overlay,
                               ViewDepths **r_depths);
 void ED_view3d_depths_free(ViewDepths *depths);
 bool ED_view3d_depth_read_cached(const ViewDepths *vd,
@@ -208,6 +231,8 @@ bool ED_view3d_depth_unproject_v3(const ARegion *region,
                                   const int mval[2],
                                   double depth,
                                   float r_location_world[3]);
+
+bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D *v3d);
 
 /**
  * Utilities to perform navigation.
@@ -229,17 +254,22 @@ void ED_view3d_navigation_free(bContext *C, ViewOpsData *vod);
 /* return values for ED_view3d_project_...() */
 enum eV3DProjStatus {
   V3D_PROJ_RET_OK = 0,
-  /** can't avoid this when in perspective mode, (can't avoid) */
+  /** Can't avoid this when in perspective mode, (can't avoid) */
   V3D_PROJ_RET_CLIP_NEAR = 1,
   /** After clip_end. */
   V3D_PROJ_RET_CLIP_FAR = 2,
-  /** so close to zero we can't apply a perspective matrix usefully */
+  /**
+   * Set when the coordinate is so close to the view-point that the projection isn't usable.
+   * Where there is potential numeric error in the resulting 2D value.
+   * This can be used to numeric errors even in cases where the caller* wishes to ignore
+   * the near clipping plane.
+   */
   V3D_PROJ_RET_CLIP_ZERO = 3,
-  /** bounding box clip - RV3D_CLIPPING */
+  /** Bounding box clip - RV3D_CLIPPING */
   V3D_PROJ_RET_CLIP_BB = 4,
-  /** outside window bounds */
+  /** Outside window bounds. */
   V3D_PROJ_RET_CLIP_WIN = 5,
-  /** outside range (mainly for short), (can't avoid) */
+  /** Outside range (mainly for short), (can't avoid) */
   V3D_PROJ_RET_OVERFLOW = 6,
 };
 ENUM_OPERATORS(eV3DProjStatus, V3D_PROJ_RET_OVERFLOW);
@@ -290,7 +320,7 @@ ENUM_OPERATORS(eV3DProjTest, V3D_PROJ_TEST_CLIP_CONTENT);
 
 bool ED_view3d_snap_selected_to_location(bContext *C,
                                          wmOperator *op,
-                                         const float snap_target_global[3],
+                                         const float target_loc_global[3],
                                          int pivot_point);
 
 /* `view3d_cursor_snap.cc` */
@@ -342,9 +372,12 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_create();
 void ED_view3d_cursor_snap_state_free(V3DSnapCursorState *state);
 void ED_view3d_cursor_snap_state_prevpoint_set(V3DSnapCursorState *state,
                                                const float prev_point[3]);
-void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state, const bContext *C, int x, int y);
+void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
+                                       const bContext *C,
+                                       const ARegion *region,
+                                       const blender::int2 &mval);
 V3DSnapCursorData *ED_view3d_cursor_snap_data_get();
-SnapObjectContext *ED_view3d_cursor_snap_context_ensure(Scene *scene);
+blender::ed::transform::SnapObjectContext *ED_view3d_cursor_snap_context_ensure(Scene *scene);
 void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
                                      const float source_loc[3],
                                      const float target_loc[3],
@@ -353,22 +386,22 @@ void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
                                      const uchar source_color[4],
                                      const uchar target_color[4]);
 
-/* view3d_iterators.cc */
+/* `view3d_iterators.cc` */
 
 /* foreach iterators */
 
-void meshobject_foreachScreenVert(ViewContext *vc,
+void meshobject_foreachScreenVert(const ViewContext *vc,
                                   void (*func)(void *user_data,
                                                const float screen_co[2],
                                                int index),
                                   void *user_data,
                                   eV3DProjTest clip_flag);
 void mesh_foreachScreenVert(
-    ViewContext *vc,
+    const ViewContext *vc,
     void (*func)(void *user_data, BMVert *eve, const float screen_co[2], int index),
     void *user_data,
     eV3DProjTest clip_flag);
-void mesh_foreachScreenEdge(ViewContext *vc,
+void mesh_foreachScreenEdge(const ViewContext *vc,
                             void (*func)(void *user_data,
                                          BMEdge *eed,
                                          const float screen_co_a[2],
@@ -381,7 +414,7 @@ void mesh_foreachScreenEdge(ViewContext *vc,
  * A version of #mesh_foreachScreenEdge that clips the segment when
  * there is a clipping bounding box.
  */
-void mesh_foreachScreenEdge_clip_bb_segment(ViewContext *vc,
+void mesh_foreachScreenEdge_clip_bb_segment(const ViewContext *vc,
                                             void (*func)(void *user_data,
                                                          BMEdge *eed,
                                                          const float screen_co_a[2],
@@ -391,11 +424,11 @@ void mesh_foreachScreenEdge_clip_bb_segment(ViewContext *vc,
                                             eV3DProjTest clip_flag);
 
 void mesh_foreachScreenFace(
-    ViewContext *vc,
+    const ViewContext *vc,
     void (*func)(void *user_data, BMFace *efa, const float screen_co[2], int index),
     void *user_data,
     eV3DProjTest clip_flag);
-void nurbs_foreachScreenVert(ViewContext *vc,
+void nurbs_foreachScreenVert(const ViewContext *vc,
                              void (*func)(void *user_data,
                                           Nurb *nu,
                                           BPoint *bp,
@@ -408,18 +441,18 @@ void nurbs_foreachScreenVert(ViewContext *vc,
 /**
  * #ED_view3d_init_mats_rv3d must be called first.
  */
-void mball_foreachScreenElem(ViewContext *vc,
+void mball_foreachScreenElem(const ViewContext *vc,
                              void (*func)(void *user_data, MetaElem *ml, const float screen_co[2]),
                              void *user_data,
                              eV3DProjTest clip_flag);
-void lattice_foreachScreenVert(ViewContext *vc,
+void lattice_foreachScreenVert(const ViewContext *vc,
                                void (*func)(void *user_data, BPoint *bp, const float screen_co[2]),
                                void *user_data,
                                eV3DProjTest clip_flag);
 /**
  * #ED_view3d_init_mats_rv3d must be called first.
  */
-void armature_foreachScreenBone(ViewContext *vc,
+void armature_foreachScreenBone(const ViewContext *vc,
                                 void (*func)(void *user_data,
                                              EditBone *ebone,
                                              const float screen_co_a[2],
@@ -430,7 +463,7 @@ void armature_foreachScreenBone(ViewContext *vc,
 /**
  * ED_view3d_init_mats_rv3d must be called first.
  */
-void pose_foreachScreenBone(ViewContext *vc,
+void pose_foreachScreenBone(const ViewContext *vc,
                             void (*func)(void *user_data,
                                          bPoseChannel *pchan,
                                          const float screen_co_a[2],
@@ -536,13 +569,13 @@ float ED_view3d_calc_depth_for_comparison(const RegionView3D *rv3d, const float 
 
 bool ED_view3d_clip_segment(const RegionView3D *rv3d, float ray_start[3], float ray_end[3]);
 /**
- * Calculate a 3d viewpoint and direction vector from 2d window coordinates.
- * This ray_start is located at the viewpoint, ray_normal is the direction towards mval.
+ * Calculate a 3D viewpoint and direction vector from 2D window coordinates.
+ * This ray_start is located at the viewpoint, `ray_normal` is the direction towards mval.
  * ray_start is clipped by the view near limit so points in front of it are always in view.
- * In orthographic view the resulting ray_normal will match the view vector.
+ * In orthographic view the resulting `ray_normal` will match the view vector.
  * \param region: The region (used for the window width and height).
- * \param v3d: The 3d viewport (used for near clipping value).
- * \param mval: The area relative 2d location (such as event->mval, converted into float[2]).
+ * \param v3d: The 3D viewport (used for near clipping value).
+ * \param mval: The area relative 2D location (such as event->mval, converted into float[2]).
  * \param r_ray_start: The world-space point where the ray intersects the window plane.
  * \param r_ray_normal: The normalized world-space direction of towards mval.
  * \param do_clip_planes: Optionally clip the start of the ray by the view clipping planes.
@@ -556,15 +589,15 @@ bool ED_view3d_win_to_ray_clipped(Depsgraph *depsgraph,
                                   float r_ray_normal[3],
                                   bool do_clip_planes);
 /**
- * Calculate a 3d viewpoint and direction vector from 2d window coordinates.
- * This ray_start is located at the viewpoint, ray_normal is the direction towards `mval`.
+ * Calculate a 3D viewpoint and direction vector from 2D window coordinates.
+ * This `ray_start` is located at the viewpoint, `ray_normal` is the direction towards `mval`.
  * ray_start is clipped by the view near limit so points in front of it are always in view.
- * In orthographic view the resulting ray_normal will match the view vector.
+ * In orthographic view the resulting `ray_normal` will match the view vector.
  * This version also returns the ray_co point of the ray on window plane, useful to fix precision
  * issues especially with orthographic view, where default ray_start is set rather far away.
  * \param region: The region (used for the window width and height).
- * \param v3d: The 3d viewport (used for near clipping value).
- * \param mval: The area relative 2d location (such as `event->mval`, converted into float[2]).
+ * \param v3d: The 3D viewport (used for near clipping value).
+ * \param mval: The area relative 2D location (such as `event->mval`, converted into float[2]).
  * \param do_clip_planes: Optionally clip the start of the ray by the view clipping planes.
  * \param r_ray_co: The world-space point where the ray intersects the window plane.
  * \param r_ray_normal: The normalized world-space direction of towards mval.
@@ -582,10 +615,10 @@ bool ED_view3d_win_to_ray_clipped_ex(Depsgraph *depsgraph,
                                      float r_ray_start[3],
                                      float r_ray_end[3]);
 /**
- * Calculate a 3d viewpoint and direction vector from 2d window coordinates.
- * This ray_start is located at the viewpoint, ray_normal is the direction towards `mval`.
+ * Calculate a 3D viewpoint and direction vector from 2D window coordinates.
+ * This ray_start is located at the viewpoint, `ray_normal` is the direction towards `mval`.
  * \param region: The region (used for the window width and height).
- * \param mval: The area relative 2d location (such as `event->mval`, converted into float[2]).
+ * \param mval: The area relative 2D location (such as `event->mval`, converted into float[2]).
  * \param r_ray_start: The world-space point where the ray intersects the window plane.
  * \param r_ray_normal: The normalized world-space direction of towards mval.
  *
@@ -597,15 +630,15 @@ void ED_view3d_win_to_ray(const ARegion *region,
                           float r_ray_start[3],
                           float r_ray_normal[3]);
 /**
- * Calculate a normalized 3d direction vector from the viewpoint towards a global location.
+ * Calculate a normalized 3D direction vector from the viewpoint towards a global location.
  * In orthographic view the resulting vector will match the view vector.
  * \param rv3d: The region (used for the window width and height).
  * \param coord: The world-space location.
- * \param vec: The resulting normalized vector.
+ * \param r_out: The resulting normalized vector.
  */
-void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float vec[3]);
+void ED_view3d_global_to_vector(const RegionView3D *rv3d, const float coord[3], float r_out[3]);
 /**
- * Calculate a 3d location from 2d window coordinates.
+ * Calculate a 3D location from 2D window coordinates.
  * \param region: The region (used for the window width and height).
  * \param depth_pt: The reference location used to calculate the Z depth.
  * \param mval: The area relative location (such as `event->mval` converted to floats).
@@ -621,6 +654,23 @@ void ED_view3d_win_to_3d_int(const View3D *v3d,
                              const float depth_pt[3],
                              const int mval[2],
                              float r_out[3]);
+/**
+ * Calculate a 3D location from 2D window coordinates including camera shift.
+ *
+ * \note Does the same as #ED_view3d_win_to_3d by using the #RegionView3D::persinv translation
+ * instead of #RegionView3D::viewinv, but that function cannot be changed
+ * without breaking lots of operators.
+ *
+ * \param region: The region (used for the window width and height).
+ * \param depth_pt: The reference location used to calculate the Z depth.
+ * \param mval: The area relative location (such as `event->mval` converted to floats).
+ * \param r_out: The resulting world-space location.
+ */
+void ED_view3d_win_to_3d_with_shift(const View3D *v3d,
+                                    const ARegion *region,
+                                    const float depth_pt[3],
+                                    const float mval[2],
+                                    float r_out[3]);
 bool ED_view3d_win_to_3d_on_plane(const ARegion *region,
                                   const float plane[4],
                                   const float mval[2],
@@ -642,7 +692,7 @@ bool ED_view3d_win_to_3d_on_plane_with_fallback(const ARegion *region,
 bool ED_view3d_win_to_3d_on_plane_int(
     const ARegion *region, const float plane[4], const int mval[2], bool do_clip, float r_out[3]);
 /**
- * Calculate a 3d difference vector from 2d window offset.
+ * Calculate a 3D difference vector from 2D window offset.
  *
  * \note that #ED_view3d_calc_zfac() must be called first to determine
  * the depth used to calculate the delta.
@@ -662,39 +712,39 @@ void ED_view3d_win_to_delta(const ARegion *region,
                             float zfac,
                             float r_out[3]);
 /**
- * Calculate a 3d origin from 2d window coordinates.
+ * Calculate a 3D origin from 2D window coordinates.
  * \note Orthographic views have a less obvious origin,
  * Since far clip can be a very large value resulting in numeric precision issues,
  * the origin in this case is close to zero coordinate.
  *
  * \param region: The region (used for the window width and height).
- * \param mval: The area relative 2d location (such as `event->mval` converted to float).
+ * \param mval: The area relative 2D location (such as `event->mval` converted to float).
  * \param r_out: The resulting normalized world-space direction vector.
  */
 void ED_view3d_win_to_origin(const ARegion *region, const float mval[2], float r_out[3]);
 /**
- * Calculate a 3d direction vector from 2d window coordinates.
- * This direction vector starts and the view in the direction of the 2d window coordinates.
- * In orthographic view all window coordinates yield the same vector.
- *
+ * Calculate a 3D direction vector from 2D window coordinates.
+ * The resulting direction points away from the view-point,
+ * making the result useful to perform ray-casts into a 3D scene.
+ * In orthographic view all input coordinates result in the same vector.
  * \note doesn't rely on #ED_view3d_calc_zfac
  * for perspective view, get the vector direction to
  * the mouse cursor as a normalized vector.
  *
  * \param region: The region (used for the window width and height).
- * \param mval: The area relative 2d location (such as `event->mval` converted to float).
+ * \param mval: The area relative 2D location (such as `event->mval` converted to float).
  * \param r_out: The resulting normalized world-space direction vector.
  */
 void ED_view3d_win_to_vector(const ARegion *region, const float mval[2], float r_out[3]);
 /**
- * Calculate a 3d segment from 2d window coordinates.
+ * Calculate a 3D segment from 2D window coordinates.
  * This ray_start is located at the viewpoint, ray_end is a far point.
  * ray_start and ray_end are clipped by the view near and far limits
  * so points along this line are always in view.
  * In orthographic view all resulting segments will be parallel.
  * \param region: The region (used for the window width and height).
- * \param v3d: The 3d viewport (used for near and far clipping range).
- * \param mval: The area relative 2d location (such as event->mval, converted into float[2]).
+ * \param v3d: The 3D viewport (used for near and far clipping range).
+ * \param mval: The area relative 2D location (such as event->mval, converted into float[2]).
  * \param r_ray_start: The world-space starting point of the segment.
  * \param r_ray_end: The world-space end point of the segment.
  * \param do_clip_planes: Optionally clip the ray by the view clipping planes.
@@ -722,24 +772,55 @@ bool ED_view3d_unproject_v3(
 
 /* end */
 
-void ED_view3d_dist_range_get(const View3D *v3d, float r_dist_range[2]);
+/**
+ * Calculate a "soft" working range for #RegionView3D::dist.
+ *
+ * This is an approximate range to avoid extreme values being set where nothing is visible.
+ *
+ * - A small `dist` may be below near-clipping plane causing nothing to be visible.
+ *   It can also take a while to zoom out.
+ * - A large `dist` may be so big that the viewports contents is beyond the far-clipping plane
+ *   also causing nothing to be visible.
+ *
+ * The range is calculated based on values the user may change so the range
+ * should be used as guidance for operators to follow.
+ *
+ * \param use_persp_range: Use an alternative range for perspective views.
+ * It's not a requirement that perspective views use this, however in practice
+ * it's often preferable for perspective views to calculate the minimum based on near-clipping,
+ * unlike orthographic views.
+ */
+blender::Bounds<float> ED_view3d_dist_soft_range_get(const View3D *v3d, bool use_persp_range);
+
+/**
+ * A version of #ED_view3d_dist_soft_range_get that only returns the minimum.
+ *
+ * For perspective-views where setting `dist` near or below the near clip-plane
+ * is likely to cause the viewport content to be clipped out of the view.
+ *
+ * \note While clamping by the far clip-plane is done in some cases
+ * the exact value to use is more arbitrary, in practice users are less
+ * likely to encounter problems from being zoomed out too far.
+ */
+float ED_view3d_dist_soft_min_get(const View3D *v3d, bool use_persp_range);
+
 /**
  * \note copies logic of #ED_view3d_viewplane_get(), keep in sync.
  */
 bool ED_view3d_clip_range_get(const Depsgraph *depsgraph,
                               const View3D *v3d,
                               const RegionView3D *rv3d,
-                              float *r_clipsta,
-                              float *r_clipend,
-                              bool use_ortho_factor);
-bool ED_view3d_viewplane_get(Depsgraph *depsgraph,
+                              bool use_ortho_factor,
+                              float *r_clip_start,
+                              float *r_clip_end);
+bool ED_view3d_viewplane_get(const Depsgraph *depsgraph,
                              const View3D *v3d,
                              const RegionView3D *rv3d,
-                             int winxi,
-                             int winyi,
+                             int winx,
+                             int winy,
                              rctf *r_viewplane,
-                             float *r_clipsta,
-                             float *r_clipend,
+                             float *r_clip_start,
+                             float *r_clip_end,
                              float *r_pixsize);
 
 /**
@@ -748,12 +829,12 @@ bool ED_view3d_viewplane_get(Depsgraph *depsgraph,
 void ED_view3d_polygon_offset(const RegionView3D *rv3d, float dist);
 
 void ED_view3d_calc_camera_border(const Scene *scene,
-                                  Depsgraph *depsgraph,
+                                  const Depsgraph *depsgraph,
                                   const ARegion *region,
                                   const View3D *v3d,
                                   const RegionView3D *rv3d,
-                                  rctf *r_viewborder,
-                                  bool no_shift);
+                                  bool no_shift,
+                                  rctf *r_viewborder);
 void ED_view3d_calc_camera_border_size(const Scene *scene,
                                        Depsgraph *depsgraph,
                                        const ARegion *region,
@@ -761,9 +842,9 @@ void ED_view3d_calc_camera_border_size(const Scene *scene,
                                        const RegionView3D *rv3d,
                                        float r_size[2]);
 bool ED_view3d_calc_render_border(
-    const Scene *scene, Depsgraph *depsgraph, View3D *v3d, ARegion *region, rcti *rect);
+    const Scene *scene, Depsgraph *depsgraph, View3D *v3d, ARegion *region, rcti *r_rect);
 
-void ED_view3d_clipping_calc_from_boundbox(float clip[4][4], const BoundBox *clipbb, bool is_flip);
+void ED_view3d_clipping_calc_from_boundbox(float clip[4][4], const BoundBox *bb, bool is_flip);
 void ED_view3d_clipping_calc(
     BoundBox *bb, float planes[4][4], const ARegion *region, const Object *ob, const rcti *rect);
 /**
@@ -832,7 +913,7 @@ float ED_view3d_radius_to_dist(const View3D *v3d,
  */
 int ED_view3d_backbuf_sample_size_clamp(ARegion *region, float dist);
 
-void ED_view3d_select_id_validate(ViewContext *vc);
+void ED_view3d_select_id_validate(const ViewContext *vc);
 
 /** Check if the last auto-dist can be used. */
 bool ED_view3d_autodist_last_check(wmWindow *win, const wmEvent *event);
@@ -849,19 +930,17 @@ void ED_view3d_autodist_last_set(wmWindow *win,
 void ED_view3d_autodist_last_clear(wmWindow *win);
 
 /**
- * Get the world-space 3d location from a screen-space 2d point.
- * TODO: Implement #alphaoverride. We don't want to zoom into billboards.
+ * Get the world-space 3D location from a screen-space 2D point.
+ * It may be useful to call #ED_view3d_depth_override before.
  *
  * \param mval: Input screen-space pixel location.
  * \param mouse_worldloc: Output world-space location.
  * \param fallback_depth_pt: Use this points depth when no depth can be found.
  */
-bool ED_view3d_autodist(Depsgraph *depsgraph,
-                        ARegion *region,
+bool ED_view3d_autodist(ARegion *region,
                         View3D *v3d,
                         const int mval[2],
                         float mouse_worldloc[3],
-                        bool alphaoverride,
                         const float fallback_depth_pt[3]);
 
 /**
@@ -872,8 +951,28 @@ bool ED_view3d_autodist_simple(ARegion *region,
                                float mouse_worldloc[3],
                                int margin,
                                const float *force_depth);
-bool ED_view3d_depth_read_cached_seg(
-    const ViewDepths *vd, const int mval_sta[2], const int mval_end[2], int margin, float *depth);
+bool ED_view3d_depth_read_cached_seg(const ViewDepths *vd,
+                                     const int mval_sta[2],
+                                     const int mval_end[2],
+                                     int margin,
+                                     float *r_depth);
+
+/**
+ * Returns viewport color in linear space, matching #ED_space_node_color_sample().
+ */
+class ViewportColorSampleSession {
+  GPUTexture *tex = nullptr;
+  blender::ushort4 *data = nullptr;
+  int tex_w, tex_h;
+  rcti valid_rect;
+
+ public:
+  ViewportColorSampleSession() = default;
+  ~ViewportColorSampleSession();
+
+  bool init(ARegion *region);
+  bool sample(const int mval[2], float r_col[3]);
+};
 
 enum eV3DSelectMode {
   /* all elements in the region, ignore depth */
@@ -896,35 +995,35 @@ enum eV3DSelectObjectFilter {
 eV3DSelectObjectFilter ED_view3d_select_filter_from_mode(const Scene *scene, const Object *obact);
 
 /**
- * Optionally cache data for multiple calls to #view3d_opengl_select
+ * Optionally cache data for multiple calls to #view3d_gpu_select
  *
  * just avoid GPU_select headers outside this file
  */
-void view3d_opengl_select_cache_begin();
-void view3d_opengl_select_cache_end();
+void view3d_gpu_select_cache_begin();
+void view3d_gpu_select_cache_end();
 
 /**
  * \note (vc->obedit == NULL) can be set to explicitly skip edit-object selection.
  */
-int view3d_opengl_select_ex(ViewContext *vc,
-                            GPUSelectBuffer *buffer,
-                            const rcti *input,
-                            eV3DSelectMode select_mode,
-                            eV3DSelectObjectFilter select_filter,
-                            bool do_material_slot_selection);
-int view3d_opengl_select(ViewContext *vc,
+int view3d_gpu_select_ex(const ViewContext *vc,
                          GPUSelectBuffer *buffer,
                          const rcti *input,
                          eV3DSelectMode select_mode,
-                         eV3DSelectObjectFilter select_filter);
-int view3d_opengl_select_with_id_filter(ViewContext *vc,
-                                        GPUSelectBuffer *buffer,
-                                        const rcti *input,
-                                        eV3DSelectMode select_mode,
-                                        eV3DSelectObjectFilter select_filter,
-                                        uint select_id);
+                         eV3DSelectObjectFilter select_filter,
+                         bool do_material_slot_selection);
+int view3d_gpu_select(const ViewContext *vc,
+                      GPUSelectBuffer *buffer,
+                      const rcti *input,
+                      eV3DSelectMode select_mode,
+                      eV3DSelectObjectFilter select_filter);
+int view3d_gpu_select_with_id_filter(const ViewContext *vc,
+                                     GPUSelectBuffer *buffer,
+                                     const rcti *input,
+                                     eV3DSelectMode select_mode,
+                                     eV3DSelectObjectFilter select_filter,
+                                     uint select_id);
 
-/* view3d_select.cc */
+/* `view3d_select.cc` */
 
 float ED_view3d_select_dist_px();
 ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph);
@@ -941,7 +1040,7 @@ ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph);
  * When iterating over objects in object-mode it doesn't make sense to perform
  * an edit-mode action on an object that happens to contain edit-mode data.
  * In some cases these values are cleared allowing the owner of `vc` to explicitly
- * disable edit-mode operation (to force object selection in edit-mode for e.g.).
+ * disable edit-mode operation (to force object selection in edit-mode for example).
  * So object-mode specific values should remain cleared when initialized with another object.
  */
 void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact);
@@ -949,8 +1048,8 @@ void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact);
  * Use this call when executing an operator,
  * event system doesn't set for each event the OpenGL drawing context.
  */
-void view3d_operator_needs_opengl(const bContext *C);
-void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *region);
+void view3d_operator_needs_gpu(const bContext *C);
+void view3d_region_operator_needs_gpu(ARegion *region);
 
 /** XXX: should move to BLI_math */
 bool edge_inside_circle(const float cent[2],
@@ -1001,6 +1100,7 @@ void ED_view3d_check_mats_rv3d(RegionView3D *rv3d);
 
 RV3DMatrixStore *ED_view3d_mats_rv3d_backup(RegionView3D *rv3d);
 void ED_view3d_mats_rv3d_restore(RegionView3D *rv3d, RV3DMatrixStore *rv3dmat);
+void ED_view3D_mats_rv3d_free(RV3DMatrixStore *rv3d_mat);
 
 RenderEngineType *ED_view3d_engine_type(const Scene *scene, int drawtype);
 
@@ -1034,7 +1134,7 @@ void ED_view3d_quadview_update(ScrArea *area, ARegion *region, bool do_clip);
 /**
  * \note keep this synced with #ED_view3d_mats_rv3d_backup/#ED_view3d_mats_rv3d_restore
  */
-void ED_view3d_update_viewmat(Depsgraph *depsgraph,
+void ED_view3d_update_viewmat(const Depsgraph *depsgraph,
                               const Scene *scene,
                               View3D *v3d,
                               ARegion *region,
@@ -1043,20 +1143,20 @@ void ED_view3d_update_viewmat(Depsgraph *depsgraph,
                               const rcti *rect,
                               bool offscreen);
 bool ED_view3d_quat_from_axis_view(char view, char view_axis_roll, float r_quat[4]);
-bool ED_view3d_quat_to_axis_view(const float viewquat[4],
+bool ED_view3d_quat_to_axis_view(const float quat[4],
                                  float epsilon,
                                  char *r_view,
-                                 char *r_view_axis_rotation);
+                                 char *r_view_axis_roll);
 /**
- * A version of #ED_view3d_quat_to_axis_view that updates `viewquat`
+ * A version of #ED_view3d_quat_to_axis_view that updates `quat`
  * if it's within `epsilon` to an axis-view.
  *
  * \note Include the special case function since most callers need to perform these operations.
  */
-bool ED_view3d_quat_to_axis_view_and_reset_quat(float viewquat[4],
+bool ED_view3d_quat_to_axis_view_and_reset_quat(float quat[4],
                                                 float epsilon,
                                                 char *r_view,
-                                                char *r_view_axis_rotation);
+                                                char *r_view_axis_roll);
 
 char ED_view3d_lock_view_from_index(int index);
 char ED_view3d_axis_view_opposite(char view);
@@ -1222,9 +1322,9 @@ void ED_view3d_grid_steps(const Scene *scene,
  * The actual code is seen in `object_grid_frag.glsl` (see `grid_res`).
  * Currently the simulation is only done when RV3D_VIEW_IS_AXIS.
  */
-float ED_view3d_grid_view_scale(Scene *scene,
-                                View3D *v3d,
-                                ARegion *region,
+float ED_view3d_grid_view_scale(const Scene *scene,
+                                const View3D *v3d,
+                                const ARegion *region,
                                 const char **r_grid_unit);
 
 /**
@@ -1251,6 +1351,13 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area);
 #define XRAY_ALPHA(v3d) SHADING_XRAY_ALPHA((v3d)->shading)
 #define XRAY_FLAG(v3d) SHADING_XRAY_FLAG((v3d)->shading)
 #define XRAY_FLAG_ENABLED(v3d) SHADING_XRAY_FLAG_ENABLED((v3d)->shading)
+/**
+ * Checks X-ray is enabled and the alpha is less than one.
+ *
+ * \note In edit-mode vertices & edges behave differently,
+ * using X-ray drawing irrespective of the alpha value.
+ * In this case #XRAY_FLAG_ENABLED should be used instead.
+ */
 #define XRAY_ENABLED(v3d) SHADING_XRAY_ENABLED((v3d)->shading)
 #define XRAY_ACTIVE(v3d) SHADING_XRAY_ACTIVE((v3d)->shading)
 
@@ -1271,27 +1378,22 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area);
 #define RETOPOLOGY_ENABLED(v3d) (OVERLAY_RETOPOLOGY_ENABLED((v3d)->overlay))
 #define RETOPOLOGY_OFFSET(v3d) (OVERLAY_RETOPOLOGY_OFFSET((v3d)->overlay))
 
-/* view3d_draw_legacy.c */
+/* `view3d_gizmo_preselect_type.cc` */
 
-/**
- * Try avoid using these more move out of legacy.
- */
-void ED_view3d_draw_bgpic_test(const Scene *scene,
-                               Depsgraph *depsgraph,
-                               ARegion *region,
-                               View3D *v3d,
-                               bool do_foreground,
-                               bool do_camera_frame);
-
-/* view3d_gizmo_preselect_type.cc */
-
-void ED_view3d_gizmo_mesh_preselect_get_active(bContext *C,
-                                               wmGizmo *gz,
+void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
+                                               const wmGizmo *gz,
                                                Base **r_base,
                                                BMElem **r_ele);
 void ED_view3d_gizmo_mesh_preselect_clear(wmGizmo *gz);
 
-/* space_view3d.cc */
+/* view3d_gizmo_ruler.cc */
+
+/**
+ * Remove all rulers when Annotation layer is removed.
+ */
+void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(struct bContext *C, bGPDlayer *gpl);
+
+/* `space_view3d.cc` */
 
 void ED_view3d_buttons_region_layout_ex(const bContext *C,
                                         ARegion *region,
@@ -1300,11 +1402,32 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
 /* `view3d_view.cc` */
 
 /**
+ * Exit 'local view' of given View3D editor, if it is active and there is nothing to display in it
+ * anymore.
+ *
+ * \param depsgraph: Optional, only required for #frame_selected.
+ * \param frame_selected: Frame the newly out-of-local view to show currently visible selected
+ * objects. Will only do something if a valid #depsgraph pointer is also provided.
+ * \param smooth_viewtx: Smooth transition time (in milliseconds) between current view and final
+ * view, if changes are happening. Currently only used if #frame_selected is enabled.
+ *
+ * \return `true` if the local view was actually exited.
+ */
+bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
+                                Scene *scene,
+                                ViewLayer *view_layer,
+                                wmWindowManager *wm,
+                                wmWindow *win,
+                                View3D *v3d,
+                                ScrArea *area,
+                                bool frame_selected = true,
+                                int smooth_viewtx = 0);
+/**
  * See if current UUID is valid, otherwise set a valid UUID to v3d,
  * Try to keep the same UUID previously used to allow users to quickly toggle back and forth.
  */
-bool ED_view3d_local_collections_set(Main *bmain, View3D *v3d);
-void ED_view3d_local_collections_reset(bContext *C, bool reset_all);
+bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d);
+void ED_view3d_local_collections_reset(const bContext *C, bool reset_all);
 
 #ifdef WITH_XR_OPENXR
 void ED_view3d_xr_mirror_update(const ScrArea *area, const View3D *v3d, bool enable);

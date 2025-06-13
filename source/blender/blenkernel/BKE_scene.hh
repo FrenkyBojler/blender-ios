@@ -9,7 +9,6 @@
 
 #include "BLI_sys_types.h"
 
-struct AviCodecData;
 struct Base;
 struct Collection;
 struct Depsgraph;
@@ -25,7 +24,6 @@ struct ToolSettings;
 struct TransformOrientation;
 struct TransformOrientationSlot;
 struct UnitSettings;
-struct View3DCursor;
 struct ViewLayer;
 
 enum eSceneCopyMethod {
@@ -60,8 +58,6 @@ enum eSceneCopyMethod {
  * of the active layer of the background (set) scenes recursively.
  */
 Base *_setlooper_base_step(Scene **sce_iter, ViewLayer *view_layer, Base *base);
-
-void free_avicodecdata(AviCodecData *acd);
 
 Scene *BKE_scene_add(Main *bmain, const char *name);
 
@@ -112,7 +108,7 @@ void BKE_scene_object_base_flag_sync_from_base(Base *base);
  */
 void BKE_scene_set_background(Main *bmain, Scene *sce);
 /**
- * Called from `creator_args.c`.
+ * Called from `creator_args.cc`.
  */
 Scene *BKE_scene_set_name(Main *bmain, const char *name);
 
@@ -130,9 +126,7 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene);
 bool BKE_scene_has_view_layer(const Scene *scene, const ViewLayer *layer);
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection);
 
-#ifdef DURIAN_CAMERA_SWITCH
-Object *BKE_scene_camera_switch_find(Scene *scene); /* DURIAN_CAMERA_SWITCH */
-#endif
+Object *BKE_scene_camera_switch_find(Scene *scene);
 bool BKE_scene_camera_switch_update(Scene *scene);
 
 const char *BKE_scene_find_marker_name(const Scene *scene, int frame);
@@ -245,12 +239,6 @@ int BKE_render_preview_pixel_size(const RenderData *r);
 
 /**********************************/
 
-/**
- * Apply the needed correction factor to value, based on unit_type
- * (only length-related are affected currently) and `unit->scale_length`.
- */
-double BKE_scene_unit_scale(const UnitSettings *unit, int unit_type, double value);
-
 /* Multi-view. */
 
 bool BKE_scene_multiview_is_stereo3d(const RenderData *rd);
@@ -286,12 +274,16 @@ void BKE_scene_multiview_view_filepath_get(const RenderData *rd,
 const char *BKE_scene_multiview_view_suffix_get(const RenderData *rd, const char *viewname);
 const char *BKE_scene_multiview_view_id_suffix_get(const RenderData *rd, int view_id);
 void BKE_scene_multiview_view_prefix_get(Scene *scene,
-                                         const char *name,
+                                         const char *filepath,
                                          char *r_prefix,
                                          const char **r_ext);
 void BKE_scene_multiview_videos_dimensions_get(
     const RenderData *rd, size_t width, size_t height, size_t *r_width, size_t *r_height);
 int BKE_scene_multiview_num_videos_get(const RenderData *rd);
+/**
+ * Calculate the final pixels-per-meter, from the scenes PPM & aspect data.
+ */
+void BKE_scene_ppm_get(const RenderData *rd, double r_ppm[2]);
 
 /* depsgraph */
 void BKE_scene_allocate_depsgraph_hash(Scene *scene);
@@ -319,12 +311,3 @@ TransformOrientation *BKE_scene_transform_orientation_find(const Scene *scene, i
  */
 int BKE_scene_transform_orientation_get_index(const Scene *scene,
                                               const TransformOrientation *orientation);
-
-void BKE_scene_cursor_rot_to_mat3(const View3DCursor *cursor, float mat[3][3]);
-void BKE_scene_cursor_mat3_to_rot(View3DCursor *cursor, const float mat[3][3], bool use_compat);
-
-void BKE_scene_cursor_rot_to_quat(const View3DCursor *cursor, float quat[4]);
-void BKE_scene_cursor_quat_to_rot(View3DCursor *cursor, const float quat[4], bool use_compat);
-
-void BKE_scene_cursor_to_mat4(const View3DCursor *cursor, float mat[4][4]);
-void BKE_scene_cursor_from_mat4(View3DCursor *cursor, const float mat[4][4], bool use_compat);

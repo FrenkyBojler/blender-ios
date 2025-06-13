@@ -19,22 +19,19 @@
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_texture.h"
-
-#ifdef __APPLE__
-#  include "GPU_state.h"
-#endif
+#include "GPU_context.hh"
+#include "GPU_immediate.hh"
+#include "GPU_texture.hh"
 
 /* ******************************************** */
 
 static void immDrawPixelsTexSetupAttributes(IMMDrawPixelsTexState *state)
 {
   GPUVertFormat *vert_format = immVertexFormat();
-  state->pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  state->pos = GPU_vertformat_attr_add(
+      vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   state->texco = GPU_vertformat_attr_add(
-      vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 }
 
 IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
@@ -46,7 +43,6 @@ IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
 
   /* Shader will be unbind by immUnbindProgram in a `immDrawPixelsTex` function. */
   immBindBuiltinProgram(eGPUBuiltinShader(builtin));
-  immUniform1i("image", 0);
   state.do_shader_unbind = true;
 
   return state;
@@ -284,16 +280,6 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
       immAttr2f(texco, left / float(tex_w), top / float(tex_h));
       immVertex2f(pos, rast_x + offset_left * xzoom, rast_y + top * yzoom * scaleY);
       immEnd();
-
-/* NOTE: Weirdly enough this is only required on macOS. Without this there is some sort of
- * bleeding of data is happening from tiles which are drawn later on.
- * This doesn't seem to be too slow,
- * but still would be nice to have fast and nice solution. */
-#ifdef __APPLE__
-      if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_MAC, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
-        GPU_flush();
-      }
-#endif
     }
   }
 

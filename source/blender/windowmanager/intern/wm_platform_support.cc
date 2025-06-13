@@ -13,7 +13,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -21,7 +21,8 @@
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
 
-#include "GPU_platform.h"
+#include "GPU_context.hh"
+#include "GPU_platform.hh"
 
 #define WM_PLATFORM_SUPPORT_TEXT_SIZE 1024
 
@@ -71,7 +72,7 @@ static void wm_platform_support_create_link(char *link)
   BLI_dynstr_append(ds, "windows/");
 #elif defined(__APPLE__)
   BLI_dynstr_append(ds, "apple/");
-#else /* UNIX */
+#else /* UNIX. */
   BLI_dynstr_append(ds, "linux/");
 #endif
 
@@ -113,7 +114,7 @@ bool WM_platform_support_perform_checks()
     return result;
   }
 
-  /* update the message and link based on the found support level */
+  /* Update the message and link based on the found support level. */
   GHOST_DialogOptions dialog_options = GHOST_DialogOptions(0);
 
   switch (support_level) {
@@ -158,15 +159,25 @@ bool WM_platform_support_perform_checks()
       slen = 0;
 
 #ifdef __APPLE__
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Your graphics card or macOS version is not supported"));
-      STR_CONCAT(message, slen, "\n \n");
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Upgrading to the latest macOS version may improve Blender support"));
+      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Your graphics card is not supported"));
+      }
+      else {
+        STR_CONCAT(message,
+                   slen,
+                   CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                              "Your graphics card or macOS version is not supported"));
+        STR_CONCAT(message, slen, "\n \n");
+
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                       "Upgrading to the latest macOS version may improve Blender support"));
+      }
 #else
       STR_CONCAT(message,
                  slen,

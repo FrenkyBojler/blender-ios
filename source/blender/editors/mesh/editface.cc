@@ -6,19 +6,12 @@
  * \ingroup edmesh
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_atomic_disjoint_set.hh"
-#include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 #include "BLI_vector_set.hh"
-
-#include "IMB_imbuf.hh"
-#include "IMB_imbuf_types.hh"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -27,11 +20,9 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
-#include "BKE_global.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 
 #include "ED_mesh.hh"
 #include "ED_screen.hh"
@@ -70,7 +61,7 @@ void paintface_flush_flags(bContext *C,
   }
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
 
   if (ob_eval == nullptr) {
     return;
@@ -79,11 +70,11 @@ void paintface_flush_flags(bContext *C,
   bke::AttributeAccessor attributes_me = mesh->attributes();
   Mesh *me_orig = (Mesh *)ob_eval->runtime->data_orig;
   bke::MutableAttributeAccessor attributes_orig = me_orig->attributes_for_write();
-  Mesh *me_eval = (Mesh *)ob_eval->runtime->data_eval;
-  bke::MutableAttributeAccessor attributes_eval = me_eval->attributes_for_write();
+  Mesh *mesh_eval = (Mesh *)ob_eval->runtime->data_eval;
+  bke::MutableAttributeAccessor attributes_eval = mesh_eval->attributes_for_write();
   bool updated = false;
 
-  if (me_orig != nullptr && me_eval != nullptr && me_orig->faces_num == mesh->faces_num) {
+  if (me_orig != nullptr && mesh_eval != nullptr && me_orig->faces_num == mesh->faces_num) {
     /* Update the evaluated copy of the mesh. */
     if (flush_hidden) {
       const VArray<bool> hide_poly_me = *attributes_me.lookup_or_default<bool>(
@@ -105,14 +96,14 @@ void paintface_flush_flags(bContext *C,
     }
 
     /* Mesh faces => Final derived faces */
-    if ((index_array = (const int *)CustomData_get_layer(&me_eval->face_data, CD_ORIGINDEX))) {
+    if ((index_array = (const int *)CustomData_get_layer(&mesh_eval->face_data, CD_ORIGINDEX))) {
       if (flush_hidden) {
         const VArray<bool> hide_poly_orig = *attributes_orig.lookup_or_default<bool>(
             ".hide_poly", bke::AttrDomain::Face, false);
         bke::SpanAttributeWriter<bool> hide_poly_eval =
             attributes_eval.lookup_or_add_for_write_only_span<bool>(".hide_poly",
                                                                     bke::AttrDomain::Face);
-        for (const int i : IndexRange(me_eval->faces_num)) {
+        for (const int i : IndexRange(mesh_eval->faces_num)) {
           const int orig_face_index = index_array[i];
           if (orig_face_index != ORIGINDEX_NONE) {
             hide_poly_eval.span[i] = hide_poly_orig[orig_face_index];
@@ -126,7 +117,7 @@ void paintface_flush_flags(bContext *C,
         bke::SpanAttributeWriter<bool> select_poly_eval =
             attributes_eval.lookup_or_add_for_write_only_span<bool>(".select_poly",
                                                                     bke::AttrDomain::Face);
-        for (const int i : IndexRange(me_eval->faces_num)) {
+        for (const int i : IndexRange(mesh_eval->faces_num)) {
           const int orig_face_index = index_array[i];
           if (orig_face_index != ORIGINDEX_NONE) {
             select_poly_eval.span[i] = select_poly_orig[orig_face_index];
@@ -141,10 +132,10 @@ void paintface_flush_flags(bContext *C,
 
   if (updated) {
     if (flush_hidden) {
-      BKE_mesh_batch_cache_dirty_tag(me_eval, BKE_MESH_BATCH_DIRTY_ALL);
+      BKE_mesh_batch_cache_dirty_tag(mesh_eval, BKE_MESH_BATCH_DIRTY_ALL);
     }
     else {
-      BKE_mesh_batch_cache_dirty_tag(me_eval, BKE_MESH_BATCH_DIRTY_SELECT_PAINT);
+      BKE_mesh_batch_cache_dirty_tag(mesh_eval, BKE_MESH_BATCH_DIRTY_SELECT_PAINT);
     }
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
@@ -236,7 +227,7 @@ static void build_poly_connections(blender::AtomicDisjointSet &islands,
 
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArray<bool> uv_seams = *attributes.lookup_or_default<bool>(
-      ".uv_seam", bke::AttrDomain::Edge, false);
+      "uv_seam", bke::AttrDomain::Edge, false);
   const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
       ".hide_poly", bke::AttrDomain::Face, false);
 
@@ -286,7 +277,7 @@ static void paintface_select_linked_faces(Mesh &mesh,
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArray<bool> uv_seams = *attributes.lookup_or_default<bool>(
-      ".uv_seam", bke::AttrDomain::Edge, false);
+      "uv_seam", bke::AttrDomain::Edge, false);
   bke::SpanAttributeWriter<bool> select_poly = attributes.lookup_or_add_for_write_span<bool>(
       ".select_poly", bke::AttrDomain::Face);
 
@@ -354,36 +345,6 @@ void paintface_select_linked(bContext *C, Object *ob, const int mval[2], const b
 
   paintface_select_linked_faces(*mesh, indices, select);
   paintface_flush_flags(C, ob, true, false);
-}
-
-static int find_closest_edge_in_poly(ARegion *region,
-                                     blender::Span<blender::int2> edges,
-                                     blender::Span<int> face_edges,
-                                     blender::Span<blender::float3> vert_positions,
-                                     const int mval[2])
-{
-  using namespace blender;
-  int closest_edge_index;
-
-  const float2 mval_f = {float(mval[0]), float(mval[1])};
-  float min_distance = FLT_MAX;
-  for (const int i : face_edges) {
-    float2 screen_coordinate;
-    const int2 edge = edges[i];
-    const float3 edge_vert_average = math::midpoint(vert_positions[edge[0]],
-                                                    vert_positions[edge[1]]);
-    eV3DProjStatus status = ED_view3d_project_float_object(
-        region, edge_vert_average, screen_coordinate, V3D_PROJ_TEST_CLIP_DEFAULT);
-    if (status != V3D_PROJ_RET_OK) {
-      continue;
-    }
-    const float distance = math::distance_squared(mval_f, screen_coordinate);
-    if (distance < min_distance) {
-      min_distance = distance;
-      closest_edge_index = i;
-    }
-  }
-  return closest_edge_index;
 }
 
 static int get_opposing_edge_index(const blender::IndexRange face,
@@ -462,13 +423,17 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
   }
 
-  uint poly_pick_index = uint(-1);
-  if (!ED_mesh_pick_face(C, ob, mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &poly_pick_index)) {
+  uint closest_edge_index = uint(-1);
+  if (!ED_mesh_pick_edge(C, ob, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, &closest_edge_index)) {
+    return;
+  }
+
+  if (closest_edge_index == -1) {
     return;
   }
 
@@ -478,13 +443,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
 
   Mesh *mesh = BKE_mesh_from_object(ob);
   const Span<int> corner_edges = mesh->corner_edges();
-  const Span<float3> verts = mesh->vert_positions();
   const OffsetIndices faces = mesh->faces();
-  const Span<int2> edges = mesh->edges();
-
-  const IndexRange face = faces[poly_pick_index];
-  const int closest_edge_index = find_closest_edge_in_poly(
-      region, edges, corner_edges.slice(face), verts, mval);
 
   Array<int> edge_to_face_offsets;
   Array<int> edge_to_face_indices;
@@ -498,6 +457,12 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
       ".hide_poly", bke::AttrDomain::Face, false);
 
   const Span<int> faces_to_closest_edge = edge_to_face_map[closest_edge_index];
+
+  /* Picked edge may not be linked to a face (loose edge). */
+  if (faces_to_closest_edge.is_empty()) {
+    return;
+  }
+
   const bool traced_full_loop = follow_face_loop(faces_to_closest_edge[0],
                                                  closest_edge_index,
                                                  faces,
@@ -755,7 +720,7 @@ bool paintface_minmax(Object *ob, float r_min[3], float r_max[3])
 
 bool paintface_mouse_select(bContext *C,
                             const int mval[2],
-                            const SelectPick_Params *params,
+                            const SelectPick_Params &params,
                             Object *ob)
 {
   using namespace blender;
@@ -780,11 +745,11 @@ bool paintface_mouse_select(bContext *C,
     }
   }
 
-  if (params->sel_op == SEL_OP_SET) {
-    if ((found && params->select_passthrough) && select_poly.varray[index]) {
+  if (params.sel_op == SEL_OP_SET) {
+    if ((found && params.select_passthrough) && select_poly.varray[index]) {
       found = false;
     }
-    else if (found || params->deselect_all) {
+    else if (found || params.deselect_all) {
       /* Deselect everything. */
       changed |= paintface_deselect_all_visible(C, ob, SEL_DESELECT, false);
     }
@@ -793,7 +758,7 @@ bool paintface_mouse_select(bContext *C,
   if (found) {
     mesh->act_face = int(index);
 
-    switch (params->sel_op) {
+    switch (params.sel_op) {
       case SEL_OP_SET:
       case SEL_OP_ADD:
         select_poly.varray.set(index, true);
@@ -823,7 +788,7 @@ void paintvert_flush_flags(Object *ob)
 {
   using namespace blender;
   Mesh *mesh = BKE_mesh_from_object(ob);
-  Mesh *me_eval = BKE_object_get_evaluated_mesh(ob);
+  Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
   if (mesh == nullptr) {
     return;
   }
@@ -832,14 +797,14 @@ void paintvert_flush_flags(Object *ob)
    * since this could become slow for realtime updates (circle-select for eg) */
   bke::mesh_select_vert_flush(*mesh);
 
-  if (me_eval == nullptr) {
+  if (mesh_eval == nullptr) {
     return;
   }
 
   const bke::AttributeAccessor attributes_orig = mesh->attributes();
-  bke::MutableAttributeAccessor attributes_eval = me_eval->attributes_for_write();
+  bke::MutableAttributeAccessor attributes_eval = mesh_eval->attributes_for_write();
 
-  const int *orig_indices = (const int *)CustomData_get_layer(&me_eval->vert_data, CD_ORIGINDEX);
+  const int *orig_indices = (const int *)CustomData_get_layer(&mesh_eval->vert_data, CD_ORIGINDEX);
 
   const VArray<bool> hide_vert_orig = *attributes_orig.lookup_or_default<bool>(
       ".hide_vert", bke::AttrDomain::Point, false);

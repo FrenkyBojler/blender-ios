@@ -4,12 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../gpu
   ../../makesrna
-  ../../windowmanager
 
 )
 
@@ -21,6 +16,7 @@ set(SRC
   text_autocomplete.cc
   text_draw.cc
   text_format.cc
+  text_format_glsl.cc
   text_format_osl.cc
   text_format_pov.cc
   text_format_pov_ini.cc
@@ -35,10 +31,16 @@ set(SRC
 
 set(LIB
   PRIVATE bf::blenfont
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
+  PRIVATE bf::render
+  PRIVATE bf::windowmanager
 )
 
 

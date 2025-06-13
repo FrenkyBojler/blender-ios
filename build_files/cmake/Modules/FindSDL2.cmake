@@ -43,7 +43,7 @@ find_library(SDL2_LIBRARY
     ${_sdl2_SEARCH_DIRS}
   PATH_SUFFIXES
     lib64 lib
-  )
+)
 
 # handle the QUIETLY and REQUIRED arguments and set SDL2_FOUND to TRUE if
 # all listed variables are TRUE
@@ -60,3 +60,5 @@ mark_as_advanced(
   SDL2_INCLUDE_DIR
   SDL2_LIBRARY
 )
+
+unset(_sdl2_SEARCH_DIRS)

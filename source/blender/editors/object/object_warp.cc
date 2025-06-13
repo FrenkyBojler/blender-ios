@@ -25,7 +25,9 @@
 #include "ED_object.hh"
 #include "ED_transverts.hh"
 
-#include "object_intern.h"
+#include "object_intern.hh"
+
+namespace blender::ed::object {
 
 static void object_warp_calc_view_matrix(float r_mat_view[4][4],
                                          float r_center_view[3],
@@ -151,7 +153,7 @@ static void object_warp_transverts(TransVertStore *tvs,
   }
 }
 
-static int object_warp_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
 {
   const float warp_angle = RNA_float_get(op->ptr, "warp_angle");
   const float offset_angle = RNA_float_get(op->ptr, "offset_angle");
@@ -169,7 +171,7 @@ static int object_warp_verts_exec(bContext *C, wmOperator *op)
 
   float min, max;
 
-  if (ED_object_edit_report_if_shape_key_is_locked(obedit, op->reports)) {
+  if (shape_key_report_if_locked(obedit, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -257,7 +259,7 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot)
   ot->description = "Warp vertices around the cursor";
   ot->idname = "TRANSFORM_OT_vertex_warp";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_warp_verts_exec;
   ot->poll = ED_transverts_poll;
 
@@ -299,3 +301,5 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot)
       ot->srna, "center", 3, nullptr, -FLT_MAX, FLT_MAX, "Center", "", -FLT_MAX, FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ed::object

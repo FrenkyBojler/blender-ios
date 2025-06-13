@@ -4,11 +4,18 @@
 
 #pragma once
 
+#include "kernel/globals.h"
+
+#include "kernel/geom/object.h"
+
 #include "kernel/light/common.h"
+
+#include "util/math_intersect.h"
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline bool point_light_sample(const ccl_global KernelLight *klight,
+ccl_device_inline bool point_light_sample(KernelGlobals kg,
+                                          const ccl_global KernelLight *klight,
                                           const float2 rand,
                                           const float3 P,
                                           const float3 N,
@@ -61,7 +68,7 @@ ccl_device_inline bool point_light_sample(const ccl_global KernelLight *klight,
       ls->P += disk_light_sample(lightN, rand) * klight->spot.radius;
     }
 
-    ls->D = normalize_len(ls->P - P, &ls->t);
+    ls->D = safe_normalize_len(ls->P - P, &ls->t);
     ls->Ng = -ls->D;
 
     /* PDF. */
@@ -70,7 +77,7 @@ ccl_device_inline bool point_light_sample(const ccl_global KernelLight *klight,
   }
 
   /* Texture coordinates. */
-  const Transform itfm = klight->itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;
@@ -90,13 +97,14 @@ ccl_device_forceinline float sphere_light_pdf(
   return has_transmission ? M_1_2PI_F * 0.5f : pdf_cos_hemisphere(N, D);
 }
 
-ccl_device_forceinline void point_light_mnee_sample_update(const ccl_global KernelLight *klight,
+ccl_device_forceinline void point_light_mnee_sample_update(KernelGlobals kg,
+                                                           const ccl_global KernelLight *klight,
                                                            ccl_private LightSample *ls,
                                                            const float3 P,
                                                            const float3 N,
                                                            const uint32_t path_flag)
 {
-  ls->D = normalize_len(ls->P - P, &ls->t);
+  ls->D = safe_normalize_len(ls->P - P, &ls->t);
 
   const float radius = klight->spot.radius;
 
@@ -120,7 +128,7 @@ ccl_device_forceinline void point_light_mnee_sample_update(const ccl_global Kern
   }
 
   /* Texture coordinates. */
-  const Transform itfm = klight->itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;
@@ -140,22 +148,21 @@ ccl_device_inline bool point_light_intersect(const ccl_global KernelLight *kligh
     float3 P;
     return ray_sphere_intersect(ray->P, ray->D, ray->tmin, ray->tmax, klight->co, radius, &P, t);
   }
-  else {
-    float3 P;
-    const float3 diskN = normalize(ray->P - klight->co);
-    return ray_disk_intersect(
-        ray->P, ray->D, ray->tmin, ray->tmax, klight->co, diskN, radius, &P, t);
-  }
+
+  float3 P;
+  const float3 diskN = normalize(ray->P - klight->co);
+  return ray_disk_intersect(
+      ray->P, ray->D, ray->tmin, ray->tmax, klight->co, diskN, radius, &P, t);
 }
 
-ccl_device_inline bool point_light_sample_from_intersection(
-    const ccl_global KernelLight *klight,
-    ccl_private const Intersection *ccl_restrict isect,
-    const float3 ray_P,
-    const float3 ray_D,
-    const float3 N,
-    const uint32_t path_flag,
-    ccl_private LightSample *ccl_restrict ls)
+ccl_device_inline bool point_light_sample_from_intersection(KernelGlobals kg,
+                                                            const ccl_global KernelLight *klight,
+                                                            const float3 ray_P,
+                                                            const float3 ray_D,
+                                                            const float3 N,
+                                                            const uint32_t path_flag,
+                                                            ccl_private LightSample *ccl_restrict
+                                                                ls)
 {
   const float r_sq = sqr(klight->spot.radius);
 
@@ -179,7 +186,7 @@ ccl_device_inline bool point_light_sample_from_intersection(
   }
 
   /* Texture coordinates. */
-  const Transform itfm = klight->itfm;
+  const Transform itfm = lamp_get_inverse_transform(kg, klight);
   const float2 uv = map_to_sphere(transform_direction(&itfm, ls->Ng));
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   ls->u = uv.y;
@@ -196,21 +203,22 @@ ccl_device_forceinline bool point_light_tree_parameters(const ccl_global KernelL
                                                         ccl_private float2 &distance,
                                                         ccl_private float3 &point_to_centroid)
 {
+  float min_distance;
+  point_to_centroid = safe_normalize_len(centroid - P, &min_distance);
+  distance = min_distance * one_float2();
+
   if (in_volume_segment) {
     cos_theta_u = 1.0f; /* Any value in [-1, 1], irrelevant since theta = 0 */
     return true;
   }
 
-  float dist_point_to_centroid;
-  point_to_centroid = safe_normalize_len(centroid - P, &dist_point_to_centroid);
-
   const float radius = klight->spot.radius;
 
   if (klight->spot.is_sphere) {
-    if (dist_point_to_centroid > radius) {
+    if (min_distance > radius) {
       /* Equivalent to a disk light with the same angular span. */
-      cos_theta_u = cos_from_sin(radius / dist_point_to_centroid);
-      distance = dist_point_to_centroid * make_float2(1.0f / cos_theta_u, 1.0f);
+      cos_theta_u = cos_from_sin(radius / min_distance);
+      distance.x = min_distance / cos_theta_u;
     }
     else {
       /* Similar to background light. */
@@ -220,10 +228,10 @@ ccl_device_forceinline bool point_light_tree_parameters(const ccl_global KernelL
     }
   }
   else {
-    const float hypotenus = sqrtf(sqr(radius) + sqr(dist_point_to_centroid));
-    cos_theta_u = dist_point_to_centroid / hypotenus;
+    const float hypotenus = sqrtf(sqr(radius) + sqr(min_distance));
+    cos_theta_u = min_distance / hypotenus;
 
-    distance = make_float2(hypotenus, dist_point_to_centroid);
+    distance.x = hypotenus;
   }
 
   return true;

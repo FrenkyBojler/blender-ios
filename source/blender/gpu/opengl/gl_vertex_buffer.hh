@@ -10,16 +10,15 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
-#include "gpu_vertex_buffer_private.hh"
+#include "GPU_vertex_buffer.hh"
 
 namespace blender {
 namespace gpu {
 
 class GLVertBuf : public VertBuf {
   friend class GLTexture;    /* For buffer texture. */
-  friend class GLShader;     /* For transform feedback. */
   friend class GLStorageBuf; /* For sub copy. */
 
  private:
@@ -47,7 +46,6 @@ class GLVertBuf : public VertBuf {
   void resize_data() override;
   void release_data() override;
   void upload_data() override;
-  void duplicate_data(VertBuf *dst) override;
   void bind_as_ssbo(uint binding) override;
   void bind_as_texture(uint binding) override;
 

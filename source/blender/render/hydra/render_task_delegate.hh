@@ -7,8 +7,8 @@
 #include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
 
-#include "GPU_framebuffer.h"
-#include "GPU_texture.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_texture.hh"
 
 namespace blender::render::hydra {
 
@@ -36,7 +36,7 @@ class RenderTaskDelegate : public pxr::HdSceneDelegate {
   virtual void set_viewport(pxr::GfVec4d const &viewport);
   virtual void add_aov(pxr::TfToken const &aov_key);
   virtual void read_aov(pxr::TfToken const &aov_key, void *data);
-  virtual void read_aov(pxr::TfToken const &aov_key, GPUTexture *texture);
+  pxr::HdRenderBuffer *get_aov_buffer(pxr::TfToken const &aov_key);
   virtual void bind();
   virtual void unbind();
 
@@ -58,10 +58,9 @@ class GPURenderTaskDelegate : public RenderTaskDelegate {
   void set_viewport(pxr::GfVec4d const &viewport) override;
   void add_aov(pxr::TfToken const &aov_key) override;
   void read_aov(pxr::TfToken const &aov_key, void *data) override;
-  void read_aov(pxr::TfToken const &aov_key, GPUTexture *texture) override;
   void bind() override;
   void unbind() override;
-  GPUTexture *aov_texture(pxr::TfToken const &aov_key);
+  GPUTexture *get_aov_texture(pxr::TfToken const &aov_key);
 };
 
 }  // namespace blender::render::hydra

@@ -15,13 +15,11 @@
 
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
-#include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
@@ -46,28 +44,28 @@ static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, Li
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ARegion *region = CTX_wm_region(C);
-  const Mesh *me_eval;
-  bool me_eval_needs_free;
+  const Mesh *mesh_eval;
+  bool mesh_eval_needs_free;
 
   if (ob->type == OB_MESH || ob->runtime->data_eval) {
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    me_eval = BKE_object_get_evaluated_mesh(ob_eval);
-    me_eval_needs_free = false;
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+    mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
+    mesh_eval_needs_free = false;
   }
   else if (ELEM(ob->type, OB_FONT, OB_CURVES_LEGACY, OB_SURF)) {
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
-    me_eval = BKE_mesh_new_nomain_from_curve(ob_eval);
-    me_eval_needs_free = true;
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
+    mesh_eval = BKE_mesh_new_nomain_from_curve(ob_eval);
+    mesh_eval_needs_free = true;
   }
   else {
-    me_eval = nullptr;
+    mesh_eval = nullptr;
   }
 
-  if (me_eval) {
+  if (mesh_eval) {
     ListBase nurbslist = {nullptr, nullptr};
 
-    BKE_mesh_to_curve_nurblist(me_eval, &nurbslist, 0); /* wire */
-    BKE_mesh_to_curve_nurblist(me_eval, &nurbslist, 1); /* boundary */
+    BKE_mesh_to_curve_nurblist(mesh_eval, &nurbslist, 0); /* wire */
+    BKE_mesh_to_curve_nurblist(mesh_eval, &nurbslist, 1); /* boundary */
 
     const blender::float4x4 projmat = ED_view3d_ob_project_mat_get(
         static_cast<RegionView3D *>(region->regiondata), ob);
@@ -95,15 +93,15 @@ static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, Li
 
     BKE_nurbList_free(&nurbslist);
 
-    if (me_eval_needs_free) {
-      BKE_id_free(nullptr, (ID *)me_eval);
+    if (mesh_eval_needs_free) {
+      BKE_id_free(nullptr, (ID *)mesh_eval);
     }
   }
 
   return polys;
 }
 
-static int knifeproject_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus knifeproject_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   const bool cut_through = RNA_boolean_get(op->ptr, "cut_through");

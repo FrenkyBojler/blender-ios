@@ -12,16 +12,31 @@
 #include <pxr/base/tf/token.h>
 #include <pxr/usd/usdSkel/animation.h>
 
-#include <functional>
+#include <string>
 
 struct Bone;
 struct Depsgraph;
+struct FCurve;
 struct ModifierData;
 struct Object;
-struct Scene;
-struct USDExportParams;
+
+namespace blender::animrig {
+class Channelbag;
+struct FCurveDescriptor;
+}  // namespace blender::animrig
 
 namespace blender::io::usd {
+
+/* Custom Blender Primvar name used for storing armature bone lengths. */
+inline const pxr::TfToken BlenderBoneLengths("blender:bone_lengths", pxr::TfToken::Immortal);
+
+/* Utility: create new fcurve and add it as a channel to a group. */
+FCurve *create_fcurve(blender::animrig::Channelbag &channelbag,
+                      const blender::animrig::FCurveDescriptor &fcurve_descriptor,
+                      const int sample_count);
+
+/* Utility: fill in a single fcurve sample at the provided index. */
+void set_fcurve_sample(FCurve *fcu, int64_t sample_index, const float frame, const float value);
 
 /**
  * Recursively invoke the given function on the given armature object's bones.
@@ -40,7 +55,7 @@ void visit_bones(const Object *ob_arm, FunctionRef<void(const Bone *)> visitor);
  *                    armature export joint indices
  * \param r_names: The returned list of bone names
  */
-void get_armature_bone_names(const Object *ob_arm, bool use_deform, Vector<std::string> &r_names);
+void get_armature_bone_names(const Object *ob_arm, bool use_deform, Vector<StringRef> &r_names);
 
 /**
  * Return the USD joint path corresponding to the given bone. For example, for the bone
@@ -48,9 +63,10 @@ void get_armature_bone_names(const Object *ob_arm, bool use_deform, Vector<std::
  * in the hierarchy.
  *
  * \param bone: The bone whose path will be queried.
- * \return: The path to the joint
+ * \param allow_unicode: Whether to allow unicode bone names to be used
+ * \return The path to the joint.
  */
-pxr::TfToken build_usd_joint_path(const Bone *bone);
+pxr::TfToken build_usd_joint_path(const Bone *bone, bool allow_unicode);
 
 /**
  * Sets the USD joint paths as an attribute on the given USD animation,
@@ -63,10 +79,12 @@ pxr::TfToken build_usd_joint_path(const Bone *bone);
  *                    is not null, assume only deform bones are to be
  *                    exported and bones not found in this map will be
  *                    skipped
+ * \param allow_unicode: Whether to allow unicode bone names to be used
  */
 void create_pose_joints(pxr::UsdSkelAnimation &skel_anim,
                         const Object &obj,
-                        const Map<StringRef, const Bone *> *deform_map);
+                        const Map<StringRef, const Bone *> *deform_map,
+                        bool allow_unicode);
 
 /**
  * Return the modifier of the given type enabled for the given dependency graph's
@@ -74,7 +92,7 @@ void create_pose_joints(pxr::UsdSkelAnimation &skel_anim,
  *
  * \param obj: Object to query for the modifier
  * \param depsgraph: The dependency graph where the object was evaluated
- * \return: The modifier
+ * \return The modifier.
  */
 const ModifierData *get_enabled_modifier(const Object &obj,
                                          ModifierType type,
@@ -86,7 +104,7 @@ const ModifierData *get_enabled_modifier(const Object &obj,
  *
  * \param: Object to check for the modifier
  * \param depsgraph: The dependency graph where the object was evaluated
- * \return: The armature object
+ * \return The armature object.
  */
 const Object *get_armature_modifier_obj(const Object &obj, const Depsgraph *depsgraph);
 
@@ -97,11 +115,11 @@ const Object *get_armature_modifier_obj(const Object &obj, const Depsgraph *deps
  * \param obj: Object to query for the modifier
  * \param name: Name to check
  * \param depsgraph: The dependency graph where the object was evaluated
- * \return: True if the name matches a bone name.  Return false if no matching
- *          bone name is found or if the object does not have an armature modifier
+ * \return True if the name matches a bone name.  Return false if no matching
+ *         bone name is found or if the object does not have an armature modifier
  */
 bool is_armature_modifier_bone_name(const Object &obj,
-                                    const StringRefNull name,
+                                    StringRefNull name,
                                     const Depsgraph *depsgraph);
 
 /**
@@ -111,7 +129,7 @@ bool is_armature_modifier_bone_name(const Object &obj,
  *
  * \param obj: Object to query
  * \param depsgraph: The dependency graph where the object was evaluated
- * \return: True if skinned mesh export is supported, false otherwise
+ * \return True if skinned mesh export is supported, false otherwise.
  */
 bool can_export_skinned_mesh(const Object &obj, const Depsgraph *depsgraph);
 

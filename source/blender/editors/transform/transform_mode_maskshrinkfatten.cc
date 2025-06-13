@@ -25,6 +25,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Mask Shrink/Fatten)
  * \{ */
@@ -44,18 +46,18 @@ static void applyMaskShrinkFatten(TransInfo *t)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
     SNPRINTF(str, IFACE_("Feather Shrink/Fatten: %s"), c);
   }
   else {
     SNPRINTF(str, IFACE_("Feather Shrink/Fatten: %3f"), ratio);
   }
 
-  /* detect if no points have feather yet */
+  /* Detect if no points have feather yet. */
   if (ratio > 1.0f) {
     initial_feather = true;
 
@@ -73,7 +75,7 @@ static void applyMaskShrinkFatten(TransInfo *t)
     }
   }
 
-  /* apply shrink/fatten */
+  /* Apply shrink/fatten. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td;
     for (td = tc->data, i = 0; i < tc->data_len; i++, td++) {
@@ -135,3 +137,5 @@ TransModeInfo TransMode_maskshrinkfatten = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

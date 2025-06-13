@@ -6,9 +6,9 @@
 
 #include <pxr/imaging/hd/renderBuffer.h>
 
-#include "GPU_batch.h"
-#include "GPU_shader.h"
-#include "GPU_texture.h"
+#include "GPU_batch.hh"
+#include "GPU_shader.hh"
+#include "GPU_texture.hh"
 
 #include "engine.hh"
 
@@ -17,13 +17,13 @@ namespace blender::render::hydra {
 class DrawTexture {
  private:
   GPUTexture *texture_ = nullptr;
-  GPUBatch *batch_;
+  gpu::Batch *batch_;
 
  public:
   DrawTexture();
   ~DrawTexture();
 
-  void write_data(int width, int height, const void *data);
+  void create_from_buffer(pxr::HdRenderBuffer *buffer);
   void draw(GPUShader *shader, const pxr::GfVec4d &viewport, GPUTexture *tex = nullptr);
   GPUTexture *texture() const;
 
@@ -42,7 +42,7 @@ class ViewportEngine : public Engine {
   void render(bContext *context);
 
  protected:
-  void notify_status(float progress, const std::string &title, const std::string &info) override;
+  void notify_status(float progress, const std::string &info, const std::string &status) override;
 };
 
 }  // namespace blender::render::hydra

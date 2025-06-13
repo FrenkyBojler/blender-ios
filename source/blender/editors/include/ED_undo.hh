@@ -8,14 +8,16 @@
 
 #pragma once
 
-#include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
+#include "BLI_vector.hh"
 
 struct Base;
 struct CLG_LogRef;
+struct ID;
+struct MemFile;
+struct PointerRNA;
 struct Object;
 struct Scene;
-struct MemFile;
 struct UndoStack;
 struct ViewLayer;
 struct bContext;
@@ -46,8 +48,10 @@ void ED_OT_undo_history(wmOperatorType *ot);
 
 /**
  * UI callbacks should call this rather than calling WM_operator_repeat() themselves.
+ *
+ * \return true when repeat succeeded.
  */
-int ED_undo_operator_repeat(bContext *C, wmOperator *op);
+bool ED_undo_operator_repeat(bContext *C, wmOperator *op);
 /**
  * Convenience since UI callbacks use this mostly.
  */
@@ -71,7 +75,7 @@ bool ED_undo_is_memfile_compatible(const bContext *C);
  * For example, changing a brush property isn't stored by sculpt-mode undo steps.
  * This workaround is needed until the limitation is removed, see: #61948.
  */
-bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id);
+bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &ptr);
 
 /**
  * This function addresses the problem of restoring undo steps when multiple windows are used.
@@ -101,19 +105,17 @@ void ED_undo_object_editmode_restore_helper(Scene *scene,
                                             uint object_array_len,
                                             uint object_array_stride);
 
-Object **ED_undo_editmode_objects_from_view_layer(const Scene *scene,
-                                                  ViewLayer *view_layer,
-                                                  uint *r_len);
-Base **ED_undo_editmode_bases_from_view_layer(const Scene *scene,
-                                              ViewLayer *view_layer,
-                                              uint *r_len);
+blender::Vector<Object *> ED_undo_editmode_objects_from_view_layer(const Scene *scene,
+                                                                   ViewLayer *view_layer);
+blender::Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Scene *scene,
+                                                               ViewLayer *view_layer);
 
 /**
  * Ideally we won't access the stack directly,
  * this is needed for modes which handle undo themselves (bypassing #ED_undo_push).
  *
  * Using global isn't great, this just avoids doing inline,
- * causing 'BKE_global.hh' & 'BKE_main.hh' includes.
+ * causing `BKE_global.hh` & `BKE_main.hh` includes.
  */
 UndoStack *ED_undo_stack_get();
 
@@ -129,7 +131,7 @@ void ED_undosys_type_free();
 
 /* `memfile_undo.cc` */
 
-MemFile *ED_undosys_stack_memfile_get_active(UndoStack *ustack);
+MemFile *ED_undosys_stack_memfile_get_if_active(UndoStack *ustack);
 /**
  * If the last undo step is a memfile one, find the first #MemFileChunk matching given ID
  * (using its session UUID), and tag it as "changed in the future".

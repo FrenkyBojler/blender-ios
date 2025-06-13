@@ -6,7 +6,7 @@
 #include "usd.hh"
 #include "usd_reader_xform.hh"
 
-#include "pxr/usd/usdVol/volume.h"
+#include <pxr/usd/usdVol/volume.h>
 
 namespace blender::io::usd {
 
@@ -27,7 +27,7 @@ class USDVolumeReader : public USDXformReader {
     return bool(volume_);
   }
 
-  void create_object(Main *bmain, double motionSampleTime) override;
+  void create_object(Main *bmain) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 };
 

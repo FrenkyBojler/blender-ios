@@ -9,12 +9,23 @@ if(BUILD_MODE STREQUAL Debug)
 endif()
 
 if(WIN32)
-  set(PYTHON_BINARY_INTERNAL ${BUILD_DIR}/python/src/external_python/PCBuild/amd64/python${PYTHON_POSTFIX}.exe)
   set(PYTHON_BINARY ${LIBDIR}/python/python${PYTHON_POSTFIX}.exe)
   set(PYTHON_SRC ${BUILD_DIR}/python/src/external_python/)
   macro(cmake_to_dos_path MsysPath ResultingPath)
     string(REPLACE "/" "\\" ${ResultingPath} "${MsysPath}")
   endmacro()
+
+  if(BLENDER_PLATFORM_ARM)
+    set(PYTHON_BINARY_INTERNAL ${BUILD_DIR}/python/src/external_python/PCBuild/arm64/python${PYTHON_POSTFIX}.exe)
+    set(PYTHON_BAT_ARCH arm64)
+    set(PYTHON_INSTALL_ARCH_FOLDER ${PYTHON_SRC}/PCbuild/arm64)
+    set(PYTHON_PATCH_FILE python_windows_arm64.diff)
+  else()
+    set(PYTHON_BINARY_INTERNAL ${BUILD_DIR}/python/src/external_python/PCBuild/amd64/python${PYTHON_POSTFIX}.exe)
+    set(PYTHON_BAT_ARCH x64)
+    set(PYTHON_INSTALL_ARCH_FOLDER ${PYTHON_SRC}/PCbuild/amd64)
+    set(PYTHON_PATCH_FILE python_windows_x64.diff)
+  endif()
 
   set(PYTHON_EXTERNALS_FOLDER ${BUILD_DIR}/python/src/external_python/externals)
   set(ZLIB_SOURCE_FOLDER ${BUILD_DIR}/zlib/src/external_zlib)
@@ -37,14 +48,14 @@ if(WIN32)
     # the foldernames *HAVE* to match the ones inside pythons get_externals.cmd.
     # regardless of the version actually in there.
     PATCH_COMMAND mkdir ${PYTHON_EXTERNALS_FOLDER_DOS} &&
-      mklink /J ${PYTHON_EXTERNALS_FOLDER_DOS}\\zlib-1.2.13 ${ZLIB_SOURCE_FOLDER_DOS} &&
-      mklink /J ${PYTHON_EXTERNALS_FOLDER_DOS}\\openssl-3.0.11 ${SSL_SOURCE_FOLDER_DOS} &&
+      mklink /J ${PYTHON_EXTERNALS_FOLDER_DOS}\\zlib-1.3.1 ${ZLIB_SOURCE_FOLDER_DOS} &&
+      mklink /J ${PYTHON_EXTERNALS_FOLDER_DOS}\\openssl-3.0.15 ${SSL_SOURCE_FOLDER_DOS} &&
       ${CMAKE_COMMAND} -E copy
         ${ZLIB_SOURCE_FOLDER}/../external_zlib-build/zconf.h
-        ${PYTHON_EXTERNALS_FOLDER}/zlib-1.2.13/zconf.h &&
+        ${PYTHON_EXTERNALS_FOLDER}/zlib-1.3.1/zconf.h &&
       ${PATCH_CMD} --verbose -p1 -d
         ${BUILD_DIR}/python/src/external_python <
-        ${PATCH_DIR}/python_windows.diff
+        ${PATCH_DIR}/${PYTHON_PATCH_FILE}
 
     CONFIGURE_COMMAND echo "."
 
@@ -53,10 +64,10 @@ if(WIN32)
       set IncludeTkinter=false &&
       set LDFLAGS=/DEBUG &&
       call prepare_ssl.bat &&
-      call build.bat -e -p x64 -c ${BUILD_MODE}
+      call build.bat -e -p ${PYTHON_BAT_ARCH} -c ${BUILD_MODE}
 
     INSTALL_COMMAND ${PYTHON_BINARY_INTERNAL} ${PYTHON_SRC}/PC/layout/main.py
-      -b ${PYTHON_SRC}/PCbuild/amd64
+      -b ${PYTHON_INSTALL_ARCH_FOLDER}
       -s ${PYTHON_SRC}
       -t ${PYTHON_SRC}/tmp/
       --include-stable
@@ -105,12 +116,14 @@ else()
   endif()
   set(PYTHON_BINARY ${LIBDIR}/python/bin/python${PYTHON_SHORT_VERSION})
 
-  # Various flags to convince Python to use our own versions of ffi, sqlite, ssl, bzip2, lzma and zlib.
+  # Various flags to convince Python to use our own versions of:
+  # `ffi`, `sqlite`, `ssl`, `bzip2`, `lzma` and `zlib`.
   # Using pkg-config is only supported for some, and even then we need to work around issues.
   set(PYTHON_CONFIGURE_EXTRA_ARGS --with-openssl=${LIBDIR}/ssl)
   set(PYTHON_CFLAGS "${PLATFORM_CFLAGS} ")
-  # Manually specify some library paths. For ffi there is no other way, for sqlite is needed because
-  # LIBSQLITE3_LIBS does not work, and ssl because it uses the wrong ssl/lib dir instead of ssl/lib64.
+  # Manually specify some library paths. For ffi there is no other way,
+  # for sqlite is needed because LIBSQLITE3_LIBS does not work,
+  # and ssl because it uses the wrong ssl/lib dir instead of ssl/lib64.
   set(PYTHON_LDFLAGS "-L${LIBDIR}/ffi/lib -L${LIBDIR}/sqlite/lib -L${LIBDIR}/ssl/lib -L${LIBDIR}/ssl/lib64 ${PLATFORM_LDFLAGS} ")
   set(PYTHON_CONFIGURE_EXTRA_ENV
     export CFLAGS=${PYTHON_CFLAGS} &&
@@ -127,8 +140,8 @@ else()
     export ZLIB_LIBS=${LIBDIR}/zlib/lib/${ZLIB_LIBRARY}
   )
 
-  # This patch indludes changes to fix missing -lm for sqlite and and fix the order of
-  # -ldl flags for ssl to avoid link errors.
+  # This patch includes changes to fix missing `-lm` for SQLITE
+  # and fix the order of `-ldl` flags for SSL to avoid link errors.
   if(APPLE)
     set(PYTHON_PATCH
       ${PATCH_CMD} --verbose -p1 -d
@@ -147,9 +160,8 @@ else()
   if(NOT APPLE)
     set(PYTHON_CONFIGURE_EXTRA_ARGS
       ${PYTHON_CONFIGURE_EXTRA_ARGS}
-      # Used on most release Linux builds (Fedora for e.g.),
-      # increases build times noticeably with the benefit of a modest speedup at runtime.
-      --enable-optimizations
+      # We disable optimzations as this flag turns on PGO which leads to non-reproducible builds.
+      --disable-optimizations
       # While LTO is OK when building on the same system, it's incompatible across GCC versions,
       # making it impractical for developers to build against, so keep it disabled.
       # `--with-lto`
@@ -209,4 +221,8 @@ if(WIN32)
       DEPENDEES install
     )
   endif()
+else()
+  harvest(external_python python/bin python/bin "python${PYTHON_SHORT_VERSION}")
+  harvest(external_python python/include python/include "*h")
+  harvest(external_python python/lib python/lib "*")
 endif()

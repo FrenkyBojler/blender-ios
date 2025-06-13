@@ -14,6 +14,7 @@
 
 #include "BKE_asset.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"
@@ -36,7 +37,6 @@
 
 #include <fmt/format.h>
 
-using namespace blender;
 using namespace blender::asset_system;
 
 namespace blender::ed::asset_browser {
@@ -46,7 +46,7 @@ class AssetCatalogTreeViewAllItem;
 class AssetCatalogTreeView : public ui::AbstractTreeView {
   asset_system::AssetLibrary *asset_library_;
   /** The asset catalog tree this tree-view represents. */
-  asset_system::AssetCatalogTree *catalog_tree_;
+  const asset_system::AssetCatalogTree *catalog_tree_;
   FileAssetSelectParams *params_;
   SpaceFile &space_file_;
 
@@ -65,7 +65,7 @@ class AssetCatalogTreeView : public ui::AbstractTreeView {
 
  private:
   ui::BasicTreeViewItem &build_catalog_items_recursive(ui::TreeViewOrItem &view_parent_item,
-                                                       AssetCatalogTreeItem &catalog);
+                                                       const AssetCatalogTreeItem &catalog);
 
   AssetCatalogTreeViewAllItem &add_all_item();
   void add_unassigned_item();
@@ -76,10 +76,10 @@ class AssetCatalogTreeView : public ui::AbstractTreeView {
 
 class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
   /** The catalog tree item this tree view item represents. */
-  AssetCatalogTreeItem &catalog_item_;
+  const AssetCatalogTreeItem &catalog_item_;
 
  public:
-  AssetCatalogTreeViewItem(AssetCatalogTreeItem *catalog_item);
+  AssetCatalogTreeViewItem(const AssetCatalogTreeItem &catalog_item);
 
   void on_activate(bContext &C) override;
 
@@ -96,11 +96,11 @@ class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
 };
 
 class AssetCatalogDragController : public ui::AbstractViewItemDragController {
-  AssetCatalogTreeItem &catalog_item_;
+  const AssetCatalogTreeItem &catalog_item_;
 
  public:
   explicit AssetCatalogDragController(AssetCatalogTreeView &tree_view,
-                                      AssetCatalogTreeItem &catalog_item);
+                                      const AssetCatalogTreeItem &catalog_item);
 
   eWM_DragDataType get_drag_type() const override;
   void *create_drag_data() const override;
@@ -108,10 +108,10 @@ class AssetCatalogDragController : public ui::AbstractViewItemDragController {
 };
 
 class AssetCatalogDropTarget : public ui::TreeViewItemDropTarget {
-  AssetCatalogTreeItem &catalog_item_;
+  const AssetCatalogTreeItem &catalog_item_;
 
  public:
-  AssetCatalogDropTarget(AssetCatalogTreeViewItem &item, AssetCatalogTreeItem &catalog_item);
+  AssetCatalogDropTarget(AssetCatalogTreeViewItem &item, const AssetCatalogTreeItem &catalog_item);
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override;
@@ -183,8 +183,8 @@ AssetCatalogTreeView::AssetCatalogTreeView(asset_system::AssetLibrary *library,
                                            SpaceFile &space_file)
     : asset_library_(library), params_(params), space_file_(space_file)
 {
-  if (library && library->catalog_service) {
-    catalog_tree_ = library->catalog_service->get_catalog_tree();
+  if (library) {
+    catalog_tree_ = &library->catalog_service().catalog_tree();
   }
   else {
     catalog_tree_ = nullptr;
@@ -194,11 +194,11 @@ AssetCatalogTreeView::AssetCatalogTreeView(asset_system::AssetLibrary *library,
 void AssetCatalogTreeView::build_tree()
 {
   AssetCatalogTreeViewAllItem &all_item = add_all_item();
-  all_item.set_collapsed(false);
+  all_item.uncollapse_by_default();
 
   if (catalog_tree_) {
     /* Pass the "All" item on as parent of the actual catalog items. */
-    catalog_tree_->foreach_root_item([this, &all_item](AssetCatalogTreeItem &item) {
+    catalog_tree_->foreach_root_item([this, &all_item](const AssetCatalogTreeItem &item) {
       build_catalog_items_recursive(all_item, item);
     });
   }
@@ -207,14 +207,14 @@ void AssetCatalogTreeView::build_tree()
 }
 
 ui::BasicTreeViewItem &AssetCatalogTreeView::build_catalog_items_recursive(
-    ui::TreeViewOrItem &view_parent_item, AssetCatalogTreeItem &catalog)
+    ui::TreeViewOrItem &view_parent_item, const AssetCatalogTreeItem &catalog)
 {
   ui::BasicTreeViewItem &view_item = view_parent_item.add_tree_item<AssetCatalogTreeViewItem>(
-      &catalog);
+      catalog);
   view_item.set_is_active_fn(
       [this, &catalog]() { return is_active_catalog(catalog.get_catalog_id()); });
 
-  catalog.foreach_child([&view_item, this](AssetCatalogTreeItem &child) {
+  catalog.foreach_child([&view_item, this](const AssetCatalogTreeItem &child) {
     build_catalog_items_recursive(view_item, child);
   });
   return view_item;
@@ -264,8 +264,8 @@ bool AssetCatalogTreeView::is_active_catalog(CatalogID catalog_id) const
 
 /* ---------------------------------------------------------------------- */
 
-AssetCatalogTreeViewItem::AssetCatalogTreeViewItem(AssetCatalogTreeItem *catalog_item)
-    : BasicTreeViewItem(catalog_item->get_name()), catalog_item_(*catalog_item)
+AssetCatalogTreeViewItem::AssetCatalogTreeViewItem(const AssetCatalogTreeItem &catalog_item)
+    : BasicTreeViewItem(catalog_item.get_name()), catalog_item_(catalog_item)
 {
 }
 
@@ -296,26 +296,20 @@ void AssetCatalogTreeViewItem::build_context_menu(bContext &C, uiLayout &column)
 {
   PointerRNA props;
 
-  uiItemFullO(&column,
-              "ASSET_OT_catalog_new",
-              IFACE_("New Catalog"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &props);
+  props = column.op("ASSET_OT_catalog_new",
+                    IFACE_("New Catalog"),
+                    ICON_NONE,
+                    WM_OP_INVOKE_DEFAULT,
+                    UI_ITEM_NONE);
   RNA_string_set(&props, "parent_path", catalog_item_.catalog_path().c_str());
 
-  uiItemFullO(&column,
-              "ASSET_OT_catalog_delete",
-              IFACE_("Delete Catalog"),
-              ICON_NONE,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &props);
+  props = column.op("ASSET_OT_catalog_delete",
+                    IFACE_("Delete Catalog"),
+                    ICON_NONE,
+                    WM_OP_INVOKE_DEFAULT,
+                    UI_ITEM_NONE);
   RNA_string_set(&props, "catalog_id", catalog_item_.get_catalog_id().str().c_str());
-  uiItemO(&column, IFACE_("Rename"), ICON_NONE, "UI_OT_view_item_rename");
+  column.op("UI_OT_view_item_rename", IFACE_("Rename"), ICON_NONE);
 
   /* Doesn't actually exist right now, but could be defined in Python. Reason that this isn't done
    * in Python yet is that catalogs are not exposed in BPY, and we'd somehow pass the clicked on
@@ -360,7 +354,7 @@ std::unique_ptr<ui::AbstractViewItemDragController> AssetCatalogTreeViewItem::
 /* ---------------------------------------------------------------------- */
 
 AssetCatalogDropTarget::AssetCatalogDropTarget(AssetCatalogTreeViewItem &item,
-                                               AssetCatalogTreeItem &catalog_item)
+                                               const AssetCatalogTreeItem &catalog_item)
     : ui::TreeViewItemDropTarget(item), catalog_item_(catalog_item)
 {
 }
@@ -369,11 +363,11 @@ bool AssetCatalogDropTarget::can_drop(const wmDrag &drag, const char **r_disable
 {
   if (drag.type == WM_DRAG_ASSET_CATALOG) {
     const asset_system::AssetLibrary &library = get_asset_library();
-    if (!this->can_modify_catalogs(library, r_disabled_hint)) {
+    if (!can_modify_catalogs(library, r_disabled_hint)) {
       return false;
     }
 
-    const AssetCatalog *drag_catalog = this->get_drag_catalog(drag, library);
+    const AssetCatalog *drag_catalog = get_drag_catalog(drag, library);
     /* NOTE: Technically it's not an issue to allow this (the catalog will just receive a new
      * path and the catalog system will generate missing parents from the path). But it does
      * appear broken to users, so disabling entirely. */
@@ -405,10 +399,11 @@ std::string AssetCatalogDropTarget::drop_tooltip(const ui::DragInfo &drag_info) 
 std::string AssetCatalogDropTarget::drop_tooltip_asset_catalog(const wmDrag &drag) const
 {
   BLI_assert(drag.type == WM_DRAG_ASSET_CATALOG);
-  const AssetCatalog *src_catalog = this->get_drag_catalog(drag, get_asset_library());
+  const AssetCatalog *src_catalog = get_drag_catalog(drag, get_asset_library());
 
-  return fmt::format(
-      TIP_("Move catalog {} into {}"), src_catalog->path.name(), catalog_item_.get_name());
+  return fmt::format(fmt::runtime(TIP_("Move catalog {} into {}")),
+                     src_catalog->path.name(),
+                     catalog_item_.get_name());
 }
 
 std::string AssetCatalogDropTarget::drop_tooltip_asset_list(const wmDrag &drag) const
@@ -434,17 +429,18 @@ std::string AssetCatalogDropTarget::drop_tooltip_asset_list(const wmDrag &drag) 
   return basic_tip;
 }
 
-bool AssetCatalogDropTarget::on_drop(bContext *C, const ui::DragInfo &drag) const
+bool AssetCatalogDropTarget::on_drop(bContext *C, const ui::DragInfo &drag_info) const
 {
-  if (drag.drag_data.type == WM_DRAG_ASSET_CATALOG) {
-    return this->drop_asset_catalog_into_catalog(
-        drag.drag_data, this->get_view<AssetCatalogTreeView>(), catalog_item_.get_catalog_id());
+  if (drag_info.drag_data.type == WM_DRAG_ASSET_CATALOG) {
+    return drop_asset_catalog_into_catalog(drag_info.drag_data,
+                                           this->get_view<AssetCatalogTreeView>(),
+                                           catalog_item_.get_catalog_id());
   }
-  return this->drop_assets_into_catalog(C,
-                                        this->get_view<AssetCatalogTreeView>(),
-                                        drag.drag_data,
-                                        catalog_item_.get_catalog_id(),
-                                        catalog_item_.get_simple_name());
+  return drop_assets_into_catalog(C,
+                                  this->get_view<AssetCatalogTreeView>(),
+                                  drag_info.drag_data,
+                                  catalog_item_.get_catalog_id(),
+                                  catalog_item_.get_simple_name());
 }
 
 bool AssetCatalogDropTarget::drop_asset_catalog_into_catalog(
@@ -503,10 +499,10 @@ AssetCatalog *AssetCatalogDropTarget::get_drag_catalog(
   if (drag.type != WM_DRAG_ASSET_CATALOG) {
     return nullptr;
   }
-  const AssetCatalogService *catalog_service = asset_library.catalog_service.get();
+  const AssetCatalogService &catalog_service = asset_library.catalog_service();
   const wmDragAssetCatalog *catalog_drag = WM_drag_get_asset_catalog_data(&drag);
 
-  return catalog_service->find_catalog(catalog_drag->drag_catalog_id);
+  return catalog_service.find_catalog(catalog_drag->drag_catalog_id);
 }
 
 bool AssetCatalogDropTarget::has_droppable_asset(const wmDrag &drag, const char **r_disabled_hint)
@@ -543,7 +539,7 @@ asset_system::AssetLibrary &AssetCatalogDropTarget::get_asset_library() const
 /* ---------------------------------------------------------------------- */
 
 AssetCatalogDragController::AssetCatalogDragController(AssetCatalogTreeView &tree_view,
-                                                       AssetCatalogTreeItem &catalog_item)
+                                                       const AssetCatalogTreeItem &catalog_item)
     : ui::AbstractViewItemDragController(tree_view), catalog_item_(catalog_item)
 {
 }
@@ -625,16 +621,16 @@ std::string AssetCatalogTreeViewAllItem::DropTarget::drop_tooltip(
   const AssetCatalog *drag_catalog = AssetCatalogDropTarget::get_drag_catalog(
       drag_info.drag_data, *this->get_view<AssetCatalogTreeView>().asset_library_);
 
-  return fmt::format(TIP_("Move catalog {} to the top level of the tree"),
+  return fmt::format(fmt::runtime(TIP_("Move catalog {} to the top level of the tree")),
                      drag_catalog->path.name());
 }
 
 bool AssetCatalogTreeViewAllItem::DropTarget::on_drop(bContext * /*C*/,
-                                                      const ui::DragInfo &drag) const
+                                                      const ui::DragInfo &drag_info) const
 {
-  BLI_assert(drag.drag_data.type == WM_DRAG_ASSET_CATALOG);
+  BLI_assert(drag_info.drag_data.type == WM_DRAG_ASSET_CATALOG);
   return AssetCatalogDropTarget::drop_asset_catalog_into_catalog(
-      drag.drag_data,
+      drag_info.drag_data,
       this->get_view<AssetCatalogTreeView>(),
       /* No value to drop into the root level. */
       std::nullopt);
@@ -674,18 +670,14 @@ std::string AssetCatalogTreeViewUnassignedItem::DropTarget::drop_tooltip(
 }
 
 bool AssetCatalogTreeViewUnassignedItem::DropTarget::on_drop(bContext *C,
-                                                             const ui::DragInfo &drag) const
+                                                             const ui::DragInfo &drag_info) const
 {
   /* Assign to nil catalog ID. */
   return AssetCatalogDropTarget::drop_assets_into_catalog(
-      C, this->get_view<AssetCatalogTreeView>(), drag.drag_data, CatalogID{});
+      C, this->get_view<AssetCatalogTreeView>(), drag_info.drag_data, CatalogID{});
 }
 
-}  // namespace blender::ed::asset_browser
-
 /* ---------------------------------------------------------------------- */
-
-namespace blender::ed::asset_browser {
 
 class AssetCatalogFilterSettings {
  public:
@@ -695,32 +687,22 @@ class AssetCatalogFilterSettings {
   std::unique_ptr<AssetCatalogFilter> catalog_filter;
 };
 
-}  // namespace blender::ed::asset_browser
-
-using namespace blender::ed::asset_browser;
-
-FileAssetCatalogFilterSettingsHandle *file_create_asset_catalog_filter_settings()
+AssetCatalogFilterSettings *file_create_asset_catalog_filter_settings()
 {
-  AssetCatalogFilterSettings *filter_settings = MEM_new<AssetCatalogFilterSettings>(__func__);
-  return reinterpret_cast<FileAssetCatalogFilterSettingsHandle *>(filter_settings);
+  return MEM_new<AssetCatalogFilterSettings>(__func__);
 }
 
-void file_delete_asset_catalog_filter_settings(
-    FileAssetCatalogFilterSettingsHandle **filter_settings_handle)
+void file_delete_asset_catalog_filter_settings(AssetCatalogFilterSettings **filter_settings)
 {
-  AssetCatalogFilterSettings **filter_settings = reinterpret_cast<AssetCatalogFilterSettings **>(
-      filter_settings_handle);
   MEM_delete(*filter_settings);
   *filter_settings = nullptr;
 }
 
 bool file_set_asset_catalog_filter_settings(
-    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
+    AssetCatalogFilterSettings *filter_settings,
     eFileSel_Params_AssetCatalogVisibility catalog_visibility,
-    ::bUUID catalog_id)
+    const ::bUUID &catalog_id)
 {
-  AssetCatalogFilterSettings *filter_settings = reinterpret_cast<AssetCatalogFilterSettings *>(
-      filter_settings_handle);
   bool needs_update = false;
 
   if (filter_settings->asset_catalog_visibility != catalog_visibility) {
@@ -738,27 +720,20 @@ bool file_set_asset_catalog_filter_settings(
   return needs_update;
 }
 
-void file_ensure_updated_catalog_filter_data(
-    FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
-    const asset_system::AssetLibrary *asset_library)
+void file_ensure_updated_catalog_filter_data(AssetCatalogFilterSettings *filter_settings,
+                                             const asset_system::AssetLibrary *asset_library)
 {
-  AssetCatalogFilterSettings *filter_settings = reinterpret_cast<AssetCatalogFilterSettings *>(
-      filter_settings_handle);
-  const AssetCatalogService *catalog_service = asset_library->catalog_service.get();
+  const AssetCatalogService &catalog_service = asset_library->catalog_service();
 
   if (filter_settings->asset_catalog_visibility != FILE_SHOW_ASSETS_ALL_CATALOGS) {
     filter_settings->catalog_filter = std::make_unique<AssetCatalogFilter>(
-        catalog_service->create_catalog_filter(filter_settings->asset_catalog_id));
+        catalog_service.create_catalog_filter(filter_settings->asset_catalog_id));
   }
 }
 
 bool file_is_asset_visible_in_catalog_filter_settings(
-    const FileAssetCatalogFilterSettingsHandle *filter_settings_handle,
-    const AssetMetaData *asset_data)
+    const AssetCatalogFilterSettings *filter_settings, const AssetMetaData *asset_data)
 {
-  const AssetCatalogFilterSettings *filter_settings =
-      reinterpret_cast<const AssetCatalogFilterSettings *>(filter_settings_handle);
-
   switch (filter_settings->asset_catalog_visibility) {
     case FILE_SHOW_ASSETS_WITHOUT_CATALOG:
       return !filter_settings->catalog_filter->is_known(asset_data->catalog_id);
@@ -775,7 +750,8 @@ bool file_is_asset_visible_in_catalog_filter_settings(
 
 /* ---------------------------------------------------------------------- */
 
-void file_create_asset_catalog_tree_view_in_layout(asset_system::AssetLibrary *asset_library,
+void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
+                                                   asset_system::AssetLibrary *asset_library,
                                                    uiLayout *layout,
                                                    SpaceFile *space_file,
                                                    FileAssetSelectParams *params)
@@ -789,6 +765,8 @@ void file_create_asset_catalog_tree_view_in_layout(asset_system::AssetLibrary *a
       "asset catalog tree view",
       std::make_unique<ed::asset_browser::AssetCatalogTreeView>(
           asset_library, params, *space_file));
-
-  ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  tree_view->set_context_menu_title("Catalog");
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
+
+}  // namespace blender::ed::asset_browser

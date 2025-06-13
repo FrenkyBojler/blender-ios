@@ -8,26 +8,25 @@
 
 #include "DNA_movieclip_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_utildefines.h"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
+#include "ED_anim_api.hh"
 #include "ED_clip.hh"
-#include "ED_screen.hh"
 
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_state.h"
-
-#include "WM_types.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 struct TrackMotionCurveUserData {
   SpaceClip *sc;
@@ -256,7 +255,8 @@ void clip_draw_graph(SpaceClip *sc, ARegion *region, Scene *scene)
   UI_view2d_draw_lines_y__values(v2d);
 
   if (clip) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     GPU_point_size(3.0f);
@@ -272,6 +272,8 @@ void clip_draw_graph(SpaceClip *sc, ARegion *region, Scene *scene)
     immUnbindProgram();
   }
 
-  /* frame range */
-  clip_draw_sfra_efra(v2d, scene);
+  /* Frame and preview range. */
+  UI_view2d_view_ortho(v2d);
+  ANIM_draw_framerange(scene, v2d);
+  ANIM_draw_previewrange(scene, v2d, 0);
 }
