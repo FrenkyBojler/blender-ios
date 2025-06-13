@@ -430,7 +430,7 @@ class CompositorNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroup
     def setUp(self):
         super().setUp()
         self.scene = bpy.data.scenes.new("test")
-        self.scene.compositing_node_group_ensure()
+        self.scene.use_nodes = True
         self.main_tree = self.scene.node_tree
 
     def test_invalid_socket_type(self):

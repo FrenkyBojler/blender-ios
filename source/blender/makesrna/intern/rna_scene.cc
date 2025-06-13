@@ -2021,19 +2021,6 @@ static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
   DEG_relations_tag_update(CTX_data_main(C));
 }
 
-static void rna_Scene_compositing_node_group_ensure(Scene *scene, bContext *C)
-{
-  Main *bmain = CTX_data_main(C);
-
-  if (scene->compositing_node_group == nullptr) {
-    ED_node_composit_default(C, scene);
-  }
-  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(scene->compositing_node_group);
-  WM_main_add_notifier(NC_NODE | NA_EDITED, &ntree->id);
-  WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
-  BKE_main_ensure_invariants(*bmain, ntree->id);
-}
-
 static void rna_Physics_relations_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   DEG_relations_tag_update(bmain);
@@ -9099,12 +9086,6 @@ void RNA_def_scene(BlenderRNA *brna)
       prop, "Use Nodes", "Enable the compositing node tree. (Deprecated: use use_compositing)");
   RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
-
-  func = RNA_def_function(
-      srna, "compositing_node_group_ensure", "rna_Scene_compositing_node_group_ensure");
-  RNA_def_function_ui_description(
-      func, "Create a new compositing node tree if none exists, and assign it to the scene.");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
   /* Sequencer */
   prop = RNA_def_property(srna, "sequence_editor", PROP_POINTER, PROP_NONE);
