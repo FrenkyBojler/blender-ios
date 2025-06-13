@@ -380,17 +380,17 @@ TEST(span, ReverseMutableSpan)
   std::array<int, 1> src1 = {4};
   MutableSpan<int> span1 = src1;
   span1.reverse();
-  EXPECT_EQ_SPAN<int>(span1, Span<int>({4}));
+  EXPECT_EQ_SPAN<int>(span1, Span({4}));
 
   std::array<int, 2> src2 = {4, 5};
   MutableSpan<int> span2 = src2;
   span2.reverse();
-  EXPECT_EQ_SPAN<int>(span2, Span<int>({5, 4}));
+  EXPECT_EQ_SPAN<int>(span2, Span({5, 4}));
 
   std::array<int, 5> src5 = {4, 5, 6, 7, 8};
   MutableSpan<int> span5 = src5;
   span5.reverse();
-  EXPECT_EQ_SPAN<int>(span5, Span<int>({8, 7, 6, 5, 4}));
+  EXPECT_EQ_SPAN<int>(span5, Span({8, 7, 6, 5, 4}));
 }
 
 TEST(span, MutableReverseIterator)

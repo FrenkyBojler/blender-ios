@@ -12,7 +12,7 @@
 
 namespace blender {
 
-/* Fwd
+/* Fwd.
  */
 template<typename T> class Span;
 
