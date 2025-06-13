@@ -113,6 +113,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();
 
+#if 0
       tmp_instances.object_to_world.clear();
       tmp_instances.object_to_world.reserve(instances.size());
       tmp_instances.particles_object_to_world.clear();
@@ -134,8 +135,9 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
                sizeof(dupli->persistent_id));
         tmp_instances.random_id.append(dupli->random_id);
       }
+#endif
 
-      blender::draw::ObjectRef ob_ref(tmp_object, ob, key, tmp_instances);
+      blender::draw::ObjectRef ob_ref(tmp_object, ob, key, instances);
       callback(ob_ref);
 
       DEG_iterator_free_temp_object_properties(key.object, &tmp_object);

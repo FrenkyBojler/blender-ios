@@ -76,24 +76,30 @@ struct ResourceHandle {
  * The associated objects will all share handedness and state and can be rendered together. */
 struct ResourceHandleRange {
   /* First handle in the range. */
-  ResourceHandle handle_first;
+  ResourceHandle handle_first = 0;
   /* Number of handle in the range. */
-  uint32_t count;
+  uint32_t count = 0;
+  /* TODO: Remove */
+  uint32_t raw = 0;
 
   ResourceHandleRange() = default;
   ResourceHandleRange(ResourceHandle handle) : handle_first(handle), count(1) {}
   ResourceHandleRange(ResourceHandle handle, uint len) : handle_first(handle), count(len) {}
 
+  bool has_inverted_handedness() const
+  {
+    return handle_first.has_inverted_handedness();
+  }
+
+  /* TODO: Remove. */
+  uint resource_index() const
+  {
+    return handle_first.resource_index();
+  }
+
   IndexRange index_range() const
   {
     return {handle_first.raw, count};
-  }
-
-  /* TODO(fclem): Temporary workaround to keep existing code to work. Should be removed once we
-   * complete the instance optimization project. */
-  operator ResourceHandle() const
-  {
-    return handle_first;
   }
 };
 
@@ -114,7 +120,7 @@ class ObjectRef {
   ResourceHandleRange sculpt_handle_ = {0, 0};
 
   const DrawObjectKey *draw_object_key_ = nullptr;
-  const DrawInstances *draw_instances_ = nullptr;
+  const VectorList<DupliObject *> *duplis_ = nullptr;
 
  public:
   Object *const object;
@@ -124,7 +130,7 @@ class ObjectRef {
   ObjectRef(Object &ob,
             Object *dupli_parent,
             const DrawObjectKey &draw_object_key,
-            const DrawInstances &draw_instances);
+            const VectorList<DupliObject *> &duplis);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
