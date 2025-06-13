@@ -87,8 +87,8 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
                                dupli.ob->runtime->last_update_shading > last_update,
                            DrawObjectFlags::RecalcShading);
       }
-      DrawObjectKey key(data_.dupli_object_current->ob,
-                        data_.dupli_object_current->ob_data,
+      DrawObjectKey key(dupli.ob,
+                        dupli.ob_data,
                         flags,
                         dupli.preview_base_geometry,
                         dupli.preview_instance_index);
@@ -97,7 +97,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
     }
 
     for (const auto &[key, instances] : dupli_map.items()) {
-      if (DEG_iterator_setup_temp_object(
+      if (!DEG_iterator_setup_temp_object(
               ob, key.object, key.ob_data, &tmp_object, &tmp_runtime, eval_mode))
       {
         DEG_iterator_free_temp_object_properties(key.object, &tmp_object);
