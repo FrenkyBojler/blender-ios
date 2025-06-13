@@ -693,7 +693,7 @@ static GreasePencil *get_eval_grease_pencil(Object *object_eval)
   blender::bke::GeometrySet *geometry_set_eval = object_eval->runtime->geometry_set_eval;
   if (geometry_set_eval) {
     if (GreasePencil *grease_pencil = const_cast<GreasePencil *>(
-            geometry_set_eval->get_grease_pencil());)
+            geometry_set_eval->get_grease_pencil()))
     {
       return grease_pencil;
     }
