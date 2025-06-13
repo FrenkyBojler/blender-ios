@@ -87,7 +87,7 @@ class ConstraintButtonsPanel:
                     match space_object.type:
                         case 'ARMATURE':
                             col.prop_search(con, "space_subtarget", con.space_object.data, "bones", text="Bone")
-                        case 'MESH', 'LATTICE':
+                        case 'MESH', 'LATTICE', 'GREASEPENCIL':
                             col.prop_search(
                                 con, "space_subtarget", con.space_object,
                                 "vertex_groups", text="Vertex Group",
@@ -110,7 +110,7 @@ class ConstraintButtonsPanel:
                     # XXX icon, and only when bone has segments?
                     sub.prop(con, "use_bbone_shape", text="", icon='IPO_BEZIER')
                     row.prop_decorator(con, "head_tail")
-            elif con.target.type in {'MESH', 'LATTICE'}:
+            elif con.target.type in {'MESH', 'LATTICE', 'GREASEPENCIL'}:
                 col.prop_search(con, "subtarget", con.target, "vertex_groups", text="Vertex Group")
 
     def get_constraint(self, _context):
@@ -676,7 +676,7 @@ class ConstraintButtonsPanel:
                                 con.space_object.data, "bones",
                                 text="Bone",
                             )
-                        case 'MESH', 'LATTICE':
+                        case 'MESH', 'LATTICE', 'GREASEPENCIL':
                             col.prop_search(
                                 con, "space_subtarget",
                                 con.space_object, "vertex_groups",

@@ -54,11 +54,14 @@
 #include "BKE_camera.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
+#include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
 #include "BKE_fcurve_driver.h"
+#include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -682,6 +685,74 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
   copy_v3_v3(mat[3], tvec);
 }
 
+static GreasePencil *get_eval_grease_pencil(Object *object_eval)
+{
+  // if (!DEG_object_geometry_is_evaluated(*object_eval)) {
+  //   return nullptr;
+  // }
+  blender::bke::GeometrySet *geometry_set_eval = object_eval->runtime->geometry_set_eval;
+  if (geometry_set_eval) {
+    if (GreasePencil *grease_pencil = const_cast<GreasePencil *>(
+            geometry_set_eval->get_grease_pencil());)
+    {
+      return grease_pencil;
+    }
+  }
+  return nullptr;
+}
+
+static void contarget_get_grease_pencil_mat(Object *ob, const char *substring, float mat[4][4])
+{
+  using namespace blender;
+  GreasePencil *grease_pencil = get_eval_grease_pencil(ob);
+  const int defgroup = BKE_object_defgroup_name_index(ob, substring);
+
+  copy_m4_m4(mat, ob->object_to_world().ptr());
+
+  if (!grease_pencil) {
+    return;
+  }
+  if (defgroup == -1) {
+    return;
+  }
+
+  Vector<const bke::greasepencil::Drawing *> drawings;
+  Vector<float4x4> layer_to_object;
+  for (const bke::greasepencil::Layer *layer : grease_pencil->layers()) {
+    drawings.append(grease_pencil->get_eval_drawing(*layer));
+    layer_to_object.append(layer->to_object_space(*ob));
+  }
+
+  float3 vec(0.0f);
+  float weightsum = 0.0f;
+  for (const int drawing_i : drawings.index_range()) {
+    const bke::greasepencil::Drawing *drawing = drawings[drawing_i];
+    const bke::CurvesGeometry &curves = drawing->strokes();
+    const Span<float3> positions = curves.positions();
+    const Span<MDeformVert> dverts = curves.deform_verts();
+    const float4x4 to_object_space = layer_to_object[drawing_i];
+    if (dverts.is_empty()) {
+      continue;
+    }
+
+    for (const int i : positions.index_range()) {
+      const MDeformVert *dv = &dverts[i];
+      const MDeformWeight *dw = BKE_defvert_find_index(dv, defgroup);
+
+      if (dw && dw->weight > 0.0f) {
+        vec += math::transform_point(to_object_space, positions[i]) * dw->weight;
+        weightsum += dw->weight;
+      }
+    }
+  }
+
+  if (weightsum > 0.0f) {
+    vec *= 1.0f / weightsum;
+  }
+
+  mul_v3_m4v3(mat[3], ob->object_to_world().ptr(), vec);
+}
+
 /* generic function to get the appropriate matrix for most target cases */
 /* The cases where the target can be object data have not been implemented */
 static void constraint_target_to_mat4(Object *ob,
@@ -713,6 +784,10 @@ static void constraint_target_to_mat4(Object *ob,
   }
   else if (ob->type == OB_LATTICE) {
     contarget_get_lattice_mat(ob, substring, mat);
+    BKE_constraint_mat_convertspace(ob, nullptr, cob, mat, from, to, false);
+  }
+  else if (ob->type == OB_GREASE_PENCIL) {
+    contarget_get_grease_pencil_mat(ob, substring, mat);
     BKE_constraint_mat_convertspace(ob, nullptr, cob, mat, from, to, false);
   }
   /* Case BONE */
