@@ -5,6 +5,10 @@
 #include "gpu_shader_common_color_utils.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
+#define CMP_NODE_GLARE_QUALITY_HIGH 0
+#define CMP_NODE_GLARE_QUALITY_MEDIUM 1
+#define CMP_NODE_GLARE_QUALITY_LOW 2
+
 /* A Quadratic Polynomial smooth minimum function *without* normalization, based on:
  *
  *   https://iquilezles.org/articles/smin/
@@ -68,38 +72,37 @@ void main()
 
   float4 color = float4(0.0f);
 
-  switch (quality_setting) {
-    case 0: {  /* High */
+  switch (quality) {
+    case CMP_NODE_GLARE_QUALITY_HIGH: {
       color = texture_load(input_tx, texel);
       break;
     }
 
     /* Medium Quality:
-     * A single-stage bilinear interpolation is applied using the texture
-     * function. This function takes normalized texture coordinates (i.e., mapped to [0,1]) and
-     * returns the interpolated color value. */
-    case 1: {  /* Medium */
+     * Down-sample the image 2 times to match the output size by averaging the 2x2 block of
+     * pixels into a single output pixel. This is done due to the bilinear interpolation at the
+     * center of the 2x2 block of pixels */
+    case CMP_NODE_GLARE_QUALITY_MEDIUM: {
       float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(imageSize(output_img));
       color = texture(input_tx, normalized_coordinates);
       break;
     }
 
     /* Low Quality:
-     * A two-stage bilinear interpolation approach is used to approximate smoother results.
-     * In the first stage, four samples are taken at fractional offsets around the texel
-     * center using texture. Each of these samples is a bilinearly
-     * interpolated color. In the second stage, the final color is computed as the average of
-     * these four interpolated values. */
-    case 2: {  /* Low */
+     * Down-sample the image 4 times to match the output size by averaging each 4x4 block of
+     * pixels into a single output pixel. This is done by averaging 4 bilinear taps at the
+     * center of each of the corner 2x2 pixel blocks, which are themselves the average of the
+     * 2x2 block due to the bilinear interpolation at the center. */
+    case CMP_NODE_GLARE_QUALITY_LOW: {
       float2 upper_left_coordinates = (float2(texel) + float2(0.25f)) /
                                         float2(imageSize(output_img));
       float4 upper_left_color = texture(input_tx, upper_left_coordinates);
 
-      float2 upper_right_coordinates = (float2(texel) + float2(0.75f, 0.25)) /
+      float2 upper_right_coordinates = (float2(texel) + float2(0.75f, 0.25f)) /
                                         float2(imageSize(output_img));
       float4 upper_right_color = texture(input_tx, upper_right_coordinates);
 
-      float2 lower_left_coordinates = (float2(texel) + float2(0.25f, 0.75)) /
+      float2 lower_left_coordinates = (float2(texel) + float2(0.25f, 0.75f)) /
                                         float2(imageSize(output_img));
       float4 lower_left_color = texture(input_tx, lower_left_coordinates);
 
