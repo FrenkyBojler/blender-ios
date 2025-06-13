@@ -685,16 +685,14 @@ static void contarget_get_lattice_mat(Object *ob, const char *substring, float m
   copy_v3_v3(mat[3], tvec);
 }
 
-static GreasePencil *get_eval_grease_pencil(Object *object_eval)
+static const GreasePencil *get_eval_grease_pencil(Object *object_eval)
 {
   // if (!DEG_object_geometry_is_evaluated(*object_eval)) {
   //   return nullptr;
   // }
   blender::bke::GeometrySet *geometry_set_eval = object_eval->runtime->geometry_set_eval;
   if (geometry_set_eval) {
-    if (GreasePencil *grease_pencil = const_cast<GreasePencil *>(
-            geometry_set_eval->get_grease_pencil()))
-    {
+    if (const GreasePencil *grease_pencil = geometry_set_eval->get_grease_pencil()) {
       return grease_pencil;
     }
   }
@@ -704,7 +702,7 @@ static GreasePencil *get_eval_grease_pencil(Object *object_eval)
 static void contarget_get_grease_pencil_mat(Object *ob, const char *substring, float mat[4][4])
 {
   using namespace blender;
-  GreasePencil *grease_pencil = get_eval_grease_pencil(ob);
+  const GreasePencil *grease_pencil = get_eval_grease_pencil(ob);
   const int defgroup = BKE_object_defgroup_name_index(ob, substring);
 
   copy_m4_m4(mat, ob->object_to_world().ptr());
