@@ -18,11 +18,13 @@ __all__ = (
     "BlendFileRaw",
 )
 
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "modules"))
 
 import blendfile_header
 import gzip
 import logging
-import os
 import struct
 import tempfile
 import zstandard as zstd
