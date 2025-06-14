@@ -97,7 +97,7 @@ void geometry_main(VertOut geom_in[4],
   /*
    * Screen Space Filter:
    * Skip any edge whose two verts project to under 1 pixel apart,
-   * since sub-pixel edges won’t contribute visibly to the outline.
+   * since sub-pixel edges won't contribute visibly to the outline.
    */
   float2 ss_delta = geom_in[2].ss_P - geom_in[1].ss_P;
   if (length(ss_delta) < 1.0f) {
@@ -109,9 +109,7 @@ void geometry_main(VertOut geom_in[4],
    * For perspective, use the normalized view position; otherwise
    * assume orthographic looking down -Z.
    */
-  float3 view_vec = is_persp
-    ? normalize(geom_in[1].vs_P)
-    : float3(0.0f, 0.0f, -1.0f);
+  float3 view_vec = is_persp ? normalize(geom_in[1].vs_P) : float3(0.0f, 0.0f, -1.0f);
 
   /*
    * Edge Vectors:
@@ -139,7 +137,7 @@ void geometry_main(VertOut geom_in[4],
   /*
    * Silhouette
    * If both adjacent faces face the camera similarly (dot > eps),
-   * it’s not an outline. We raise eps to ~1° to reject numeric noise.
+   * it's not an outline. We raise eps to ~1° to reject numeric noise.
    */
   const float FACE_EPS = 0.02;
   float fac0 = dot(view_vec, n0n);
@@ -152,7 +150,7 @@ void geometry_main(VertOut geom_in[4],
 
   /*
    * Concave Edge Filter:
-   * If the edge is concave (interior), don’t outline it.
+   * If the edge is concave (interior), don't outline it.
    * We add a small tolerance to avoid outlining tiny bevels.
    */
   n0 = (geom_in[0].inverted == 1) ? -n0 : n0;
@@ -164,8 +162,8 @@ void geometry_main(VertOut geom_in[4],
 
   /*
    * Compute Screen Space Edge Direction:
-   * ‘perp’ is the normalized vector between the two verts in ss,
-   * edge_dir is perpendicular to that in screen-space.
+   * "perp" is the normalized vector between the two verts in screen-space,
+   * "edge_dir" is perpendicular to that in screen-space.
    */
   float2 perp = normalize(geom_in[2].ss_P - geom_in[1].ss_P);
   float2 edge_dir = float2(-perp.y, perp.x);
@@ -173,11 +171,11 @@ void geometry_main(VertOut geom_in[4],
   /*
    * Hidden Point Winding:
    * Pick the farthest point for robust edge-direction sign,
-   * then flip edge_dir if needed so it always points “outward.”
+   * then flip edge_dir if needed so it always points outward.
    */
-  float2 hidden_point = (geom_in[0].vs_P.z < geom_in[3].vs_P.z)
-    ? ((abs(fac0) > FACE_EPS) ? geom_in[0].ss_P : geom_in[3].ss_P)
-    : ((abs(fac3) > FACE_EPS) ? geom_in[3].ss_P : geom_in[0].ss_P);
+  float2 hidden_point = (geom_in[0].vs_P.z < geom_in[3].vs_P.z) ?
+                            ((abs(fac0) > FACE_EPS) ? geom_in[0].ss_P : geom_in[3].ss_P) :
+                            ((abs(fac3) > FACE_EPS) ? geom_in[3].ss_P : geom_in[0].ss_P);
   float2 hidden_dir = normalize(hidden_point - geom_in[1].ss_P);
   float f = dot(-hidden_dir, edge_dir);
   edge_dir *= (f < 0.0f) ? -1.0f : 1.0f;
@@ -186,15 +184,23 @@ void geometry_main(VertOut geom_in[4],
    * Emit Outline Vertices:
    * Push the line away from the solid fill, then draw it.
    */
-  emit_vertex(0, out_vertex_id, out_primitive_id,
+  emit_vertex(0,
+              out_vertex_id,
+              out_primitive_id,
               float4(geom_in[0].color_size.rgb, 1.0f),
-              geom_in[1].hs_P, geom_in[1].ws_P,
-              edge_dir - perp, is_persp);
+              geom_in[1].hs_P,
+              geom_in[1].ws_P,
+              edge_dir - perp,
+              is_persp);
 
-  emit_vertex(1, out_vertex_id, out_primitive_id,
+  emit_vertex(1,
+              out_vertex_id,
+              out_primitive_id,
               float4(geom_in[0].color_size.rgb, 1.0f),
-              geom_in[2].hs_P, geom_in[2].ws_P,
-              edge_dir + perp, is_persp);
+              geom_in[2].hs_P,
+              geom_in[2].ws_P,
+              edge_dir + perp,
+              is_persp);
 }
 
 void main()
