@@ -67,10 +67,10 @@ static void tracking_segment_start_cb(void *userdata,
 
   switch (value_source) {
     case CLIP_VALUE_SOURCE_SPEED_X:
-      col[0] = 1.0f;
+      UI_GetThemeColor4fv(TH_AXIS_X, col);
       break;
     case CLIP_VALUE_SOURCE_SPEED_Y:
-      col[1] = 1.0f;
+      UI_GetThemeColor4fv(TH_AXIS_Y, col);
       break;
     case CLIP_VALUE_SOURCE_REPROJECTION_ERROR:
       col[2] = 1.0f;
