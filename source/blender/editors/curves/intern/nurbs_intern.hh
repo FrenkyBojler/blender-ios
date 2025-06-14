@@ -8,6 +8,7 @@
 namespace blender::ed::curves::nurbs {
 
 using WeightMatrix = Eigen::SparseMatrix<float, Eigen::RowMajor>;
+using WeightVector = Eigen::VectorXf;
 using WeightTriplet = Eigen::Triplet<float, Eigen::SparseMatrix<float>::StorageIndex>;
 
 /**
