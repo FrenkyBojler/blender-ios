@@ -664,9 +664,9 @@ static bool leaf_needs_material_split(const Span<int> faces, const Span<int> mat
 }
 void partition_faces_recursively(const Span<float3> face_centers,
                                  MutableSpan<int> face_indices,
-                                 Vector<int> &children_offsets,  // -1 for leaves
-                                 Vector<int> &parent_offsets,    // NEW: parent indices
-                                 Vector<Array<int>> &face_data,  // face indices for leaves
+                                 Vector<int> &children_offsets,
+                                 Vector<int> &parent_offsets,
+                                 Vector<Array<int>> &face_data,
                                  int node_index,
                                  int depth,
                                  const std::optional<Bounds<float3>> &bounds_precalc,

@@ -330,7 +330,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
 #endif
   if (mesh.runtime->spatial_offsets) {
     std::cout << "Fast Method" << std::endl;
-    from_spatially_organized_mesh(mesh);
+    return from_spatially_organized_mesh(mesh);
   }
   Tree pbvh(Type::Mesh);
   const Span<float3> vert_positions = mesh.vert_positions();
