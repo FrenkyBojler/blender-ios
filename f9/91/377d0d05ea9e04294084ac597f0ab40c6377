@@ -1,1 +1,1 @@
-Referenced by issue #140396, bmesh.ops.dissolve_edges)
+Referenced by issue #140396, bmesh.ops.dissolve_edges() - keeps verts even with use_verts arg set
