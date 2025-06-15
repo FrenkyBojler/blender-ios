@@ -1,1 +1,2 @@
 Referenced by commit 8277d7e03760764e470073806e0f04e174361dce, Fix crash dissolving two adjacent edges of a quad
+Referenced by issue #140396, bmesh.ops.dissolve_edges() - keeps verts even with use_verts arg set
