@@ -20,16 +20,21 @@
 
 #include "ED_mesh.hh"
 
-std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(BMEditMesh *em,
-                                                                               Mesh *mesh) {
-  if (!em || !em->bm || !mesh || mesh->symmetry == 0) {
+std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
+  if (!ob || !ob->data) {
     return std::nullopt;
   }
-  return EditMeshSymmetryHelper(em, mesh);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  BMEditMesh *em = BKE_editmesh_from_object(ob);
+
+  if (!em || !em->bm || mesh->symmetry == 0) {
+    return std::nullopt;
+  }
+  return EditMeshSymmetryHelper(ob);
 }
 
-EditMeshSymmetryHelper::EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh)
-    : em(em), mesh(mesh) {
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
+    : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)) {
   BMesh *bmesh = em->bm;
   use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 

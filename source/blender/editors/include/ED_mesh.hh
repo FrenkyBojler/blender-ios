@@ -51,7 +51,7 @@ struct UvElementMap;
 
 class EditMeshSymmetryHelper {
 public:
-  static std::optional<EditMeshSymmetryHelper> create_if_needed(BMEditMesh *em, Mesh *mesh);
+  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
 
   bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
   void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
@@ -63,7 +63,7 @@ public:
   void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
 
 private:
-  EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh);
+  EditMeshSymmetryHelper(Object *ob);
 
   BMEditMesh *em;
   Mesh *mesh;

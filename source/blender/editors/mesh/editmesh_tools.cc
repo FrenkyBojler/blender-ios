@@ -1035,10 +1035,9 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me);
+        EditMeshSymmetryHelper::create_if_needed(obedit);
 
     BMIter iter;
     BMEdge *eed;
@@ -2632,7 +2631,6 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totvertsel == 0) {
       continue;
@@ -2670,7 +2668,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me);
+        EditMeshSymmetryHelper::create_if_needed(obedit);
 
     char hflag_smooth = BM_ELEM_SELECT;
 
@@ -5199,14 +5197,13 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totfacesel == 0) {
       continue;
     }
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(em, me);
+        EditMeshSymmetryHelper::create_if_needed(obedit);
 
     char hflag_poke = BM_ELEM_SELECT;
 
