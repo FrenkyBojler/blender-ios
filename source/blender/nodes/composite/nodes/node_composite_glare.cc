@@ -2429,9 +2429,6 @@ class GlareOperation : public NodeOperation {
    * size after downsampling. */
   int2 get_glare_image_size()
   {
-    if (this->get_quality_factor() == 1) {
-      return this->compute_domain().size / this->get_quality_factor();
-    }
     return math::divide_ceil(this->compute_domain().size, int2(this->get_quality_factor()));
   }
 
