@@ -73,11 +73,18 @@ def RKS_POLL_selected_strip(_ksi, context):
     return False
 
 
-# selected bones or objects
+# selected bones, objects or strips
 def RKS_POLL_selected_items(ksi, context):
     return (RKS_POLL_selected_bones(ksi, context) or
             RKS_POLL_selected_objects(ksi, context) or
             RKS_POLL_selected_strip(ksi, context))
+
+# selected bones or objects
+
+
+def RKS_POLL_selected_bones_or_objects(ksi, context):
+    return (RKS_POLL_selected_bones(ksi, context) or
+            RKS_POLL_selected_objects(ksi, context))
 
 ###########################
 # Iterator Callbacks
