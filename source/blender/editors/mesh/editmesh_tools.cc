@@ -1049,14 +1049,9 @@ static int edbm_mark_seam_exec(bContext *C, wmOperator *op)
       }
 
       if (BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
-          (symmetry_helper && symmetry_helper->is_any_mirror_edge_selected(eed)))
+          (symmetry_helper && symmetry_helper->is_any_mirror_edge_selected(eed, BM_ELEM_SELECT)))
       {
-        if (clear) {
-          BM_elem_flag_disable(eed, BM_ELEM_SEAM);
-        }
-        else {
-          BM_elem_flag_enable(eed, BM_ELEM_SEAM);
-        }
+        BM_elem_flag_set(eed, BM_ELEM_SEAM, !clear);
       }
     }
 
@@ -2636,6 +2631,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
     Mesh *me = static_cast<Mesh *>(obedit->data);
 
     if (em->bm->totvertsel == 0) {
@@ -2676,7 +2672,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(em, me);
 
-    int hflag_smooth = BM_ELEM_SELECT;
+    char hflag_smooth = BM_ELEM_SELECT;
 
     if (symmetry_helper) {
       hflag_smooth = BM_ELEM_TAG;
@@ -2684,9 +2680,9 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
       BMIter v_iter;
       BMVert *v;
-      BM_ITER_MESH (v, &v_iter, em->bm, BM_VERTS_OF_MESH) {
+      BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(v, BM_ELEM_SELECT) ||
-            symmetry_helper->is_any_mirror_vert_selected(v))
+            (symmetry_helper && symmetry_helper->is_any_mirror_vert_selected(v, BM_ELEM_SELECT)))
         {
           BM_elem_flag_enable(v, hflag_smooth);
         }
@@ -2730,6 +2726,7 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
   return tot_selected ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
+
 
 void MESH_OT_vertices_smooth(wmOperatorType *ot)
 {
@@ -5211,7 +5208,7 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(em, me);
 
-    int hflag_poke = BM_ELEM_SELECT;
+    char hflag_poke = BM_ELEM_SELECT;
 
     if (symmetry_helper) {
       hflag_poke = BM_ELEM_TAG;
@@ -5220,9 +5217,10 @@ static int edbm_poke_face_exec(bContext *C, wmOperator *op)
       BMIter f_iter;
       BMFace *f;
       BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
-        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT) ||
+            (symmetry_helper && symmetry_helper->is_any_mirror_face_selected(f, BM_ELEM_SELECT)))
+        {
           BM_elem_flag_enable(f, hflag_poke);
-          symmetry_helper->set_flag_on_mirror_faces(f, hflag_poke, true);
         }
       }
     }

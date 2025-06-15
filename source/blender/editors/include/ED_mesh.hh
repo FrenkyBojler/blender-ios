@@ -50,19 +50,19 @@ struct UvElementMap;
 /* `editmesh_utils.cc` */
 
 class EditMeshSymmetryHelper {
- public:
+public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(BMEditMesh *em, Mesh *mesh);
 
-  bool is_any_mirror_edge_selected(BMEdge *edge) const;
-  void set_flag_on_mirror_edges(BMEdge *edge, int flag, bool value) const;
+  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
+  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
 
-  bool is_any_mirror_vert_selected(BMVert *vert) const;
-  void set_flag_on_mirror_verts(BMVert *vert, int flag, bool value) const;
+  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
+  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
 
-  bool is_any_mirror_face_selected(BMFace *face) const;
-  void set_flag_on_mirror_faces(BMFace *face, int flag, bool value) const;
+  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
+  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
 
- private:
+private:
   EditMeshSymmetryHelper(BMEditMesh *em, Mesh *mesh);
 
   BMEditMesh *em;
