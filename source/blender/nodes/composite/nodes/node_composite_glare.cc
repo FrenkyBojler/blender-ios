@@ -9,7 +9,6 @@
 #include <array>
 #include <cmath>
 #include <complex>
-#include <cstdio>
 #include <limits>
 
 #include "MEM_guardedalloc.h"
