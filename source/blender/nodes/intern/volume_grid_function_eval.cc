@@ -616,12 +616,12 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
                                             const openvdb::math::Transform &transform,
                                             MutableSpan<openvdb::GridBase::Ptr> output_grids)
 {
-  AlignedBuffer<10, 8> allocation_buffer;
+  AlignedBuffer<160, 8> allocation_buffer;
   ResourceScope scope;
   scope.allocator().provide_buffer(allocation_buffer);
 
   const IndexMask mask(1);
-  mf::ParamsBuilder params{fn, &mask};
+  mf::ParamsBuilder params(fn, &mask);
   mf::ContextBuilder context;
 
   for (const int input_i : input_values.index_range()) {
@@ -633,9 +633,8 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
       to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
-        const auto &tree = grid.tree();
-
         BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        const auto &tree = grid.tree();
         params.add_readonly_single_input(GPointer(param_cpp_type, &tree.background()));
       });
       continue;
@@ -645,12 +644,12 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       static const openvdb::CoordBBox background_space = openvdb::CoordBBox::inf();
-      bke::TilesFieldContext field_context{transform, Span<openvdb::CoordBBox>(&background_space, 1)};
+      bke::TilesFieldContext field_context(transform, Span<openvdb::CoordBBox>(&background_space, 1));
       fn::FieldEvaluator evaluator(field_context, 1);
       GMutableSpan value(type, scope.allocator().allocate(type), 1);
       evaluator.add_with_destination(field, value);
       evaluator.evaluate();
-      params.add_readonly_single_input(GPointer(type, scope.allocator().allocate(type)));
+      params.add_readonly_single_input(GPointer(type, value.data()));
       continue;
     }
 
@@ -677,6 +676,8 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
       using GridT = std::decay_t<decltype(grid)>;
       using ValueType = typename GridT::ValueType;
       auto &tree = grid.tree();
+
+      BLI_assert(value.type().size == sizeof(ValueType));
       tree.root().setBackground(*static_cast<const ValueType *>(value.data()), true);
     });
   }
