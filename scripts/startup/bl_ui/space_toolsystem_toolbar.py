@@ -2928,6 +2928,17 @@ class _defs_node_edit:
             options={'KEYMAP_FALLBACK'},
         )
 
+    @ToolDef.from_fn
+    def links_mute():
+        return dict(
+            idname="builtin.links_mute",
+            label="Mute Links",
+            icon="ops.node.links_mute",
+            widget=None,
+            keymap="Node Tool: Mute Links",
+            options={'KEYMAP_FALLBACK'},
+        )
+
 
 class _defs_sequencer_generic:
 
@@ -3230,6 +3241,7 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
             None,
             _defs_node_edit.links_cut,
+            _defs_node_edit.links_mute,
         ],
     }
 

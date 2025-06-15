@@ -7007,6 +7007,16 @@ def km_node_editor_tool_links_cut(params):
     )
 
 
+def km_node_editor_tool_links_mute(params):
+    return (
+        "Node Tool: Mute Links",
+        {"space_type": 'NODE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            ("node.links_mute", {"type": params.tool_mouse, "value": 'PRESS'}, None),
+        ]},
+    )
+
+
 # ------------------------------------------------------------------------------
 # Tool System (3D View, Generic)
 
@@ -8497,6 +8507,7 @@ def generate_keymaps(params=None):
         *(km_node_editor_tool_select_lasso(params, fallback=fallback) for fallback in (False, True)),
         *(km_node_editor_tool_select_circle(params, fallback=fallback) for fallback in (False, True)),
         km_node_editor_tool_links_cut(params),
+        km_node_editor_tool_links_mute(params),
         km_3d_view_tool_cursor(params),
         km_3d_view_tool_text_select(params),
         *(km_3d_view_tool_select(params, fallback=fallback) for fallback in (False, True)),
