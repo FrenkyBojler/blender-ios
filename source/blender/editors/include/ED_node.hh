@@ -162,5 +162,6 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
                                        StringRef catalog_path);
 
 void sync_sockets_evaluate_closure_node(SpaceNode &snode, bNode &evaluate_closure_node);
+void sync_sockets_separate_bundle_node(SpaceNode &snode, bNode &separate_bundle_node);
 
 }  // namespace blender::ed::space_node

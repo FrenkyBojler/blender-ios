@@ -19,6 +19,7 @@
 
 #include "BLI_listbase.h"
 
+#include "NOD_geo_bundle.hh"
 #include "NOD_geo_closure.hh"
 #include "NOD_socket_items.hh"
 
@@ -67,6 +68,43 @@ void sync_sockets_evaluate_closure_node(SpaceNode &snode, bNode &evaluate_closur
   BKE_ntree_update_tag_node_property(snode.edittree, &evaluate_closure_node);
 }
 
+void sync_sockets_separate_bundle_node(SpaceNode &snode, bNode &separate_bundle_node)
+{
+  snode.edittree->ensure_topology_cache();
+  bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, bundle_socket);
+  if (!current_context) {
+    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
+     * removed. */
+    return;
+  }
+  const Vector<const bNode *> combine_bundle_nodes =
+      ed::space_node::gather_linked_combine_bundle_nodes(
+          current_context, bundle_socket, compute_context_cache);
+  if (combine_bundle_nodes.is_empty()) {
+    return;
+  }
+  nodes::socket_items::clear<nodes::SeparateBundleItemsAccessor>(separate_bundle_node);
+
+  Set<StringRef> added_names;
+  for (const bNode *combine_bundle_node : combine_bundle_nodes) {
+    const NodeGeometryCombineBundle &combine_bundle_storage =
+        *static_cast<const NodeGeometryCombineBundle *>(combine_bundle_node->storage);
+    for (const int i : IndexRange(combine_bundle_storage.items_num)) {
+      const NodeGeometryCombineBundleItem &item = combine_bundle_storage.items[i];
+      if (!added_names.add(item.name)) {
+        continue;
+      }
+      nodes::socket_items::add_item_with_socket_type_and_name<nodes::SeparateBundleItemsAccessor>(
+          separate_bundle_node, eNodeSocketDatatype(item.socket_type), item.name);
+    }
+  }
+  BKE_ntree_update_tag_node_property(snode.edittree, &separate_bundle_node);
+}
+
 static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
@@ -77,6 +115,9 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
   LISTBASE_FOREACH (bNode *, node, &snode.edittree->nodes) {
     if (node->is_type("GeometryNodeEvaluateClosure")) {
       sync_sockets_evaluate_closure_node(snode, *node);
+    }
+    else if (node->is_type("GeometryNodeSeparateBundle")) {
+      sync_sockets_separate_bundle_node(snode, *node);
     }
   }
   BKE_main_ensure_invariants(bmain, snode.edittree->id);
