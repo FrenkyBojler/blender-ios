@@ -277,6 +277,7 @@ set(SRC
   engines/overlay/overlay_sculpt.hh
   engines/overlay/overlay_speaker.hh
   engines/overlay/overlay_text.hh
+  engines/overlay/overlay_volume_grid.hh
   engines/overlay/overlay_wireframe.hh
   engines/overlay/overlay_xray_fade.hh
   engines/select/select_defines.hh

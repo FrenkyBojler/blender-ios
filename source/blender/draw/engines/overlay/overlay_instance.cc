@@ -468,6 +468,7 @@ void Instance::begin_sync()
     layer.prepass.begin_sync(resources, state);
     layer.relations.begin_sync(resources, state);
     layer.speakers.begin_sync(resources, state);
+    layer.volume_grid.begin_sync(resources, state);
     layer.sculpts.begin_sync(resources, state);
     layer.wireframe.begin_sync(resources, state);
   };
@@ -532,6 +533,8 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
         break;
     }
   }
+
+  layer.volume_grid.object_sync(manager, ob_ref, resources, state);
 
   if (in_sculpt_mode) {
     switch (ob_ref.object->type) {
@@ -663,6 +666,7 @@ void Instance::end_sync()
     layer.relations.end_sync(resources, state);
     layer.fluids.end_sync(resources, state);
     layer.speakers.end_sync(resources, state);
+    layer.volume_grid.end_sync(resources, state);
   };
   end_sync_layer(regular);
   end_sync_layer(infront);
@@ -827,6 +831,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.lights.draw_line(framebuffer, manager, view);
     layer.light_probes.draw_line(framebuffer, manager, view);
     layer.speakers.draw_line(framebuffer, manager, view);
+    layer.volume_grid.draw_line(framebuffer, manager, view);
     layer.lattices.draw_line(framebuffer, manager, view);
     layer.metaballs.draw_line(framebuffer, manager, view);
     layer.pointclouds.draw_line(framebuffer, manager, view);
