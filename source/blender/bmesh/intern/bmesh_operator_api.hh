@@ -12,6 +12,7 @@
 #include "BLI_utildefines.h"
 
 #include <cstdarg>
+#include <optional>
 
 #include "bmesh_class.hh"
 
@@ -181,7 +182,7 @@ BLI_INLINE void _bmo_elem_flag_toggle(BMesh *bm, BMFlagLayer *oflags, short ofla
 
 /* slot type arrays are terminated by the last member
  * having a slot type of 0 */
-enum eBMOpSlotType {
+enum eBMOpSlotType : uint8_t {
   /* BMO_OP_SLOT_SENTINEL = 0, */
   BMO_OP_SLOT_BOOL = 1,
   BMO_OP_SLOT_INT = 2,
@@ -203,7 +204,7 @@ enum eBMOpSlotType {
 #define BMO_OP_SLOT_TOTAL_TYPES 11
 
 /* don't overlap values to avoid confusion */
-enum eBMOpSlotSubType_Elem {
+enum eBMOpSlotSubType_Elem : uint8_t {
   /* use as flags */
   BMO_OP_SLOT_SUBTYPE_ELEM_VERT = BM_VERT,
   BMO_OP_SLOT_SUBTYPE_ELEM_EDGE = BM_EDGE,
@@ -212,7 +213,7 @@ enum eBMOpSlotSubType_Elem {
 };
 ENUM_OPERATORS(eBMOpSlotSubType_Elem, BMO_OP_SLOT_SUBTYPE_ELEM_IS_SINGLE)
 
-enum eBMOpSlotSubType_Map {
+enum eBMOpSlotSubType_Map : uint8_t {
   BMO_OP_SLOT_SUBTYPE_MAP_EMPTY = 64, /* use as a set(), unused value */
   BMO_OP_SLOT_SUBTYPE_MAP_ELEM = 65,
   BMO_OP_SLOT_SUBTYPE_MAP_FLT = 66,
@@ -220,14 +221,14 @@ enum eBMOpSlotSubType_Map {
   BMO_OP_SLOT_SUBTYPE_MAP_BOOL = 68,
   BMO_OP_SLOT_SUBTYPE_MAP_INTERNAL = 69, /* python can't convert these */
 };
-enum eBMOpSlotSubType_Ptr {
+enum eBMOpSlotSubType_Ptr : uint8_t {
   BMO_OP_SLOT_SUBTYPE_PTR_BMESH = 100,
   BMO_OP_SLOT_SUBTYPE_PTR_SCENE = 101,
   BMO_OP_SLOT_SUBTYPE_PTR_OBJECT = 102,
   BMO_OP_SLOT_SUBTYPE_PTR_MESH = 103,
   BMO_OP_SLOT_SUBTYPE_PTR_STRUCT = 104,
 };
-enum eBMOpSlotSubType_Int {
+enum eBMOpSlotSubType_Int : uint8_t {
   BMO_OP_SLOT_SUBTYPE_INT_ENUM = 200,
   BMO_OP_SLOT_SUBTYPE_INT_FLAG = 201,
 };
@@ -238,6 +239,15 @@ union eBMOpSlotSubType_Union {
   eBMOpSlotSubType_Map map;
   eBMOpSlotSubType_Int intg;
 };
+
+enum eBMOpSlotFlag : uint8_t {
+  /**
+   * This flag is set when the operators value has been set.
+   * Use this so it's possible to have non-zero defaults for properties.
+   */
+  BMO_OP_SLOT_FLAG_IS_SET = (1 << 0),
+};
+ENUM_OPERATORS(eBMOpSlotFlag, BMO_OP_SLOT_FLAG_IS_SET)
 
 struct BMO_FlagSet {
   int value;
@@ -251,6 +261,7 @@ struct BMOpSlot {
   const char *slot_name; /* pointer to BMOpDefine.slot_args */
   eBMOpSlotType slot_type;
   eBMOpSlotSubType_Union slot_subtype;
+  eBMOpSlotFlag slot_flag;
 
   int len;
   //  int flag;  /* UNUSED */
@@ -549,10 +560,16 @@ void BMO_op_flag_disable(BMesh *bm, BMOperator *op, int op_flag);
 
 void BMO_slot_float_set(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, float f);
 float BMO_slot_float_get(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name);
+std::optional<float> BMO_slot_float_get_optional(BMOpSlot slot_args[BMO_OP_MAX_SLOTS],
+                                                 const char *slot_name);
 void BMO_slot_int_set(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, int i);
 int BMO_slot_int_get(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name);
+std::optional<int> BMO_slot_int_get_optional(BMOpSlot slot_args[BMO_OP_MAX_SLOTS],
+                                             const char *slot_name);
 void BMO_slot_bool_set(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, bool i);
 bool BMO_slot_bool_get(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name);
+std::optional<bool> BMO_slot_bool_get_optional(BMOpSlot slot_args[BMO_OP_MAX_SLOTS],
+                                               const char *slot_name);
 /**
  * Return a copy of the element buffer.
  */
