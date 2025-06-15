@@ -27,7 +27,7 @@
 
 namespace blender::ed::space_node {
 
-void sync_sockets_evaluate_closure_node(SpaceNode &snode, bNode &evaluate_closure_node)
+void sync_sockets_evaluate_closure(SpaceNode &snode, bNode &evaluate_closure_node)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &closure_socket = evaluate_closure_node.input_socket(0);
@@ -68,7 +68,7 @@ void sync_sockets_evaluate_closure_node(SpaceNode &snode, bNode &evaluate_closur
   BKE_ntree_update_tag_node_property(snode.edittree, &evaluate_closure_node);
 }
 
-void sync_sockets_separate_bundle_node(SpaceNode &snode, bNode &separate_bundle_node)
+void sync_sockets_separate_bundle(SpaceNode &snode, bNode &separate_bundle_node)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
@@ -114,10 +114,10 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
   }
   LISTBASE_FOREACH (bNode *, node, &snode.edittree->nodes) {
     if (node->is_type("GeometryNodeEvaluateClosure")) {
-      sync_sockets_evaluate_closure_node(snode, *node);
+      sync_sockets_evaluate_closure(snode, *node);
     }
     else if (node->is_type("GeometryNodeSeparateBundle")) {
-      sync_sockets_separate_bundle_node(snode, *node);
+      sync_sockets_separate_bundle(snode, *node);
     }
   }
   BKE_main_ensure_invariants(bmain, snode.edittree->id);
