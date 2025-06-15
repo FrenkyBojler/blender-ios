@@ -137,7 +137,7 @@ class GradientSumFunction : public mf::MultiFunction {
                       Field<float3> position_field,
                       GField value_field)
       : power_value_(power_value), offset_value_(offset_value)
-  {
+  {/*
     const CPPType &data_type = value_field.cpp_type();
     mf::SignatureBuilder builder("Space Value", signature_);
     builder.single_input<float3>("Position");
@@ -247,11 +247,11 @@ class GradientSumFunction : public mf::MultiFunction {
     cloud_radii_to_min_distance(joints_min_distance_.as_span(),
                                 power_value_,
                                 precision,
-                                joints_min_distance_.as_mutable_span());
+                                joints_min_distance_.as_mutable_span());*/
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
-  {
+  {/*
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
     GMutableSpan results = params.uninitialized_single_output(1, "Value");
 
@@ -278,7 +278,7 @@ class GradientSumFunction : public mf::MultiFunction {
     geometry::akdbh::to_static_type(results.type(), [&](auto dummy) {
       using T = decltype(dummy);
       array_utils::scatter<T>(task_results.as_span().typed<T>(), mask, results.typed<T>());
-    });
+    });*/
   }
 
   ExecutionHints get_execution_hints() const override
