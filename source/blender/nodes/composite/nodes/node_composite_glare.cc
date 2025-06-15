@@ -353,6 +353,7 @@ class GlareOperation : public NodeOperation {
     output.allocate_texture(highlights_size);
 
     const int quality = static_cast<CMPNodeGlareQuality>(node_storage(bnode()).quality);
+    const int2 input_size = input.domain().size;
 
     parallel_for(highlights_size, [&](const int2 texel) {
       float4 color = float4(0.0f);
@@ -367,7 +368,8 @@ class GlareOperation : public NodeOperation {
          * pixels into a single output pixel. This is done due to the bilinear interpolation at the
          * center of the 2x2 block of pixels */
         case CMP_NODE_GLARE_QUALITY_MEDIUM: {
-          float2 normalized_coordinates = (float2(texel) + float2(0.5f)) / float2(highlights_size);
+          float2 normalized_coordinates = (float2(texel) * 2.0f + float2(0.5f)) /
+                                          float2(input_size);
           color = input.sample_bilinear_extended(normalized_coordinates);
           break;
         }
@@ -378,20 +380,20 @@ class GlareOperation : public NodeOperation {
            * 2x2 block due to the bilinear interpolation at the center. */
         case CMP_NODE_GLARE_QUALITY_LOW: {
 
-          float2 lower_left_coordinates = (float2(texel) + float2(0.25f)) /
-                                          float2(highlights_size);
+          float2 lower_left_coordinates = (float2(texel) * 4.0f + float2(0.25f)) /
+                                          float2(input_size);
           float4 lower_left_color = input.sample_bilinear_extended(lower_left_coordinates);
 
-          float2 lower_right_coordinates = (float2(texel) + float2(0.75f, 0.25f)) /
-                                           float2(highlights_size);
+          float2 lower_right_coordinates = (float2(texel) * 4.0f + float2(0.75f, 0.25f)) /
+                                           float2(input_size);
           float4 lower_right_color = input.sample_bilinear_extended(lower_right_coordinates);
 
-          float2 upper_left_coordinates = (float2(texel) + float2(0.25f, 0.75f)) /
-                                          float2(highlights_size);
+          float2 upper_left_coordinates = (float2(texel) * 4.0f + float2(0.25f, 0.75f)) /
+                                          float2(input_size);
           float4 upper_left_color = input.sample_bilinear_extended(upper_left_coordinates);
 
-          float2 upper_right_coordinates = (float2(texel) + float2(0.75f)) /
-                                           float2(highlights_size);
+          float2 upper_right_coordinates = (float2(texel) * 4.0f + float2(0.75f)) /
+                                           float2(input_size);
           float4 upper_right_color = input.sample_bilinear_extended(upper_right_coordinates);
 
           color = (upper_left_color + upper_right_color + lower_left_color + lower_right_color) /
@@ -2430,7 +2432,6 @@ class GlareOperation : public NodeOperation {
     if (this->get_quality_factor() == 1) {
       return this->compute_domain().size / this->get_quality_factor();
     }
-    /* this returns the size of the new image making sure the new size componats x,y are even. */
     return math::divide_ceil(this->compute_domain().size, int2(this->get_quality_factor()));
   }
 
