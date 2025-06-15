@@ -40,6 +40,11 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
+  uiLayout &row = layout->row(true);
+  row.op("node.sockets_sync", "Sync", ICON_NONE);
+  row.op("node.sockets_sync", "", ICON_ADD);
+  row.op("node.sockets_sync", "", ICON_REMOVE);
+
   if (current_node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
     if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
