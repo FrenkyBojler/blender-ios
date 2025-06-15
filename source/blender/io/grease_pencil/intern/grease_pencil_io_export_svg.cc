@@ -423,12 +423,12 @@ pugi::xml_node SVGExporter::write_polygon(pugi::xml_node node,
     /* SVG has inverted Y axis. */
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     if (camera_persmat_) {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(camera_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", camera_rect_.size().y - screen_co.y));
     }
     else {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(screen_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", screen_rect_.size().y - screen_co.y));
     }
   }
 
@@ -457,12 +457,12 @@ pugi::xml_node SVGExporter::write_polyline(pugi::xml_node node,
     /* SVG has inverted Y axis. */
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     if (camera_persmat_) {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(camera_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", camera_rect_.size().y - screen_co.y));
     }
     else {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(screen_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", screen_rect_.size().y - screen_co.y));
     }
   }
 
@@ -486,12 +486,12 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     /* SVG has inverted Y axis. */
     if (camera_persmat_) {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(camera_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", camera_rect_.size().y - screen_co.y));
     }
     else {
-      txt.append(std::to_string(screen_co.x) + "," +
-                 std::to_string(screen_rect_.size().y - screen_co.y));
+      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
+                 fmt::format("{:.1f}", screen_rect_.size().y - screen_co.y));
     }
   }
   /* Close patch (cyclic). */
