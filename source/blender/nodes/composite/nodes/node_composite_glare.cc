@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <complex>
+#include <cstdio>
 #include <limits>
 
 #include "MEM_guardedalloc.h"
@@ -2427,7 +2428,11 @@ class GlareOperation : public NodeOperation {
    * size after downsampling. */
   int2 get_glare_image_size()
   {
-    return this->compute_domain().size / this->get_quality_factor();
+    if (this->get_quality_factor() == 1) {
+      return this->compute_domain().size / this->get_quality_factor();
+    }
+    /* this returns the size of the new image making sure the new size componats x,y are even. */
+    return math::divide_ceil(this->compute_domain().size, int2(this->get_quality_factor()));
   }
 
   /* The glare node can compute the glare on a fraction of the input image size to improve
