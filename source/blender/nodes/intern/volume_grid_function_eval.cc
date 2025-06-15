@@ -644,7 +644,8 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
       const fn::GField field = value_variant.get<fn::GField>();
       const CPPType &type = field.cpp_type();
       static const openvdb::CoordBBox background_space = openvdb::CoordBBox::inf();
-      bke::TilesFieldContext field_context(transform, Span<openvdb::CoordBBox>(&background_space, 1));
+      bke::TilesFieldContext field_context(transform,
+                                           Span<openvdb::CoordBBox>(&background_space, 1));
       fn::FieldEvaluator evaluator(field_context, 1);
       GMutableSpan value(type, scope.allocator().allocate(type), 1);
       evaluator.add_with_destination(field, value);
