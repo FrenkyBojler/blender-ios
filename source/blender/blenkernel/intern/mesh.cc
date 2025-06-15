@@ -1061,13 +1061,19 @@ void BKE_mesh_apply_spatial_organization(Mesh *mesh)
       });
     }
   });
-
+  // reorder vert groups to be used by the fast method for setting vert indices
+  for (Array<int> &vert_group : spatial_groups.vert_groups) {
+    for (int &vert_idx : vert_group) {
+      vert_idx = vert_reverse_map[vert_idx];
+    }
+  }
   mesh->runtime->spatial_offsets = std::make_unique<BVHNodeOffsets>(
       std::move(group_unique_offsets),
       std::move(group_all_offsets),
       std::move(group_face_offsets),
       std::move(spatial_groups.parent_offsets),
-      std::move(spatial_groups.children_offsets));
+      std::move(spatial_groups.children_offsets),
+      std ::move(spatial_groups.vert_groups));
   mesh->tag_positions_changed();
   mesh->tag_topology_changed();
 }

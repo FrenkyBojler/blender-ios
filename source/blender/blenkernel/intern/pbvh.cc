@@ -282,10 +282,8 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
       }
       else {
         const IndexRange unique_vert_range = unique_vert_ranges[group_idx];
-        const IndexRange all_vert_range = all_vert_ranges[group_idx];
 
         const int unique_vert_count = unique_vert_range.size();
-        const int all_vert_count = all_vert_range.size();
 
         node.flag_ = Node::Leaf;
         node.unique_verts_num_ = unique_vert_count;
@@ -297,9 +295,10 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
           corners_count += face.size();
         }
         node.corners_num_ = corners_count;
-        node.vert_indices_.reserve(all_vert_count);
-        for (int i = 0; i < all_vert_count; i++) {
-          node.vert_indices_.add(all_vert_range.start() + i);
+        const Array<int> &vertex_group = spatial_offsets.vert_groups[group_idx];
+        node.vert_indices_.reserve(vertex_group.size());
+        for (const int vert_idx : vertex_group) {
+          node.vert_indices_.add(vert_idx);
         }
       }
     }
@@ -1893,6 +1892,10 @@ bool node_raycast_mesh(const MeshNode &node,
                        int &r_active_face_index,
                        float3 &r_face_normal)
 {
+  // std::cout << "from node_raycast_mesh" << std::endl;
+  // for (const auto &v : corner_verts) {
+  //   std::cout << v << std::endl;
+  // }
   const Span<int> face_indices = node.faces();
 
   bool hit = false;
