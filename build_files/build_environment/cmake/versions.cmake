@@ -397,6 +397,53 @@ set(OPENVDB_LICENSE SPDX:MPL-2.0)
 set(OPENVDB_COPYRIGHT "Copyright Contributors to the OpenVDB Project")
 
 # ------------------------------------------------------------------------------
+# Python Binary Modules
+# as these are binary packages, and they will differ from platform to platform we will have to 
+# specify a hash per platform, this is cumberome but there's really no way around that. Hopefully 
+# these packages will not update too often. 
+
+set(PYDANTIC_VERSION 2.11.7)
+set(PYDANTIC_HASH_WIN64 sha256:dde5df002701f6de26248661f6835bbe296a47bf73990135c7d07ce741b9623b)
+set(PYDANTIC_HASH_WOA64 sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+
+set(ANNOTATED_TYPES_VERSION 0.7.0)
+set(ANNOTATED_TYPES_HASH_WIN64 sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53)
+set(ANNOTATED_TYPES_HASH_WOA64 sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+
+set(PYDANTIC_CORE_VERSION 2.33.2)
+set(PYDANTIC_CORE_HASH_WIN64 sha256:1e063337ef9e9820c77acc768546325ebe04ee38b08703244c1309cccc4f1bab)
+set(PYDANTIC_CORE_HASH_WOA64 sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+
+set(TYPING_EXTENSIONS_VERSION 4.14.0)
+set(TYPING_EXTENSIONS_HASH_WIN64 sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af)
+set(TYPING_EXTENSIONS_HASH_WOA64 sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+
+set(TYPING_INSPECTION_VERSION 0.4.1)
+set(TYPING_INSPECTION_HASH_WIN64 sha256:389055682238f53b04f7badcb49b989835495a96700ced5dab2d8feae4b26f51)
+set(TYPING_INSPECTION_HASH_WOA64 sha256:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+
+if(WIN32)
+  if(BLENDER_PLATFORM_ARM)
+    set(PYTHON_BINARY_PLATFORM WOA64)
+  else()
+    set(PYTHON_BINARY_PLATFORM WIN64)
+  endif()
+endif()
+
+#
+# This variable is used by configure_file inside python_site_packages_binary, arguably this could
+# likely belong more in that file than it does in versions.cmake, however, having it here keeps
+# all version related data in a single place. 
+#
+set(PYTHON_BINARY_REQUIREMENTS_CONTENT 
+"pydantic==${PYDANTIC_VERSION} --hash=${PYDANTIC_HASH_${PYTHON_BINARY_PLATFORM}}
+annotated-types==${ANNOTATED_TYPES_VERSION} --hash=${ANNOTATED_TYPES_HASH_${PYTHON_BINARY_PLATFORM}}
+pydantic-core==${PYDANTIC_CORE_VERSION} --hash=${PYDANTIC_CORE_HASH_${PYTHON_BINARY_PLATFORM}}
+typing-extensions==${TYPING_EXTENSIONS_VERSION} --hash=${TYPING_EXTENSIONS_HASH_${PYTHON_BINARY_PLATFORM}}
+typing-inspection==${TYPING_INSPECTION_VERSION} --hash=${TYPING_INSPECTION_HASH_${PYTHON_BINARY_PLATFORM}}
+")
+
+# ------------------------------------------------------------------------------
 # Python Modules
 
 # Needed by: `requests` module (so the version doesn't change on rebuild).
