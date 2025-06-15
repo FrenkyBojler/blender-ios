@@ -471,6 +471,12 @@ pugi::xml_node SVGExporter::write_polyline(pugi::xml_node node,
   return element_node;
 }
 
+float2 round_to_increment(float2 value)
+{
+  float2 increment2 = float2(0.1f);
+  return blender::math::round(value / increment2) * increment2;
+}
+
 pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
                                        const float4x4 &transform,
                                        const Span<float3> positions,
@@ -479,20 +485,24 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
   pugi::xml_node element_node = node.append_child("path");
 
   std::string txt = "M";
+  float2 previous_position{0};
+
   for (const int i : positions.index_range()) {
-    if (i > 0) {
-      txt.append("L");
-    }
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     /* SVG has inverted Y axis. */
-    if (camera_persmat_) {
-      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
-                 fmt::format("{:.1f}", camera_rect_.size().y - screen_co.y));
+    const float2 position = camera_persmat_ ?
+                                float2(screen_co.x, camera_rect_.size().y - screen_co.y) :
+                                float2(screen_co.x, screen_rect_.size().y - screen_co.y);
+
+    if (i > 0) {
+      /* Any further points are specified relative to the previous. */
+      txt.append("l");
     }
-    else {
-      txt.append(fmt::format("{:.1f}", screen_co.x) + "," +
-                 fmt::format("{:.1f}", screen_rect_.size().y - screen_co.y));
-    }
+
+    float2 offset = round_to_increment(position - previous_position);
+    previous_position += offset;
+
+    txt.append(fmt::format("{:.1f}", offset.x) + "," + fmt::format("{:.1f}", offset.y));
   }
   /* Close patch (cyclic). */
   if (cyclic) {
