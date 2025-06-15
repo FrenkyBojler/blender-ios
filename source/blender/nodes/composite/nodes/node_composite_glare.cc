@@ -368,7 +368,7 @@ class GlareOperation : public NodeOperation {
          * pixels into a single output pixel. This is done due to the bilinear interpolation at the
          * center of the 2x2 block of pixels */
         case CMP_NODE_GLARE_QUALITY_MEDIUM: {
-          float2 normalized_coordinates = (float2(texel) * 2.0f + float2(0.5f)) /
+          float2 normalized_coordinates = (float2(texel) * 2.0f + float2(1.0f)) /
                                           float2(input_size);
           color = input.sample_bilinear_extended(normalized_coordinates);
           break;
@@ -380,19 +380,19 @@ class GlareOperation : public NodeOperation {
            * 2x2 block due to the bilinear interpolation at the center. */
         case CMP_NODE_GLARE_QUALITY_LOW: {
 
-          float2 lower_left_coordinates = (float2(texel) * 4.0f + float2(0.25f)) /
+          float2 lower_left_coordinates = (float2(texel) * 4.0f + float2(1.0f)) /
                                           float2(input_size);
           float4 lower_left_color = input.sample_bilinear_extended(lower_left_coordinates);
 
-          float2 lower_right_coordinates = (float2(texel) * 4.0f + float2(0.75f, 0.25f)) /
+          float2 lower_right_coordinates = (float2(texel) * 4.0f + float2(3.0f, 1.0f)) /
                                            float2(input_size);
           float4 lower_right_color = input.sample_bilinear_extended(lower_right_coordinates);
 
-          float2 upper_left_coordinates = (float2(texel) * 4.0f + float2(0.25f, 0.75f)) /
+          float2 upper_left_coordinates = (float2(texel) * 4.0f + float2(1.0f, 3.0f)) /
                                           float2(input_size);
           float4 upper_left_color = input.sample_bilinear_extended(upper_left_coordinates);
 
-          float2 upper_right_coordinates = (float2(texel) * 4.0f + float2(0.75f)) /
+          float2 upper_right_coordinates = (float2(texel) * 4.0f + float2(3.0f)) /
                                            float2(input_size);
           float4 upper_right_color = input.sample_bilinear_extended(upper_right_coordinates);
 
