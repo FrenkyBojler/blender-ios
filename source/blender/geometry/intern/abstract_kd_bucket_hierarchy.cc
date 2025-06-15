@@ -200,7 +200,7 @@ void from_positions_non_uniform(const Span<float3> positions,
                 0.5 -
                 math::abs<double>((b_index / double(joint_buckets_indices.size())) - 0.5);
 
-            return math::pow<double>(a_factor, index_w) * math::pow(a_segment, distance_w)  < math::pow<double>(b_factor, index_w) * math::pow(b_segment, distance_w);
+            return math::pow<double>(a_factor, 1.0f) * math::pow(a_segment, 1.0f)  < math::pow<double>(b_factor, 1.0f) * math::pow(b_segment, 1.0f);
           });
 
       const int64_t middle_index = std::distance(joint_buckets_indices.as_span().data(), centre);

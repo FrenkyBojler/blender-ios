@@ -48,10 +48,6 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_output(data_type, "Value").field_source_reference_all();
   }
-  
-  
-  b.add_input<decl::Float>("Index W").default_value(1);
-  b.add_input<decl::Float>("Distance W").default_value(0);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -84,25 +80,19 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
   int power_value_;
   float precision_;
   float offset_value_;
-  float index_w_;
-  float distance_w_;
 
  public:
   SpaceValueFieldInput(Field<float3> positions_field,
                        GField value_field,
                        const int distance_power,
                        const float precision,
-                       const float offset_value,
-                       const float index_w,
-                       const float distance_w)
+                       const float offset_value)
       : bke::GeometryFieldInput(value_field.cpp_type(), "Space Value"),
         positions_field_(std::move(positions_field)),
         value_field_(std::move(value_field)),
         power_value_(distance_power),
         precision_(precision),
-        offset_value_(offset_value),
-        index_w_(index_w),
-        distance_w_(distance_w)
+        offset_value_(offset_value)
   {
   }
 
@@ -131,22 +121,21 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
 
     Array<int, 0> start_indices(total_buckets + 1);
     OffsetIndices<int> base_offsets;
-
-    // {
-    //   base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices
-    // }
+    {
+      base_offsets = akdbh::fill_bucket_offsets_trivial(domain_size, start_indices);
+    }
 
     Array<int, 0> indices(domain_size);
-    // {
-    //   SCOPED_TIMER_AVERAGED("from_positions");
-    //   akdbh::from_positions(positions, base_offsets, total_depth, indices);
-    // }
-
     {
-      SCOPED_TIMER_AVERAGED("from_positions_non_uniform");
-      akdbh::from_positions_non_uniform(positions, total_depth, start_indices, indices, index_w_, distance_w_);
-      base_offsets = OffsetIndices<int>(start_indices.as_span());
+      SCOPED_TIMER_AVERAGED("from_positions");
+      akdbh::from_positions(positions, base_offsets, total_depth, indices);
     }
+
+    // {
+    //   SCOPED_TIMER_AVERAGED("from_positions_non_uniform");
+    //   akdbh::from_positions_non_uniform(positions, total_depth, start_indices, indices);
+    //   base_offsets = OffsetIndices<int>(start_indices.as_span());
+    // }
 
     Array<float3, 0> bucket_positions(domain_size);
     GArray<> bucket_values(data_type, domain_size);
@@ -346,17 +335,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float precision_value = params.extract_input<float>("Error");
   const float offset_value = params.extract_input<float>("Offset");
 
-  const float index_w = params.extract_input<float>("Index W");
-  const float distance_w = params.extract_input<float>("Distance W");
-
   params.set_output("Value",
                     GField(std::make_shared<SpaceValueFieldInput>(std::move(position_field),
                                                                   std::move(value_field),
                                                                   power_value,
                                                                   precision_value,
-                                                                  offset_value,
-                                                                  index_w,
-                                                                  distance_w)));
+                                                                  offset_value)));
 }
 
 static void node_rna(StructRNA *srna)
