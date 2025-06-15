@@ -822,7 +822,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                    powered_unsafe_half_rcp_for_values(power_value);
 
   const int batch_size = sample_position[0].size();
-  const int aligned_batch_size = round_up_for(batch_size, sse_min_alignment / sizeof(float));
+  static_assert(sizeof(float) == sizeof(int));
+  const int aligned_batch_size = round_up_for<int>(batch_size, sse_min_alignment / sizeof(float));
   const int data_axes_num = src_bucket_value.size();
 
   Array<float, 0, GuardedAlignedAllocator<sse_min_alignment>> sampler_position_data(
@@ -1016,7 +1017,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const IndexRange joint_backet = buckets_offsets[joint_i];
 
     const int bucket_size = joint_backet.size();
-    const int aligned_bucket_size = round_up_for(bucket_size, sse_min_alignment / sizeof(float));
+    static_assert(sizeof(float) == sizeof(int));
+    const int aligned_bucket_size = round_up_for<int>(bucket_size, sse_min_alignment / sizeof(float));
 
     bucket_position_data.reinitialize(aligned_bucket_size * 3);
     for (const int axis_i : IndexRange(3)) {

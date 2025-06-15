@@ -54,7 +54,6 @@ extern "C" {
     extern void chunked_squared_distances_table(const float row_x[][8], const float row_y[][8], const float row_z[][8], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][8]);
     extern int32_t chunked_table_product_reduce(const float rows_and_cols[][8], const int32_t col_count, const float * col_values, const int32_t row_count, float row_values[][8]);
     extern void chunked_zero_if_index_in_range(const int32_t row_indices[][8], const int32_t col_count, const int32_t from_bucket_to_sampler_offset, const int32_t row_count, float rows_and_cols[][8]);
-    extern bool contains_zero(float * values, const int32_t count);
     extern int32_t count_floats_less_than(const float * values, float min_predicate_value, int32_t count);
     extern void distance_to_n_squared(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
     extern enum FMMConstants fmm_constants();
