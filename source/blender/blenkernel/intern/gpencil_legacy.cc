@@ -295,6 +295,44 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
 /* ************************************************** */
 /* Memory Management */
 
+void BKE_gpencil_free_point_weights(MDeformVert *dvert)
+{
+  if (dvert == nullptr) {
+    return;
+  }
+  MEM_SAFE_FREE(dvert->dw);
+}
+
+void BKE_gpencil_free_stroke_weights(bGPDstroke *gps)
+{
+  if (gps == nullptr) {
+    return;
+  }
+
+  if (gps->dvert == nullptr) {
+    return;
+  }
+
+  for (int i = 0; i < gps->totpoints; i++) {
+    MDeformVert *dvert = &gps->dvert[i];
+    BKE_gpencil_free_point_weights(dvert);
+  }
+}
+
+void BKE_gpencil_free_stroke_editcurve(bGPDstroke *gps)
+{
+  if (gps == nullptr) {
+    return;
+  }
+  bGPDcurve *editcurve = gps->editcurve;
+  if (editcurve == nullptr) {
+    return;
+  }
+  MEM_freeN(editcurve->curve_points);
+  MEM_freeN(editcurve);
+  gps->editcurve = nullptr;
+}
+
 void BKE_gpencil_free_stroke(bGPDstroke *gps)
 {
   if (gps == nullptr) {
@@ -304,8 +342,15 @@ void BKE_gpencil_free_stroke(bGPDstroke *gps)
   if (gps->points) {
     MEM_freeN(gps->points);
   }
+  if (gps->dvert) {
+    BKE_gpencil_free_stroke_weights(gps);
+    MEM_freeN(gps->dvert);
+  }
   if (gps->triangles) {
     MEM_freeN(gps->triangles);
+  }
+  if (gps->editcurve != nullptr) {
+    BKE_gpencil_free_stroke_editcurve(gps);
   }
 
   MEM_freeN(gps);
@@ -344,6 +389,17 @@ void BKE_gpencil_free_frames(bGPDlayer *gpl)
   gpl->actframe = nullptr;
 }
 
+void BKE_gpencil_free_layer_masks(bGPDlayer *gpl)
+{
+  /* Free masks. */
+  bGPDlayer_Mask *mask_next = nullptr;
+  for (bGPDlayer_Mask *mask = static_cast<bGPDlayer_Mask *>(gpl->mask_layers.first); mask;
+       mask = mask_next)
+  {
+    mask_next = mask->next;
+    BLI_freelinkN(&gpl->mask_layers, mask);
+  }
+}
 void BKE_gpencil_free_layers(ListBase *list)
 {
   bGPDlayer *gpl_next;
@@ -359,6 +415,9 @@ void BKE_gpencil_free_layers(ListBase *list)
 
     /* free layers and their data */
     BKE_gpencil_free_frames(gpl);
+
+    /* Free masks. */
+    BKE_gpencil_free_layer_masks(gpl);
 
     BLI_freelinkN(list, gpl);
   }
@@ -636,6 +695,16 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 /* ************************************************** */
 /* Data Duplication */
 
+void BKE_gpencil_stroke_weights_duplicate(bGPDstroke *gps_src, bGPDstroke *gps_dst)
+{
+  if (gps_src == nullptr) {
+    return;
+  }
+  BLI_assert(gps_src->totpoints == gps_dst->totpoints);
+
+  BKE_defvert_array_copy(gps_dst->dvert, gps_src->dvert, gps_src->totpoints);
+}
+
 bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src,
                                          const bool dup_points,
                                          const bool /*dup_curve*/)
@@ -648,7 +717,14 @@ bGPDstroke *BKE_gpencil_stroke_duplicate(bGPDstroke *gps_src,
 
   if (dup_points) {
     gps_dst->points = static_cast<bGPDspoint *>(MEM_dupallocN(gps_src->points));
-    gps_dst->dvert = nullptr;
+
+    if (gps_src->dvert != nullptr) {
+      gps_dst->dvert = static_cast<MDeformVert *>(MEM_dupallocN(gps_src->dvert));
+      BKE_gpencil_stroke_weights_duplicate(gps_src, gps_dst);
+    }
+    else {
+      gps_dst->dvert = nullptr;
+    }
   }
   else {
     gps_dst->points = nullptr;
@@ -980,6 +1056,23 @@ bGPDlayer *BKE_gpencil_layer_named_get(bGPdata *gpd, const char *name)
   return static_cast<bGPDlayer *>(BLI_findstring(&gpd->layers, name, offsetof(bGPDlayer, info)));
 }
 
+static int gpencil_cb_sort_masks(const void *arg1, const void *arg2)
+{
+  /* sort is inverted as layer list. */
+  const bGPDlayer_Mask *mask1 = static_cast<const bGPDlayer_Mask *>(arg1);
+  const bGPDlayer_Mask *mask2 = static_cast<const bGPDlayer_Mask *>(arg2);
+  int val = 0;
+
+  if (mask1->sort_index < mask2->sort_index) {
+    val = 1;
+  }
+  else if (mask1->sort_index > mask2->sort_index) {
+    val = -1;
+  }
+
+  return val;
+}
+
 static int gpencil_cb_cmp_frame(void *thunk, const void *a, const void *b)
 {
   const bGPDframe *frame_a = static_cast<const bGPDframe *>(a);
@@ -1055,6 +1148,9 @@ void BKE_gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
 
   /* free layer */
   BKE_gpencil_free_frames(gpl);
+
+  /* Free Masks. */
+  BKE_gpencil_free_layer_masks(gpl);
 
   /* free icon providing preview of icon color */
   BKE_icon_delete(gpl->runtime.icon_id);

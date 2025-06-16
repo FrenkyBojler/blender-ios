@@ -51,6 +51,10 @@ struct bGPdata;
 
 /* ------------ Grease-Pencil API ------------------ */
 
+/* clean vertex groups weights */
+void BKE_gpencil_free_point_weights(struct MDeformVert *dvert);
+void BKE_gpencil_free_stroke_weights(struct bGPDstroke *gps);
+void BKE_gpencil_free_stroke_editcurve(struct bGPDstroke *gps);
 /** Free stroke, doesn't unlink from any #ListBase. */
 void BKE_gpencil_free_stroke(struct bGPDstroke *gps);
 /** Free strokes belonging to a gp-frame. */
@@ -63,6 +67,7 @@ void BKE_gpencil_free_layers(struct ListBase *list);
 void BKE_gpencil_free_legacy_palette_data(struct ListBase *list);
 /** Free (or release) any data used by this grease pencil (does not free the gpencil itself). */
 void BKE_gpencil_free_data(struct bGPdata *gpd, bool free_all);
+void BKE_gpencil_free_layer_masks(struct bGPDlayer *gpl);
 /**
  * Tag data-block for depsgraph update.
  * Wrapper to avoid include Depsgraph tag functions in other modules.
@@ -216,7 +221,6 @@ void BKE_gpencil_layer_active_set(struct bGPdata *gpd, struct bGPDlayer *active)
  * \param gpl: Grease pencil layer
  */
 void BKE_gpencil_layer_delete(struct bGPdata *gpd, struct bGPDlayer *gpl);
-
 /**
  * Sort grease pencil frames.
  * \param gpl: Grease pencil layer
@@ -231,6 +235,14 @@ void BKE_gpencil_layer_frames_sort(struct bGPDlayer *gpl, bool *r_has_duplicate_
  * \param material: Material
  */
 void BKE_gpencil_brush_material_set(struct Brush *brush, struct Material *material);
+
+/* vertex groups */
+/**
+ * Make a copy of a given gpencil weights.
+ * \param gps_src: Source grease pencil stroke
+ * \param gps_dst: Destination grease pencil stroke
+ */
+void BKE_gpencil_stroke_weights_duplicate(struct bGPDstroke *gps_src, struct bGPDstroke *gps_dst);
 
 /**
  * Create a default palette.
