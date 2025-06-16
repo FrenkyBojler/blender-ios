@@ -104,7 +104,7 @@ void main()
                                       float2(texture_size(input_tx));
       float4 upper_left_color = texture(input_tx, upper_left_coordinates);
 
-      float2 upper_right_coordinates = (float2(texel) * 4.0f + float2(3.0)) /
+      float2 upper_right_coordinates = (float2(texel) * 4.0f + float2(3.0f)) /
                                        float2(texture_size(input_tx));
       float4 upper_right_color = texture(input_tx, upper_right_coordinates);
 

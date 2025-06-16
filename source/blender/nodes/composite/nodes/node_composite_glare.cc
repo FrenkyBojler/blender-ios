@@ -47,10 +47,6 @@
 
 #define MAX_GLARE_ITERATIONS 5
 
-#define CMP_NODE_GLARE_QUALITY_HIGH 0
-#define CMP_NODE_GLARE_QUALITY_MEDIUM 1
-#define CMP_NODE_GLARE_QUALITY_LOW 2
-
 namespace blender::nodes::node_composite_glare_cc {
 
 NODE_STORAGE_FUNCS(NodeGlare)
@@ -352,7 +348,8 @@ class GlareOperation : public NodeOperation {
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(highlights_size);
 
-    const int quality = static_cast<CMPNodeGlareQuality>(node_storage(bnode()).quality);
+    const CMPNodeGlareQuality quality = static_cast<CMPNodeGlareQuality>(
+        node_storage(bnode()).quality);
     const int2 input_size = input.domain().size;
 
     parallel_for(highlights_size, [&](const int2 texel) {
