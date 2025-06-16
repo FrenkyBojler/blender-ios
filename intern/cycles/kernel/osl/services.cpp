@@ -1119,7 +1119,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG_WARNING << "Open Shading Langaueg texture call can not resolve " << filename.c_str()
+      LOG_WARNING << "Open Shading Language texture call can not resolve " << filename.c_str()
                   << ", filename must be a constant";
     }
     return false;
@@ -1230,7 +1230,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG_WARNING << "Open Shading Langaueg texture3d call can not resolve " << filename.c_str()
+      LOG_WARNING << "Open Shading Language texture3d call can not resolve " << filename.c_str()
                   << ", filename must be a constant";
     }
     return false;
@@ -1300,7 +1300,7 @@ bool OSLRenderServices::environment(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG_WARNING << "Open Shading Langaueg environment call can not resolve " << filename.c_str()
+      LOG_WARNING << "Open Shading Language environment call can not resolve " << filename.c_str()
                   << ", filename must be a constant";
     }
     return false;
@@ -1336,7 +1336,7 @@ bool OSLRenderServices::get_texture_info(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG_WARNING << "Open Shading Langaueg gettextureinfo call can not resolve "
+      LOG_WARNING << "Open Shading Language gettextureinfo call can not resolve "
                   << filename.c_str() << ", filename must be a constant";
     }
     return false;
