@@ -46,34 +46,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-
-  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
-  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
-  const Field<float3> goal_field = params.extract_input<Field<float3>>("Goal");
-
   if (!geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const CurveComponent &component = *geometry.get_component<CurveComponent>();
-  bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
-  evaluator.set_selection(selection_field);
-  evaluator.add(compliance_field);
-  evaluator.add(damping_field);
-  evaluator.add(goal_field);
-  evaluator.evaluate();
-
-  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
-  const VArray<float> damping = evaluator.get_evaluated<float>(1);
-  const VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
-
   params.set_output("Constraints",
-                    geometry::hair_constraints::create_position_goal_constraints(
-                        selection, compliance, damping, goal_position));
+                    geometry::hair_constraints::create_position_goal_constraints_from_points(
+                        *geometry.get_component<CurveComponent>(),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<Field<float>>("Compliance"),
+                        params.extract_input<Field<float>>("Damping"),
+                        params.extract_input<Field<float3>>("Goal")));
 }
 
 static void node_register()
@@ -110,34 +94,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-
-  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
-  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
-  const Field<math::Quaternion> goal_field = params.extract_input<Field<math::Quaternion>>("Goal");
-
   if (!geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const CurveComponent &component = *geometry.get_component<CurveComponent>();
-  bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
-  evaluator.set_selection(selection_field);
-  evaluator.add(compliance_field);
-  evaluator.add(damping_field);
-  evaluator.add(goal_field);
-  evaluator.evaluate();
-
-  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
-  const VArray<float> damping = evaluator.get_evaluated<float>(1);
-  const VArray<math::Quaternion> goal_rotation = evaluator.get_evaluated<math::Quaternion>(2);
-
   params.set_output("Constraints",
-                    geometry::hair_constraints::create_rotation_goal_constraints(
-                        selection, compliance, damping, goal_rotation));
+                    geometry::hair_constraints::create_rotation_goal_constraints_from_points(
+                        *geometry.get_component<CurveComponent>(),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<Field<float>>("Compliance"),
+                        params.extract_input<Field<float>>("Damping"),
+                        params.extract_input<Field<math::Quaternion>>("Goal")));
 }
 
 static void node_register()
@@ -176,50 +144,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-
-  const Field<float> compliance_field = params.extract_input<Field<float>>("Compliance");
-  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
-  const Field<float3> rest_position_field = params.extract_input<Field<float3>>("Rest Position");
-
   if (!geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const CurveComponent &component = *geometry.get_component<CurveComponent>();
-  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
-  const OffsetIndices points_by_curve = curves.points_by_curve();
-
-  bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, curves.points_num()};
-  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
-   * may be needed to compute constraint properties (edge length). */
-  evaluator.add(selection_field);
-  evaluator.add(compliance_field);
-  evaluator.add(damping_field);
-  evaluator.add(rest_position_field);
-  evaluator.evaluate();
-
-  /* Skip end points of curves, these cannot have stretch/shear constraints. */
-  Array<bool> point_valid(curves.points_num(), true);
-  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    if (!points.is_empty()) {
-      point_valid[points.last()] = false;
-    }
-  });
-
-  IndexMaskMemory memory;
-  const IndexMask selection = IndexMask::from_bools(
-      evaluator.get_evaluated_as_mask(0), point_valid, memory);
-  const VArray<float> compliance = evaluator.get_evaluated<float>(1);
-  const VArray<float> damping = evaluator.get_evaluated<float>(2);
-  const VArray<float3> rest_position = evaluator.get_evaluated<float3>(3);
-
   params.set_output("Constraints",
-                    geometry::hair_constraints::create_stretch_shear_constraints(
-                        selection, compliance, damping, rest_position));
+                    geometry::hair_constraints::create_stretch_shear_constraints_from_curves(
+                        *geometry.get_component<CurveComponent>(),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<Field<float>>("Compliance"),
+                        params.extract_input<Field<float>>("Damping"),
+                        params.extract_input<Field<float3>>("Rest Position")));
 }
 
 static void node_register()
@@ -265,51 +201,18 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-
-  const Field<float3> compliance_field = params.extract_input<Field<float3>>("Compliance");
-  const Field<float> damping_field = params.extract_input<Field<float>>("Damping");
-  const Field<math::Quaternion> rest_rotation_field =
-      params.extract_input<Field<math::Quaternion>>("Rest Rotation");
-
   if (!geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const CurveComponent &component = *geometry.get_component<CurveComponent>();
-  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
-  const OffsetIndices points_by_curve = curves.points_by_curve();
-
-  bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, curves.points_num()};
-  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
-   * may be needed to compute constraint properties (edge length). */
-  evaluator.add(selection_field);
-  evaluator.add(compliance_field);
-  evaluator.add(damping_field);
-  evaluator.add(rest_rotation_field);
-  evaluator.evaluate();
-
-  /* Skip end points of curves, these cannot have bend/twist constraints. */
-  Array<bool> point_valid(curves.points_num(), true);
-  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
-    const IndexRange points = points_by_curve[curve_i];
-    if (!points.is_empty()) {
-      point_valid[points.last()] = false;
-    }
-  });
-
-  IndexMaskMemory memory;
-  const IndexMask selection = IndexMask::from_bools(
-      evaluator.get_evaluated_as_mask(0), point_valid, memory);
-  const VArray<float3> compliance = evaluator.get_evaluated<float3>(1);
-  const VArray<float> damping = evaluator.get_evaluated<float>(2);
-  const VArray<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
-
   params.set_output("Constraints",
-                    geometry::hair_constraints::create_bend_twist_constraints(
-                        selection, compliance, damping, rest_rotation));
+                    geometry::hair_constraints::create_bend_twist_constraints_from_curves(
+                        *geometry.get_component<CurveComponent>(),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<Field<float3>>("Compliance"),
+                        params.extract_input<Field<float>>("Damping"),
+                        params.extract_input<Field<math::Quaternion>>("Rest Rotation")));
 }
 
 static void node_register()
@@ -366,55 +269,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-
-  const int collider_index = params.extract_input<int>("Collider");
-  const Field<float> friction_field = params.extract_input<Field<float>>("Friction");
-  const Field<float> restitution_field = params.extract_input<Field<float>>("Restitution");
-  const Field<float> threshold_normal_velocity_field = params.extract_input<Field<float>>(
-      "Threshold Normal Velocity");
-  const Field<float3> local_position_field = params.extract_input<Field<float3>>("Local Position");
-  const Field<float3> collider_position_field = params.extract_input<Field<float3>>(
-      "Collider Position");
-  const Field<float3> normal_field = params.extract_input<Field<float3>>("Normal");
-
   if (!geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const CurveComponent &component = *geometry.get_component<CurveComponent>();
-  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
-
-  bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, curves.points_num()};
-  evaluator.set_selection(selection_field);
-  evaluator.add(friction_field);
-  evaluator.add(restitution_field);
-  evaluator.add(threshold_normal_velocity_field);
-  evaluator.add(local_position_field);
-  evaluator.add(collider_position_field);
-  evaluator.add(normal_field);
-  evaluator.evaluate();
-
-  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const VArray<float> friction = evaluator.get_evaluated<float>(0);
-  const VArray<float> restitution = evaluator.get_evaluated<float>(1);
-  const VArray<float> threshold_normal_velocity = evaluator.get_evaluated<float>(2);
-  const VArray<float3> local_position = evaluator.get_evaluated<float3>(3);
-  const VArray<float3> collider_position = evaluator.get_evaluated<float3>(4);
-  const VArray<float3> normal = evaluator.get_evaluated<float3>(5);
-
-  params.set_output(
-      "Constraints",
-      geometry::hair_constraints::create_contact_constraints(collider_index,
-                                                             selection,
-                                                             friction,
-                                                             restitution,
-                                                             threshold_normal_velocity,
-                                                             local_position,
-                                                             collider_position,
-                                                             normal));
+  params.set_output("Constraints",
+                    geometry::hair_constraints::create_contact_constraints_from_points(
+                        *geometry.get_component<CurveComponent>(),
+                        params.extract_input<Field<bool>>("Selection"),
+                        params.extract_input<int>("Collider"),
+                        params.extract_input<Field<float>>("Friction"),
+                        params.extract_input<Field<float>>("Restitution"),
+                        params.extract_input<Field<float>>("Threshold Normal Velocity"),
+                        params.extract_input<Field<float3>>("Local Position"),
+                        params.extract_input<Field<float3>>("Collider Position"),
+                        params.extract_input<Field<float3>>("Normal")));
 }
 
 static void node_register()

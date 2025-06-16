@@ -4,6 +4,8 @@
 
 #include "BLI_math_matrix.hh"
 
+#include "BKE_curves.hh"
+#include "BKE_geometry_fields.hh"
 #include "BKE_instances.hh"
 #include "BKE_pointcloud.hh"
 
@@ -207,8 +209,8 @@ GeometrySet create_bend_twist_constraints(const IndexMask &selection,
   return GeometrySet::from_pointcloud(points);
 }
 
-GeometrySet create_contact_constraints(const int collider_index,
-                                       const IndexMask &selection,
+GeometrySet create_contact_constraints(const IndexMask &selection,
+                                       const int collider_index,
                                        const VArray<float> &friction,
                                        const VArray<float> &restitution,
                                        const VArray<float> &threshold_normal_velocity,
@@ -269,6 +271,174 @@ GeometrySet create_contact_constraints(const int collider_index,
   points->tag_positions_changed();
 
   return GeometrySet::from_pointcloud(points);
+}
+
+bke::GeometrySet create_position_goal_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<float3> &goal_position_field)
+{
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  evaluator.set_selection(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(goal_position_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float> damping = evaluator.get_evaluated<float>(1);
+  const VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
+
+  return geometry::hair_constraints::create_position_goal_constraints(
+      selection, compliance, damping, goal_position);
+}
+
+bke::GeometrySet create_rotation_goal_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<math::Quaternion> &goal_rotation_field)
+{
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  evaluator.set_selection(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(goal_rotation_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float> damping = evaluator.get_evaluated<float>(1);
+  const VArray<math::Quaternion> goal_rotation = evaluator.get_evaluated<math::Quaternion>(2);
+
+  return geometry::hair_constraints::create_rotation_goal_constraints(
+      selection, compliance, damping, goal_rotation);
+}
+
+bke::GeometrySet create_stretch_shear_constraints_from_curves(
+    const bke::CurveComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<float3> &rest_position_field)
+{
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, curves.points_num()};
+  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
+   * may be needed to compute constraint properties (edge length). */
+  evaluator.add(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(rest_position_field);
+  evaluator.evaluate();
+
+  /* Skip end points of curves, these cannot have stretch/shear constraints. */
+  Array<bool> point_valid(curves.points_num(), true);
+  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (!points.is_empty()) {
+      point_valid[points.last()] = false;
+    }
+  });
+
+  IndexMaskMemory memory;
+  const IndexMask selection = IndexMask::from_bools(
+      evaluator.get_evaluated_as_mask(0), point_valid, memory);
+  const VArray<float> compliance = evaluator.get_evaluated<float>(1);
+  const VArray<float> damping = evaluator.get_evaluated<float>(2);
+  const VArray<float3> rest_position = evaluator.get_evaluated<float3>(3);
+
+  return geometry::hair_constraints::create_stretch_shear_constraints(
+      selection, compliance, damping, rest_position);
+}
+
+bke::GeometrySet create_bend_twist_constraints_from_curves(
+    const bke::CurveComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float3> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<math::Quaternion> &rest_rotation_field)
+{
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, curves.points_num()};
+  /* Note: selection is not used to limit the evaluation, because attributes from unselected points
+   * may be needed to compute constraint properties (edge length). */
+  evaluator.add(selection_field);
+  evaluator.add(compliance_field);
+  evaluator.add(damping_field);
+  evaluator.add(rest_rotation_field);
+  evaluator.evaluate();
+
+  /* Skip end points of curves, these cannot have bend/twist constraints. */
+  Array<bool> point_valid(curves.points_num(), true);
+  IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (!points.is_empty()) {
+      point_valid[points.last()] = false;
+    }
+  });
+
+  IndexMaskMemory memory;
+  const IndexMask selection = IndexMask::from_bools(
+      evaluator.get_evaluated_as_mask(0), point_valid, memory);
+  const VArray<float3> compliance = evaluator.get_evaluated<float3>(1);
+  const VArray<float> damping = evaluator.get_evaluated<float>(2);
+  const VArray<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
+
+  return geometry::hair_constraints::create_bend_twist_constraints(
+      selection, compliance, damping, rest_rotation);
+}
+
+bke::GeometrySet create_contact_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    const int collider_index,
+    const fn::Field<float> &friction_field,
+    const fn::Field<float> &restitution_field,
+    const fn::Field<float> &threshold_normal_velocity_field,
+    const fn::Field<float3> &local_position_field,
+    const fn::Field<float3> &collider_position_field,
+    const fn::Field<float3> &normal_field)
+{
+  bke::GeometryFieldContext context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  evaluator.set_selection(selection_field);
+  evaluator.add(friction_field);
+  evaluator.add(restitution_field);
+  evaluator.add(threshold_normal_velocity_field);
+  evaluator.add(local_position_field);
+  evaluator.add(collider_position_field);
+  evaluator.add(normal_field);
+  evaluator.evaluate();
+
+  const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
+  const VArray<float> friction = evaluator.get_evaluated<float>(0);
+  const VArray<float> restitution = evaluator.get_evaluated<float>(1);
+  const VArray<float> threshold_normal_velocity = evaluator.get_evaluated<float>(2);
+  const VArray<float3> local_position = evaluator.get_evaluated<float3>(3);
+  const VArray<float3> collider_position = evaluator.get_evaluated<float3>(4);
+  const VArray<float3> normal = evaluator.get_evaluated<float3>(5);
+
+  return geometry::hair_constraints::create_contact_constraints(selection,
+                                                                collider_index,
+                                                                friction,
+                                                                restitution,
+                                                                threshold_normal_velocity,
+                                                                local_position,
+                                                                collider_position,
+                                                                normal);
 }
 
 /** \} */

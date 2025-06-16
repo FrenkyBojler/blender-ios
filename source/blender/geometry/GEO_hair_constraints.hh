@@ -8,6 +8,8 @@
 
 #include "BKE_geometry_set.hh"
 
+#include "FN_field.hh"
+
 namespace blender::geometry::hair_constraints {
 
 struct ConstraintVariables;
@@ -36,14 +38,54 @@ bke::GeometrySet create_bend_twist_constraints(const IndexMask &selection,
                                                const VArray<float> &damping,
                                                const VArray<math::Quaternion> &rest_rotation);
 
-bke::GeometrySet create_contact_constraints(int collider_index,
-                                            const IndexMask &selection,
+bke::GeometrySet create_contact_constraints(const IndexMask &selection,
+                                            int collider_index,
                                             const VArray<float> &friction,
                                             const VArray<float> &restitution,
                                             const VArray<float> &threshold_normal_velocity,
                                             const VArray<float3> &local_position,
                                             const VArray<float3> &collider_position,
                                             const VArray<float3> &normal);
+
+bke::GeometrySet create_position_goal_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<float3> &goal_position_field);
+
+bke::GeometrySet create_rotation_goal_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<math::Quaternion> &goal_rotation_field);
+
+bke::GeometrySet create_stretch_shear_constraints_from_curves(
+    const bke::CurveComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<float3> &rest_position_field);
+
+bke::GeometrySet create_bend_twist_constraints_from_curves(
+    const bke::CurveComponent &component,
+    const fn::Field<bool> &selection_field,
+    const fn::Field<float3> &compliance_field,
+    const fn::Field<float> &damping_field,
+    const fn::Field<math::Quaternion> &rest_rotation_field);
+
+bke::GeometrySet create_contact_constraints_from_points(
+    const bke::GeometryComponent &component,
+    const fn::Field<bool> &selection_field,
+    int collider_index,
+    const fn::Field<float> &friction_field,
+    const fn::Field<float> &restitution_field,
+    const fn::Field<float> &threshold_normal_velocity_field,
+    const fn::Field<float3> &local_position_field,
+    const fn::Field<float3> &collider_position_field,
+    const fn::Field<float3> &normal_field);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
