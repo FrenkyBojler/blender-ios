@@ -2,20 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-float sky_angle_between(float thetav, float phiv, float theta, float phi)
-{
-  float cospsi = sin(thetav) * sin(theta) * cos(phi - phiv) + cos(thetav) * cos(theta);
-
-  if (cospsi > 1.0f) {
-    return 0.0f;
-  }
-  if (cospsi < -1.0f) {
-    return M_PI;
-  }
-
-  return acos(cospsi);
-}
-
 float3 sky_spherical_coordinates(float3 dir)
 {
   return float3(M_PI_2 - atan(dir.z, length(dir.xy)), atan(dir.x, dir.y), 0.0f);

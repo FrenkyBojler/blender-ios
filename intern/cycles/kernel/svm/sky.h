@@ -16,21 +16,6 @@ CCL_NAMESPACE_BEGIN
 
 /* Sky texture */
 
-ccl_device float sky_angle_between(const float thetav,
-                                   const float phiv,
-                                   const float theta,
-                                   const float phi)
-{
-  const float cospsi = sinf(thetav) * sinf(theta) * cosf(phi - phiv) + cosf(thetav) * cosf(theta);
-  return safe_acosf(cospsi);
-}
-
-/* Nishita improved sky model */
-ccl_device float3 geographical_to_direction(const float lat, const float lon)
-{
-  return spherical_to_direction(lat - M_PI_2_F, lon - M_PI_2_F);
-}
-
 ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
                                        const float3 dir,
                                        const uint32_t path_flag,
@@ -51,7 +36,6 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
   /* render above the horizon */
   if (dir.z >= 0.0f) {
     /* definitions */
-    const float3 sun_dir = geographical_to_direction(sun_elevation, sun_rotation);
     const float sun_dir_angle = precise_angle(dir, sun_dir);
     const float half_angular = angular_diameter * 0.5f;
     const float dir_elevation = M_PI_2_F - direction.x;

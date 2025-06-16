@@ -183,7 +183,6 @@ void register_node_type_sh_tex_sky()
   blender::bke::node_type_storage(
       ntype, "NodeTexSky", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_sky;
-  /* Remove vector input for Nishita sky model. */
   ntype.updatefunc = file_ns::node_shader_update_sky;
   ntype.gather_link_search_ops = file_ns::node_gather_link_searches;
 
