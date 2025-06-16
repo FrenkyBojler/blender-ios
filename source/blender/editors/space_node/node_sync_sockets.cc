@@ -151,7 +151,11 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, R
   BKE_ntree_update_tag_node_property(snode.edittree, &combine_bundle_node);
 }
 
-void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &closure_output_node)
+void sync_sockets_closure(SpaceNode &snode,
+                          bNode &closure_input_node,
+                          bNode &closure_output_node,
+                          const bool initialize_internal_links,
+                          ReportList *reports)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &closure_socket = closure_output_node.output_socket(0);
@@ -159,58 +163,68 @@ void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &cl
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, closure_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> evaluate_closure_nodes =
-      ed::space_node::gather_linked_evaluate_closure_nodes(
+  const Vector<nodes::ClosureSignature> signatures =
+      ed::space_node::gather_linked_target_closure_signatures(
           current_context, closure_socket, compute_context_cache);
-  if (evaluate_closure_nodes.is_empty()) {
+  if (signatures.is_empty()) {
+    BKE_report(reports, RPT_INFO, "No closure signature found");
     return;
   }
-  const bNode *evaluate_node = evaluate_closure_nodes[0];
+
+  bool all_matching = true;
+  for (const int i : IndexRange(signatures.size() - 1)) {
+    const nodes::ClosureSignature &signature = signatures[i];
+    if (!signature.matches_exactly(signatures[i + 1])) {
+      all_matching = false;
+      break;
+    }
+  }
+  if (!all_matching) {
+    BKE_report(reports, RPT_INFO, "Found conflicting closure signatures");
+    return;
+  }
+  const nodes::ClosureSignature &signature = signatures[0];
 
   nodes::socket_items::clear<nodes::ClosureInputItemsAccessor>(closure_output_node);
   nodes::socket_items::clear<nodes::ClosureOutputItemsAccessor>(closure_output_node);
 
-  const auto *storage = static_cast<const NodeGeometryEvaluateClosure *>(evaluate_node->storage);
-
-  for (const int i : IndexRange(storage->input_items.items_num)) {
-    const NodeGeometryEvaluateClosureInputItem &evaluate_item = storage->input_items.items[i];
+  for (const nodes::ClosureSignature::Item &item : signature.inputs) {
+    const StringRefNull name = item.key.identifiers()[0];
     NodeGeometryClosureInputItem &input_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
-            closure_output_node,
-            eNodeSocketDatatype(evaluate_item.socket_type),
-            evaluate_item.name);
-    input_item.structure_type = evaluate_item.structure_type;
+            closure_output_node, item.type->type, name.c_str());
+    if (item.structure_type) {
+      input_item.structure_type = int(*item.structure_type);
+    }
   }
-  for (const int i : IndexRange(storage->output_items.items_num)) {
-    const NodeGeometryEvaluateClosureOutputItem &evaluate_item = storage->output_items.items[i];
+  for (const nodes::ClosureSignature::Item &item : signature.outputs) {
+    const StringRefNull name = item.key.identifiers()[0];
     nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureOutputItemsAccessor>(
-        closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
+        closure_output_node, item.type->type, name.c_str());
   }
   BKE_ntree_update_tag_node_property(snode.edittree, &closure_input_node);
   BKE_ntree_update_tag_node_property(snode.edittree, &closure_output_node);
 
-  nodes::update_node_declaration_and_sockets(*snode.edittree, closure_input_node);
-  nodes::update_node_declaration_and_sockets(*snode.edittree, closure_output_node);
+  if (initialize_internal_links) {
+    nodes::update_node_declaration_and_sockets(*snode.edittree, closure_input_node);
+    nodes::update_node_declaration_and_sockets(*snode.edittree, closure_output_node);
 
-  snode.edittree->ensure_topology_cache();
-  Vector<std::pair<bNodeSocket *, bNodeSocket *>> internal_links;
-  for (const bNodeSocket *eval_output_socket : evaluate_node->output_sockets()) {
-    const bNodeSocket *eval_input_socket = nodes::evaluate_closure_node_internally_linked_input(
-        *eval_output_socket);
-    if (!eval_input_socket) {
-      continue;
+    snode.edittree->ensure_topology_cache();
+    Vector<std::pair<bNodeSocket *, bNodeSocket *>> internal_links;
+    for (const int input_i : signature.inputs.index_range()) {
+      const nodes::ClosureSignature::Item &input_item = signature.inputs[input_i];
+      for (const int output_i : signature.outputs.index_range()) {
+        const nodes::ClosureSignature::Item &output_item = signature.outputs[output_i];
+        if (input_item.key.matches(output_item.key)) {
+          internal_links.append({&closure_input_node.output_socket(input_i),
+                                 &closure_output_node.input_socket(output_i)});
+        }
+      };
     }
-    internal_links.append({&closure_input_node.output_socket(eval_input_socket->index() - 1),
-                           &closure_output_node.input_socket(eval_output_socket->index())});
-  }
-  for (auto &&[from_socket, to_socket] : internal_links) {
-    bke::node_add_link(
-        *snode.edittree, closure_input_node, *from_socket, closure_output_node, *to_socket);
+    for (auto &&[from_socket, to_socket] : internal_links) {
+      bke::node_add_link(
+          *snode.edittree, closure_input_node, *from_socket, closure_output_node, *to_socket);
+    }
   }
 }
 
@@ -244,7 +258,7 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
       if (bNode *closure_output_node = closure_zone_type.get_corresponding_output(
               tree, closure_input_node))
       {
-        sync_sockets_closure(snode, closure_input_node, *closure_output_node);
+        sync_sockets_closure(snode, closure_input_node, *closure_output_node, false, op->reports);
       }
     }
     else if (node->is_type("GeometryNodeClosureOutput")) {
@@ -252,7 +266,7 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
       if (bNode *closure_input_node = closure_zone_type.get_corresponding_input(
               tree, closure_output_node))
       {
-        sync_sockets_closure(snode, *closure_input_node, closure_output_node);
+        sync_sockets_closure(snode, *closure_input_node, closure_output_node, false, op->reports);
       }
     }
   }

@@ -163,6 +163,10 @@ Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
     const ComputeContext *bundle_socket_context,
     const bNodeSocket &bundle_socket,
     bke::ComputeContextCache &compute_context_cache);
+Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
+    const ComputeContext *closure_socket_context,
+    const bNodeSocket &closure_socket,
+    bke::ComputeContextCache &compute_context_cache);
 
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
@@ -184,6 +188,10 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
 void sync_sockets_combine_bundle(SpaceNode &snode,
                                  bNode &combine_bundle_node,
                                  ReportList *reports);
-void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &closure_output_node);
+void sync_sockets_closure(SpaceNode &snode,
+                          bNode &closure_input_node,
+                          bNode &closure_output_node,
+                          const bool initialize_internal_links,
+                          ReportList *reports);
 
 }  // namespace blender::ed::space_node
