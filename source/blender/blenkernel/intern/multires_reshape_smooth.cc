@@ -1299,7 +1299,8 @@ static void evaluate_base_surface_grids(const MultiresReshapeSmoothContext *resh
         reshape_subdiv_evaluate_limit_at_grid(
             reshape_smooth_context, ptex_coord, grid_coord, limit_P, tangent_matrix);
 
-        base_surface_grids_write(reshape_smooth_context, grid_coord, limit_P, tangent_matrix.ptr());
+        base_surface_grids_write(
+            reshape_smooth_context, grid_coord, limit_P, tangent_matrix.ptr());
       });
 }
 
