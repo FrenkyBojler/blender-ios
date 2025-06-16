@@ -2101,7 +2101,8 @@ int BKE_scene_base_iter_next(
   if (val == 0) {
     iter->phase = F_START;
     iter->dupob = nullptr;
-    iter->duplilist = nullptr;
+    iter->dupob_index = -1;
+    iter->duplilist.clear();
     iter->dupli_refob = nullptr;
   }
   else {
@@ -2170,13 +2171,14 @@ int BKE_scene_base_iter_next(
              * this enters eternal loop because of
              * makeDispListMBall getting called inside of collection_duplilist */
             if ((*base)->object->instance_collection == nullptr) {
-              iter->duplilist = object_duplilist(depsgraph, (*scene), (*base)->object);
+              object_duplilist(depsgraph, (*scene), (*base)->object, nullptr, iter->duplilist);
 
-              iter->dupob = static_cast<DupliObject *>(iter->duplilist->first);
+              iter->dupob = iter->duplilist.is_empty() ? nullptr : &iter->duplilist.first();
+              iter->dupob_index = 0;
 
               if (!iter->dupob) {
-                free_object_duplilist(iter->duplilist);
-                iter->duplilist = nullptr;
+                iter->duplilist.clear();
+                iter->dupob_index = -1;
               }
               iter->dupli_refob = nullptr;
             }
@@ -2199,7 +2201,13 @@ int BKE_scene_base_iter_next(
           }
           copy_m4_m4((*ob)->runtime->object_to_world.ptr(), iter->dupob->mat);
 
-          iter->dupob = iter->dupob->next;
+          if (++iter->dupob_index < iter->duplilist.size()) {
+            iter->dupob = &iter->duplilist[iter->dupob_index];
+          }
+          else {
+            iter->dupob = nullptr;
+            iter->dupob_index = -1;
+          }
         }
         else if (iter->phase == F_DUPLI) {
           iter->phase = F_SCENE;
@@ -2211,8 +2219,7 @@ int BKE_scene_base_iter_next(
             iter->dupli_refob = nullptr;
           }
 
-          free_object_duplilist(iter->duplilist);
-          iter->duplilist = nullptr;
+          iter->duplilist.clear();
           run_again = true;
         }
       }
