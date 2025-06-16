@@ -1941,12 +1941,13 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
         layout.prop(brush, "direction", expand=True, text="" if compact else "Direction")
 
         # Gradient type: linear/radial
-        if brush.gpencil_weight_tool == 'GRADIENT':
+        if brush.gpencil_weight_brush_type == 'GRADIENT':
             props = WindowManager.operator_properties_last("grease_pencil.weight_gradient")
             layout.prop(props, "type", expand=True)
             if props.type == 'LINEAR':
-                layout.label(text="Opposite:")
-                layout.prop(props, "opposite", expand=True)
+                row = layout.row(align=True)
+                row.label(text="Opposite:")
+                row.prop(props, "opposite", expand=True)
 
 
 def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact=False):

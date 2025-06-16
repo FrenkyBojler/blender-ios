@@ -124,7 +124,7 @@ class VIEW3D_HT_tool_header(Header):
         elif tool_mode in {'WEIGHT_GPENCIL', 'WEIGHT_GREASE_PENCIL'}:
             if is_valid_context:
                 brush = context.tool_settings.gpencil_weight_paint.brush
-                if brush.gpencil_weight_tool != 'GRADIENT':
+                if brush.gpencil_weight_brush_type != 'GRADIENT':
                     layout.popover("VIEW3D_PT_tools_grease_pencil_weight_appearance")
         elif tool_mode in {'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL'}:
             if is_valid_context:
