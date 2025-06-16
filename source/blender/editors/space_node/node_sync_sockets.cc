@@ -14,6 +14,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_report.hh"
 
 #include "ED_node.hh"
 #include "ED_screen.hh"
@@ -106,7 +107,7 @@ void sync_sockets_separate_bundle(SpaceNode &snode, bNode &separate_bundle_node)
   BKE_ntree_update_tag_node_property(snode.edittree, &separate_bundle_node);
 }
 
-void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node)
+void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, ReportList *reports)
 {
   snode.edittree->ensure_topology_cache();
   bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
@@ -114,32 +115,35 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node)
   bke::ComputeContextCache compute_context_cache;
   const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
       snode, compute_context_cache, bundle_socket);
-  if (!current_context) {
-    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
-     * removed. */
-    return;
-  }
-  const Vector<const bNode *> separate_bundle_nodes =
-      ed::space_node::gather_linked_separate_bundle_nodes(
+  const Vector<nodes::BundleSignature> signatures =
+      ed::space_node::gather_linked_target_bundle_signatures(
           current_context, bundle_socket, compute_context_cache);
-  if (separate_bundle_nodes.is_empty()) {
+  if (signatures.is_empty()) {
+    BKE_report(reports, RPT_INFO, "No bundle signature found");
     return;
   }
-  nodes::socket_items::clear<nodes::CombineBundleItemsAccessor>(combine_bundle_node);
 
-  Set<StringRef> added_names;
-  for (const bNode *separate_bundle_node : separate_bundle_nodes) {
-    const NodeGeometrySeparateBundle &separate_bundle_storage =
-        *static_cast<const NodeGeometrySeparateBundle *>(separate_bundle_node->storage);
-    for (const int i : IndexRange(separate_bundle_storage.items_num)) {
-      const NodeGeometrySeparateBundleItem &item = separate_bundle_storage.items[i];
-      if (!added_names.add(item.name)) {
-        continue;
-      }
-      nodes::socket_items::add_item_with_socket_type_and_name<nodes ::CombineBundleItemsAccessor>(
-          combine_bundle_node, eNodeSocketDatatype(item.socket_type), item.name);
+  bool all_matching = true;
+  for (const int i : IndexRange(signatures.size() - 1)) {
+    const nodes::BundleSignature &signature = signatures[i];
+    if (!signature.matches_exactly(signatures[i + 1])) {
+      all_matching = false;
+      break;
     }
   }
+  if (!all_matching) {
+    BKE_report(reports, RPT_INFO, "Found conflicting bundle signatures");
+    return;
+  }
+  const nodes::BundleSignature &signature = signatures[0];
+
+  nodes::socket_items::clear<nodes::CombineBundleItemsAccessor>(combine_bundle_node);
+  for (const nodes::BundleSignature::Item &item : signature.items) {
+    const StringRefNull name = item.key.identifiers()[0];
+    nodes::socket_items::add_item_with_socket_type_and_name<nodes ::CombineBundleItemsAccessor>(
+        combine_bundle_node, item.type->type, name.c_str());
+  }
+
   BKE_ntree_update_tag_node_property(snode.edittree, &combine_bundle_node);
 }
 
@@ -206,7 +210,7 @@ void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &cl
   }
 }
 
-static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -229,7 +233,7 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
       sync_sockets_separate_bundle(snode, *node);
     }
     else if (node->is_type("GeometryNodeCombineBundle")) {
-      sync_sockets_combine_bundle(snode, *node);
+      sync_sockets_combine_bundle(snode, *node, op->reports);
     }
     else if (node->is_type("GeometryNodeClosureInput")) {
       bNode &closure_input_node = *node;

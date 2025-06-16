@@ -34,6 +34,20 @@ bool SocketInterfaceKey::matches(const SocketInterfaceKey &other) const
   return false;
 }
 
+bool SocketInterfaceKey::matches_exactly(const SocketInterfaceKey &other) const
+{
+  for (const std::string &identifier : identifiers_) {
+    if (std::none_of(
+            other.identifiers_.begin(),
+            other.identifiers_.end(),
+            [&](const std::string &other_identifier) { return other_identifier == identifier; }))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 Bundle::Bundle() = default;
 
 Bundle::~Bundle()
