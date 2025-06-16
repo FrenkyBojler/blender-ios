@@ -227,7 +227,7 @@ bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag);
  * Using `vec` with dist to bone `b1 - b2`.
  */
 float distfactor_to_bone(
-    const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist);
+    const float vec[3], const float b1[3], const float b2[3], float radius1, float radius2, float rdist);
 
 /**
  * Updates vectors and matrices on rest-position level, only needed

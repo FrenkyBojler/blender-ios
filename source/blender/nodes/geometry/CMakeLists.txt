@@ -171,6 +171,7 @@ set(SRC
   nodes/node_geo_mesh_topology_vertex_of_corner.cc
   nodes/node_geo_mouse_position.cc
   nodes/node_geo_object_info.cc
+  nodes/node_geo_armature_info.cc
   nodes/node_geo_offset_point_in_curve.cc
   nodes/node_geo_points.cc
   nodes/node_geo_points_to_curves.cc

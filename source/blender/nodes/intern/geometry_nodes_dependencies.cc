@@ -164,6 +164,15 @@ static void add_own_transform_dependencies(const bNodeTree &tree,
     needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
   }
 
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    const NodeGeometryArmatureInfo &storage = *static_cast<const NodeGeometryArmatureInfo *>(
+        node->storage);
+    needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
+  }
+
   deps.needs_own_transform |= needs_own_transform;
 }
 

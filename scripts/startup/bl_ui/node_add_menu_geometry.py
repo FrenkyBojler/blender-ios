@@ -359,6 +359,7 @@ class NODE_MT_geometry_node_GEO_INPUT_SCENE(Menu):
                 context, layout, "GeometryNodeToolMousePosition", [
                     "Mouse X", "Mouse Y", "Region Width", "Region Height"])
         node_add_menu.add_node_type(layout, "GeometryNodeObjectInfo")
+        node_add_menu.add_node_type(layout, "GeometryNodeArmatureInfo")
         node_add_menu.add_node_type_with_outputs(context, layout, "GeometryNodeInputSceneTime", ["Frame", "Seconds"])
         node_add_menu.add_node_type(layout, "GeometryNodeSelfObject")
         if context.space_data.geometry_nodes_type == 'TOOL':

@@ -643,6 +643,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_closure.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
+#  include "NOD_geo_armature_info.hh"
 #  include "NOD_geo_menu_switch.hh"
 #  include "NOD_geo_repeat.hh"
 #  include "NOD_geo_simulation.hh"
@@ -10872,6 +10873,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeImportVDB");
   define("GeometryNode", "GeometryNodeIndexOfNearest");
   define("GeometryNode", "GeometryNodeIndexSwitch", def_geo_index_switch);
+  define("GeometryNode", "GeometryNodeArmatureInfo");
   define("GeometryNode", "GeometryNodeInputActiveCamera");
   define("GeometryNode", "GeometryNodeInputCollection", def_geo_input_collection);
   define("GeometryNode", "GeometryNodeInputCurveHandlePositions");

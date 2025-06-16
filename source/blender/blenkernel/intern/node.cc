@@ -85,6 +85,7 @@
 #include "NOD_geo_closure.hh"
 #include "NOD_geo_foreach_geometry_element.hh"
 #include "NOD_geo_index_switch.hh"
+#include "NOD_geo_armature_info.hh"
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"

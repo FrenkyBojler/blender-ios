@@ -311,6 +311,7 @@ typedef enum eNodeSocketDatatype {
   SOCK_MATRIX = 16,
   SOCK_BUNDLE = 17,
   SOCK_CLOSURE = 18,
+  SOCK_ARMATURE = 19,
 } eNodeSocketDatatype;
 
 /** Socket shape. */
@@ -1737,6 +1738,24 @@ typedef struct NodeGeometryObjectInfo {
   /** #GeometryNodeTransformSpace. */
   uint8_t transform_space;
 } NodeGeometryObjectInfo;
+
+typedef struct ArmatureInfoItem {
+  /** Generated unique identifier which stays the same even when the item order or names change. */
+  int identifier;
+} ArmatureInfoItem;
+
+typedef struct NodeGeometryArmatureInfo {
+  ArmatureInfoItem *items;     // 8 байт
+  int items_num;               // 4 байта
+  int data_type;               // 4 байта
+  int next_identifier;          // 4 байта
+  uint8_t transform_space;     // 1 байт
+  char _pad0[3];               // 3 байта (padding)
+#ifdef __cplusplus
+  blender::Span<ArmatureInfoItem> items_span() const;
+  blender::MutableSpan<ArmatureInfoItem> items_span();
+#endif
+} NodeGeometryArmatureInfo;
 
 typedef struct NodeGeometryPointsToVolume {
   /** #GeometryNodePointsToVolumeResolutionMode */
