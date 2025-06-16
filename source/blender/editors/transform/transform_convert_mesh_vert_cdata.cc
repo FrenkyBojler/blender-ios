@@ -21,6 +21,11 @@
 
 namespace blender::ed::transform {
 
+typedef struct TransVertMirrorData {
+  BMVert *vert;
+} TransVertMirrorData;
+
+
 /* -------------------------------------------------------------------- */
 /** \name Edit Mesh Bevel Weight and Crease Transform Creation
  * \{ */
@@ -51,7 +56,10 @@ static void mesh_cdata_transdata_create(TransDataBasic *td,
   }
 
   copy_v3_v3(td->center, mesh_cdata_transdata_center(island_data, island_index, eve));
-  td->extra = eve;
+  TransVertMirrorData *mvd = static_cast<TransVertMirrorData *>(
+      MEM_mallocN(sizeof(TransVertMirrorData), "trans vert mirror data"));
+  mvd->vert = eve;
+  td->extra = mvd;
 }
 
 static void createTransMeshVertCData(bContext * /*C*/, TransInfo *t)
@@ -232,3 +240,4 @@ TransConvertTypeInfo TransConvertType_MeshVertCData = {
 };
 
 }  // namespace blender::ed::transform
+
