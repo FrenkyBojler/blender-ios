@@ -346,7 +346,7 @@ static void node_buts_image_user(uiLayout *layout,
 
     /* Avoid losing changes image is painted. */
     if (BKE_image_is_dirty((Image *)imaptr->data)) {
-      uiLayoutSetEnabled(split, false);
+      split->enabled_set(false);
     }
   }
 }
@@ -632,12 +632,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
-      break;
-    case CMP_NODE_MIX_RGB:
-      ntype->draw_buttons = node_buts_mix_rgb;
-      break;
-    case CMP_NODE_VALTORGB:
-      ntype->draw_buttons = node_buts_colorramp;
       break;
     case CMP_NODE_TIME:
       ntype->draw_buttons = node_buts_time;
