@@ -27,7 +27,6 @@
 
 #include "DEG_depsgraph_build.hh"
 
-#include "ED_anim_api.hh"
 #include "ED_keyframing.hh"
 
 #include "ANIM_fcurve.hh"
@@ -269,9 +268,9 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
     }
   }
 
-  /* make sure we have animdata for this */
+  /* Make sure we have animation-data for this. */
   /* FIXME: until materials can be handled by depsgraph,
-   * don't allow drivers to be created for them */
+   * don't allow drivers to be created for them. */
   id = but->rnapoin.owner_id;
   if ((id == nullptr) || (GS(id->name) == ID_MA) || (GS(id->name) == ID_TE)) {
     if (G.debug & G_DEBUG) {
@@ -313,7 +312,6 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
 
 void ui_but_anim_autokey(bContext *C, uiBut *but, Scene *scene, float cfra)
 {
-  ANIM_deselect_keys_in_animation_editors(C);
   blender::animrig::autokeyframe_property(
       C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
 }
