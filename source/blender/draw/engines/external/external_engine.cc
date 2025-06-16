@@ -110,10 +110,7 @@ class Prepass {
       if (draw_as == PART_DRAW_PATH && part->draw_as == PART_DRAW_REND) {
         /* Case where the render engine should have rendered it, but we need to draw it for
          * selection purpose. */
-        if (handle.raw == 0u) {
-          handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
-        }
-
+        handle = manager.unique_handle_for_psys(ob_ref);
         gpu::Batch *geom = DRW_cache_particles_get_hair(ob, psys, nullptr);
         mesh_ps_->draw(geom, handle);
         break;

@@ -83,9 +83,6 @@ PUSH_CONSTANT(float, hairRadShape)
 PUSH_CONSTANT(bool, hairCloseTip)
 /* Strand batch offset when used in compute shaders. */
 PUSH_CONSTANT(int, hairStrandOffset)
-/* Hair particles are stored in world space coordinate.
- * This matrix convert to the instance "world space". */
-PUSH_CONSTANT(float4x4, hairDupliMatrix)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_pointcloud)

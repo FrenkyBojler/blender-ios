@@ -146,9 +146,7 @@ class Prepass : Overlay {
           if ((state.is_wireframe_mode == false) && (part->draw_as == PART_DRAW_REND)) {
             /* Case where the render engine should have rendered it, but we need to draw it for
              * selection purpose. */
-            if (handle.raw == 0u) {
-              handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
-            }
+            handle = manager.unique_handle_for_psys(ob_ref);
 
             select::ID select_id = use_material_slot_selection_ ?
                                        res.select_id(ob_ref, part->omat << 16) :

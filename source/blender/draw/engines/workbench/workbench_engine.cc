@@ -398,9 +398,7 @@ class Instance : public DrawEngine {
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    ResourceHandle handle = manager.resource_handle_for_psys(ob_ref,
-                                                             ob_ref.object->object_to_world());
-
+    ResourceHandle handle = manager.unique_handle_for_psys(ob_ref);
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {

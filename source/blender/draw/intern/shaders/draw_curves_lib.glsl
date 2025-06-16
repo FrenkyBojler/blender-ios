@@ -187,8 +187,8 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
     wtan = wpos - hair_get_point(id - 1).position;
   }
 
-  float4x4 obmat = hairDupliMatrix;
-  wpos = (obmat * float4(wpos, 1.0f)).xyz;
+  float4x4 obmat = drw_modelmat();
+  wpos = drw_point_object_to_world(wpos);
   wtan = -normalize(to_float3x3(obmat) * wtan);
 
   float3 camera_vec = (is_persp) ? camera_pos - wpos : camera_z;

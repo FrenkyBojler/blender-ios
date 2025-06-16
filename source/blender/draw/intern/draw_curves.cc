@@ -379,7 +379,6 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   sub_ps.push_constant("hairStrandsRes", &curves_cache->final.resolution, 1);
   sub_ps.push_constant("hairThicknessRes", thickness_res);
   sub_ps.push_constant("hairRadShape", hair_rad_shape);
-  sub_ps.push_constant("hairDupliMatrix", ob->object_to_world());
   sub_ps.push_constant("hairRadRoot", hair_rad_root);
   sub_ps.push_constant("hairRadTip", hair_rad_tip);
   sub_ps.push_constant("hairCloseTip", hair_close_tip);

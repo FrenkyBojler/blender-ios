@@ -110,6 +110,7 @@ class ObjectRef {
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {0, 0};
   ResourceHandleRange sculpt_handle_ = {0, 0};
+  ResourceHandleRange psys_handle_ = {0, 0};
 
  public:
   Object *const object;

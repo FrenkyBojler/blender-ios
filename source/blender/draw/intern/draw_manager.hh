@@ -128,6 +128,8 @@ class Manager {
 
   ResourceHandleRange unique_handle_for_sculpt(const ObjectRef &ref);
 
+  ResourceHandleRange unique_handle_for_psys(const ObjectRef &ref);
+
   /**
    * Create a new resource handle for the given object.
    */
@@ -153,11 +155,6 @@ class Manager {
   ResourceHandle resource_handle(const float4x4 &model_matrix,
                                  const float3 &bounds_center,
                                  const float3 &bounds_half_extent);
-  /**
-   * Get resource id for particle system. The draw-calls for this resource won't be culled. The
-   * associated object info will contain the info from its parent object.
-   */
-  ResourceHandle resource_handle_for_psys(const ObjectRef &ref, const float4x4 &model_matrix);
 
   /** Update the bounds of an already created handle. */
   void update_handle_bounds(ResourceHandle handle,
@@ -321,6 +318,20 @@ inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
   return ref.handle_;
 }
 
+inline ResourceHandleRange Manager::unique_handle_for_psys(const ObjectRef &ref)
+{
+  if (ref.psys_handle_.handle_first.raw != 0) {
+    return ref.psys_handle_;
+  }
+  matrix_buf.current().get_or_resize(resource_len_).sync(ref.particles_matrix());
+  bounds_buf.current().get_or_resize(resource_len_).sync();
+  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
+  /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
+  const_cast<ObjectRef &>(ref).psys_handle_ = ResourceHandle(
+      resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
+  return ref.psys_handle_;
+}
+
 inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)
 {
   bool is_active_object = ref.is_active(object_active);
@@ -367,15 +378,6 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
   bounds_buf.current().get_or_resize(resource_len_).sync(bounds_center, bounds_half_extent);
   infos_buf.current().get_or_resize(resource_len_).sync();
   return ResourceHandle(resource_len_++, false);
-}
-
-inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef &ref,
-                                                        const float4x4 &model_matrix)
-{
-  matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
-  bounds_buf.current().get_or_resize(resource_len_).sync();
-  infos_buf.current().get_or_resize(resource_len_).sync(ref, ref.is_active(object_active));
-  return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
 inline void Manager::update_handle_bounds(ResourceHandle handle,

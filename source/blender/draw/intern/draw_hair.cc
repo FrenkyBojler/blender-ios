@@ -223,7 +223,6 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
   sub_ps.push_constant("hairStrandsRes", &hair_cache->final[subdiv].strands_res, 1);
   sub_ps.push_constant("hairThicknessRes", thickness_res);
   sub_ps.push_constant("hairRadShape", hair_rad_shape);
-  sub_ps.push_constant("hairDupliMatrix", dupli_mat);
   sub_ps.push_constant("hairRadRoot", hair_rad_root);
   sub_ps.push_constant("hairRadTip", hair_rad_tip);
   sub_ps.push_constant("hairCloseTip", hair_close_tip);
