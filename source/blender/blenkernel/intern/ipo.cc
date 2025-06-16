@@ -37,7 +37,6 @@
 #include "DNA_world_types.h"
 
 #include "BLI_dynstr.h"
-#include "BLI_endian_switch.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -126,43 +125,20 @@ static void ipo_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct_list(reader, IpoCurve, &(ipo->curve));
 
+  /* NOTE: this is endianness-sensitive.
+   * Not clear why, but endianness switching was undone here for some data?
+   * That 'undo switching' code appeared to be heavily broken in 4.x code actually, performing
+   * switch on `ipo` data as part of the loop on `icu`'s, among other obvious mistakes. */
+
   LISTBASE_FOREACH (IpoCurve *, icu, &ipo->curve) {
     BLO_read_struct_array(reader, BezTriple, icu->totvert, &icu->bezt);
     BLO_read_struct_array(reader, BPoint, icu->totvert, &icu->bp);
     BLO_read_struct(reader, IpoDriver, &icu->driver);
-
-    /* Undo generic endian switching. */
-    if (BLO_read_requires_endian_switch(reader)) {
-      BLI_endian_switch_int16(&icu->blocktype);
-      if (icu->driver != nullptr) {
-
-        /* Undo generic endian switching. */
-        if (BLO_read_requires_endian_switch(reader)) {
-          BLI_endian_switch_int16(&icu->blocktype);
-          if (icu->driver != nullptr) {
-            BLI_endian_switch_int16(&icu->driver->blocktype);
-          }
-        }
-      }
-
-      /* Undo generic endian switching. */
-      if (BLO_read_requires_endian_switch(reader)) {
-        BLI_endian_switch_int16(&ipo->blocktype);
-        if (icu->driver != nullptr) {
-          BLI_endian_switch_int16(&icu->driver->blocktype);
-        }
-      }
-    }
-  }
-
-  /* Undo generic endian switching. */
-  if (BLO_read_requires_endian_switch(reader)) {
-    BLI_endian_switch_int16(&ipo->blocktype);
   }
 }
 
 IDTypeInfo IDType_ID_IP = {
-    /*id_code*/ ID_IP,
+    /*id_code*/ Ipo::id_type,
     /*id_filter*/ FILTER_ID_IP,
     /*dependencies_id_types*/ 0,
     /*main_listbase_index*/ INDEX_ID_IP,
@@ -1253,9 +1229,9 @@ static ChannelDriver *idriver_to_cdriver(IpoDriver *idriver)
   ChannelDriver *cdriver;
 
   /* allocate memory for new driver */
-  cdriver = static_cast<ChannelDriver *>(MEM_callocN(sizeof(ChannelDriver), "ChannelDriver"));
+  cdriver = MEM_callocN<ChannelDriver>("ChannelDriver");
 
-  /* if 'pydriver', just copy data across */
+  /* If `pydriver`, just copy data across. */
   if (idriver->type == IPO_DRIVER_TYPE_PYTHON) {
     /* PyDriver only requires the expression to be copied */
     /* FIXME: expression will be useless due to API changes, but at least not totally lost */
@@ -1338,11 +1314,10 @@ static void fcurve_add_to_list(
     /* wrap the pointers given into a dummy action that we pass to the API func
      * and extract the resultant lists...
      */
-    bAction tmp_act;
+    bAction tmp_act = {};
     bActionGroup *agrp = nullptr;
 
     /* init the temp action */
-    memset(&tmp_act, 0, sizeof(bAction)); /* XXX: Only enable this line if we get errors. */
     tmp_act.groups.first = groups->first;
     tmp_act.groups.last = groups->last;
     tmp_act.curves.first = list->first;
@@ -1354,7 +1329,7 @@ static void fcurve_add_to_list(
     /* no matching group, so add one */
     if (agrp == nullptr) {
       /* Add a new group, and make it active */
-      agrp = static_cast<bActionGroup *>(MEM_callocN(sizeof(bActionGroup), "bActionGroup"));
+      agrp = MEM_callocN<bActionGroup>("bActionGroup");
 
       agrp->flag = AGRP_SELECTED;
       if (muteipo) {
@@ -1520,8 +1495,7 @@ static void icu_to_fcurves(ID *id,
         BezTriple *dst, *src;
 
         /* allocate new array for keyframes/beztriples */
-        fcurve->bezt = static_cast<BezTriple *>(
-            MEM_callocN(sizeof(BezTriple) * fcurve->totvert, "BezTriples"));
+        fcurve->bezt = MEM_calloc_arrayN<BezTriple>(fcurve->totvert, "BezTriples");
 
         /* loop through copying all BezTriples individually, as we need to modify a few things */
         for (dst = fcurve->bezt, src = icu->bezt, i = 0; i < fcurve->totvert; i++, dst++, src++) {
@@ -1587,8 +1561,7 @@ static void icu_to_fcurves(ID *id,
       BezTriple *dst, *src;
 
       /* allocate new array for keyframes/beztriples */
-      fcu->bezt = static_cast<BezTriple *>(
-          MEM_callocN(sizeof(BezTriple) * fcu->totvert, "BezTriples"));
+      fcu->bezt = MEM_calloc_arrayN<BezTriple>(fcu->totvert, "BezTriples");
 
       /* loop through copying all BezTriples individually, as we need to modify a few things */
       for (dst = fcu->bezt, src = icu->bezt, i = 0; i < fcu->totvert; i++, dst++, src++) {
@@ -2023,7 +1996,7 @@ static void nlastrips_to_animdata(ID *id, ListBase *strips)
          * - no need to muck around with the user-counts, since this is just
          *   passing over the ref to the new owner, not creating an additional ref
          */
-        strip = static_cast<NlaStrip *>(MEM_callocN(sizeof(NlaStrip), "NlaStrip"));
+        strip = MEM_callocN<NlaStrip>("NlaStrip");
         strip->act = as->act;
 
         /* endpoints */

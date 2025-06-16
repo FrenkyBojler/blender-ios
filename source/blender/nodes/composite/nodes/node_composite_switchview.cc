@@ -65,13 +65,13 @@ class SwitchViewOperation : public NodeOperation {
 
     /* A context that is not multi view, pass the first input through as a fallback. */
     if (context().get_view_name().is_empty()) {
-      Result &input = get_input(node().input(0)->identifier);
-      input.pass_through(result);
+      const Result &input = get_input(node().input(0)->identifier);
+      result.share_data(input);
       return;
     }
 
-    Result &input = get_input(context().get_view_name());
-    input.pass_through(result);
+    const Result &input = get_input(context().get_view_name());
+    result.share_data(input);
   }
 };
 
@@ -82,7 +82,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_switchview_cc
 
-void register_node_type_cmp_switch_view()
+static void register_node_type_cmp_switch_view()
 {
   namespace file_ns = blender::nodes::node_composite_switchview_cc;
 
@@ -99,3 +99,4 @@ void register_node_type_cmp_switch_view()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_switch_view)

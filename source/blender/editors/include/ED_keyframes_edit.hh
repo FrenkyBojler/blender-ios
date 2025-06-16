@@ -35,8 +35,10 @@ enum eEditKeyframes_Validate {
   /* Frame range */
   BEZT_OK_FRAME = 1,
   BEZT_OK_FRAMERANGE,
-  /* Selection status */
+  /* Selection status (any of f1, f2, f3)  */
   BEZT_OK_SELECTED,
+  /* Selection status (f2 is enough) */
+  BEZT_OK_SELECTED_KEY,
   /* Values (y-val) only */
   BEZT_OK_VALUE,
   BEZT_OK_VALUERANGE,
@@ -44,7 +46,7 @@ enum eEditKeyframes_Validate {
   BEZT_OK_REGION,
   BEZT_OK_REGION_LASSO,
   BEZT_OK_REGION_CIRCLE,
-  /* Only for keyframes a certain Dopesheet channel */
+  /* Only for keyframes a certain Dope-sheet channel. */
   BEZT_OK_CHANNEL_LASSO,
   BEZT_OK_CHANNEL_CIRCLE,
 };
@@ -166,6 +168,7 @@ ENUM_OPERATORS(eKeyframeIterFlags, KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE)
  */
 struct CfraElem {
   CfraElem *next, *prev;
+  /* Expected to be in global scene time (e.g. not NLA unmapped). */
   float cfra;
   int sel;
 };
@@ -188,7 +191,7 @@ struct KeyframeEditData {
   FCurve *fcu;
   /** index of current keyframe being iterated over */
   int curIndex;
-  /** y-position of midpoint of the channel (for the dopesheet) */
+  /** Y-position of midpoint of the channel (for the dope-sheet). */
   float channel_y;
 
   /* flags */

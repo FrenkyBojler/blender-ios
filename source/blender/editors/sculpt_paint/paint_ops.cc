@@ -48,7 +48,7 @@
 #include "paint_mask.hh"
 #include "sculpt_intern.hh"
 
-static int brush_scale_size_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_scale_size_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -113,7 +113,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
   ot->description = "Change brush size by a scalar";
   ot->idname = "BRUSH_OT_scale_size";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_scale_size_exec;
 
   /* flags */
@@ -124,7 +124,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 /* Palette operators */
 
-static int palette_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Main *bmain = CTX_data_main(C);
@@ -144,7 +144,7 @@ static void PALETTE_OT_new(wmOperatorType *ot)
   ot->description = "Add new palette";
   ot->idname = "PALETTE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_new_exec;
 
   /* flags */
@@ -164,7 +164,7 @@ static bool palette_poll(bContext *C)
   return false;
 }
 
-static int palette_color_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_add_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -204,14 +204,14 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
   ot->description = "Add new color to active palette";
   ot->idname = "PALETTE_OT_color_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_add_exec;
   ot->poll = palette_poll;
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus palette_color_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -232,7 +232,7 @@ static void PALETTE_OT_color_delete(wmOperatorType *ot)
   ot->description = "Remove active color from palette";
   ot->idname = "PALETTE_OT_color_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_delete_exec;
   ot->poll = palette_poll;
   /* flags */
@@ -253,7 +253,7 @@ static bool palette_extract_img_poll(bContext *C)
   return false;
 }
 
-static int palette_extract_img_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
 {
   const int threshold = RNA_int_get(op->ptr, "threshold");
 
@@ -310,7 +310,7 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_extract_from_image";
   ot->description = "Extract all colors used in Image and create a Palette";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_extract_img_exec;
   ot->poll = palette_extract_img_poll;
 
@@ -319,11 +319,11 @@ static void PALETTE_OT_extract_from_image(wmOperatorType *ot)
 
   /* properties */
   prop = RNA_def_int(ot->srna, "threshold", 1, 1, 1, "Threshold", "", 1, 1);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* Sort Palette color by Hue and Saturation. */
-static int palette_sort_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_sort_exec(bContext *C, wmOperator *op)
 {
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -408,7 +408,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_sort";
   ot->description = "Sort Palette Colors";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_sort_exec;
   ot->poll = palette_poll;
 
@@ -419,7 +419,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
 }
 
 /* Move colors in palette. */
-static int palette_color_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_color_move_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
@@ -454,7 +454,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_color_move";
   ot->description = "Move the active Color up/down in the list";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_color_move_exec;
   ot->poll = palette_poll;
 
@@ -465,7 +465,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
 }
 
 /* Join Palette swatches. */
-static int palette_join_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -518,7 +518,7 @@ static void PALETTE_OT_join(wmOperatorType *ot)
   ot->idname = "PALETTE_OT_join";
   ot->description = "Join Palette Swatches";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = palette_join_exec;
   ot->poll = palette_poll;
 
@@ -598,7 +598,7 @@ static void stencil_set_target(StencilControlData *scd)
   scd->init_angle = atan2f(mdiff[1], mdiff[0]);
 }
 
-static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -618,7 +618,7 @@ static int stencil_control_invoke(bContext *C, wmOperator *op, const wmEvent *ev
     }
   }
 
-  scd = static_cast<StencilControlData *>(MEM_mallocN(sizeof(StencilControlData), __func__));
+  scd = MEM_mallocN<StencilControlData>(__func__);
   scd->mask = mask;
   scd->br = br;
 
@@ -707,12 +707,12 @@ static void stencil_control_calculate(StencilControlData *scd, const int mval[2]
 #undef PIXEL_MARGIN
 }
 
-static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StencilControlData *scd = static_cast<StencilControlData *>(op->customdata);
 
   if (event->type == scd->launch_event && event->val == KM_RELEASE) {
-    MEM_freeN(op->customdata);
+    MEM_freeN(scd);
     WM_event_add_notifier(C, NC_WINDOW, nullptr);
     return OPERATOR_FINISHED;
   }
@@ -798,7 +798,7 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
   ot->description = "Control the stencil brush";
   ot->idname = "BRUSH_OT_stencil_control";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = stencil_control_invoke;
   ot->modal = stencil_control_modal;
   ot->cancel = stencil_control_cancel;
@@ -809,12 +809,12 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
 
   PropertyRNA *prop;
   prop = RNA_def_enum(ot->srna, "mode", stencil_control_items, STENCIL_TRANSLATE, "Tool", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_enum(ot->srna, "texmode", stencil_texture_items, STENCIL_PRIMARY, "Tool", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static int stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_fit_image_aspect_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -879,7 +879,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       "When using an image texture, adjust the stencil size to fit the image aspect ratio";
   ot->idname = "BRUSH_OT_stencil_fit_image_aspect";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_fit_image_aspect_exec;
   ot->poll = stencil_control_poll;
 
@@ -892,7 +892,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
       ot->srna, "mask", false, "Modify Mask Stencil", "Modify either the primary or mask stencil");
 }
 
-static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stencil_reset_transform_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
@@ -934,7 +934,7 @@ static void BRUSH_OT_stencil_reset_transform(wmOperatorType *ot)
   ot->description = "Reset the stencil transformation to the default";
   ot->idname = "BRUSH_OT_stencil_reset_transform";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = stencil_reset_transform_exec;
   ot->poll = stencil_control_poll;
 

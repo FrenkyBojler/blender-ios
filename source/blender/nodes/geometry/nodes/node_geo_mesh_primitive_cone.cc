@@ -80,7 +80,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "fill_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -131,7 +131,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   BKE_id_material_eval_ensure_default_slot(&mesh->id);
 
   /* Transform the mesh so that the base of the cone is at the origin. */
-  BKE_mesh_translate(mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
+  bke::mesh_translate(*mesh, float3(0.0f, 0.0f, depth * 0.5f), false);
 
   params.set_output("Mesh", GeometrySet::from_mesh(mesh));
 }

@@ -10,17 +10,23 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_duplilist.hh"
+#include "BKE_geometry_set_instances.hh"
 #include "BKE_key.hh"
+#include "BKE_modifier.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_set.hh"
+#include "BLI_string_utils.hh"
 
 #include "DNA_ID.h"
 #include "DNA_layer_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_rigidbody_types.h"
@@ -153,6 +159,21 @@ bool AbstractHierarchyWriter::check_has_deforming_physics(const HierarchyContext
   return rbo != nullptr && rbo->type == RBO_TYPE_ACTIVE && (rbo->flag & RBO_FLAG_USE_DEFORM) != 0;
 }
 
+bool HierarchyContext::is_point_instancer() const
+{
+  if (!object) {
+    return false;
+  }
+
+  /* Collection instancers are handled elsewhere as part of Scene instancing. */
+  if (object->type == OB_EMPTY && object->instance_collection != nullptr) {
+    return false;
+  }
+
+  const bke::GeometrySet geometry_set = bke::object_get_evaluated_geometry_set(*object);
+  return geometry_set.has_instances();
+}
+
 AbstractHierarchyIterator::AbstractHierarchyIterator(Main *bmain, Depsgraph *depsgraph)
     : bmain_(bmain), depsgraph_(depsgraph), export_subset_({true, true})
 {
@@ -204,6 +225,22 @@ std::string AbstractHierarchyIterator::get_id_name(const ID *id) const
   }
 
   return make_valid_name(std::string(id->name + 2));
+}
+
+std::string AbstractHierarchyIterator::make_unique_name(const std::string &original_name,
+                                                        Set<std::string> &used_names)
+{
+  if (original_name.empty()) {
+    return "";
+  }
+
+  std::string name = BLI_uniquename_cb(
+      [&](const StringRef check_name) { return used_names.contains_as(check_name); },
+      '_',
+      make_valid_name(original_name));
+
+  used_names.add_new(name);
+  return name;
 }
 
 std::string AbstractHierarchyIterator::get_object_data_path(const HierarchyContext *context) const
@@ -269,6 +306,7 @@ void AbstractHierarchyIterator::export_graph_construct()
   deg_iter_settings.depsgraph = depsgraph_;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET;
+  DupliList duplilist;
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, object) {
     /* Non-instanced objects always have their object-parent as export-parent. */
     const bool weak_export = mark_as_weak_export(object);
@@ -280,27 +318,27 @@ void AbstractHierarchyIterator::export_graph_construct()
     }
 
     /* Export the duplicated objects instanced by this object. */
-    ListBase *lb = object_duplilist(depsgraph_, scene, object);
-    if (lb) {
+    object_duplilist(depsgraph_, scene, object, nullptr, duplilist);
+    if (!duplilist.is_empty()) {
       DupliParentFinder dupli_parent_finder;
 
-      LISTBASE_FOREACH (DupliObject *, dupli_object, lb) {
-        PersistentID persistent_id(dupli_object);
-        if (!should_visit_dupli_object(dupli_object)) {
+      for (DupliObject &dupli_object : duplilist) {
+        PersistentID persistent_id(&dupli_object);
+        if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
-        dupli_parent_finder.insert(dupli_object);
+        dupli_parent_finder.insert(&dupli_object);
       }
 
-      LISTBASE_FOREACH (DupliObject *, dupli_object, lb) {
-        if (!should_visit_dupli_object(dupli_object)) {
+      for (DupliObject &dupli_object : duplilist) {
+        if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
-        visit_dupli_object(dupli_object, object, dupli_parent_finder);
+        visit_dupli_object(&dupli_object, object, dupli_parent_finder);
       }
     }
 
-    free_object_duplilist(lb);
+    duplilist.clear();
   }
   DEG_OBJECT_ITER_END;
 }
@@ -388,6 +426,7 @@ void AbstractHierarchyIterator::export_graph_clear()
     }
   }
   export_graph_.clear();
+  used_names_.clear_and_keep_capacity();
 }
 
 void AbstractHierarchyIterator::visit_object(Object *object,
@@ -397,7 +436,7 @@ void AbstractHierarchyIterator::visit_object(Object *object,
   HierarchyContext *context = new HierarchyContext();
   context->object = object;
   context->is_object_data_context = false;
-  context->export_name = get_object_name(object);
+  context->export_name = get_object_name(object, export_parent);
   context->export_parent = export_parent;
   context->duplicator = nullptr;
   context->weak_export = weak_export;
@@ -450,7 +489,9 @@ void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
   /* Construct export name for the dupli-instance. */
   std::string export_name = get_object_name(context->object) + "-" +
                             context->persistent_id.as_object_name_suffix();
-  context->export_name = make_valid_name(export_name);
+
+  Set<std::string> &used_names = used_names_.lookup_or_add(duplicator->id.name, {});
+  context->export_name = make_unique_name(make_valid_name(export_name), used_names);
 
   ObjectIdentifier graph_index = determine_graph_index_dupli(
       context, dupli_object, dupli_parent_finder);
@@ -608,6 +649,12 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
   }
 
   for (HierarchyContext *context : *children) {
+    if (parent_context) {
+      if (parent_context->is_point_instance || parent_context->has_point_instance_ancestor) {
+        context->has_point_instance_ancestor = true;
+      }
+    }
+
     /* Update the context so that it is correct for this parent-child relation. */
     copy_m4_m4(context->parent_matrix_inv_world, parent_matrix_inv_world);
     if (parent_context != nullptr) {
@@ -624,15 +671,18 @@ void AbstractHierarchyIterator::make_writers(const HierarchyContext *parent_cont
       return;
     }
 
-    BLI_assert(DEG_is_evaluated_object(context->object));
-    if (transform_writer.is_newly_created() || export_subset_.transforms) {
+    const bool need_writers = context->is_point_proto || (!context->is_point_instance &&
+                                                          !context->has_point_instance_ancestor);
+
+    BLI_assert(DEG_is_evaluated_id(&context->object->id));
+    if ((transform_writer.is_newly_created() || export_subset_.transforms) && need_writers) {
       /* XXX This can lead to too many XForms being written. For example, a camera writer can
        * refuse to write an orthographic camera. By the time that this is known, the XForm has
        * already been written. */
       transform_writer->write(*context);
     }
 
-    if (!context->weak_export && include_data_writers(context)) {
+    if (!context->weak_export && include_data_writers(context) && need_writers) {
       make_writers_particle_systems(context);
       make_writer_object_data(context);
     }
@@ -737,9 +787,15 @@ void AbstractHierarchyIterator::make_writers_particle_systems(
   }
 }
 
-std::string AbstractHierarchyIterator::get_object_name(const Object *object) const
+std::string AbstractHierarchyIterator::get_object_name(const Object *object)
 {
   return get_id_name(&object->id);
+}
+
+std::string AbstractHierarchyIterator::get_object_name(const Object *object, const Object *parent)
+{
+  Set<std::string> &used_names = used_names_.lookup_or_add(parent ? parent->id.name : "", {});
+  return make_unique_name(object->id.name + 2, used_names);
 }
 
 std::string AbstractHierarchyIterator::get_object_data_name(const Object *object) const
@@ -784,8 +840,8 @@ bool AbstractHierarchyIterator::mark_as_weak_export(const Object * /*object*/) c
 bool AbstractHierarchyIterator::should_visit_dupli_object(const DupliObject *dupli_object) const
 {
   /* Do not visit dupli objects if their `no_draw` flag is set (things like custom bone shapes) or
-   * if they are meta-balls. */
-  if (dupli_object->no_draw || dupli_object->ob->type == OB_MBALL) {
+   * if they are meta-balls / text objects. */
+  if (dupli_object->no_draw || ELEM(dupli_object->ob->type, OB_MBALL, OB_FONT)) {
     return false;
   }
 

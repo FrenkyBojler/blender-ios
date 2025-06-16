@@ -136,9 +136,19 @@ void Light::tag_update(Scene *scene)
   if (is_modified()) {
     scene->light_manager->tag_update(scene, LightManager::LIGHT_MODIFIED);
   }
+  else {
+    for (const Node *node : get_used_shaders()) {
+      if (node->is_modified()) {
+        /* If the light shader is modified, the number of lights in the scene might change.
+         * Tag light manager for update. */
+        scene->light_manager->tag_update(scene, LightManager::LIGHT_MODIFIED);
+        break;
+      }
+    }
+  }
 }
 
-bool Light::has_contribution(Scene *scene)
+bool Light::has_contribution(const Scene *scene, const Object *object)
 {
   if (strength == zero_float3()) {
     return false;
@@ -148,6 +158,15 @@ bool Light::has_contribution(Scene *scene)
   }
   if (light_type == LIGHT_BACKGROUND) {
     return true;
+  }
+  if (light_type == LIGHT_AREA) {
+    if ((get_sizeu() * get_sizev() * get_size() == 0.0f) ||
+        is_zero(transform_get_column(&object->get_tfm(), 0)) ||
+        is_zero(transform_get_column(&object->get_tfm(), 1)))
+    {
+      /* Area light with a size of zero does not contribute to the scene. */
+      return false;
+    }
   }
 
   const Shader *effective_shader = (get_shader()) ? get_shader() : scene->default_light;
@@ -177,6 +196,32 @@ void Light::get_uv_tiles(ustring /*map*/, unordered_set<int> & /*tiles*/)
 PrimitiveType Light::primitive_type() const
 {
   return PRIMITIVE_LAMP;
+}
+
+float Light::area(const Transform &tfm) const
+{
+  if (light_type == LIGHT_POINT || light_type == LIGHT_SPOT) {
+    /* Sphere area. */
+    const float area = 4.0f * M_PI_F * size * size;
+    return (area == 0.0f) ? 4.0f : area;
+  }
+  if (light_type == LIGHT_AREA) {
+    /* Rectangle area. */
+    const float3 axisu = transform_get_column(&tfm, 0);
+    const float3 axisv = transform_get_column(&tfm, 1);
+    float area = len(axisu * sizeu * size) * len(axisv * sizev * size);
+    if (ellipse) {
+      area *= M_PI_4_F;
+    }
+    return area;
+  }
+  if (light_type == LIGHT_DISTANT) {
+    /* Sun disk area. */
+    const float half_angle = angle / 2.0f;
+    return (half_angle > 0.0f) ? M_PI_F * sqr(sinf(half_angle)) : 1.0f;
+  }
+
+  return 1.0f;
 }
 
 /* Light Manager */
@@ -219,7 +264,7 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    light->is_enabled = light->has_contribution(scene);
+    light->is_enabled = light->has_contribution(scene, object);
     has_portal |= light->is_portal;
 
     if (light->light_type == LIGHT_BACKGROUND) {
@@ -1179,10 +1224,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       float len_v;
       const float3 axis_u = normalize_len(extentu, &len_u);
       const float3 axis_v = normalize_len(extentv, &len_v);
-      float area = len_u * len_v;
-      if (light->ellipse) {
-        area *= M_PI_4_F;
-      }
+      const float area = light->area(object->get_tfm());
       float invarea = (area != 0.0f) ? 1.0f / area : 1.0f;
       if (light->ellipse) {
         /* Negative inverse area indicates ellipse. */
@@ -1224,9 +1266,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       shader_id &= ~SHADER_AREA_LIGHT;
 
       const float radius = light->size;
-      const float invarea = (radius == 0.0f)   ? 1.0f / 4.0f :
-                            (light->normalize) ? 1.0f / (4.0f * M_PI_F * radius * radius) :
-                                                 1.0f;
+      const float invarea = (light->normalize) ? 1.0f / light->area(object->get_tfm()) : 1.0f;
 
       /* Convert radiant flux to radiance or radiant intensity. */
       const float eval_fac = invarea * M_1_PI_F;
@@ -1256,8 +1296,8 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].distant.angle = angle;
       klights[light_index].distant.one_minus_cosangle = one_minus_cosangle;
       klights[light_index].distant.pdf = pdf;
-      klights[light_index].distant.eval_fac = (light->normalize && angle > 0) ?
-                                                  M_1_PI_F / sqr(sinf(angle)) :
+      klights[light_index].distant.eval_fac = (light->normalize) ?
+                                                  1.0f / light->area(object->get_tfm()) :
                                                   1.0f;
       klights[light_index].distant.half_inv_sin_half_angle = (angle == 0.0f) ?
                                                                  0.0f :
@@ -1293,11 +1333,8 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       float len_v;
       const float3 axis_u = normalize_len(extentu, &len_u);
       const float3 axis_v = normalize_len(extentv, &len_v);
-      float area = len_u * len_v;
-      if (light->ellipse) {
-        area *= M_PI_4_F;
-      }
-      float invarea = (light->normalize && area != 0.0f) ? 1.0f / area : 1.0f;
+      const float area = light->area(object->get_tfm());
+      float invarea = light->normalize ? 1.0f / area : 1.0f;
       if (light->ellipse) {
         /* Negative inverse area indicates ellipse. */
         invarea = -invarea;

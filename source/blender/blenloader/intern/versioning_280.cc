@@ -615,19 +615,18 @@ static void do_version_constraints_copy_rotation_mix_mode(ListBase *lb)
 
 static void do_versions_seq_alloc_transform_and_crop(ListBase *seqbase)
 {
-  LISTBASE_FOREACH (Strip *, seq, seqbase) {
-    if (ELEM(seq->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
-      if (seq->data->transform == nullptr) {
-        seq->data->transform = static_cast<StripTransform *>(
-            MEM_callocN(sizeof(StripTransform), "StripTransform"));
+  LISTBASE_FOREACH (Strip *, strip, seqbase) {
+    if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD) == 0) {
+      if (strip->data->transform == nullptr) {
+        strip->data->transform = MEM_callocN<StripTransform>("StripTransform");
       }
 
-      if (seq->data->crop == nullptr) {
-        seq->data->crop = static_cast<StripCrop *>(MEM_callocN(sizeof(StripCrop), "StripCrop"));
+      if (strip->data->crop == nullptr) {
+        strip->data->crop = MEM_callocN<StripCrop>("StripCrop");
       }
 
-      if (seq->seqbase.first != nullptr) {
-        do_versions_seq_alloc_transform_and_crop(&seq->seqbase);
+      if (strip->seqbase.first != nullptr) {
+        do_versions_seq_alloc_transform_and_crop(&strip->seqbase);
       }
     }
   }
@@ -738,7 +737,7 @@ static void do_versions_material_convert_legacy_blend_mode(bNodeTree *ntree, cha
 
 static void do_versions_local_collection_bits_set(LayerCollection *layer_collection)
 {
-  layer_collection->local_collections_bits = ~(0);
+  layer_collection->local_collections_bits = ~0;
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
     do_versions_local_collection_bits_set(child);
   }
@@ -772,8 +771,8 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
     }
 
     if (scene->ed != nullptr) {
-      LISTBASE_FOREACH (Strip *, seq, &scene->ed->seqbase) {
-        LISTBASE_FOREACH (SequenceModifierData *, smd, &seq->modifiers) {
+      LISTBASE_FOREACH (Strip *, strip, &scene->ed->seqbase) {
+        LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
           const blender::seq::StripModifierTypeInfo *smti = blender::seq::modifier_type_info_get(
               smd->type);
 
@@ -1876,8 +1875,8 @@ static void update_musgrave_node_dimensions(bNodeTree *ntree)
 }
 
 /* The Color output of the Musgrave node has been removed. Previously, this
- * output was just equal to the Fac output. To correct this, we move links
- * from the Color output to the Fac output if they exist.
+ * output was just equal to the `Fac` output. To correct this, we move links
+ * from the Color output to the `Fac` output if they exist.
  */
 static void update_musgrave_node_color_output(bNodeTree *ntree)
 {
@@ -1920,10 +1919,10 @@ static void update_voronoi_node_f3_and_f4(bNodeTree *ntree)
   }
 }
 
-/* The Fac output of the Voronoi node has been removed. Previously, this
+/* The `Fac` output of the Voronoi node has been removed. Previously, this
  * output was the voronoi distance in the Intensity mode and the Cell ID
  * in the Cell mode. To correct this, we update the identifier and name
- * of the Fac socket such that it gets mapped to the Distance socket.
+ * of the `Fac` socket such that it gets mapped to the Distance socket.
  * This is supposed to work with update_voronoi_node_coloring.
  */
 static void update_voronoi_node_fac_output(bNodeTree *ntree)
@@ -2052,7 +2051,7 @@ static void update_voronoi_node_crackle(bNodeTree *ntree)
  * The coloring property of the Voronoi node was removed. Previously,
  * if the coloring enum was set to Intensity (0), the voronoi distance
  * was returned in all outputs, otherwise, the Cell ID was returned.
- * Since we remapped the Fac output in update_voronoi_node_fac_output,
+ * Since we remapped the `Fac` output in update_voronoi_node_fac_output,
  * then to fix this, we relink the Color output to the Distance
  * output if coloring was set to 0, and the other way around otherwise.
  */
@@ -2483,7 +2482,7 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
         }
 
         block->totelem = new_count;
-        block->data = MEM_callocN(sizeof(float[3]) * new_count, __func__);
+        block->data = MEM_calloc_arrayN<float[3]>(new_count, __func__);
 
         float *oldptr = static_cast<float *>(old_data);
         float(*newptr)[3] = static_cast<float(*)[3]>(block->data);
@@ -3006,10 +3005,10 @@ void do_versions_after_linking_280(FileData *fd, Main *bmain)
  * (see #55668, involving Meta strips). */
 static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbasep)
 {
-  LISTBASE_FOREACH (Strip *, seq, seqbasep) {
-    blender::seq::sequence_base_unique_name_recursive(sce, &sce->ed->seqbase, seq);
-    if (seq->seqbase.first != nullptr) {
-      do_versions_seq_unique_name_all_strips(sce, &seq->seqbase);
+  LISTBASE_FOREACH (Strip *, strip, seqbasep) {
+    blender::seq::strip_unique_name_set(sce, &sce->ed->seqbase, strip);
+    if (strip->seqbase.first != nullptr) {
+      do_versions_seq_unique_name_all_strips(sce, &strip->seqbase);
     }
   }
 }
@@ -3017,7 +3016,6 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
 static void do_versions_seq_set_cache_defaults(Editing *ed)
 {
   ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
-  ed->recycle_max_cost = 10.0f;
 }
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
@@ -3025,7 +3023,7 @@ static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
   strip->flag &= ~((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
   if (strip->type == STRIP_TYPE_SPEED) {
     SpeedControlVars *s = (SpeedControlVars *)strip->effectdata;
-    s->flags &= ~(SEQ_SPEED_UNUSED_1);
+    s->flags &= ~SEQ_SPEED_UNUSED_1;
   }
   return true;
 }
@@ -3172,12 +3170,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       {
         LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
           /* sculpt brushes */
-          GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-          if ((gset) && (gset->cur_falloff == nullptr)) {
-            gset->cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-            BKE_curvemapping_init(gset->cur_falloff);
-            BKE_curvemap_reset(gset->cur_falloff->cm,
-                               &gset->cur_falloff->clipr,
+          GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+          if (gset.cur_falloff == nullptr) {
+            gset.cur_falloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+            BKE_curvemapping_init(gset.cur_falloff);
+            BKE_curvemap_reset(gset.cur_falloff->cm,
+                               &gset.cur_falloff->clipr,
                                CURVE_PRESET_GAUSS,
                                CURVEMAP_SLOPE_POSITIVE);
           }
@@ -3252,19 +3250,6 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "LightProbe", "float", "intensity")) {
       LISTBASE_FOREACH (LightProbe *, probe, &bmain->lightprobes) {
         probe->intensity = 1.0f;
-      }
-    }
-
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      bConstraint *con = static_cast<bConstraint *>(ob->constraints.first);
-      while (con) {
-        bConstraint *con_next = static_cast<bConstraint *>(con->next);
-        if (con->type == 17) { /* CONSTRAINT_TYPE_RIGIDBODYJOINT */
-          BLI_remlink(&ob->constraints, con);
-          BKE_constraint_free_data(con);
-          MEM_freeN(con);
-        }
-        con = con_next;
       }
     }
 
@@ -3453,7 +3438,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         scene->eevee.volumetric_light_clamp = 0.0f;
         scene->eevee.volumetric_shadow_samples = 16;
 
-        scene->eevee.gtao_distance = 0.2f;
+        scene->eevee.fast_gi_distance = 0.2f;
         scene->eevee.fast_gi_quality = 0.25f;
 
         scene->eevee.bokeh_max_size = 100.0f;
@@ -3784,8 +3769,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (Image *, ima, &bmain->images) {
         if (ima->type == IMA_TYPE_R_RESULT) {
           for (int i = 0; i < 8; i++) {
-            RenderSlot *slot = static_cast<RenderSlot *>(
-                MEM_callocN(sizeof(RenderSlot), "Image Render Slot Init"));
+            RenderSlot *slot = MEM_callocN<RenderSlot>("Image Render Slot Init");
             SNPRINTF(slot->name, "Slot %d", i + 1);
             BLI_addtail(&ima->renderslots, slot);
           }
@@ -3798,7 +3782,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
             if (sl->spacetype == SPACE_ACTION) {
               SpaceAction *saction = (SpaceAction *)sl;
-              /* "Dopesheet" should be default here,
+              /* "Dope-sheet" should be default here,
                * unless it looks like the Action Editor was active instead. */
               if ((saction->mode_prev == 0) && (saction->action == nullptr)) {
                 saction->mode_prev = SACTCONT_DOPESHEET;
@@ -3877,8 +3861,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         }
 
         if (rbw->shared == nullptr) {
-          rbw->shared = static_cast<RigidBodyWorld_Shared *>(
-              MEM_callocN(sizeof(*rbw->shared), "RigidBodyWorld_Shared"));
+          rbw->shared = MEM_callocN<RigidBodyWorld_Shared>("RigidBodyWorld_Shared");
+          BKE_rigidbody_world_init_runtime(rbw);
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -3901,8 +3885,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
           continue;
         }
         if (sb->shared == nullptr) {
-          sb->shared = static_cast<SoftBody_Shared *>(
-              MEM_callocN(sizeof(*sb->shared), "SoftBody_Shared"));
+          sb->shared = MEM_callocN<SoftBody_Shared>("SoftBody_Shared");
         }
 
         /* Move shared pointers from deprecated location to current location */
@@ -4000,10 +3983,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "GP_Sculpt_Settings", "int", "lock_axis")) {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         /* lock axis */
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if (gset) {
-          gset->lock_axis = GP_LOCKAXIS_Y;
-        }
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        gset.lock_axis = GP_LOCKAXIS_Y;
       }
     }
 
@@ -4565,12 +4546,12 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             fd->filesdna, "GP_Sculpt_Settings", "CurveMapping", "cur_primitive"))
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if ((gset) && (gset->cur_primitive == nullptr)) {
-          gset->cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-          BKE_curvemapping_init(gset->cur_primitive);
-          BKE_curvemap_reset(gset->cur_primitive->cm,
-                             &gset->cur_primitive->clipr,
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        if (gset.cur_primitive == nullptr) {
+          gset.cur_primitive = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+          BKE_curvemapping_init(gset.cur_primitive);
+          BKE_curvemap_reset(gset.cur_primitive->cm,
+                             &gset.cur_primitive->clipr,
                              CURVE_PRESET_BELL,
                              CURVEMAP_SLOPE_POSITIVE);
         }
@@ -4611,7 +4592,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
               space_outliner->filter &= ~(SO_FILTER_CLEARED_1 | SO_FILTER_UNUSED_5 |
                                           SO_FILTER_OB_STATE_SELECTABLE);
-              space_outliner->storeflag &= ~(SO_TREESTORE_UNUSED_1);
+              space_outliner->storeflag &= ~SO_TREESTORE_UNUSED_1;
               break;
             }
             case SPACE_FILE: {
@@ -4728,10 +4709,8 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     if (!DNA_struct_member_exists(fd->filesdna, "GP_Sculpt_Settings", "float", "isect_threshold"))
     {
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-        GP_Sculpt_Settings *gset = &scene->toolsettings->gp_sculpt;
-        if (gset) {
-          gset->isect_threshold = 0.1f;
-        }
+        GP_Sculpt_Settings &gset = scene->toolsettings->gp_sculpt;
+        gset.isect_threshold = 0.1f;
       }
     }
 
@@ -5019,7 +4998,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 280, 57)) {
-    /* Enable Show Interpolation in dopesheet by default. */
+    /* Enable Show Interpolation in dope-sheet by default. */
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
@@ -5335,7 +5314,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      arm->flag &= ~(ARM_BCOLL_SOLO_ACTIVE);
+      arm->flag &= ~ARM_BCOLL_SOLO_ACTIVE;
     }
   }
 
@@ -5454,11 +5433,14 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
             ARegion *region_toolprops = do_versions_find_region_or_null(regionbase,
                                                                         RGN_TYPE_TOOL_PROPS);
 
-            /* Reinsert UI region so that it spawns entire area width */
-            BLI_remlink(regionbase, region_ui);
-            BLI_insertlinkafter(regionbase, region_header, region_ui);
+            /* Check, even though this is expected to be valid. */
+            if (region_ui) {
+              /* Reinsert UI region so that it spawns entire area width. */
+              BLI_remlink(regionbase, region_ui);
+              BLI_insertlinkafter(regionbase, region_header, region_ui);
 
-            region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+              region_ui->flag |= RGN_FLAG_DYNAMIC_SIZE;
+            }
 
             if (region_toolprops &&
                 (region_toolprops->alignment == (RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV)))
@@ -5768,7 +5750,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     /* Add primary tile to images. */
     if (!DNA_struct_member_exists(fd->filesdna, "Image", "ListBase", "tiles")) {
       LISTBASE_FOREACH (Image *, ima, &bmain->images) {
-        ImageTile *tile = static_cast<ImageTile *>(MEM_callocN(sizeof(ImageTile), "Image Tile"));
+        ImageTile *tile = MEM_callocN<ImageTile>("Image Tile");
         tile->tile_number = 1001;
         BLI_addtail(&ima->tiles, tile);
       }

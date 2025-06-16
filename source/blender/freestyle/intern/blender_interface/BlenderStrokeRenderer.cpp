@@ -70,13 +70,10 @@ BlenderStrokeRenderer::BlenderStrokeRenderer(Render *re, int render_count)
 {
   freestyle_bmain = BKE_main_new();
 
-  /* We use the same window manager for freestyle bmain as
-   * real bmain uses. This is needed because freestyle's
-   * bmain could be used to tag scenes for update, which
-   * implies call of ED_render_scene_update in some cases
-   * and that function requires proper window manager
-   * to present (sergey)
-   */
+  /* NOTE(@sergey): We use the same window manager for freestyle `bmain` as real `bmain` uses.
+   * This is needed because freestyle's `bmain` could be used to tag scenes for update,
+   * which implies call of #ED_render_scene_update in some cases and that function
+   * requires proper window manager to present. */
   freestyle_bmain->wm = re->main->wm;
 
   // for stroke mesh generation
@@ -117,6 +114,10 @@ BlenderStrokeRenderer::BlenderStrokeRenderer(Render *re, int render_count)
   // Copy ID properties, including Cycles render properties
   if (old_scene->id.properties) {
     freestyle_scene->id.properties = IDP_CopyProperty_ex(old_scene->id.properties, 0);
+  }
+  if (old_scene->id.system_properties) {
+    freestyle_scene->id.system_properties = IDP_CopyProperty_ex(old_scene->id.system_properties,
+                                                                0);
   }
   // Copy eevee render settings.
   BKE_scene_copy_data_eevee(freestyle_scene, old_scene);
@@ -632,7 +633,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
   BKE_id_attributes_active_color_set(
       &mesh->id, CustomData_get_layer_name(&mesh->corner_data, CD_PROP_BYTE_COLOR, 0));
 
-  mesh->mat = (Material **)MEM_mallocN(sizeof(Material *) * mesh->totcol, "MaterialList");
+  mesh->mat = MEM_malloc_arrayN<Material *>(size_t(mesh->totcol), "MaterialList");
   for (const auto item : group->materials.items()) {
     Material *material = item.key;
     const int matnr = item.value;

@@ -54,7 +54,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
   GPU_line_width((flag & DRAWCFRA_WIDE) ? 3.0 : 2.0);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -72,26 +72,26 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
 /* PREVIEW RANGE 'CURTAINS' */
 /* NOTE: 'Preview Range' tools are defined in `anim_ops.cc`. */
 
-void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
+void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width)
 {
-  Scene *scene = CTX_data_scene(C);
-
-  /* only draw this if preview range is set */
+  /* Only draw this if preview range is set. */
   if (PRVRANGEON) {
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformThemeColorShadeAlpha(TH_ANIM_PREVIEW_RANGE, -25, -30);
-    /* XXX: Fix this hardcoded color (anim_active) */
-    // immUniformColor4f(0.8f, 0.44f, 0.1f, 0.2f);
 
-    /* only draw two separate 'curtains' if there's no overlap between them */
-    if (PSFRA < PEFRA + end_frame_width) {
-      immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(PSFRA), v2d->cur.ymax);
-      immRectf(pos, float(PEFRA + end_frame_width), v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+    /* Only draw two separate 'curtains' if there's no overlap between them. */
+    if (scene->r.psfra < scene->r.pefra + end_frame_width) {
+      immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, float(scene->r.psfra), v2d->cur.ymax);
+      immRectf(pos,
+               float(scene->r.pefra + end_frame_width),
+               v2d->cur.ymin,
+               v2d->cur.xmax,
+               v2d->cur.ymax);
     }
     else {
       immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
@@ -112,7 +112,7 @@ void ANIM_draw_framerange(Scene *scene, View2D *v2d)
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
@@ -164,7 +164,7 @@ void ANIM_draw_action_framerange(
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
@@ -273,7 +273,7 @@ float ANIM_nla_tweakedit_remap(bAnimListElem *ale,
 static short bezt_nlamapping_restore(KeyframeEditData *ked, BezTriple *bezt)
 {
   /* AnimData block providing scaling is stored in 'data', only_keys option is stored in i1 */
-  AnimData *adt = (AnimData *)ked->data;
+  AnimData *adt = static_cast<AnimData *>(ked->data);
   short only_keys = short(ked->i1);
 
   /* adjust BezTriple handles only if allowed to */
@@ -292,7 +292,7 @@ static short bezt_nlamapping_restore(KeyframeEditData *ked, BezTriple *bezt)
 static short bezt_nlamapping_apply(KeyframeEditData *ked, BezTriple *bezt)
 {
   /* AnimData block providing scaling is stored in 'data', only_keys option is stored in i1 */
-  AnimData *adt = (AnimData *)ked->data;
+  AnimData *adt = static_cast<AnimData *>(ked->data);
   short only_keys = short(ked->i1);
 
   /* adjust BezTriple handles only if allowed to */
@@ -350,7 +350,7 @@ void ANIM_nla_mapping_apply_if_needed_fcurve(bAnimListElem *ale,
 short ANIM_get_normalization_flags(SpaceLink *space_link)
 {
   if (space_link->spacetype == SPACE_GRAPH) {
-    SpaceGraph *sipo = (SpaceGraph *)space_link;
+    SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(space_link);
     bool use_normalization = (sipo->flag & SIPO_NORMALIZE) != 0;
     bool freeze_normalization = (sipo->flag & SIPO_NORMALIZE_FREEZE) != 0;
     return use_normalization ? (ANIM_UNITCONV_NORMALIZE |
@@ -607,7 +607,7 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
 
   cfranext = cfraprev = float(scene->r.cfra);
 
-  /* seed up dummy dopesheet context with flags to perform necessary filtering */
+  /* Seed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
     /* only selected channels are included */
     ads.filterflag |= ADS_FILTER_ONLYSEL;
@@ -628,7 +628,7 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
   }
   ED_keylist_prepare_for_direct_access(keylist);
 
-  /* TODO(jbakker): Keylists are ordered, no need to do any searching at all. */
+  /* TODO(jbakker): Key-lists are ordered, no need to do any searching at all. */
   /* find matching keyframe in the right direction */
   do {
     aknext = ED_keylist_find_next(keylist, cfranext);

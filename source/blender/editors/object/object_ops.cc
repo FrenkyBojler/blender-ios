@@ -97,7 +97,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_speaker_add);
   WM_operatortype_append(OBJECT_OT_curves_random_add);
   WM_operatortype_append(OBJECT_OT_curves_empty_hair_add);
-  WM_operatortype_append(OBJECT_OT_pointcloud_add);
+  WM_operatortype_append(OBJECT_OT_pointcloud_random_add);
   WM_operatortype_append(OBJECT_OT_volume_add);
   WM_operatortype_append(OBJECT_OT_volume_import);
   WM_operatortype_append(OBJECT_OT_add);
@@ -112,6 +112,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_duplicate);
   WM_operatortype_append(OBJECT_OT_join);
   WM_operatortype_append(OBJECT_OT_join_shapes);
+  WM_operatortype_append(OBJECT_OT_update_shapes);
   WM_operatortype_append(OBJECT_OT_convert);
   WM_operatortype_append(OBJECT_OT_visual_geometry_to_objects);
 
@@ -221,6 +222,7 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_link_to_collection);
 
   WM_operatortype_append(OBJECT_OT_shape_key_add);
+  WM_operatortype_append(OBJECT_OT_shape_key_copy);
   WM_operatortype_append(OBJECT_OT_shape_key_remove);
   WM_operatortype_append(OBJECT_OT_shape_key_clear);
   WM_operatortype_append(OBJECT_OT_shape_key_retime);
@@ -282,6 +284,9 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_light_linking_blockers_link);
 
   WM_operatortype_append(OBJECT_OT_light_linking_unlink_from_collection);
+
+  /* Custom cameras. */
+  WM_operatortype_append(OBJECT_OT_camera_custom_update);
 
   object_modifier_add_asset_register();
   collection_exporter_register();

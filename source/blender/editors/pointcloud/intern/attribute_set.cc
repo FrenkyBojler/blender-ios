@@ -76,15 +76,15 @@ static void validate_value(const bke::AttributeAccessor attributes,
   type.copy_assign(validated_buffer, buffer);
 }
 
-static int set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
   PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_pointcloud.id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(active_owner);
-  const StringRef name = active_attribute->name;
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
+  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  const bke::AttributeMetaData meta_data = *active_pointcloud.attributes().lookup_meta_data(name);
+  const eCustomDataType active_type = meta_data.data_type;
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
@@ -130,15 +130,15 @@ static int set_attribute_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
   PointCloud &active_pointcloud = *static_cast<PointCloud *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_pointcloud.id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
   const bke::AttributeAccessor attributes = active_pointcloud.attributes();
-  const bke::GAttributeReader attribute = attributes.lookup(active_attribute->name);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const bke::GAttributeReader attribute = attributes.lookup(name);
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_points(active_pointcloud, memory);
@@ -169,7 +169,7 @@ static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = uiLayoutColumn(op->layout, true);
+  uiLayout *layout = &op->layout->column(true);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
@@ -177,11 +177,11 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   PointCloud &pointcloud = *static_cast<PointCloud *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&pointcloud.id);
-  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const bke::AttributeMetaData meta_data = *pointcloud.attributes().lookup_meta_data(name);
+  const eCustomDataType active_type = eCustomDataType(meta_data.data_type);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(active_type);
-  const char *name = active_attribute->name;
-  uiItemR(layout, op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void POINTCLOUD_OT_attribute_set(wmOperatorType *ot)

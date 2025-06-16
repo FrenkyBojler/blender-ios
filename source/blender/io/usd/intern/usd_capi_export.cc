@@ -15,9 +15,11 @@
 #include <pxr/base/tf/token.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
@@ -106,7 +108,7 @@ static bool prim_path_valid(const char *path)
   /* Check path syntax. */
   std::string errMsg;
   if (!pxr::SdfPath::IsValidPathString(path, &errMsg)) {
-    WM_reportf(RPT_ERROR, "USD Export: invalid path string '%s': %s", path, errMsg.c_str());
+    WM_global_reportf(RPT_ERROR, "USD Export: invalid path string '%s': %s", path, errMsg.c_str());
     return false;
   }
 
@@ -115,12 +117,12 @@ static bool prim_path_valid(const char *path)
 
   pxr::SdfPath sdf_path(path);
   if (!sdf_path.IsAbsolutePath()) {
-    WM_reportf(RPT_ERROR, "USD Export: path '%s' is not an absolute path", path);
+    WM_global_reportf(RPT_ERROR, "USD Export: path '%s' is not an absolute path", path);
     return false;
   }
 
   if (!sdf_path.IsPrimPath()) {
-    WM_reportf(RPT_ERROR, "USD Export: path string '%s' is not a prim path", path);
+    WM_global_reportf(RPT_ERROR, "USD Export: path string '%s' is not a prim path", path);
     return false;
   }
 
@@ -374,7 +376,7 @@ std::string cache_image_color(const float color[4])
   IMB_rectfill(ibuf, color);
   ibuf->ftype = IMB_FTYPE_RADHDR;
 
-  if (IMB_saveiff(ibuf, file_path.c_str(), IB_float_data)) {
+  if (IMB_save_image(ibuf, file_path.c_str(), IB_float_data)) {
     CLOG_INFO(&LOG, 1, "%s", file_path.c_str());
   }
   else {
@@ -384,6 +386,71 @@ std::string cache_image_color(const float color[4])
   IMB_freeImBuf(ibuf);
 
   return file_path;
+}
+
+static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &stage,
+                                                    const pxr::SdfPath &wrapper_path,
+                                                    std::set<pxr::SdfPath> &visited)
+{
+  pxr::UsdPrim wrapper_prim = stage->GetPrimAtPath(wrapper_path);
+  if (!wrapper_prim || !wrapper_prim.IsValid()) {
+    return;
+  }
+
+  std::string real_path_str;
+
+  for (const pxr::SdfPrimSpecHandle &primSpec : wrapper_prim.GetPrimStack()) {
+    if (!primSpec || !primSpec->HasReferences()) {
+      continue;
+    }
+
+    for (const pxr::SdfReference &ref : primSpec->GetReferenceList().GetPrependedItems()) {
+      if (ref.GetAssetPath().empty() && !ref.GetPrimPath().IsEmpty()) {
+        real_path_str = ref.GetPrimPath().GetString();
+        break;
+      }
+    }
+    if (!real_path_str.empty()) {
+      break;
+    }
+  }
+
+  if (real_path_str.empty()) {
+    CLOG_WARN(&LOG, "No prototype reference found for: %s", wrapper_path.GetText());
+    return;
+  }
+
+  const pxr::SdfPath real_path(real_path_str);
+  pxr::UsdPrim proto_prim = stage->GetPrimAtPath(real_path);
+
+  if (visited.count(real_path)) {
+    return;
+  }
+  visited.insert(real_path);
+
+  if (!proto_prim || !proto_prim.IsValid()) {
+    CLOG_WARN(&LOG, "Referenced prototype not found at: %s", real_path.GetText());
+    return;
+  }
+
+  proto_prim.SetSpecifier(pxr::SdfSpecifierOver);
+
+  std::string doc_message = fmt::format(
+      "This prim is used as a prototype by the PointInstancer \"{}\" so we override the def "
+      "with an \"over\" so that it isn't imaged in the scene, but is available as a prototype "
+      "that can be referenced.",
+      wrapper_prim.GetName().GetString());
+  proto_prim.SetDocumentation(doc_message);
+
+  if (wrapper_prim.IsA<pxr::UsdGeomPointInstancer>()) {
+    pxr::UsdGeomPointInstancer nested_instancer(wrapper_prim);
+    pxr::SdfPathVector nested_targets;
+    if (nested_instancer.GetPrototypesRel().GetTargets(&nested_targets)) {
+      for (const pxr::SdfPath &nested_wrapper_path : nested_targets) {
+        mark_point_instancer_prototypes_as_over(stage, nested_wrapper_path, visited);
+      }
+    }
+  }
 }
 
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
@@ -564,6 +631,22 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
                 "USD Export: unable to find suitable USD plugin to write %s",
                 data->unarchived_filepath);
     return;
+  }
+
+  /* Traverse the point instancer to make sure the prototype referenced by nested point instancers
+   * are also marked as over. */
+  std::set<pxr::SdfPath> visited;
+  for (const pxr::UsdPrim &prim : usd_stage->Traverse()) {
+    if (!prim.IsA<pxr::UsdGeomPointInstancer>()) {
+      continue;
+    }
+    pxr::UsdGeomPointInstancer instancer(prim);
+    pxr::SdfPathVector targets;
+    if (instancer.GetPrototypesRel().GetTargets(&targets)) {
+      for (const pxr::SdfPath &wrapper_path : targets) {
+        mark_point_instancer_prototypes_as_over(usd_stage, wrapper_path, visited);
+      }
+    }
   }
 
   usd_stage->GetRootLayer()->Save();

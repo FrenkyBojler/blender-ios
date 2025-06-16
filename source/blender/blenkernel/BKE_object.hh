@@ -218,16 +218,23 @@ bool BKE_object_obdata_is_libdata(const Object *ob);
  *
  * \param dupflag: Controls which sub-data are also duplicated
  * (see #eDupli_ID_Flags in DNA_userdef_types.h).
+ * \param duplicate_options: Additional context information about current duplicate call (e.g. if
+ * it's part of a higher-level duplication or not, etc.). (see #eLibIDDuplicateFlags in
+ * BKE_lib_id.hh).
  *
- * \note This function does not do any remapping to new IDs, caller must do it
- * (\a #BKE_libblock_relink_to_newid()).
- * \note Caller MUST free \a newid pointers itself (#BKE_main_id_newptr_and_tag_clear()) and call
- * updates of DEG too (#DAG_relations_tag_update()).
+ * \warning By default, this functions will clear all \a bmain #ID.idnew pointers
+ * (#BKE_main_id_newptr_and_tag_clear), and take care of post-duplication updates like remapping to
+ * new IDs (#BKE_libblock_relink_to_newid).
+ * If \a #LIB_ID_DUPLICATE_IS_SUBPROCESS duplicate option is passed on (typically when duplication
+ * is called recursively from another parent duplication operation), the caller is responsible to
+ * handle all of these operations.
+ *
+ * \note Caller MUST handle updates of the depsgraph (#DAG_relations_tag_update).
  */
 Object *BKE_object_duplicate(Main *bmain,
                              Object *ob,
                              eDupli_ID_Flags dupflag,
-                             uint duplicate_options);
+                             /*eLibIDDuplicateFlags*/ uint duplicate_options);
 
 /**
  * Use with newly created objects to set their size (used to apply scene-scale).
@@ -398,7 +405,7 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
  * Calculate visual bounds from an empty objects draw-type.
  *
  * \note This is not part of the calculation used by #BKE_object_boundbox_get
- * as these bounds represent the extents of visual guides (use for viewport culling for e.g.)
+ * as these bounds represent the extents of visual guides (use for viewport culling for example)
  */
 bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_max[3]);
 
@@ -455,7 +462,7 @@ void BKE_object_eval_transform_final(Depsgraph *depsgraph, Object *ob);
 void BKE_object_eval_uber_transform(Depsgraph *depsgraph, Object *object);
 void BKE_object_eval_uber_data(Depsgraph *depsgraph, Scene *scene, Object *ob);
 
-void BKE_object_eval_shading(Depsgraph *depsgraph, Object *ob);
+void BKE_object_eval_shading(Depsgraph *depsgraph, Object *object);
 
 void BKE_object_eval_light_linking(Depsgraph *depsgraph, Object *object);
 
@@ -673,7 +680,7 @@ bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const Re
  * The mesh will be freed when object is re-evaluated or is destroyed. It is possible to force to
  * clear memory used by this mesh by calling BKE_object_to_mesh_clear().
  *
- * If preserve_all_data_layers is truth then the modifier stack is re-evaluated to ensure it
+ * If preserve_all_data_layers is true then the modifier stack is re-evaluated to ensure it
  * preserves all possible custom data layers.
  *
  * NOTE: Dependency graph argument is required when preserve_all_data_layers is truth, and is
@@ -712,3 +719,14 @@ void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data);
 PartEff *BKE_object_do_version_give_parteff_245(Object *ob);
 
 bool BKE_object_supports_material_slots(Object *ob);
+
+/** Sets the location of the object, respecting #Object::protectflag. */
+void BKE_object_protected_location_set(Object *ob, const float location[3]);
+/** Sets the scale of the object, respecting #Object::protectflag. */
+void BKE_object_protected_scale_set(Object *ob, const float scale[3]);
+/** Sets the quaternion rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_quaternion_set(Object *ob, const float quat[4]);
+/** Sets the euler rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_euler_set(Object *ob, const float euler[3]);
+/** Sets the quaternion rotation of the object, respecting #Object::protectflag. */
+void BKE_object_protected_rotation_axisangle_set(Object *ob, const float axis[3], float angle);

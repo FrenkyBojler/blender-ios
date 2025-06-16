@@ -63,8 +63,6 @@ BoneCollection *ANIM_bonecoll_new(const char *name)
   STRNCPY_UTF8(bcoll->name, name);
   bcoll->flags = default_flags;
 
-  bcoll->prop = nullptr;
-
   return bcoll;
 }
 
@@ -75,6 +73,9 @@ void ANIM_bonecoll_free(BoneCollection *bcoll, const bool do_id_user_count)
                  "bone runtime data");
   if (bcoll->prop) {
     IDP_FreeProperty_ex(bcoll->prop, do_id_user_count);
+  }
+  if (bcoll->system_properties) {
+    IDP_FreeProperty_ex(bcoll->system_properties, do_id_user_count);
   }
   MEM_delete(bcoll);
 }
@@ -123,26 +124,18 @@ void ANIM_armature_runtime_free(bArmature *armature)
  */
 static void bonecoll_ensure_name_unique(bArmature *armature, BoneCollection *bcoll)
 {
-  struct DupNameCheckData {
-    bArmature *arm;
-    BoneCollection *bcoll;
-  };
-
   /* Cannot capture armature & bcoll by reference in the lambda, as that would change its signature
    * and no longer be compatible with BLI_uniquename_cb(). */
-  auto bonecoll_name_is_duplicate = [](void *arg, const char *name) -> bool {
-    DupNameCheckData *data = static_cast<DupNameCheckData *>(arg);
-    for (BoneCollection *bcoll : data->arm->collections_span()) {
-      if (bcoll != data->bcoll && STREQ(bcoll->name, name)) {
+  auto bonecoll_name_is_duplicate = [&](const blender::StringRef name) -> bool {
+    for (BoneCollection *bcoll_iter : armature->collections_span()) {
+      if (bcoll_iter != bcoll && bcoll_iter->name == name) {
         return true;
       }
     }
     return false;
   };
 
-  DupNameCheckData check_data = {armature, bcoll};
   BLI_uniquename_cb(bonecoll_name_is_duplicate,
-                    &check_data,
                     DATA_(bonecoll_default_name),
                     '.',
                     bcoll->name,
@@ -160,10 +153,10 @@ static void bonecoll_insert_at_index(bArmature *armature, BoneCollection *bcoll,
 {
   BLI_assert(index <= armature->collection_array_num);
 
-  armature->collection_array = (BoneCollection **)MEM_reallocN_id(
-      armature->collection_array,
-      sizeof(BoneCollection *) * (armature->collection_array_num + 1),
-      __func__);
+  armature->collection_array = reinterpret_cast<BoneCollection **>(
+      MEM_reallocN_id(armature->collection_array,
+                      sizeof(BoneCollection *) * (armature->collection_array_num + 1),
+                      __func__));
 
   /* To keep the memory consistent, insert the new element at the end of the
    * now-grown array, then rotate it into place. */
@@ -265,6 +258,10 @@ static BoneCollection *copy_and_update_ownership(const bArmature *armature_dst,
   if (bcoll->prop) {
     bcoll->prop = IDP_CopyProperty_ex(bcoll_to_copy->prop,
                                       0 /*do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT*/);
+  }
+  if (bcoll->system_properties) {
+    bcoll->system_properties = IDP_CopyProperty_ex(
+        bcoll_to_copy->system_properties, 0 /*do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT*/);
   }
 
   /* Remap the bone pointers to the given armature, as `bcoll_to_copy` is
@@ -1414,6 +1411,10 @@ blender::Map<BoneCollection *, BoneCollection *> ANIM_bonecoll_array_copy_no_mem
       bcoll_dst->prop = IDP_CopyProperty_ex(bcoll_src->prop,
                                             do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
     }
+    if (bcoll_src->system_properties) {
+      bcoll_dst->system_properties = IDP_CopyProperty_ex(
+          bcoll_src->system_properties, do_id_user ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT);
+    }
 
     (*bcoll_array_dst)[i] = bcoll_dst;
 
@@ -1432,6 +1433,9 @@ void ANIM_bonecoll_array_free(BoneCollection ***bcoll_array,
 
     if (bcoll->prop) {
       IDP_FreeProperty_ex(bcoll->prop, do_id_user);
+    }
+    if (bcoll->system_properties) {
+      IDP_FreeProperty_ex(bcoll->system_properties, do_id_user);
     }
 
     /* This will usually already be empty, because the passed BoneCollection

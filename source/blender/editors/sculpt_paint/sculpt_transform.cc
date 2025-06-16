@@ -72,7 +72,7 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
 
   ss.pivot_rot[3] = 1.0f;
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
 
   filter::cache_init(C, ob, sd, undo::Type::Position, mval_fl, 5.0, 1.0f);
 
@@ -478,7 +478,7 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
 
   threading::EnumerableThreadSpecific<TransformLocalData> all_tls;
   for (ePaintSymmetryFlags symmpass = PAINT_SYMM_NONE; symmpass <= symm; symmpass++) {
-    if (!SCULPT_is_symmetry_iteration_valid(symmpass, symm)) {
+    if (!is_symmetry_iteration_valid(symmpass, symm)) {
       continue;
     }
 
@@ -541,7 +541,7 @@ void update_modal_transform(bContext *C, Object &ob)
   SculptSession &ss = *ob.sculpt;
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
   switch (sd.transform_mode) {
@@ -581,9 +581,12 @@ void cancel_modal_transform(bContext *C, Object &ob)
   /* Canceling "Elastic" transforms (due to its #TransformDisplacementMode::Incremental nature),
    * requires restoring positions from undo. For "All Vertices" there is no benefit in using the
    * transform system to update to original positions either. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  undo::restore_position_from_undo_step(depsgraph, ob);
 
-  undo::restore_position_from_undo_step(*depsgraph, ob);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  bke::pbvh::update_normals(depsgraph, ob, pbvh);
+  pbvh.update_bounds(depsgraph, ob);
 }
 
 void end_transform(bContext *C, Object &ob)
@@ -907,7 +910,7 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
   return float3(0);
 }
 
-static int set_pivot_position_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -940,7 +943,7 @@ static int set_pivot_position_exec(bContext *C, wmOperator *op)
         RNA_float_get(op->ptr, "mouse_x"),
         RNA_float_get(op->ptr, "mouse_y"),
     };
-    if (SCULPT_stroke_get_location(C, stroke_location, mval, false)) {
+    if (stroke_get_location_bvh(C, stroke_location, mval, false)) {
       copy_v3_v3(ss.pivot_pos, stroke_location);
     }
   }
@@ -963,7 +966,9 @@ static int set_pivot_position_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int set_pivot_position_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus set_pivot_position_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   RNA_float_set(op->ptr, "mouse_x", event->mval[0]);
   RNA_float_set(op->ptr, "mouse_y", event->mval[1]);

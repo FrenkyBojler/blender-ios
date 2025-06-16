@@ -243,20 +243,21 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
   bke::CurvesGeometry dst_curves;
 
   if (!follow_curvature) {
-    /* Use the old curves when extending straight when no new points are added.  */
+    /* Use the old curves when extending straight when no new points are added. */
     dst_curves = std::move(src_curves);
-    /* Enable affected curves for #extend_curves_straight().  */
+    /* Enable affected curves for #extend_curves_straight(). */
     index_mask::masked_fill<int>(start_points, 1, selection);
     index_mask::masked_fill<int>(end_points, 1, selection);
   }
   else {
     /* Copy only curves domain since we are not changing the number of curves here. */
     dst_curves = bke::curves::copy_only_curve_domain(src_curves);
-    /* Count how many points we need. */
     MutableSpan<int> dst_points_by_curve = dst_curves.offsets_for_write();
+    offset_indices::copy_group_sizes(
+        src_curves.points_by_curve(), src_curves.curves_range(), dst_points_by_curve);
+    /* Count how many points we need. */
     selection.foreach_index([&](const int curve) {
-      int point_count = points_by_curve[curve].size();
-      dst_points_by_curve[curve] = point_count;
+      const int point_count = dst_points_by_curve[curve];
       if (point_count <= 2) {
         /* Can't make a curve, set start/end points to 1 to allow straight extension. */
         start_points[curve] = 1;
@@ -359,7 +360,10 @@ bke::CurvesGeometry extend_curves(bke::CurvesGeometry &src_curves,
       }
     }
   });
-
+  if (src_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 

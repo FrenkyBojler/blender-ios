@@ -80,7 +80,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
                             const float color[4],
                             const float arrow_length)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   bool unbind_shader = true;
   const int draw_style = RNA_enum_get(arrow->gizmo.ptr, "draw_style");
   const int draw_options = RNA_enum_get(arrow->gizmo.ptr, "draw_options");
@@ -92,7 +93,7 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
   immUniform2fv("viewportSize", &viewport[2]);
 
   if (draw_style == ED_GIZMO_ARROW_STYLE_CROSS) {
-    immUniform1f("lineWidth", U.pixelsize);
+    immUniform1f("lineWidth", U.pixelsize + WM_gizmo_select_bias(select));
     immUniformColor4fv(color);
 
     immBegin(GPU_PRIM_LINES, 4);
@@ -114,7 +115,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
         {-unitx, unity, 0},
     };
 
-    immUniform1f("lineWidth", arrow->gizmo.line_width * U.pixelsize);
+    immUniform1f("lineWidth",
+                 (arrow->gizmo.line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_LOOP);
   }
   else if (draw_style == ED_GIZMO_ARROW_STYLE_PLANE) {
@@ -132,7 +134,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     GPU_matrix_push();
     GPU_matrix_translate_3f(0.0f, 0.0f, arrow_length);
 
-    immUniform1f("lineWidth", arrow->gizmo.line_width * U.pixelsize);
+    immUniform1f("lineWidth",
+                 (arrow->gizmo.line_width * U.pixelsize) + WM_gizmo_select_bias(select));
     wm_gizmo_vec_draw(color, verts, ARRAY_SIZE(verts), pos, GPU_PRIM_LINE_LOOP);
 
     immUnbindProgram();
@@ -150,9 +153,8 @@ static void arrow_draw_geom(const ArrowGizmo3D *arrow,
     };
 
     if (draw_options & ED_GIZMO_ARROW_DRAW_FLAG_STEM) {
-      const float stem_width = arrow->gizmo.line_width * U.pixelsize +
-                               (select ? ARROW_SELECT_THRESHOLD_PX * UI_SCALE_FAC : 0);
-      immUniform1f("lineWidth", stem_width);
+      immUniform1f("lineWidth",
+                   (arrow->gizmo.line_width * U.pixelsize) + WM_gizmo_select_bias(select));
       wm_gizmo_vec_draw(color, vec, ARRAY_SIZE(vec), pos, GPU_PRIM_LINE_STRIP);
     }
     else {
@@ -320,10 +322,10 @@ static int gizmo_arrow_test_select(bContext * /*C*/, wmGizmo *gz, const int mval
  * Calculate arrow offset independent from prop min value,
  * meaning the range will not be offset by min value first.
  */
-static int gizmo_arrow_modal(bContext *C,
-                             wmGizmo *gz,
-                             const wmEvent *event,
-                             eWM_GizmoFlagTweak tweak_flag)
+static wmOperatorStatus gizmo_arrow_modal(bContext *C,
+                                          wmGizmo *gz,
+                                          const wmEvent *event,
+                                          eWM_GizmoFlagTweak tweak_flag)
 {
   if (event->type != MOUSEMOVE) {
     return OPERATOR_RUNNING_MODAL;
@@ -421,7 +423,7 @@ static void gizmo_arrow_setup(wmGizmo *gz)
   arrow->data.range_fac = 1.0f;
 }
 
-static int gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
+static wmOperatorStatus gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
 {
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
   GizmoInteraction *inter = static_cast<GizmoInteraction *>(
@@ -522,7 +524,7 @@ static void GIZMO_GT_arrow_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_arrow_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_arrow_draw;
   gzt->draw_select = gizmo_arrow_draw_select;
   gzt->test_select = gizmo_arrow_test_select;

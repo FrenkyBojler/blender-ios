@@ -330,7 +330,7 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
  * Basic operators for gizmo interaction with user configurable keymaps.
  * \{ */
 
-static int gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
@@ -476,11 +476,11 @@ static void gizmo_tweak_finish(bContext *C, wmOperator *op, const bool cancel, b
   MEM_freeN(mtweak);
 }
 
-static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   GizmoTweakData *mtweak = static_cast<GizmoTweakData *>(op->customdata);
   wmGizmo *gz = mtweak->gz_modal;
-  int retval = OPERATOR_PASS_THROUGH;
+  wmOperatorStatus retval = OPERATOR_PASS_THROUGH;
   bool clear_modal = true;
 
   if (gz == nullptr) {
@@ -538,7 +538,8 @@ static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
       evil_event->val = evil_event->prev_val;
     }
 
-    int modal_retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(mtweak->flag));
+    const wmOperatorStatus modal_retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(mtweak->flag));
+    OPERATOR_RETVAL_CHECK(modal_retval);
 
     if (event_modal_val != 0) {
       evil_event->type = EVT_MODAL_MAP;
@@ -560,7 +561,7 @@ static int gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_PASS_THROUGH;
 }
 
-static int gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
@@ -571,8 +572,16 @@ static int gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
   if (!gz) {
     /* #wm_handlers_do_intern shouldn't let this happen. */
-    BLI_assert_unreachable();
-    return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+    BLI_assert_msg(false, "the gizmo should never be null, this is a bug!");
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  }
+
+  if (!WM_gizmo_group_type_poll(C, gz->parent_gzgroup->type)) {
+    /* The event-system should prevent this from happening, see: #137146.
+     * May be caused by the context changing without tagging #wmGizmoMap::tag_highlight_pending,
+     * typically via #WM_gizmomap_tag_refresh. */
+    BLI_assert_msg(false, "the gizmo-group's poll should always succeed, this is a bug!");
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   const int highlight_part_init = gz->highlight_part;
@@ -1010,7 +1019,7 @@ wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzm
 
   wmGizmoGroup *gzgroup = wm_gizmogroup_new_from_type(gzmap, gzgt);
 
-  /* Don't allow duplicates when switching modes for e.g. see: #66229. */
+  /* Don't allow duplicates when switching modes for example. See: #66229. */
   LISTBASE_FOREACH (wmGizmoGroup *, gzgroup_iter, &gzmap->groups) {
     if (gzgroup_iter->type == gzgt) {
       if (gzgroup_iter != gzgroup) {

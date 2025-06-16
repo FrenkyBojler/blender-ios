@@ -60,7 +60,7 @@
 #include "eyedropper_intern.hh"
 
 struct Eyedropper {
-  ColorManagedDisplay *display = nullptr;
+  const ColorManagedDisplay *display = nullptr;
 
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -229,7 +229,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
     return false;
   }
 
-  const int render_layer_name_len = BLI_strnlen(render_layer->name, sizeof(render_layer->name));
+  const int render_layer_name_len = STRNLEN(render_layer->name);
   if (strncmp(prefix, render_layer->name, render_layer_name_len) != 0) {
     return false;
   }
@@ -493,7 +493,7 @@ bool eyedropper_color_sample_fl(bContext *C,
       WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
     }
     const char *display_device = CTX_data_scene(C)->display_settings.display_device;
-    ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+    const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
     return true;
   }
@@ -594,7 +594,7 @@ static void eyedropper_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Eyedropper *eye = (Eyedropper *)op->customdata;
 
@@ -650,7 +650,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -668,7 +668,7 @@ static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*even
 }
 
 /* Repeat operator */
-static int eyedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_init(C, op)) {
@@ -697,7 +697,7 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_color";
   ot->description = "Sample a color from the Blender window to store in a property";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_invoke;
   ot->modal = eyedropper_modal;
   ot->cancel = eyedropper_cancel;

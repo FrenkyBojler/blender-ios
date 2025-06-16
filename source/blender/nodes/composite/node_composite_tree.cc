@@ -39,7 +39,7 @@ static void composite_get_from_context(const bContext *C,
 
   *r_from = nullptr;
   *r_id = &scene->id;
-  *r_ntree = scene->nodetree;
+  *r_ntree = scene->compositing_node_group;
 }
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
@@ -138,7 +138,7 @@ static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * 
                                                   blender::bke::bNodeSocketType *socket_type)
 {
   return blender::bke::node_is_static_socket_type(*socket_type) &&
-         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_RGBA);
+         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
 }
 
 static bool composite_validate_link(eNodeSocketDatatype /*from*/, eNodeSocketDatatype /*to*/)
@@ -205,13 +205,13 @@ void ntreeCompositTagRender(Scene *scene)
   for (Scene *sce_iter = (Scene *)G_MAIN->scenes.first; sce_iter;
        sce_iter = (Scene *)sce_iter->id.next)
   {
-    if (sce_iter->nodetree) {
-      for (bNode *node : sce_iter->nodetree->all_nodes()) {
+    if (sce_iter->compositing_node_group) {
+      for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
         if (node->id == (ID *)scene || node->type_legacy == CMP_NODE_COMPOSITE) {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
+          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
         else if (node->type_legacy == CMP_NODE_TEXTURE) /* uses scene size_x/size_y */ {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
+          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
       }
     }
