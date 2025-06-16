@@ -13,6 +13,40 @@ namespace blender::geometry::hair_constraints {
 struct ConstraintVariables;
 
 /* -------------------------------------------------------------------- */
+/** \name Constraint Geometry Setup
+ * \{ */
+
+bke::GeometrySet create_position_goal_constraints(const IndexMask &selection,
+                                                  const VArray<float> &compliance,
+                                                  const VArray<float> &damping,
+                                                  const VArray<float3> &goal_position);
+
+bke::GeometrySet create_rotation_goal_constraints(const IndexMask &selection,
+                                                  const VArray<float> &compliance,
+                                                  const VArray<float> &damping,
+                                                  const VArray<math::Quaternion> &goal_rotation);
+
+bke::GeometrySet create_stretch_shear_constraints(const IndexMask &selection,
+                                                  const VArray<float> &compliance,
+                                                  const VArray<float> &damping,
+                                                  const VArray<float3> &rest_position);
+
+bke::GeometrySet create_bend_twist_constraints(const IndexMask &selection,
+                                               const VArray<float3> &compliance,
+                                               const VArray<float> &damping,
+                                               const VArray<math::Quaternion> &rest_rotation);
+
+bke::GeometrySet create_contact_constraints(int collider_index,
+                                            const IndexMask &selection,
+                                            const VArray<float> &friction,
+                                            const VArray<float> &restitution,
+                                            const VArray<float> &threshold_normal_velocity,
+                                            const VArray<float3> &local_position,
+                                            const VArray<float3> &collider_position,
+                                            const VArray<float3> &normal);
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Debug Recorder
  * \{ */
 

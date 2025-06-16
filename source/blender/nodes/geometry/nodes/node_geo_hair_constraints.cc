@@ -28,15 +28,6 @@ namespace xpbd_constraints {
 using geometry::hair_constraints::ConstraintType;
 using geometry::hair_constraints::ConstraintTypeInfo;
 
-/* Constraint attributes. */
-constexpr StringRef ATTR_SOLVER_GROUP = "solver_group";
-constexpr StringRef ATTR_ALPHA = "compliance";
-constexpr StringRef ATTR_BETA = "damping";
-constexpr StringRef ATTR_POINT1 = "point1";
-constexpr StringRef ATTR_POINT2 = "point2";
-constexpr StringRef ATTR_ACTIVE = "active";
-constexpr StringRef ATTR_LAST_ACTIVE = "last_active";
-
 namespace position_goal {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -76,39 +67,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   evaluator.evaluate();
 
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  VArray<float> compliance = evaluator.get_evaluated<float>(0);
-  VArray<float> damping = evaluator.get_evaluated<float>(1);
-  VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
+  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float> damping = evaluator.get_evaluated<float>(1);
+  const VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
 
-  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<float> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
-  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
-      ATTR_BETA, AttrDomain::Point);
-  SpanAttributeWriter<float3> output_goal_position =
-      attributes.lookup_or_add_for_write_only_span<float3>("goal_position", AttrDomain::Point);
-  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_SOLVER_GROUP, AttrDomain::Point);
-
-  selection.to_indices(output_point1.span);
-  compliance.materialize_compressed(selection, output_compliance.span);
-  damping.materialize_compressed(selection, output_damping.span);
-  goal_position.materialize_compressed(selection, output_goal_position.span);
-  output_solver_group.span.fill(0);
-
-  output_point1.finish();
-  output_compliance.finish();
-  output_damping.finish();
-  output_goal_position.finish();
-  output_solver_group.finish();
-
-  points->positions_for_write().fill(float3(0.0f));
-  points->tag_positions_changed();
-
-  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+  params.set_output("Constraints",
+                    geometry::hair_constraints::create_position_goal_constraints(
+                        selection, compliance, damping, goal_position));
 }
 
 static void node_register()
@@ -170,36 +135,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const VArray<float> damping = evaluator.get_evaluated<float>(1);
   const VArray<math::Quaternion> goal_rotation = evaluator.get_evaluated<math::Quaternion>(2);
 
-  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<float> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
-  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
-      ATTR_BETA, AttrDomain::Point);
-  SpanAttributeWriter<math::Quaternion> output_goal_rotation =
-      attributes.lookup_or_add_for_write_only_span<math::Quaternion>("goal_rotation",
-                                                                     AttrDomain::Point);
-  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_SOLVER_GROUP, AttrDomain::Point);
-
-  selection.to_indices(output_point1.span);
-  compliance.materialize_compressed(selection, output_compliance.span);
-  damping.materialize_compressed(selection, output_damping.span);
-  goal_rotation.materialize_compressed(selection, output_goal_rotation.span);
-  output_solver_group.span.fill(0);
-
-  output_point1.finish();
-  output_compliance.finish();
-  output_damping.finish();
-  output_goal_rotation.finish();
-  output_solver_group.finish();
-
-  points->positions_for_write().fill(float3(0.0f));
-  points->tag_positions_changed();
-
-  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+  params.set_output("Constraints",
+                    geometry::hair_constraints::create_rotation_goal_constraints(
+                        selection, compliance, damping, goal_rotation));
 }
 
 static void node_register()
@@ -277,46 +215,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       evaluator.get_evaluated_as_mask(0), point_valid, memory);
   const VArray<float> compliance = evaluator.get_evaluated<float>(1);
   const VArray<float> damping = evaluator.get_evaluated<float>(2);
-  const VArraySpan<float3> rest_position = evaluator.get_evaluated<float3>(3);
+  const VArray<float3> rest_position = evaluator.get_evaluated<float3>(3);
 
-  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<int> output_point2 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT2, AttrDomain::Point);
-  SpanAttributeWriter<float> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
-  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
-      ATTR_BETA, AttrDomain::Point);
-  SpanAttributeWriter<float> output_edge_length =
-      attributes.lookup_or_add_for_write_only_span<float>("edge_length", AttrDomain::Point);
-  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_SOLVER_GROUP, AttrDomain::Point);
-
-  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
-    /* Curve end points have been excluded, so index + 1 is safe. */
-    output_point1.span[pos] = index;
-    output_point2.span[pos] = index + 1;
-    /* Use rest position distance as the edge length. */
-    output_edge_length.span[pos] = math::distance(rest_position[index], rest_position[index + 1]);
-    /* Alternating by odd/even index separates curve constraints into independent groups. */
-    output_solver_group.span[pos] = index % 2;
-  });
-  compliance.materialize_compressed(selection, output_compliance.span);
-  damping.materialize_compressed(selection, output_damping.span);
-
-  output_point1.finish();
-  output_point2.finish();
-  output_compliance.finish();
-  output_damping.finish();
-  output_edge_length.finish();
-  output_solver_group.finish();
-
-  points->positions_for_write().fill(float3(0.0f));
-  points->tag_positions_changed();
-
-  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+  params.set_output("Constraints",
+                    geometry::hair_constraints::create_stretch_shear_constraints(
+                        selection, compliance, damping, rest_position));
 }
 
 static void node_register()
@@ -402,48 +305,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       evaluator.get_evaluated_as_mask(0), point_valid, memory);
   const VArray<float3> compliance = evaluator.get_evaluated<float3>(1);
   const VArray<float> damping = evaluator.get_evaluated<float>(2);
-  const VArraySpan<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
+  const VArray<math::Quaternion> rest_rotation = evaluator.get_evaluated<math::Quaternion>(3);
 
-  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<int> output_point2 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT2, AttrDomain::Point);
-  SpanAttributeWriter<float3> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float3>(ATTR_ALPHA, AttrDomain::Point);
-  SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
-      ATTR_BETA, AttrDomain::Point);
-  SpanAttributeWriter<float3> output_darboux_vector =
-      attributes.lookup_or_add_for_write_only_span<float3>("darboux_vector", AttrDomain::Point);
-  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_SOLVER_GROUP, AttrDomain::Point);
-
-  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
-    /* Curve end points have been excluded, so index + 1 is safe. */
-    output_point1.span[pos] = index;
-    output_point2.span[pos] = index + 1;
-    /* Use rest rotation difference to compute a Darboux vector. */
-    output_darboux_vector.span[pos] = (math::invert_normalized(rest_rotation[index]) *
-                                       rest_rotation[index + 1])
-                                          .imaginary_part();
-    /* Alternating by odd/even index separates curve constraints into independent groups. */
-    output_solver_group.span[pos] = index % 2;
-  });
-  compliance.materialize_compressed(selection, output_compliance.span);
-  damping.materialize_compressed(selection, output_damping.span);
-
-  output_point1.finish();
-  output_point2.finish();
-  output_compliance.finish();
-  output_damping.finish();
-  output_darboux_vector.finish();
-  output_solver_group.finish();
-
-  points->positions_for_write().fill(float3(0.0f));
-  points->tag_positions_changed();
-
-  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+  params.set_output("Constraints",
+                    geometry::hair_constraints::create_bend_twist_constraints(
+                        selection, compliance, damping, rest_rotation));
 }
 
 static void node_register()
@@ -537,59 +403,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   const VArray<float> threshold_normal_velocity = evaluator.get_evaluated<float>(2);
   const VArray<float3> local_position = evaluator.get_evaluated<float3>(3);
   const VArray<float3> collider_position = evaluator.get_evaluated<float3>(4);
-  const VArraySpan<float3> normal = evaluator.get_evaluated<float3>(5);
+  const VArray<float3> normal = evaluator.get_evaluated<float3>(5);
 
-  PointCloud *points = BKE_pointcloud_new_nomain(selection.size());
-  MutableAttributeAccessor attributes = points->attributes_for_write();
-  SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<int> output_collider_index =
-      attributes.lookup_or_add_for_write_only_span<int>("collider_index", AttrDomain::Point);
-  SpanAttributeWriter<float> output_friction = attributes.lookup_or_add_for_write_only_span<float>(
-      "friction", AttrDomain::Point);
-  SpanAttributeWriter<float> output_restitution =
-      attributes.lookup_or_add_for_write_only_span<float>("restitution", AttrDomain::Point);
-  SpanAttributeWriter<float> output_threshold_normal_velocity =
-      attributes.lookup_or_add_for_write_only_span<float>("threshold_normal_velocity",
-                                                          AttrDomain::Point);
-  SpanAttributeWriter<float3> output_local_position1 =
-      attributes.lookup_or_add_for_write_only_span<float3>("local_position1", AttrDomain::Point);
-  SpanAttributeWriter<float3> output_local_position2 =
-      attributes.lookup_or_add_for_write_only_span<float3>("local_position2", AttrDomain::Point);
-  SpanAttributeWriter<float3> output_normal = attributes.lookup_or_add_for_write_only_span<float3>(
-      "normal", AttrDomain::Point);
-  SpanAttributeWriter<int> output_solver_group = attributes.lookup_or_add_for_write_only_span<int>(
-      ATTR_SOLVER_GROUP, AttrDomain::Point);
-
-  selection.to_indices(output_point1.span);
-  output_collider_index.span.fill(collider_index);
-  friction.materialize_compressed(selection, output_friction.span);
-  restitution.materialize_compressed(selection, output_restitution.span);
-  threshold_normal_velocity.materialize_compressed(selection,
-                                                   output_threshold_normal_velocity.span);
-  local_position.materialize_compressed(selection, output_local_position1.span);
-  collider_position.materialize_compressed(selection, output_local_position2.span);
-  selection.foreach_index(GrainSize(256), [&](const int index, const int pos) {
-    output_normal.span[pos] = math::normalize(normal[index]);
-  });
-  /* There should only be one contact per point/collider pair, so the collider index can be used
-   * to separate constraint groups. */
-  output_solver_group.span.fill(collider_index);
-
-  output_point1.finish();
-  output_collider_index.finish();
-  output_friction.finish();
-  output_restitution.finish();
-  output_threshold_normal_velocity.finish();
-  output_local_position1.finish();
-  output_local_position2.finish();
-  output_normal.finish();
-  output_solver_group.finish();
-
-  points->positions_for_write().fill(float3(0.0f));
-  points->tag_positions_changed();
-
-  params.set_output("Constraints", GeometrySet::from_pointcloud(points));
+  params.set_output(
+      "Constraints",
+      geometry::hair_constraints::create_contact_constraints(collider_index,
+                                                             selection,
+                                                             friction,
+                                                             restitution,
+                                                             threshold_normal_velocity,
+                                                             local_position,
+                                                             collider_position,
+                                                             normal));
 }
 
 static void node_register()
