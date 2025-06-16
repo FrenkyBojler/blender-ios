@@ -58,9 +58,7 @@ void CLIP_OT_dopesheet_view_all(wmOperatorType *ot);
 void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region);
 
 /**
- * GPU state for drawing lines and points in the clip editor.
- *
- * Used for bound shader state and desired shader state to minimize GPU state changes.
+ * Desired GPU state for drawing lines and points in the clip editor.
  */
 struct ClipShaderState {
   /**
@@ -69,11 +67,11 @@ struct ClipShaderState {
    */
   eGPUBuiltinShader shader;
   /** Point size for GPU_SHADER_3D_POINT_UNIFORM_COLOR. */
-  float point_size = NAN_FLT;
+  float point_size;
   /** Line width for GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR. */
-  float line_width = NAN_FLT;
+  float line_width;
   /** Uniform bound color. */
-  blender::float4 color = blender::float4(NAN_FLT);
+  blender::float4 color;
 };
 
 void clip_ensure_shader(std::optional<eGPUBuiltinShader> &active_shader,
