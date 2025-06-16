@@ -890,6 +890,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << global_vars.str() << attr_load.str();
   }
 
+  /* TODO(fclem): This should become part of the dependency system.  */
+  std::string deps_concat;
+  for (const StringRefNull &str : info.dependencies_generated) {
+    deps_concat += str;
+  }
+  info.dependencies_generated = {};
+
   {
     const bool use_vertex_displacement = !codegen.displacement.empty() &&
                                          (displacement_type != MAT_DISPLACEMENT_BUMP) &&
@@ -900,7 +907,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     vert_gen << ((use_vertex_displacement) ? codegen.displacement : "return float3(0);\n");
     vert_gen << "}\n\n";
 
-    info.vertex_source_generated = vert_gen.str();
+    info.generated_sources.append({"eevee_nodetree_vert_lib.glsl",
+                                   {"eevee_nodetree_lib.glsl"},
+                                   deps_concat + vert_gen.str()});
   }
 
   if (pipeline_type != MAT_PIPE_VOLUME_OCCUPANCY) {
@@ -961,8 +970,12 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     frag_gen << (!codegen.volume.empty() ? codegen.volume : "return Closure(0);\n");
     frag_gen << "}\n\n";
 
-    info.fragment_source_generated = frag_gen.str();
+    info.generated_sources.append({"eevee_nodetree_frag_lib.glsl",
+                                   {"eevee_nodetree_lib.glsl"},
+                                   deps_concat + frag_gen.str()});
   }
+
+  int reserved_attr_slots = 0;
 
   /* Geometry Info. */
   switch (geometry_type) {
@@ -977,14 +990,30 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       break;
     case MAT_GEOM_MESH:
       info.additional_info("eevee_geom_mesh");
+      reserved_attr_slots = 2; /* Number of vertex attributes inside eevee_geom_mesh. */
       break;
     case MAT_GEOM_POINTCLOUD:
       info.additional_info("eevee_geom_pointcloud");
       break;
     case MAT_GEOM_VOLUME:
       info.additional_info("eevee_geom_volume");
+      reserved_attr_slots = 1; /* Number of vertex attributes inside eevee_geom_mesh. */
       break;
   }
+
+  /* Make shaders that have as too many attributes fail compilation and have correct error
+   * report instead of raising an error. */
+  if (info.vertex_inputs_.size() > 0) {
+    const int last_attr_index = info.vertex_inputs_.last().index;
+    if (last_attr_index - reserved_attr_slots < 0) {
+      const char *material_name = (info.name_.c_str() + 2);
+      std::cerr << "Error: EEVEE: Material " << material_name << " uses too many attributes."
+                << std::endl;
+      /* Avoid assert in ShaderCreateInfo::finalize. */
+      info.vertex_inputs_.clear();
+    }
+  }
+
   /* Pipeline Info. */
   switch (geometry_type) {
     case MAT_GEOM_WORLD:

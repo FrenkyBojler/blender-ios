@@ -5101,26 +5101,6 @@ uiLayout &uiLayout::split(float percentage, bool align)
   return *split;
 }
 
-void uiLayoutSetActive(uiLayout *layout, bool active)
-{
-  layout->active_ = active;
-}
-
-void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default)
-{
-  layout->active_default_ = active_default;
-}
-
-void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init)
-{
-  layout->activate_init_ = activate_init;
-}
-
-void uiLayoutSetEnabled(uiLayout *layout, bool enabled)
-{
-  layout->enabled_ = enabled;
-}
-
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert)
 {
   layout->redalert_ = redalert;
@@ -5174,26 +5154,6 @@ float uiLayoutGetSearchWeight(uiLayout *layout)
 Panel *uiLayoutGetRootPanel(uiLayout *layout)
 {
   return layout->root_->block->panel;
-}
-
-bool uiLayoutGetActive(uiLayout *layout)
-{
-  return layout->active_;
-}
-
-bool uiLayoutGetActiveDefault(uiLayout *layout)
-{
-  return layout->active_default_;
-}
-
-bool uiLayoutGetActivateInit(uiLayout *layout)
-{
-  return layout->activate_init_;
-}
-
-bool uiLayoutGetEnabled(uiLayout *layout)
-{
-  return layout->enabled_;
 }
 
 bool uiLayoutGetRedAlert(uiLayout *layout)
