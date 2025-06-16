@@ -39,9 +39,8 @@
 #define BLENDER_FILE_MIN_VERSION 405
 #define BLENDER_FILE_MIN_SUBVERSION 85
 
-    /** User readable version string. */
-    const char *
-    BKE_blender_version_string(void);
+/** User readable version string. */
+const char *BKE_blender_version_string(void);
 
 /** As above but does not show patch version. */
 const char *BKE_blender_version_string_compact(void);

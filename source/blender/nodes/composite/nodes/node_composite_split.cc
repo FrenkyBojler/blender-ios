@@ -7,6 +7,7 @@
  */
 
 #include "BLI_math_base.hh"
+#include "BLI_math_numbers.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -30,9 +31,9 @@ static void cmp_node_split_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
-      .description("Line position where the image should be split.");
+      .description("Line position where the image should be split");
   b.add_input<decl::Float>("Rotation")
-      .default_value(float(M_PI_4))
+      .default_value(math::numbers::pi_v<float> / 4.0f)
       .subtype(PROP_ANGLE)
       .description("Line angle where the image should be split.");
 
@@ -66,7 +67,6 @@ class SplitOperation : public NodeOperation {
     const Domain domain = this->compute_domain();
 
     GPU_shader_uniform_2fv(shader, "position", this->get_position(domain));
-    GPU_shader_uniform_1f(shader, "rotation", this->get_rotation().radian());
 
     const float2 normal = {-math::sin(this->get_rotation()), math::cos(this->get_rotation())};
     GPU_shader_uniform_2fv(shader, "normal", normal);
