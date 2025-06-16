@@ -13,6 +13,7 @@ import multiprocessing
 import multiprocessing.connection
 import multiprocessing.process
 import time
+import zlib  # For streaming gzip decompression.
 from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol, TypeAlias, Any
@@ -48,8 +49,7 @@ class ConditionalDownloader:
     in a background process.
     """
 
-    # TODO: make a metadata cache class, instead of always using a path on disk.
-    metadata_cache_location: Path
+    metadata_provider: MetadataProvider
     """Directory where request metadata is stored."""
 
     http_session: requests.Session
@@ -70,14 +70,14 @@ class ConditionalDownloader:
 
     def __init__(
             self,
-            metadata_cache_location: Path,
+            metadata_provider: MetadataProvider,
     ) -> None:
         """Create a ConditionalDownloader.
 
-        :param metadata_cache_location: Location on disk for request metadata,
+        :param metadata_provider: Location on disk for request metadata,
             like the last-modified timestamp, etag, and content length.
         """
-        self.metadata_cache_location = metadata_cache_location
+        self.metadata_provider = metadata_provider
         self.http_session = http_session()
         self.chunk_size = 8192  # Sensible default, can be adjusted after creation if necessary.
         self.periodic_check = lambda: True
@@ -110,14 +110,14 @@ class ConditionalDownloader:
 
         self._reporter.download_starts(http_req_descr)
 
-        http_meta = self._metadata_if_file_matches(http_req_descr, local_path)
+        http_meta = self._metadata_if_valid(http_req_descr, local_path)
 
         # Download to a temporary file first.
         temp_path = local_path.with_suffix(local_path.suffix + "~")
         temp_path.parent.mkdir(exist_ok=True, parents=True)
 
         try:
-            http_meta = self._stream_to_file(http_req_descr, temp_path, http_meta)
+            http_meta = self._request_and_stream(http_req_descr, temp_path, http_meta)
         except Exception:
             # Clean up the partially downloaded file.
             temp_path.unlink(missing_ok=True)
@@ -135,17 +135,17 @@ class ConditionalDownloader:
         local_path.unlink(missing_ok=True)
         temp_path.rename(local_path)
 
-        self._save_metadata(http_req_descr, http_meta)
+        self.metadata_provider.save(http_req_descr, http_meta)
 
         self._reporter.download_finished(http_req_descr, local_path)
 
-    def _stream_to_file(
+    def _request_and_stream(
         self,
         http_req_descr: RequestDescription,
         local_path: Path,
         meta: HTTPMetadata | None,
     ) -> HTTPMetadata | None:
-        """Stream the remote URL to a local file.
+        """Download the remote URL to a local file.
 
         :return: the metadata of the downloaded data, or None if the passed-in
             metadata matches the URL (a "304 Not Modified" was returned).
@@ -157,6 +157,7 @@ class ConditionalDownloader:
 
         req = requests.Request(http_req_descr.http_method, http_req_descr.url)
         prepped: requests.PreparedRequest = self.http_session.prepare_request(req)
+        self._add_compression_request_headers(prepped)
         self._add_conditional_request_headers(prepped, meta)
 
         with self.http_session.send(prepped, stream=True) as stream:
@@ -174,45 +175,103 @@ class ConditionalDownloader:
                 # The remote file matches what we have locally. Don't bother streaming.
                 return None
 
-            # Avoid reporting any progress when the download was cancelled.
-            if not self.periodic_check():
-                raise DownloadCancelled(http_req_descr)
+            return self._stream_to_file(stream, http_req_descr, local_path)
 
-            # Determine how many bytes are expected.
-            content_length_str: str = stream.headers.get("Content-Length") or ""
-            try:
-                content_length = int(content_length_str, base=10)
-            except ValueError:
-                raise ContentLengthUnknownError(http_req_descr) from None
-            self._reporter.download_progress(http_req_descr, content_length, 0)
+    def _stream_to_file(
+        self,
+        stream: requests.Response,
+        http_req_descr: RequestDescription,
+        local_path: Path,
+    ) -> HTTPMetadata | None:
+        """Stream the data obtained via the HTTP stream to a local file.
 
-            # Stream the response to a file.
-            num_downloaded_bytes = 0
-            with local_path.open("wb") as file:
-                for chunk in stream.iter_content(chunk_size=self.chunk_size):
+        :return: the metadata of the downloaded data, or None if the passed-in
+            metadata matches the URL (a "304 Not Modified" was returned).
+        """
 
-                    if not self.periodic_check():
-                        raise DownloadCancelled(http_req_descr)
+        # Determine how many bytes are expected.
+        content_length_str: str = stream.headers.get("Content-Length") or ""
+        try:
+            content_length = int(content_length_str, base=10)
+        except ValueError:
+            # TODO: add support for this case.
+            raise ContentLengthUnknownError(http_req_descr) from None
 
-                    file.write(chunk)
-                    num_downloaded_bytes += len(chunk)
+        # The Content-Length header, obtained above, indicates the number of
+        # bytes that we will be downloading. The Requests library automatically
+        # decompresses this, and so if the normal (not `stream.raw`) streaming
+        # approach would be used, we would count the wrong number of bytes.
+        #
+        # In order to get to the actual downloaded byte count, we need to bypass
+        # Requests' automatic decompression, use the raw byte stream, and
+        # decompress ourselves.
+        content_encoding: str = stream.headers.get("Content-Encoding") or ""
+        match content_encoding:
+            case "gzip":
+                wbits = 16 + zlib.MAX_WBITS
+                decoder = zlib.decompressobj(wbits=wbits)
+            case "":
+                decoder = None
+            case _:
+                raise HTTPRequestUnknownContentEncoding(http_req_descr, content_encoding)
 
-                    self._reporter.download_progress(
-                        http_req_descr, content_length, num_downloaded_bytes
-                    )
+        # Avoid reporting any progress when the download was cancelled.
+        if not self.periodic_check():
+            raise DownloadCancelled(http_req_descr)
 
-                    if num_downloaded_bytes > content_length:
-                        raise ResponseTooLargeError(http_req_descr)
+        self._reporter.download_progress(http_req_descr, content_length, 0)
 
-            # File was downloaded succesfully, store the metadata.
-            meta = HTTPMetadata(
-                request=http_req_descr,
-                etag=stream.headers.get("ETag") or "",
-                last_modified=stream.headers.get("Last-Modified") or "",
-                content_length=num_downloaded_bytes,
-            )
+        # Stream the response to a file.
+        num_downloaded_bytes = 0
+        with local_path.open("wb") as file:
+            def write_and_report(chunk: bytes) -> None:
+                """Write a chunk to file, and report on the download progress."""
+                file.write(chunk)
+
+                self._reporter.download_progress(
+                    http_req_descr, content_length, num_downloaded_bytes
+                )
+
+                if num_downloaded_bytes > content_length:
+                    raise ContentLengthError(http_req_descr, content_length, num_downloaded_bytes)
+
+            # Download and process chunks until there are no more left.
+            while chunk := stream.raw.read(self.chunk_size):
+                if not self.periodic_check():
+                    raise DownloadCancelled(http_req_descr)
+
+                num_downloaded_bytes += len(chunk)
+                if decoder:
+                    chunk = decoder.decompress(chunk)
+                write_and_report(chunk)
+
+            if decoder:
+                write_and_report(decoder.flush())
+                assert decoder.eof
+
+        if num_downloaded_bytes != content_length:
+            raise ContentLengthError(http_req_descr, content_length, num_downloaded_bytes)
+
+        # File was downloaded succesfully, store the metadata.
+        meta = HTTPMetadata(
+            request=http_req_descr,
+            etag=stream.headers.get("ETag") or "",
+            last_modified=stream.headers.get("Last-Modified") or "",
+            content_length=num_downloaded_bytes,
+        )
 
         return meta
+
+    def _add_compression_request_headers(self, prepped: requests.PreparedRequest) -> None:
+        # GZip is part of Python's stdlib.
+        #
+        # Deflate is hardly ever used.
+        #
+        # Zstd is bundled with Blender (and also will be in Python's stdlib in
+        # 3.14+), but AFAICS doesn't have a way to decompress a stream so we'd
+        # have to keep the entire file in memory. So, for now, limit to GZip
+        # support.
+        prepped.headers["Accept-Encoding"] = "gzip"
 
     def _add_conditional_request_headers(self, prepped: requests.PreparedRequest, meta: HTTPMetadata | None) -> None:
         if not meta:
@@ -223,69 +282,23 @@ class ConditionalDownloader:
         if meta.etag:
             prepped.headers["If-None-Match"] = meta.etag
 
-    def _cache_key(self, http_req_descr: RequestDescription) -> str:
-        method = http_req_descr.http_method
-        url = http_req_descr.url
-        return hashlib.sha256("{!s}:{!s}".format(method, url).encode()).hexdigest()
-
-    def _metadata_path(self, http_req_descr: RequestDescription) -> Path:
-        # TODO: maybe use part of the cache key to bucket into subdirectories?
-        return self.metadata_cache_location / self._cache_key(http_req_descr)
-
-    def _load_metadata(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
-        meta_path = self._metadata_path(http_req_descr)
-        if not meta_path.exists():
-            return None
-        meta_json = meta_path.read_bytes()
-
-        try:
-            return HTTPMetadata.model_validate_json(meta_json)
-        except pydantic.ValidationError:
-            # File was an old format, got corrupted, or is otherwise unusable.
-            # Just act as if it never existed in the first place.
-            meta_path.unlink()
-            return None
-
-    def _metadata_if_file_matches(
+    def _metadata_if_valid(
         self, http_req_descr: RequestDescription, local_path: Path
     ) -> HTTPMetadata | None:
-        if not local_path.exists():
-            return None
-
-        meta = self._load_metadata(http_req_descr)
-        if not meta:
+        meta = self.metadata_provider.load(http_req_descr)
+        if meta is None:
             return None
 
         if meta.request != http_req_descr:
             # Somehow the metadata was loaded, but didn't match this request. Weird.
+            self.metadata_provider.forget(http_req_descr)
             return None
 
-        local_file_size = local_path.stat().st_size
-        if local_file_size == 0:
-            # This is an optimization for downloading bigger files. There is no
-            # need to do a conditional download of a zero-bytes file. It is more
-            # likely that something went wrong and a file got truncated.
-            #
-            # And even if the file is of the correct size, non-conditinally
-            # doing the same request for the empty file will require less data
-            # than including the headers necessary for a conditional download.
-            return None
-
-        if local_file_size != meta.content_length:
+        if not self.metadata_provider.is_valid(meta, http_req_descr, local_path):
+            self.metadata_provider.forget(http_req_descr)
             return None
 
         return meta
-
-    def _save_metadata(
-        self, http_req_descr: RequestDescription, meta: HTTPMetadata
-    ) -> None:
-        meta.request = http_req_descr
-
-        meta_json = meta.model_dump_json()
-        meta_path = self._metadata_path(http_req_descr)
-
-        meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        meta_path.write_bytes(meta_json.encode())
 
     def add_reporter(self, reporter: DownloadReporter) -> None:
         """Add a reporter to receive download progress information.
@@ -318,7 +331,7 @@ _mp_context = multiprocessing.get_context(method='spawn')
 
 @dataclasses.dataclass
 class DownloaderOptions:
-    metadata_cache_location: Path
+    metadata_provider: MetadataProvider
     http_headers: dict[str, str] = dataclasses.field(default_factory=dict)
 
 
@@ -352,6 +365,9 @@ class BackgroundDownloader:
     DownloadDoneCallback: TypeAlias = Callable[['RequestDescription', Path], None]
     _on_downloaded_callbacks: dict[RequestDescription, DownloadDoneCallback]
 
+    OnCallbackErrorCallback: TypeAlias = Callable[['RequestDescription', Path, Exception], None]
+    _on_callback_error: OnCallbackErrorCallback
+
     _reporters: list[DownloadReporter]
     _options: DownloaderOptions
     _downloader_process: multiprocessing.process.BaseProcess | None
@@ -359,11 +375,23 @@ class BackgroundDownloader:
     _shutdown_event: EventClass
     _shutdown_complete_event: EventClass
 
-    def __init__(self, options: DownloaderOptions) -> None:
+    def __init__(self,
+                 options: DownloaderOptions,
+                 on_callback_error: OnCallbackErrorCallback,
+                 ) -> None:
+        """Create a BackgroundDownloader
+
+        :param options: Options to pass to the underlying ConditionalDownloader
+            that will run in the background process.
+        :param on_callback_error: Callback function that is called whenever the
+            "on_download_done" callback of a queued download raises an exception.
+        """
+
         self.num_downloads_ok = 0
         self.num_downloads_error = 0
         self._num_pending_downloads = 0
         self._on_downloaded_callbacks = {}
+        self._on_callback_error = on_callback_error
 
         self._queueing_reporter = QueueingReporter()
         self._options = options
@@ -594,12 +622,19 @@ class BackgroundDownloader:
         self._logger.debug("download done, calling %s", callback.__name__)
         try:
             callback(http_req_descr, local_file)
-        except Exception:
+        except Exception as ex:
             # Catch & log exceptions here, so that a callback causing trouble
             # doesn't break the downloader itself.
-            self._logger.exception(
+            self._logger.debug(
                 "exception while calling {!r}({!r}, {!r})".format(
                     callback, http_req_descr, local_file))
+
+            try:
+                self._on_callback_error(http_req_descr, local_file, ex)
+            except Exception:
+                self._logger.exception(
+                    "exception while handling an error in {!r}({!r}, {!r})".format(
+                        callback, http_req_descr, local_file))
 
 
 class PipeMsgType(enum.Enum):
@@ -628,7 +663,6 @@ def _download_queued_items(
 
     Managed by the BackgroundDownloader class above.
     """
-    # Uncomment this to get debug/info level logging:
     # logging.basicConfig(
     #     format="%(asctime)-15s %(processName)22s %(levelname)8s %(name)s %(message)s",
     #     level=logging.DEBUG,
@@ -669,6 +703,8 @@ def _download_queued_items(
                     can_keep_running = False
                 case PipeMsgType.QUEUE_DOWNLOAD:
                     download_queue.append(received_msg.payload)
+                case PipeMsgType.REPORT:
+                    pass
 
         if shutdown_event.is_set():
             return False
@@ -679,7 +715,7 @@ def _download_queued_items(
     # not all its properties can be pickled, and as a result, it cannot be
     # used to send across process boundaries via the multiprocessing module.
     downloader = ConditionalDownloader(
-        metadata_cache_location=options.metadata_cache_location,
+        metadata_provider=options.metadata_provider,
     )
     downloader.http_session.headers.update(options.http_headers)
     downloader.add_reporter(reporter)
@@ -888,6 +924,96 @@ class QueueingReporter(DownloadReporter):
         self._queue.append((function_name, function_args))
 
 
+class MetadataProvider(Protocol):
+    """Protocol for the metadata necessary for conditional downloading.
+
+    Tracks the ETag an Last-Modified header contents for downloaded files.
+    """
+
+    def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
+        pass
+
+    def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
+        """Return the metadata for the given request.
+
+        Return None if there is no metadata known for this request. This does
+        not check any already-downloaded file on disk and just returns the
+        metadata as-is.
+        """
+        pass
+
+    def is_valid(self, meta: HTTPMetadata, http_req_descr: RequestDescription, local_path: Path) -> bool:
+        """Determine whether this metadata is still valid, given the other parameters."""
+        return False
+
+    def forget(self, http_req_descr: RequestDescription) -> None:
+        pass
+
+
+class MetadataProviderFilesystem(MetadataProvider):
+    cache_location: Path
+
+    def __init__(self, cache_location: Path) -> None:
+        self.cache_location = cache_location
+
+    def _cache_key(self, http_req_descr: RequestDescription) -> str:
+        method = http_req_descr.http_method
+        url = http_req_descr.url
+        return hashlib.sha256("{!s}:{!s}".format(method, url).encode()).hexdigest()
+
+    def _metadata_path(self, http_req_descr: RequestDescription) -> Path:
+        # TODO: maybe use part of the cache key to bucket into subdirectories?
+        return self.cache_location / self._cache_key(http_req_descr)
+
+    def load(self, http_req_descr: RequestDescription) -> HTTPMetadata | None:
+        meta_path = self._metadata_path(http_req_descr)
+        if not meta_path.exists():
+            return None
+        meta_json = meta_path.read_bytes()
+
+        try:
+            return HTTPMetadata.model_validate_json(meta_json)
+        except pydantic.ValidationError:
+            # File was an old format, got corrupted, or is otherwise unusable.
+            # Just act as if it never existed in the first place.
+            meta_path.unlink()
+            return None
+
+    def is_valid(self, meta: HTTPMetadata, http_req_descr: RequestDescription, local_path: Path) -> bool:
+        """Determine whether this metadata is still valid, given the other parameters."""
+        if not local_path.exists():
+            return False
+
+        local_file_size = local_path.stat().st_size
+        if local_file_size == 0:
+            # This is an optimization for downloading bigger files. There is no
+            # need to do a conditional download of a zero-bytes file. It is more
+            # likely that something went wrong and a file got truncated.
+            #
+            # And even if the file is of the correct size, non-conditinally
+            # doing the same request for the empty file will require less data
+            # than including the headers necessary for a conditional download.
+            return False
+
+        if local_file_size != meta.content_length:
+            return False
+
+        return True
+
+    def forget(self, http_req_descr: RequestDescription) -> None:
+        meta_path = self._metadata_path(http_req_descr)
+        meta_path.unlink(missing_ok=True)
+
+    def save(self, http_req_descr: RequestDescription, meta: HTTPMetadata) -> None:
+        meta.request = http_req_descr
+
+        meta_json = meta.model_dump_json()
+        meta_path = self._metadata_path(http_req_descr)
+
+        meta_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        meta_path.write_bytes(meta_json.encode())
+
+
 class HTTPMetadata(pydantic.BaseModel):
     """HTTP headers, stored so they can be used for conditional requests later."""
 
@@ -921,10 +1047,10 @@ class HTTPRequestDownloadError(RuntimeError):
 
     http_req_desc: RequestDescription
 
-    def __init__(self, http_req_desc: RequestDescription) -> None:
+    def __init__(self, http_req_desc: RequestDescription, *args) -> None:
         # NOTE: passing http_req_desc here is necessary for these exceptions to be pickleable.
         # See https://stackoverflow.com/a/28335286/875379 for an explanation.
-        super().__init__(http_req_desc)
+        super().__init__(http_req_desc, *args)
         self.http_req_desc = http_req_desc
 
     def __repr__(self) -> str:
@@ -945,12 +1071,31 @@ class ContentLengthUnknownError(HTTPRequestDownloadError):
         super().__init__(http_req_desc)
 
 
-class ResponseTooLargeError(HTTPRequestDownloadError):
-    """Raised when a HTTP response body is larger than its Content-Length header indicates."""
+class ContentLengthError(HTTPRequestDownloadError):
+    """Raised when a HTTP response body is smaller or larger than its Content-Length header indicates."""
 
-    def __init__(self, http_req_desc: RequestDescription) -> None:
+    def __init__(self, http_req_desc: RequestDescription, expected_size: int, actual_size: int) -> None:
         # This __init__ method is necessary to be able to (un)pickle instances.
-        super().__init__(http_req_desc)
+        super().__init__(http_req_desc, expected_size, actual_size)
+        self.expected_size = expected_size
+        self.actual_size = actual_size
+
+    def __repr__(self) -> str:
+        return "{!s}(expected_size={:d}, actual_size={:d}, {!s})".format(
+            self.__class__.__name__, self.expected_size, self.actual_size, self.http_req_desc)
+
+
+class HTTPRequestUnknownContentEncoding(HTTPRequestDownloadError):
+    """Raised when a HTTP response has an unsupported Content-Encoding header.."""
+
+    def __init__(self, http_req_desc: RequestDescription, content_encoding: str) -> None:
+        # This __init__ method is necessary to be able to (un)pickle instances.
+        super().__init__(http_req_desc, content_encoding)
+        self.content_encoding = content_encoding
+
+    def __repr__(self) -> str:
+        return "{!s}(content_encoding={!s}, {!s})".format(
+            self.__class__.__name__, self.content_encoding, self.http_req_desc)
 
 
 class DownloadCancelled(HTTPRequestDownloadError):
