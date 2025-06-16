@@ -142,6 +142,9 @@ template<typename T> T SocketValueVariant::extract()
     return T(this->extract<fn::GField>());
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
+    if (kind_ != Kind::List) {
+      return {};
+    }
     return std::move(value_.get<nodes::ListPtr>());
   }
 #ifdef WITH_OPENVDB
