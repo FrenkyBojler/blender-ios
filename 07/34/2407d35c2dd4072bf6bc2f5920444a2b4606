@@ -1,4 +1,4 @@
 Referenced by issue #139758, Need to be able to export a USD Point Instancer
 Referenced by issue #140408, "Exact" Boolean union deletes part of geometry
 Referenced by issue #140407, Blender 4.50 Beta crash while opening "2D Animation". Worked fine with the same Setup in Blender 4.0
-Referenced by issue #140465, bmesh.ops.delete() - not longer works
+Referenced by issue #140465, bmesh.ops.delete() - no longer works
