@@ -1675,7 +1675,7 @@ static bool check_valid_compositing_camera(Scene *scene,
                                            Object *camera_override,
                                            ReportList *reports)
 {
-  if (scene->r.scemode & R_DOCOMP) {
+  if (scene->r.scemode & R_DOCOMP && scene->compositing_node_group) {
     for (bNode *node : scene->compositing_node_group->all_nodes()) {
       if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
@@ -1856,13 +1856,8 @@ bool RE_is_rendering_allowed(Scene *scene,
       return false;
     }
   }
-  else if (scemode & R_DOCOMP) {
+  else if (scemode & R_DOCOMP && scene->compositing_node_group) {
     /* Compositor */
-    if (!scene->compositing_node_group) {
-      BKE_report(reports, RPT_ERROR, "No node tree in scene");
-      return false;
-    }
-
     if (!check_compositor_output(scene)) {
       BKE_report(reports, RPT_ERROR, "No render output node in scene");
       return false;
