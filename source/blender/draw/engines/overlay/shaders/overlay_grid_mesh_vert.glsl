@@ -12,19 +12,18 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_mesh)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_utildefines_lib.glsl"
 
 float approximate_grid_cell_screen_size(float dist_to_cam, float view_angle)
 {
-  vec3 vs_P = vec3(0.0, unit_scale, -dist_to_cam);
-  vec3 ss_P = drw_point_view_to_screen(vs_P);
-  return (ss_P.y - 0.5) * sizeViewport.y * sqrt(abs(view_angle));
+  float3 vs_P = float3(0.0, unit_scale, -dist_to_cam);
+  float3 ss_P = drw_point_view_to_screen(vs_P);
+  return (ss_P.y - 0.5) * uniform_buf.size_viewport.y * sqrt(abs(view_angle));
 }
 
-vec4 get_homogenous_space_grid_point(
+float4 get_homogenous_space_grid_point(
     int x, int y, out float dist_to_cam, out float z_to_cam, out float view_angle)
 {
-  vec3 ls_P = vec3(x, y, 0.0) * unit_scale;
+  float3 ls_P = float3(x, y, 0.0) * unit_scale;
 
   if (axis == 3) {
     ls_P = ls_P.zzx;
@@ -32,7 +31,7 @@ vec4 get_homogenous_space_grid_point(
 
   float snap_to = next_divider * unit_scale;
   /* Round to grid increment. */
-  vec3 camera_P = drw_view_position();
+  float3 camera_P = drw_view_position();
   if (axis > 0) {
     /* TODO(fclem): Slide on the axis only. */
     ls_P.xy -= camera_P.xy;
@@ -45,7 +44,7 @@ vec4 get_homogenous_space_grid_point(
   dist_to_cam = length(ls_P);
 
   /* ls_P is already centered around the camera. */
-  vec3 V = drw_view_is_perspective() ? ls_P * safe_rcp(dist_to_cam) : drw_view_forward();
+  float3 V = drw_view_is_perspective() ? ls_P * safe_rcp(dist_to_cam) : drw_view_forward();
   view_angle = V.z;
   if (axis == 3) {
     /* Don't fade. */
@@ -53,7 +52,7 @@ vec4 get_homogenous_space_grid_point(
   }
 
   /* Do not use matrix translation as it degrades precision. */
-  vec3 vs_P = drw_normal_world_to_view(ls_P);
+  float3 vs_P = drw_normal_world_to_view(ls_P);
 
   z_to_cam = abs(vs_P.z);
 
@@ -66,28 +65,28 @@ void main()
   int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
 
   float dist_to_cam, z_to_cam, view_angle;
-  vec4 hs_P = get_homogenous_space_grid_point(x, y, dist_to_cam, z_to_cam, view_angle);
+  float4 hs_P = get_homogenous_space_grid_point(x, y, dist_to_cam, z_to_cam, view_angle);
 
   /* Convert to screen position [0..sizeVp]. */
-  vec2 ss_P = drw_ndc_to_screen(drw_perspective_divide(hs_P)).xy * sizeViewport;
+  float2 ss_P = drw_ndc_to_screen(drw_perspective_divide(hs_P)).xy * uniform_buf.size_viewport;
 
   if (axis == 1) {
-    finalColor = colorGridAxisX;
+    finalColor = uniform_buf.colors.grid_axis_x;
   }
   else if (axis == 2) {
-    finalColor = colorGridAxisY;
+    finalColor = uniform_buf.colors.grid_axis_y;
   }
   else if (axis == 3) {
-    finalColor = colorGridAxisZ;
+    finalColor = uniform_buf.colors.grid_axis_z;
   }
   else {
     /* Area of the projected tile in pixels. */
     float size = approximate_grid_cell_screen_size(dist_to_cam, view_angle) /
-                 globalsBlock.size_pixel;
+                 uniform_buf.sizes.pixel;
     float mix_fade = smoothstep(2.0, 25.0, size);
     /* TODO(fclem): Adjust with relative density with level N-2. */
     float mix_highlight = smoothstep(20.0, 300.0, size);
-    finalColor = mix(colorGrid, colorGridEmphasis, mix_highlight);
+    finalColor = mix(uniform_buf.colors.grid, uniform_buf.colors.grid_emphasis, mix_highlight);
     finalColor.a *= mix_fade;
   }
 
