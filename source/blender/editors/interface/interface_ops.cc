@@ -2756,7 +2756,7 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus ui_view_item_activate_exec(bContext *C, wmOperator * /*op*/)
 {
   const wmWindow &win = *CTX_wm_window(C);
   const ARegion &region = *CTX_wm_region(C);
@@ -2768,13 +2768,13 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator * /*op*
   return OPERATOR_CANCELLED;
 }
 
-static void UI_OT_view_item_select(wmOperatorType *ot)
+static void UI_OT_view_item_activate(wmOperatorType *ot)
 {
   ot->name = "Select View Item";
-  ot->idname = "UI_OT_view_item_select";
+  ot->idname = "UI_OT_view_item_activate";
   ot->description = "Activate selected view item";
 
-  ot->exec = ui_view_item_select_exec;
+  ot->exec = ui_view_item_activate_exec;
   ot->poll = ui_view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;
@@ -2882,7 +2882,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_drop);
   WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
-  WM_operatortype_append(UI_OT_view_item_select);
+  WM_operatortype_append(UI_OT_view_item_activate);
 
   WM_operatortype_append(UI_OT_override_type_set_button);
   WM_operatortype_append(UI_OT_override_remove_button);
