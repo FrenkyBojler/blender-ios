@@ -791,6 +791,24 @@ Vector<const bNode *> gather_linked_closure_origin_nodes(
   return closure_origin_nodes;
 }
 
+Vector<const bNode *> gather_linked_evaluate_closure_nodes(
+    const ComputeContext *closure_socket_context,
+    const bNodeSocket &closure_socket,
+    bke::ComputeContextCache &compute_context_cache)
+{
+  const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
+      {closure_socket_context, &closure_socket},
+      compute_context_cache,
+      "GeometryNodeEvaluateClosure",
+      true);
+  Vector<const bNode *> evaluate_closure_nodes;
+  for (const nodes::SocketInContext &target_socket : target_sockets) {
+    const nodes::NodeInContext &target_node = target_socket.owner_node();
+    evaluate_closure_nodes.append(target_node.node);
+  }
+  return evaluate_closure_nodes;
+}
+
 Vector<const bNode *> gather_linked_combine_bundle_nodes(
     const ComputeContext *bundle_socket_context,
     const bNodeSocket &bundle_socket,

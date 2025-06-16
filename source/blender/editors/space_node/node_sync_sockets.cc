@@ -156,22 +156,14 @@ void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &cl
      * removed. */
     return;
   }
-  const ComputeContext *evaluate_context_generic =
-      ed::space_node::compute_context_for_closure_evaluation(
-          current_context, closure_socket, compute_context_cache, std::nullopt);
-  if (!evaluate_context_generic) {
-    /* No evaluation of the closure found. */
+  const Vector<const bNode *> evaluate_closure_nodes =
+      ed::space_node::gather_linked_evaluate_closure_nodes(
+          current_context, closure_socket, compute_context_cache);
+  if (evaluate_closure_nodes.is_empty()) {
     return;
   }
-  const auto *evaluate_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
-      evaluate_context_generic);
-  if (!evaluate_context) {
-    return;
-  }
-  const bNode *evaluate_node = evaluate_context->node();
-  if (!evaluate_node) {
-    return;
-  }
+  const bNode *evaluate_node = evaluate_closure_nodes[0];
+
   nodes::socket_items::clear<nodes::ClosureInputItemsAccessor>(closure_output_node);
   nodes::socket_items::clear<nodes::ClosureOutputItemsAccessor>(closure_output_node);
 

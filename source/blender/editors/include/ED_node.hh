@@ -138,6 +138,11 @@ Vector<const bNode *> gather_linked_closure_origin_nodes(
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache);
 
+Vector<const bNode *> gather_linked_evaluate_closure_nodes(
+    const ComputeContext *closure_socket_context,
+    const bNodeSocket &closure_socket,
+    bke::ComputeContextCache &compute_context_cache);
+
 Vector<const bNode *> gather_linked_separate_bundle_nodes(
     const ComputeContext *bundle_socket_context,
     const bNodeSocket &bundle_socket,
