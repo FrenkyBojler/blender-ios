@@ -4,8 +4,6 @@
 
 #include "node_geometry_util.hh"
 
-#include "BKE_compute_context_cache.hh"
-
 #include "NOD_geo_bundle.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
@@ -76,10 +74,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
   if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
-    uiLayout &row = panel->row(true);
-    row.op("node.sockets_sync", "Sync", ICON_NONE);
-    row.op("node.sockets_sync", "", ICON_ADD);
-    row.op("node.sockets_sync", "", ICON_REMOVE);
+    panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
 
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);

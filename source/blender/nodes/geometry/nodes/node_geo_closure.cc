@@ -12,8 +12,6 @@
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "BKE_compute_context_cache.hh"
-
 #include "BLO_read_write.hh"
 
 namespace blender::nodes::node_geo_closure_cc {
@@ -40,13 +38,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayout &row = layout->row(true);
-  row.op("node.sockets_sync", "Sync", ICON_NONE);
-  row.op("node.sockets_sync", "", ICON_ADD);
-  row.op("node.sockets_sync", "", ICON_REMOVE);
-
   if (current_node->type_legacy == GEO_NODE_CLOSURE_INPUT) {
     if (uiLayout *panel = layout->panel(C, "input_items", false, TIP_("Input Items"))) {
+      panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
@@ -58,6 +52,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   }
   else {
     if (uiLayout *panel = layout->panel(C, "output_items", false, TIP_("Output Items"))) {
+      panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
