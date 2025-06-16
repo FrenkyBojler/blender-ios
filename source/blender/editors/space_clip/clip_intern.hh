@@ -76,9 +76,9 @@ struct ClipShaderState {
   blender::float4 color = blender::float4(NAN_FLT);
 };
 
-void clip_ensure_shader(std::optional<ClipShaderState> &active_state,
+void clip_ensure_shader(std::optional<eGPUBuiltinShader> &active_shader,
                         const ClipShaderState &requested_state);
-void clip_unbind_shader(std::optional<ClipShaderState> &active_state);
+void clip_unbind_shader(std::optional<eGPUBuiltinShader> &active_shader);
 
 /* draw grease pencil */
 

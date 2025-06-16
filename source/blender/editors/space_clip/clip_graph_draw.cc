@@ -34,8 +34,8 @@ struct TrackMotionCurveUserData {
   bool sel;
   float xscale, yscale, hsize;
   uint pos;
-  /** Current state of the bound shader. */
-  std::optional<ClipShaderState> active_shader;
+  /** Current bound shader. */
+  std::optional<eGPUBuiltinShader> active_shader;
 };
 
 static void tracking_segment_point_cb(void *userdata,
