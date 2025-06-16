@@ -300,6 +300,31 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
   }
 
+  if (!USER_VERSION_ATLEAST(500, 12)) {
+    copy_v3_v3_uchar(btheme->space_node.syntaxs, U_theme_default.space_node.syntaxs);
+    copy_v3_v3_uchar(btheme->space_node.syntaxb, U_theme_default.space_node.syntaxb);
+    copy_v3_v3_uchar(btheme->space_node.syntaxn, U_theme_default.space_node.syntaxn);
+    copy_v3_v3_uchar(btheme->space_node.syntaxv, U_theme_default.space_node.syntaxv);
+    copy_v3_v3_uchar(btheme->space_node.syntaxc, U_theme_default.space_node.syntaxc);
+    copy_v3_v3_uchar(btheme->space_node.syntaxd, U_theme_default.space_node.syntaxd);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_attribute,
+                     U_theme_default.space_node.nodeclass_attribute);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_filter,
+                     U_theme_default.space_node.nodeclass_filter);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_geometry,
+                     U_theme_default.space_node.nodeclass_geometry);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_output,
+                     U_theme_default.space_node.nodeclass_output);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_script,
+                     U_theme_default.space_node.nodeclass_script);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_shader,
+                     U_theme_default.space_node.nodeclass_shader);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_texture,
+                     U_theme_default.space_node.nodeclass_texture);
+    copy_v3_v3_uchar(btheme->space_node.nodeclass_vector,
+                     U_theme_default.space_node.nodeclass_vector);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
