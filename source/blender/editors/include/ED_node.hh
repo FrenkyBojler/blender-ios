@@ -167,6 +167,10 @@ Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
     const ComputeContext *closure_socket_context,
     const bNodeSocket &closure_socket,
     bke::ComputeContextCache &compute_context_cache);
+Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
+    const ComputeContext *closure_socket_context,
+    const bNodeSocket &closure_socket,
+    bke::ComputeContextCache &compute_context_cache);
 
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
@@ -181,7 +185,9 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
                                        const bContext &C,
                                        StringRef catalog_path);
 
-void sync_sockets_evaluate_closure(SpaceNode &snode, bNode &evaluate_closure_node);
+void sync_sockets_evaluate_closure(SpaceNode &snode,
+                                   bNode &evaluate_closure_node,
+                                   ReportList *reports);
 void sync_sockets_separate_bundle(SpaceNode &snode,
                                   bNode &separate_bundle_node,
                                   ReportList *reports);

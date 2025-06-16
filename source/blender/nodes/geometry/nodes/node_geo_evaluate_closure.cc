@@ -138,7 +138,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.connect_available_socket(node, "Closure");
 
     SpaceNode &snode = *CTX_wm_space_node(&params.C);
-    ed::space_node::sync_sockets_evaluate_closure(snode, node);
+    ed::space_node::sync_sockets_evaluate_closure(snode, node, nullptr);
   });
 }
 
