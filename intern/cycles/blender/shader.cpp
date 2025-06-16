@@ -277,7 +277,6 @@ static bool is_image_animated(BL::Image::source_enum b_image_source, BL::ImageUs
 static ShaderNode *add_node(Scene *scene,
                             BL::RenderEngine &b_engine,
                             BL::BlendData &b_data,
-                            BL::Depsgraph &b_depsgraph,
                             BL::Scene &b_scene,
                             ShaderGraph *graph,
                             BL::ShaderNodeTree &b_ntree,
@@ -1044,9 +1043,6 @@ static ShaderNode *add_node(Scene *scene,
     BL::ShaderNodeTexSky b_sky_node(b_node);
     SkyTextureNode *sky = graph->create_node<SkyTextureNode>();
     sky->set_sky_type((NodeSkyType)b_sky_node.sky_type());
-    sky->set_sun_direction(normalize(get_float3(b_sky_node.sun_direction())));
-    sky->set_turbidity(b_sky_node.turbidity());
-    sky->set_ground_albedo(b_sky_node.ground_albedo());
     sky->set_sun_disc(b_sky_node.sun_disc());
     sky->set_sun_size(b_sky_node.sun_size());
     sky->set_sun_intensity(b_sky_node.sun_intensity());
@@ -1253,7 +1249,6 @@ static ShaderOutput *node_find_output_by_name(BL::Node b_node,
 static void add_nodes(Scene *scene,
                       BL::RenderEngine &b_engine,
                       BL::BlendData &b_data,
-                      BL::Depsgraph &b_depsgraph,
                       BL::Scene &b_scene,
                       ShaderGraph *graph,
                       BL::ShaderNodeTree &b_ntree,
@@ -1342,7 +1337,6 @@ static void add_nodes(Scene *scene,
         add_nodes(scene,
                   b_engine,
                   b_data,
-                  b_depsgraph,
                   b_scene,
                   graph,
                   b_group_ntree,
@@ -1386,8 +1380,7 @@ static void add_nodes(Scene *scene,
       }
       else {
         BL::ShaderNode b_shader_node(b_node);
-        node = add_node(
-            scene, b_engine, b_data, b_depsgraph, b_scene, graph, b_ntree, b_shader_node);
+        node = add_node(scene, b_engine, b_data, b_scene, graph, b_ntree, b_shader_node);
       }
 
       if (node) {
@@ -1459,21 +1452,12 @@ static void add_nodes(Scene *scene,
 static void add_nodes(Scene *scene,
                       BL::RenderEngine &b_engine,
                       BL::BlendData &b_data,
-                      BL::Depsgraph &b_depsgraph,
                       BL::Scene &b_scene,
                       ShaderGraph *graph,
                       BL::ShaderNodeTree &b_ntree)
 {
   static const ProxyMap empty_proxy_map;
-  add_nodes(scene,
-            b_engine,
-            b_data,
-            b_depsgraph,
-            b_scene,
-            graph,
-            b_ntree,
-            empty_proxy_map,
-            empty_proxy_map);
+  add_nodes(scene, b_engine, b_data, b_scene, graph, b_ntree, empty_proxy_map, empty_proxy_map);
 }
 
 /* Look up and constant fold all references to View Layer attributes. */
@@ -1589,7 +1573,7 @@ void BlenderSync::sync_materials(BL::Depsgraph &b_depsgraph, bool update_all)
       if (b_mat.use_nodes() && b_mat.node_tree()) {
         BL::ShaderNodeTree b_ntree(b_mat.node_tree());
 
-        add_nodes(scene, b_engine, b_data, b_depsgraph, b_scene, graph.get(), b_ntree);
+        add_nodes(scene, b_engine, b_data, b_scene, graph.get(), b_ntree);
       }
       else {
         DiffuseBsdfNode *diffuse = graph->create_node<DiffuseBsdfNode>();
@@ -1672,7 +1656,7 @@ void BlenderSync::sync_world(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d,
     {
       BL::ShaderNodeTree b_ntree(b_world.node_tree());
 
-      add_nodes(scene, b_engine, b_data, b_depsgraph, b_scene, graph.get(), b_ntree);
+      add_nodes(scene, b_engine, b_data, b_scene, graph.get(), b_ntree);
 
       /* volume */
       PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
@@ -1832,7 +1816,7 @@ void BlenderSync::sync_lights(BL::Depsgraph &b_depsgraph, bool update_all)
 
         BL::ShaderNodeTree b_ntree(b_light.node_tree());
 
-        add_nodes(scene, b_engine, b_data, b_depsgraph, b_scene, graph.get(), b_ntree);
+        add_nodes(scene, b_engine, b_data, b_scene, graph.get(), b_ntree);
       }
       else {
         EmissionNode *emission = graph->create_node<EmissionNode>();
