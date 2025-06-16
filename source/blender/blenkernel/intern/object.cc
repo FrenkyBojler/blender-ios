@@ -23,6 +23,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_defaults.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_effect_types.h"
@@ -427,6 +428,12 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
           data, IDP_foreach_property(pchan->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
             BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
           }));
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data,
+          IDP_foreach_property(
+              pchan->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+                BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+              }));
 
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -938,6 +945,19 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
       BLO_reportf_wrap(reports, RPT_INFO, RPT_("Object %s lost data"), ob->id.name + 2);
     }
     reports->count.missing_obdata++;
+  }
+
+  if (ob->data && ELEM(ob->type, OB_FONT, OB_CURVES_LEGACY, OB_SURF)) {
+    /* NOTE: This case may happen when linked curve data changes it's type,
+     * since a #Curve may be used for Text/Surface/Curve.
+     * Since the same ID type is used for all of these.
+     * Within a file (no library linking) this should never happen.
+     * see: #139133. */
+
+    BLI_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
+    /* Don't recalculate any internal curve data is this is low level logic
+     * intended to avoid errors when switching between font/curve types. */
+    BKE_curve_type_test(ob, false);
   }
 
   /* When the object is local and the data is library its possible
@@ -1778,7 +1798,7 @@ char *BKE_object_data_editmode_flush_ptr_get(ID *id)
       break;
     }
     case ID_CU_LEGACY: {
-      if (((Curve *)id)->vfont != nullptr) {
+      if (((Curve *)id)->ob_type == OB_FONT) {
         EditFont *ef = ((Curve *)id)->editfont;
         if (ef != nullptr) {
           return &ef->needs_flush_to_id;
@@ -2038,7 +2058,7 @@ int BKE_object_obdata_to_type(const ID *id)
     case ID_ME:
       return OB_MESH;
     case ID_CU_LEGACY:
-      return BKE_curve_type_get((const Curve *)id);
+      return reinterpret_cast<const Curve *>(id)->ob_type;
     case ID_MB:
       return OB_MBALL;
     case ID_LA:
@@ -2497,7 +2517,7 @@ void BKE_object_transform_copy(Object *ob_tar, const Object *ob_src)
 Object *BKE_object_duplicate(Main *bmain,
                              Object *ob,
                              eDupli_ID_Flags dupflag,
-                             uint duplicate_options)
+                             /*eLibIDDuplicateFlags*/ uint duplicate_options)
 {
   const bool is_subprocess = (duplicate_options & LIB_ID_DUPLICATE_IS_SUBPROCESS) != 0;
   const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;

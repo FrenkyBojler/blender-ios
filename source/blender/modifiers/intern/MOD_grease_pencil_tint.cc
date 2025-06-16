@@ -426,7 +426,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout->prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *row = &layout->row(true);
-  uiLayoutSetActive(row, !use_weight_as_factor);
+  row->active_set(!use_weight_as_factor);
   row->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
 
@@ -439,7 +439,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       uiLayout *col = &layout->column(false);
       uiLayoutSetPropSep(col, false);
       uiTemplateColorRamp(col, ptr, "color_ramp", true);
-      uiItemS(layout);
+      layout->separator();
       layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       layout->prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
@@ -454,7 +454,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

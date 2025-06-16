@@ -1371,8 +1371,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
   bTheme *btheme = UI_GetTheme();
   const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
-  const int roundboxtype = is_left ? (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) :
-                                     (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
+  /* Round all corners when region overlap is on. */
+  const int roundboxtype = region->overlap ? UI_CNR_ALL :
+                                             (is_left ? (UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT) :
+                                                        (UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT));
   bool is_alpha;
 #ifdef USE_FLAT_INACTIVE
   bool is_active_prev = false;
@@ -1445,7 +1447,7 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   GPU_line_smooth(true);
 
   uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Draw the background. */
@@ -1458,12 +1460,15 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
   }
 
   if (is_left) {
-    immRecti(
+    immRectf(
         pos, v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
   }
   else {
-    immRecti(
-        pos, v2d->mask.xmax - category_tabs_width, v2d->mask.ymin, v2d->mask.xmax, v2d->mask.ymax);
+    immRectf(pos,
+             v2d->mask.xmax - category_tabs_width,
+             v2d->mask.ymin,
+             v2d->mask.xmax + 1,
+             v2d->mask.ymax);
   }
 
   if (is_alpha) {
@@ -1493,10 +1498,10 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
     /* Draw line between inactive tabs. */
     if (is_active == false && is_active_prev == false && pc_dyn->prev) {
       pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor3fvAlpha(theme_col_tab_outline, 0.3f);
-      immRecti(pos,
+      immRectf(pos,
                is_left ? v2d->mask.xmin + (category_tabs_width / 5) :
                          v2d->mask.xmax - (category_tabs_width / 5),
                rct->ymax + px,
@@ -1526,17 +1531,19 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
       UI_draw_roundbox_4fv(&box_rect, false, tab_curve_radius, theme_col_tab_outline);
 
       /* Disguise the outline on one side to join the tab to the panel. */
-      pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      if (!region->overlap) {
+        pos = GPU_vertformat_attr_add(
+            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+        immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-      immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
-      immRecti(pos,
-               is_left ? rct->xmax - px : rct->xmin,
-               rct->ymin + px,
-               is_left ? rct->xmax : rct->xmin + px,
-               rct->ymax - px);
-      immUnbindProgram();
+        immUniformColor4fv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
+        immRectf(pos,
+                 is_left ? rct->xmax - px : rct->xmin,
+                 rct->ymin + px,
+                 is_left ? rct->xmax : rct->xmin + px,
+                 rct->ymax - px);
+        immUnbindProgram();
+      }
     }
 
     /* Tab titles. */
@@ -1552,7 +1559,20 @@ void UI_panel_category_draw_all(ARegion *region, const char *category_id_active)
                  is_left ? rct->ymin + tab_v_pad_text : rct->ymax - tab_v_pad_text,
                  0.0f);
     BLF_color3ubv(fontid, is_active ? theme_col_text_hi : theme_col_text);
+
+    if (fstyle->shadow) {
+      BLF_enable(fontid, BLF_SHADOW);
+      const float shadow_color[4] = {
+          fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowcolor, fstyle->shadowalpha};
+      BLF_shadow(fontid, FontShadowType(fstyle->shadow), shadow_color);
+      BLF_shadow_offset(fontid, fstyle->shadx, fstyle->shady);
+    }
+
     BLF_draw(fontid, category_id_draw, category_draw_len);
+
+    if (fstyle->shadow) {
+      BLF_disable(fontid, BLF_SHADOW);
+    }
 
     GPU_blend(GPU_BLEND_NONE);
 

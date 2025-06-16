@@ -294,7 +294,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Random"));
   if (uiLayout *random_layout = random_panel_layout.body) {
     uiLayout *random_col = &random_layout->column(false);
-    uiLayoutSetActive(random_col, RNA_boolean_get(ptr, "use_random"));
+    random_col->active_set(RNA_boolean_get(ptr, "use_random"));
 
     random_col->prop(ptr, "random_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const int mode = RNA_enum_get(ptr, "random_mode");
@@ -312,7 +312,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

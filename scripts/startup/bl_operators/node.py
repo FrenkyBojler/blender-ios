@@ -139,11 +139,21 @@ class NODE_OT_add_node(NodeAddOperator, Operator):
         description="Node type",
     )
 
+    visible_output: StringProperty(
+        name="Output Name",
+        description="If provided, all outputs that are named differently will be hidden",
+        options={'SKIP_SAVE'},
+    )
+
     # Default execute simply adds a node.
     def execute(self, context):
         if self.properties.is_property_set("type"):
             self.deselect_nodes(context)
-            self.create_node(context, self.type)
+            if node := self.create_node(context, self.type):
+                if self.visible_output:
+                    for socket in node.outputs:
+                        if socket.name != self.visible_output:
+                            socket.hide = True
             return {'FINISHED'}
         else:
             return {'CANCELLED'}
@@ -470,10 +480,11 @@ class NODE_OT_interface_item_remove(NodeInterfaceOperator, Operator):
 
         if item:
             if item.item_type == 'PANEL':
-                child = item.interface_items
-                if child and child[0].is_panel_toggle:
-                    panel_toggle = item.interface_items[0]
-                    interface.remove(panel_toggle)
+                children = item.interface_items
+                if len(children) > 0:
+                    first_child = children[0]
+                    if isinstance(first_child, bpy.types.NodeTreeInterfaceSocket) and first_child.is_panel_toggle:
+                        interface.remove(first_child)
             interface.remove(item)
             interface.active_index = min(interface.active_index, len(interface.items_tree) - 1)
 

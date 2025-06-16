@@ -313,8 +313,12 @@ bool UI_list_item_index_is_filtered_visible(const uiList *ui_list, const int ite
     return false;
   }
 
-  const int filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;
-  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM) ^ filter_exclude;
+  if (ui_list->filter_byname[0] == '\0') {
+    /* Show all elements when search string is empty. */
+    return true;
+  }
+
+  return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM);
 }
 
 /**
@@ -340,15 +344,6 @@ static void uilist_free_dyn_data(uiList *ui_list)
   uiListDyn *dyn_data = ui_list->dyn_data;
   if (!dyn_data) {
     return;
-  }
-
-  if (dyn_data->custom_activate_opptr) {
-    WM_operator_properties_free(dyn_data->custom_activate_opptr);
-    MEM_delete(dyn_data->custom_activate_opptr);
-  }
-  if (dyn_data->custom_drag_opptr) {
-    WM_operator_properties_free(dyn_data->custom_drag_opptr);
-    MEM_delete(dyn_data->custom_drag_opptr);
   }
 
   MEM_SAFE_FREE(dyn_data->items_filter_flags);
@@ -1296,46 +1291,6 @@ void uiTemplateList(uiLayout *layout,
                     nullptr);
 }
 
-PointerRNA *UI_list_custom_activate_operator_set(uiList *ui_list,
-                                                 const StringRefNull opname,
-                                                 bool create_properties)
-{
-  uiListDyn *dyn_data = ui_list->dyn_data;
-  dyn_data->custom_activate_optype = WM_operatortype_find(opname.c_str(), false);
-  if (!dyn_data->custom_activate_optype) {
-    return nullptr;
-  }
-
-  if (create_properties) {
-    PointerRNA *opptr = dyn_data->custom_activate_opptr;
-    WM_operator_properties_alloc(&dyn_data->custom_activate_opptr,
-                                 opptr ? (IDProperty **)&opptr->data : nullptr,
-                                 opname.c_str());
-  }
-
-  return dyn_data->custom_activate_opptr;
-}
-
-PointerRNA *UI_list_custom_drag_operator_set(uiList *ui_list,
-                                             const StringRefNull opname,
-                                             bool create_properties)
-{
-  uiListDyn *dyn_data = ui_list->dyn_data;
-  dyn_data->custom_drag_optype = WM_operatortype_find(opname.c_str(), false);
-  if (!dyn_data->custom_drag_optype) {
-    return nullptr;
-  }
-
-  if (create_properties) {
-    PointerRNA *opptr = dyn_data->custom_drag_opptr;
-    WM_operator_properties_alloc(&dyn_data->custom_drag_opptr,
-                                 opptr ? (IDProperty **)&opptr->data : nullptr,
-                                 opname.c_str());
-  }
-
-  return dyn_data->custom_drag_opptr;
-}
-
 /* -------------------------------------------------------------------- */
 
 /** \name List-types Registration
@@ -1343,7 +1298,6 @@ PointerRNA *UI_list_custom_drag_operator_set(uiList *ui_list,
 
 void ED_uilisttypes_ui()
 {
-  WM_uilisttype_add(UI_UL_asset_view());
   WM_uilisttype_add(UI_UL_cache_file_layers());
 }
 

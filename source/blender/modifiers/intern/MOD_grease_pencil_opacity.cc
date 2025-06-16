@@ -248,11 +248,11 @@ static void panel_draw(const bContext *C, Panel *panel)
     const char *text = (use_uniform_opacity) ? IFACE_("Opacity") : IFACE_("Opacity Factor");
 
     uiLayout *row = &layout->row(true);
-    uiLayoutSetActive(row, !use_weight_as_factor || use_uniform_opacity);
+    row->active_set(!use_weight_as_factor || use_uniform_opacity);
     row->prop(ptr, "color_factor", UI_ITEM_NONE, text, ICON_NONE);
     if (!use_uniform_opacity) {
       uiLayout *sub = &row->row(true);
-      uiLayoutSetActive(sub, true);
+      sub->active_set(true);
       row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
     }
   }
@@ -266,7 +266,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

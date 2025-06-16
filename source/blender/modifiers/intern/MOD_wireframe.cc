@@ -122,12 +122,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   row = &layout->row(true, IFACE_("Crease Edges"));
   row->prop(ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
   sub = &row->row(true);
-  uiLayoutSetActive(sub, RNA_boolean_get(ptr, "use_crease"));
+  sub->active_set(RNA_boolean_get(ptr, "use_crease"));
   sub->prop(ptr, "crease_weight", UI_ITEM_R_SLIDER, "", ICON_NONE);
 
   layout->prop(ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void vertex_group_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -145,7 +145,7 @@ static void vertex_group_panel_draw(const bContext * /*C*/, Panel *panel)
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   row = &layout->row(true);
-  uiLayoutSetActive(row, has_vertex_group);
+  row->active_set(has_vertex_group);
   row->prop(ptr, "thickness_vertex_group", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
 }
 

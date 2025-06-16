@@ -474,7 +474,7 @@ class ImageOperation : public NodeOperation {
   void execute() override
   {
     for (const bNodeSocket *output : this->node()->output_sockets()) {
-      if (!output->is_available()) {
+      if (!is_socket_available(output)) {
         continue;
       }
 
@@ -606,11 +606,11 @@ static bool node_composit_poll_rlayers(const blender::bke::bNodeType * /*ntype*/
   Scene *scene;
 
   /* XXX ugly: check if ntree is a local scene node tree.
-   * Render layers node can only be used in local `scene->nodetree`,
+   * Render layers node can only be used in local `scene->compositing_node_group`,
    * since it directly links to the scene.
    */
   for (scene = (Scene *)G.main->scenes.first; scene; scene = (Scene *)scene->id.next) {
-    if (scene->nodetree == ntree) {
+    if (scene->compositing_node_group == ntree) {
       break;
     }
   }
@@ -681,15 +681,8 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   scn_ptr = RNA_pointer_get(ptr, "scene");
   RNA_string_get(&scn_ptr, "name", scene_name);
 
-  PointerRNA op_ptr;
-  uiItemFullO(row,
-              "RENDER_OT_render",
-              "",
-              ICON_RENDER_STILL,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  PointerRNA op_ptr = row->op(
+      "RENDER_OT_render", "", ICON_RENDER_STILL, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
@@ -720,7 +713,7 @@ class RenderLayerOperation : public NodeOperation {
     }
 
     for (const bNodeSocket *output : this->node()->output_sockets()) {
-      if (!output->is_available()) {
+      if (!is_socket_available(output)) {
         continue;
       }
 

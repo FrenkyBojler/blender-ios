@@ -67,7 +67,7 @@ struct BlendFileData : blender::NonCopyable, blender::NonMovable {
    * generated the auto-saved one being recovered.
    *
    * NOTE: Currently expected to be the same path as #BlendFileData.filepath. */
-  char filepath[1024] = {}; /* 1024 = FILE_MAX */
+  char filepath[/*FILE_MAX*/ 1024] = {};
 
   /** TODO: think this isn't needed anymore? */
   bScreen *curscreen = nullptr;
@@ -227,7 +227,7 @@ void BLO_read_do_version_after_setup(Main *new_bmain,
  * \{ */
 
 struct BLODataBlockInfo {
-  char name[64]; /* MAX_NAME */
+  char name[/*MAX_ID_NAME-2*/ 64];
   AssetMetaData *asset_data;
   /** Ownership over #asset_data above can be "stolen out" of this struct, for more permanent
    * storage. In that case, set this to false to avoid double freeing of the stolen data. */
@@ -466,7 +466,10 @@ ID *BLO_library_link_named_part(Main *mainl,
  * \param bh: The blender file handle (WARNING! may be freed by this function!).
  * \param params: Settings for linking that don't change from beginning to end of linking.
  */
-void BLO_library_link_end(Main *mainl, BlendHandle **bh, const LibraryLink_Params *params);
+void BLO_library_link_end(Main *mainl,
+                          BlendHandle **bh,
+                          const LibraryLink_Params *params,
+                          ReportList *reports);
 
 /**
  * Struct for temporarily loading datablocks from a blend file.

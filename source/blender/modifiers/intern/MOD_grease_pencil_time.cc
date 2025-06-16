@@ -537,11 +537,11 @@ static void panel_draw(const bContext *C, Panel *panel)
   col->prop(ptr, "offset", UI_ITEM_NONE, text, ICON_NONE);
 
   row = &col->row(false);
-  uiLayoutSetActive(row, !use_fixed_offset);
+  row->active_set(!use_fixed_offset);
   row->prop(ptr, "frame_scale", UI_ITEM_NONE, IFACE_("Scale"), ICON_NONE);
 
   row = &layout->row(false);
-  uiLayoutSetActive(row, !use_fixed_offset);
+  row->active_set(!use_fixed_offset);
   row->prop(ptr, "use_keep_loop", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (mode == MOD_GREASE_PENCIL_TIME_MODE_CHAIN) {
@@ -568,7 +568,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     uiLayout *sub = &col->column(true);
     sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_add", "", ICON_ADD);
     sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_remove", "", ICON_REMOVE);
-    uiItemS(col);
+    col->separator();
     sub = &col->column(true);
     uiItemEnumO_string(
         sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_time_modifier_segment_move", "type", "UP");
@@ -597,12 +597,12 @@ static void panel_draw(const bContext *C, Panel *panel)
   PanelLayout custom_range_panel_layout = layout->panel_prop(C, ptr, "open_custom_range_panel");
   if (uiLayout *header = custom_range_panel_layout.header) {
     uiLayoutSetPropSep(header, false);
-    uiLayoutSetActive(header, use_custom_range);
+    header->active_set(use_custom_range);
     header->prop(ptr, "use_custom_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (uiLayout *body = custom_range_panel_layout.body) {
     uiLayoutSetPropSep(body, true);
-    uiLayoutSetActive(body, use_custom_range && RNA_boolean_get(ptr, "use_custom_frame_range"));
+    body->active_set(use_custom_range && RNA_boolean_get(ptr, "use_custom_frame_range"));
 
     col = &body->column(true);
     col->prop(ptr, "frame_start", UI_ITEM_NONE, IFACE_("Frame Start"), ICON_NONE);
@@ -615,7 +615,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void segment_list_item_draw(uiList * /*ui_list*/,

@@ -910,6 +910,10 @@ class RENDER_PT_grease_pencil_render(RenderButtonsPanel, Panel):
         col.prop(props, "antialias_threshold_render", text="SMAA Threshold")
         col.prop(props, "aa_samples", text="SSAA Samples")
 
+        col = layout.column()
+        col.active = scene.render.use_motion_blur
+        col.prop(props, "motion_blur_steps")
+
 
 class RENDER_PT_opengl_sampling(RenderButtonsPanel, Panel):
     bl_label = "Sampling"
@@ -959,7 +963,7 @@ class RENDER_PT_opengl_lighting(RenderButtonsPanel, Panel):
 
 
 class RENDER_PT_opengl_color(RenderButtonsPanel, Panel):
-    bl_label = "Color"
+    bl_label = "Object Color"
     COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
 
     @classmethod
