@@ -295,9 +295,9 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 9)) {
-    copy_v4_v4_uchar(btheme->tui.panel_header, U_theme_default.tui.panel_header);
-    copy_v4_v4_uchar(btheme->tui.panel_back, U_theme_default.tui.panel_back);
-    copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_header);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_back);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
   }
 
   /**
@@ -900,14 +900,14 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->anisotropic_filter = 1;
     }
 
-    if (userdef->ndof_sensitivity == 0.0f) {
-      userdef->ndof_sensitivity = 1.0f;
+    if (userdef->ndof_translation_sensitivity == 0.0f) {
+      userdef->ndof_translation_sensitivity = 1.0f;
       userdef->ndof_flag = (NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM |
                             NDOF_SHOULD_ROTATE);
     }
 
-    if (userdef->ndof_orbit_sensitivity == 0.0f) {
-      userdef->ndof_orbit_sensitivity = userdef->ndof_sensitivity;
+    if (userdef->ndof_rotation_sensitivity == 0.0f) {
+      userdef->ndof_rotation_sensitivity = userdef->ndof_translation_sensitivity;
 
       if (!(userdef->flag & USER_TRACKBALL)) {
         userdef->ndof_flag |= NDOF_TURNTABLE;
