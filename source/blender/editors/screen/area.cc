@@ -61,11 +61,6 @@
 
 static void header_edge_gradient(const ScrArea *area, const ARegion *region)
 {
-  const bool is_toolbar = (region->regiontype == RGN_TYPE_TOOLS);
-  if (is_toolbar) {
-    return;
-  }
-
   const bool is_topbar = (area->spacetype == SPACE_TOPBAR);
   const bool is_header = (ELEM(region->regiontype,
                                RGN_TYPE_HEADER,
@@ -74,6 +69,9 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
                                RGN_TYPE_ASSET_SHELF_HEADER));
   const bool is_outliner = area->spacetype == SPACE_OUTLINER &&
                            region->regiontype == RGN_TYPE_WINDOW;
+
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   float opaque[4];
   UI_GetThemeColor4fv(is_topbar ? TH_BACK : TH_BLACK, opaque);
@@ -98,12 +96,22 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
     width = std::min(width, panel->sizex);
   }
 
+  if (region->regiontype == RGN_TYPE_TOOLS ||
+      (region->regiontype == RGN_TYPE_NAV_BAR && area->spacetype == SPACE_USERPREF))
+  {
+    offset_x = UI_PANEL_MARGIN_X;
+    width -= (2 * offset_x);
+  }
+
+  offset_x /= aspect;
+  width /= aspect;
+
   if (region->v2d.cur.xmax < region->v2d.tot.xmax && !is_outliner) {
     /* Right Edge. */
     rect.xmax = offset_x + width;
     rect.xmin = offset_x + rect.xmax - gradient_width;
     rect.ymin = padding;
-    rect.ymax = height;
+    rect.ymax = height - padding;
     opaque[3] = max_alpha *
                 std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
@@ -113,7 +121,7 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
     rect.xmin = offset_x + offset_x;
     rect.xmax = offset_x + gradient_width;
     rect.ymin = padding;
-    rect.ymax = height;
+    rect.ymax = height - padding;
     opaque[3] = max_alpha *
                 std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
