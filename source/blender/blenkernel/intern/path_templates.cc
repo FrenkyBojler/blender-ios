@@ -232,23 +232,22 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
   {
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
-    variables.add_filename(
-        "blend_name_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_filename("blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_name(
-        "blend_dir_name_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_abs_path(
-        "blend_dir_lib", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
   /* ID-owning blend filepath variables. */
   if (path_owner_id) {
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(
-        "blend_name", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_name(
-        "blend_dir_name", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_parent_directory_abs_path(
-        "blend_dir", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+        "blend_dir_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
   if (scene) {
