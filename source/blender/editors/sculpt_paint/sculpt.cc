@@ -5105,11 +5105,21 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
 
   ED_region_tag_redraw(&region);
 
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
     }
+  }
+
+  /* When using an external engine and are sculpting on the base mesh, we need to explicitly
+   * recalculate the normals after tagging them as dirty so that the next sculpt step will be
+   * correctly evaluated. */
+  const Mesh *mesh = static_cast<Mesh *>(ob.data);
+  const bool external_engine = rv3d && rv3d->view_render != nullptr;
+  if (external_engine && mesh->runtime->vert_normals_true_cache.is_dirty()) {
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    bke::pbvh::update_normals(*depsgraph, ob, pbvh);
   }
 }
 
