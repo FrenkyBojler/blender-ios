@@ -251,14 +251,16 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
         "blend_dir", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
-  /* Render resolution and fps. */
   if (scene) {
+    /* Resolution variables. */
     int res_x, res_y;
     BKE_render_resolution(&scene->r, false, &res_x, &res_y);
     variables.add_integer("resolution_x", res_x);
     variables.add_integer("resolution_y", res_y);
 
-    /* FPS eval code copied from `BKE_cachefile_filepath_get()`.
+    /* FPS variable.
+     *
+     * FPS eval code copied from `BKE_cachefile_filepath_get()`.
      *
      * TODO: should probably use one function for this everywhere to ensure that
      * fps is computed consistently, but at the time of writing no such function
@@ -267,7 +269,13 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
     const double fps = double(scene->r.frs_sec) / double(scene->r.frs_sec_base);
     variables.add_float("fps", fps);
 
+    /* Scene name variable. */
     variables.add_string("scene_name", scene->id.name + 2);
+
+    /* Camera name variable. */
+    if (scene->camera) {
+      variables.add_string("camera_name", scene->camera->id.name + 2);
+    }
   }
 
   return variables;
