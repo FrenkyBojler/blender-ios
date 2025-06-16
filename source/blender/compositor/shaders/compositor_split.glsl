@@ -8,8 +8,8 @@ void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  float2 pos_to_line_point = position - float2(texel);
-  float projection = dot(normal, pos_to_line_point);
+  const float2 direction_to_line_point = position - float2(texel);
+  const float projection = dot(normal, direction_to_line_point);
 
   bool is_below_line = projection <= 0;
   float4 color = is_below_line ? texture_load(first_image_tx, texel) :

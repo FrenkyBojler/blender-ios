@@ -106,14 +106,14 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
   bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
   float factor = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
-  bNodeSocket *rotation_input;
-  if (!bke::node_find_socket(*node, SOCK_IN, "Rotation")) {
+  bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
+  if (!rotation_input) {
     rotation_input = bke::node_add_static_socket(
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Rotation", "Rotation");
   }
 
-  bNodeSocket *position_input;
-  if (!bke::node_find_socket(*node, SOCK_IN, "Position")) {
+  bNodeSocket *position_input = bke::node_find_socket(*node, SOCK_IN, "Position");
+  if (!position_input) {
     position_input = bke::node_add_static_socket(
         *node_tree, *node, SOCK_IN, SOCK_VECTOR, PROP_FACTOR, "Position", "Position");
   }

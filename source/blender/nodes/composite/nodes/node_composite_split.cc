@@ -102,8 +102,8 @@ class SplitOperation : public NodeOperation {
     const float2 line_point = this->get_position(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      const float2 pos_to_line_point = line_point - float2(texel);
-      const float projection = math::dot(normal, pos_to_line_point);
+      const float2 direction_to_line_point = line_point - float2(texel);
+      const float projection = math::dot(normal, direction_to_line_point);
       const bool is_below_line = projection <= 0;
       output_image.store_pixel(texel,
                                is_below_line ? first_image.load_pixel<float4, true>(texel) :
