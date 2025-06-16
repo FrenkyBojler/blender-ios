@@ -57,10 +57,12 @@ void WindowManagerRuntime::asset_library_status_set_finished(StringRef url)
   }
 }
 
-void WindowManagerRuntime::asset_library_status_set_cancelled(StringRef url)
+void WindowManagerRuntime::asset_library_status_set_failure(
+    StringRef url, std::optional<StringRef> failure_message)
 {
   if (AssetLibraryLoadingStatus *status = this->asset_library_statuses.lookup_ptr(url)) {
-    status->status = AssetLibraryLoadingStatus::Cancelled;
+    status->status = AssetLibraryLoadingStatus::Failure;
+    status->failure_message = failure_message;
     status->touch();
   }
 }
@@ -71,7 +73,9 @@ void WindowManagerRuntime::asset_library_status_handle_timeout(StringRef url)
     std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
                                            status->last_updated_time_point;
     if (elapsed.count() >= status->timeout) {
-      status->status = AssetLibraryLoadingStatus::Cancelled;
+      status->status = AssetLibraryLoadingStatus::Failure;
+      // TODO timeout message
+      // status->failure_message = RPT
     }
   }
 }

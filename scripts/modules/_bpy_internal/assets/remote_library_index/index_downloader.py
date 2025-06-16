@@ -38,6 +38,12 @@ class RemoteAssetListingDownloader:
     _num_asset_pages_pending: int
 
     status: DownloadStatus
+    error_message: str | None
+    """An error message to show to the user.
+
+    Should be set on errors to communicate a message to users. Calling report()
+    with 'ERROR' as the level will set this to the given message.
+    """
 
     _DOWNLOAD_POLL_INTERVAL: float = 0.01
     """How often the background download process is polled, in seconds.
@@ -81,6 +87,7 @@ class RemoteAssetListingDownloader:
 
         self._num_asset_pages_pending = 0
         self.status = DownloadStatus.LOADING
+        self.error_message = ""
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event
@@ -248,7 +255,9 @@ class RemoteAssetListingDownloader:
     # TODO: implement this in a more useful way:
     def report(self, level: set[str], message: str) -> None:
         # logger.info("Report: {:s}: {:s}".format("/".join(level), message))
-        pass
+        if 'ERROR' in level:
+            self.error_message = message
+
 
     def shutdown(self, status: DownloadStatus) -> None:
         """Stop the background downloader, update the status and call the 'done' callback."""

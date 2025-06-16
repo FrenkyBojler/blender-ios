@@ -791,10 +791,12 @@ static void rna_asset_library_loading_status_finished_loading(wmWindowManager *w
 {
   wm->runtime->asset_library_status_set_finished(url);
 }
-static void rna_asset_library_loading_status_cancelled_loading(wmWindowManager *wm,
-                                                               const char *url)
+static void rna_asset_library_loading_status_failure_loading(wmWindowManager *wm,
+                                                             const char *url,
+                                                             const char *message)
 {
-  wm->runtime->asset_library_status_set_cancelled(url);
+  wm->runtime->asset_library_status_set_failure(
+      url, message ? std::optional<blender::StringRef>{message} : std::nullopt);
 }
 
 #else
@@ -1537,11 +1539,12 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna,
-                          "asset_library_status_cancelled_loading",
-                          "rna_asset_library_loading_status_cancelled_loading");
+                          "asset_library_status_failed_loading",
+                          "rna_asset_library_loading_status_failure_loading");
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
 }
 
 #endif

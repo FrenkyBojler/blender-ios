@@ -25,8 +25,10 @@ struct AssetLibraryLoadingStatus {
   enum Status {
     Loading,
     Finished,
+    Failure,
     Cancelled,
   } status;
+  std::optional<StringRef> failure_message;
 
   /** Update the last update time point, effectively resetting the timout timer. */
   void touch();
@@ -63,7 +65,7 @@ struct WindowManagerRuntime {
   void asset_library_status_ensure_loading(StringRef url, float timeout);
   std::optional<AssetLibraryLoadingStatus::Status> asset_library_status_get(StringRef url);
   void asset_library_status_set_finished(StringRef url);
-  void asset_library_status_set_cancelled(StringRef url);
+  void asset_library_status_set_failure(StringRef url, std::optional<StringRef> failure_message);
 
   void asset_library_status_handle_timeout(StringRef url);
 };
