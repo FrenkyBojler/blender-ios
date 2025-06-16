@@ -19,15 +19,6 @@
 #include "BLI_kdtree.h"
 
 #include "ED_mesh.hh"
-#include "BKE_editmesh.hh"
-#include "DNA_mesh_types.h"
-#include "BKE_object.hh"
-#include "DNA_modifier_types.h"
-#include "BKE_mesh.hh"
-
-/* -------------------------------------------------------------------- */
-/** \name Mesh Spatial Mirror API
- * \{ */
 
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
   if (!ob || !ob->data) {
@@ -157,6 +148,9 @@ void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, 
   });
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Mesh Spatial Mirror API
+ * \{ */
 
 #define KD_THRESH 0.00002f
 
