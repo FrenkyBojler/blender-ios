@@ -194,8 +194,6 @@ template<typename T> T &DRW_object_get_data_for_drawing(const Object &object)
   return *static_cast<T *>(object.data);
 }
 
-template<> Mesh &DRW_object_get_data_for_drawing(const Object &object);
-
 template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
 {
   /* For drawing we want either the base mesh if GPU subdivision is enabled, or the
