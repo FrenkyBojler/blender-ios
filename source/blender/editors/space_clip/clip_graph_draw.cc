@@ -57,7 +57,6 @@ static void tracking_segment_start_cb(void *userdata,
                                       eClipCurveValueSource value_source,
                                       bool is_point)
 {
-  BLI_assert(!immIsShaderBound());
   TrackMotionCurveUserData *data = (TrackMotionCurveUserData *)userdata;
   SpaceClip *sc = data->sc;
   float col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -80,11 +79,11 @@ static void tracking_segment_start_cb(void *userdata,
   float line_width = 0.0f;
   if (track == data->act_track) {
     col[3] = 1.0f;
-    line_width = U.pixelsize * 2.0f;
+    line_width = 2.0f * U.pixelsize;
   }
   else {
     col[3] = 0.5f;
-    line_width = U.pixelsize * 1.0f;
+    line_width = 1.0f * U.pixelsize;
   }
   if (is_point) {
     immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
@@ -159,9 +158,11 @@ static void tracking_segment_knot_cb(void *userdata,
   }
 }
 
-static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, int pos)
+static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, uint pos)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
+  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
+  MovieTrackingTrack *active_track = tracking_object->active_track;
   const bool draw_knots = (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) != 0;
 
   int width, height;
@@ -170,8 +171,6 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, int 
     return;
   }
 
-  const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  MovieTrackingTrack *active_track = tracking_object->active_track;
   TrackMotionCurveUserData userdata;
   userdata.sc = sc;
   userdata.hsize = UI_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
@@ -217,7 +216,6 @@ static void draw_tracks_motion_and_error_curves(View2D *v2d, SpaceClip *sc, int 
 
 static void draw_frame_curves(SpaceClip *sc, uint pos)
 {
-  BLI_assert(!immIsShaderBound());
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const MovieTrackingReconstruction *reconstruction = &tracking_object->reconstruction;

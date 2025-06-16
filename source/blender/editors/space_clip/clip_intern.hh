@@ -11,8 +11,6 @@
 #include "DNA_space_types.h"
 #include "DNA_tracking_types.h"
 
-#include "GPU_shader_builtin.hh"
-
 struct ARegion;
 struct ARegionType;
 struct MovieClip;

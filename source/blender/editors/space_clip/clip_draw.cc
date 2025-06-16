@@ -493,7 +493,6 @@ static void draw_track_path_lines(const TrackPathPoint *path,
 static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTrack *track)
 {
 #define MAX_STATIC_PATH 64
-  BLI_assert(!immIsShaderBound());
 
   const int count = sc->path_length;
   TrackPathPoint path_static[(MAX_STATIC_PATH + 1) * 2];
@@ -525,6 +524,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
 
   const int path_start_index = count - num_points_before + 1;
   const int path_center_index = count;
+
   const uint position_attribute = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -536,16 +536,16 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
     if (TRACK_VIEW_SELECTED(sc, track)) {
       immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
       immUniformThemeColor(TH_MARKER_OUTLINE);
-      immUniform1f("size", 5.0);
+      immUniform1f("size", 5.0f);
       draw_track_path_points(path, position_attribute, path_start_index, num_all_points);
-      immUniform1f("size", 5.0);
+      immUniform1f("size", 7.0f);
       draw_track_path_keyframe_points(path, position_attribute, path_start_index, num_all_points);
       immUnbindProgram();
     }
     /* Draw darker outline for actual path, all line segments at once. */
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
     immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", 3.0f);
+    immUniform1f("lineWidth", 3.0f * U.pixelsize);
     immUniformThemeColor(TH_MARKER_OUTLINE);
     draw_track_path_lines(path, position_attribute, path_start_index, num_all_points);
     immUnbindProgram();
@@ -554,7 +554,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
   /* Draw all points. */
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
   immUniformThemeColor(TH_PATH_BEFORE);
-  immUniform1f("size", 3.0);
+  immUniform1f("size", 3.0f);
   draw_track_path_points(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_AFTER);
   draw_track_path_points(path, position_attribute, path_center_index, num_points_after);
@@ -563,7 +563,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
   /* Connect points with color coded segments. */
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
   immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 1.0f);
+  immUniform1f("lineWidth", 1.0f * U.pixelsize);
   immUniformThemeColor(TH_PATH_BEFORE);
   draw_track_path_lines(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_AFTER);
@@ -573,7 +573,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
   /* Draw all bigger points corresponding to keyframes. */
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
   immUniformThemeColor(TH_PATH_KEYFRAME_BEFORE);
-  immUniform1f("size", 5.0);
+  immUniform1f("size", 5.0f);
   draw_track_path_keyframe_points(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_KEYFRAME_AFTER);
   draw_track_path_keyframe_points(path, position_attribute, path_center_index, num_points_after);
@@ -594,7 +594,6 @@ static void draw_marker_outline(SpaceClip *sc,
                                 int height,
                                 uint position)
 {
-  BLI_assert(!immIsShaderBound());
   int tiny = sc->flag & SC_SHOW_TINY_MARKER;
   bool show_search = false;
   float px[2];
@@ -883,6 +882,7 @@ static void draw_marker_areas(SpaceClip *sc,
 
   if ((track->search_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_SEARCH) && show_search) {
     set_draw_marker_area_color(track, marker, act, track->search_flag & SELECT, col, scol);
+
     imm_draw_box_wire_2d(shdr_pos,
                          marker->search_min[0],
                          marker->search_min[1],
@@ -971,8 +971,6 @@ static void draw_marker_slide_zones(SpaceClip *sc,
     return;
   }
 
-  /* This function draws polygons that is not covered in the shader state. We reset it and make
-   * sure that the state of the GPU is unbound at the end of this function. */
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   track_colors(track, act, col, scol);
@@ -1557,8 +1555,6 @@ static void draw_tracking_tracks(SpaceClip *sc,
   }
   GPU_debug_group_end();
 
-  /* No shader should be bound to ensure imm vertex format will be repacked. */
-  BLI_assert(!immIsShaderBound());
   const uint position = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -1574,10 +1570,12 @@ static void draw_tracking_tracks(SpaceClip *sc,
 
     if (ED_space_clip_marker_is_visible(sc, tracking_object, track, marker)) {
       copy_v2_v2(cur_pos, fp ? fp : marker->pos);
+
       draw_marker_outline(sc, track, marker, cur_pos, width, height, position);
       draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 0, position);
       draw_marker_slide_zones(sc, track, marker, cur_pos, 1, 0, 0, width, height, position);
       draw_marker_slide_zones(sc, track, marker, cur_pos, 0, 0, 0, width, height, position);
+      
       if (fp) {
         fp += 2;
       }
