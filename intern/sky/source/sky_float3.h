@@ -22,6 +22,12 @@
 #ifndef M_2PI_F
 #  define M_2PI_F (6.2831853071795864f) /* 2*pi */
 #endif
+#ifndef M_1_PI_F
+#  define M_1_PI_F (0.3183098861837067f) /* `1/pi` */
+#endif
+#ifndef M_4PI_F
+#  define M_4PI_F (12.566370614359172f) /* `4*pi` */
+#endif
 
 struct float3 {
   float x, y, z;
@@ -104,6 +110,11 @@ struct float3 {
 inline float sqr(float a)
 {
   return a * a;
+}
+
+inline float safe_sqrtf(const float f)
+{
+  return sqrt(fmax(f, 0.0f));
 }
 
 inline float3 make_float3(float x, float y, float z)

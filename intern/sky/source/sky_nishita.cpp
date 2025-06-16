@@ -9,11 +9,11 @@
 #include "sky_float3.h"
 #include "sky_model.h"
 
-/* Constants */
+/* Earth atmosphere parameters found in https://sebh.github.io/publications/egsr2020.pdf */
 static const float rayleigh_scale = 8e3f;       /* Rayleigh scale height (m). */
 static const float mie_scale = 1.2e3f;          /* Mie scale height (m). */
-static const float mie_coeff = 2e-5f;           /* Mie scattering coefficient (m^-1). */
-static const float mie_G = 0.76f;               /* aerosols anisotropy. */
+static const float mie_coeff = 3.996e-6f;       /* Mie scattering coefficient (m^-1). */
+static const float mie_G = 0.8f;                /* aerosols anisotropy. */
 static const float sqr_G = mie_G * mie_G;       /* squared aerosols anisotropy. */
 static const float earth_radius = 6360e3f;      /* radius of Earth (m). */
 static const float atmosphere_radius = 6420e3f; /* radius of atmosphere (m). */
@@ -126,25 +126,19 @@ static float density_mie(float height)
 
 static float density_ozone(float height)
 {
-  float den = 0.0f;
-  if (height >= 10000.0f && height < 25000.0f) {
-    den = 1.0f / 15000.0f * height - 2.0f / 3.0f;
-  }
-  else if (height >= 25000 && height < 40000) {
-    den = -(1.0f / 15000.0f * height - 8.0f / 3.0f);
-  }
-  return den;
+  return fmax(0.0, 1.0 - (fabs(height - 25000.0) / 15000.0));
 }
 
 static float phase_rayleigh(float mu)
 {
-  return 3.0f / (16.0f * M_PI_F) * (1.0f + sqr(mu));
+  return (0.1875f * M_1_PI_F) * (1.0f + sqr(mu));
 }
 
 static float phase_mie(float mu)
 {
-  return (3.0f * (1.0f - sqr_G) * (1.0f + sqr(mu))) /
-         (8.0f * M_PI_F * (2.0f + sqr_G) * powf((1.0f + sqr_G - 2.0f * mie_G * mu), 1.5));
+  /* Henyey Greenstein phase function */
+  const float fac = 1 + mie_G * (mie_G - 2 * mu);
+  return (1 - sqr_G) / (M_4PI_F * fac * safe_sqrtf(fac));
 }
 
 /* Intersection helpers */
