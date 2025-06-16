@@ -18,21 +18,7 @@ struct BundleSignature {
 
   Vector<Item> items;
 
-  bool matches_exactly(const BundleSignature &other) const
-  {
-    if (items.size() != other.items.size()) {
-      return false;
-    }
-    for (const Item &item : items) {
-      if (std::none_of(other.items.begin(), other.items.end(), [&](const Item &other_item) {
-            return item.key.matches_exactly(other_item.key);
-          }))
-      {
-        return false;
-      }
-    }
-    return true;
-  }
+  bool matches_exactly(const BundleSignature &other) const;
 };
 
 }  // namespace blender::nodes
