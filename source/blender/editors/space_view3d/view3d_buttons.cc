@@ -1506,7 +1506,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           xco += x;
 
           row = &split->row(true);
-          uiLayoutSetEnabled(row, !locked);
+          row->enabled_set(!locked);
 
           /* The weight group value */
           /* To be reworked still */
@@ -1599,7 +1599,7 @@ static void v3d_transform_butsR(uiLayout *layout, PointerRNA *ptr)
 
     boneptr = RNA_pointer_get(ptr, "bone");
     bone = static_cast<Bone *>(boneptr.data);
-    uiLayoutSetActive(split, !(bone->parent && bone->flag & BONE_CONNECTED));
+    split->active_set(!(bone->parent && bone->flag & BONE_CONNECTED));
   }
   colsub = &split->column(true);
   colsub->prop(ptr, "location", UI_ITEM_NONE, std::nullopt, ICON_NONE);

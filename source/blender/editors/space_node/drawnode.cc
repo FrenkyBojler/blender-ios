@@ -341,12 +341,12 @@ static void node_buts_image_user(uiLayout *layout,
       split->prop(imaptr, "alpha_mode", DEFAULT_FLAGS, "", ICON_NONE);
 
       bool is_data = IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
-      uiLayoutSetActive(split, !is_data);
+      split->active_set(!is_data);
     }
 
     /* Avoid losing changes image is painted. */
     if (BKE_image_is_dirty((Image *)imaptr->data)) {
-      uiLayoutSetEnabled(split, false);
+      split->enabled_set(false);
     }
   }
 }
@@ -633,12 +633,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
       break;
-    case CMP_NODE_MIX_RGB:
-      ntype->draw_buttons = node_buts_mix_rgb;
-      break;
-    case CMP_NODE_VALTORGB:
-      ntype->draw_buttons = node_buts_colorramp;
-      break;
     case CMP_NODE_TIME:
       ntype->draw_buttons = node_buts_time;
       break;
@@ -736,7 +730,7 @@ static void node_texture_buts_proc(uiLayout *layout, bContext * /*C*/, PointerRN
       row->prop(
           &tex_ptr, "noise_basis_2", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       row = &col->row(false);
-      uiLayoutSetActive(row, !ELEM(tex->stype, TEX_BAND, TEX_RING));
+      row->active_set(!ELEM(tex->stype, TEX_BAND, TEX_RING));
       row->prop(&tex_ptr, "noise_type", DEFAULT_FLAGS | UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
 
@@ -1170,7 +1164,7 @@ static void std_node_socket_draw(
   }
 
   if (sock->is_inactive()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   /* XXX not nice, eventually give this node its own socket type ... */
@@ -1476,7 +1470,7 @@ static void std_node_socket_interface_draw(ID *id,
 
   {
     uiLayout *sub = &col->column(false);
-    uiLayoutSetActive(sub, interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
+    sub->active_set(interface_socket->default_input == NODE_DEFAULT_INPUT_VALUE);
     sub->prop(&ptr, "hide_value", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
   }
 
@@ -1485,7 +1479,7 @@ static void std_node_socket_interface_draw(ID *id,
       col->prop(&ptr, "layer_selection_field", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     }
     uiLayout *sub = &col->column(false);
-    uiLayoutSetActive(sub, !is_layer_selection_field(*interface_socket));
+    sub->active_set(!is_layer_selection_field(*interface_socket));
     sub->prop(&ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     if (nodes::socket_type_supports_fields(type) || nodes::socket_type_supports_grids(type)) {
       sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, std::nullopt, ICON_NONE);

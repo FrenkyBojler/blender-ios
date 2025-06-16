@@ -136,7 +136,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!fx->prev) {
-    uiLayoutSetEnabled(row, false);
+    row->enabled_set(false);
   }
 
   /* Move to last. */
@@ -148,7 +148,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->shader_fx) - 1);
   if (!fx->next) {
-    uiLayoutSetEnabled(row, false);
+    row->enabled_set(false);
   }
 }
 
@@ -181,7 +181,7 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
   /* Mode enabling buttons. */
   if (fxti->flags & eShaderFxTypeFlag_SupportsEditmode) {
     uiLayout *sub = &row->row(true);
-    uiLayoutSetActive(sub, false);
+    sub->active_set(false);
     sub->prop(ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
   }
   row->prop(ptr, "show_viewport", UI_ITEM_NONE, "", ICON_NONE);

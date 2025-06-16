@@ -1363,32 +1363,32 @@ static void rna_Menu_bl_description_set(PointerRNA *ptr, const char *value)
 
 static bool rna_UILayout_active_get(PointerRNA *ptr)
 {
-  return uiLayoutGetActive(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->active();
 }
 
 static void rna_UILayout_active_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetActive(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->active_set(value);
 }
 
 static bool rna_UILayout_active_default_get(PointerRNA *ptr)
 {
-  return uiLayoutGetActiveDefault(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->active_default();
 }
 
 static void rna_UILayout_active_default_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetActiveDefault(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->active_default_set(value);
 }
 
 static bool rna_UILayout_activate_init_get(PointerRNA *ptr)
 {
-  return uiLayoutGetActivateInit(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->activate_init();
 }
 
 static void rna_UILayout_activate_init_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetActivateInit(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->activate_init_set(value);
 }
 
 static bool rna_UILayout_alert_get(PointerRNA *ptr)
@@ -1413,12 +1413,12 @@ static int rna_UILayout_op_context_get(PointerRNA *ptr)
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)
 {
-  return uiLayoutGetEnabled(static_cast<uiLayout *>(ptr->data));
+  return static_cast<uiLayout *>(ptr->data)->enabled();
 }
 
 static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetEnabled(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->enabled_set(value);
 }
 
 #  if 0
