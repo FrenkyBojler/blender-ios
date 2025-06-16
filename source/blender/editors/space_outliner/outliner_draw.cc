@@ -3753,7 +3753,7 @@ static void outliner_draw_highlights(uint pos,
 
     const float ufac = UI_UNIT_X / 20.0f;
     const float radius = UI_UNIT_Y / 8.0f;
-    const int padding_x = 6;
+    const int padding_x = 3 * UI_SCALE_FAC;
     rctf rect{};
     BLI_rctf_init(&rect,
                   padding_x,
@@ -3761,7 +3761,6 @@ static void outliner_draw_highlights(uint pos,
                   start_y + ufac,
                   start_y + UI_UNIT_Y - ufac);
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    GPU_blend(GPU_BLEND_ALPHA); /* Round-box disables. */
 
     /* Selection status. */
     if ((tselem->flag & TSE_ACTIVE) && (tselem->flag & TSE_SELECTED)) {
@@ -3785,16 +3784,20 @@ static void outliner_draw_highlights(uint pos,
         UI_GetThemeColorBlend4f(TH_TEXT, TH_BACK, 0.4f, col_outline);
 
         if (tselem->flag & TSE_DRAG_BEFORE) {
+          GPU_blend(GPU_BLEND_ALPHA);
           immUniformColor4fv(col_outline);
           immRectf(pos,
                    start_x,
                    start_y + UI_UNIT_Y - U.pixelsize,
                    end_x,
                    start_y + UI_UNIT_Y + U.pixelsize);
+          GPU_blend(GPU_BLEND_NONE);
         }
         else if (tselem->flag & TSE_DRAG_AFTER) {
+          GPU_blend(GPU_BLEND_ALPHA);
           immUniformColor4fv(col_outline);
           immRectf(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
+          GPU_blend(GPU_BLEND_NONE);
         }
         else {
           float col_bg[4];
