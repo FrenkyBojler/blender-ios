@@ -24,7 +24,7 @@ Blender Convenience Targets
    * ccache:        Use ccache for faster rebuilds.
 
    Note: when passing in multiple targets their order is not important.
-   So for a fast build you can for e.g. run 'make lite ccache ninja'.
+   For example, fo a fast build you can run 'make lite ccache ninja'.
    Note: passing the argument 'BUILD_DIR=path' when calling make will override the default build dir.
    Note: passing the argument 'BUILD_CMAKE_ARGS=args' lets you add cmake arguments.
 
@@ -64,6 +64,7 @@ Static Source Code Checking
 
    * check_clang_array:     Run blender source through clang array checking script (C & C++).
    * check_struct_comments: Check struct member comments are correct (C & C++).
+   * check_size_comments:   Check array size comments match defines/enums (C & C++).
    * check_deprecated:      Check if there is any deprecated code to remove.
    * check_descriptions:    Check for duplicate/invalid descriptions.
    * check_licenses:        Check license headers follow the SPDX license specification,
@@ -117,10 +118,10 @@ Utilities
      Create a compressed archive of the source code and all the libraries of dependencies.
 
    * update:
-     Updates git and all submodules and svn.
+     Update blender repository and libraries.
 
    * update_code:
-     Updates git and all submodules but not svn.
+     Updates blender repository only, without updating libraries.
 
    * format:
      Format source code using clang-format & autopep8 (uses PATHS if passed in). For example::
@@ -142,10 +143,18 @@ Environment Variables
 Documentation Targets
    Not associated with building Blender.
 
-   * doc_py:        Generate sphinx python api docs.
-   * doc_doxy:      Generate doxygen C/C++ docs.
-   * doc_dna:       Generate blender file format reference.
-   * doc_man:       Generate manpage.
+   * doc_py:
+     Generate sphinx Python API docs.
+
+     Set the environment variable BLENDER_DOC_OFFLINE=1
+     to prevent download data at build time.
+
+   * doc_doxy:
+     Generate doxygen C/C++ docs.
+   * doc_dna:
+     Generate blender file format reference.
+   * doc_man:
+     Generate manpage.
 
 Information
 
@@ -155,9 +164,10 @@ Information
 endef
 # HELP_TEXT (end)
 
-# This makefile is not meant for Windows
+# This makefile is not meant for Windows,
+# Note that a TAB indent prevents the message from showing, no indentation is intended.
 ifeq ($(OS),Windows_NT)
-	$(error On Windows, use "cmd //c make.bat" instead of "make")
+$(error On Windows, use "cmd //c make.bat" instead of "make")
 endif
 
 # System Vars
@@ -419,6 +429,8 @@ ifneq "$(findstring clean, $(MAKECMDGOALS))" ""
 	DEPS_TARGET = clean
 endif
 
+# Set the SOURCE_DATE_EPOCH to make builds reproducible (locks timestamps to the specified date).
+deps: export SOURCE_DATE_EPOCH = 1745584760
 deps: .FORCE
 	@echo
 	@echo Configuring dependencies in \"$(DEPS_BUILD_DIR)\", install to \"$(DEPS_INSTALL_DIR)\"
@@ -490,6 +502,10 @@ check_struct_comments: .FORCE
 	$(PYTHON) \
 	    "$(BLENDER_DIR)/tools/check_source/static_check_clang.py" \
 	    --checks=struct_comments --match=".*" --jobs=$(NPROCS)
+
+check_size_comments: .FORCE
+	$(PYTHON) \
+	    "$(BLENDER_DIR)/tools/check_source/static_check_size_comments.py"
 
 check_clang_array: .FORCE
 	@$(CMAKE_CONFIG)

@@ -789,17 +789,10 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ob->totcol && ob->matbits == nullptr) {
         int a;
 
-        ob->matbits = MEM_calloc_arrayN<char>(size_t(ob->totcol), "ob->matbits");
+        ob->matbits = MEM_calloc_arrayN<char>(ob->totcol, "ob->matbits");
         for (a = 0; a < ob->totcol; a++) {
           ob->matbits[a] = (ob->colbits & (1 << a)) != 0;
         }
-      }
-    }
-
-    /* texture filter */
-    LISTBASE_FOREACH (Tex *, tex, &bmain->textures) {
-      if (tex->afmax == 0) {
-        tex->afmax = 8;
       }
     }
 
@@ -1367,9 +1360,7 @@ void blo_do_versions_250(FileData *fd, Library * /*lib*/, Main *bmain)
 
               LISTBASE_FOREACH (ARegion *, region_preview, regionbase) {
                 if (region_preview->regiontype == RGN_TYPE_PREVIEW) {
-                  if (region_preview && (region_preview->regiontype == RGN_TYPE_PREVIEW)) {
-                    sequencer_init_preview_region(region_preview);
-                  }
+                  sequencer_init_preview_region(region_preview);
                   break;
                 }
               }

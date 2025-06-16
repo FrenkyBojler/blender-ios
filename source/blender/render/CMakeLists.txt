@@ -31,7 +31,6 @@ set(SRC
   intern/render_types.cc
   intern/texture_image.cc
   intern/texture_margin.cc
-  intern/texture_pointdensity.cc
   intern/texture_procedural.cc
   intern/tile_highlight.cc
   intern/zbuf.cc
@@ -82,7 +81,7 @@ if(WITH_IMAGE_OPENEXR)
   list(APPEND LIB
     bf_imbuf_openexr
   )
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_FREESTYLE)

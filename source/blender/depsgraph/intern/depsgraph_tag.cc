@@ -28,6 +28,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
+#include "BKE_image.hh"
 #include "BKE_lib_override.hh"
 #include "BKE_node.hh"
 #include "BKE_scene.hh"
@@ -401,38 +402,12 @@ void graph_id_tag_update_single_flag(Main *bmain,
   deg_graph_id_tag_legacy_compat(bmain, graph, id, tag, update_source);
 }
 
-std::string stringify_append_bit(const std::string &str, IDRecalcFlag tag)
-{
-  const char *tag_name = DEG_update_tag_as_string(tag);
-  if (tag_name == nullptr) {
-    return str;
-  }
-  std::string result = str;
-  if (!result.empty()) {
-    result += ", ";
-  }
-  result += tag_name;
-  return result;
-}
-
 std::string stringify_update_bitfield(uint flags)
 {
   if (flags == 0) {
     return "LEGACY_0";
   }
-  std::string result;
-  uint current_flag = flags;
-  /* Special cases to avoid ALL flags form being split into
-   * individual bits. */
-  if ((current_flag & ID_RECALC_PSYS_ALL) == ID_RECALC_PSYS_ALL) {
-    result = stringify_append_bit(result, ID_RECALC_PSYS_ALL);
-  }
-  /* Handle all the rest of the flags. */
-  while (current_flag != 0) {
-    IDRecalcFlag tag = (IDRecalcFlag)(1 << bitscan_forward_clear_uint(&current_flag));
-    result = stringify_append_bit(result, tag);
-  }
-  return result;
+  return DEG_stringify_recalc_flags(flags);
 }
 
 const char *update_source_as_string(eUpdateSource source)
@@ -706,7 +681,7 @@ static void set_id_update_count(ID *id)
   if (GS(id->name) == ID_IM) {
     Image *image = reinterpret_cast<Image *>(id);
     static std::atomic<uint64_t> global_image_update_count = 0;
-    image->runtime.update_count = global_image_update_count.fetch_add(1) + 1;
+    image->runtime->update_count = global_image_update_count.fetch_add(1) + 1;
   }
 }
 

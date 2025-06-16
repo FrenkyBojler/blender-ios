@@ -6,6 +6,7 @@
  * \ingroup edtransform
  */
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -243,7 +244,7 @@ void drawSnapping(TransInfo *t)
       copy_m4_m4(view_inv, rv3d->viewinv);
 
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -276,7 +277,7 @@ void drawSnapping(TransInfo *t)
     /* Draw normal if needed. */
     if (target_loc && usingSnappingNormal(t) && validSnappingNormal(t)) {
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4ubv(activeCol);
@@ -293,7 +294,8 @@ void drawSnapping(TransInfo *t)
     GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   }
   else if (t->spacetype == SPACE_IMAGE) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     float x, y;
     const float snap_point[2] = {
@@ -316,7 +318,8 @@ void drawSnapping(TransInfo *t)
   else if (t->spacetype == SPACE_SEQ) {
     const ARegion *region = t->region;
     GPU_blend(GPU_BLEND_ALPHA);
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(col);
     float pixelx = BLI_rctf_size_x(&region->v2d.cur) / BLI_rcti_size_x(&region->v2d.mask);
@@ -519,7 +522,7 @@ void transform_snap_project_individual_apply(TransInfo *t)
       }
 
       /* If both face ray-cast and face nearest methods are enabled, start with face ray-cast and
-       * fallback to face nearest ray-cast does not hit. */
+       * fall back to face nearest ray-cast does not hit. */
       bool hit = false;
       if (t->tsnap.mode & SCE_SNAP_INDIVIDUAL_PROJECT) {
         hit = applyFaceProject(t, tc, td);
@@ -657,13 +660,31 @@ short *transform_snap_flag_from_spacetype_ptr(TransInfo *t, const PropertyRNA **
         *r_prop = &rna_ToolSettings_use_snap_sequencer;
       }
       return &ts->snap_flag_seq;
-    case SPACE_GRAPH:
     case SPACE_ACTION:
     case SPACE_NLA:
       if (r_prop) {
         *r_prop = &rna_ToolSettings_use_snap_anim;
       }
       return &ts->snap_flag_anim;
+    case SPACE_GRAPH: {
+      SpaceGraph *graph_editor = static_cast<SpaceGraph *>(t->area->spacedata.first);
+      switch (graph_editor->mode) {
+        case SIPO_MODE_DRIVERS:
+          /* The driver editor has a separate snapping flag so it can be kept disabled while
+           * keeping it enabled in the Graph Editor. */
+          return &ts->snap_flag_driver;
+
+        case SIPO_MODE_ANIMATION: {
+          if (r_prop) {
+            *r_prop = &rna_ToolSettings_use_snap_anim;
+          }
+          return &ts->snap_flag_anim;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+    }
   }
   /* #SPACE_EMPTY.
    * It can happen when the operator is called via a handle in `bpy.app.handlers`. */
@@ -705,8 +726,25 @@ static eSnapMode snap_mode_from_spacetype(TransInfo *t)
     return eSnapMode(ts->snap_mode);
   }
 
-  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_GRAPH)) {
+  if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA)) {
     return eSnapMode(ts->snap_anim_mode);
+  }
+
+  if (t->spacetype == SPACE_GRAPH) {
+    SpaceGraph *graph_editor = static_cast<SpaceGraph *>(t->area->spacedata.first);
+    switch (graph_editor->mode) {
+      case SIPO_MODE_DRIVERS:
+        /* Snapping to full values is the only mode that currently makes
+         * sense for the driver editor. */
+        return SCE_SNAP_TO_FRAME;
+
+      case SIPO_MODE_ANIMATION:
+        return eSnapMode(ts->snap_anim_mode);
+
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
   }
 
   return SCE_SNAP_TO_INCREMENT;
@@ -1438,15 +1476,14 @@ static void snap_source_closest_fn(TransInfo *t)
 
           /* Use bound-box if possible. */
           if (bounds) {
-            BoundBox bb;
-            BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
+            const std::array<float3, 8> bounds_corners = bounds::corners(*bounds);
             int j;
 
             for (j = 0; j < 8; j++) {
               float loc[3];
               float dist;
 
-              copy_v3_v3(loc, bb.vec[j]);
+              copy_v3_v3(loc, bounds_corners[j]);
               mul_m4_v3(td->ext->obmat, loc);
 
               dist = t->mode_info->snap_distance_fn(t, loc, t->tsnap.snap_target);
@@ -1694,6 +1731,11 @@ static void snap_increment_apply(const TransInfo *t,
 bool transform_snap_increment_ex(const TransInfo *t, bool use_local_space, float *r_val)
 {
   if (!transform_snap_is_active(t)) {
+    return false;
+  }
+
+  if (t->spacetype == SPACE_SEQ) {
+    /* Sequencer has its own dedicated enum for snap_mode with increment snap bit overridden. */
     return false;
   }
 

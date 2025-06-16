@@ -18,6 +18,8 @@
 #include "DNA_object_types.h"   /* for OB_DATA_SUPPORT_ID */
 #include "DNA_screen_types.h"
 
+#include "ANIM_keyframing.hh"
+
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_rect.h"
@@ -66,7 +68,7 @@
 /* for Copy As Driver */
 #include "ED_keyframing.hh"
 
-/* only for UI_OT_editsource */
+/* Only for #UI_OT_editsource. */
 #include "BLI_ghash.h"
 #include "ED_screen.hh"
 
@@ -369,7 +371,14 @@ static wmOperatorStatus reset_default_button_exec(bContext *C, wmOperator *op)
 
   /* if there is a valid property that is editable... */
   if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
-    if (RNA_property_reset(&ptr, prop, (all) ? -1 : index)) {
+    const int array_index = (all) ? -1 : index;
+    if (RNA_property_reset(&ptr, prop, array_index)) {
+
+      /* Apply auto keyframe when property is successfully reset. */
+      Scene *scene = CTX_data_scene(C);
+      blender::animrig::autokeyframe_property(
+          C, scene, &ptr, prop, array_index, scene->r.cfra, true);
+
       return operator_button_property_finish_with_undo(C, &ptr, prop);
     }
   }
@@ -1002,9 +1011,9 @@ static bool override_idtemplate_menu_poll(const bContext *C_const, MenuType * /*
 static void override_idtemplate_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   uiLayout *layout = menu->layout;
-  uiItemO(layout, IFACE_("Make"), ICON_NONE, "UI_OT_override_idtemplate_make");
-  uiItemO(layout, IFACE_("Reset"), ICON_NONE, "UI_OT_override_idtemplate_reset");
-  uiItemO(layout, IFACE_("Clear"), ICON_NONE, "UI_OT_override_idtemplate_clear");
+  layout->op("UI_OT_override_idtemplate_make", IFACE_("Make"), ICON_NONE);
+  layout->op("UI_OT_override_idtemplate_reset", IFACE_("Reset"), ICON_NONE);
+  layout->op("UI_OT_override_idtemplate_clear", IFACE_("Clear"), ICON_NONE);
 }
 
 static void override_idtemplate_menu()
@@ -1025,7 +1034,6 @@ static void override_idtemplate_menu()
 /** \name Copy To Selected Operator
  * \{ */
 
-#define NOT_NULL(assignment) ((assignment) != nullptr)
 #define NOT_RNA_NULL(assignment) ((assignment).data != nullptr)
 
 static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<PointerRNA> *r_lb)
@@ -2381,8 +2389,8 @@ static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmE
     }
   }
   else {
-    if (gamma) {
-      srgb_to_linearrgb_v3_v3(color, color);
+    if (!gamma) {
+      linearrgb_to_srgb_v3_v3(color, color);
     }
 
     ED_imapaint_bucket_fill(C, color, op, event->mval);
@@ -2680,6 +2688,11 @@ static wmOperatorStatus ui_view_scroll_invoke(bContext *C,
   }
 
   BLI_assert(view->supports_scrolling());
+  if (view->is_fully_visible()) {
+    /* The view does not need scrolling currently, so pass the event through. This allows scrolling
+     * e.g. the entire region even when hovering a tree-view that supports scrolling generally. */
+    return OPERATOR_PASS_THROUGH;
+  }
   view->scroll(*direction);
 
   ED_region_tag_redraw(region);

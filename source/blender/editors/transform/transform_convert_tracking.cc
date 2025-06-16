@@ -355,10 +355,8 @@ static void createTransTrackingTracksData(bContext *C, TransInfo *t)
     return;
   }
 
-  tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransTracking TransData"));
-  tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransTracking TransData2D"));
+  tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransTracking TransData");
+  tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransTracking TransData2D");
   tc->custom.type.data = MEM_callocN(tc->data_len * sizeof(TransDataTracking),
                                      "TransTracking TransDataTracking");
   tc->custom.type.free_cb = transDataTrackingFree;
@@ -608,7 +606,7 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
       BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
     }
   }
-  if (t->scene->nodetree != nullptr) {
+  if (t->scene->compositing_node_group != nullptr) {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */

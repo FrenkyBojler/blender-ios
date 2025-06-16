@@ -224,8 +224,7 @@ static void console_history_debug(const bContext *C)
 
 static ConsoleLine *console_lb_add__internal(ListBase *lb, ConsoleLine *from)
 {
-  ConsoleLine *ci = static_cast<ConsoleLine *>(
-      MEM_callocN(sizeof(ConsoleLine), "ConsoleLine Add"));
+  ConsoleLine *ci = MEM_callocN<ConsoleLine>("ConsoleLine Add");
 
   if (from) {
     BLI_assert(strlen(from->line) == from->len);
@@ -235,7 +234,7 @@ static ConsoleLine *console_lb_add__internal(ListBase *lb, ConsoleLine *from)
     ci->type = from->type;
   }
   else {
-    ci->line = static_cast<char *>(MEM_callocN(64, "console-in-line"));
+    ci->line = MEM_calloc_arrayN<char>(64, "console-in-line");
     ci->len_alloc = 64;
     ci->len = 0;
   }
@@ -260,8 +259,7 @@ static ConsoleLine *console_scrollback_add(const bContext *C, ConsoleLine *from)
 
 static ConsoleLine *console_lb_add_str__internal(ListBase *lb, char *str, bool own)
 {
-  ConsoleLine *ci = static_cast<ConsoleLine *>(
-      MEM_callocN(sizeof(ConsoleLine), "ConsoleLine Add"));
+  ConsoleLine *ci = MEM_callocN<ConsoleLine>("ConsoleLine Add");
   const int str_len = strlen(str);
   if (own) {
     ci->line = str;
@@ -459,7 +457,7 @@ void CONSOLE_OT_move(wmOperatorType *ot)
   ot->description = "Move cursor position";
   ot->idname = "CONSOLE_OT_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_move_exec;
   ot->poll = ED_operator_console_active;
 
@@ -544,7 +542,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
   ot->description = "Insert text at cursor position";
   ot->idname = "CONSOLE_OT_insert";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_insert_exec;
   ot->invoke = console_insert_invoke;
   ot->poll = ED_operator_console_active;
@@ -590,7 +588,7 @@ void CONSOLE_OT_indent_or_autocomplete(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_indent_or_autocomplete";
   ot->description = "Indent selected text or autocomplete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_indent_or_autocomplete_exec;
   ot->poll = ED_operator_console_active;
 
@@ -646,7 +644,7 @@ void CONSOLE_OT_indent(wmOperatorType *ot)
   ot->description = "Add 4 spaces at line beginning";
   ot->idname = "CONSOLE_OT_indent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_indent_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -702,7 +700,7 @@ void CONSOLE_OT_unindent(wmOperatorType *ot)
   ot->description = "Delete 4 spaces from line beginning";
   ot->idname = "CONSOLE_OT_unindent";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_unindent_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -807,7 +805,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
   ot->description = "Delete text by cursor position";
   ot->idname = "CONSOLE_OT_delete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_delete_exec;
   ot->poll = ED_operator_console_active;
 
@@ -851,7 +849,7 @@ void CONSOLE_OT_clear_line(wmOperatorType *ot)
   ot->description = "Clear the line and store in history";
   ot->idname = "CONSOLE_OT_clear_line";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_clear_line_exec;
   ot->poll = ED_operator_console_active;
 }
@@ -894,7 +892,7 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
   ot->description = "Clear text by type";
   ot->idname = "CONSOLE_OT_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_clear_exec;
   ot->poll = ED_operator_console_active;
 
@@ -981,7 +979,7 @@ void CONSOLE_OT_history_cycle(wmOperatorType *ot)
   ot->description = "Cycle through history";
   ot->idname = "CONSOLE_OT_history_cycle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_history_cycle_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1043,7 +1041,7 @@ void CONSOLE_OT_history_append(wmOperatorType *ot)
   ot->description = "Append history at cursor position";
   ot->idname = "CONSOLE_OT_history_append";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_history_append_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1099,7 +1097,7 @@ void CONSOLE_OT_scrollback_append(wmOperatorType *ot)
   ot->description = "Append scrollback text by type";
   ot->idname = "CONSOLE_OT_scrollback_append";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = console_scrollback_append_exec;
   ot->poll = ED_operator_console_active;
 
@@ -1145,7 +1143,7 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
   ot->description = "Copy selected text to clipboard";
   ot->idname = "CONSOLE_OT_copy";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = console_copy_poll;
   ot->exec = console_copy_exec;
 
@@ -1207,7 +1205,7 @@ void CONSOLE_OT_paste(wmOperatorType *ot)
   ot->description = "Paste text from clipboard";
   ot->idname = "CONSOLE_OT_paste";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_console_active;
   ot->exec = console_paste_exec;
 
@@ -1351,6 +1349,9 @@ static wmOperatorStatus console_select_set_modal(bContext *C, wmOperator *op, co
     case MOUSEMOVE:
       console_modal_select_apply(C, op, event);
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1368,7 +1369,7 @@ void CONSOLE_OT_select_set(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_select_set";
   ot->description = "Set the console selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_select_set_invoke;
   ot->modal = console_select_set_modal;
   ot->cancel = console_select_set_cancel;
@@ -1408,7 +1409,7 @@ void CONSOLE_OT_select_all(wmOperatorType *ot)
   ot->idname = "CONSOLE_OT_select_all";
   ot->description = "Select all the text";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_modal_select_all_invoke;
   ot->poll = ED_operator_console_active;
 }
@@ -1467,7 +1468,7 @@ void CONSOLE_OT_select_word(wmOperatorType *ot)
   ot->description = "Select word at cursor position";
   ot->idname = "CONSOLE_OT_select_word";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = console_selectword_invoke;
   ot->poll = ED_operator_console_active;
 }

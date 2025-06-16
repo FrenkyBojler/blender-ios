@@ -49,6 +49,9 @@ static eGPUType gpu_type_from_socket_type(eNodeSocketDatatype type)
     case SOCK_INT:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return GPU_FLOAT;
+    case SOCK_BOOLEAN:
+      /* GPUMaterial doesn't support boolean, so it is passed as a float. */
+      return GPU_FLOAT;
     case SOCK_VECTOR:
       return GPU_VEC3;
     case SOCK_RGBA:
@@ -70,7 +73,7 @@ static void populate_gpu_node_stack(DSocket socket, GPUNodeStack &stack)
   zero_v4(stack.vec);
 
   stack.sockettype = socket->type;
-  stack.type = gpu_type_from_socket_type(static_cast<eNodeSocketDatatype>(socket->type));
+  stack.type = gpu_type_from_socket_type(eNodeSocketDatatype(socket->type));
 
   stack.hasinput = socket->is_logically_linked();
   stack.hasoutput = socket->is_logically_linked();

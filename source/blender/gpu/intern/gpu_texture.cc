@@ -946,12 +946,6 @@ void GPU_texture_py_reference_set(GPUTexture *texture, void **py_ref)
 }
 #endif
 
-/* TODO: remove. */
-int GPU_texture_opengl_bindcode(const GPUTexture *texture)
-{
-  return unwrap(texture)->gl_bindcode_get();
-}
-
 void GPU_texture_get_mipmap_size(GPUTexture *texture, int mip_level, int *r_size)
 {
   unwrap(texture)->mip_size_get(mip_level, r_size);
@@ -999,7 +993,7 @@ size_t GPU_pixel_buffer_size(GPUPixelBuffer *pixel_buf)
   return unwrap(pixel_buf)->get_size();
 }
 
-int64_t GPU_pixel_buffer_get_native_handle(GPUPixelBuffer *pixel_buf)
+GPUPixelBufferNativeHandle GPU_pixel_buffer_get_native_handle(GPUPixelBuffer *pixel_buf)
 {
   return unwrap(pixel_buf)->get_native_handle();
 }

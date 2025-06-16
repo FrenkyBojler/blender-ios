@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'409ce2b976cf')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'6ccdb8c06e27')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-24 09:38+0000\n"
-"PO-Revision-Date: 2025-03-03 11:29+0000\n"
+"POT-Creation-Date: 2025-06-16 10:45+0000\n"
+"PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
 "Language: el\n"
@@ -131,6 +131,10 @@ msgid "Random"
 msgstr "Random"
 
 
+msgid "Wire"
+msgstr "Πλέγμα"
+
+
 msgid "Parent"
 msgstr "Γονέας"
 
@@ -229,10 +233,6 @@ msgstr "Κάμερα"
 
 msgid "Bone"
 msgstr "Οστό"
-
-
-msgid "Script"
-msgstr "Script"
 
 
 msgid "Front"
@@ -359,10 +359,6 @@ msgid "Library"
 msgstr "Βιβλιοθήκη"
 
 
-msgid "Wire"
-msgstr "Πλέγμα"
-
-
 msgid "Dynamic"
 msgstr "Δυναμικό"
 
@@ -421,6 +417,10 @@ msgstr "Ακμές"
 
 msgid "Vertices"
 msgstr "Κορυφές"
+
+
+msgid "Script"
+msgstr "Script"
 
 
 msgid "Edit"
@@ -519,48 +519,48 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
+msgid "Text"
+msgstr "Κείμενο"
+
+
 msgid "Metaball"
 msgstr "Μετα-σφαίρα"
-
-
-msgid "Light"
-msgstr "Φως"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
-msgid "Apply"
-msgstr "Εφαρμογή"
-
-
-msgid "Track"
-msgstr "Ανίχνευση"
-
-
-msgid "Make Single User"
-msgstr "Ορισμός Ενός Χρήστη"
 
 
 msgid "Merge"
 msgstr "Συγχώνευση"
 
 
-msgid "Text"
-msgstr "Κείμενο"
-
-
 msgid "Snap"
 msgstr "Προσκόλληση"
 
 
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
+msgid "Light"
+msgstr "Φως"
+
+
+msgid "Make Single User"
+msgstr "Ορισμός Ενός Χρήστη"
+
+
+msgid "Track"
+msgstr "Ανίχνευση"
+
+
+msgid "Apply"
+msgstr "Εφαρμογή"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Select Linked"
 msgstr "Επιλογή Συνδεδεμένων"
+
+
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
 
 
 msgid "Key"

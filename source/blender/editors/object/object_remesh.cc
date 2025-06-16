@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_string_utf8.h"
@@ -128,7 +129,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   Mesh *new_mesh = BKE_mesh_remesh_voxel(
-      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue);
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op->reports);
 
   if (!new_mesh) {
     BKE_report(op->reports, RPT_ERROR, "Voxel remesher failed to create mesh");
@@ -181,7 +182,7 @@ void OBJECT_OT_voxel_remesh(wmOperatorType *ot)
       "will be lost";
   ot->idname = "OBJECT_OT_voxel_remesh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = object_remesh_poll;
   ot->exec = voxel_remesh_exec;
 
@@ -271,7 +272,8 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_line_smooth(true);
 
-  uint pos3d = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos3d = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_matrix_push();
   GPU_matrix_mul(cd->active_object->object_to_world().ptr());
@@ -351,7 +353,7 @@ static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
 
   ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
-  MEM_freeN(op->customdata);
+  MEM_freeN(cd);
 
   ED_workspace_status_text(C, nullptr);
 }
@@ -389,7 +391,7 @@ static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const
   {
     ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
     mesh->remesh_voxel_size = cd->voxel_size;
-    MEM_freeN(op->customdata);
+    MEM_freeN(cd);
     ED_region_tag_redraw(region);
     ED_workspace_status_text(C, nullptr);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
@@ -454,8 +456,7 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
 
   /* Select the front facing face of the mesh bounding box. */
   const Bounds<float3> bounds = *mesh->bounds_min_max();
-  BoundBox bb;
-  BKE_boundbox_init_from_minmax(&bb, bounds.min, bounds.max);
+  const std::array<float3, 8> bounds_box = bounds::corners(bounds);
 
   /* Indices of the Bounding Box faces. */
   const int BB_faces[6][4] = {
@@ -467,10 +468,10 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
       {2, 3, 7, 6},
   };
 
-  copy_v3_v3(cd->preview_plane[0], bb.vec[BB_faces[0][0]]);
-  copy_v3_v3(cd->preview_plane[1], bb.vec[BB_faces[0][1]]);
-  copy_v3_v3(cd->preview_plane[2], bb.vec[BB_faces[0][2]]);
-  copy_v3_v3(cd->preview_plane[3], bb.vec[BB_faces[0][3]]);
+  copy_v3_v3(cd->preview_plane[0], bounds_box[BB_faces[0][0]]);
+  copy_v3_v3(cd->preview_plane[1], bounds_box[BB_faces[0][1]]);
+  copy_v3_v3(cd->preview_plane[2], bounds_box[BB_faces[0][2]]);
+  copy_v3_v3(cd->preview_plane[3], bounds_box[BB_faces[0][3]]);
 
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -494,16 +495,18 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
 
   /* Check if there is a face that is more aligned towards the view. */
   for (int i = 0; i < 6; i++) {
-    normal_tri_v3(
-        current_normal, bb.vec[BB_faces[i][0]], bb.vec[BB_faces[i][1]], bb.vec[BB_faces[i][2]]);
+    normal_tri_v3(current_normal,
+                  bounds_box[BB_faces[i][0]],
+                  bounds_box[BB_faces[i][1]],
+                  bounds_box[BB_faces[i][2]]);
     current_dot = dot_v3v3(current_normal, view_normal);
 
     if (current_dot < min_dot) {
       min_dot = current_dot;
-      copy_v3_v3(cd->preview_plane[0], bb.vec[BB_faces[i][0]]);
-      copy_v3_v3(cd->preview_plane[1], bb.vec[BB_faces[i][1]]);
-      copy_v3_v3(cd->preview_plane[2], bb.vec[BB_faces[i][2]]);
-      copy_v3_v3(cd->preview_plane[3], bb.vec[BB_faces[i][3]]);
+      copy_v3_v3(cd->preview_plane[0], bounds_box[BB_faces[i][0]]);
+      copy_v3_v3(cd->preview_plane[1], bounds_box[BB_faces[i][1]]);
+      copy_v3_v3(cd->preview_plane[2], bounds_box[BB_faces[i][2]]);
+      copy_v3_v3(cd->preview_plane[3], bounds_box[BB_faces[i][3]]);
     }
   }
 
@@ -613,7 +616,7 @@ void OBJECT_OT_voxel_size_edit(wmOperatorType *ot)
   ot->description = "Modify the mesh voxel size interactively used in the voxel remesher";
   ot->idname = "OBJECT_OT_voxel_size_edit";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = voxel_size_edit_poll;
   ot->invoke = voxel_size_edit_invoke;
   ot->modal = voxel_size_edit_modal;
@@ -684,9 +687,8 @@ static bool mesh_is_manifold_consistent(Mesh *mesh)
   const Span<int> corner_edges = mesh->corner_edges();
 
   bool is_manifold_consistent = true;
-  char *edge_faces = (char *)MEM_callocN(mesh->edges_num * sizeof(char), "remesh_manifold_check");
-  int *edge_vert = (int *)MEM_malloc_arrayN(
-      mesh->edges_num, sizeof(uint), "remesh_consistent_check");
+  char *edge_faces = MEM_calloc_arrayN<char>(mesh->edges_num, "remesh_manifold_check");
+  int *edge_vert = MEM_malloc_arrayN<int>(mesh->edges_num, "remesh_consistent_check");
 
   for (uint i = 0; i < mesh->edges_num; i++) {
     edge_vert[i] = -1;
@@ -951,7 +953,7 @@ static void quadriflow_end_job(void *customdata)
 
 static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
 {
-  QuadriFlowJob *job = (QuadriFlowJob *)MEM_mallocN(sizeof(QuadriFlowJob), "QuadriFlowJob");
+  QuadriFlowJob *job = MEM_mallocN<QuadriFlowJob>("QuadriFlowJob");
 
   job->op = op;
   job->owner = CTX_data_active_object(C);
@@ -1127,7 +1129,7 @@ void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)
       "layers will be lost";
   ot->idname = "OBJECT_OT_quadriflow_remesh";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = object_remesh_poll;
   ot->poll_property = quadriflow_poll_property;
   ot->check = quadriflow_check;

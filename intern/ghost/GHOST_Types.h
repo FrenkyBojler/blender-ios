@@ -9,12 +9,13 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
 
 #ifdef WITH_VULKAN_BACKEND
 #  ifdef __APPLE__
 #    include <MoltenVK/vk_mvk_moltenvk.h>
 #  else
-#    include <vulkan/vulkan.h>
+#    include <vulkan/vulkan_core.h>
 #  endif
 #endif
 
@@ -165,8 +166,8 @@ typedef enum {
 typedef struct GHOST_TabletData {
   GHOST_TTabletMode Active; /* 0=None, 1=Stylus, 2=Eraser */
   float Pressure;           /* range 0.0 (not touching) to 1.0 (full pressure) */
-  float Xtilt; /* range 0.0 (upright) to 1.0 (tilted fully against the tablet surface) */
-  float Ytilt; /* as above */
+  float Xtilt;              /* range -1.0 (left) to +1.0 (right) */
+  float Ytilt;              /* range -1.0 (away from user) to +1.0 (toward user) */
 } GHOST_TabletData;
 
 static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
@@ -260,7 +261,7 @@ typedef enum {
   /** Mouse button up event. */
   GHOST_kEventButtonUp,
   /**
-   * Mouse wheel event.
+   * Vertical/Horizontal mouse wheel event.
    *
    * \note #GHOST_GetEventData returns #GHOST_TEventWheelData.
    */
@@ -371,6 +372,7 @@ typedef enum {
   GHOST_kStandardCursorHandOpen,
   GHOST_kStandardCursorHandClosed,
   GHOST_kStandardCursorHandPoint,
+  GHOST_kStandardCursorBlade,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -576,9 +578,16 @@ typedef struct {
   GHOST_TabletData tablet;
 } GHOST_TEventButtonData;
 
+typedef enum {
+  GHOST_kEventWheelAxisVertical = 0,
+  GHOST_kEventWheelAxisHorizontal = 1,
+} GHOST_TEventWheelAxis;
+
 typedef struct {
+  /** Which mouse wheel is used. */
+  GHOST_TEventWheelAxis axis;
   /** Displacement of a mouse wheel. */
-  int32_t z;
+  int32_t value;
 } GHOST_TEventWheelData;
 
 typedef enum {
@@ -608,7 +617,7 @@ typedef struct {
 typedef enum {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
-  GHOST_kDragnDropTypeString,    /* Unformatted text UTF-8 string. */
+  GHOST_kDragnDropTypeString,    /* Unformatted text UTF8 string. */
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 } GHOST_TDragnDropTypes;
 
@@ -630,10 +639,8 @@ typedef struct {
  * All members must remain aligned and the struct size match!
  */
 typedef struct {
-  /** size_t */
-  GHOST_TUserDataPtr result_len, composite_len;
-  /** char * utf8 encoding */
-  GHOST_TUserDataPtr result, composite;
+  /** UTF8 encoded strings. */
+  std::string result, composite;
   /** Cursor position in the IME composition. */
   int cursor_position;
   /** Represents the position of the beginning of the selection */
@@ -689,7 +696,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not null terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -716,17 +723,6 @@ typedef enum {
   GHOST_kDecorationNone = 0,
   GHOST_kDecorationColoredTitleBar = (1 << 0),
 } GHOST_TWindowDecorationStyleFlags;
-
-typedef struct {
-  /** Number of pixels on a line. */
-  uint32_t xPixels;
-  /** Number of lines. */
-  uint32_t yPixels;
-  /** Number of bits per pixel. */
-  uint32_t bpp;
-  /** Refresh rate (in Hertz). */
-  uint32_t frequency;
-} GHOST_DisplaySetting;
 
 typedef struct {
   /** Index of the GPU device in the list provided by the platform. */
@@ -760,20 +756,93 @@ typedef struct {
   VkSemaphore acquire_semaphore;
   /** Semaphore to signal after the image has been updated. */
   VkSemaphore present_semaphore;
+  /** Fence to signal after the image has been updated. */
+  VkFence submission_fence;
 } GHOST_VulkanSwapChainData;
 
-typedef struct {
-  /** Resolution of the framebuffer image. */
-  VkExtent2D extent;
+typedef enum {
   /**
-   * Host accessible data containing the image data. Data is stored in the selected swapchain
-   * format.
+   * Use RAM to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, downloads the result to CPU RAM, GHOST_XrGraphicsBindingVulkan
+   * will upload it to a GPU buffer and copy the buffer to the XR swapchain.
    */
-  // NOTE: This is a temporary solution with quite a large performance overhead. The solution we
-  // would like to implement would use VK_KHR_external_memory. The documentation/samples around
-  // using this in our situation is scarce. We will start prototyping in a smaller scale and when
-  // experience is gained, we will implement the solution.
-  void *image_data;
+  GHOST_kVulkanXRModeCPU,
+
+  /**
+   * Use Linux FD to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, export the memory in an FD handle. GHOST_XrGraphicsBindingVulkan
+   * will import the memory and copy the image to the swapchain.
+   */
+  GHOST_kVulkanXRModeFD,
+
+  /**
+   * Use Win32 handle to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, export the memory in an win32 handle.
+   * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
+   */
+  GHOST_kVulkanXRModeWin32,
+} GHOST_TVulkanXRModes;
+
+typedef struct {
+  /**
+   * Mode to use for data transfer between the application rendered result and the OpenXR
+   * swapchain. This is set by the GHOST and should be respected by the application.
+   */
+  GHOST_TVulkanXRModes data_transfer_mode;
+
+  /**
+   * Resolution of view render result.
+   */
+  VkExtent2D extent;
+
+  union {
+    struct {
+
+      /**
+       * Host accessible data containing the image data. Data is stored in the selected swapchain
+       * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
+       */
+      void *image_data;
+    } cpu;
+    struct {
+      /**
+       * Vulkan handle of the image. When this is the same as last time the imported memory can be
+       * reused.
+       */
+      VkImage vk_image_blender;
+
+      /**
+       * Did the memory address change and do we need to reimport the memory or can we still reuse
+       * the previous imported memory.
+       */
+      bool new_handle;
+
+      /**
+       * Handle of the exported GPU memory. Depending on the data_transfer_mode the actual handle
+       * type can be different (void-pointer/int/..).
+       */
+      uint64_t image_handle;
+
+      /**
+       * Data format of the image.
+       */
+      VkFormat image_format;
+
+      /**
+       * Allocation size of the exported memory.
+       */
+      VkDeviceSize memory_size;
+
+      /**
+       * Offset of the texture/buffer inside the allocated memory.
+       */
+      VkDeviceSize memory_offset;
+    } gpu;
+  };
+
 } GHOST_VulkanOpenXRData;
 
 typedef struct {
@@ -836,7 +905,8 @@ typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsOpenGL,
   GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
-  GHOST_kXrGraphicsD3D11,
+  GHOST_kXrGraphicsOpenGLD3D11,
+  GHOST_kXrGraphicsVulkanD3D11,
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,

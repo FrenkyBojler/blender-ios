@@ -179,7 +179,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* direct data */
   BLO_write_pointer_array(writer, cu->totcol, cu->mat);
 
-  if (cu->vfont) {
+  if (cu->ob_type == OB_FONT) {
     BLO_write_string(writer, cu->str);
     BLO_write_struct_array(writer, CharInfo, cu->len_char32 + 1, cu->strinfo);
     BLO_write_struct_array(writer, TextBox, cu->totbox, cu->tb);
@@ -223,7 +223,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_array(reader, CharInfo, cu->len_char32 + 1, &cu->strinfo);
   BLO_read_struct_array(reader, TextBox, cu->totbox, &cu->tb);
 
-  if (cu->vfont == nullptr) {
+  if (cu->ob_type != OB_FONT) {
     BLO_read_struct_list(reader, Nurb, &(cu->nurb));
   }
   else {
@@ -255,7 +255,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
     BLO_read_struct_array(reader, BPoint, nu->pntsu * nu->pntsv, &nu->bp);
     BLO_read_float_array(reader, KNOTSU(nu), &nu->knotsu);
     BLO_read_float_array(reader, KNOTSV(nu), &nu->knotsv);
-    if (cu->vfont == nullptr) {
+    if (cu->ob_type != OB_FONT) {
       nu->charidx = 0;
     }
   }
@@ -268,7 +268,7 @@ static void curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_CU_LEGACY = {
-    /*id_code*/ ID_CU_LEGACY,
+    /*id_code*/ Curve::id_type,
     /*id_filter*/ FILTER_ID_CU_LEGACY,
     /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_MA | FILTER_ID_VF | FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_CU_LEGACY,
@@ -353,9 +353,9 @@ void BKE_curve_init(Curve *cu, const short curve_type)
 {
   curve_init_data(&cu->id);
 
-  cu->type = curve_type;
+  cu->ob_type = curve_type;
 
-  if (cu->type == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     cu->flag |= CU_FRONT | CU_BACK;
     cu->vfont = cu->vfontb = cu->vfonti = cu->vfontbi = BKE_vfont_builtin_ensure();
     cu->vfont->id.us += 4;
@@ -365,7 +365,8 @@ void BKE_curve_init(Curve *cu, const short curve_type)
     size_t len_char32 = BLI_strlen_utf8_ex(str, &len_bytes);
 
     cu->str = MEM_malloc_arrayN<char>(len_bytes + 1, "str");
-    BLI_strncpy(cu->str, str, len_bytes + 1);
+    memcpy(cu->str, str, len_bytes + 1);
+    BLI_assert(cu->str[len_bytes] == '\0');
 
     cu->len = len_bytes;
     cu->len_char32 = cu->pos = len_char32;
@@ -376,7 +377,7 @@ void BKE_curve_init(Curve *cu, const short curve_type)
     cu->tb = MEM_calloc_arrayN<TextBox>(MAXTEXTBOX, "textbox");
     cu->tb[0].w = cu->tb[0].h = 0.0;
   }
-  else if (cu->type == OB_SURF) {
+  else if (cu->ob_type == OB_SURF) {
     cu->flag |= CU_3D;
     cu->resolu = 4;
     cu->resolv = 4;
@@ -417,27 +418,6 @@ const ListBase *BKE_curve_editNurbs_get_for_read(const Curve *cu)
   return nullptr;
 }
 
-short BKE_curve_type_get(const Curve *cu)
-{
-  int type = cu->type;
-
-  if (cu->vfont) {
-    return OB_FONT;
-  }
-
-  if (!cu->type) {
-    type = OB_CURVES_LEGACY;
-
-    LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-      if (nu->pntsv > 1) {
-        type = OB_SURF;
-      }
-    }
-  }
-
-  return type;
-}
-
 void BKE_curve_dimension_update(Curve *cu)
 {
   ListBase *nurbs = BKE_curve_nurbs_get(cu);
@@ -455,14 +435,16 @@ void BKE_curve_dimension_update(Curve *cu)
   }
 }
 
-void BKE_curve_type_test(Object *ob)
+void BKE_curve_type_test(Object *ob, const bool dimension_update)
 {
-  ob->type = BKE_curve_type_get((Curve *)ob->data);
+  Curve *cu = static_cast<Curve *>(ob->data);
+  ob->type = cu->ob_type;
 
-  if (ob->type == OB_CURVES_LEGACY) {
-    Curve *cu = (Curve *)ob->data;
-    if (CU_IS_2D(cu)) {
-      BKE_curve_dimension_update(cu);
+  if (dimension_update) {
+    if (ob->type == OB_CURVES_LEGACY) {
+      if (CU_IS_2D(cu)) {
+        BKE_curve_dimension_update(cu);
+      }
     }
   }
 }
@@ -1161,6 +1143,7 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_u(nu)) {
         nu->knotsu = MEM_calloc_arrayN<float>(size_t(KNOTSU(nu)) + 1, "makeknots");
         calcknots(nu->knotsu, nu->pntsu, nu->orderu, nu->flagu);
+        nu->flagu &= ~CU_NURB_CUSTOM;
       }
       else {
         nu->knotsu = nullptr;
@@ -1173,12 +1156,18 @@ static void makeknots(Nurb *nu, short uv)
       if (BKE_nurb_check_valid_v(nu)) {
         nu->knotsv = MEM_calloc_arrayN<float>(size_t(KNOTSV(nu)) + 1, "makeknots");
         calcknots(nu->knotsv, nu->pntsv, nu->orderv, nu->flagv);
+        nu->flagv &= ~CU_NURB_CUSTOM;
       }
       else {
         nu->knotsv = nullptr;
       }
     }
   }
+}
+
+void BKE_nurb_knot_alloc_u(Nurb *nu)
+{
+  nu->knotsu = MEM_calloc_arrayN<float>(KNOTSU(nu) + 1, __func__);
 }
 
 void BKE_nurb_knot_calc_u(Nurb *nu)
@@ -1296,7 +1285,7 @@ void BKE_nurb_makeFaces(const Nurb *nu, float *coord_array, int rowstride, int r
     return;
   }
 
-  sum = MEM_calloc_arrayN<float>(size_t(len), "makeNurbfaces1");
+  sum = MEM_calloc_arrayN<float>(len, "makeNurbfaces1");
 
   bp = nu->bp;
   i = nu->pntsu * nu->pntsv;
@@ -1490,7 +1479,7 @@ void BKE_nurb_makeCurve(const Nurb *nu,
   if (len == 0) {
     return;
   }
-  sum = MEM_calloc_arrayN<float>(size_t(len), "makeNurbcurve1");
+  sum = MEM_calloc_arrayN<float>(len, "makeNurbcurve1");
 
   resolu = (resolu * SEGMENTSU(nu));
 
@@ -1963,7 +1952,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
                       (bezt->tilt - prevbezt->tilt) * (3.0f * fac * fac - 2.0f * fac * fac * fac);
       }
       else {
-        key_curve_position_weights(fac, t, nu->tilt_interp);
+        key_curve_position_weights(fac, t, KeyInterpolationType(nu->tilt_interp));
         *tilt_array = t[0] * pprev->tilt + t[1] * prevbezt->tilt + t[2] * bezt->tilt +
                       t[3] * next->tilt;
       }
@@ -1983,7 +1972,7 @@ static void tilt_bezpart(const BezTriple *prevbezt,
 
         /* reuse interpolation from tilt if we can */
         if (tilt_array == nullptr || nu->tilt_interp != nu->radius_interp) {
-          key_curve_position_weights(fac, t, nu->radius_interp);
+          key_curve_position_weights(fac, t, KeyInterpolationType(nu->radius_interp));
         }
         *radius_array = t[0] * pprev->radius + t[1] * prevbezt->radius + t[2] * bezt->radius +
                         t[3] * next->radius;
@@ -2609,7 +2598,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
     if (nu->type == CU_POLY) {
       len = nu->pntsu;
       BevList *bl = MEM_callocN<BevList>(__func__);
-      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(size_t(len), __func__);
+      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
       if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
         bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
         bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
@@ -2659,7 +2648,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
       len = segcount * resolu + 1;
 
       BevList *bl = MEM_callocN<BevList>(__func__);
-      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(size_t(len), __func__);
+      bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
       if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
         bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
         bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
@@ -2795,7 +2784,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
         len = (resolu * segcount);
 
         BevList *bl = MEM_callocN<BevList>(__func__);
-        bl->bevpoints = MEM_calloc_arrayN<BevPoint>(size_t(len), __func__);
+        bl->bevpoints = MEM_calloc_arrayN<BevPoint>(len, __func__);
         if (need_seglen && (nu->flagu & CU_NURB_CYCLIC) == 0) {
           bl->seglen = MEM_malloc_arrayN<float>(size_t(segcount), __func__);
           bl->segbevcount = MEM_malloc_arrayN<int>(size_t(segcount), __func__);
@@ -2896,7 +2885,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
     nr = bl->nr - bl->dupe_nr + 1; /* +1 because vector-bezier sets flag too. */
     blnew = MEM_mallocN<BevList>("makeBevelList4");
     memcpy(blnew, bl, sizeof(BevList));
-    blnew->bevpoints = MEM_calloc_arrayN<BevPoint>(size_t(nr), "makeBevelPoints4");
+    blnew->bevpoints = MEM_calloc_arrayN<BevPoint>(nr, "makeBevelPoints4");
     if (!blnew->bevpoints) {
       MEM_freeN(blnew);
       break;
@@ -3512,7 +3501,7 @@ static bool tridiagonal_solve_with_limits(float *a,
   return true;
 }
 
-/* Keep ascii art. */
+/* Keep ASCII art. */
 /* clang-format off */
 /*
  * This function computes the handles of a series of auto bezier points
@@ -4818,7 +4807,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
   if (nu->type == CU_POLY) {
     if (type == CU_BEZIER) { /* To Bezier with vector-handles. */
       nr = nu->pntsu;
-      bezt = MEM_calloc_arrayN<BezTriple>(size_t(nr), "setsplinetype2");
+      bezt = MEM_calloc_arrayN<BezTriple>(nr, "setsplinetype2");
       nu->bezt = bezt;
       a = nr;
       bp = nu->bp;
@@ -4854,7 +4843,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
   else if (nu->type == CU_BEZIER) { /* Bezier */
     if (ELEM(type, CU_POLY, CU_NURBS)) {
       nr = use_handles ? (3 * nu->pntsu) : nu->pntsu;
-      nu->bp = MEM_calloc_arrayN<BPoint>(size_t(nr), "setsplinetype");
+      nu->bp = MEM_calloc_arrayN<BPoint>(nr, "setsplinetype");
       a = nu->pntsu;
       bezt = nu->bezt;
       bp = nu->bp;
@@ -4920,7 +4909,7 @@ bool BKE_nurb_type_convert(Nurb *nu,
         return false; /* conversion impossible */
       }
 
-      bezt = MEM_calloc_arrayN<BezTriple>(size_t(nr), "setsplinetype2");
+      bezt = MEM_calloc_arrayN<BezTriple>(nr, "setsplinetype2");
       nu->bezt = bezt;
       a = nr;
       bp = nu->bp;
@@ -5278,9 +5267,7 @@ void BKE_curve_translate(Curve *cu, const float offset[3], const bool do_keys)
 
 void BKE_curve_material_index_remove(Curve *cu, int index)
 {
-  const int curvetype = BKE_curve_type_get(cu);
-
-  if (curvetype == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     CharInfo *info = cu->strinfo;
     for (int i = cu->len_char32 - 1; i >= 0; i--, info++) {
       if (info->mat_nr && info->mat_nr >= index) {
@@ -5299,9 +5286,7 @@ void BKE_curve_material_index_remove(Curve *cu, int index)
 
 bool BKE_curve_material_index_used(const Curve *cu, int index)
 {
-  const int curvetype = BKE_curve_type_get(cu);
-
-  if (curvetype == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     const CharInfo *info = cu->strinfo;
     for (int i = cu->len_char32 - 1; i >= 0; i--, info++) {
       if (info->mat_nr == index) {
@@ -5322,9 +5307,7 @@ bool BKE_curve_material_index_used(const Curve *cu, int index)
 
 void BKE_curve_material_index_clear(Curve *cu)
 {
-  const int curvetype = BKE_curve_type_get(cu);
-
-  if (curvetype == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     CharInfo *info = cu->strinfo;
     for (int i = cu->len_char32 - 1; i >= 0; i--, info++) {
       info->mat_nr = 0;
@@ -5339,10 +5322,9 @@ void BKE_curve_material_index_clear(Curve *cu)
 
 bool BKE_curve_material_index_validate(Curve *cu)
 {
-  const int curvetype = BKE_curve_type_get(cu);
   bool is_valid = true;
 
-  if (curvetype == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     CharInfo *info = cu->strinfo;
     const int max_idx = max_ii(0, cu->totcol); /* OB_FONT use 1 as first mat index, not 0!!! */
     int i;
@@ -5372,7 +5354,6 @@ bool BKE_curve_material_index_validate(Curve *cu)
 
 void BKE_curve_material_remap(Curve *cu, const uint *remap, uint remap_len)
 {
-  const int curvetype = BKE_curve_type_get(cu);
   const short remap_len_short = short(remap_len);
 
 #define MAT_NR_REMAP(n) \
@@ -5382,7 +5363,7 @@ void BKE_curve_material_remap(Curve *cu, const uint *remap, uint remap_len)
   } \
   ((void)0)
 
-  if (curvetype == OB_FONT) {
+  if (cu->ob_type == OB_FONT) {
     CharInfo *strinfo;
     int charinfo_len, i;
 
@@ -5484,7 +5465,7 @@ std::optional<int> Curve::material_index_max() const
   LISTBASE_FOREACH (const Nurb *, nurb, &this->nurb) {
     max_index = std::max<int>(max_index, nurb->mat_nr);
   }
-  return max_index;
+  return clamp_i(max_index, 0, MAXMAT);
 }
 
 /* **** Depsgraph evaluation **** */
@@ -5494,7 +5475,7 @@ void BKE_curve_eval_geometry(Depsgraph *depsgraph, Curve *curve)
   DEG_debug_print_eval(depsgraph, __func__, curve->id.name, curve);
   BKE_curve_texspace_calc(curve);
   if (DEG_is_active(depsgraph)) {
-    Curve *curve_orig = (Curve *)DEG_get_original_id(&curve->id);
+    Curve *curve_orig = DEG_get_original(curve);
     if (curve->texspace_flag & CU_TEXSPACE_FLAG_AUTO_EVALUATED) {
       curve_orig->texspace_flag |= CU_TEXSPACE_FLAG_AUTO_EVALUATED;
       copy_v3_v3(curve_orig->texspace_location, curve->texspace_location);

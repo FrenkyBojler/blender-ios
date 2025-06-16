@@ -1,3 +1,7 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
 #include "BKE_camera.h"
 
 #include "DEG_depsgraph_query.hh"
@@ -34,7 +38,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Object *camera_obj = params.get_input<Object *>("Camera");
+  const Object *camera_obj = params.extract_input<Object *>("Camera");
 
   if (!camera_obj || camera_obj->type != OB_CAMERA) {
     params.set_default_remaining_outputs();

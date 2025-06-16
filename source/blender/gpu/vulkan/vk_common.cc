@@ -362,81 +362,6 @@ static VkFormat to_vk_format_norm(const GPUVertCompType type, const uint32_t siz
 static VkFormat to_vk_format_float(const GPUVertCompType type, const uint32_t size)
 {
   switch (type) {
-    case GPU_COMP_I8:
-      switch (size) {
-        case 1:
-          return VK_FORMAT_R8_SSCALED;
-        case 2:
-          return VK_FORMAT_R8G8_SSCALED;
-        case 3:
-          return VK_FORMAT_R8G8B8_SSCALED;
-        case 4:
-          return VK_FORMAT_R8G8B8A8_SSCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R8_SSCALED;
-      }
-    case GPU_COMP_U8:
-      switch (size) {
-        case 1:
-          return VK_FORMAT_R8_USCALED;
-        case 2:
-          return VK_FORMAT_R8G8_USCALED;
-        case 3:
-          return VK_FORMAT_R8G8B8_USCALED;
-        case 4:
-          return VK_FORMAT_R8G8B8A8_USCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R8_USCALED;
-      }
-    case GPU_COMP_I16:
-      switch (size) {
-        case 2:
-          return VK_FORMAT_R16_SSCALED;
-        case 4:
-          return VK_FORMAT_R16G16_SSCALED;
-        case 6:
-          return VK_FORMAT_R16G16B16_SSCALED;
-        case 8:
-          return VK_FORMAT_R16G16B16A16_SSCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R16_SSCALED;
-      }
-    case GPU_COMP_U16:
-      switch (size) {
-        case 2:
-          return VK_FORMAT_R16_USCALED;
-        case 4:
-          return VK_FORMAT_R16G16_USCALED;
-        case 6:
-          return VK_FORMAT_R16G16B16_USCALED;
-        case 8:
-          return VK_FORMAT_R16G16B16A16_USCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R16_USCALED;
-      }
-
-    case GPU_COMP_I32:
-    case GPU_COMP_U32:
-      /* NOTE: GPU_COMP_I32/U32 using GPU_FETCH_INT_TO_FLOAT isn't natively supported. These
-       * are converted on host-side to signed floats. */
-      switch (size) {
-        case 4:
-          return VK_FORMAT_R32_SFLOAT;
-        case 8:
-          return VK_FORMAT_R32G32_SFLOAT;
-        case 12:
-          return VK_FORMAT_R32G32B32_SFLOAT;
-        case 16:
-          return VK_FORMAT_R32G32B32A32_SFLOAT;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R32_SFLOAT;
-      }
-
     case GPU_COMP_F32:
       switch (size) {
         case 4:
@@ -453,10 +378,6 @@ static VkFormat to_vk_format_float(const GPUVertCompType type, const uint32_t si
           BLI_assert_unreachable();
           return VK_FORMAT_R32_SFLOAT;
       }
-
-    case GPU_COMP_I10:
-      BLI_assert(size == 4);
-      return VK_FORMAT_A2B10G10R10_SSCALED_PACK32;
 
     default:
       break;
@@ -596,9 +517,7 @@ VkFormat to_vk_format(const GPUVertCompType type, const uint32_t size, GPUVertFe
 {
   switch (fetch_mode) {
     case GPU_FETCH_FLOAT:
-    case GPU_FETCH_INT_TO_FLOAT:
       return to_vk_format_float(type, size);
-      break;
     case GPU_FETCH_INT:
       return to_vk_format_int(type, size);
       break;
@@ -616,52 +535,52 @@ VkFormat to_vk_format(const GPUVertCompType type, const uint32_t size, GPUVertFe
 VkFormat to_vk_format(const shader::Type type)
 {
   switch (type) {
-    case shader::Type::FLOAT:
+    case shader::Type::float_t:
       return VK_FORMAT_R32_SFLOAT;
-    case shader::Type::VEC2:
+    case shader::Type::float2_t:
       return VK_FORMAT_R32G32_SFLOAT;
-    case shader::Type::VEC3:
+    case shader::Type::float3_t:
       return VK_FORMAT_R32G32B32_SFLOAT;
-    case shader::Type::VEC4:
+    case shader::Type::float4_t:
       return VK_FORMAT_R32G32B32A32_SFLOAT;
-    case shader::Type::UINT:
+    case shader::Type::uint_t:
       return VK_FORMAT_R32_UINT;
-    case shader::Type::UVEC2:
+    case shader::Type::uint2_t:
       return VK_FORMAT_R32G32_UINT;
-    case shader::Type::UVEC3:
+    case shader::Type::uint3_t:
       return VK_FORMAT_R32G32B32_UINT;
-    case shader::Type::UVEC4:
+    case shader::Type::uint4_t:
       return VK_FORMAT_R32G32B32A32_UINT;
-    case shader::Type::INT:
+    case shader::Type::int_t:
       return VK_FORMAT_R32_SINT;
-    case shader::Type::IVEC2:
+    case shader::Type::int2_t:
       return VK_FORMAT_R32G32_SINT;
-    case shader::Type::IVEC3:
+    case shader::Type::int3_t:
       return VK_FORMAT_R32G32B32_SINT;
-    case shader::Type::IVEC4:
+    case shader::Type::int4_t:
       return VK_FORMAT_R32G32B32A32_SINT;
-    case shader::Type::MAT4:
+    case shader::Type::float4x4_t:
       return VK_FORMAT_R32G32B32A32_SFLOAT;
 
-    case shader::Type::MAT3:
-    case shader::Type::BOOL:
-    case shader::Type::VEC3_101010I2:
-    case shader::Type::UCHAR:
-    case shader::Type::UCHAR2:
-    case shader::Type::UCHAR3:
-    case shader::Type::UCHAR4:
-    case shader::Type::CHAR:
-    case shader::Type::CHAR2:
-    case shader::Type::CHAR3:
-    case shader::Type::CHAR4:
-    case shader::Type::SHORT:
-    case shader::Type::SHORT2:
-    case shader::Type::SHORT3:
-    case shader::Type::SHORT4:
-    case shader::Type::USHORT:
-    case shader::Type::USHORT2:
-    case shader::Type::USHORT3:
-    case shader::Type::USHORT4:
+    case shader::Type::float3x3_t:
+    case shader::Type::bool_t:
+    case shader::Type::float3_10_10_10_2_t:
+    case shader::Type::uchar_t:
+    case shader::Type::uchar2_t:
+    case shader::Type::uchar3_t:
+    case shader::Type::uchar4_t:
+    case shader::Type::char_t:
+    case shader::Type::char2_t:
+    case shader::Type::char3_t:
+    case shader::Type::char4_t:
+    case shader::Type::short_t:
+    case shader::Type::short2_t:
+    case shader::Type::short3_t:
+    case shader::Type::short4_t:
+    case shader::Type::ushort_t:
+    case shader::Type::ushort2_t:
+    case shader::Type::ushort3_t:
+    case shader::Type::ushort4_t:
       break;
   }
 
@@ -917,38 +836,38 @@ VkSamplerAddressMode to_vk_sampler_address_mode(const GPUSamplerExtendMode exten
 static VkDescriptorType to_vk_descriptor_type_image(const shader::ImageType &image_type)
 {
   switch (image_type) {
-    case shader::ImageType::FLOAT_1D:
-    case shader::ImageType::FLOAT_1D_ARRAY:
-    case shader::ImageType::FLOAT_2D:
-    case shader::ImageType::FLOAT_2D_ARRAY:
-    case shader::ImageType::FLOAT_3D:
-    case shader::ImageType::FLOAT_CUBE:
-    case shader::ImageType::FLOAT_CUBE_ARRAY:
-    case shader::ImageType::INT_1D:
-    case shader::ImageType::INT_1D_ARRAY:
-    case shader::ImageType::INT_2D:
-    case shader::ImageType::INT_2D_ARRAY:
-    case shader::ImageType::INT_3D:
-    case shader::ImageType::INT_CUBE:
-    case shader::ImageType::INT_CUBE_ARRAY:
-    case shader::ImageType::INT_2D_ATOMIC:
-    case shader::ImageType::INT_2D_ARRAY_ATOMIC:
-    case shader::ImageType::INT_3D_ATOMIC:
-    case shader::ImageType::UINT_1D:
-    case shader::ImageType::UINT_1D_ARRAY:
-    case shader::ImageType::UINT_2D:
-    case shader::ImageType::UINT_2D_ARRAY:
-    case shader::ImageType::UINT_3D:
-    case shader::ImageType::UINT_CUBE:
-    case shader::ImageType::UINT_CUBE_ARRAY:
-    case shader::ImageType::UINT_2D_ATOMIC:
-    case shader::ImageType::UINT_2D_ARRAY_ATOMIC:
-    case shader::ImageType::UINT_3D_ATOMIC:
+    case shader::ImageType::Float1D:
+    case shader::ImageType::Float1DArray:
+    case shader::ImageType::Float2D:
+    case shader::ImageType::Float2DArray:
+    case shader::ImageType::Float3D:
+    case shader::ImageType::FloatCube:
+    case shader::ImageType::FloatCubeArray:
+    case shader::ImageType::Int1D:
+    case shader::ImageType::Int1DArray:
+    case shader::ImageType::Int2D:
+    case shader::ImageType::Int2DArray:
+    case shader::ImageType::Int3D:
+    case shader::ImageType::IntCube:
+    case shader::ImageType::IntCubeArray:
+    case shader::ImageType::AtomicInt2D:
+    case shader::ImageType::AtomicInt2DArray:
+    case shader::ImageType::AtomicInt3D:
+    case shader::ImageType::Uint1D:
+    case shader::ImageType::Uint1DArray:
+    case shader::ImageType::Uint2D:
+    case shader::ImageType::Uint2DArray:
+    case shader::ImageType::Uint3D:
+    case shader::ImageType::UintCube:
+    case shader::ImageType::UintCubeArray:
+    case shader::ImageType::AtomicUint2D:
+    case shader::ImageType::AtomicUint2DArray:
+    case shader::ImageType::AtomicUint3D:
       return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
-    case shader::ImageType::FLOAT_BUFFER:
-    case shader::ImageType::INT_BUFFER:
-    case shader::ImageType::UINT_BUFFER:
+    case shader::ImageType::FloatBuffer:
+    case shader::ImageType::IntBuffer:
+    case shader::ImageType::UintBuffer:
       return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
 
     default:
@@ -961,46 +880,47 @@ static VkDescriptorType to_vk_descriptor_type_image(const shader::ImageType &ima
 static VkDescriptorType to_vk_descriptor_type_sampler(const shader::ImageType &image_type)
 {
   switch (image_type) {
-    case shader::ImageType::FLOAT_1D:
-    case shader::ImageType::FLOAT_1D_ARRAY:
-    case shader::ImageType::FLOAT_2D:
-    case shader::ImageType::FLOAT_2D_ARRAY:
-    case shader::ImageType::FLOAT_3D:
-    case shader::ImageType::FLOAT_CUBE:
-    case shader::ImageType::FLOAT_CUBE_ARRAY:
-    case shader::ImageType::INT_1D:
-    case shader::ImageType::INT_1D_ARRAY:
-    case shader::ImageType::INT_2D:
-    case shader::ImageType::INT_2D_ARRAY:
-    case shader::ImageType::INT_3D:
-    case shader::ImageType::INT_CUBE:
-    case shader::ImageType::INT_CUBE_ARRAY:
-    case shader::ImageType::INT_2D_ATOMIC:
-    case shader::ImageType::INT_2D_ARRAY_ATOMIC:
-    case shader::ImageType::INT_3D_ATOMIC:
-    case shader::ImageType::UINT_1D:
-    case shader::ImageType::UINT_1D_ARRAY:
-    case shader::ImageType::UINT_2D:
-    case shader::ImageType::UINT_2D_ARRAY:
-    case shader::ImageType::UINT_3D:
-    case shader::ImageType::UINT_CUBE:
-    case shader::ImageType::UINT_CUBE_ARRAY:
-    case shader::ImageType::UINT_2D_ATOMIC:
-    case shader::ImageType::UINT_2D_ARRAY_ATOMIC:
-    case shader::ImageType::UINT_3D_ATOMIC:
-    case shader::ImageType::SHADOW_2D:
-    case shader::ImageType::SHADOW_2D_ARRAY:
-    case shader::ImageType::SHADOW_CUBE:
-    case shader::ImageType::SHADOW_CUBE_ARRAY:
-    case shader::ImageType::DEPTH_2D:
-    case shader::ImageType::DEPTH_2D_ARRAY:
-    case shader::ImageType::DEPTH_CUBE:
-    case shader::ImageType::DEPTH_CUBE_ARRAY:
+    case shader::ImageType::undefined:
+    case shader::ImageType::Float1D:
+    case shader::ImageType::Float1DArray:
+    case shader::ImageType::Float2D:
+    case shader::ImageType::Float2DArray:
+    case shader::ImageType::Float3D:
+    case shader::ImageType::FloatCube:
+    case shader::ImageType::FloatCubeArray:
+    case shader::ImageType::Int1D:
+    case shader::ImageType::Int1DArray:
+    case shader::ImageType::Int2D:
+    case shader::ImageType::Int2DArray:
+    case shader::ImageType::Int3D:
+    case shader::ImageType::IntCube:
+    case shader::ImageType::IntCubeArray:
+    case shader::ImageType::AtomicInt2D:
+    case shader::ImageType::AtomicInt2DArray:
+    case shader::ImageType::AtomicInt3D:
+    case shader::ImageType::Uint1D:
+    case shader::ImageType::Uint1DArray:
+    case shader::ImageType::Uint2D:
+    case shader::ImageType::Uint2DArray:
+    case shader::ImageType::Uint3D:
+    case shader::ImageType::UintCube:
+    case shader::ImageType::UintCubeArray:
+    case shader::ImageType::AtomicUint2D:
+    case shader::ImageType::AtomicUint2DArray:
+    case shader::ImageType::AtomicUint3D:
+    case shader::ImageType::Shadow2D:
+    case shader::ImageType::Shadow2DArray:
+    case shader::ImageType::ShadowCube:
+    case shader::ImageType::ShadowCubeArray:
+    case shader::ImageType::Depth2D:
+    case shader::ImageType::Depth2DArray:
+    case shader::ImageType::DepthCube:
+    case shader::ImageType::DepthCubeArray:
       return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-    case shader::ImageType::FLOAT_BUFFER:
-    case shader::ImageType::INT_BUFFER:
-    case shader::ImageType::UINT_BUFFER:
+    case shader::ImageType::FloatBuffer:
+    case shader::ImageType::IntBuffer:
+    case shader::ImageType::UintBuffer:
       return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
   }
 

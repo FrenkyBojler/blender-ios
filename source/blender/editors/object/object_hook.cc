@@ -74,7 +74,7 @@ static int return_editmesh_indexar(BMEditMesh *em,
     return 0;
   }
 
-  *r_indexar = index = static_cast<int *>(MEM_mallocN(4 * indexar_num, "hook indexar"));
+  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -179,7 +179,7 @@ static int return_editlattice_indexar(Lattice *editlatt,
     return 0;
   }
 
-  *r_indexar = index = static_cast<int *>(MEM_mallocN(4 * indexar_num, "hook indexar"));
+  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -267,8 +267,7 @@ static int return_editcurve_indexar(Object *obedit,
     return 0;
   }
 
-  *r_indexar = index = static_cast<int *>(
-      MEM_mallocN(sizeof(*index) * indexar_num, "hook indexar"));
+  *r_indexar = index = MEM_malloc_arrayN<int>(indexar_num, "hook indexar");
   *r_indexar_num = indexar_num;
   nr = 0;
   zero_v3(r_cent);
@@ -595,7 +594,7 @@ static int add_hook_object(const bContext *C,
    */
   /*        (parentinv) */
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *object_eval = DEG_get_evaluated(depsgraph, ob);
   BKE_object_transform_copy(object_eval, ob);
   BKE_object_where_is_calc(depsgraph, scene_eval, object_eval);
 
@@ -654,7 +653,7 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
   ot->description = "Hook selected vertices to the first selected object";
   ot->idname = "OBJECT_OT_hook_add_selob";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_add_hook_selob_exec;
   ot->poll = hook_op_edit_poll;
 
@@ -694,7 +693,7 @@ void OBJECT_OT_hook_add_newob(wmOperatorType *ot)
   ot->description = "Hook selected vertices to a newly created object";
   ot->idname = "OBJECT_OT_hook_add_newob";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_add_hook_newob_exec;
   ot->poll = hook_op_edit_poll;
 
@@ -766,7 +765,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_hook_remove";
   ot->description = "Remove a hook from the active object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_hook_remove_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = hook_op_edit_poll;

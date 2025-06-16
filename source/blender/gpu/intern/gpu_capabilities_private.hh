@@ -48,8 +48,8 @@ struct GPUCapabilities {
   bool geometry_shader_support = false;
   bool shader_draw_parameters_support = false;
   bool hdr_viewport_support = false;
-  bool texture_view_support = true;
   bool stencil_export_support = false;
+  bool clip_control_support = false;
 
   int max_parallel_compilations = -1;
 
@@ -62,6 +62,8 @@ struct GPUCapabilities {
   bool stencil_clasify_buffer_workaround = false;
   bool node_link_instancing_workaround = false;
   bool line_directive_workaround = false;
+
+  bool use_subprocess_shader_compilations = false;
 
   /* Vulkan related workarounds. */
   bool render_pass_workaround = false;

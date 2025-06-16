@@ -227,8 +227,9 @@ void BKE_subdiv_ccg_topology_counters(const SubdivCCG &subdiv_ccg,
                                       int &r_num_faces,
                                       int &r_num_loops);
 
+using SubdivCCGNeighborCoords = blender::Vector<SubdivCCGCoord, 256>;
 struct SubdivCCGNeighbors {
-  blender::Vector<SubdivCCGCoord, 256> coords;
+  SubdivCCGNeighborCoords coords;
   int num_duplicates;
 
   blender::Span<SubdivCCGCoord> unique() const
@@ -274,16 +275,16 @@ inline int BKE_subdiv_ccg_grid_to_face_index(const SubdivCCG &subdiv_ccg, const 
 
 void BKE_subdiv_ccg_eval_limit_point(const SubdivCCG &subdiv_ccg,
                                      const SubdivCCGCoord &coord,
-                                     float r_point[3]);
+                                     blender::float3 &r_point);
 void BKE_subdiv_ccg_eval_limit_positions(const SubdivCCG &subdiv_ccg,
                                          const CCGKey &key,
                                          int grid_index,
                                          blender::MutableSpan<blender::float3> r_limit_positions);
 
-enum SubdivCCGAdjacencyType {
-  SUBDIV_CCG_ADJACENT_NONE,
-  SUBDIV_CCG_ADJACENT_VERTEX,
-  SUBDIV_CCG_ADJACENT_EDGE,
+enum class SubdivCCGAdjacencyType : int8_t {
+  None,
+  Vertex,
+  Edge,
 };
 
 /* Returns if a grid coordinates is adjacent to a coarse mesh edge, vertex or nothing. If it is
