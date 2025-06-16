@@ -999,9 +999,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       std::cerr << "Error: EEVEE: Material " << material_name << " uses too many attributes."
                 << std::endl;
       /* Avoid assert in ShaderCreateInfo::finalize. */
-      for ([[maybe_unused]] int i : IndexRange(last_attr_index)) {
-        info.vertex_inputs_.pop_last();
-      }
+      info.vertex_inputs_.clear();
     }
   }
 
