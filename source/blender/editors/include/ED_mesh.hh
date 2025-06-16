@@ -11,8 +11,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_map.hh"
-#include "BLI_vector.hh"
+
+#include "DNA_windowmanager_enums.h"
 
 struct ARegion;
 struct BMBVHTree;
@@ -46,78 +46,6 @@ struct UvElement;
 struct UvElementMap;
 
 /* `editmesh_utils.cc` */
-class EditMeshSymmetryHelper {
-public:
-  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
-
-  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
-  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
-
-  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
-
-  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
-  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
-
-  void set_crease_on_mirror_edges(BMEdge *edge, float value) const;
-  void set_bevel_weight_on_mirror_edges(BMEdge *edge, float value) const;
-
-  template <typename Func>
-  void apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const;
-  template <typename Func>
-  void apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const;
-  template <typename Func>
-  void apply_on_mirror_faces(BMFace *face, Func operation_lambda) const;
-  void set_crease_on_mirror_verts(BMVert *vert, float value) const;
-  
-private:
-  EditMeshSymmetryHelper(Object *ob);
-  void set_float_prop_on_mirror_edges(BMEdge *edge, const char *name, float value) const;
-  void set_float_prop_on_mirror_elements(BMVert *vert, const char *name, float value) const;
-
-
-  BMEditMesh *em;
-  Mesh *mesh;
-  bool use_topology_mirror;
-
-  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
-  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
-  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
-
-
-  
-};
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const {
-  if (!vert_to_mirrors_map.contains(vert)) {
-    return;
-  }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    operation_lambda(mirror_vert);
-  }
-}
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const {
-  if (!edge_to_mirrors_map.contains(edge)) {
-    return;
-  }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    operation_lambda(mirror_edge);
-  }
-}
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face, Func operation_lambda) const {
-  if (!face_to_mirrors_map.contains(face)) {
-    return;
-  }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    operation_lambda(mirror_face);
-  }
-}
-
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
@@ -339,13 +267,13 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
                                            BMEdge **r_eed,
                                            BMFace **r_efa);
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params);
+bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
 
 /**
  * When switching select mode, makes sure selection is consistent for editing
  * also for paranoia checks to make sure edge or face mode works.
  */
-void EDBM_selectmode_set(BMEditMesh *em);
+void EDBM_selectmode_set(BMEditMesh *em, short selectmode);
 /**
  * Expand & Contract the Selection
  * (used when changing modes and Ctrl key held)
@@ -363,14 +291,24 @@ void EDBM_selectmode_set(BMEditMesh *em);
 void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new);
 
 /**
- * User access this.
+ * Select-mode setting utility.
+ * This operates on tool-settings and all objects passed in.
+ */
+bool EDBM_selectmode_set_multi_ex(Scene *scene,
+                                  blender::Span<Object *> objects,
+                                  const short selectmode);
+/**
+ * High level select-mode setting utility.
+ * This operates on tool-settings and all edit-mode objects.
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
- * User facing function, does notification.
+ * User facing function, handles notification.
+ *
+ * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
 bool EDBM_selectmode_toggle_multi(
-    bContext *C, short selectmode_new, int action, bool use_extend, bool use_expand);
+    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback
@@ -459,7 +397,7 @@ void paintface_flush_flags(bContext *C, Object *ob, bool flush_selection, bool f
  */
 bool paintface_mouse_select(bContext *C,
                             const int mval[2],
-                            const SelectPick_Params *params,
+                            const SelectPick_Params &params,
                             Object *ob);
 bool paintface_deselect_all_visible(bContext *C, Object *ob, int action, bool flush_flags);
 void paintface_select_linked(bContext *C, Object *ob, const int mval[2], bool select);
@@ -589,10 +527,12 @@ void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
 /* `meshtools.cc` */
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  bool ensure_keys_exist,
+                                                  ReportList *reports);
 
-/* mirror lookup api */
+/* Mirror lookup API. */
 
 /* Spatial Mirror */
 void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval);
