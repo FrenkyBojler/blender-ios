@@ -262,6 +262,11 @@ typedef struct View3DOverlay {
 
   /** Curves sculpt mode settings. */
   float sculpt_curves_cage_opacity;
+
+  /* Debug grid topology view. */
+  int grid_topology_flag;
+  char _pad1[4];
+  char grid_name[128];
 } View3DOverlay;
 
 /** #View3DOverlay.handle_display */
