@@ -971,6 +971,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeHairConstraint");
   ntype.ui_name = "Evaluate Hair Constraint";
+  ntype.ui_description = "Evaluate the objective function of a specific constraint type";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
