@@ -1141,10 +1141,13 @@ class NODE_PT_node_tree_animation(Panel):
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
         snode = context.space_data
         group = snode.edit_tree
 
-        col = layout.column()
+        col = layout.column(align=True)
         anim.draw_action_and_slot_selector_for_id(col, group)
 
 
