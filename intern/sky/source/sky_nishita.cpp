@@ -23,15 +23,11 @@ static const int min_wavelength = 380;          /* lowest sampled wavelength (nm
 static const int max_wavelength = 780;          /* highest sampled wavelength (nm). */
 /* Step between each sampled wavelength (nm). */
 static const float step_lambda = (max_wavelength - min_wavelength) / (num_wavelengths - 1);
-/* Sun irradiance on top of the atmosphere (W*m^-2*nm^-1) */
-static const float irradiance[] = {
-    1.45756829855592995315f, 1.56596305559738380175f, 1.65148449067670455293f,
-    1.71496242737209314555f, 1.75797983805020541226f, 1.78256407885924539336f,
-    1.79095108475838560302f, 1.78541550133410664714f, 1.76815554864306845317f,
-    1.74122069647250410362f, 1.70647127164943679389f, 1.66556087452739887134f,
-    1.61993437242451854274f, 1.57083597368892080581f, 1.51932335059305478886f,
-    1.46628494965214395407f, 1.41245852740172450623f, 1.35844961970384092709f,
-    1.30474913844739281998f, 1.25174963272610817455f, 1.19975998755420620867f};
+/* Extraterrestrial solar irradiance from https://www.nrel.gov/grid/solar-resource/spectra.html
+ * (W*m^-2*nm^-1) */
+static const float irradiance[] = {1.1445f, 1.652f, 1.7315f, 1.771f,  2.0265f, 2.0575f, 1.9155f,
+                                   1.8315f, 1.803f, 1.8275f, 1.835f,  1.7625f, 1.7225f, 1.6345f,
+                                   1.562f,  1.497f, 1.4075f, 1.3305f, 1.269f,  1.2395f, 1.188f};
 /* Rayleigh scattering coefficient (m^-1) */
 static const float rayleigh_coeff[] = {
     0.00005424820087636473f, 0.00004418549866505454f, 0.00003635151910165377f,

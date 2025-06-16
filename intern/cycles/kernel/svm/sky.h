@@ -36,6 +36,8 @@ ccl_device float3 sky_radiance_nishita(KernelGlobals kg,
   /* render above the horizon */
   if (dir.z >= 0.0f) {
     /* definitions */
+    const float3 sun_dir = spherical_to_direction(sun_elevation - M_PI_2_F,
+                                                  sun_rotation - M_PI_2_F);
     const float sun_dir_angle = precise_angle(dir, sun_dir);
     const float half_angular = angular_diameter * 0.5f;
     const float dir_elevation = M_PI_2_F - direction.x;
