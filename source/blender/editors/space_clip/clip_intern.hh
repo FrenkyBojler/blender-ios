@@ -57,27 +57,6 @@ void CLIP_OT_dopesheet_view_all(wmOperatorType *ot);
 
 void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region);
 
-/**
- * Desired GPU state for drawing lines and points in the clip editor.
- */
-struct ClipShaderState {
-  /**
-   * Shader (only GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, GPU_SHADER_3D_POINT_UNIFORM_COLOR and
-   * GPU_SHADER_3D_LINE_DASH_UNIFORM_COLOR are supported.)
-   */
-  eGPUBuiltinShader shader;
-  /** Point size for GPU_SHADER_3D_POINT_UNIFORM_COLOR. */
-  float point_size;
-  /** Line width for GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR. */
-  float line_width;
-  /** Uniform bound color. */
-  blender::float4 color;
-};
-
-void clip_ensure_shader(std::optional<eGPUBuiltinShader> &active_shader,
-                        const ClipShaderState &requested_state);
-void clip_unbind_shader(std::optional<eGPUBuiltinShader> &active_shader);
-
 /* draw grease pencil */
 
 void clip_draw_grease_pencil(bContext *C, int onlyv2d);

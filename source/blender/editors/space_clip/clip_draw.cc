@@ -51,71 +51,6 @@
 
 #include "clip_intern.hh" /* own include */
 
-/**
- * Ensure the active shader state matches the given shader data.
- */
-void clip_ensure_shader(std::optional<eGPUBuiltinShader> &active_shader,
-                        const ClipShaderState &requested_state)
-{
-  BLI_assert_msg(ELEM(requested_state.shader,
-                      GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR,
-                      GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
-                      GPU_SHADER_3D_POINT_UNIFORM_COLOR),
-                 "Only GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR, "
-                 "GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR and GPU_SHADER_3D_POINT_UNIFORM_COLOR "
-                 "are supported.");
-
-  /* Check if active shader needs to be unbound. */
-  const bool unbind_shader = active_shader.has_value() &&
-                             active_shader.value() != requested_state.shader;
-  if (unbind_shader) {
-    clip_unbind_shader(active_shader);
-  }
-
-  /* Check is new shader needs to be bound. */
-  const bool bind_shader = !active_shader.has_value();
-  if (bind_shader) {
-    immBindBuiltinProgram(requested_state.shader);
-    active_shader = requested_state.shader;
-  }
-
-  /* Update shader uniforms */
-  switch (active_shader.value()) {
-    case GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR: {
-      float viewport[4];
-      GPU_viewport_size_get_f(viewport);
-      immUniform2fv("viewportSize", &viewport[2]);
-      immUniform1f("lineWidth", requested_state.line_width);
-      immUniformColor4fv(requested_state.color);
-      break;
-    }
-    case GPU_SHADER_3D_POINT_UNIFORM_COLOR: {
-      immUniform1f("size", requested_state.point_size);
-      immUniformColor4fv(requested_state.color);
-      break;
-    }
-    case GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR: {
-      float viewport[4];
-      GPU_viewport_size_get_f(viewport);
-      immUniform2f("viewport_size", viewport[2] / UI_SCALE_FAC, viewport[3] / UI_SCALE_FAC);
-      immUniform1i("colors_len", 0);
-      immUniformColor4fv(requested_state.color);
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
-  }
-}
-
-void clip_unbind_shader(std::optional<eGPUBuiltinShader> &active_state)
-{
-  const bool unbind_shader = active_state.has_value();
-  if (unbind_shader) {
-    immUnbindProgram();
-    active_state.reset();
-  }
-}
-
 /*********************** main area drawing *************************/
 
 static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int width, uint pos)
@@ -555,12 +490,10 @@ static void draw_track_path_lines(const TrackPathPoint *path,
   immEnd();
 }
 
-static void draw_track_path(SpaceClip *sc,
-                            MovieClip * /*clip*/,
-                            MovieTrackingTrack *track,
-                            std::optional<eGPUBuiltinShader> &active_shader)
+static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTrack *track)
 {
 #define MAX_STATIC_PATH 64
+  BLI_assert(!immIsShaderBound());
 
   const int count = sc->path_length;
   TrackPathPoint path_static[(MAX_STATIC_PATH + 1) * 2];
@@ -592,72 +525,63 @@ static void draw_track_path(SpaceClip *sc,
 
   const int path_start_index = count - num_points_before + 1;
   const int path_center_index = count;
-  /* Unbinding active shader to ensure the new vertex format gets packed. */
-  clip_unbind_shader(active_shader);
   const uint position_attribute = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  ClipShaderState shader_data_point = {
-      GPU_SHADER_3D_POINT_UNIFORM_COLOR,
-      1.0,
-      0.0,
-  };
-  ClipShaderState shader_data_line = {
-      GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
-      0.0,
-      1.0,
-  };
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
 
   /* Draw path outline. */
   if (!tiny) {
     if (TRACK_VIEW_SELECTED(sc, track)) {
-      UI_GetThemeColor4fv(TH_MARKER_OUTLINE, shader_data_point.color);
-      shader_data_point.point_size = 5.0f;
-      clip_ensure_shader(active_shader, shader_data_point);
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immUniformThemeColor(TH_MARKER_OUTLINE);
+      immUniform1f("size", 5.0);
       draw_track_path_points(path, position_attribute, path_start_index, num_all_points);
-      shader_data_point.point_size = 7.0f;
-      clip_ensure_shader(active_shader, shader_data_point);
+      immUniform1f("size", 5.0);
       draw_track_path_keyframe_points(path, position_attribute, path_start_index, num_all_points);
+      immUnbindProgram();
     }
     /* Draw darker outline for actual path, all line segments at once. */
-    UI_GetThemeColor4fv(TH_MARKER_OUTLINE, shader_data_line.color);
-    shader_data_line.line_width = 3.0f;
-    clip_ensure_shader(active_shader, shader_data_line);
+    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+    immUniform2fv("viewportSize", &viewport[2]);
+    immUniform1f("lineWidth", 3.0f);
+    immUniformThemeColor(TH_MARKER_OUTLINE);
     draw_track_path_lines(path, position_attribute, path_start_index, num_all_points);
+    immUnbindProgram();
   }
 
   /* Draw all points. */
-  shader_data_point.point_size = 3.0f;
-  UI_GetThemeColor4fv(TH_PATH_BEFORE, shader_data_point.color);
-  clip_ensure_shader(active_shader, shader_data_point);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+  immUniformThemeColor(TH_PATH_BEFORE);
+  immUniform1f("size", 3.0);
   draw_track_path_points(path, position_attribute, path_start_index, num_points_before);
-  UI_GetThemeColor4fv(TH_PATH_AFTER, shader_data_point.color);
-  clip_ensure_shader(active_shader, shader_data_point);
+  immUniformThemeColor(TH_PATH_AFTER);
   draw_track_path_points(path, position_attribute, path_center_index, num_points_after);
+  immUnbindProgram();
 
   /* Connect points with color coded segments. */
-  UI_GetThemeColor4fv(TH_PATH_BEFORE, shader_data_line.color);
-  shader_data_line.line_width = 1.0f;
-  clip_ensure_shader(active_shader, shader_data_line);
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", 1.0f);
+  immUniformThemeColor(TH_PATH_BEFORE);
   draw_track_path_lines(path, position_attribute, path_start_index, num_points_before);
-  UI_GetThemeColor4fv(TH_PATH_AFTER, shader_data_line.color);
-  clip_ensure_shader(active_shader, shader_data_line);
+  immUniformThemeColor(TH_PATH_AFTER);
   draw_track_path_lines(path, position_attribute, path_center_index, num_points_after);
+  immUnbindProgram();
 
   /* Draw all bigger points corresponding to keyframes. */
-  shader_data_point.point_size = 5.0f;
-  UI_GetThemeColor4fv(TH_PATH_KEYFRAME_BEFORE, shader_data_point.color);
-  clip_ensure_shader(active_shader, shader_data_point);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+  immUniformThemeColor(TH_PATH_KEYFRAME_BEFORE);
+  immUniform1f("size", 5.0);
   draw_track_path_keyframe_points(path, position_attribute, path_start_index, num_points_before);
-  UI_GetThemeColor4fv(TH_PATH_KEYFRAME_AFTER, shader_data_point.color);
-  clip_ensure_shader(active_shader, shader_data_point);
+  immUniformThemeColor(TH_PATH_KEYFRAME_AFTER);
   draw_track_path_keyframe_points(path, position_attribute, path_center_index, num_points_after);
+  immUnbindProgram();
 
   if (path != path_static) {
     MEM_freeN(path);
   }
-
-  clip_unbind_shader(active_shader);
 
 #undef MAX_STATIC_PATH
 }
@@ -668,9 +592,9 @@ static void draw_marker_outline(SpaceClip *sc,
                                 const float marker_pos[2],
                                 int width,
                                 int height,
-                                uint position,
-                                std::optional<eGPUBuiltinShader> &active_shader)
+                                uint position)
 {
+  BLI_assert(!immIsShaderBound());
   int tiny = sc->flag & SC_SHOW_TINY_MARKER;
   bool show_search = false;
   float px[2];
@@ -678,18 +602,8 @@ static void draw_marker_outline(SpaceClip *sc,
   px[0] = 1.0f / width / sc->zoom;
   px[1] = 1.0f / height / sc->zoom;
 
-  ClipShaderState shader_data_point = {
-      GPU_SHADER_3D_POINT_UNIFORM_COLOR,
-      tiny ? 3.0f : 4.0f,
-      0.0f,
-  };
-  UI_GetThemeColor4fv(TH_MARKER_OUTLINE, shader_data_point.color);
-  ClipShaderState shader_data_line = {
-      GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR,
-      0.0f,
-      tiny ? 1.0f : 3.0f,
-  };
-  UI_GetThemeColor4fv(TH_MARKER_OUTLINE, shader_data_line.color);
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
 
   if ((marker->flag & MARKER_DISABLED) == 0) {
     float pos[2];
@@ -707,14 +621,19 @@ static void draw_marker_outline(SpaceClip *sc,
                             marker->pattern_corners[2],
                             marker->pattern_corners[3]))
     {
-      clip_ensure_shader(active_shader, shader_data_point);
-
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immUniform1f("size", tiny ? 3.0f : 4.0f);
+      immUniformThemeColor(TH_MARKER_OUTLINE);
       immBegin(GPU_PRIM_POINTS, 1);
       immVertex2f(position, pos[0], pos[1]);
       immEnd();
+      immUnbindProgram();
     }
     else {
-      clip_ensure_shader(active_shader, shader_data_line);
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immUniform2fv("viewportSize", &viewport[2]);
+      immUniform1f("lineWidth", (tiny ? 1.0f : 3.0f) * U.pixelsize);
+      immUniformThemeColor(TH_MARKER_OUTLINE);
       immBegin(GPU_PRIM_LINES, 8);
 
       immVertex2f(position, pos[0] + px[0] * 2, pos[1]);
@@ -730,15 +649,20 @@ static void draw_marker_outline(SpaceClip *sc,
       immVertex2f(position, pos[0], pos[1] + px[1] * 8);
 
       immEnd();
+      immUnbindProgram();
     }
   }
 
   /* pattern and search outline */
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", (tiny ? 1.0f : 3.0f) * U.pixelsize);
+  immUniformThemeColor(TH_MARKER_OUTLINE);
+
   GPU_matrix_push();
   GPU_matrix_translate_2fv(marker_pos);
 
   if (sc->flag & SC_SHOW_MARKER_PATTERN) {
-    clip_ensure_shader(active_shader, shader_data_line);
     immBegin(GPU_PRIM_LINE_LOOP, 4);
     immVertex2fv(position, marker->pattern_corners[0]);
     immVertex2fv(position, marker->pattern_corners[1]);
@@ -752,7 +676,6 @@ static void draw_marker_outline(SpaceClip *sc,
                 0;
 
   if (sc->flag & SC_SHOW_MARKER_SEARCH && show_search) {
-    clip_ensure_shader(active_shader, shader_data_line);
     imm_draw_box_wire_2d(position,
                          marker->search_min[0],
                          marker->search_min[1],
@@ -761,6 +684,7 @@ static void draw_marker_outline(SpaceClip *sc,
   }
 
   GPU_matrix_pop();
+  immUnbindProgram();
 }
 
 static void track_colors(const MovieTrackingTrack *track, int act, float r_col[3], float r_scol[3])
@@ -792,34 +716,32 @@ static void set_draw_marker_area_color(const MovieTrackingTrack *track,
                                        const bool is_track_active,
                                        const bool is_area_selected,
                                        const float color[3],
-                                       const float selected_color[3],
-                                       ClipShaderState &shader_data)
+                                       const float selected_color[3])
 {
   if (track->flag & TRACK_LOCKED) {
     if (is_track_active) {
-      UI_GetThemeColor4fv(TH_ACT_MARKER, shader_data.color);
+      immUniformThemeColor(TH_ACT_MARKER);
     }
     else if (is_area_selected) {
-      UI_GetThemeColorShade4fv(TH_LOCK_MARKER, 64, shader_data.color);
+      immUniformThemeColorShade(TH_LOCK_MARKER, 64);
     }
     else {
-      UI_GetThemeColor4fv(TH_LOCK_MARKER, shader_data.color);
+      immUniformThemeColor(TH_LOCK_MARKER);
     }
   }
   else if (marker->flag & MARKER_DISABLED) {
     if (is_track_active) {
-      UI_GetThemeColor4fv(TH_ACT_MARKER, shader_data.color);
+      immUniformThemeColor(TH_ACT_MARKER);
     }
     else if (is_area_selected) {
-      UI_GetThemeColorShade4fv(TH_DIS_MARKER, 128, shader_data.color);
+      immUniformThemeColorShade(TH_DIS_MARKER, 128);
     }
     else {
-      UI_GetThemeColor4fv(TH_DIS_MARKER, shader_data.color);
+      immUniformThemeColor(TH_DIS_MARKER);
     }
   }
   else {
-    shader_data.color = blender::float4(blender::float3(is_area_selected ? selected_color : color),
-                                        1.0f);
+    immUniformColor3fv(is_area_selected ? selected_color : color);
   }
 }
 
@@ -831,12 +753,12 @@ static void draw_marker_areas(SpaceClip *sc,
                               int height,
                               int act,
                               int sel,
-                              const uint shdr_pos,
-                              std::optional<eGPUBuiltinShader> &active_shader)
+                              const uint shdr_pos)
 {
   int tiny = sc->flag & SC_SHOW_TINY_MARKER;
   bool show_search = false;
   float col[3], scol[3];
+  blender::float4 color;
   float px[2];
 
   track_colors(track, act, col, scol);
@@ -844,13 +766,8 @@ static void draw_marker_areas(SpaceClip *sc,
   px[0] = 1.0f / width / sc->zoom;
   px[1] = 1.0f / height / sc->zoom;
 
-  ClipShaderState shader_data_line_dash = {
-      GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR,
-      0.0f,
-      1.0f,
-  };
-  ClipShaderState shader_data_point = {
-      GPU_SHADER_3D_POINT_UNIFORM_COLOR, tiny ? 1.0f : 2.0f, 0.0f};
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
 
   /* marker position and offset position */
   if ((track->flag & SELECT) == sel && (marker->flag & MARKER_DISABLED) == 0) {
@@ -858,26 +775,21 @@ static void draw_marker_areas(SpaceClip *sc,
 
     if (track->flag & TRACK_LOCKED) {
       if (act) {
-        UI_GetThemeColor4fv(TH_ACT_MARKER, shader_data_point.color);
-        UI_GetThemeColor4fv(TH_ACT_MARKER, shader_data_line_dash.color);
+        UI_GetThemeColor4fv(TH_ACT_MARKER, color);
       }
       else if (track->flag & SELECT) {
-        UI_GetThemeColorShade4fv(TH_LOCK_MARKER, 64, shader_data_point.color);
-        UI_GetThemeColorShade4fv(TH_LOCK_MARKER, 64, shader_data_line_dash.color);
+        UI_GetThemeColorShade4fv(TH_LOCK_MARKER, 64, color);
       }
       else {
-        UI_GetThemeColor4fv(TH_LOCK_MARKER, shader_data_point.color);
-        UI_GetThemeColor4fv(TH_LOCK_MARKER, shader_data_line_dash.color);
+        UI_GetThemeColor4fv(TH_LOCK_MARKER, color);
       }
     }
     else {
       if (bool(track->flag & SELECT)) {
-        shader_data_point.color = blender::float4(blender::float3(scol), 1.0);
-        shader_data_line_dash.color = blender::float4(blender::float3(scol), 1.0);
+        color = blender::float4(blender::float3(scol), 1.0);
       }
       else {
-        shader_data_point.color = blender::float4(blender::float3(col), 1.0);
-        shader_data_line_dash.color = blender::float4(blender::float3(col), 1.0);
+        color = blender::float4(blender::float3(col), 1.0);
       }
     }
 
@@ -892,13 +804,19 @@ static void draw_marker_areas(SpaceClip *sc,
                             marker->pattern_corners[2],
                             marker->pattern_corners[3]))
     {
-      clip_ensure_shader(active_shader, shader_data_point);
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immUniformColor4fv(color);
+      immUniform1f("size", tiny ? 1.0f : 2.0f);
       immBegin(GPU_PRIM_POINTS, 1);
       immVertex2f(shdr_pos, pos[0], pos[1]);
       immEnd();
+      immUnbindProgram();
     }
     else {
-      clip_ensure_shader(active_shader, shader_data_line_dash);
+      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immUniform2f("viewport_size", viewport[2] / UI_SCALE_FAC, viewport[3] / UI_SCALE_FAC);
+      immUniform1i("colors_len", 0);
+      immUniformColor4fv(color);
       immUniform1f("udash_factor", 2.0f); /* Solid line */
 
       immBegin(GPU_PRIM_LINES, 8);
@@ -929,6 +847,7 @@ static void draw_marker_areas(SpaceClip *sc,
       immEnd();
 
       GPU_logic_op_xor_set(false);
+      immUnbindProgram();
     }
   }
 
@@ -936,10 +855,10 @@ static void draw_marker_areas(SpaceClip *sc,
   GPU_matrix_push();
   GPU_matrix_translate_2fv(marker_pos);
 
-  set_draw_marker_area_color(
-      track, marker, act, track->pat_flag & SELECT, col, scol, shader_data_line_dash);
-  clip_ensure_shader(active_shader, shader_data_line_dash);
-
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+  immUniform2f("viewport_size", viewport[2] / UI_SCALE_FAC, viewport[3] / UI_SCALE_FAC);
+  immUniform1i("colors_len", 0);
+  set_draw_marker_area_color(track, marker, act, track->pat_flag & SELECT, col, scol);
   if (tiny) {
     immUniform1f("dash_width", 6.0f);
     immUniform1f("udash_factor", 0.5f);
@@ -963,10 +882,7 @@ static void draw_marker_areas(SpaceClip *sc,
                 0;
 
   if ((track->search_flag & SELECT) == sel && (sc->flag & SC_SHOW_MARKER_SEARCH) && show_search) {
-    set_draw_marker_area_color(
-        track, marker, act, track->search_flag & SELECT, col, scol, shader_data_line_dash);
-    clip_ensure_shader(active_shader, shader_data_line_dash);
-
+    set_draw_marker_area_color(track, marker, act, track->search_flag & SELECT, col, scol);
     imm_draw_box_wire_2d(shdr_pos,
                          marker->search_min[0],
                          marker->search_min[1],
@@ -976,8 +892,7 @@ static void draw_marker_areas(SpaceClip *sc,
 
   GPU_matrix_pop();
 
-  /* Unbinding active shader to ensure the new vertex format gets packed. */
-  clip_unbind_shader(active_shader);
+  immUnbindProgram();
   const uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
   BLI_assert(pos == shdr_pos);
@@ -1042,8 +957,7 @@ static void draw_marker_slide_zones(SpaceClip *sc,
                                     int act,
                                     int width,
                                     int height,
-                                    uint pos,
-                                    std::optional<eGPUBuiltinShader> &shader_state)
+                                    uint pos)
 {
   float dx, dy, patdx, patdy, searchdx, searchdy;
   int tiny = sc->flag & SC_SHOW_TINY_MARKER;
@@ -1059,7 +973,6 @@ static void draw_marker_slide_zones(SpaceClip *sc,
 
   /* This function draws polygons that is not covered in the shader state. We reset it and make
    * sure that the state of the GPU is unbound at the end of this function. */
-  clip_unbind_shader(shader_state);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   track_colors(track, act, col, scol);
@@ -1634,19 +1547,18 @@ static void draw_tracking_tracks(SpaceClip *sc,
     }
   }
 
-  std::optional<eGPUBuiltinShader> active_shader;
   GPU_debug_group_begin("Clip.Tracks.Path");
   if (sc->flag & SC_SHOW_TRACK_PATH) {
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
       if ((track->flag & TRACK_HIDDEN) == 0) {
-        draw_track_path(sc, clip, track, active_shader);
+        draw_track_path(sc, clip, track);
       }
     }
   }
   GPU_debug_group_end();
 
-  /* Unbinding active shader to ensure imm vertex format will be repacked. */
-  clip_unbind_shader(active_shader);
+  /* No shader should be bound to ensure imm vertex format will be repacked. */
+  BLI_assert(!immIsShaderBound());
   const uint position = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
@@ -1662,12 +1574,10 @@ static void draw_tracking_tracks(SpaceClip *sc,
 
     if (ED_space_clip_marker_is_visible(sc, tracking_object, track, marker)) {
       copy_v2_v2(cur_pos, fp ? fp : marker->pos);
-      draw_marker_outline(sc, track, marker, cur_pos, width, height, position, active_shader);
-      draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 0, position, active_shader);
-      draw_marker_slide_zones(
-          sc, track, marker, cur_pos, 1, 0, 0, width, height, position, active_shader);
-      draw_marker_slide_zones(
-          sc, track, marker, cur_pos, 0, 0, 0, width, height, position, active_shader);
+      draw_marker_outline(sc, track, marker, cur_pos, width, height, position);
+      draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 0, position);
+      draw_marker_slide_zones(sc, track, marker, cur_pos, 1, 0, 0, width, height, position);
+      draw_marker_slide_zones(sc, track, marker, cur_pos, 0, 0, 0, width, height, position);
       if (fp) {
         fp += 2;
       }
@@ -1689,10 +1599,8 @@ static void draw_tracking_tracks(SpaceClip *sc,
       if (!act) {
         copy_v2_v2(cur_pos, fp ? fp : marker->pos);
 
-        draw_marker_areas(
-            sc, track, marker, cur_pos, width, height, 0, 1, position, active_shader);
-        draw_marker_slide_zones(
-            sc, track, marker, cur_pos, 0, 1, 0, width, height, position, active_shader);
+        draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 1, position);
+        draw_marker_slide_zones(sc, track, marker, cur_pos, 0, 1, 0, width, height, position);
       }
 
       if (fp) {
@@ -1710,10 +1618,8 @@ static void draw_tracking_tracks(SpaceClip *sc,
     if (ED_space_clip_marker_is_visible(sc, tracking_object, active_track, marker)) {
       copy_v2_v2(cur_pos, active_pos ? active_pos : marker->pos);
 
-      draw_marker_areas(
-          sc, active_track, marker, cur_pos, width, height, 1, 1, position, active_shader);
-      draw_marker_slide_zones(
-          sc, active_track, marker, cur_pos, 0, 1, 1, width, height, position, active_shader);
+      draw_marker_areas(sc, active_track, marker, cur_pos, width, height, 1, 1, position);
+      draw_marker_slide_zones(sc, active_track, marker, cur_pos, 0, 1, 1, width, height, position);
     }
     GPU_debug_group_end();
   }
@@ -1722,11 +1628,11 @@ static void draw_tracking_tracks(SpaceClip *sc,
     GPU_debug_group_begin("Clip.Marker.Bundles");
     float pos[4], vec[4], mat[4][4], aspy;
 
-    GPU_point_size(3.0f);
-
     aspy = 1.0f / clip->tracking.camera.pixel_aspect;
     BKE_tracking_get_projection_matrix(tracking, tracking_object, framenr, width, height, mat);
 
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+    immUniform1f("size", 3.0f);
     LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
       if (track->flag & TRACK_HIDDEN || (track->flag & TRACK_HAS_BUNDLE) == 0) {
         continue;
@@ -1752,18 +1658,9 @@ static void draw_tracking_tracks(SpaceClip *sc,
 
           sub_v2_v2(vec, npos);
 
-          ClipShaderState shader_data = {
-              GPU_SHADER_3D_POINT_UNIFORM_COLOR,
-              3.0f,
-              0.0,
-          };
-          if (len_squared_v2(vec) < (3.0f * 3.0f)) {
-            shader_data.color = blender::float4(0.0f, 1.0f, 0.0f, 1.0f);
-          }
-          else {
-            shader_data.color = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
-          }
-          clip_ensure_shader(active_shader, shader_data);
+          immUniformColor4fv((len_squared_v2(vec) < (3.0f * 3.0f)) ?
+                                 blender::float4(0.0f, 1.0f, 0.0f, 1.0f) :
+                                 blender::float4(1.0f, 0.0f, 0.0f, 1.0f));
 
           immBegin(GPU_PRIM_POINTS, 1);
 
@@ -1778,10 +1675,9 @@ static void draw_tracking_tracks(SpaceClip *sc,
         }
       }
     }
+    immUnbindProgram();
     GPU_debug_group_end();
   }
-
-  clip_unbind_shader(active_shader);
 
   GPU_matrix_pop();
 
