@@ -88,7 +88,8 @@ struct LinearGridElement {
 };
 
 struct LinearGrid {
-  blender::MutableSpan<LinearGridElement> element_span;
+  /* Span pointing to section of `elements_storage` in `LinearGrids` */
+  blender::MutableSpan<LinearGridElement> elements;
 };
 
 struct LinearGrids {
@@ -193,7 +194,7 @@ static void linear_grids_allocate(LinearGrids *linear_grids, int num_grids, int 
 
   for (int i = 0; i < num_grids; ++i) {
     const size_t element_offset = grid_area * i;
-    linear_grids->grids[i].element_span = linear_grids->elements_storage.as_mutable_span().slice(
+    linear_grids->grids[i].elements = linear_grids->elements_storage.as_mutable_span().slice(
         element_offset, grid_area);
   }
 }
@@ -211,7 +212,7 @@ static LinearGridElement *linear_grid_element_get(LinearGrids *linear_grids,
   const int grid_element_index = grid_y * grid_size + grid_x;
 
   LinearGrid *grid = &linear_grids->grids[grid_coord->grid_index];
-  return &grid->element_span[grid_element_index];
+  return &grid->elements[grid_element_index];
 }
 
 static void linear_grid_element_init(LinearGridElement *linear_grid_element)
@@ -253,13 +254,6 @@ static void base_surface_grids_allocate(MultiresReshapeSmoothContext *reshape_sm
 
   for (const int i : reshape_smooth_context->base_surface_grids.index_range()) {
     reshape_smooth_context->base_surface_grids[i].points.reinitialize(grid_area);
-  }
-}
-
-static void base_surface_grids_free(MultiresReshapeSmoothContext *reshape_smooth_context)
-{
-  if (reshape_smooth_context->base_surface_grids.is_empty()) {
-    return;
   }
 }
 
@@ -480,12 +474,6 @@ static void context_init(MultiresReshapeSmoothContext *reshape_smooth_context,
   reshape_smooth_context->smoothing_type = mode;
 }
 
-static void context_free_geometry(MultiresReshapeSmoothContext *reshape_smooth_context)
-{
-  /* TODO: maybe reinitialize_and_shrink is needed? */
-  reshape_smooth_context->geometry.face_offsets = {};
-}
-
 static void context_free_subdiv(MultiresReshapeSmoothContext *reshape_smooth_context)
 {
   if (reshape_smooth_context->reshape_subdiv == nullptr) {
@@ -496,9 +484,7 @@ static void context_free_subdiv(MultiresReshapeSmoothContext *reshape_smooth_con
 
 static void context_free(MultiresReshapeSmoothContext *reshape_smooth_context)
 {
-  context_free_geometry(reshape_smooth_context);
   context_free_subdiv(reshape_smooth_context);
-  base_surface_grids_free(reshape_smooth_context);
 }
 
 static bool foreach_topology_info(const blender::bke::subdiv::ForeachContext *foreach_context,
