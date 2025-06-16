@@ -470,11 +470,10 @@ static NodesModifierPanel *find_panel_by_id(NodesModifierData &nmd, const int id
 /* Drawing the properties manually with #uiLayout::prop instead of #uiDefAutoButsRNA allows using
  * the node socket identifier for the property names, since they are unique, but also having
  * the correct label displayed in the UI. */
-static void draw_property_for_socket(
-    DrawGroupInputsContext &ctx,
-    uiLayout *layout,
-    const bNodeTreeInterfaceSocket &socket,
-    const std::optional<StringRefNull> remove_panel_name = std::nullopt)
+static void draw_property_for_socket(DrawGroupInputsContext &ctx,
+                                     uiLayout *layout,
+                                     const bNodeTreeInterfaceSocket &socket,
+                                     const std::optional<StringRefNull> parent_name = std::nullopt)
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
@@ -510,11 +509,13 @@ static void draw_property_for_socket(
 
   /* If the property has a prefix that's the same string as the name of the panel it's in, remove
    * the prefix so it appears less verbose. */
-  if (remove_panel_name.has_value()) {
-    const StringRefNull prefix_to_remove = *remove_panel_name;
+  if (parent_name.has_value()) {
+    const StringRefNull prefix_to_remove = *parent_name;
     int pos = name.find(prefix_to_remove);
     if (pos == 0) {
-      name = name.substr(prefix_to_remove.size());
+      /* Needs to trim remainig space characters if any. Use the `trim()` from `StringRefNull`
+       * because std::string doesn't have a built-in `trim()` yet. */
+      name = StringRefNull(name.substr(prefix_to_remove.size())).trim();
     }
   }
 
@@ -653,7 +654,7 @@ static void draw_interface_panel_content(
     uiLayout *layout,
     const bNodeTreeInterfacePanel &interface_panel,
     const bool skip_first = false,
-    const std::optional<StringRefNull> remove_panel_name = std::nullopt)
+    const std::optional<StringRefNull> parent_name = std::nullopt)
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
   {
@@ -718,7 +719,7 @@ static void draw_interface_panel_content(
         const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
         if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
           if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-            draw_property_for_socket(ctx, layout, interface_socket, remove_panel_name);
+            draw_property_for_socket(ctx, layout, interface_socket, parent_name);
           }
         }
         break;
