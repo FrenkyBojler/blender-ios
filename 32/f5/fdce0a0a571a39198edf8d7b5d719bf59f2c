@@ -19,3 +19,4 @@ Referenced by issue #136514, Alembic attribute not read in Blender 4.3 / 4.4
 Referenced by issue #136543, Report message from previous run persists in successive run of the same operator
 Referenced by issue #136787, Default EEVEE renderer crashes-to-desktop when opening Material or Shading tabs
 Referenced by issue #138088, Vulkan: Missing Anti-Aliasing on the RGB Wheel
+Referenced by issue #140501, crashes when importing image mac
