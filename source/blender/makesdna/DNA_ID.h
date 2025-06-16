@@ -413,7 +413,7 @@ typedef struct ID {
   struct AssetMetaData *asset_data;
 
   /**
-   * Main identifier for this data-block. Must be unique whitin the ID name-space (defined by its
+   * Main identifier for this data-block. Must be unique within the ID name-space (defined by its
    * type, and owning #Library).
    *
    * The first two bytes are always the #ID_Type code of the data-block's type.
