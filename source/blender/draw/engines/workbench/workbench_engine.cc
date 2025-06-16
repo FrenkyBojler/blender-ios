@@ -398,7 +398,6 @@ class Instance : public DrawEngine {
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    /* Skip frustum culling. */
     ResourceHandle handle = manager.resource_handle_for_psys(ob_ref,
                                                              ob_ref.object->object_to_world());
 
@@ -421,7 +420,6 @@ class Instance : public DrawEngine {
 
   void curves_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    /* Skip frustum culling. */
     ResourceHandle handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
