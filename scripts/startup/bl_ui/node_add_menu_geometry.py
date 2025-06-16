@@ -749,6 +749,7 @@ class NODE_MT_category_utilities_list(Menu):
         layout = self.layout
         node_add_menu.add_node_type(layout, "GeometryNodeList")
         node_add_menu.add_node_type(layout, "GeometryNodeListGetElement")
+        node_add_menu.add_node_type(layout, "GeometryNodeListLength")
         node_add_menu.draw_assets_for_catalog(layout, "Utilities/List")
 
 
