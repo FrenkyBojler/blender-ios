@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 import urllib.parse
 from pathlib import Path
@@ -18,6 +19,12 @@ from _bpy_internal.assets.remote_library_index import index_common
 logger = logging.getLogger(__name__)
 
 
+class DownloadStatus(enum.Enum):
+    LOADING = 'loading'
+    FINISHED_SUCCESSFULLY = 'finished successfully'
+    FAILED = 'failed'
+
+
 class RemoteAssetListingDownloader:
     _remote_url: str
     _local_path: Path
@@ -30,7 +37,7 @@ class RemoteAssetListingDownloader:
     _bgdownloader: http_dl.BackgroundDownloader
     _num_asset_pages_pending: int
 
-    _is_success: bool
+    status: DownloadStatus
 
     _DOWNLOAD_POLL_INTERVAL: float = 0.01
     """How often the background download process is polled, in seconds.
@@ -54,6 +61,11 @@ class RemoteAssetListingDownloader:
 
         :param local_path: The directory to download the index files to.
 
+        :param on_update_callback: Called with one parameter (this
+            RemoteAssetListingDownloader) in short regular intervals
+            (_DOWNLOAD_POLL_INTERVAL) while the download is ongoing, and once
+            just after the download is done.
+
         :param on_done_callback: called with one parameter (this
             RemoteAssetListingDownloader) whenever the downloader is "done".
 
@@ -68,8 +80,7 @@ class RemoteAssetListingDownloader:
         self._on_update_callback = on_update_callback
 
         self._num_asset_pages_pending = 0
-        self._is_finished = False
-        self._is_success = False
+        self.status = DownloadStatus.LOADING
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event
@@ -148,6 +159,7 @@ class RemoteAssetListingDownloader:
             self.report({'ERROR'}, msg)
             logger.error(msg)
 
+            self.status = DownloadStatus.FAILED
             self._bg_downloader.shutdown()
             return
 
@@ -210,8 +222,7 @@ class RemoteAssetListingDownloader:
             return
 
         self.report({'INFO'}, "Asset library index downloaded")
-        self._is_success = True
-        self.shutdown()
+        self.shutdown(DownloadStatus.FINISHED_SUCCESSFULLY)
 
     def _on_callback_error(
             self,
@@ -222,7 +233,7 @@ class RemoteAssetListingDownloader:
             "exception while handling downloaded file ({!r}, saved to {!r})".format(
                 http_req_descr, local_file))
         self.report({'ERROR'}, "Asset library index had an issue, download aborted")
-        self.shutdown()
+        self.shutdown(DownloadStatus.FAILED)
 
     def _queue_download(self, relative_url: str, relative_path: Path | str,
                         on_done: Callable[[http_dl.RequestDescription, Path], None]) -> Path:
@@ -239,10 +250,10 @@ class RemoteAssetListingDownloader:
         # logger.info("Report: {:s}: {:s}".format("/".join(level), message))
         pass
 
-    def shutdown(self) -> None:
-        """Stop the background downloader and call the 'done' callback."""
+    def shutdown(self, status: DownloadStatus) -> None:
+        """Stop the background downloader, update the status and call the 'done' callback."""
 
-        self._is_finished = True
+        self.status = status
 
         # The timer is no longer necessary, the bg_downloader.shutdown() call
         # takes care of the last queued messages.
@@ -312,7 +323,7 @@ class RemoteAssetListingDownloader:
             self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
             logger.warning("Error downloading %s: %s", http_req_descr, error)
 
-        self.shutdown()
+        self.shutdown(DownloadStatus.FAILED)
 
     def download_progress(
         self,

@@ -468,17 +468,25 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
     or other issues can cause things to abort. In that case, this function is
     still called.
     """
+    from _bpy_internal.assets.remote_library_index.index_downloader import DownloadStatus
+
     _downloaders.remove(downloader)
 
     wm = bpy.context.window_manager
-    if downloader._is_success:
-        wm.asset_library_status_finished_loading(downloader._remote_url)
-    else:
-        wm.asset_library_status_cancelled_loading(downloader._remote_url)
+    match downloader.status:
+        case DownloadStatus.LOADING:
+            pass
+        case DownloadStatus.FINISHED_SUCCESSFULLY:
+            wm.asset_library_status_finished_loading(downloader._remote_url)
+        case DownloadStatus.FAILURE:
+            wm.asset_library_status_cancelled_loading(downloader._remote_url)
+
 
 def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
+    from _bpy_internal.assets.remote_library_index.index_downloader import DownloadStatus
+
     # Only call `asset_library_status_is_loading()` if the loading is still going on.
-    if not downloader._is_finished:
+    if downloader.status == DownloadStatus.LOADING:
         wm = bpy.context.window_manager
         wm.asset_library_status_is_loading(downloader._remote_url)
 
