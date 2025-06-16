@@ -76,28 +76,24 @@ static void tracking_segment_start_cb(void *userdata,
       col[2] = 1.0f;
       break;
   }
-  float line_width = 0.0f;
+
   if (track == data->act_track) {
     col[3] = 1.0f;
-    line_width = 2.0f * U.pixelsize;
+    GPU_line_width(2.0f);
   }
   else {
     col[3] = 0.5f;
-    line_width = 1.0f * U.pixelsize;
+    GPU_line_width(1.0f);
   }
+
   if (is_point) {
     immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
     immUniform1f("size", 3.0f);
-    immUniformColor4fv(col);
   }
   else {
-    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-    float viewport[4];
-    GPU_viewport_size_get_f(viewport);
-    immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", line_width);
-    immUniformColor4fv(col);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   }
+  immUniformColor4fv(col);
 
   if (is_point) {
     immBeginAtMost(GPU_PRIM_POINTS, 1);
@@ -140,11 +136,8 @@ static void tracking_segment_knot_cb(void *userdata,
   const bool sel = (marker->flag & sel_flag) != 0;
 
   if (sel == data->sel) {
-    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-    float viewport[4];
-    GPU_viewport_size_get_f(viewport);
-    immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", 1.0);
+    GPU_line_width(1.0f);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformThemeColor(sel ? TH_HANDLE_VERTEX_SELECT : TH_HANDLE_VERTEX);
 
     GPU_matrix_push();
@@ -227,11 +220,8 @@ static void draw_frame_curves(SpaceClip *sc, uint pos)
   /* Indicates whether immBegin() was called. */
   bool is_lines_segment_open = false;
 
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 1.0 * U.pixelsize);
+  GPU_line_width(1.0f);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4f(0.0f, 0.0f, 1.0f, 1.0f);
 
   for (int i = 0; i < reconstruction->camnr; i++) {

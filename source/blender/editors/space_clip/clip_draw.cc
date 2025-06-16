@@ -528,9 +528,6 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
   const uint position_attribute = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
 
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-
   /* Draw path outline. */
   if (!tiny) {
     if (TRACK_VIEW_SELECTED(sc, track)) {
@@ -543,9 +540,8 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
       immUnbindProgram();
     }
     /* Draw darker outline for actual path, all line segments at once. */
-    immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-    immUniform2fv("viewportSize", &viewport[2]);
-    immUniform1f("lineWidth", 3.0f * U.pixelsize);
+    GPU_line_width(3.0f);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformThemeColor(TH_MARKER_OUTLINE);
     draw_track_path_lines(path, position_attribute, path_start_index, num_all_points);
     immUnbindProgram();
@@ -561,9 +557,8 @@ static void draw_track_path(SpaceClip *sc, MovieClip * /*clip*/, MovieTrackingTr
   immUnbindProgram();
 
   /* Connect points with color coded segments. */
-  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", 1.0f * U.pixelsize);
+  GPU_line_width(1.0f);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColor(TH_PATH_BEFORE);
   draw_track_path_lines(path, position_attribute, path_start_index, num_points_before);
   immUniformThemeColor(TH_PATH_AFTER);
@@ -601,9 +596,6 @@ static void draw_marker_outline(SpaceClip *sc,
   px[0] = 1.0f / width / sc->zoom;
   px[1] = 1.0f / height / sc->zoom;
 
-  float viewport[4];
-  GPU_viewport_size_get_f(viewport);
-
   if ((marker->flag & MARKER_DISABLED) == 0) {
     float pos[2];
     float p[2];
@@ -629,9 +621,8 @@ static void draw_marker_outline(SpaceClip *sc,
       immUnbindProgram();
     }
     else {
-      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
-      immUniform2fv("viewportSize", &viewport[2]);
-      immUniform1f("lineWidth", (tiny ? 1.0f : 3.0f) * U.pixelsize);
+      GPU_line_width(tiny ? 1.0f : 3.0f);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformThemeColor(TH_MARKER_OUTLINE);
       immBegin(GPU_PRIM_LINES, 8);
 
@@ -653,9 +644,8 @@ static void draw_marker_outline(SpaceClip *sc,
   }
 
   /* pattern and search outline */
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
-  immUniform2fv("viewportSize", &viewport[2]);
-  immUniform1f("lineWidth", (tiny ? 1.0f : 3.0f) * U.pixelsize);
+  GPU_line_width(tiny ? 1.0f : 3.0f);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColor(TH_MARKER_OUTLINE);
 
   GPU_matrix_push();
@@ -812,7 +802,7 @@ static void draw_marker_areas(SpaceClip *sc,
       immUnbindProgram();
     }
     else {
-      immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+      immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
       immUniform2f("viewport_size", viewport[2] / UI_SCALE_FAC, viewport[3] / UI_SCALE_FAC);
       immUniform1i("colors_len", 0);
       immUniformColor4fv(color);
@@ -854,7 +844,7 @@ static void draw_marker_areas(SpaceClip *sc,
   GPU_matrix_push();
   GPU_matrix_translate_2fv(marker_pos);
 
-  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
   immUniform2f("viewport_size", viewport[2] / UI_SCALE_FAC, viewport[3] / UI_SCALE_FAC);
   immUniform1i("colors_len", 0);
   set_draw_marker_area_color(track, marker, act, track->pat_flag & SELECT, col, scol);
@@ -1575,7 +1565,7 @@ static void draw_tracking_tracks(SpaceClip *sc,
       draw_marker_areas(sc, track, marker, cur_pos, width, height, 0, 0, position);
       draw_marker_slide_zones(sc, track, marker, cur_pos, 1, 0, 0, width, height, position);
       draw_marker_slide_zones(sc, track, marker, cur_pos, 0, 0, 0, width, height, position);
-      
+
       if (fp) {
         fp += 2;
       }
