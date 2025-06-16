@@ -930,6 +930,20 @@ static void rna_Node_location_set(PointerRNA *ptr, const float *value)
   node->location[1] = new_location.y;
 }
 
+static void rna_Node_location_absolute_get(PointerRNA *ptr, float *value)
+{
+  const bNode *node = ptr->data_as<bNode>();
+  copy_v2_v2(value, float2(node->location[0] * UI_SCALE_FAC, node->location[1] * UI_SCALE_FAC));
+}
+
+static void rna_Node_location_absolute_set(PointerRNA *ptr, const float *value)
+{
+  bNode *node = ptr->data_as<bNode>();
+  const float2 new_location = float2(value);
+  node->location[0] = new_location.x / UI_SCALE_FAC;
+  node->location[1] = new_location.y / UI_SCALE_FAC;
+}
+
 /* ******** Node Tree ******** */
 
 static StructRNA *rna_NodeTree_refine(PointerRNA *ptr)
@@ -12884,6 +12898,8 @@ static void rna_def_node(BlenderRNA *brna)
   prop = RNA_def_property(srna, "location_absolute", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "location");
   RNA_def_property_array(prop, 2);
+  RNA_def_property_float_funcs(
+      prop, "rna_Node_location_absolute_get", "rna_Node_location_absolute_set", nullptr);
   RNA_def_property_range(prop, -1000000.0f, 1000000.0f);
   RNA_def_property_ui_text(prop, "Absolute Location", "Location of the node in the entire canvas");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
