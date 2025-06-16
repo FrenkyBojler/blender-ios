@@ -11,6 +11,7 @@
 #include "BKE_compute_context_cache.hh"
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 
@@ -142,6 +143,77 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node)
   BKE_ntree_update_tag_node_property(snode.edittree, &combine_bundle_node);
 }
 
+void sync_sockets_closure(SpaceNode &snode, bNode &closure_input_node, bNode &closure_output_node)
+{
+  snode.edittree->ensure_topology_cache();
+  bNodeSocket &closure_socket = closure_output_node.output_socket(0);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, closure_socket);
+  if (!current_context) {
+    /* The current tree does not have a known context, e.g. it is pinned but the modifier has been
+     * removed. */
+    return;
+  }
+  const ComputeContext *evaluate_context_generic =
+      ed::space_node::compute_context_for_closure_evaluation(
+          current_context, closure_socket, compute_context_cache, std::nullopt);
+  if (!evaluate_context_generic) {
+    /* No evaluation of the closure found. */
+    return;
+  }
+  const auto *evaluate_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
+      evaluate_context_generic);
+  if (!evaluate_context) {
+    return;
+  }
+  const bNode *evaluate_node = evaluate_context->node();
+  if (!evaluate_node) {
+    return;
+  }
+  nodes::socket_items::clear<nodes::ClosureInputItemsAccessor>(closure_output_node);
+  nodes::socket_items::clear<nodes::ClosureOutputItemsAccessor>(closure_output_node);
+
+  const auto *storage = static_cast<const NodeGeometryEvaluateClosure *>(evaluate_node->storage);
+
+  for (const int i : IndexRange(storage->input_items.items_num)) {
+    const NodeGeometryEvaluateClosureInputItem &evaluate_item = storage->input_items.items[i];
+    NodeGeometryClosureInputItem &input_item =
+        *nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureInputItemsAccessor>(
+            closure_output_node,
+            eNodeSocketDatatype(evaluate_item.socket_type),
+            evaluate_item.name);
+    input_item.structure_type = evaluate_item.structure_type;
+  }
+  for (const int i : IndexRange(storage->output_items.items_num)) {
+    const NodeGeometryEvaluateClosureOutputItem &evaluate_item = storage->output_items.items[i];
+    nodes::socket_items::add_item_with_socket_type_and_name<nodes::ClosureOutputItemsAccessor>(
+        closure_output_node, eNodeSocketDatatype(evaluate_item.socket_type), evaluate_item.name);
+  }
+  BKE_ntree_update_tag_node_property(snode.edittree, &closure_input_node);
+  BKE_ntree_update_tag_node_property(snode.edittree, &closure_output_node);
+
+  nodes::update_node_declaration_and_sockets(*snode.edittree, closure_input_node);
+  nodes::update_node_declaration_and_sockets(*snode.edittree, closure_output_node);
+
+  snode.edittree->ensure_topology_cache();
+  Vector<std::pair<bNodeSocket *, bNodeSocket *>> internal_links;
+  for (const bNodeSocket *eval_output_socket : evaluate_node->output_sockets()) {
+    const bNodeSocket *eval_input_socket = nodes::evaluate_closure_node_internally_linked_input(
+        *eval_output_socket);
+    if (!eval_input_socket) {
+      continue;
+    }
+    internal_links.append({&closure_input_node.output_socket(eval_input_socket->index() - 1),
+                           &closure_output_node.input_socket(eval_output_socket->index())});
+  }
+  for (auto &&[from_socket, to_socket] : internal_links) {
+    bke::node_add_link(
+        *snode.edittree, closure_input_node, *from_socket, closure_output_node, *to_socket);
+  }
+}
+
 static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
@@ -149,7 +221,12 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
   if (!snode.edittree) {
     return OPERATOR_CANCELLED;
   }
-  LISTBASE_FOREACH (bNode *, node, &snode.edittree->nodes) {
+
+  bNodeTree &tree = *snode.edittree;
+  const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(
+      GEO_NODE_CLOSURE_OUTPUT);
+
+  LISTBASE_FOREACH (bNode *, node, &tree.nodes) {
     if (!(node->flag & NODE_SELECT)) {
       continue;
     }
@@ -162,8 +239,24 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator * /*op*/)
     else if (node->is_type("GeometryNodeCombineBundle")) {
       sync_sockets_combine_bundle(snode, *node);
     }
+    else if (node->is_type("GeometryNodeClosureInput")) {
+      bNode &closure_input_node = *node;
+      if (bNode *closure_output_node = closure_zone_type.get_corresponding_output(
+              tree, closure_input_node))
+      {
+        sync_sockets_closure(snode, closure_input_node, *closure_output_node);
+      }
+    }
+    else if (node->is_type("GeometryNodeClosureOutput")) {
+      bNode &closure_output_node = *node;
+      if (bNode *closure_input_node = closure_zone_type.get_corresponding_input(
+              tree, closure_output_node))
+      {
+        sync_sockets_closure(snode, *closure_input_node, closure_output_node);
+      }
+    }
   }
-  BKE_main_ensure_invariants(bmain, snode.edittree->id);
+  BKE_main_ensure_invariants(bmain, tree.id);
   return OPERATOR_FINISHED;
 }
 
