@@ -159,6 +159,10 @@ Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
     const ComputeContext *bundle_socket_context,
     const bNodeSocket &bundle_socket,
     bke::ComputeContextCache &compute_context_cache);
+Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
+    const ComputeContext *bundle_socket_context,
+    const bNodeSocket &bundle_socket,
+    bke::ComputeContextCache &compute_context_cache);
 
 /**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
@@ -174,7 +178,9 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
                                        StringRef catalog_path);
 
 void sync_sockets_evaluate_closure(SpaceNode &snode, bNode &evaluate_closure_node);
-void sync_sockets_separate_bundle(SpaceNode &snode, bNode &separate_bundle_node);
+void sync_sockets_separate_bundle(SpaceNode &snode,
+                                  bNode &separate_bundle_node,
+                                  ReportList *reports);
 void sync_sockets_combine_bundle(SpaceNode &snode,
                                  bNode &combine_bundle_node,
                                  ReportList *reports);

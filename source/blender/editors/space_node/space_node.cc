@@ -639,34 +639,6 @@ Vector<const bNode *> gather_linked_separate_bundle_nodes(
   return separate_bundle_nodes;
 }
 
-Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
-    const ComputeContext *bundle_socket_context,
-    const bNodeSocket &bundle_socket,
-    bke::ComputeContextCache &compute_context_cache)
-{
-  const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
-      {bundle_socket_context, &bundle_socket},
-      compute_context_cache,
-      "GeometryNodeSeparateBundle",
-      true);
-  Vector<nodes::BundleSignature> signatures;
-  for (const nodes::SocketInContext &target_socket : target_sockets) {
-    const nodes::NodeInContext &target_node = target_socket.owner_node();
-    const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(
-        target_node.node->storage);
-    nodes::BundleSignature signature;
-    for (const int i : IndexRange(storage.items_num)) {
-      const NodeGeometrySeparateBundleItem &item = storage.items[i];
-      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
-      {
-        signature.items.append({nodes::SocketInterfaceKey(item.name), stype});
-      }
-    }
-    signatures.append(signature);
-  }
-  return signatures;
-}
-
 static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
     const nodes::SocketInContext start_socket,
     bke::ComputeContextCache &compute_context_cache,
@@ -799,6 +771,62 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
   }
 
   return found_origins.extract_vector();
+}
+
+Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
+    const ComputeContext *bundle_socket_context,
+    const bNodeSocket &bundle_socket,
+    bke::ComputeContextCache &compute_context_cache)
+{
+  const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
+      {bundle_socket_context, &bundle_socket},
+      compute_context_cache,
+      "GeometryNodeSeparateBundle",
+      true);
+  Vector<nodes::BundleSignature> signatures;
+  for (const nodes::SocketInContext &target_socket : target_sockets) {
+    const nodes::NodeInContext &target_node = target_socket.owner_node();
+    const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(
+        target_node.node->storage);
+    nodes::BundleSignature signature;
+    for (const int i : IndexRange(storage.items_num)) {
+      const NodeGeometrySeparateBundleItem &item = storage.items[i];
+      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
+      {
+        signature.items.append({nodes::SocketInterfaceKey(item.name), stype});
+      }
+    }
+    signatures.append(signature);
+  }
+  return signatures;
+}
+
+Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
+    const ComputeContext *bundle_socket_context,
+    const bNodeSocket &bundle_socket,
+    bke::ComputeContextCache &compute_context_cache)
+{
+  const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
+      {bundle_socket_context, &bundle_socket},
+      compute_context_cache,
+      "GeometryNodeCombineBundle",
+      true);
+  Vector<nodes::BundleSignature> signatures;
+  for (const nodes::SocketInContext &origin_socket : origin_sockets) {
+    const nodes::NodeInContext &origin_node = origin_socket.owner_node();
+    const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(
+        origin_node.node->storage);
+    nodes::BundleSignature signature;
+    for (const int i : IndexRange(storage.items_num)) {
+      const NodeGeometryCombineBundleItem &item = storage.items[i];
+      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
+      {
+        signature.items.append({nodes::SocketInterfaceKey(item.name), stype});
+      }
+    }
+    signatures.append(signature);
+  }
+  return signatures;
 }
 
 Vector<const bNode *> gather_linked_closure_origin_nodes(
