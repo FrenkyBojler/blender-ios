@@ -9,3 +9,4 @@ Referenced by issue #109583, Regression: Crash on COW delete of shared custom da
 Referenced by issue #109460, Vertex weight slider not functional in a smooth way (weightpaint mode, editmode is fine)
 Referenced by issue #108198, Regression: Particle hair crash when using Hair Dynamisc
 Referenced by issue #95845, Use Copy on Write in more places.
+Referenced by issue #140453, Seperate mesh deletes Multires modifier data
