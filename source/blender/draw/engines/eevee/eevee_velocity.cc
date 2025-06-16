@@ -153,13 +153,13 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
   /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas can
    * point to the same offset in VelocityGeometryData, since geometry is stored local space. */
   vel.id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);
-  object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
+  float4x4 object_to_world = particle_sys ? object_ref.particles_matrix() : ob->object_to_world();
+  object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = object_to_world;
   if (step_ == STEP_CURRENT) {
     /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
     if (vel.obj.ofs[STEP_PREVIOUS] == -1) {
       vel.obj.ofs[STEP_PREVIOUS] = object_steps_usage[STEP_PREVIOUS]++;
-      object_steps[STEP_PREVIOUS]->get_or_resize(
-          vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
+      object_steps[STEP_PREVIOUS]->get_or_resize(vel.obj.ofs[STEP_PREVIOUS]) = object_to_world;
     }
     if (vel.obj.ofs[STEP_NEXT] == -1) {
       if (inst_.is_viewport()) {
@@ -168,7 +168,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
       }
       else {
         vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+        object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = object_to_world;
       }
     }
   }
