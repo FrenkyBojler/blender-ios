@@ -1721,7 +1721,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
     /* There are some files around that have non-null default value for custom sockets. See e.g.
      * #140083.
      *
-     * It is unclear how this could happen, but for now simply systematically set this point to
+     * It is unclear how this could happen, but for now simply systematically set this pointer to
      * null. */
     sock->default_value = nullptr;
     return;
