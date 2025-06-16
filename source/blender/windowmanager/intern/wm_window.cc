@@ -1944,7 +1944,7 @@ void wm_window_events_process(const bContext *C)
   /* Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
    * events are typically generated from a timer that runs in the main loop. */
   if ((has_event == false) && (sleep_us != 0) && !(G.f & G_FLAG_EVENT_SIMULATE)) {
-    BLI_time_sleep_duration(std::chrono::microseconds(sleep_us));
+    BLI_time_sleep_precise_us(sleep_us);
   }
 }
 
