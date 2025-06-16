@@ -20,6 +20,7 @@ void main()
   float time, thick_time, thickness;
   float3 world_pos, tangent, binor;
   hair_get_pos_tan_binor_time(is_persp,
+                              drw_modelmat(),
                               drw_modelinv(),
                               drw_view().viewinv[3].xyz,
                               drw_view().viewinv[2].xyz,

@@ -160,6 +160,7 @@ in float dummy;
 #    endif
 
 void hair_get_center_pos_tan_binor_time(bool is_persp,
+                                        float4x4 model_mat,
                                         float3 camera_pos,
                                         float3 camera_z,
                                         out float3 wpos,
@@ -187,9 +188,8 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
     wtan = wpos - hair_get_point(id - 1).position;
   }
 
-  float4x4 obmat = drw_modelmat();
-  wpos = drw_point_object_to_world(wpos);
-  wtan = -normalize(to_float3x3(obmat) * wtan);
+  wpos = (model_mat * float4(wpos, 1.0f)).xyz;
+  wtan = -normalize(to_float3x3(model_mat) * wtan);
 
   float3 camera_vec = (is_persp) ? camera_pos - wpos : camera_z;
   wbinor = normalize(cross(camera_vec, wtan));
@@ -198,6 +198,7 @@ void hair_get_center_pos_tan_binor_time(bool is_persp,
 }
 
 void hair_get_pos_tan_binor_time(bool is_persp,
+                                 float4x4 model_mat,
                                  float4x4 invmodel_mat,
                                  float3 camera_pos,
                                  float3 camera_z,
@@ -209,7 +210,7 @@ void hair_get_pos_tan_binor_time(bool is_persp,
                                  out float thick_time)
 {
   hair_get_center_pos_tan_binor_time(
-      is_persp, camera_pos, camera_z, wpos, wtan, wbinor, time, thickness);
+      is_persp, model_mat, camera_pos, camera_z, wpos, wtan, wbinor, time, thickness);
   if (hairThicknessRes > 1) {
     thick_time = float(gl_VertexID % hairThicknessRes) / float(hairThicknessRes - 1);
     thick_time = thickness * (thick_time * 2.0f - 1.0f);
