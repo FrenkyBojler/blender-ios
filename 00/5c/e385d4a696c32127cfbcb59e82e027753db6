@@ -1,1 +1,1 @@
-Referenced by issue #140451, EXCEPTION_INT_DIVIDE_BY_ZERO crash in bmesh UV sphere creation
+Referenced by issue #140451, BMesh operators called from python are fully broken.
