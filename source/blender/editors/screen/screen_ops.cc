@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -1682,6 +1683,8 @@ struct sAreaMoveData {
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
   bScreen *screen;
+  double start_time;
+  double end_time;
   void *draw_callback; /* Call #screen_draw_move_highlight */
 };
 
@@ -1769,7 +1772,15 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  screen_draw_move_highlight(win, md->screen, md->dir_axis);
+
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < md->end_time) {
+    factor = pow((now - md->start_time) / (md->end_time - md->start_time), 2);
+    md->screen->do_refresh = true;
+  }
+
+  screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
 /* validate selection inside screen, set variables OK */
@@ -1824,6 +1835,8 @@ static bool area_move_init(bContext *C, wmOperator *op)
   md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
 
   md->screen = screen;
+  md->start_time = BLI_time_now_seconds();
+  md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
   md->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_move_draw_cb, op);
 
   return true;
@@ -2211,6 +2224,9 @@ struct sAreaSplitData {
   int previewmode;       /* draw preview-line, then split. */
   void *draw_callback;   /* call `screen_draw_split_preview` */
   bool do_snap;
+  bScreen *screen;
+  double start_time;
+  double end_time;
 
   ScrEdge *nedge; /* new edge */
   ScrArea *sarea; /* start area */
@@ -2242,8 +2258,16 @@ static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
 
   if (area_split_allowed(sd->sarea, dir_axis)) {
-    float fac = RNA_float_get(op->ptr, "factor");
-    screen_draw_split_preview(sd->sarea, dir_axis, fac);
+    const float split_fac = RNA_float_get(op->ptr, "factor");
+
+    float factor = 1.0f;
+    const double now = BLI_time_now_seconds();
+    if (now < sd->end_time) {
+      factor = pow((now - sd->start_time) / (sd->end_time - sd->start_time), 2);
+      sd->screen->do_refresh = true;
+    }
+
+    screen_draw_split_preview(sd->sarea, dir_axis, split_fac, factor);
   }
 }
 
@@ -2255,6 +2279,9 @@ static bool area_split_menu_init(bContext *C, wmOperator *op)
   op->customdata = sd;
 
   sd->sarea = CTX_wm_area(C);
+  sd->screen = CTX_wm_screen(C);
+  sd->start_time = BLI_time_now_seconds();
+  sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
 
   return true;
 }
@@ -2275,6 +2302,9 @@ static bool area_split_init(bContext *C, wmOperator *op)
   /* custom data */
   sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
   op->customdata = sd;
+  sd->screen = CTX_wm_screen(C);
+  sd->start_time = BLI_time_now_seconds();
+  sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
 
   sd->sarea = area;
   if (dir_axis == SCREEN_AXIS_V) {
@@ -2680,7 +2710,12 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
       area_split_preview_update_cursor(C, op);
 
       /* area context not set */
-      sd->sarea = BKE_screen_find_area_xy(CTX_wm_screen(C), SPACE_TYPE_ANY, event->xy);
+      ScrArea *area = BKE_screen_find_area_xy(CTX_wm_screen(C), SPACE_TYPE_ANY, event->xy);
+      if (area != sd->sarea) {
+        sd->start_time = BLI_time_now_seconds();
+        sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
+      }
+      sd->sarea = area;
 
       if (sd->sarea) {
         ScrArea *area = sd->sarea;
@@ -2761,6 +2796,9 @@ struct RegionMoveData {
   ARegion *region;
   ScrArea *area;
   wmWindow *win;
+  bScreen *screen;
+  double start_time;
+  double end_time;
   void *draw_callback;
   int bigger, smaller, origval;
   int orig_xy[2];
@@ -2843,7 +2881,15 @@ static void region_scale_draw_cb(const wmWindow * /*win*/, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
-  screen_draw_region_scale_highlight(rmd->region);
+
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < rmd->end_time) {
+    factor = pow((now - rmd->start_time) / (rmd->end_time - rmd->start_time), 2);
+    rmd->screen->do_refresh = true;
+  }
+
+  screen_draw_region_scale_highlight(rmd->region, factor);
 }
 
 static void region_scale_exit(wmOperator *op)
@@ -2924,6 +2970,9 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     CLAMP(rmd->maxsize, 0, 1000);
 
     rmd->win = CTX_wm_window(C);
+    rmd->screen = CTX_wm_screen(C);
+    rmd->start_time = BLI_time_now_seconds();
+    rmd->end_time = rmd->start_time + REGION_MOVE_LINE_FADEIN;
     rmd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), region_scale_draw_cb, op);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
@@ -3720,6 +3769,9 @@ struct sAreaJoinData {
   float split_fac;            /* Split factor in split_dir direction. */
   wmWindow *win1;             /* Window of source area. */
   wmWindow *win2;             /* Window of the target area. */
+  bScreen *screen;            /* Screen of the source area. */
+  double start_time;          /* Start time of animation. */
+  double end_time;            /* End time of animation. */
   wmWindow *draw_dock_win;    /* Window getting docking highlight. */
   bool close_win;             /* Close the source window when done. */
   void *draw_callback;        /* call #screen_draw_join_highlight */
@@ -3734,11 +3786,18 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
     return;
   }
 
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < sd->end_time) {
+    factor = pow((now - sd->start_time) / (sd->end_time - sd->start_time), 2);
+    sd->screen->do_refresh = true;
+  }
+
   if (sd->sa1 == sd->sa2) {
-    screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
+    screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac, factor);
   }
   else {
-    screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir);
+    screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
   }
 }
 
@@ -3749,8 +3808,16 @@ static void area_join_dock_cb(const wmWindow *win, void *userdata)
   if (!jd || !jd->sa2 || jd->dir != SCREEN_DIR_NONE || jd->sa1 == jd->sa2) {
     return;
   }
+
+  float factor = 1.0f;
+  const double now = BLI_time_now_seconds();
+  if (now < jd->end_time) {
+    factor = pow((now - jd->start_time) / (jd->end_time - jd->start_time), 2);
+    jd->screen->do_refresh = true;
+  }
+
   screen_draw_dock_preview(
-      win, jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y);
+      win, jd->sa1, jd->sa2, jd->dock_target, jd->factor, jd->current_x, jd->current_y, factor);
 }
 
 static void area_join_dock_cb_window(sAreaJoinData *jd, wmOperator *op)
@@ -3804,6 +3871,9 @@ static bool area_join_init(bContext *C, wmOperator *op, ScrArea *sa1, ScrArea *s
   jd->dir = area_getorientation(sa1, sa2);
   jd->win1 = WM_window_find_by_area(CTX_wm_manager(C), sa1);
   jd->win2 = WM_window_find_by_area(CTX_wm_manager(C), sa2);
+  jd->screen = CTX_wm_screen(C);
+  jd->start_time = BLI_time_now_seconds();
+  jd->end_time = jd->start_time + AREA_DOCK_FADEIN;
 
   op->customdata = jd;
   return true;
@@ -3931,6 +4001,54 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
   return OPERATOR_RUNNING_MODAL;
 }
 
+struct DockingAnimateOutData {
+  wmWindow *win;
+  bScreen *screen;
+  rctf rect;
+  double start_time;
+  double end_time;
+  void *draw_callback;
+};
+
+static void area_docking_out_cb(const wmWindow * /*win*/, void *userdata)
+{
+  const DockingAnimateOutData *data = static_cast<const DockingAnimateOutData *>(userdata);
+  double now = BLI_time_now_seconds();
+
+  if (now > data->end_time) {
+    WM_draw_cb_exit(data->win, data->draw_callback);
+    MEM_freeN(const_cast<DockingAnimateOutData *>(data));
+    data = nullptr;
+    return;
+  }
+
+  const float total = data->end_time - data->start_time;
+  const float progress = now - data->start_time;
+  const float factor = pow(progress / total, 2);
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * (1.0f - factor)};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.15f * (1.0f - factor)};
+
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv_ex(&data->rect, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
+
+  data->screen->do_refresh = true;
+}
+
+void area_docking_animate(bContext *C, ScrArea *area, float duration)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+
+  int win_size[2];
+  DockingAnimateOutData *data = MEM_callocN<DockingAnimateOutData>("area_docking_animate");
+  data->win = win;
+  data->screen = CTX_wm_screen(C);
+  BLI_rctf_rcti_copy(&data->rect, &area->totrct);
+  data->start_time = BLI_time_now_seconds();
+  data->end_time = data->start_time + duration;
+  data->draw_callback = WM_draw_cb_activate(win, area_docking_out_cb, data);
+}
+
 /* Apply the docking of the area. */
 void static area_docking_apply(bContext *C, wmOperator *op)
 {
@@ -3983,6 +4101,8 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
     }
   }
+
+  area_docking_animate(C, jd->sa2, AREA_DOCK_FADEOUT);
 
   if (jd && jd->sa2 == CTX_wm_area(C)) {
     CTX_wm_area_set(C, nullptr);
@@ -4291,8 +4411,13 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->win2 = WM_window_find_by_area(CTX_wm_manager(C), jd->sa2);
   jd->dir = SCREEN_DIR_NONE;
   jd->dock_target = AreaDockTarget::None;
-  jd->dir = area_getorientation(jd->sa1, jd->sa2);
+  jd->dir = area_getorientation(jd->sa1, area);
   jd->dock_target = area_docking_target(jd, event);
+
+  if (jd->sa2 != area) {
+    jd->start_time = BLI_time_now_seconds();
+    jd->end_time = jd->start_time + AREA_DOCK_FADEIN;
+  }
 
   if (jd->sa1 == area) {
     const int drag_threshold = 30 * UI_SCALE_FAC;
@@ -4307,9 +4432,14 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
       return;
     }
 
-    jd->split_dir = (abs(event->xy[0] - jd->start_x) > abs(event->xy[1] - jd->start_y)) ?
-                        SCREEN_AXIS_V :
-                        SCREEN_AXIS_H;
+    eScreenAxis dir = (abs(event->xy[0] - jd->start_x) > abs(event->xy[1] - jd->start_y)) ?
+                          SCREEN_AXIS_V :
+                          SCREEN_AXIS_H;
+    if (dir != jd->split_dir) {
+      jd->start_time = BLI_time_now_seconds();
+      jd->end_time = jd->start_time + AREA_SPLIT_FADEIN;
+    }
+    jd->split_dir = dir;
     jd->split_fac = area_split_factor(C, jd, event);
     return;
   }
