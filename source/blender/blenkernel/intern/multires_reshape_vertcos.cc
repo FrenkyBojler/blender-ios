@@ -164,8 +164,7 @@ static void multires_reshape_vertcos_foreach_vertex_every_edge(
 }
 
 bool multires_reshape_assign_final_coords_from_vertcos(
-    const MultiresReshapeContext *reshape_context,
-    const blender::Span<blender::float3> positions)
+    const MultiresReshapeContext *reshape_context, const blender::Span<blender::float3> positions)
 {
   MultiresReshapeAssignVertcosContext reshape_vertcos_context{};
   reshape_vertcos_context.reshape_context = reshape_context;

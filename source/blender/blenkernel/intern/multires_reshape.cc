@@ -34,8 +34,7 @@ bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
   }
   multires_reshape_store_original_grids(&reshape_context);
   multires_reshape_ensure_grids(static_cast<Mesh *>(object->data), reshape_context.top.level);
-  if (!multires_reshape_assign_final_coords_from_vertcos(&reshape_context, positions))
-  {
+  if (!multires_reshape_assign_final_coords_from_vertcos(&reshape_context, positions)) {
     multires_reshape_context_free(&reshape_context);
     return false;
   }
@@ -59,11 +58,7 @@ bool multiresModifier_reshapeFromObject(Depsgraph *depsgraph,
     return false;
   }
 
-  return multiresModifier_reshapeFromVertcos(
-      depsgraph,
-      dst,
-      mmd,
-      src_mesh_eval->vert_positions());
+  return multiresModifier_reshapeFromVertcos(depsgraph, dst, mmd, src_mesh_eval->vert_positions());
 }
 
 /** \} */
@@ -103,10 +98,7 @@ bool multiresModifier_reshapeFromDeformModifier(Depsgraph *depsgraph,
 
   /* Reshaping */
   bool result = multiresModifier_reshapeFromVertcos(
-      depsgraph,
-      object,
-      &highest_mmd,
-      deformed_verts);
+      depsgraph, object, &highest_mmd, deformed_verts);
 
   return result;
 }
