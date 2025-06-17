@@ -382,23 +382,41 @@ static void propagate_right_to_left(const bNodeTree &tree,
                                      input_requirements[socket->index_in_all_inputs()]);
         }
 
-        /* When a data requirement could be provided by multiple node inputs (i.e. only a single
-         * node input involved in a math operation has to be a volume grid for the output to be a
-         * grid), it's better to not propagate the data requirement than incorrectly saying that
-         * all of the inputs have it. */
-        Vector<int, 8> inputs_with_links;
-        for (const int input : node_interface.outputs[output].linked_inputs) {
-          const bNodeSocket &input_socket = *input_sockets[input];
-          if (input_socket.is_directly_linked()) {
-            inputs_with_links.append(input_socket.index_in_all_inputs());
+        switch (output_requirement) {
+          case DataRequirement::Invalid:
+          case DataRequirement::None: {
+            break;
           }
-        }
-        if (inputs_with_links.size() == 1) {
-          input_requirements[inputs_with_links.first()] = output_requirement;
-        }
-        else {
-          for (const int input : inputs_with_links) {
-            input_requirements[input] = DataRequirement::None;
+          case DataRequirement::Single: {
+            /* If the output is a single, all inputs must be singles. */
+            for (const int input : node_interface.outputs[output].linked_inputs) {
+              const bNodeSocket &input_socket = *input_sockets[input];
+              input_requirements[input_socket.index_in_all_inputs()] = DataRequirement::Single;
+            }
+            break;
+          }
+          case DataRequirement::Field:
+          case DataRequirement::Grid: {
+            /* When a data requirement could be provided by multiple node inputs (i.e. only a
+             * single node input involved in a math operation has to be a volume grid for the
+             * output to be a grid), it's better to not propagate the data requirement than
+             * incorrectly saying that all of the inputs have it. */
+            Vector<int, 8> inputs_with_links;
+            for (const int input : node_interface.outputs[output].linked_inputs) {
+              const bNodeSocket &input_socket = *input_sockets[input];
+              if (input_socket.is_directly_linked()) {
+                inputs_with_links.append(input_socket.index_in_all_inputs());
+              }
+            }
+            if (inputs_with_links.size() == 1) {
+              input_requirements[inputs_with_links.first()] = output_requirement;
+            }
+            else {
+              for (const int input : inputs_with_links) {
+                input_requirements[input] = DataRequirement::None;
+              }
+            }
+            break;
           }
         }
       }

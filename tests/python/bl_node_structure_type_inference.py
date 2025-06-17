@@ -34,7 +34,7 @@ class StructureTypeInferenceTest(unittest.TestCase):
 
     def test_empty_group(self):
         self.load_testfile()
-        tree = bpy.data.node_groups["Empty Group"]
+        tree = bpy.data.node_groups["test_empty_group"]
 
         node = tree.nodes["Group Input"]
         self.assertDynamic(node.outputs["Geometry"])
@@ -46,7 +46,7 @@ class StructureTypeInferenceTest(unittest.TestCase):
 
     def test_math_node(self):
         self.load_testfile()
-        tree = bpy.data.node_groups["Math Node"]
+        tree = bpy.data.node_groups["test_math_node"]
 
         node = tree.nodes["Group Input"]
         self.assertDynamic(node.outputs["A"])
@@ -57,13 +57,38 @@ class StructureTypeInferenceTest(unittest.TestCase):
 
     def test_cube_node(self):
         self.load_testfile()
-        tree = bpy.data.node_groups["Cube"]
+        tree = bpy.data.node_groups["test_cube_node"]
 
         node = tree.nodes["Group Input"]
         self.assertSingle(node.outputs["Size"])
         self.assertSingle(node.outputs["Vertices X"])
         self.assertSingle(node.outputs["Vertices Y"])
         self.assertSingle(node.outputs["Vertices Z"])
+
+        node = tree.nodes["Group Output"]
+        self.assertSingle(node.inputs["Mesh"])
+        self.assertField(node.inputs["UV Map"])
+
+    def test_set_position_node(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_set_position_node"]
+
+        node = tree.nodes["Group Input"]
+        self.assertSingle(node.outputs["Geometry"])
+        self.assertField(node.outputs["Selection"])
+        self.assertField(node.outputs["Position"])
+        self.assertField(node.outputs["Offset"])
+
+        node = tree.nodes["Group Output"]
+        self.assertSingle(node.inputs["Geometry"])
+
+    def test_cube_with_math_node(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_cube_with_math_node"]
+
+        node = tree.nodes["Group Input"]
+        self.assertSingle(node.outputs["A"])
+        self.assertSingle(node.outputs["B"])
 
         node = tree.nodes["Group Output"]
         self.assertSingle(node.inputs["Mesh"])
