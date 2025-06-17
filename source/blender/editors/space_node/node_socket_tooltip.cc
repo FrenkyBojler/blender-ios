@@ -72,6 +72,20 @@ static void build_tooltip_description(uiTooltipData &tip_data, const bNodeSocket
       tip_data, std::move(description), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 }
 
+static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
+                                                 const StringRef value,
+                                                 const StringRef type)
+{
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format("{}: {}", TIP_("Value"), value),
+                            {},
+                            UI_TIP_STYLE_MONO,
+                            UI_TIP_LC_VALUE);
+  add_space(tip_data);
+  UI_tooltip_text_field_add(
+      tip_data, fmt::format("{}: {}", TIP_("Type"), type), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+}
+
 template<typename T>
 [[nodiscard]] static bool build_tooltip_value_data_block(uiTooltipData &tip_data,
                                                          const GPointer &value)
@@ -81,21 +95,16 @@ template<typename T>
     return false;
   }
   const T *data = *value.get<T *>();
-  std::string value_str = TIP_("Value: ");
+  std::string value_str;
   if (data) {
-    value_str += BKE_id_name(id_cast<const ID &>(*data));
+    value_str = BKE_id_name(id_cast<const ID &>(*data));
   }
   else {
-    value_str += TIP_("None");
+    value_str = TIP_("None");
   }
-  UI_tooltip_text_field_add(
-      tip_data, std::move(value_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
-  add_space(tip_data);
-
   const ID_Type id_type = T::id_type;
   const char *id_type_name = BKE_idtype_idcode_to_name(id_type);
-  std::string type_str = fmt::format("{}: {}", TIP_("Type"), TIP_(id_type_name));
-  UI_tooltip_text_field_add(tip_data, std::move(type_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_(id_type_name));
   return true;
 }
 
@@ -115,11 +124,8 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
   if (!enum_item) {
     return;
   }
-  std::string value_str = fmt::format("{}: {}", TIP_("Value"), enum_item->name);
-  UI_tooltip_text_field_add(
-      tip_data, std::move(value_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
-  add_space(tip_data);
-  UI_tooltip_text_field_add(tip_data, TIP_("Type: Menu"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  build_tooltip_value_and_type_oneline(tip_data, enum_item->name, TIP_("Menu"));
+  /* TODO: menu item description */
 }
 
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
