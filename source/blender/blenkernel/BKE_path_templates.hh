@@ -118,15 +118,62 @@ class VariableMap {
   /* ------------------------------------------------------------------
    * Convenience methods, to aid in consistency across different uses. */
 
+  /**
+   * Add the filename (sans file extension) from the given path as a variable.
+   *
+   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
+   * then "scene_3" is the value of the added variable.
+   *
+   * If the path doesn't contain a filename, then `fallback` is used instead.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
   bool add_filename(blender::StringRef var_name,
                     blender::StringRefNull full_path,
                     blender::StringRef fallback);
-  bool add_parent_directory_name(blender::StringRef var_name,
-                                 blender::StringRefNull full_path,
-                                 blender::StringRef fallback);
-  bool add_parent_directory_abs_path(blender::StringRef var_name,
-                                     blender::StringRefNull full_path,
-                                     blender::StringRef fallback);
+
+  /**
+   * Add the name of the immediate parent directory of the file in the given
+   * path as a variable.
+   *
+   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
+   * then "project_ice" is the value of the added variable.
+   *
+   * If the path doesn't contain a parent directory, then `fallback` is used
+   * instead.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_file_parent_directory_name(blender::StringRef var_name,
+                                      blender::StringRefNull full_path,
+                                      blender::StringRef fallback);
+
+  /**
+   * Add the path up-to-but-not-including the filename as a variable.
+   *
+   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
+   * then "/home/bob/project_ice" is the value of the added variable.
+   *
+   * If the path doesn't contain a parent directory, then `fallback` is used
+   * instead.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_path_up_to_file(blender::StringRef var_name,
+                           blender::StringRefNull full_path,
+                           blender::StringRef fallback);
 };
 
 enum class ErrorType {

@@ -107,8 +107,8 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
 bool VariableMap::add_filename(StringRef var_name, StringRefNull full_path, StringRef fallback)
 {
   const char *file_name = BLI_path_basename(full_path.c_str());
-
   const char *file_name_end = BLI_path_extension_or_end(file_name);
+
   if (file_name[0] == '\0') {
     /* If there is no file name, default to the fallback. */
     return this->add_string(var_name, fallback);
@@ -123,14 +123,17 @@ bool VariableMap::add_filename(StringRef var_name, StringRefNull full_path, Stri
   }
 }
 
-bool VariableMap::add_parent_directory_name(StringRef var_name,
-                                            StringRefNull full_path,
-                                            StringRef fallback)
+bool VariableMap::add_file_parent_directory_name(StringRef var_name,
+                                                 StringRefNull full_path,
+                                                 StringRef fallback)
 {
-  int offset, length;
-  const bool success = BLI_path_name_at_index(full_path.c_str(), -2, &offset, &length);
+  /* If there is no filename at the end. */
+  if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
+    return this->add_string(var_name, fallback);
+  }
 
-  if (!success) {
+  int offset, length;
+  if (!BLI_path_name_at_index(full_path.data(), -2, &offset, &length)) {
     /* If no parent directory path, default to the fallback. */
     return this->add_string(var_name, fallback);
   }
@@ -138,17 +141,22 @@ bool VariableMap::add_parent_directory_name(StringRef var_name,
   return this->add_string(var_name, full_path.substr(offset, length));
 }
 
-bool VariableMap::add_parent_directory_abs_path(StringRef var_name,
-                                                StringRefNull full_path,
-                                                StringRef fallback)
+bool VariableMap::add_path_up_to_file(StringRef var_name,
+                                      StringRefNull full_path,
+                                      StringRef fallback)
 {
+  /* If there is no filename at the end. */
+  if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
+    return this->add_string(var_name, fallback);
+  }
+
   Vector<char> dir_path(full_path.size() + 1);
   full_path.copy_unsafe(dir_path.data());
 
   const bool success = BLI_path_parent_dir(dir_path.data());
 
-  if (!success) {
-    /* If no parent directory path, default to the fallback. */
+  if (!success || dir_path[0] == '\0') {
+    /* If no path before the filename, default to the fallback. */
     return this->add_string(var_name, fallback);
   }
 
@@ -233,9 +241,9 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
     variables.add_filename("blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_name(
+    variables.add_file_parent_directory_name(
         "blend_dir_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_abs_path(
+    variables.add_path_up_to_file(
         "blend_dir", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
@@ -244,9 +252,9 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(
         "blend_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_name(
+    variables.add_file_parent_directory_name(
         "blend_dir_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_parent_directory_abs_path(
+    variables.add_path_up_to_file(
         "blend_dir_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
