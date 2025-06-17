@@ -545,12 +545,12 @@ static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 
 static void rna_uiLayoutContextPointerSet(uiLayout *layout, const char *name, PointerRNA *ptr)
 {
-  layout->context_set(name, ptr);
+  layout->context_ptr_set(name, ptr);
 }
 
 static void rna_uiLayoutContextStringSet(uiLayout *layout, const char *name, const char *value)
 {
-  layout->context_set(name, value);
+  layout->context_string_set(name, value);
 }
 
 static void rna_uiTemplateID(uiLayout *layout,

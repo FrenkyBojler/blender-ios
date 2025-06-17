@@ -1354,7 +1354,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
       ID *id = ptr.owner_id;
 
       PointerRNA ptr_fcurve = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
-      layout->context_set("active_editable_fcurve", &ptr_fcurve);
+      layout->context_ptr_set("active_editable_fcurve", &ptr_fcurve);
 
       /* Driven Property Settings */
       layout->label(IFACE_("Driven Property:"), ICON_NONE);

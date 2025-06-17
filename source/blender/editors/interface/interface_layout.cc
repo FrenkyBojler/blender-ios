@@ -5851,19 +5851,44 @@ bool UI_block_layout_needs_resolving(const uiBlock *block)
   return !BLI_listbase_is_empty(&block->layouts);
 }
 
-void uiLayout::context_set(StringRef name, const PointerRNA *ptr)
+const PointerRNA *uiLayout::context_ptr_get(const blender::StringRef name,
+                                            const StructRNA *type) const
+{
+  if (!context_) {
+    return nullptr;
+  }
+  return CTX_store_ptr_lookup(context_, name, type);
+}
+
+void uiLayout::context_ptr_set(StringRef name, const PointerRNA *ptr)
 {
   uiBlock *block = this->block();
   context_ = CTX_store_add(block->contexts, name, ptr);
 }
+std::optional<blender::StringRefNull> uiLayout::context_string_get(
+    const blender::StringRef name) const
+{
+  if (!context_) {
+    return std::nullopt;
+  }
+  return CTX_store_string_lookup(context_, name);
+}
 
-void uiLayout::context_set(StringRef name, blender::StringRef value)
+void uiLayout::context_string_set(StringRef name, blender::StringRef value)
 {
   uiBlock *block = this->block();
   context_ = CTX_store_add(block->contexts, name, value);
 }
 
-void uiLayout::context_set(blender::StringRef name, int64_t value)
+std::optional<int64_t> uiLayout::context_int_get(const blender::StringRef name) const
+{
+  if (!context_) {
+    return std::nullopt;
+  }
+  return CTX_store_int_lookup(context_, name);
+}
+
+void uiLayout::context_int_set(blender::StringRef name, int64_t value)
 {
   uiBlock *block = this->block();
   context_ = CTX_store_add(block->contexts, name, value);
@@ -5910,43 +5935,17 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
   }
 }
 
-const PointerRNA *uiLayout::context_ptr_get(const blender::StringRef name,
-                                            const StructRNA *type) const
-{
-  if (!context_) {
-    return nullptr;
-  }
-  return CTX_store_ptr_lookup(context_, name, type);
-}
-
-std::optional<blender::StringRefNull> uiLayout::context_string_get(
-    const blender::StringRef name) const
-{
-  if (!context_) {
-    return std::nullopt;
-  }
-  return CTX_store_string_lookup(context_, name);
-}
-
-std::optional<int64_t> uiLayout::context_int_get(const blender::StringRef name) const
-{
-  if (!context_) {
-    return std::nullopt;
-  }
-  return CTX_store_int_lookup(context_, name);
-}
-
 void uiLayout::context_set_from_but(const uiBut *but)
 {
   if (but->opptr) {
-    this->context_set("button_operator", but->opptr);
+    this->context_ptr_set("button_operator", but->opptr);
   }
 
   if (but->rnapoin.data && but->rnaprop) {
     /* TODO: index could be supported as well */
     PointerRNA ptr_prop = RNA_pointer_create_discrete(nullptr, &RNA_Property, but->rnaprop);
-    this->context_set("button_prop", &ptr_prop);
-    this->context_set("button_pointer", &but->rnapoin);
+    this->context_ptr_set("button_prop", &ptr_prop);
+    this->context_ptr_set("button_pointer", &but->rnapoin);
   }
 }
 
