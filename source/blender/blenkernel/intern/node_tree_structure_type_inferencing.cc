@@ -259,17 +259,18 @@ static ZoneInOutChange simulation_zone_requirements_propagate(
   ZoneInOutChange change = ZoneInOutChange::None;
   for (const int i : output_node.output_sockets().index_range()) {
     /* First input node output is Delta Time which does not appear in the output node outputs. */
-    const bNodeSocket &socket_input = input_node.input_socket(i);
-    const bNodeSocket &socket_output = output_node.output_socket(i);
+    const bNodeSocket &input_of_input_node = input_node.input_socket(i);
+    const bNodeSocket &output_of_output_node = output_node.output_socket(i);
+    const bNodeSocket &input_of_output_node = output_node.input_socket(i + 1);
     const DataRequirement new_value = merge(
-        input_requirements[socket_input.index_in_all_inputs()],
-        calc_output_socket_requirement(socket_output, input_requirements));
-    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
-      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+        input_requirements[input_of_input_node.index_in_all_inputs()],
+        calc_output_socket_requirement(output_of_output_node, input_requirements));
+    if (input_requirements[input_of_input_node.index_in_all_inputs()] != new_value) {
+      input_requirements[input_of_input_node.index_in_all_inputs()] = new_value;
       change |= ZoneInOutChange::In;
     }
-    if (input_requirements[socket_input.index_in_all_inputs()] != new_value) {
-      input_requirements[socket_input.index_in_all_inputs()] = new_value;
+    if (input_requirements[input_of_output_node.index_in_all_inputs()] != new_value) {
+      input_requirements[input_of_output_node.index_in_all_inputs()] = new_value;
       change |= ZoneInOutChange::In;
     }
   }

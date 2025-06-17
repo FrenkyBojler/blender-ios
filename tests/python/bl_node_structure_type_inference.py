@@ -183,6 +183,17 @@ class StructureTypeInferenceTest(unittest.TestCase):
 
         self.assertDynamic(node.outputs["dynamic+single+field+grid"])
 
+    def test_simulation_zone(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_simulation_zone"]
+
+        node = tree.nodes["Group Input"]
+        self.assertSingle(node.outputs["single 1"])
+        self.assertSingle(node.outputs["single 2"])
+        self.assertSingle(node.outputs["single 3"])
+        self.assertSingle(node.outputs["single 4"])
+        self.assertDynamic(node.outputs["dynamic"])
+
 
 def main():
     global args
