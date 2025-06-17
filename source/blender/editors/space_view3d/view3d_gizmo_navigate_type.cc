@@ -243,38 +243,30 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
       rect.ymax = rad;
       UI_draw_roundbox_4fv_ex(
           &rect, inner_color, nullptr, 0.0f, outline_color, AXIS_RING_WIDTH, rad);
-      GPU_matrix_pop();
-    }
 
-    /* Axis XYZ Character. */
-    if ((is_pos || is_highlight || (axis == axis_align)) && !is_aligned_back) {
-      float axis_str_width, axis_string_height;
-      char axis_str[3] = {char('X' + axis), 0, 0};
-      if (!is_pos) {
-        axis_str[0] = '-';
-        axis_str[1] = 'X' + axis;
+      /* Axis XYZ Character. */
+      if (is_pos || is_highlight || axis == axis_align) {
+        float axis_str_width, axis_string_height;
+        char axis_str[3] = {char('X' + axis), 0, 0};
+        if (!is_pos) {
+          axis_str[0] = '-';
+          axis_str[1] = 'X' + axis;
+        }
+        BLF_width_and_height(
+            font.id, axis_str, sizeof(axis_str), &axis_str_width, &axis_string_height);
+        float text_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        if (!is_highlight) {
+          zero_v4(text_color);
+          text_color[3] = is_active ? 1.0f : 0.9f;
+        }
+        BLF_color4fv(font.id, text_color);
+        BLF_position(+font.id,
+                     axis_str_width * (is_pos ? -0.5f : -0.55f),
+                     axis_string_height * -0.5f,
+                     0.0f);
+        BLF_draw(font.id, axis_str, sizeof(axis_str));
       }
-      BLF_width_and_height(font.id, axis_str, 3, &axis_str_width, &axis_string_height);
 
-      /* Calculate pixel-aligned location, without this text draws fuzzy. */
-      float v_final_px[3];
-      mul_v3_m3v3(v_final_px, font.matrix_m3_invert, v_final);
-      /* Center the text and pixel align, it's important to round once
-       * otherwise the characters are noticeably not-centered.
-       * If this wasn't an issue we could use #BLF_position to place the text. */
-      v_final_px[0] = roundf(v_final_px[0] - (axis_str_width * (is_pos ? 0.5f : 0.55f)));
-      v_final_px[1] = roundf(v_final_px[1] - (axis_string_height / 2.0f));
-      mul_m3_v3(font.matrix_m3, v_final_px);
-      GPU_matrix_push();
-      GPU_matrix_translate_3fv(v_final_px);
-      GPU_matrix_mul(font.matrix);
-      float text_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-      if (!is_highlight) {
-        zero_v4(text_color);
-        text_color[3] = is_active ? 1.0f : 0.9f;
-      }
-      BLF_color4fv(font.id, text_color);
-      BLF_draw(font.id, axis_str, 2);
       GPU_matrix_pop();
     }
   }
