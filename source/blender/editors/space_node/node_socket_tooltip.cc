@@ -75,8 +75,7 @@ static void build_tooltip_description(uiTooltipData &tip_data, const bNodeSocket
 
 static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
                                                  const StringRef value,
-                                                 const StringRef type,
-                                                 const StringRef value_description = "")
+                                                 const StringRef type)
 {
   UI_tooltip_text_field_add(tip_data,
                             fmt::format("{}: {}", TIP_("Value"), value),
@@ -84,11 +83,6 @@ static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
                             UI_TIP_STYLE_MONO,
                             UI_TIP_LC_VALUE);
   add_space(tip_data);
-  if (!value_description.is_empty()) {
-    UI_tooltip_text_field_add(
-        tip_data, value_description, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
-    add_space(tip_data);
-  }
   UI_tooltip_text_field_add(
       tip_data, fmt::format("{}: {}", TIP_("Type"), type), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
 }
@@ -111,6 +105,7 @@ template<typename T>
   }
   const ID_Type id_type = T::id_type;
   const char *id_type_name = BKE_idtype_idcode_to_name(id_type);
+
   build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_(id_type_name));
   return true;
 }
@@ -131,8 +126,18 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
   if (!enum_item) {
     return;
   }
-  build_tooltip_value_and_type_oneline(
-      tip_data, enum_item->name, TIP_("Menu"), enum_item->description);
+  if (!enum_item->description.empty()) {
+    UI_tooltip_text_field_add(
+        tip_data, enum_item->description, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE);
+    add_space(tip_data);
+  }
+  build_tooltip_value_and_type_oneline(tip_data, enum_item->name, TIP_("Menu"));
+}
+
+static void build_tooltip_value_int(uiTooltipData &tip_data, const int value)
+{
+  std::string value_str = fmt::format("{}", value);
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Integer"));
 }
 
 static void build_tooltip_value_float(uiTooltipData &tip_data, const float value)
@@ -148,6 +153,23 @@ static void build_tooltip_value_float(uiTooltipData &tip_data, const float value
     value_str = fmt::format("{}", value);
   }
   build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Float"));
+}
+
+static void build_tooltip_value_float3(uiTooltipData &tip_data, const float3 &value)
+{
+  const std::string value_str = fmt::format("{} {} {}", value.x, value.y, value.z);
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("3D Float Vector"));
+}
+
+static void build_tooltip_value_color(uiTooltipData &tip_data, const ColorGeometry4f &value)
+{
+  UI_tooltip_color_field_add(tip_data, float4(value), true, false, nullptr);
+  add_space(tip_data);
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format("{}: {}", TIP_("Type"), TIP_("Float Color")),
+                            {},
+                            UI_TIP_STYLE_MONO,
+                            UI_TIP_LC_VALUE);
 }
 
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
@@ -193,8 +215,20 @@ static void build_tooltip_value_float(uiTooltipData &tip_data, const float value
       value_type, socket_base_cpp_type, value.get(), socket_value);
   BLI_SCOPED_DEFER([&]() { socket_base_cpp_type.destruct(socket_value); });
 
+  if (socket_base_cpp_type.is<int>()) {
+    build_tooltip_value_int(tip_data, *static_cast<int *>(socket_value));
+    return true;
+  }
   if (socket_base_cpp_type.is<float>()) {
     build_tooltip_value_float(tip_data, *static_cast<float *>(socket_value));
+    return true;
+  }
+  if (socket_base_cpp_type.is<float3>()) {
+    build_tooltip_value_float3(tip_data, *static_cast<float3 *>(socket_value));
+    return true;
+  }
+  if (socket_base_cpp_type.is<ColorGeometry4f>()) {
+    build_tooltip_value_color(tip_data, *static_cast<ColorGeometry4f *>(socket_value));
     return true;
   }
 
