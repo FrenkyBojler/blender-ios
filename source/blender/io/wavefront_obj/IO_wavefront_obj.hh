@@ -94,7 +94,7 @@ struct OBJImportParams {
   bool close_spline_loops = true;
   bool relative_paths = true;
   bool clear_selection = true;
-  
+
   /** How to handle material name collisions during import. */
   eOBJMtlNameCollisionMode mtl_name_collision_mode = OBJ_MTL_NAME_COLLISION_MAKE_UNIQUE;
 

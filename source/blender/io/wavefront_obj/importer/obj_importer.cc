@@ -216,7 +216,7 @@ void importer_main(Main *bmain,
   if (import_params.clear_selection) {
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
-  
+
   /* Create Blender objects from the parsed geometries */
   geometry_to_blender_objects(bmain,
                               scene,

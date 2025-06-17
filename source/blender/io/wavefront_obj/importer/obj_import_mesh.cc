@@ -89,7 +89,12 @@ Object *MeshFromGeometry::create_mesh_object(
   Object *obj = BKE_object_add_only_object(bmain, OB_MESH, ob_name.c_str());
   obj->data = BKE_object_obdata_add_from_type(bmain, OB_MESH, ob_name.c_str());
 
-  this->create_materials(bmain, materials, created_materials, obj, import_params.relative_paths, import_params.mtl_name_collision_mode);
+  this->create_materials(bmain,
+                         materials,
+                         created_materials,
+                         obj,
+                         import_params.relative_paths,
+                         import_params.mtl_name_collision_mode);
 
   BKE_mesh_nomain_to_mesh(mesh, static_cast<Mesh *>(obj->data), obj);
 
@@ -366,7 +371,9 @@ static Material *get_or_create_material(Main *bmain,
 
   /* Check if a material with this name already exists in the main database */
   Material *existing_mat = (Material *)BKE_libblock_find_name(bmain, ID_MA, name.c_str());
-  if (existing_mat != nullptr && mtl_name_collision_mode == OBJ_MTL_NAME_COLLISION_REFERENCE_EXISTING) {
+  if (existing_mat != nullptr &&
+      mtl_name_collision_mode == OBJ_MTL_NAME_COLLISION_REFERENCE_EXISTING)
+  {
     /* If the collision mode is set to reference existing materials, use the existing one */
     created_materials.add_new(name, existing_mat);
     return existing_mat;
