@@ -156,9 +156,15 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
                  kernel_type_as_string(
                      (MetalPipelineType)min((int)kernel_specialization_level, (int)PSO_NUM - 1)));
 
-    texture_bindings = [mtlDevice newBufferWithLength:8192
-                                              options:MTLResourceStorageModeShared];
+    texture_bindings = [mtlDevice newBufferWithLength:8192 options:MTLResourceStorageModeShared];
     stats.mem_alloc(texture_bindings.allocatedSize);
+
+    launch_params_buffer = [mtlDevice newBufferWithLength:sizeof(KernelParamsMetal)
+                                                  options:MTLResourceStorageModeShared];
+    stats.mem_alloc(sizeof(KernelParamsMetal));
+
+    /* Cache unified pointer so we can write kernel params directly in place. */
+    launch_params = (KernelParamsMetal *)launch_params_buffer.contents;
 
     /* Command queue for path-tracing work on the GPU. In a situation where multiple
      * MetalDeviceQueues are spawned from one MetalDevice, they share the same MTLCommandQueue.
@@ -189,10 +195,12 @@ MetalDevice::~MetalDevice()
   free_bvh();
   flush_delayed_free_list();
 
-  if (texture_bindings) {
-    stats.mem_free(texture_bindings.allocatedSize);
-    [texture_bindings release];
-  }
+  stats.mem_free(sizeof(KernelParamsMetal));
+  [launch_params_buffer release];
+
+  stats.mem_free(texture_bindings.allocatedSize);
+  [texture_bindings release];
+
   [mtlComputeCommandQueue release];
   [mtlGeneralCommandQueue release];
   if (mtlCounterSampleBuffer) {
@@ -384,7 +392,7 @@ void MetalDevice::refresh_source_and_kernels_md5(MetalPipelineType pso_type)
 #  define KERNEL_STRUCT_MEMBER(parent, _type, name) \
     if (next_member_is_specialized) { \
       constant_values += string(#parent "." #name "=") + \
-                         to_string(_type(launch_params.data.parent.name)) + "\n"; \
+                         to_string(_type(launch_params->data.parent.name)) + "\n"; \
     } \
     else { \
       next_member_is_specialized = true; \
@@ -521,9 +529,7 @@ bool MetalDevice::is_texture(const TextureInfo &tex)
   return (tex.depth > 0 || tex.height > 0);
 }
 
-void MetalDevice::load_texture_info()
-{
-}
+void MetalDevice::load_texture_info() {}
 
 void MetalDevice::erase_allocation(device_memory &mem)
 {
@@ -537,7 +543,7 @@ void MetalDevice::erase_allocation(device_memory &mem)
 
     /* blank out reference to resource in the launch params (fixes crash #94736) */
     if (mmem->pointer_index >= 0) {
-      device_ptr *pointers = (device_ptr *)&launch_params;
+      device_ptr *pointers = (device_ptr *)launch_params;
       pointers[mmem->pointer_index] = 0;
     }
     metal_mem_map.erase(it);
@@ -850,7 +856,7 @@ void MetalDevice::const_copy_to(const char *name, void *host, const size_t size)
 {
   if (strcmp(name, "data") == 0) {
     assert(size == sizeof(KernelData));
-    memcpy((uint8_t *)&launch_params.data, host, sizeof(KernelData));
+    memcpy((uint8_t *)&launch_params->data, host, sizeof(KernelData));
 
     /* Refresh the kernels_md5 checksums for specialized kernel sets. */
     for (int level = 1; level <= int(kernel_specialization_level); level++) {
@@ -859,30 +865,35 @@ void MetalDevice::const_copy_to(const char *name, void *host, const size_t size)
     return;
   }
 
-  auto update_launch_pointers =
-      [&](size_t offset, void *data, const size_t data_size, const size_t pointers_size) {
-        memcpy((uint8_t *)&launch_params + offset, data, data_size);
+  auto update_launch_pointers = [&](size_t offset, void *data, const size_t pointers_size) {
+    uint64_t *gpuAddress = (uint64_t *)((uint8_t *)launch_params + offset);
 
-        MetalMem **mmem = (MetalMem **)data;
-        int pointer_count = pointers_size / sizeof(device_ptr);
-        int pointer_index = offset / sizeof(device_ptr);
-        for (int i = 0; i < pointer_count; i++) {
-          if (mmem[i]) {
-            mmem[i]->pointer_index = pointer_index + i;
+    MetalMem **mmem = (MetalMem **)data;
+    int pointer_count = pointers_size / sizeof(device_ptr);
+    int pointer_index = offset / sizeof(device_ptr);
+    for (int i = 0; i < pointer_count; i++) {
+      gpuAddress[i] = 0;
+      if (mmem[i]) {
+        mmem[i]->pointer_index = pointer_index + i;
+        if (mmem[i]->mtlBuffer) {
+          if (@available(macOS 13.0, *)) {
+            gpuAddress[i] = mmem[i]->mtlBuffer.gpuAddress;
           }
         }
-      };
+      }
+    }
+  };
 
   /* Update data storage pointers in launch parameters. */
   if (strcmp(name, "integrator_state") == 0) {
     /* IntegratorStateGPU is contiguous pointers */
     const size_t pointer_block_size = offsetof(IntegratorStateGPU, sort_partition_divisor);
     update_launch_pointers(
-        offsetof(KernelParamsMetal, integrator_state), host, size, pointer_block_size);
+        offsetof(KernelParamsMetal, integrator_state), host, pointer_block_size);
   }
 #  define KERNEL_DATA_ARRAY(data_type, tex_name) \
     else if (strcmp(name, #tex_name) == 0) { \
-      update_launch_pointers(offsetof(KernelParamsMetal, tex_name), host, size, size); \
+      update_launch_pointers(offsetof(KernelParamsMetal, tex_name), host, size); \
     }
 #  include "kernel/data_arrays.h"
 #  undef KERNEL_DATA_ARRAY
@@ -1256,16 +1267,12 @@ void MetalDevice::free_bvh()
     [accel_struct release];
     accel_struct = nil;
   }
-
-  this->bvh_metal = nullptr;
 }
 
 void MetalDevice::update_bvh(BVHMetal *bvh_metal)
 {
   free_bvh();
 
-  this->bvh_metal = bvh_metal;
-  
   if (!bvh_metal) {
     return;
   }

@@ -33,7 +33,9 @@ class MetalDevice : public Device {
 
   bool capture_enabled = false;
 
-  KernelParamsMetal launch_params = {nullptr};
+  /* Argument buffer for static data. */
+  id<MTLBuffer> launch_params_buffer = nil;
+  KernelParamsMetal *launch_params = nullptr;
 
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;

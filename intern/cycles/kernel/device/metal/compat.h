@@ -348,7 +348,8 @@ typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limit
 
 /* texture bindings and sampler setup */
 
-/* TextureParamsMetal is reinterpreted as either Texture2DParamsMetal or Texture3DParamsMetal depending on context. */
+/* TextureParamsMetal is reinterpreted as either Texture2DParamsMetal or Texture3DParamsMetal
+ * depending on context. */
 struct TextureParamsMetal {
   uint64_t tex;
 };

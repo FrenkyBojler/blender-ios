@@ -59,9 +59,6 @@ class MetalDeviceQueue : public DeviceQueue {
 
   MetalDevice *metal_device_;
 
-  /* Argument buffer for static data. */
-  id<MTLBuffer> arg_buffer_ = nil;
-
   API_AVAILABLE(macos(11.0), ios(14.0))
   MTLCommandBufferDescriptor *command_buffer_desc_ = nullptr;
   id<MTLDevice> mtlDevice_ = nil;
