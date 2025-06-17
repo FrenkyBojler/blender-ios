@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "IO_wavefront_obj.hh"
 
 #include "BLI_map.hh"
