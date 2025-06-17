@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_mesh_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
@@ -21,7 +22,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
-
+#include "UI_tree_view.hh"
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -191,6 +192,23 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
         view_layer->eevee.ambient_occlusion_distance = scene->eevee.gtao_distance;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 13)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+          LISTBASE_FOREACH (uiViewStateLink *, view_state, &region->view_states) {
+            if (view_state->state.custom_height) {
+              using namespace blender::ui;
+              const int min_height = MIN_ROWS * padded_item_height();
+              view_state->state.custom_height = std::max(view_state->state.custom_height,
+                                                         min_height);
+            }
+          }
+        }
       }
     }
   }

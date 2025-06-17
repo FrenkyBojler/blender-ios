@@ -27,6 +27,7 @@ struct uiBlock;
 struct uiLayout;
 
 namespace blender::ui {
+#define MIN_ROWS 4
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
@@ -454,6 +455,17 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
   static_assert(std::is_base_of_v<AbstractTreeView, ViewType>,
                 "Type must derive from and implement the ui::AbstractTreeView interface");
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
+}
+
+static int unpadded_item_height()
+{
+  return UI_UNIT_Y;
+}
+
+static int padded_item_height()
+{
+  const uiStyle *style = UI_style_get_dpi();
+  return unpadded_item_height() + style->buttonspacey;
 }
 
 }  // namespace blender::ui

@@ -33,17 +33,6 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
-#define MIN_ROWS 4
-
-static int unpadded_item_height()
-{
-  return UI_UNIT_Y;
-}
-static int padded_item_height()
-{
-  const uiStyle *style = UI_style_get_dpi();
-  return unpadded_item_height() + style->buttonspacey;
-}
 
 /* ---------------------------------------------------------------------- */
 
