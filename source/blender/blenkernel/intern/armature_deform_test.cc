@@ -273,8 +273,13 @@ class ArmatureDeformTest : public testing::Test {
     Envelope,
     /* Vertex group weight. */
     VertexGroups,
-    /* Single vertex group weight. */
-    SingleVertexGroup,
+  };
+
+  enum class MaskingTest {
+    /* Deform all vertices. */
+    All,
+    /* Limit deformation to one vertex group. */
+    VertexGroup,
   };
 
   /* Defines the source of vertex groups and weights for mesh deformation. */
@@ -285,7 +290,13 @@ class ArmatureDeformTest : public testing::Test {
     SeparateMesh,
   };
 
+  static const Array<InterpolationTest> interpolation_options;
+  static const Array<WeightingTest> weighting_options;
+  static const Array<MaskingTest> masking_options;
+  static const Array<VertexWeightSource> source_options;
+
   static Span<float3> expected_mesh_positions(const WeightingTest weighting,
+                                              const MaskingTest masking,
                                               const bool vgroups_supported)
   {
     /* Both bones weighted equally. */
@@ -297,6 +308,14 @@ class ArmatureDeformTest : public testing::Test {
                                           float3(3.5f, -2, 1.5f),
                                           float3(1.5f, 0, 1.5f),
                                           float3(3.5f, 0, 1.5f)};
+    static Array<float3> data_envelope_masked = {float3(-1, -1, -1),
+                                                 float3(1, -1, -1),
+                                                 float3(-1, 1, -1),
+                                                 float3(1, 1, -1),
+                                                 float3(1.5f, -2, 1.5f),
+                                                 float3(3.5f, -2, 1.5f),
+                                                 float3(1.5f, 0, 1.5f),
+                                                 float3(3.5f, 0, 1.5f)};
     /* Bottom verts deformed only by Bone1, top group deformed equally by both bones. */
     static Array<float3> data_vgroups = {float3(4, -1, 0),
                                          float3(6, -1, 0),
@@ -306,25 +325,33 @@ class ArmatureDeformTest : public testing::Test {
                                          float3(3.5f, -2, 1.5f),
                                          float3(1.5f, 0, 1.5f),
                                          float3(3.5f, 0, 1.5f)};
-    /* Only the "Bone2" vertex group is affected (same relative weights). */
-    static Array<float3> data_single = {float3(-1, -1, -1),
-                                        float3(1, -1, -1),
-                                        float3(-1, 1, -1),
-                                        float3(1, 1, -1),
-                                        float3(1.5f, -2, 1.5f),
-                                        float3(3.5f, -2, 1.5f),
-                                        float3(1.5f, 0, 1.5f),
-                                        float3(3.5f, 0, 1.5f)};
+    static Array<float3> data_vgroups_masked = {float3(-1, -1, -1),
+                                                float3(1, -1, -1),
+                                                float3(-1, 1, -1),
+                                                float3(1, 1, -1),
+                                                float3(1.5f, -2, 1.5f),
+                                                float3(3.5f, -2, 1.5f),
+                                                float3(1.5f, 0, 1.5f),
+                                                float3(3.5f, 0, 1.5f)};
 
+    const bool masked = (masking == MaskingTest::VertexGroup);
     switch (weighting) {
       case WeightingTest::None:
         return vertex_positions();
       case WeightingTest::Envelope:
-        return data_envelope;
+        if (vgroups_supported) {
+          return data_envelope;
+        }
+        else {
+          return data_envelope;
+        }
       case WeightingTest::VertexGroups:
-        return vgroups_supported ? data_vgroups.as_span() : vertex_positions();
-      case WeightingTest::SingleVertexGroup:
-        return vgroups_supported ? data_single.as_span() : vertex_positions();
+        if (vgroups_supported) {
+          return masked ? data_vgroups_masked : data_vgroups;
+        }
+        else {
+          return vertex_positions();
+        }
     }
     BLI_assert_unreachable();
     return {};
@@ -353,22 +380,17 @@ class ArmatureDeformTest : public testing::Test {
       case WeightingTest::VertexGroups:
         deform_flag |= ARM_DEF_VGROUP;
         break;
-      case WeightingTest::SingleVertexGroup:
-        deform_flag |= ARM_DEF_VGROUP;
-        break;
     }
 
     return deform_flag;
   }
 
-  const char *get_defgrp_name(const WeightingTest weighting)
+  const char *get_defgrp_name(const MaskingTest masking)
   {
-    switch (weighting) {
-      case WeightingTest::None:
-      case WeightingTest::Envelope:
-      case WeightingTest::VertexGroups:
+    switch (masking) {
+      case MaskingTest::All:
         return "";
-      case WeightingTest::SingleVertexGroup:
+      case MaskingTest::VertexGroup:
         return "Bone2";
     }
     BLI_assert_unreachable();
@@ -377,6 +399,7 @@ class ArmatureDeformTest : public testing::Test {
 
   void mesh_test(const InterpolationTest interpolation,
                  const WeightingTest weighting,
+                 const MaskingTest masking,
                  const VertexWeightSource dvert_source)
   {
     Object *ob_arm = this->create_test_armature_object();
@@ -390,7 +413,7 @@ class ArmatureDeformTest : public testing::Test {
     float(*vert_positions_array)[3] = vert_positions.cast<float[3]>().data();
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
-    const char *defgrp_name = get_defgrp_name(weighting);
+    const char *defgrp_name = get_defgrp_name(masking);
     BKE_armature_deform_coords_with_mesh(ob_arm,
                                          ob_target,
                                          vert_positions_array,
@@ -401,7 +424,7 @@ class ArmatureDeformTest : public testing::Test {
                                          defgrp_name,
                                          mesh_target);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), vert_positions.as_span());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), vert_positions.as_span());
 
     if (mesh_target) {
       /* Not in bmain. */
@@ -411,7 +434,9 @@ class ArmatureDeformTest : public testing::Test {
     BKE_id_delete(bmain, ob_target);
   }
 
-  void edit_mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  void edit_mesh_test(const InterpolationTest interpolation,
+                      const WeightingTest weighting,
+                      const MaskingTest masking)
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_mesh_object();
@@ -425,7 +450,7 @@ class ArmatureDeformTest : public testing::Test {
     float(*vert_positions_array)[3] = bm_verts_wrapper.as_mutable_span().cast<float[3]>().data();
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
-    const char *defgrp_name = get_defgrp_name(weighting);
+    const char *defgrp_name = get_defgrp_name(masking);
     BKE_armature_deform_coords_with_editmesh(ob_arm,
                                              ob_target,
                                              vert_positions_array,
@@ -436,7 +461,7 @@ class ArmatureDeformTest : public testing::Test {
                                              defgrp_name,
                                              edit_mesh);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), bm_verts_wrapper.as_span());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), bm_verts_wrapper.as_span());
 
     BKE_editmesh_free_data(edit_mesh);
     MEM_delete(edit_mesh);
@@ -444,7 +469,9 @@ class ArmatureDeformTest : public testing::Test {
     BKE_id_delete(bmain, ob_target);
   }
 
-  void curves_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  void curves_test(const InterpolationTest interpolation,
+                   const WeightingTest weighting,
+                   const MaskingTest masking)
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_curves();
@@ -452,7 +479,7 @@ class ArmatureDeformTest : public testing::Test {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
-    const char *defgrp_name = get_defgrp_name(weighting);
+    const char *defgrp_name = get_defgrp_name(masking);
     BKE_armature_deform_coords_with_curves(*ob_arm,
                                            *ob_target,
                                            nullptr,
@@ -464,13 +491,15 @@ class ArmatureDeformTest : public testing::Test {
                                            defgrp_name);
 
     /* Note: Curves objects don't support vertex groups. */
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, false), curves.positions());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, false), curves.positions());
 
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
   }
 
-  void grease_pencil_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  void grease_pencil_test(const InterpolationTest interpolation,
+                          const WeightingTest weighting,
+                          const MaskingTest masking)
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_grease_pencil();
@@ -483,7 +512,7 @@ class ArmatureDeformTest : public testing::Test {
     bke::CurvesGeometry &curves = drawing.geometry.wrap();
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
-    const char *defgrp_name = get_defgrp_name(weighting);
+    const char *defgrp_name = get_defgrp_name(masking);
     BKE_armature_deform_coords_with_curves(*ob_arm,
                                            *ob_target,
                                            &grease_pencil->vertex_group_names,
@@ -494,12 +523,21 @@ class ArmatureDeformTest : public testing::Test {
                                            deform_flag,
                                            defgrp_name);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), curves.positions());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), curves.positions());
 
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
   }
 };
+
+const Array<ArmatureDeformTest::InterpolationTest> ArmatureDeformTest::interpolation_options = {
+    InterpolationTest::Linear, InterpolationTest::DualQuaternion};
+const Array<ArmatureDeformTest::WeightingTest> ArmatureDeformTest::weighting_options = {
+    WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups};
+const Array<ArmatureDeformTest::MaskingTest> ArmatureDeformTest::masking_options = {
+    MaskingTest::All, MaskingTest::VertexGroup};
+const Array<ArmatureDeformTest::VertexWeightSource> ArmatureDeformTest::source_options = {
+    VertexWeightSource::TargetObject, VertexWeightSource::SeparateMesh};
 
 /**
  * TODO
@@ -531,79 +569,116 @@ class ArmatureDeformTest : public testing::Test {
 
 TEST_F(ArmatureDeformTest, MeshDeform)
 {
-  mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::TargetObject);
-  mesh_test(InterpolationTest::Linear, WeightingTest::Envelope, VertexWeightSource::TargetObject);
-  mesh_test(
-      InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::TargetObject);
-  mesh_test(InterpolationTest::Linear,
-            WeightingTest::SingleVertexGroup,
-            VertexWeightSource::TargetObject);
-  mesh_test(
-      InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::TargetObject);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::Envelope,
-            VertexWeightSource::TargetObject);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::VertexGroups,
-            VertexWeightSource::TargetObject);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::SingleVertexGroup,
-            VertexWeightSource::TargetObject);
+  for (const InterpolationTest opt_itp : interpolation_options) {
+    for (const WeightingTest opt_wgt : weighting_options) {
+      for (const MaskingTest opt_msk : masking_options) {
+        for (const VertexWeightSource opt_src : source_options) {
+          mesh_test(opt_itp, opt_wgt, opt_msk, opt_src);
+        }
+      }
+    }
+  }
 
-  mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::SeparateMesh);
-  mesh_test(InterpolationTest::Linear, WeightingTest::Envelope, VertexWeightSource::SeparateMesh);
-  mesh_test(
-      InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::SeparateMesh);
-  mesh_test(InterpolationTest::Linear,
-            WeightingTest::SingleVertexGroup,
-            VertexWeightSource::SeparateMesh);
-  mesh_test(
-      InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::SeparateMesh);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::Envelope,
-            VertexWeightSource::SeparateMesh);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::VertexGroups,
-            VertexWeightSource::SeparateMesh);
-  mesh_test(InterpolationTest::DualQuaternion,
-            WeightingTest::SingleVertexGroup,
-            VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::Linear,
+  //           WeightingTest::None,
+  //           MaskingTest::All,
+  //           VertexWeightSource::TargetObject);
+  // mesh_test(InterpolationTest::Linear, WeightingTest::Envelope,
+  // VertexWeightSource::TargetObject); mesh_test(
+  //     InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::TargetObject);
+  // mesh_test(InterpolationTest::Linear,
+  //           WeightingTest::SingleVertexGroup,
+  //           VertexWeightSource::TargetObject);
+  // mesh_test(
+  //     InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::TargetObject);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::Envelope,
+  //           VertexWeightSource::TargetObject);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::VertexGroups,
+  //           VertexWeightSource::TargetObject);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::SingleVertexGroup,
+  //           VertexWeightSource::TargetObject);
+
+  // mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::Linear, WeightingTest::Envelope,
+  // VertexWeightSource::SeparateMesh); mesh_test(
+  //     InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::Linear,
+  //           WeightingTest::SingleVertexGroup,
+  //           VertexWeightSource::SeparateMesh);
+  // mesh_test(
+  //     InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::Envelope,
+  //           VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::VertexGroups,
+  //           VertexWeightSource::SeparateMesh);
+  // mesh_test(InterpolationTest::DualQuaternion,
+  //           WeightingTest::SingleVertexGroup,
+  //           VertexWeightSource::SeparateMesh);
 }
 
 TEST_F(ArmatureDeformTest, EditMeshDeform)
 {
-  edit_mesh_test(InterpolationTest::Linear, WeightingTest::None);
-  edit_mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  edit_mesh_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  edit_mesh_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+  for (const InterpolationTest opt_itp : interpolation_options) {
+    for (const WeightingTest opt_wgt : weighting_options) {
+      for (const MaskingTest opt_msk : masking_options) {
+        edit_mesh_test(opt_itp, opt_wgt, opt_msk);
+      }
+    }
+  }
+
+  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::None);
+  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
 TEST_F(ArmatureDeformTest, CurveDeform)
 {
-  curves_test(InterpolationTest::Linear, WeightingTest::None);
-  curves_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  curves_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  curves_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  curves_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  curves_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  curves_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  curves_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+  for (const InterpolationTest opt_itp : interpolation_options) {
+    for (const WeightingTest opt_wgt : weighting_options) {
+      for (const MaskingTest opt_msk : masking_options) {
+        curves_test(opt_itp, opt_wgt, opt_msk);
+      }
+    }
+  }
+
+  // curves_test(InterpolationTest::Linear, WeightingTest::None);
+  // curves_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  // curves_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  // curves_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
 TEST_F(ArmatureDeformTest, GreasePencilDeform)
 {
-  grease_pencil_test(InterpolationTest::Linear, WeightingTest::None);
-  grease_pencil_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  grease_pencil_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  grease_pencil_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+  for (const InterpolationTest opt_itp : interpolation_options) {
+    for (const WeightingTest opt_wgt : weighting_options) {
+      for (const MaskingTest opt_msk : masking_options) {
+        grease_pencil_test(opt_itp, opt_wgt, opt_msk);
+      }
+    }
+  }
+
+  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::None);
+  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
 }  // namespace blender::bke::tests
