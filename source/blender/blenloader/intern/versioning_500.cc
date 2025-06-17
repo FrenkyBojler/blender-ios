@@ -101,17 +101,7 @@ static void initialize_closure_input_structure_types(bNodeTree &ntree)
   }
 }
 
-void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
-{
-  /**
-   * Always bump subversion in BKE_blender_version.h when adding versioning
-   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-   *
-   * \note Keep this message at the bottom of the function.
-   */
-}
-
-static void do_versions_apply_unified_paint_settings_to_all_modes(Scene &scene)
+static void apply_unified_paint_settings_to_all_modes(Scene &scene)
 {
   const UnifiedPaintSettings &scene_ups = scene.toolsettings->unified_paint_settings;
   auto apply_to_paint = [&](Paint *paint) {
@@ -147,6 +137,17 @@ static void do_versions_apply_unified_paint_settings_to_all_modes(Scene &scene)
   apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->gp_weightpaint));
   apply_to_paint(reinterpret_cast<Paint *>(scene.toolsettings->curves_sculpt));
   apply_to_paint(reinterpret_cast<Paint *>(&scene.toolsettings->imapaint));
+}
+
+
+void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
+{
+  /**
+   * Always bump subversion in BKE_blender_version.h when adding versioning
+   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+   *
+   * \note Keep this message at the bottom of the function.
+   */
 }
 
 void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
@@ -237,7 +238,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 13)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      do_versions_apply_unified_paint_settings_to_all_modes(*scene);
+      apply_unified_paint_settings_to_all_modes(*scene);
     }
   }
 
