@@ -22,13 +22,18 @@ struct GeometryNodesEvalDependencies {
    * on an object partially.
    */
   struct ObjectDependencyInfo {
-    bool transform = false;
+    /* Влияет ли какая-либо нода на геометрию объекта. */
     bool geometry = false;
+    /* Влияет ли какая-либо нода на трансформацию объекта. */
+    bool transform = false;
+    /* Влияют ли параметры камеры объекта на результат. */
     bool camera_parameters = false;
+    /* Влияет ли поза объекта-арматуры на результат. */ 
+    bool armature_pose = false;
 
-    BLI_STRUCT_EQUALITY_OPERATORS_3(ObjectDependencyInfo, transform, geometry, camera_parameters);
+    BLI_STRUCT_EQUALITY_OPERATORS_4(ObjectDependencyInfo, geometry, transform, camera_parameters, armature_pose);
   };
-  static constexpr ObjectDependencyInfo all_object_deps{true, true, true};
+  static constexpr ObjectDependencyInfo all_object_deps{true, true, true, true};
 
   /**
    * Maps `session_uid` to the corresponding data-block.

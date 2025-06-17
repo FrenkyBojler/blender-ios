@@ -12,6 +12,12 @@
 
 namespace blender::nodes {
 
+// Объявления функций, которые будут определены позже
+static void add_object_socket_pose_dependency(const bNodeSocket &socket,
+                                             GeometryNodesEvalDependencies &deps);
+static void add_armature_pose_dependencies(const bNodeTree &tree,
+                                          GeometryNodesEvalDependencies &deps);
+
 void GeometryNodesEvalDependencies::add_generic_id(ID *id)
 {
   if (!id) {
@@ -45,6 +51,7 @@ void GeometryNodesEvalDependencies::add_object(Object *object,
   deps.geometry |= object_deps.geometry;
   deps.transform |= object_deps.transform;
   deps.camera_parameters |= object_deps.camera_parameters;
+  deps.armature_pose |= object_deps.armature_pose; // Добавляем зависимость от позы
 }
 
 void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &other)
@@ -206,6 +213,7 @@ static void gather_geometry_nodes_eval_dependencies(
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);
+  add_armature_pose_dependencies(ntree, deps); // Добавляем зависимости от позы арматуры
 
   for (const bNode *node : ntree.group_nodes()) {
     if (!node->id) {
@@ -248,6 +256,48 @@ GeometryNodesEvalDependencies gather_geometry_nodes_eval_dependencies_recursive(
   Map<const bNodeTree *, GeometryNodesEvalDependencies> deps_by_tree;
   gather_geometry_nodes_eval_dependencies_recursive_impl(ntree, deps_by_tree);
   return deps_by_tree.lookup(&ntree);
+}
+
+static void add_object_socket_pose_dependency(const bNodeSocket &socket,
+                                             GeometryNodesEvalDependencies &deps)
+{
+  if (socket.is_input()) {
+    if (socket.is_logically_linked()) {
+      return;
+    }
+  }
+  
+  if (socket.type == SOCK_OBJECT) {
+    if (Object *object = static_cast<bNodeSocketValueObject *>(socket.default_value)->value) {
+      if (object->type == OB_ARMATURE) {
+        
+        deps.add_object(object);
+        
+        int session_uid = object->id.session_uid;
+        if (deps.objects_info.contains(session_uid)) {
+          auto &info = deps.objects_info.lookup(session_uid);
+          info.armature_pose = true;
+        }
+      }
+    }
+  }
+}
+
+static void add_armature_pose_dependencies(const bNodeTree &tree,
+                                           GeometryNodesEvalDependencies &deps)
+{
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    
+    for (const bNodeSocket *socket : node->input_sockets()) {
+      if (STREQ(socket->name, "Object")) {
+        add_object_socket_pose_dependency(*socket, deps);
+        break;
+      }
+    }
+  }
 }
 
 }  // namespace blender::nodes

@@ -159,6 +159,12 @@ static void add_object_relation(
       DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
     }
   }
+
+  if (object.type == OB_ARMATURE) {
+    if (info.armature_pose) {
+      DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
+    }
+  }
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -1438,8 +1444,9 @@ class NodesModifierSimulationParams : public nodes::GeoNodesSimulationParams {
     }
     if (frame_indices.current) {
       this->read_single(*frame_indices.current, node_cache, zone_behavior);
+      return;
     }
-    else if (frame_indices.next) {
+    if (frame_indices.next) {
       if (frame_indices.prev) {
         this->read_interpolated(
             *frame_indices.prev, *frame_indices.next, node_cache, zone_behavior);

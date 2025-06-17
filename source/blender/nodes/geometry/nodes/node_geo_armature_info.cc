@@ -22,6 +22,9 @@
 
 #include "DEG_depsgraph_query.hh"
 #include "DEG_depsgraph.hh"
+#include "BLI_listbase.h"
+#include "DEG_depsgraph_build.hh"
+#include "BKE_node.hh"
 
 #include "node_geometry_util.hh"
 
@@ -31,21 +34,17 @@ NODE_STORAGE_FUNCS(NodeGeometryArmatureInfo)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-
   const bNode *node = b.node_or_null();
   if (!node) {
     return;
   }
 
-
   const NodeGeometryArmatureInfo &storage = node_storage(*node);
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
   const Span<ArmatureInfoItem> items = storage.items_span();
 
-
   b.add_input<decl::Object>("Object").hide_label();
   b.add_output<decl::Bool>("Is Armature").description("Returns true if the object is an armature, otherwise false");
-
 
   for (const int i : items.index_range()) {
     const std::string base_identifier = ArmatureInfoItemsAccessor::socket_identifier_for_item(items[i]);
@@ -54,6 +53,46 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &input = b.add_input(data_type, std::to_string(i), input_identifier);
     b.add_output(SOCK_VECTOR, std::to_string(i), output_identifier);
   }
+}
+
+static void node_update(bNodeTree *ntree, bNode *node)
+{
+  // Temporarily commented out to resolve compilation errors
+  /*
+  bNodeSocket *sock = nullptr;
+  for (bNodeSocket *s = (bNodeSocket *)node->inputs.first; s; s = s->next) {
+      if (STREQ(s->name, "Object")) {
+          sock = s;
+          break;
+      }
+  }
+  if (sock) {
+      Object *ob = nullptr;
+      if (sock->link) {
+          bNodeLink *link = sock->link;
+          if (link->fromnode && link->fromsock) {
+              bNodeSocketValueObject *value = (bNodeSocketValueObject *)link->fromsock->default_value;
+              if (value) {
+                  ob = value->value;
+              }
+          }
+      } else {
+          bNodeSocketValueObject *value = (bNodeSocketValueObject *)sock->default_value;
+          if (value) {
+              ob = value->value;
+          }
+      }
+      if (ob && ob->type == OB_ARMATURE) {
+          Depsgraph *depsgraph = ntree->id.depsgraph;
+          if (depsgraph) {
+              DepsNodeHandle handle;
+              DEG_node_handle_init(&handle, depsgraph, node);
+              DEG_add_object_relation(&handle, ob, DEG_OB_COMP_EVAL_POSE, "Armature Info Node");
+          }
+      }
+  }
+  */
+  UNUSED_VARS(ntree, node);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -66,9 +105,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryArmatureInfo &storage = node_storage(node);
   const Span<ArmatureInfoItem> items = storage.items_span();
 
-  // Return early if no object is provided or if items are empty
   if (!object || items.is_empty()) {
-    // Set default values for all outputs
     for (const int i : items.index_range()) {
       const std::string base_identifier = ArmatureInfoItemsAccessor::socket_identifier_for_item(items[i]);
       const std::string socket_name = "out_" + base_identifier;
@@ -77,7 +114,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  // If it's not an armature, set zeros for all outputs and return
   if (!is_armature) {
     for (const int i : items.index_range()) {
       const std::string base_identifier = ArmatureInfoItemsAccessor::socket_identifier_for_item(items[i]);
@@ -87,7 +123,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  // Get the depsgraph and evaluated object for accurate bone positions
   const Depsgraph *depsgraph = params.depsgraph();
   if (!depsgraph) {
     params.error_message_add(NodeWarningType::Error, 
@@ -95,7 +130,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   
-  // Get evaluated object to access evaluated pose data
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
   if (!object_eval || !object_eval->pose) {
     params.error_message_add(NodeWarningType::Error, 
@@ -103,40 +137,33 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  // Process each bone item
   for (const int i : items.index_range()) {
     const std::string base_identifier = ArmatureInfoItemsAccessor::socket_identifier_for_item(items[i]);
     const std::string input_identifier = "in_" + base_identifier;
     const std::string socket_name = "out_" + base_identifier;
 
-    // Extract bone name from input socket
     std::string bone_name;
     try {
       bone_name = params.extract_input<std::string>(input_identifier);
     }
     catch (const std::exception &) {
-      // Set default value if input extraction fails
       params.set_output(socket_name, float3(0.0f));
       continue;
     }
 
-    // Skip empty bone names
     if (bone_name.empty()) {
       params.set_output(socket_name, float3(0.0f));
       continue;
     }
 
-    // Find the evaluated pose channel (bone)
     bPoseChannel *pchan = BKE_pose_channel_find_name(object_eval->pose, bone_name.c_str());
     if (!pchan) {
       continue;
     }
 
-    // Get bone position from evaluated pose matrix
     float4x4 mat(pchan->pose_mat);
     float3 pos = mat.location();
 
-    // Output the bone position
     params.set_output(socket_name, pos);
   }
 }
@@ -158,19 +185,16 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   }
 }
 
-
 static void NODE_OT_armature_info_item_add(wmOperatorType *ot)
 {
   socket_items::ops::add_item<ArmatureInfoItemsAccessor>(ot, "Add Item", __func__, "Add bake item");
 }
-
 
 static void NODE_OT_armature_info_item_remove(wmOperatorType *ot)
 {
   socket_items::ops::remove_item_by_index<ArmatureInfoItemsAccessor>(
       ot, "Remove Item", __func__, "Remove an item from the armature info");
 }
-
 
 static void node_operators()
 {
@@ -211,6 +235,7 @@ static void node_register()
       ntype, "NodeGeometryArmatureInfo", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
+  ntype.updatefunc = node_update;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   blender::bke::node_register_type(ntype);
@@ -218,6 +243,7 @@ static void node_register()
 NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_geo_armature_info_cc
+
 blender::Span<ArmatureInfoItem> NodeGeometryArmatureInfo::items_span() const
 {
   return blender::Span<ArmatureInfoItem>(items, items_num);
