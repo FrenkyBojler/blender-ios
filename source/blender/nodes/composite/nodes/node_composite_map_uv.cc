@@ -12,6 +12,7 @@
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"
+
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
