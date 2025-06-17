@@ -118,6 +118,19 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       bke::mesh_custom_normals_to_generic(*mesh);
       rename_mesh_uv_seam_attribute(*mesh);
     }
+
+    /* Change default Sky Texture to Nishita (after removal of old sky models) */
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_SHADER) {
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy == SH_NODE_TEX_SKY && node->storage) {
+            NodeTexSky *tex = (NodeTexSky *)node->storage;
+            tex->sky_model = 0;
+          }
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 2)) {
@@ -161,6 +174,31 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         NodeDisplaceData *data = MEM_callocN<NodeDisplaceData>(__func__);
         data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
         node->storage = data;
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      if (STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT)) {
+        STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 10)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
+        view_layer->eevee.ambient_occlusion_distance = scene->eevee.gtao_distance;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 13)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        version_node_socket_name(ntree, CMP_NODE_VIEW_LEVELS, "Std Dev", "Standard Deviation");
       }
     }
     FOREACH_NODETREE_END;
