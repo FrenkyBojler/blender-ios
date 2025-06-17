@@ -5863,6 +5863,12 @@ void uiLayout::context_set(StringRef name, blender::StringRef value)
   context_ = CTX_store_add(block->contexts, name, value);
 }
 
+void uiLayout::context_set(blender::StringRef name, int64_t value)
+{
+  uiBlock *block = this->block();
+  context_ = CTX_store_add(block->contexts, name, value);
+}
+
 void uiLayout::context_copy(const bContextStore *context)
 {
   uiBlock *block = this->block();
@@ -5902,6 +5908,32 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
     /* Free the original copy of arg in case the layout is empty. */
     free_arg(arg);
   }
+}
+
+const PointerRNA *uiLayout::context_ptr_get(const blender::StringRef name,
+                                            const StructRNA *type) const
+{
+  if (!context_) {
+    return nullptr;
+  }
+  return CTX_store_ptr_lookup(context_, name, type);
+}
+
+std::optional<blender::StringRefNull> uiLayout::context_string_get(
+    const blender::StringRef name) const
+{
+  if (!context_) {
+    return std::nullopt;
+  }
+  return CTX_store_string_lookup(context_, name);
+}
+
+std::optional<int64_t> uiLayout::context_int_get(const blender::StringRef name) const
+{
+  if (!context_) {
+    return std::nullopt;
+  }
+  return CTX_store_int_lookup(context_, name);
 }
 
 void uiLayout::context_set_from_but(const uiBut *but)
