@@ -2741,7 +2741,7 @@ void uiItemPointerR_prop(uiLayout *layout,
 {
   const bool use_prop_sep = bool(layout->flag_ & uiItemInternalFlag::PropSep);
 
-  ui_block_new_button_group(uiLayoutGetBlock(layout), uiButtonGroupFlag(0));
+  ui_block_new_button_group(layout->block(), uiButtonGroupFlag(0));
 
   const PropertyType type = RNA_property_type(prop);
   if (!ELEM(type, PROP_POINTER, PROP_STRING, PROP_ENUM)) {
@@ -2777,7 +2777,7 @@ void uiItemPointerR_prop(uiLayout *layout,
   }
 
   /* create button */
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   int w, h;
   ui_item_rna_size(layout, name, icon, ptr, prop, 0, false, false, &w, &h);
@@ -3201,7 +3201,7 @@ uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
 uiLayout *uiItemL_respect_property_split(uiLayout *layout, StringRef text, int icon)
 {
   if (bool(layout->flag_ & uiItemInternalFlag::PropSep)) {
-    uiBlock *block = uiLayoutGetBlock(layout);
+    uiBlock *block = layout->block();
     const uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(layout);
     /* Further items added to 'layout' will automatically be added to split_wrapper.property_row */
 
@@ -4834,7 +4834,7 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
     uiLayout *row = &header_litem->row(true);
     row->ui_units_y_set(1.2f);
 
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
     const int width = ui_text_icon_width(this, "", icon, false);
     uiDefIconTextBut(
@@ -5069,7 +5069,7 @@ uiLayout &uiLayout::absolute(bool align)
 
 uiBlock *uiLayout::absolute_block()
 {
-  uiBlock *block = uiLayoutGetBlock(this);
+  uiBlock *block = this->block();
   absolute(false);
 
   return block;
@@ -5191,7 +5191,7 @@ int uiLayoutListItemPaddingWidth()
 
 void uiLayoutListItemAddPadding(uiLayout *layout)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiLayout *row = &layout->row(true);
   uiLayoutSetFixedSize(row, true);
 
@@ -5683,9 +5683,9 @@ uiLayout *UI_block_layout(uiBlock *block,
   return layout;
 }
 
-uiBlock *uiLayoutGetBlock(uiLayout *layout)
+uiBlock *uiLayout::block() const
 {
-  return layout->root_->block;
+  return root_->block;
 }
 
 wmOperatorCallContext uiLayout::operator_context() const
@@ -5730,7 +5730,7 @@ void ui_layout_add_but(uiLayout *layout, uiBut *but)
     but->emboss = layout->emboss_;
   }
 
-  ui_button_group_add_but(uiLayoutGetBlock(layout), but);
+  ui_button_group_add_but(layout->block(), but);
 }
 
 static uiButtonItem *ui_layout_find_button_item(const uiLayout *layout, const uiBut *but)
@@ -5977,7 +5977,7 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout)
     printf("%s: opening menu \"%s\"\n", __func__, mt->idname);
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   if (bool(mt->flag & MenuTypeFlag::SearchOnKeyPress)) {
     UI_block_flag_enable(block, UI_BLOCK_NO_ACCELERATOR_KEYS);
   }
@@ -6025,7 +6025,7 @@ static bool ui_layout_has_panel_label(const uiLayout *layout, const PanelType *p
 
 static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, uiLayout *layout, bool show_header)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Panel *panel = BKE_panel_new(pt);
   panel->flag = PNL_POPOVER;
 
