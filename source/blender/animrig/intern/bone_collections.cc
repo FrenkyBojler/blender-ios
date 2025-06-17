@@ -701,13 +701,13 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
      * solo'ing should still be active on the armature. */
     ANIM_armature_refresh_solo_active(armature);
   }
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 void ANIM_armature_bonecoll_remove(bArmature *armature, BoneCollection *bcoll)
 {
   ANIM_armature_bonecoll_remove_from_index(armature,
                                            armature_bonecoll_find_index(armature, bcoll));
-  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 template<typename MaybeConstBoneCollection>
