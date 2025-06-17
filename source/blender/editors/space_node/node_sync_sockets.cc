@@ -249,7 +249,7 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
   const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(
       GEO_NODE_CLOSURE_OUTPUT);
 
-  LISTBASE_FOREACH (bNode *, node, &tree.nodes) {
+  for (bNode *node : tree.all_nodes()) {
     if (!(node->flag & NODE_SELECT)) {
       continue;
     }
