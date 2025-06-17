@@ -9,6 +9,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_type_conversions.hh"
 
 #include "BLT_translation.hh"
 
@@ -162,6 +163,34 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
     }
     const int item_identifier = *value.get<int>();
     build_tooltip_value_enum(tip_data, socket, item_identifier);
+    return true;
+  }
+
+  const CPPType &socket_base_cpp_type = *socket.typeinfo->base_cpp_type;
+  const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
+  if (value_type != socket_base_cpp_type) {
+    if (!conversions.is_convertible(value_type, socket_base_cpp_type)) {
+      return false;
+    }
+  }
+  BUFFER_FOR_CPP_TYPE_VALUE(socket_base_cpp_type, socket_value);
+  conversions.convert_to_uninitialized(
+      value_type, socket_base_cpp_type, value.get(), socket_value);
+  BLI_SCOPED_DEFER([&]() { socket_base_cpp_type.destruct(socket_value); });
+
+  if (socket_base_cpp_type.is<float>()) {
+    const float float_value = *static_cast<float *>(socket_value);
+    std::string value_str;
+    /* Above that threshold floats can't represent fractions anymore. */
+    if (std::abs(float_value) > (1 << 24)) {
+      /* Use higher precision to display correct integer value instead of one that is rounded to
+       * fewer significant digits. */
+      value_str = fmt::format("{:.10}", float_value);
+    }
+    else {
+      value_str = fmt::format("{}", float_value);
+    }
+    build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Float"));
     return true;
   }
 
