@@ -138,9 +138,10 @@ enum eKeyframeVertOk {
 /* Flags for use during iteration */
 enum eKeyframeIterFlags {
   /* Consider handles in addition to key itself. Used in #keyframe_ok_checks, #select_bezier_add,
-     #select_bezier_subtract. If set, treat key and handles separately (e.g (de)select them
-     individually, and do additional visibility checks on the handles if necessary), otherwise
-     always treat key and handles the same (e.g. (de)select all of them). */
+   * #select_bezier_subtract. If set, treat key and handles separately (e.g (de)select them
+   * individually, and do additional visibility checks on the handles if necessary), otherwise
+   * always treat key and handles the same (e.g. (de)select all of them).
+   */
   KEYFRAME_ITER_INCL_HANDLES = (1 << 0),
 
   /* Perform NLA time remapping (global -> strip) for the "f1" parameter

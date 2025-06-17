@@ -927,11 +927,13 @@ void GRAPH_OT_select_box(wmOperatorType *ot)
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna,
-                         "include_handles",
-                         true,
-                         "Include Handles",
-                         "Are handles tested individually against the selection criteria");
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
@@ -1021,11 +1023,13 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
   WM_operator_properties_select_operation_simple(ot);
 
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna,
-                         "include_handles",
-                         true,
-                         "Include Handles",
-                         "Are handles tested individually against the selection criteria");
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
@@ -1117,11 +1121,13 @@ void GRAPH_OT_select_circle(wmOperatorType *ot)
   WM_operator_properties_select_operation_simple(ot);
 
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna,
-                         "include_handles",
-                         true,
-                         "Include Handles",
-                         "Are handles tested individually against the selection criteria");
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
