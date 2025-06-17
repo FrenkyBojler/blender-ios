@@ -201,12 +201,10 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
           LISTBASE_FOREACH (uiViewStateLink *, view_state, &region->view_states) {
-            if (view_state->state.custom_height) {
-              using namespace blender::ui;
-              const int min_height = MIN_ROWS * padded_item_height();
-              view_state->state.custom_height = std::max(view_state->state.custom_height,
-                                                         min_height);
-            }
+            using namespace blender::ui;
+            int &height = view_state->state.custom_height;
+            const int min_height = MIN_ROWS * UI_INV_SCALE_FAC * padded_item_height();
+            height = std::max(height, min_height);
           }
         }
       }
