@@ -3231,7 +3231,7 @@ void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, StringRef name, int icon)
 
 void uiLayout::separator(float factor, const LayoutSeparatorType type)
 {
-  uiBlock *block = root_->block;
+  uiBlock *block = this->block();
   const bool is_menu = ui_block_is_menu(block);
   const bool is_pie = ui_block_is_pie_menu(block);
   if (is_menu && !UI_block_can_add_separator(block)) {
