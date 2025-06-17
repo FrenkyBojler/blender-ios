@@ -121,10 +121,11 @@ class VariableMap {
   /**
    * Add the filename (sans file extension) from the given path as a variable.
    *
-   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
+   * For example, if the full path is "/home/bob/project_joe/scene_3.blend",
    * then "scene_3" is the value of the added variable.
    *
-   * If the path doesn't contain a filename, then `fallback` is used instead.
+   * If the path doesn't contain a filename, then `fallback` is used for the
+   * variable value.
    *
    * If there is already a variable with that name, regardless of type, the new
    * variable is *not* added (no overwriting).
@@ -140,11 +141,11 @@ class VariableMap {
    * Add the name of the immediate parent directory of the file in the given
    * path as a variable.
    *
-   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
-   * then "project_ice" is the value of the added variable.
+   * For example, if the full path is "/home/bob/project_joe/scene_3.blend",
+   * then "project_joe" is the value of the added variable.
    *
-   * If the path doesn't contain a parent directory, then `fallback` is used
-   * instead.
+   * If the path lacks either a parent directory or filename, then `fallback` is
+   * used for the variable value.
    *
    * If there is already a variable with that name, regardless of type, the new
    * variable is *not* added (no overwriting).
@@ -159,11 +160,11 @@ class VariableMap {
   /**
    * Add the path up-to-but-not-including the filename as a variable.
    *
-   * For example, if the full path is "/home/bob/project_ice/scene_3.blend",
-   * then "/home/bob/project_ice" is the value of the added variable.
+   * For example, if the full path is "/home/bob/project_joe/scene_3.blend",
+   * then "/home/bob/project_joe/" is the value of the added variable.
    *
-   * If the path doesn't contain a parent directory, then `fallback` is used
-   * instead.
+   * If the path lacks either a filename or a path leading up to that filename,
+   * then `fallback` is used for the variable value.
    *
    * If there is already a variable with that name, regardless of type, the new
    * variable is *not* added (no overwriting).
