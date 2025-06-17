@@ -217,6 +217,18 @@ class StructureTypeInferenceTest(unittest.TestCase):
         self.assertGrid(node.inputs["grid 2"])
         self.assertGrid(node.inputs["grid 3"])
 
+    def test_closure_zone(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_closure_zone"]
+
+        node = tree.nodes["Closure Input"]
+        self.assertField(node.outputs["field"])
+        self.assertSingle(node.outputs["single"])
+
+        node = tree.nodes["Closure Output"]
+        self.assertGrid(node.inputs["grid"])
+        self.assertField(node.inputs["field"])
+
 
 def main():
     global args
