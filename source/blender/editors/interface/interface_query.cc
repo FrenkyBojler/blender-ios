@@ -72,7 +72,8 @@ bool ui_but_is_interactive_ex(const uiBut *but, const bool labeledit, const bool
   if (ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_PREVIEW_TILE)) {
     if (for_tooltip) {
       /* It's important labels are considered interactive for the purpose of showing tooltip. */
-      if (!ui_but_drag_is_draggable(but) && but->tip_func == nullptr &&
+      if (!ui_but_drag_is_draggable(but) &&
+          but->tip_func == nullptr & but->tip_custom_func == nullptr &&
           (but->tip == nullptr || but->tip[0] == '\0'))
       {
         return false;

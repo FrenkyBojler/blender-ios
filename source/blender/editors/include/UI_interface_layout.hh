@@ -580,6 +580,11 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
                             void *arg,
                             uiCopyArgFunc copy_arg,
                             uiFreeArgFunc free_arg);
+void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
+                                  uiButToolTipCustomFunc func,
+                                  void *arg,
+                                  uiCopyArgFunc copy_arg,
+                                  uiFreeArgFunc free_arg);
 
 void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
 

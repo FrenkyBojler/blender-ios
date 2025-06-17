@@ -231,6 +231,14 @@ void tag_update_id(ID *id)
   }
 }
 
+static void build_socket_tooltip(uiTooltipData &tip,
+                                 bContext &C,
+                                 const bNodeTree &tree,
+                                 const bNodeSocket &socket)
+{
+  UI_tooltip_text_field_add(tip, "Hello World", {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL);
+}
+
 static std::string node_socket_get_tooltip(const SpaceNode *snode,
                                            const bNodeTree &ntree,
                                            const bNodeSocket &socket);
@@ -1454,14 +1462,16 @@ static void node_socket_tooltip_set(uiBlock &block,
                             0,
                             0,
                             std::nullopt);
-  UI_but_func_tooltip_set(
+
+  UI_but_func_tooltip_custom_set(
       but,
-      [](bContext *C, void *argN, const StringRef /*tip*/) {
-        const SpaceNode &snode = *CTX_wm_space_node(C);
+      [](bContext &C, uiTooltipData &tip, void *argN) {
+        const SpaceNode &snode = *CTX_wm_space_node(&C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
-        return node_socket_get_tooltip(&snode, ntree, *ntree.all_sockets()[index_in_tree]);
+        const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
+        build_socket_tooltip(tip, C, ntree, socket);
       },
       POINTER_FROM_INT(socket_index_in_tree),
       nullptr);
@@ -2227,14 +2237,15 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
 
 static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLayout &layout)
 {
-  uiLayoutSetTooltipFunc(
+  uiLayoutSetTooltipCustomFunc(
       &layout,
-      [](bContext *C, void *argN, const StringRef /*tip*/) {
-        const SpaceNode &snode = *CTX_wm_space_node(C);
+      [](bContext &C, uiTooltipData &tip, void *argN) {
+        const SpaceNode &snode = *CTX_wm_space_node(&C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
-        return node_socket_get_tooltip(&snode, ntree, *ntree.all_sockets()[index_in_tree]);
+        const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
+        build_socket_tooltip(tip, C, ntree, socket);
       },
       POINTER_FROM_INT(sock.index_in_tree()),
       nullptr,
@@ -2252,12 +2263,11 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
   data->ntree = &ntree;
   data->socket = &sock;
 
-  uiLayoutSetTooltipFunc(
+  uiLayoutSetTooltipCustomFunc(
       &layout,
-      [](bContext *C, void *argN, const StringRef /*tip*/) {
+      [](bContext &C, uiTooltipData &tip, void *argN) {
         SocketTooltipData *data = static_cast<SocketTooltipData *>(argN);
-        const SpaceNode *snode = CTX_wm_space_node(C);
-        return node_socket_get_tooltip(snode, *data->ntree, *data->socket);
+        build_socket_tooltip(tip, C, *data->ntree, *data->socket);
       },
       data,
       MEM_dupallocN,

@@ -10,6 +10,7 @@
 
 struct bContext;
 struct uiLayout;
+struct uiTooltipData;
 
 /* names */
 #define UI_MAX_DRAW_STR 400
@@ -34,3 +35,5 @@ using uiFreeArgFunc = void (*)(void *arg);
 
 /** Must return an allocated string. */
 using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, blender::StringRef tip);
+
+using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
