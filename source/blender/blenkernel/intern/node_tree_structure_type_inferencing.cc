@@ -503,16 +503,17 @@ static ZoneInOutChange repeat_zone_status_propagate(const bNode &input_node,
 {
   ZoneInOutChange change = ZoneInOutChange::None;
   for (const int i : output_node.output_sockets().index_range()) {
-    const bNodeSocket &input = input_node.output_socket(i + 1);
-    const bNodeSocket &output = output_node.output_socket(i);
-    const StructureType new_value = left_to_right_merge(structure_types[input.index_in_tree()],
-                                                        structure_types[output.index_in_tree()]);
-    if (structure_types[input.index_in_tree()] != new_value) {
-      structure_types[input.index_in_tree()] = new_value;
+    const bNodeSocket &input_of_input_node = input_node.output_socket(i + 1);
+    const bNodeSocket &output_of_output_node = output_node.output_socket(i);
+    const StructureType new_value = left_to_right_merge(
+        structure_types[input_of_input_node.index_in_tree()],
+        structure_types[output_of_output_node.index_in_tree()]);
+    if (structure_types[input_of_input_node.index_in_tree()] != new_value) {
+      structure_types[input_of_input_node.index_in_tree()] = new_value;
       change |= ZoneInOutChange::In;
     }
-    if (structure_types[output.index_in_tree()] != new_value) {
-      structure_types[output.index_in_tree()] = new_value;
+    if (structure_types[output_of_output_node.index_in_tree()] != new_value) {
+      structure_types[output_of_output_node.index_in_tree()] = new_value;
       change |= ZoneInOutChange::Out;
     }
   }
@@ -603,6 +604,16 @@ static void propagate_left_to_right(const bNodeTree &tree,
       }
     }
   }
+
+  /* Outputs of these nodes have dynamic structure type but should start out as single values. */
+  for (const StringRefNull idname : {"GeometryNodeRepeatInput", "GeometryNodeRepeatOutput"}) {
+    for (const bNode *node : tree.nodes_by_type(idname)) {
+      for (const bNodeSocket *socket : node->output_sockets()) {
+        structure_types[socket->index_in_tree()] = StructureType::Single;
+      }
+    }
+  }
+
   while (true) {
     bool need_update = false;
     for (const bNode *node : tree.toposort_left_to_right()) {
