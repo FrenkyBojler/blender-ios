@@ -108,19 +108,6 @@ struct LinearGrids {
 /* Context which holds all information needed during propagation and smoothing. */
 
 struct MultiresReshapeSmoothContext {
-  MultiresReshapeSmoothContext(const MultiresReshapeContext *reshape_context,
-                               const MultiresSubdivideModeType smoothing_type)
-      : reshape_context(reshape_context),
-        geometry(),
-        linear_delta_grids(),
-        smoothing_type(smoothing_type)
-  {
-  }
-  MultiresReshapeSmoothContext(const MultiresReshapeSmoothContext &other) = delete;
-  MultiresReshapeSmoothContext(MultiresReshapeSmoothContext &&other) = default;
-  MultiresReshapeSmoothContext &operator=(const MultiresReshapeSmoothContext &other) = delete;
-  MultiresReshapeSmoothContext &operator=(MultiresReshapeSmoothContext &&other) = default;
-
   const MultiresReshapeContext *reshape_context;
 
   /* Geometry at a reshape multires level. */
@@ -175,7 +162,20 @@ struct MultiresReshapeSmoothContext {
    * NOTE: Uses same enumerator type as Subdivide operator, since the values are the same and
    * decoupling type just adds extra headache to convert one enumerator to another. */
   MultiresSubdivideModeType smoothing_type;
+
+  MultiresReshapeSmoothContext(const MultiresReshapeContext *reshape_context,
+                               const MultiresSubdivideModeType smoothing_type)
+      : reshape_context(reshape_context),
+        geometry(),
+        linear_delta_grids(),
+        smoothing_type(smoothing_type)
+  {
+  }
+  MultiresReshapeSmoothContext(const MultiresReshapeSmoothContext &other) = delete;
+  MultiresReshapeSmoothContext(MultiresReshapeSmoothContext &&other) = delete;
   ~MultiresReshapeSmoothContext();
+  MultiresReshapeSmoothContext &operator=(const MultiresReshapeSmoothContext &other) = delete;
+  MultiresReshapeSmoothContext &operator=(MultiresReshapeSmoothContext &&other) = delete;
 };
 
 MultiresReshapeSmoothContext::~MultiresReshapeSmoothContext()
