@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "IO_wavefront_obj.hh"
 
 #include "BLI_map.hh"
@@ -54,9 +56,9 @@ class OBJParser {
                              GlobalVertices &r_global_vertices,
                              Geometry *&curr_geom,
                              bool &state_shaded_smooth,
-                             string &state_group_name,
+                             std::string &state_group_name,
                              int &state_group_index,
-                             string &state_material_name,
+                             std::string &state_material_name,
                              int &state_material_index);
 };
 

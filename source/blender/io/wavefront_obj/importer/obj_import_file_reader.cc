@@ -320,7 +320,7 @@ static Geometry *geom_set_curve_type(Geometry *geom,
 {
   p = drop_whitespace(p, end);
   if (!StringRef(p, end).startswith("bspline") && !StringRef(p, end).startswith("rat bspline")) {
-    CLOG_WARN(&LOG, "Curve type not supported: '%s'", std::string(p, end).c_str());
+    CLOG_WARN(&LOG, "Curve type not supported: '%s'", string(p, end).c_str());
     return geom;
   }
   geom = create_geometry(geom, GEOM_CURVE, group_name, r_all_geometries);
@@ -379,7 +379,7 @@ static void geom_add_curve_parameters(Geometry *geom, const char *p, const char 
   }
 }
 
-static void geom_update_group(const StringRef rest_line, std::string &r_group_name)
+static void geom_update_group(const StringRef rest_line, string &r_group_name)
 {
   if (rest_line.find("off") != string::npos || rest_line.find("null") != string::npos ||
       rest_line.find("default") != string::npos)
@@ -409,7 +409,7 @@ static void geom_update_smooth_group(const char *p, const char *end, bool &r_sta
 static void geom_new_object(const char *p,
                             const char *end,
                             bool &r_state_shaded_smooth,
-                            std::string &r_state_group_name,
+                            string &r_state_group_name,
                             int &r_state_material_index,
                             Geometry *&r_curr_geom,
                             Vector<std::unique_ptr<Geometry>> &r_all_geometries)
@@ -608,7 +608,7 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
       /* End of curve definition, nothing else to do. */
     }
     else {
-      CLOG_WARN(&LOG, "OBJ element not recognized: '%s'", std::string(p, end).c_str());
+      CLOG_WARN(&LOG, "OBJ element not recognized: '%s'", string(p, end).c_str());
     }
   }
   return read_lines_num;
@@ -785,7 +785,7 @@ static bool parse_texture_option(const char *&p,
     if (!line.startswith("sphere")) {
       CLOG_WARN(&LOG,
                 "Only the 'sphere' MTL projection type is supported, found: '%s'",
-                std::string(line).c_str());
+                string(line).c_str());
     }
     p = drop_non_whitespace(p, end);
     return true;
@@ -820,7 +820,7 @@ static void parse_texture_map(const char *p,
   MTLTexMapType key = mtl_line_start_to_texture_type(p, end);
   if (key == MTLTexMapType::Count) {
     /* No supported texture map found. */
-    CLOG_WARN(&LOG, "MTL texture map type not supported: '%s'", std::string(line).c_str());
+    CLOG_WARN(&LOG, "MTL texture map type not supported: '%s'", string(line).c_str());
     return;
   }
   MTLTexMap &tex_map = material->tex_map_of_type(key);
@@ -834,7 +834,7 @@ static void parse_texture_map(const char *p,
   tex_map.image_path = StringRef(p, end).trim();
 }
 
-Span<std::string> OBJParser::mtl_libraries() const
+Span<string> OBJParser::mtl_libraries() const
 {
   return mtl_libraries_;
 }
