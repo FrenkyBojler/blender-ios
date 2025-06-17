@@ -10,15 +10,18 @@
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_deform.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
+#include "BKE_object_deform.h"
 
 #include "CLG_log.h"
 
 #include "DNA_armature_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
@@ -149,6 +152,13 @@ class ArmatureDeformTest : public testing::Test {
     return ob;
   }
 
+  Object *create_test_edit_mesh() const
+  {
+    Object *ob = create_test_mesh();
+
+    return ob;
+  }
+
   enum class InterpolationTest {
     /* Linear interpolation. */
     Linear,
@@ -211,23 +221,20 @@ class ArmatureDeformTest : public testing::Test {
     return {};
   }
 
-  void mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  void init_params(const InterpolationTest interpolation,
+                   const WeightingTest weighting,
+                   int &r_deform_flag,
+                   const char *&r_defgrp_name)
   {
-    Object *ob_arm = this->create_test_armature();
-    Object *ob_target = this->create_test_mesh();
-
-    Mesh *mesh = static_cast<Mesh *>(ob_target->data);
-    float(*vert_positions)[3] = mesh->vert_positions_for_write().cast<float[3]>().data();
-
-    int deform_flag = 0;
-    const char *defgrp_name = nullptr;
+    r_deform_flag = 0;
+    r_defgrp_name = nullptr;
 
     switch (interpolation) {
       case InterpolationTest::Linear:
         /* Nothing to change, default mode. */
         break;
       case InterpolationTest::DualQuaternion:
-        deform_flag |= ARM_DEF_QUATERNION;
+        r_deform_flag |= ARM_DEF_QUATERNION;
         break;
     }
 
@@ -236,29 +243,78 @@ class ArmatureDeformTest : public testing::Test {
         /* Nothing to do. */
         break;
       case WeightingTest::Envelope:
-        deform_flag |= ARM_DEF_ENVELOPE;
+        r_deform_flag |= ARM_DEF_ENVELOPE;
         break;
       case WeightingTest::VertexGroups:
-        deform_flag |= ARM_DEF_VGROUP;
+        r_deform_flag |= ARM_DEF_VGROUP;
         break;
       case WeightingTest::SingleVertexGroup:
-        deform_flag |= ARM_DEF_VGROUP;
-        defgrp_name = "Bone2";
+        r_deform_flag |= ARM_DEF_VGROUP;
+        r_defgrp_name = "Bone2";
         break;
     }
+  }
+
+  void mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  {
+    Object *ob_arm = this->create_test_armature();
+    Object *ob_target = this->create_test_mesh();
+    Mesh *mesh = static_cast<Mesh *>(ob_target->data);
+
+    MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
+    float(*vert_positions_array)[3] = vert_positions.cast<float[3]>().data();
+
+    int deform_flag;
+    const char *defgrp_name;
+    init_params(interpolation, weighting, deform_flag, defgrp_name);
 
     BKE_armature_deform_coords_with_mesh(ob_arm,
                                          ob_target,
-                                         vert_positions,
+                                         vert_positions_array,
                                          nullptr,
-                                         mesh->verts_num,
+                                         vert_positions.size(),
                                          deform_flag,
                                          nullptr,
                                          defgrp_name,
                                          nullptr);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting), mesh->vert_positions());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting), vert_positions.as_span());
 
+    BKE_id_delete(bmain, ob_arm);
+    BKE_id_delete(bmain, ob_target);
+  }
+
+  void edit_mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  {
+    Object *ob_arm = this->create_test_armature();
+    Object *ob_target = this->create_test_edit_mesh();
+    Mesh *mesh = static_cast<Mesh *>(ob_target->data);
+
+    BMeshCreateParams create_params{};
+    create_params.use_toolflags = true;
+    BMesh *bm = BKE_mesh_to_bmesh(mesh, 0, false, &create_params);
+    BMEditMesh *edit_mesh = BKE_editmesh_create(bm);
+    Array<float3> bm_verts_wrapper = BM_mesh_vert_coords_alloc(edit_mesh->bm);
+    float(*vert_positions_array)[3] = bm_verts_wrapper.as_mutable_span().cast<float[3]>().data();
+
+    int deform_flag;
+    const char *defgrp_name;
+    init_params(interpolation, weighting, deform_flag, defgrp_name);
+
+    BKE_armature_deform_coords_with_editmesh(ob_arm,
+                                             ob_target,
+                                             vert_positions_array,
+                                             nullptr,
+                                             bm_verts_wrapper.size(),
+                                             deform_flag,
+                                             nullptr,
+                                             defgrp_name,
+                                             edit_mesh);
+
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting), bm_verts_wrapper.as_span());
+
+    BKE_editmesh_free_data(edit_mesh);
+    MEM_delete(edit_mesh);
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
   }
@@ -293,9 +349,7 @@ class ArmatureDeformTest : public testing::Test {
  * - Target object types:
  *    * mesh
  *    * edit-mesh (bmesh)
- *    * lattice
  *    * curves
- *    * legacy curves (uses mesh proxy?)
  *    * unsupported ID type (should pass through)
  * - explicit me_target parameter (where/how is this case invoked?)
  * - inverted vertex group (ARM_DEF_INVERT_VGROUP)
@@ -317,29 +371,18 @@ TEST_F(ArmatureDeformTest, MeshDeform)
   mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
   mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
   mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
-  // Object *ob_arm = this->create_test_armature();
-  // Object *ob_target = this->create_test_mesh();
-
-  // Mesh *mesh = static_cast<Mesh *>(ob_target->data);
-  // float(*vert_positions)[3] = mesh->vert_positions_for_write().cast<float[3]>().data();
-  // const int deform_flag = ARM_DEF_VGROUP;
-
-  // BKE_armature_deform_coords_with_mesh(ob_arm,
-  //                                      ob_target,
-  //                                      vert_positions,
-  //                                      nullptr,
-  //                                      mesh->verts_num,
-  //                                      deform_flag,
-  //                                      nullptr,
-  //                                      nullptr,
-  //                                      nullptr);
-
-  // EXPECT_EQ_SPAN(expected_mesh_positions(), mesh->vert_positions());
-
-  // BKE_id_delete(bmain, ob_arm);
-  // BKE_id_delete(bmain, ob_target);
 }
 
-TEST_F(ArmatureDeformTest, LatticeDeform) {}
+TEST_F(ArmatureDeformTest, EditMeshDeform)
+{
+  edit_mesh_test(InterpolationTest::Linear, WeightingTest::None);
+  edit_mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  edit_mesh_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  edit_mesh_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+}
 
 }  // namespace blender::bke::tests
