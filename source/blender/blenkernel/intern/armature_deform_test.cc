@@ -9,8 +9,10 @@
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
+#include "BKE_curves.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -21,7 +23,8 @@
 #include "CLG_log.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_curve_types.h"
+#include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
@@ -41,6 +44,27 @@ static void update_pose_matrices(bPoseChannel &pchan)
 class ArmatureDeformTest : public testing::Test {
  public:
   Main *bmain;
+
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
 
   /* Translation for bones.
    * Rotation is omitted here for simplicity, the goal is to test all the code paths rather than
@@ -95,7 +119,7 @@ class ArmatureDeformTest : public testing::Test {
     return ob;
   }
 
-  static Span<float3> mesh_positions()
+  static Span<float3> vertex_positions()
   {
     static Array<float3> data = {float3(-1, -1, -1),
                                  float3(1, -1, -1),
@@ -108,15 +132,21 @@ class ArmatureDeformTest : public testing::Test {
     return data;
   }
 
-  static Span<float> mesh_weights_bone1()
+  static Span<float> vertex_weights_bone1()
   {
     static Array<float> data = {1, 1, 1, 1, 1, 1, 1, 1};
     return data;
   }
 
-  static Span<float> mesh_weights_bone2()
+  static Span<float> vertex_weights_bone2()
   {
     static Array<float> data = {0, 0, 0, 0, 1, 1, 1, 1};
+    return data;
+  }
+
+  static Span<int> curve_offsets()
+  {
+    static Array<int> data = {0, 2, 5, 8};
     return data;
   }
 
@@ -127,12 +157,12 @@ class ArmatureDeformTest : public testing::Test {
     Mesh *mesh_in_main = BKE_mesh_add(bmain, "Test Mesh");
     ob->data = mesh_in_main;
 
-    Mesh *mesh = BKE_mesh_new_nomain(mesh_positions().size(), 0, 0, 0);
-    mesh->vert_positions_for_write().copy_from(mesh_positions());
+    Mesh *mesh = BKE_mesh_new_nomain(vertex_positions().size(), 0, 0, 0);
+    mesh->vert_positions_for_write().copy_from(vertex_positions());
     MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
     for (const int i : dverts.index_range()) {
-      const float weight0 = mesh_weights_bone1()[i];
-      const float weight1 = mesh_weights_bone2()[i];
+      const float weight0 = vertex_weights_bone1()[i];
+      const float weight1 = vertex_weights_bone2()[i];
 
       if (weight0 > 0.0f) {
         BKE_defvert_add_index_notest(&dverts[i], 0, weight0);
@@ -152,9 +182,69 @@ class ArmatureDeformTest : public testing::Test {
     return ob;
   }
 
-  Object *create_test_edit_mesh() const
+  /* Creates curves with a mix of vertices in "Bone1" and "Bone2" groups.
+   * Curves datablock does not support vertex groups at this point, these are ignored. */
+  Object *create_test_curves() const
   {
-    Object *ob = create_test_mesh();
+    Object *ob = BKE_object_add_only_object(bmain, OB_CURVES, "Test Curves Object");
+    Curves *curves_id = BKE_curves_add(bmain, "Test Curves");
+    ob->data = curves_id;
+    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+
+    curves.resize(vertex_positions().size(), 3);
+    curves.offsets_for_write().copy_from(curve_offsets());
+
+    curves.positions_for_write().copy_from(vertex_positions());
+    MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+    for (const int i : dverts.index_range()) {
+      const float weight0 = vertex_weights_bone1()[i];
+      const float weight1 = vertex_weights_bone2()[i];
+
+      if (weight0 > 0.0f) {
+        BKE_defvert_add_index_notest(&dverts[i], 0, weight0);
+      }
+      if (weight1 > 0.0f) {
+        BKE_defvert_add_index_notest(&dverts[i], 1, weight1);
+      }
+    }
+    curves.tag_topology_changed();
+    curves.tag_positions_changed();
+
+    return ob;
+  }
+
+  /* Creates grease pencil with a mix of vertices in "Bone1" and "Bone2" groups. */
+  Object *create_test_grease_pencil() const
+  {
+    Object *ob = BKE_object_add_only_object(bmain, OB_GREASE_PENCIL, "Test Grease Pencil Object");
+    GreasePencil *grease_pencil = BKE_grease_pencil_add(bmain, "Test Grease Pencil");
+    ob->data = grease_pencil;
+
+    bke::greasepencil::Layer &layer = grease_pencil->add_layer("Test");
+    greasepencil::Drawing &drawing = grease_pencil->insert_frame(layer, 1)->wrap();
+    bke::CurvesGeometry &curves = drawing.geometry.wrap();
+
+    curves.resize(vertex_positions().size(), 3);
+    curves.offsets_for_write().copy_from(curve_offsets());
+
+    curves.positions_for_write().copy_from(vertex_positions());
+    MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+    for (const int i : dverts.index_range()) {
+      const float weight0 = vertex_weights_bone1()[i];
+      const float weight1 = vertex_weights_bone2()[i];
+
+      if (weight0 > 0.0f) {
+        BKE_defvert_add_index_notest(&dverts[i], 0, weight0);
+      }
+      if (weight1 > 0.0f) {
+        BKE_defvert_add_index_notest(&dverts[i], 1, weight1);
+      }
+    }
+    curves.tag_topology_changed();
+    curves.tag_positions_changed();
+
+    BKE_object_defgroup_new(ob, "Bone1");
+    BKE_object_defgroup_new(ob, "Bone2");
 
     return ob;
   }
@@ -177,7 +267,8 @@ class ArmatureDeformTest : public testing::Test {
     SingleVertexGroup,
   };
 
-  static Span<float3> expected_mesh_positions(const WeightingTest weighting)
+  static Span<float3> expected_mesh_positions(const WeightingTest weighting,
+                                              const bool vgroups_supported)
   {
     /* Both bones weighted equally. */
     static Array<float3> data_envelope = {float3(1.5f, -2, -0.5f),
@@ -209,32 +300,28 @@ class ArmatureDeformTest : public testing::Test {
 
     switch (weighting) {
       case WeightingTest::None:
-        return mesh_positions();
+        return vertex_positions();
       case WeightingTest::Envelope:
         return data_envelope;
       case WeightingTest::VertexGroups:
-        return data_vgroups;
+        return vgroups_supported ? data_vgroups.as_span() : vertex_positions();
       case WeightingTest::SingleVertexGroup:
-        return data_single;
+        return vgroups_supported ? data_single.as_span() : vertex_positions();
     }
     BLI_assert_unreachable();
     return {};
   }
 
-  void init_params(const InterpolationTest interpolation,
-                   const WeightingTest weighting,
-                   int &r_deform_flag,
-                   const char *&r_defgrp_name)
+  int get_deform_flag(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    r_deform_flag = 0;
-    r_defgrp_name = nullptr;
+    int deform_flag = 0;
 
     switch (interpolation) {
       case InterpolationTest::Linear:
         /* Nothing to change, default mode. */
         break;
       case InterpolationTest::DualQuaternion:
-        r_deform_flag |= ARM_DEF_QUATERNION;
+        deform_flag |= ARM_DEF_QUATERNION;
         break;
     }
 
@@ -243,16 +330,31 @@ class ArmatureDeformTest : public testing::Test {
         /* Nothing to do. */
         break;
       case WeightingTest::Envelope:
-        r_deform_flag |= ARM_DEF_ENVELOPE;
+        deform_flag |= ARM_DEF_ENVELOPE;
         break;
       case WeightingTest::VertexGroups:
-        r_deform_flag |= ARM_DEF_VGROUP;
+        deform_flag |= ARM_DEF_VGROUP;
         break;
       case WeightingTest::SingleVertexGroup:
-        r_deform_flag |= ARM_DEF_VGROUP;
-        r_defgrp_name = "Bone2";
+        deform_flag |= ARM_DEF_VGROUP;
         break;
     }
+
+    return deform_flag;
+  }
+
+  const char *get_defgrp_name(const WeightingTest weighting)
+  {
+    switch (weighting) {
+      case WeightingTest::None:
+      case WeightingTest::Envelope:
+      case WeightingTest::VertexGroups:
+        return "";
+      case WeightingTest::SingleVertexGroup:
+        return "Bone2";
+    }
+    BLI_assert_unreachable();
+    return "";
   }
 
   void mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
@@ -264,10 +366,8 @@ class ArmatureDeformTest : public testing::Test {
     MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
     float(*vert_positions_array)[3] = vert_positions.cast<float[3]>().data();
 
-    int deform_flag;
-    const char *defgrp_name;
-    init_params(interpolation, weighting, deform_flag, defgrp_name);
-
+    const int deform_flag = get_deform_flag(interpolation, weighting);
+    const char *defgrp_name = get_defgrp_name(weighting);
     BKE_armature_deform_coords_with_mesh(ob_arm,
                                          ob_target,
                                          vert_positions_array,
@@ -278,7 +378,7 @@ class ArmatureDeformTest : public testing::Test {
                                          defgrp_name,
                                          nullptr);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting), vert_positions.as_span());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), vert_positions.as_span());
 
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
@@ -287,7 +387,7 @@ class ArmatureDeformTest : public testing::Test {
   void edit_mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
     Object *ob_arm = this->create_test_armature();
-    Object *ob_target = this->create_test_edit_mesh();
+    Object *ob_target = this->create_test_mesh();
     Mesh *mesh = static_cast<Mesh *>(ob_target->data);
 
     BMeshCreateParams create_params{};
@@ -297,10 +397,8 @@ class ArmatureDeformTest : public testing::Test {
     Array<float3> bm_verts_wrapper = BM_mesh_vert_coords_alloc(edit_mesh->bm);
     float(*vert_positions_array)[3] = bm_verts_wrapper.as_mutable_span().cast<float[3]>().data();
 
-    int deform_flag;
-    const char *defgrp_name;
-    init_params(interpolation, weighting, deform_flag, defgrp_name);
-
+    const int deform_flag = get_deform_flag(interpolation, weighting);
+    const char *defgrp_name = get_defgrp_name(weighting);
     BKE_armature_deform_coords_with_editmesh(ob_arm,
                                              ob_target,
                                              vert_positions_array,
@@ -311,7 +409,7 @@ class ArmatureDeformTest : public testing::Test {
                                              defgrp_name,
                                              edit_mesh);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting), bm_verts_wrapper.as_span());
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), bm_verts_wrapper.as_span());
 
     BKE_editmesh_free_data(edit_mesh);
     MEM_delete(edit_mesh);
@@ -319,17 +417,60 @@ class ArmatureDeformTest : public testing::Test {
     BKE_id_delete(bmain, ob_target);
   }
 
-  void SetUp() override
+  void curves_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    CLG_init();
-    BKE_idtype_init();
-    bmain = BKE_main_new();
+    Object *ob_arm = this->create_test_armature();
+    Object *ob_target = this->create_test_curves();
+    Curves *curves_id = static_cast<Curves *>(ob_target->data);
+    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
+
+    const int deform_flag = get_deform_flag(interpolation, weighting);
+    const char *defgrp_name = get_defgrp_name(weighting);
+    BKE_armature_deform_coords_with_curves(*ob_arm,
+                                           *ob_target,
+                                           nullptr,
+                                           curves.positions_for_write(),
+                                           std::nullopt,
+                                           std::nullopt,
+                                           curves.deform_verts(),
+                                           deform_flag,
+                                           defgrp_name);
+
+    /* Note: Curves objects don't support vertex groups. */
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, false), curves.positions());
+
+    BKE_id_delete(bmain, ob_arm);
+    BKE_id_delete(bmain, ob_target);
   }
 
-  void TearDown() override
+  void grease_pencil_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    BKE_main_free(bmain);
-    CLG_exit();
+    Object *ob_arm = this->create_test_armature();
+    Object *ob_target = this->create_test_grease_pencil();
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob_target->data);
+
+    BLI_assert(!grease_pencil->drawings().is_empty());
+    GreasePencilDrawingBase *drawing_base = grease_pencil->drawings()[0];
+    BLI_assert(drawing_base->type == GP_DRAWING);
+    greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
+    bke::CurvesGeometry &curves = drawing.geometry.wrap();
+
+    const int deform_flag = get_deform_flag(interpolation, weighting);
+    const char *defgrp_name = get_defgrp_name(weighting);
+    BKE_armature_deform_coords_with_curves(*ob_arm,
+                                           *ob_target,
+                                           &grease_pencil->vertex_group_names,
+                                           curves.positions_for_write(),
+                                           std::nullopt,
+                                           std::nullopt,
+                                           curves.deform_verts(),
+                                           deform_flag,
+                                           defgrp_name);
+
+    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), curves.positions());
+
+    BKE_id_delete(bmain, ob_arm);
+    BKE_id_delete(bmain, ob_target);
   }
 };
 
@@ -383,6 +524,30 @@ TEST_F(ArmatureDeformTest, EditMeshDeform)
   edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
   edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
   edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+}
+
+TEST_F(ArmatureDeformTest, CurveDeform)
+{
+  curves_test(InterpolationTest::Linear, WeightingTest::None);
+  curves_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  curves_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  curves_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  curves_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  curves_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  curves_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  curves_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+}
+
+TEST_F(ArmatureDeformTest, GreasePencilDeform)
+{
+  grease_pencil_test(InterpolationTest::Linear, WeightingTest::None);
+  grease_pencil_test(InterpolationTest::Linear, WeightingTest::Envelope);
+  grease_pencil_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
+  grease_pencil_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
+  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::None);
+  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
+  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
+  grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
 }  // namespace blender::bke::tests
