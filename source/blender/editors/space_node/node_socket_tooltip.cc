@@ -330,6 +330,33 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
   return build_tooltip_value_geo_log(tip_data, socket, *value_log);
 }
 
+static void build_tooltip_value_unlinked_input(uiTooltipData &tip_data, const bNodeSocket &socket)
+{
+  if (socket.is_multi_input()) {
+    /* TODO */
+    return;
+  }
+  if (socket.owner_node().is_reroute()) {
+    /* TODO */
+    return;
+  }
+  const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
+  if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+    /* TODO */
+    return;
+  }
+  if (socket.typeinfo->base_cpp_type == nullptr) {
+    return;
+  }
+  const CPPType &cpp_type = *socket.typeinfo->base_cpp_type;
+  BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
+  socket.typeinfo->get_base_cpp_value(socket.default_value, socket_value);
+  BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
+  if (!build_tooltip_value_generic(tip_data, socket, {cpp_type, socket_value})) {
+    build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
+  }
+}
+
 static void build_tooltip_last_value(uiTooltipData &tip_data,
                                      bContext &C,
                                      const bNodeSocket &socket)
@@ -341,7 +368,14 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
     geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
   }
   geo_log::GeoTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket);
-  if (!build_tooltip_last_value(tip_data, geo_tree_log, socket)) {
+  if (build_tooltip_last_value(tip_data, geo_tree_log, socket)) {
+    return;
+  }
+  if (socket.is_input()) {
+    if (!socket.is_directly_linked()) {
+      build_tooltip_value_unlinked_input(tip_data, socket);
+      return;
+    }
   }
 }
 
