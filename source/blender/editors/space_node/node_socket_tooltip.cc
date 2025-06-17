@@ -2,13 +2,24 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <fmt/format.h>
+
+#include "BKE_context.hh"
+#include "BKE_idtype.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLT_translation.hh"
 
+#include "DNA_collection_types.h"
+#include "DNA_material_types.h"
+
+#include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 
 #include "node_intern.hh"
+
+namespace geo_log = blender::nodes::geo_eval_log;
 
 namespace blender::ed::space_node {
 
@@ -19,9 +30,11 @@ static void build_tooltip_label(uiTooltipData &tip_data, const bNodeSocket &sock
       tip_data, translated_socket_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
 }
 
-static void add_space(uiTooltipData &tip_data)
+static void add_space(uiTooltipData &tip_data, const int amount = 1)
 {
-  UI_tooltip_text_field_add(tip_data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+  for ([[maybe_unused]] const int i : IndexRange(amount)) {
+    UI_tooltip_text_field_add(tip_data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+  }
 }
 
 static std::optional<std::string> get_socket_description(const bNodeSocket &socket)
@@ -58,18 +71,107 @@ static void build_tooltip_description(uiTooltipData &tip_data, const bNodeSocket
       tip_data, std::move(description), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 }
 
+template<typename T>
+[[nodiscard]] static bool build_tooltip_value_data_block(uiTooltipData &tip_data,
+                                                         const GPointer &value)
+{
+  const CPPType &type = *value.type();
+  if (!type.is<T *>()) {
+    return false;
+  }
+  const T *data = *value.get<T *>();
+  std::string value_str = TIP_("Value: ");
+  if (data) {
+    value_str += BKE_id_name(id_cast<const ID &>(*data));
+  }
+  else {
+    value_str += TIP_("None");
+  }
+  UI_tooltip_text_field_add(
+      tip_data, std::move(value_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  add_space(tip_data);
+
+  const ID_Type id_type = T::id_type;
+  const char *id_type_name = BKE_idtype_idcode_to_name(id_type);
+  std::string type_str = fmt::format("{}: {}", TIP_("Type"), TIP_(id_type_name));
+  UI_tooltip_text_field_add(tip_data, std::move(type_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  return true;
+}
+
+[[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
+                                                      const GPointer &value)
+
+{
+  if (build_tooltip_value_data_block<Object>(tip_data, value)) {
+    return true;
+  }
+  if (build_tooltip_value_data_block<Material>(tip_data, value)) {
+    return true;
+  }
+  if (build_tooltip_value_data_block<Tex>(tip_data, value)) {
+    return true;
+  }
+  if (build_tooltip_value_data_block<Image>(tip_data, value)) {
+    return true;
+  }
+  if (build_tooltip_value_data_block<Collection>(tip_data, value)) {
+    return true;
+  }
+  return false;
+}
+
+[[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
+                                                      geo_log::ValueLog &value_log)
+{
+  if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log)) {
+    return build_tooltip_value_generic(tip_data, generic_value_log->value);
+  }
+  return true;
+}
+
+[[nodiscard]] static bool build_tooltip_last_value(uiTooltipData &tip_data,
+                                                   geo_log::GeoTreeLog *geo_tree_log,
+                                                   const bNodeSocket &socket)
+
+{
+  if (!geo_tree_log) {
+    return false;
+  }
+  if (socket.typeinfo->base_cpp_type == nullptr) {
+    return false;
+  }
+  geo_tree_log->ensure_socket_values();
+  geo_log::ValueLog *value_log = geo_tree_log->find_socket_value_log(socket);
+  if (!value_log) {
+    return false;
+  }
+  return build_tooltip_value_geo_log(tip_data, *value_log);
+}
+
+static void build_tooltip_last_value(uiTooltipData &tip_data,
+                                     bContext &C,
+                                     const bNodeSocket &socket)
+{
+  SpaceNode *snode = CTX_wm_space_node(&C);
+
+  geo_log::ContextualGeoTreeLogs geo_tree_logs;
+  if (snode) {
+    geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
+  }
+  geo_log::GeoTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket);
+  if (!build_tooltip_last_value(tip_data, geo_tree_log, socket)) {
+  }
+}
+
 void build_socket_tooltip(uiTooltipData &tip_data,
-                          bContext & /*C*/,
+                          bContext &C,
                           const bNodeTree & /*tree*/,
                           const bNodeSocket &socket)
 {
   build_tooltip_label(tip_data, socket);
-  add_space(tip_data);
+  add_space(tip_data, 2);
   build_tooltip_description(tip_data, socket);
-
-  /* Add last value. */
-
-  /* Add last type. */
+  build_tooltip_last_value(tip_data, C, socket);
 
   /* Add allowed type. */
 }
