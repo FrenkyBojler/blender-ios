@@ -79,7 +79,7 @@ class ArmatureDeformTest : public testing::Test {
     return float3(0, -2, 0);
   }
 
-  Object *create_test_armature() const
+  Object *create_test_armature_object() const
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_ARMATURE, "Test Armature Object");
     bArmature *arm = BKE_id_new<bArmature>(bmain, "Test Armature");
@@ -150,13 +150,8 @@ class ArmatureDeformTest : public testing::Test {
     return data;
   }
 
-  /* Creates a cube with all vertices in "Bone1" group and the top face in "Bone2" group. */
-  Object *create_test_mesh() const
+  Mesh *create_test_mesh() const
   {
-    Object *ob = BKE_object_add_only_object(bmain, OB_MESH, "Test Mesh Object");
-    Mesh *mesh_in_main = BKE_mesh_add(bmain, "Test Mesh");
-    ob->data = mesh_in_main;
-
     Mesh *mesh = BKE_mesh_new_nomain(vertex_positions().size(), 0, 0, 0);
     mesh->vert_positions_for_write().copy_from(vertex_positions());
     MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
@@ -173,11 +168,26 @@ class ArmatureDeformTest : public testing::Test {
     }
     mesh->tag_positions_changed();
 
+    bDeformGroup *defgroup1 = MEM_callocN<bDeformGroup>(__func__);
+    bDeformGroup *defgroup2 = MEM_callocN<bDeformGroup>(__func__);
+    STRNCPY(defgroup1->name, "Bone1");
+    STRNCPY(defgroup2->name, "Bone2");
+    BLI_addtail(&mesh->vertex_group_names, defgroup1);
+    BLI_addtail(&mesh->vertex_group_names, defgroup2);
+
+    return mesh;
+  }
+
+  /* Creates a cube with all vertices in "Bone1" group and the top face in "Bone2" group. */
+  Object *create_test_mesh_object() const
+  {
+    Object *ob = BKE_object_add_only_object(bmain, OB_MESH, "Test Mesh Object");
+    Mesh *mesh_in_main = BKE_mesh_add(bmain, "Test Mesh");
+    ob->data = mesh_in_main;
+
+    Mesh *mesh = create_test_mesh();
     BKE_mesh_nomain_to_mesh(mesh, mesh_in_main, ob);
     BLI_assert(!mesh_in_main->deform_verts().is_empty());
-
-    BKE_object_defgroup_new(ob, "Bone1");
-    BKE_object_defgroup_new(ob, "Bone2");
 
     return ob;
   }
@@ -265,6 +275,14 @@ class ArmatureDeformTest : public testing::Test {
     VertexGroups,
     /* Single vertex group weight. */
     SingleVertexGroup,
+  };
+
+  /* Defines the source of vertex groups and weights for mesh deformation. */
+  enum class VertexWeightSource {
+    /* Read vertex groups and weights from the target object's mesh data. */
+    TargetObject,
+    /* Use a separate mesh for defining vertex weights. */
+    SeparateMesh,
   };
 
   static Span<float3> expected_mesh_positions(const WeightingTest weighting,
@@ -357,11 +375,16 @@ class ArmatureDeformTest : public testing::Test {
     return "";
   }
 
-  void mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
+  void mesh_test(const InterpolationTest interpolation,
+                 const WeightingTest weighting,
+                 const VertexWeightSource dvert_source)
   {
-    Object *ob_arm = this->create_test_armature();
-    Object *ob_target = this->create_test_mesh();
+    Object *ob_arm = this->create_test_armature_object();
+    Object *ob_target = this->create_test_mesh_object();
     Mesh *mesh = static_cast<Mesh *>(ob_target->data);
+    /* Mesh deform function supports a separate Mesh data block for deform_groups and dverts. */
+    Mesh *mesh_target = (dvert_source == VertexWeightSource::SeparateMesh) ? create_test_mesh() :
+                                                                             nullptr;
 
     MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
     float(*vert_positions_array)[3] = vert_positions.cast<float[3]>().data();
@@ -376,18 +399,22 @@ class ArmatureDeformTest : public testing::Test {
                                          deform_flag,
                                          nullptr,
                                          defgrp_name,
-                                         nullptr);
+                                         mesh_target);
 
     EXPECT_EQ_SPAN(expected_mesh_positions(weighting, true), vert_positions.as_span());
 
+    if (mesh_target) {
+      /* Not in bmain. */
+      BKE_id_free(nullptr, mesh_target);
+    }
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
   }
 
   void edit_mesh_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    Object *ob_arm = this->create_test_armature();
-    Object *ob_target = this->create_test_mesh();
+    Object *ob_arm = this->create_test_armature_object();
+    Object *ob_target = this->create_test_mesh_object();
     Mesh *mesh = static_cast<Mesh *>(ob_target->data);
 
     BMeshCreateParams create_params{};
@@ -419,7 +446,7 @@ class ArmatureDeformTest : public testing::Test {
 
   void curves_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    Object *ob_arm = this->create_test_armature();
+    Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_curves();
     Curves *curves_id = static_cast<Curves *>(ob_target->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -445,7 +472,7 @@ class ArmatureDeformTest : public testing::Test {
 
   void grease_pencil_test(const InterpolationTest interpolation, const WeightingTest weighting)
   {
-    Object *ob_arm = this->create_test_armature();
+    Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_grease_pencil();
     GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob_target->data);
 
@@ -504,14 +531,43 @@ class ArmatureDeformTest : public testing::Test {
 
 TEST_F(ArmatureDeformTest, MeshDeform)
 {
-  mesh_test(InterpolationTest::Linear, WeightingTest::None);
-  mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  mesh_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  mesh_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  mesh_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
+  mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::TargetObject);
+  mesh_test(InterpolationTest::Linear, WeightingTest::Envelope, VertexWeightSource::TargetObject);
+  mesh_test(
+      InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::TargetObject);
+  mesh_test(InterpolationTest::Linear,
+            WeightingTest::SingleVertexGroup,
+            VertexWeightSource::TargetObject);
+  mesh_test(
+      InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::TargetObject);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::Envelope,
+            VertexWeightSource::TargetObject);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::VertexGroups,
+            VertexWeightSource::TargetObject);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::SingleVertexGroup,
+            VertexWeightSource::TargetObject);
+
+  mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::SeparateMesh);
+  mesh_test(InterpolationTest::Linear, WeightingTest::Envelope, VertexWeightSource::SeparateMesh);
+  mesh_test(
+      InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::SeparateMesh);
+  mesh_test(InterpolationTest::Linear,
+            WeightingTest::SingleVertexGroup,
+            VertexWeightSource::SeparateMesh);
+  mesh_test(
+      InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::SeparateMesh);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::Envelope,
+            VertexWeightSource::SeparateMesh);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::VertexGroups,
+            VertexWeightSource::SeparateMesh);
+  mesh_test(InterpolationTest::DualQuaternion,
+            WeightingTest::SingleVertexGroup,
+            VertexWeightSource::SeparateMesh);
 }
 
 TEST_F(ArmatureDeformTest, EditMeshDeform)
