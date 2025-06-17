@@ -10,6 +10,7 @@
 #  include "BLI_map.hh"
 #  include "BLI_memory_cache.hh"
 #  include "BLI_memory_counter.hh"
+#  include "BLI_fileops.hh"
 
 #  include <openvdb/openvdb.h>
 
@@ -134,11 +135,12 @@ class GridReadKey : public GenericKey {
  public:
   std::string file_path;
   std::string grid_name;
+  uint64_t timestamp;
   int simplify_level;
 
   uint64_t hash() const override
   {
-    return get_default_hash(this->file_path, this->grid_name, this->simplify_level);
+    return get_default_hash(this->file_path, this->grid_name, this->simplify_level, this->timestamp);
   }
 
   BLI_STRUCT_EQUALITY_OPERATORS_3(GridReadKey, file_path, grid_name, simplify_level)
@@ -200,12 +202,14 @@ static openvdb::GridBase::Ptr load_single_grid_from_disk(const StringRef file_pa
  */
 static LazyLoadedGrid load_single_grid_from_disk_cached(const StringRef file_path,
                                                         const StringRef grid_name,
-                                                        const int simplify_level)
+                                                        int simplify_level,
+                                                        const uint64_t timestamp)
 {
   GridReadKey key;
   key.file_path = file_path;
   key.grid_name = grid_name;
   key.simplify_level = simplify_level;
+  key.timestamp = timestamp;
 
   std::shared_ptr<const GridReadValue> value = memory_cache::get<GridReadValue>(key, [&key]() {
     openvdb::GridBase::Ptr grid;
@@ -236,13 +240,20 @@ static LazyLoadedGrid load_single_grid_from_disk_cached(const StringRef file_pat
   return {grid, value->tree_sharing_info};
 }
 
+static uint64_t get_file_timestamp(const StringRef file_path) {
+  BLI_stat_t file_stat;
+  BLI_stat(file_path.data(), &file_stat);
+  return (uint64_t)file_stat.st_mtime;
+}
+
 /**
  * Checks if there is already a cached grid for the parameters and creates it otherwise. This does
  * not load the tree, because that is done on-demand.
  */
 static GVolumeGrid get_cached_grid(const StringRef file_path,
                                    GridCache &grid_cache,
-                                   const int simplify_level)
+                                   const int simplify_level,
+                                   const uint64_t timestamp)
 {
   if (GVolumeGrid *grid = grid_cache.grid_by_simplify_level.lookup_ptr(simplify_level)) {
     return *grid;
@@ -250,8 +261,9 @@ static GVolumeGrid get_cached_grid(const StringRef file_path,
   /* A callback that actually loads the full grid including the tree when it's accessed. */
   auto load_grid_fn = [file_path = std::string(file_path),
                        grid_name = std::string(grid_cache.meta_data_grid->getName()),
-                       simplify_level]() -> LazyLoadedGrid {
-    return load_single_grid_from_disk_cached(file_path, grid_name, simplify_level);
+                       simplify_level,
+                       timestamp]() -> LazyLoadedGrid {
+    return load_single_grid_from_disk_cached(file_path, grid_name, simplify_level, timestamp);
   };
   /* This allows the returned grid to already contain meta-data and transforms, even if the tree is
    * not loaded yet. */
@@ -275,8 +287,9 @@ GVolumeGrid get_grid_from_file(const StringRef file_path,
   GlobalCache &global_cache = get_global_cache();
   std::lock_guard lock{global_cache.mutex};
   FileCache &file_cache = get_file_cache(file_path);
+  const uint64_t timestamp = get_file_timestamp(file_path);
   if (GridCache *grid_cache = file_cache.grid_cache_by_name(grid_name)) {
-    return get_cached_grid(file_path, *grid_cache, simplify_level);
+    return get_cached_grid(file_path, *grid_cache, simplify_level, timestamp);
   }
   return {};
 }
@@ -287,6 +300,7 @@ GridsFromFile get_all_grids_from_file(const StringRef file_path, const int simpl
   GlobalCache &global_cache = get_global_cache();
   std::lock_guard lock{global_cache.mutex};
   FileCache &file_cache = get_file_cache(file_path);
+  const uint64_t timestamp = get_file_timestamp(file_path);
 
   if (!file_cache.error_message.empty()) {
     result.error_message = file_cache.error_message;
@@ -294,7 +308,7 @@ GridsFromFile get_all_grids_from_file(const StringRef file_path, const int simpl
   }
   result.file_meta_data = std::make_shared<openvdb::MetaMap>(file_cache.meta_data);
   for (GridCache &grid_cache : file_cache.grids) {
-    result.grids.append(get_cached_grid(file_path, grid_cache, simplify_level));
+    result.grids.append(get_cached_grid(file_path, grid_cache, simplify_level, timestamp));
   }
   return result;
 }

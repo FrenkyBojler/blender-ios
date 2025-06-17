@@ -391,10 +391,13 @@ static int volume_sequence_frame(const Depsgraph *depsgraph, const Volume *volum
 }
 
 #ifdef WITH_OPENVDB
-static void volume_filepath_get(const Main *bmain, const Volume *volume, char r_filepath[FILE_MAX])
+static void volume_filepath_get(const Main *bmain, const Volume *volume, char r_filepath[FILE_MAX], uint64_t *file_timestamp)
 {
   BLI_strncpy(r_filepath, volume->filepath, FILE_MAX);
   BLI_path_abs(r_filepath, ID_BLEND_PATH(bmain, &volume->id));
+  BLI_stat_t file_stat;
+  BLI_stat(r_filepath, &file_stat);
+  *file_timestamp = file_stat.st_mtime;
 
   int path_frame, path_digits;
   if (volume->is_sequence && BLI_path_frame_get(r_filepath, &path_frame, &path_digits)) {
@@ -491,7 +494,8 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   /* Get absolute file path at current frame. */
   const char *volume_name = volume->id.name + 2;
   char filepath[FILE_MAX];
-  volume_filepath_get(bmain, volume, filepath);
+  uint64_t timestamp;
+  volume_filepath_get(bmain, volume, filepath, &timestamp);
 
   CLOG_INFO(&LOG, 1, "Volume %s: load %s", volume_name, filepath);
 
