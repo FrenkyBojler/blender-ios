@@ -36,7 +36,7 @@ void template_asset_shelf_popover(uiLayout &layout,
   }
 
   const ARegion *region = CTX_wm_region(&C);
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
 
   uiLayout *row = &layout.row(true);
   const bool use_big_size = !RGN_TYPE_IS_HEADER_ANY(region->regiontype);
@@ -44,11 +44,11 @@ void template_asset_shelf_popover(uiLayout &layout,
 
   uiLayoutSetContextString(row, "asset_shelf_idname", asset_shelf_id);
   if (use_big_size) {
-    uiLayoutSetScaleX(row, 6);
-    uiLayoutSetScaleY(row, 6);
+    row->scale_x_set(6);
+    row->scale_y_set(6);
   }
   else {
-    uiLayoutSetUnitsX(row, name.is_empty() ? 1.6f : 7);
+    row->ui_units_x_set(name.is_empty() ? 1.6f : 7);
   }
 
   ed::asset::shelf::ensure_asset_library_fetched(C, *shelf_type);

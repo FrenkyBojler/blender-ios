@@ -47,9 +47,9 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
   uiLayoutSetContextPointer(layout, "constraint", &ptr);
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  uiLayoutSetUnitsX(layout, 4.0f);
+  layout->ui_units_x_set(4.0f);
 
   /* Apply. */
   layout->op("CONSTRAINT_OT_apply",
@@ -76,7 +76,7 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!con->prev) {
-    uiLayoutSetEnabled(row, false);
+    row->enabled_set(false);
   }
 
   /* Move to last. */
@@ -90,7 +90,7 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
       ob, con, nullptr);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(constraint_list) - 1);
   if (!con->next) {
-    uiLayoutSetEnabled(row, false);
+    row->enabled_set(false);
   }
 }
 
@@ -101,7 +101,7 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *con)
 {
   /* unless button has its own callback, it adds this callback to button */
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_func_set(block, constraint_active_func, ob, con);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
@@ -134,7 +134,7 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
   /* Close 'button' - emboss calls here disable drawing of 'button' behind X */
   sub = &row->row(false);
   sub->emboss_set(blender::ui::EmbossType::None);
-  uiLayoutSetOperatorContext(sub, WM_OP_INVOKE_DEFAULT);
+  sub->operator_context_set(WM_OP_INVOKE_DEFAULT);
   sub->op("CONSTRAINT_OT_delete", "", ICON_X);
 
   /* Some extra padding at the end, so the 'x' icon isn't too close to drag button. */
@@ -160,7 +160,7 @@ void uiTemplateConstraintHeader(uiLayout *layout, PointerRNA *ptr)
     return;
   }
 
-  UI_block_lock_set(uiLayoutGetBlock(layout), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(layout->block(), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
 
   draw_constraint_header(layout, ob, con);
 }

@@ -127,7 +127,7 @@ void uiTemplateMovieClip(uiLayout *layout,
 
   if (clip) {
     uiLayout *row = &layout->row(false);
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("File Path:"), 0, 19, 145, 19, nullptr, 0, 0, "");
 
     row = &layout->row(false);
@@ -178,7 +178,7 @@ void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const StringRefNull prop
   }
 
   uiLayout *col = &layout->column(true);
-  uiBlock *block = uiLayoutGetBlock(col);
+  uiBlock *block = col->block();
 
   uiDefBut(block,
            UI_BTYPE_TRACK_PREVIEW,
@@ -419,7 +419,7 @@ void uiTemplateMarker(uiLayout *layout,
   cb->framenr = user->framenr;
 
   if (compact) {
-    uiBlock *block = uiLayoutGetBlock(layout);
+    uiBlock *block = layout->block();
 
     blender::StringRef tip;
     if (cb->marker_flag & MARKER_DISABLED) {
@@ -451,7 +451,7 @@ void uiTemplateMarker(uiLayout *layout,
     BKE_movieclip_get_size(clip, user, &width, &height);
 
     if (track->flag & TRACK_LOCKED) {
-      uiLayoutSetActive(layout, false);
+      layout->active_set(false);
       uiBlock *block = layout->absolute_block();
       uiDefBut(block,
                UI_BTYPE_LABEL,
@@ -518,7 +518,7 @@ void uiTemplateMarker(uiLayout *layout,
                  tip);
 
     uiLayout *col = &layout->column(true);
-    uiLayoutSetActive(col, (cb->marker_flag & MARKER_DISABLED) == 0);
+    col->active_set((cb->marker_flag & MARKER_DISABLED) == 0);
 
     block = col->absolute_block();
     UI_block_align_begin(block);
