@@ -7,6 +7,7 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node_enum.hh"
 #include "BKE_node_runtime.hh"
 
 #include "BLT_translation.hh"
@@ -98,10 +99,35 @@ template<typename T>
   return true;
 }
 
+static void build_tooltip_value_enum(uiTooltipData &tip_data,
+                                     const bNodeSocket &socket,
+                                     const int item_identifier)
+{
+  const auto *storage = socket.default_value_typed<bNodeSocketValueMenu>();
+  if (!storage->enum_items) {
+    return;
+  }
+  if (storage->has_conflict()) {
+    return;
+  }
+  const bke::RuntimeNodeEnumItem *enum_item = storage->enum_items->find_item_by_identifier(
+      item_identifier);
+  if (!enum_item) {
+    return;
+  }
+  std::string value_str = fmt::format("{}: {}", TIP_("Value"), enum_item->name);
+  UI_tooltip_text_field_add(
+      tip_data, std::move(value_str), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  add_space(tip_data);
+  UI_tooltip_text_field_add(tip_data, TIP_("Type: Menu"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+}
+
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
+                                                      const bNodeSocket &socket,
                                                       const GPointer &value)
 
 {
+  const CPPType &value_type = *value.type();
   if (build_tooltip_value_data_block<Object>(tip_data, value)) {
     return true;
   }
@@ -117,14 +143,25 @@ template<typename T>
   if (build_tooltip_value_data_block<Collection>(tip_data, value)) {
     return true;
   }
+
+  if (socket.type == SOCK_MENU) {
+    if (!value_type.is<int>()) {
+      return false;
+    }
+    const int item_identifier = *value.get<int>();
+    build_tooltip_value_enum(tip_data, socket, item_identifier);
+    return true;
+  }
+
   return false;
 }
 
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
+                                                      const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
 {
   if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log)) {
-    return build_tooltip_value_generic(tip_data, generic_value_log->value);
+    return build_tooltip_value_generic(tip_data, socket, generic_value_log->value);
   }
   return true;
 }
@@ -145,7 +182,7 @@ template<typename T>
   if (!value_log) {
     return false;
   }
-  return build_tooltip_value_geo_log(tip_data, *value_log);
+  return build_tooltip_value_geo_log(tip_data, socket, *value_log);
 }
 
 static void build_tooltip_last_value(uiTooltipData &tip_data,
