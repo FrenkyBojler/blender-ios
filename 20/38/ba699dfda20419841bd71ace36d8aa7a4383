@@ -1,1 +1,2 @@
 Referenced by commit b4b1d010fb2216a5a7492a4c0745a23ca1f65b97, Fix: DRW: Asan crash because of use after free
+Referenced by issue #140490, EEVEE: Broken hair motion vectors
