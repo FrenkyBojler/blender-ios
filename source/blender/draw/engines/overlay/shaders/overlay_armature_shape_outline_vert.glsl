@@ -104,12 +104,11 @@ void geometry_main(VertOut geom_in[4],
     return;
   }
 
-  /*
-   * View Vector:
-   * For perspective, use the normalized view position; otherwise
-   * assume orthographic looking down -Z.
+  /* Compute the view vector:
+   * Use the built-in incident vector (negated) for both
+   * perspective and orthographic projections.
    */
-  float3 view_vec = is_persp ? normalize(geom_in[1].vs_P) : float3(0.0f, 0.0f, -1.0f);
+  float3 view_vec = -drw_view_incident_vector(geom_in[1].vs_P);
 
   /*
    * Edge Vectors:
@@ -127,9 +126,8 @@ void geometry_main(VertOut geom_in[4],
   float3 n0 = cross(v12, v10);
   float3 n3 = cross(v13, v12);
 
-  /*
-   * Normalize Normals:
-   * Make the silhouette-test independent of triangle size.
+  /* Normalize those normals so the silhouette detection
+   * is independent of triangle size.
    */
   float3 n0n = normalize(n0);
   float3 n3n = normalize(n3);
@@ -139,24 +137,25 @@ void geometry_main(VertOut geom_in[4],
    * If both adjacent faces face the camera similarly (dot > eps),
    * it's not an outline. We raise eps to ~1° to reject numeric noise.
    */
-  const float FACE_EPS = 0.02;
+  constexpr float face_eps = 0.02f;
   float fac0 = dot(view_vec, n0n);
   float fac3 = dot(view_vec, n3n);
-  if (abs(fac0) > FACE_EPS && abs(fac3) > FACE_EPS) {
+  if (abs(fac0) > face_eps && abs(fac3) > face_eps) {
     if (sign(fac0) == sign(fac3)) {
       return;
     }
   }
 
-  /*
-   * Concave Edge Filter:
-   * If the edge is concave (interior), don't outline it.
-   * We add a small tolerance to avoid outlining tiny bevels.
+  /* Skip interior concave edges:
+   * Flip n0 if the winding is inverted, then normalize once.
+   * If the edge bends inward (dot with v13 direction > ε),
+   * it's part of a concave interior and not an outline.
    */
   n0 = (geom_in[0].inverted == 1) ? -n0 : n0;
+  n0 = normalize(n0);
   float3 v13n = normalize(v13);
-  const float CONCAVE_EPS = 0.01;
-  if (dot(normalize(n0), v13n) > CONCAVE_EPS) {
+  constexpr float concave_eps = 0.01f;
+  if (dot(n0, v13n) > concave_eps) {
     return;
   }
 
@@ -168,21 +167,21 @@ void geometry_main(VertOut geom_in[4],
   float2 perp = normalize(geom_in[2].ss_P - geom_in[1].ss_P);
   float2 edge_dir = float2(-perp.y, perp.x);
 
-  /*
-   * Hidden Point Winding:
-   * Pick the farthest point for robust edge-direction sign,
-   * then flip edge_dir if needed so it always points outward.
+  /* Determine outward direction using the hidden vertex:
+   * Pick the farther-away point (0 or 3), compute its dir from
+   * the center in screen space, and flip edge_dir if needed so
+   * it always points away from the solid.
    */
   float2 hidden_point = (geom_in[0].vs_P.z < geom_in[3].vs_P.z) ?
-                            ((abs(fac0) > FACE_EPS) ? geom_in[0].ss_P : geom_in[3].ss_P) :
-                            ((abs(fac3) > FACE_EPS) ? geom_in[3].ss_P : geom_in[0].ss_P);
+                            ((abs(fac0) > face_eps) ? geom_in[0].ss_P : geom_in[3].ss_P) :
+                            ((abs(fac3) > face_eps) ? geom_in[3].ss_P : geom_in[0].ss_P);
   float2 hidden_dir = normalize(hidden_point - geom_in[1].ss_P);
-  float f = dot(-hidden_dir, edge_dir);
-  edge_dir *= (f < 0.0f) ? -1.0f : 1.0f;
+  if (dot(-hidden_dir, edge_dir) < 0.0f) {
+    edge_dir = -edge_dir;
+  }
 
-  /*
-   * Emit Outline Vertices:
-   * Push the line away from the solid fill, then draw it.
+  /* Move outline vertices with a slight Z offset toward the viewer:
+   * This avoids Z-fighting with the filled geometry.
    */
   emit_vertex(0,
               out_vertex_id,
