@@ -5300,6 +5300,19 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "debug_flag", V3D_DEBUG_FREEZE_CULLING);
   RNA_def_property_ui_text(prop, "Freeze Culling", "Freeze view culling bounds");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  /* Volume grid topology debug overlay. */
+
+  prop = RNA_def_property(srna, "grid_topology", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", 1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "grid_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "overlay.grid_name");
+  RNA_def_property_ui_text(prop, "Name of the Grid to view", "");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 }
 
 static void rna_def_space_view3d(BlenderRNA *brna)

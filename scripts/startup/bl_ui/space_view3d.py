@@ -9019,6 +9019,10 @@ class VIEW3D_PT_viewport_debug(Panel):
 
         layout.prop(overlay, "use_debug_freeze_view_culling")
 
+        layout.prop(overlay, "grid_topology")
+        if overlay.grid_topology:
+            layout.prop(overlay, "grid_name")
+
 
 class View3DAssetShelf(BrushAssetShelf):
     bl_space_type = "VIEW_3D"

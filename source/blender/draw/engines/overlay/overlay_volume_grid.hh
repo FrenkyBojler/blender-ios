@@ -32,6 +32,29 @@ class VolumeTopologyGrid : Overlay {
 
   void begin_sync(Resources &res, const State &state) final
   {
+    if (!state.is_space_v3d()) {
+      enabled_ = false;
+      return;
+    }
+
+   // if (!res.is_selection()) {
+   //   enabled_ = false;
+   //   return;
+   // }
+
+    const std::optional<StringRef> grid_name = state.grid_to_show();
+    if (!grid_name.has_value()) {
+      enabled_ = false;
+      return;
+    }
+
+    if (grid_name->is_empty()) {
+      enabled_ = false;
+      return;
+    }
+
+    enabled_ = true;
+
     auto &pass = topology_pass_;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
@@ -46,6 +69,10 @@ class VolumeTopologyGrid : Overlay {
                    Resources &res,
                    const State &state) final
   {
+    if (!enabled_) {
+      return;
+    }
+
     const Object *eval_object = ob_ref.object;
     if (eval_object == nullptr) {
       return;
@@ -66,7 +93,8 @@ class VolumeTopologyGrid : Overlay {
       return;
     }
 
-    const bke::VolumeGridData *grid_to_view = BKE_volume_grid_find(volume, "density");
+    const std::optional<StringRef> grid_name = state.grid_to_show();
+    const bke::VolumeGridData *grid_to_view = BKE_volume_grid_find(volume, *grid_name);
     if (grid_to_view == nullptr) {
       return;
     }
@@ -85,7 +113,7 @@ class VolumeTopologyGrid : Overlay {
       for (typename GridT::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
         const openvdb::CoordBBox voxel = iter.getBoundingBox();
         const openvdb::Vec3d delta = voxel.dim().asVec3d() / 2.0f;
-        const openvdb::Vec3d centre = voxel.getCenter() + delta;
+        const openvdb::Vec3d centre = voxel.getCenter() + openvdb::Vec3d(0.5f);
 
         const float depth_factor = iter.getLevel() / grid.tree().treeDepth();
 
@@ -100,6 +128,10 @@ class VolumeTopologyGrid : Overlay {
 
   void end_sync(Resources &res, const State & /*state*/) final
   {
+    if (!enabled_) {
+      return;
+    }
+
     topology_pass_.shader_set(res.shaders->extra_shape.get());
     topology_pass_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     topology_pass_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
@@ -109,6 +141,10 @@ class VolumeTopologyGrid : Overlay {
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
+    if (!enabled_) {
+      return;
+    }
+
     GPU_framebuffer_bind(framebuffer);
     manager.submit(topology_pass_, view);
   }

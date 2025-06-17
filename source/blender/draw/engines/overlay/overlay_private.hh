@@ -276,6 +276,13 @@ struct State {
   {
     return (this->overlay.flag & V3D_OVERLAY_SHOW_LIGHT_COLORS);
   }
+  std::optional<StringRef> grid_to_show() const
+  {
+    if (this->overlay.grid_topology_flag == 0) {
+      return std::nullopt;
+    }
+    return this->overlay.grid_name;
+  }
 };
 
 /* Matches Vertex Format. */
