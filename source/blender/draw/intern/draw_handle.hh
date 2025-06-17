@@ -126,7 +126,7 @@ class ObjectRef {
   Object *const object;
 
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  ObjectRef(Object *ob);
+  ObjectRef(Object *ob, Object *dupli_parent = nullptr, DupliObject *dupli_object = nullptr);
   ObjectRef(Object &ob,
             Object *dupli_parent,
             const DrawObjectKey &draw_object_key,

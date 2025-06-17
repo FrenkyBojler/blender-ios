@@ -17,6 +17,22 @@
 
 namespace blender::draw {
 
+static bool supports_handle_ranges(Object *ob)
+{
+  if (ob->particlesystem.first) {
+    return false;
+  }
+
+  return ELEM(ob->type,
+              OB_MESH,
+              OB_CURVES_LEGACY,
+              OB_SURF,
+              OB_FONT,
+              OB_POINTCLOUD,
+              OB_VOLUME,
+              OB_GREASE_PENCIL);
+}
+
 void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback)
 {
   DupliList duplilist;
@@ -70,6 +86,27 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
         continue;
       }
 
+      if (!supports_handle_ranges(dupli.ob)) {
+        /* Sync the dupli as a single object. */
+        if (!DEG_iterator_setup_temp_object(
+                ob, dupli.ob, dupli.ob_data, &tmp_object, &tmp_runtime, eval_mode))
+        {
+          DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
+          continue;
+        }
+
+        tmp_object.light_linking = dupli.ob->light_linking;
+        SET_FLAG_FROM_TEST(tmp_object.transflag, is_negative_m4(dupli.mat), OB_NEG_SCALE);
+        tmp_object.runtime->object_to_world = float4x4(dupli.mat);
+        tmp_object.runtime->world_to_object = invert(tmp_object.runtime->object_to_world);
+
+        blender::draw::ObjectRef ob_ref(&tmp_object, ob, &dupli);
+        callback(ob_ref);
+
+        DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
+        continue;
+      }
+
       DrawObjectFlags flags = DrawObjectFlags(0);
       {
         SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), DrawObjectFlags::IsNegativeScale);
@@ -104,10 +141,8 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
       }
 
       tmp_object.light_linking = ob->light_linking;
-
       SET_FLAG_FROM_TEST(
           tmp_object.transflag, bool(key.flags & DrawObjectFlags::IsNegativeScale), OB_NEG_SCALE);
-
       /* Should use DrawInstances data instead. */
       tmp_object.runtime->object_to_world = float4x4();
       tmp_object.runtime->world_to_object = float4x4();

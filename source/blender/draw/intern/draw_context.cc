@@ -691,7 +691,12 @@ ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
 {
 }
 
-ObjectRef::ObjectRef(Object *ob) : object(ob) {}
+ObjectRef::ObjectRef(Object *ob, Object *dupli_parent, DupliObject *dupli_object)
+    : dupli_object_(dupli_object),
+      dupli_parent_(dupli_object_ ? dupli_parent : nullptr),
+      object(ob)
+{
+}
 
 ObjectRef::ObjectRef(Object &ob,
                      Object *dupli_parent,
