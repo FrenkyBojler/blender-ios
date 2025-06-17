@@ -535,7 +535,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     layout = UI_popup_menu_layout(pup);
 
     set_layout_context_from_button(C, layout, but);
-    uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+    layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
   }
 
   const bool is_disabled = but->flag & UI_BUT_DISABLED;
@@ -1022,12 +1022,12 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
        * operator poll, but that doesn't work since the operator also works with "selected_ids",
        * which isn't cheap to check. */
       uiLayout *sub = &layout->column(true);
-      uiLayoutSetEnabled(sub, !id->asset_data);
+      sub->enabled_set(!id->asset_data);
       sub->op("ASSET_OT_mark_single",
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark as Asset"),
               ICON_ASSET_MANAGER);
       sub = &layout->column(true);
-      uiLayoutSetEnabled(sub, id->asset_data);
+      sub->enabled_set(id->asset_data);
       sub->op("ASSET_OT_clear_single",
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Asset"),
               ICON_NONE);
