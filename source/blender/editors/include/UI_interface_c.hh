@@ -1931,6 +1931,12 @@ void UI_tooltip_text_field_add(uiTooltipData &data,
  */
 void UI_tooltip_image_field_add(uiTooltipData &data, const uiTooltipImage &image_data);
 
+void UI_tooltip_color_field_add(uiTooltipData &data,
+                                const blender::float4 &color,
+                                bool has_alpha,
+                                bool is_gamma,
+                                const ColorManagedDisplay *display);
+
 /**
  * Recreate tool-tip (use to update dynamic tips)
  */

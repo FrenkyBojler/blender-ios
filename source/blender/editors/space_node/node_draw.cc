@@ -231,14 +231,6 @@ void tag_update_id(ID *id)
   }
 }
 
-static void build_socket_tooltip(uiTooltipData &tip,
-                                 bContext &C,
-                                 const bNodeTree &tree,
-                                 const bNodeSocket &socket)
-{
-  UI_tooltip_text_field_add(tip, "Hello World", {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL);
-}
-
 static std::string node_socket_get_tooltip(const SpaceNode *snode,
                                            const bNodeTree &ntree,
                                            const bNodeSocket &socket);

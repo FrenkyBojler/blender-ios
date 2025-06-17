@@ -37,3 +37,8 @@ using uiFreeArgFunc = void (*)(void *arg);
 using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, blender::StringRef tip);
 
 using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
+
+namespace blender::ocio {
+class Display;
+}  // namespace blender::ocio
+using ColorManagedDisplay = blender::ocio::Display;
