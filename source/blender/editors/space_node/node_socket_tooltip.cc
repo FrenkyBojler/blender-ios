@@ -11,6 +11,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_type_conversions.hh"
 
+#include "BLI_math_euler.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_collection_types.h"
@@ -172,6 +173,23 @@ static void build_tooltip_value_color(uiTooltipData &tip_data, const ColorGeomet
                             UI_TIP_LC_VALUE);
 }
 
+static void build_tooltip_value_quaternion(uiTooltipData &tip_data, const math::Quaternion &value)
+{
+  const math::EulerXYZ euler = math::to_euler(value);
+  const std::string value_str = fmt::format(
+      "{}" BLI_STR_UTF8_DEGREE_SIGN " {}" BLI_STR_UTF8_DEGREE_SIGN " {}" BLI_STR_UTF8_DEGREE_SIGN,
+      euler.x().degree(),
+      euler.y().degree(),
+      euler.z().degree());
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Rotation"));
+}
+
+static void build_tooltip_value_bool(uiTooltipData &tip_data, const bool value)
+{
+  std::string value_str = value ? TIP_("True") : TIP_("False");
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Boolean"));
+}
+
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       const GPointer &value)
@@ -229,6 +247,14 @@ static void build_tooltip_value_color(uiTooltipData &tip_data, const ColorGeomet
   }
   if (socket_base_cpp_type.is<ColorGeometry4f>()) {
     build_tooltip_value_color(tip_data, *static_cast<ColorGeometry4f *>(socket_value));
+    return true;
+  }
+  if (socket_base_cpp_type.is<math::Quaternion>()) {
+    build_tooltip_value_quaternion(tip_data, *static_cast<math::Quaternion *>(socket_value));
+    return true;
+  }
+  if (socket_base_cpp_type.is<bool>()) {
+    build_tooltip_value_bool(tip_data, *static_cast<bool *>(socket_value));
     return true;
   }
 
