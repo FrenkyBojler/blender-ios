@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <fmt/format.h>
+#include <sstream>
 
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
@@ -190,6 +191,29 @@ static void build_tooltip_value_bool(uiTooltipData &tip_data, const bool value)
   build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Boolean"));
 }
 
+static void build_tooltip_value_float4x4(uiTooltipData &tip_data, const float4x4 &value)
+{
+  /* Transpose to be able to print row by row. */
+  const float4x4 value_transposed = math::transpose(value);
+
+  std::stringstream ss;
+  for (const int row_i : IndexRange(4)) {
+    const float4 row = value_transposed[row_i];
+    ss << fmt::format("{:7.3} {:7.3} {:7.3} {:7.3}\n", row[0], row[1], row[2], row[3]);
+  }
+
+  UI_tooltip_text_field_add(
+      tip_data, fmt::format("{}:", TIP_("Value")), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  add_space(tip_data);
+  UI_tooltip_text_field_add(tip_data, ss.str(), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  add_space(tip_data);
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format("{}: {}", TIP_("Type"), TIP_("4x4 Float Matrix")),
+                            {},
+                            UI_TIP_STYLE_MONO,
+                            UI_TIP_LC_VALUE);
+}
+
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       const GPointer &value)
@@ -255,6 +279,10 @@ static void build_tooltip_value_bool(uiTooltipData &tip_data, const bool value)
   }
   if (socket_base_cpp_type.is<bool>()) {
     build_tooltip_value_bool(tip_data, *static_cast<bool *>(socket_value));
+    return true;
+  }
+  if (socket_base_cpp_type.is<float4x4>()) {
+    build_tooltip_value_float4x4(tip_data, *static_cast<float4x4 *>(socket_value));
     return true;
   }
 
