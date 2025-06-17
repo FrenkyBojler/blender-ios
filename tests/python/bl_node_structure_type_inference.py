@@ -32,6 +32,9 @@ class StructureTypeInferenceTest(unittest.TestCase):
     def assertField(self, socket):
         self.assertEqual(socket.inferred_structure_type, "FIELD")
 
+    def assertGrid(self, socket):
+        self.assertEqual(socket.inferred_structure_type, "GRID")
+
     def test_empty_group(self):
         self.load_testfile()
         tree = bpy.data.node_groups["test_empty_group"]
@@ -93,6 +96,48 @@ class StructureTypeInferenceTest(unittest.TestCase):
         node = tree.nodes["Group Output"]
         self.assertSingle(node.inputs["Mesh"])
         self.assertField(node.inputs["UV Map"])
+
+    def test_output_field(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_output_field"]
+
+        node = tree.nodes["Group Output"]
+        self.assertField(node.inputs["Position"])
+        self.assertField(node.inputs["Normal 1"])
+        self.assertField(node.inputs["Normal 2"])
+
+    def test_add_all_types(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_add_all_types"]
+
+        node = tree.nodes["Group Input"]
+        self.assertDynamic(node.outputs["Auto"])
+        self.assertSingle(node.outputs["Single"])
+        self.assertDynamic(node.outputs["Dynamic"])
+        self.assertField(node.outputs["Field"])
+        self.assertGrid(node.outputs["Grid"])
+
+        node = tree.nodes["Group Output"]
+
+        self.assertDynamic(node.inputs["auto+auto"])
+        self.assertDynamic(node.inputs["auto+single"])
+        self.assertDynamic(node.inputs["auto+dynamic"])
+        self.assertDynamic(node.inputs["auto+field"])
+        self.assertGrid(node.inputs["auto+grid"])
+
+        self.assertSingle(node.inputs["single+single"])
+        self.assertDynamic(node.inputs["single+dynamic"])
+        self.assertField(node.inputs["single+field"])
+        self.assertGrid(node.inputs["single+grid"])
+
+        self.assertDynamic(node.inputs["dynamic+dynamic"])
+        self.assertDynamic(node.inputs["dynamic+field"])
+        self.assertGrid(node.inputs["dynamic+grid"])
+
+        self.assertField(node.inputs["field+field"])
+        self.assertGrid(node.inputs["field+grid"])
+
+        self.assertGrid(node.inputs["grid+grid"])
 
 
 def main():
