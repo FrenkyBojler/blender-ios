@@ -231,15 +231,7 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
   eRotationModes rotation_mode;
   blender::Vector<RNAPath> paths;
 
-  if (ptr->type == &RNA_PoseBone) {
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
-    rotation_mode = eRotationModes(pchan->rotmode);
-  }
-  else if (ptr->type == &RNA_Object) {
-    Object *ob = static_cast<Object *>(ptr->data);
-    rotation_mode = eRotationModes(ob->rotmode);
-  }
-  else if (ptr->type == &RNA_Strip || RNA_struct_is_a(ptr->type, &RNA_Strip)) {
+  if (ptr->type == &RNA_Strip || RNA_struct_is_a(ptr->type, &RNA_Strip)) {
     eKeyInsertChannels insert_channel_flags = eKeyInsertChannels(U.key_insert_channels);
     if (insert_channel_flags & USER_ANIM_KEY_CHANNEL_LOCATION) {
       paths.append({"transform.offset_x"});
@@ -256,6 +248,15 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
       paths.extend(blender::animrig::get_keyable_id_property_paths(*ptr));
     }
     return paths;
+  }
+
+  if (ptr->type == &RNA_PoseBone) {
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+    rotation_mode = eRotationModes(pchan->rotmode);
+  }
+  else if (ptr->type == &RNA_Object) {
+    Object *ob = static_cast<Object *>(ptr->data);
+    rotation_mode = eRotationModes(ob->rotmode);
   }
   else {
     /* Pointer type not supported. */
