@@ -135,6 +135,21 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
       tip_data, enum_item->name, TIP_("Menu"), enum_item->description);
 }
 
+static void build_tooltip_value_float(uiTooltipData &tip_data, const float value)
+{
+  std::string value_str;
+  /* Above that threshold floats can't represent fractions anymore. */
+  if (std::abs(value) > (1 << 24)) {
+    /* Use higher precision to display correct integer value instead of one that is rounded to
+     * fewer significant digits. */
+    value_str = fmt::format("{:.10}", value);
+  }
+  else {
+    value_str = fmt::format("{}", value);
+  }
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Float"));
+}
+
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       const GPointer &value)
@@ -179,18 +194,7 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
   BLI_SCOPED_DEFER([&]() { socket_base_cpp_type.destruct(socket_value); });
 
   if (socket_base_cpp_type.is<float>()) {
-    const float float_value = *static_cast<float *>(socket_value);
-    std::string value_str;
-    /* Above that threshold floats can't represent fractions anymore. */
-    if (std::abs(float_value) > (1 << 24)) {
-      /* Use higher precision to display correct integer value instead of one that is rounded to
-       * fewer significant digits. */
-      value_str = fmt::format("{:.10}", float_value);
-    }
-    else {
-      value_str = fmt::format("{}", float_value);
-    }
-    build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Float"));
+    build_tooltip_value_float(tip_data, *static_cast<float *>(socket_value));
     return true;
   }
 
