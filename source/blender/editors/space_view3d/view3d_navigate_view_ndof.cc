@@ -165,10 +165,10 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
     /* "zoom in" or "translate"? depends on zoom mode in user settings? */
     if (ndof.tvec[2]) {
       float zoom_distance = rv3d->dist * ndof.time_delta * pan_vec_no_navigation[2];
-      rv3d->dist += zoom_distance;
+        rv3d->dist += zoom_distance;
+      }
     }
-  }
-  else {
+else {
     /* dolly with Z */
 
     /* all callers must check */
@@ -612,7 +612,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_translate = !is_zero_v2(ndof.tvec);
   const bool has_zoom = ndof.tvec[2] != 0.0f;
 
-  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get(ndof);
+  blender::float3 pan_vec = ndof.time_delta * -WM_event_ndof_translation_get_for_navigation(ndof);
 
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.
    * #ED_view3d_camera_view_pan already takes the zoom level into account. */
@@ -643,7 +643,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   }
 
   if (has_zoom) {
-    if (ED_view3d_camera_view_zoom_scale(rv3d, max_ff(0.0f, 1.0f - pan_vec[2]))) {
+    if (ED_view3d_camera_view_zoom_scale(rv3d, max_ff(0.0f, 1.0f + pan_vec[2]))) {
       changed = true;
     }
   }
