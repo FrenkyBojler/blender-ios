@@ -568,7 +568,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
 
         break;
       }
-      case CMP_NODE_MAP_VALUE: {
+      case CMP_NODE_MAP_VALUE_DEPRECATED: {
         do_version_map_value_node(node_tree, node);
         break;
       }
