@@ -107,7 +107,7 @@ struct LinearGrids {
 
 /* Context which holds all information needed during propagation and smoothing. */
 
-struct MultiresReshapeSmoothContext : blender::NonCopyable, blender::NonMovable{
+struct MultiresReshapeSmoothContext : blender::NonCopyable, blender::NonMovable {
   const MultiresReshapeContext *reshape_context;
 
   /* Geometry at a reshape multires level. */
