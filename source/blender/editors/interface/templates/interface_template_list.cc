@@ -152,7 +152,6 @@ uiListNameFilter::uiListNameFilter(uiList &list)
 
   if (filter_raw[0]) {
     const size_t slen = strlen(filter_raw);
-    filter_exclude_ = (list.filter_flag & UILST_FLT_EXCLUDE) != 0;
 
     /* Implicitly add heading/trailing wildcards if needed. */
     if (slen + 3 <= sizeof(storage_.filter_buff)) {
@@ -184,7 +183,7 @@ eUIListFilterResult uiListNameFilter::operator()(const PointerRNA & /*itemptr*/,
    *   Unlike shell input - `\` should be treated like any other character.
    */
   const int fn_flag = FNM_CASEFOLD | FNM_NOESCAPE;
-  if (fnmatch(filter_, name.c_str(), fn_flag) == filter_exclude_) {
+  if (fnmatch(filter_, name.c_str(), fn_flag) == 0) {
     return UI_LIST_ITEM_FILTER_MATCHES;
   }
   return UI_LIST_ITEM_FILTER_MISMATCHES;
