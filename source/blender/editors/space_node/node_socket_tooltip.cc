@@ -117,10 +117,8 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
                                      const int item_identifier)
 {
   const auto *storage = socket.default_value_typed<bNodeSocketValueMenu>();
-  if (!storage->enum_items) {
-    return;
-  }
-  if (storage->has_conflict()) {
+  if (!storage->enum_items || storage->has_conflict()) {
+    build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Menu"));
     return;
   }
   const bke::RuntimeNodeEnumItem *enum_item = storage->enum_items->find_item_by_identifier(
