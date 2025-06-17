@@ -130,14 +130,19 @@ struct uiLayout : uiItem {
   uiBlock *block() const;
 
   void context_copy(const bContextStore *context);
+
   const PointerRNA *context_ptr_get(const blender::StringRef name, const StructRNA *type) const;
   void context_ptr_set(blender::StringRef name, const PointerRNA *ptr);
+
   std::optional<blender::StringRefNull> context_string_get(const blender::StringRef name) const;
   void context_string_set(blender::StringRef name, blender::StringRef value);
+
   std::optional<int64_t> context_int_get(const blender::StringRef name) const;
   void context_int_set(blender::StringRef name, int64_t value);
+
   /** Only for convenience. */
   void context_set_from_but(const uiBut *but);
+
   bContextStore *context_store() const;
 
   bool enabled() const;
