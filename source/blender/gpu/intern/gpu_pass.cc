@@ -253,7 +253,11 @@ class GPUPassCache {
 
   void update()
   {
-    std::lock_guard lock(mutex_);
+    if (!mutex_.try_lock()) {
+      /* We do not want lock the main thread if some expensive operation is running on a worker
+       * thread while the lock is acquired. */
+      return;
+    }
 
     double timestamp = BLI_time_now_seconds();
 
@@ -285,19 +289,20 @@ class GPUPassCache {
 
     if (!base_passes_ready) {
       last_base_compilation_timestamp_ = timestamp;
-      return;
     }
 
-    if ((timestamp - last_base_compilation_timestamp_) < optimization_delay_) {
-      return;
-    }
+    double time_since_base_compilation = (timestamp - last_base_compilation_timestamp_);
 
-    /* Optimization Passes Compilation. */
-    for (auto &engine_passes : passes_) {
-      for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_compilation();
+    if (base_passes_ready && time_since_base_compilation > optimization_delay_) {
+      /* Optimization Passes Compilation. */
+      for (auto &engine_passes : passes_) {
+        for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
+          pass->update_compilation();
+        }
       }
     }
+
+    mutex_.unlock();
   }
 
   std::mutex &get_mutex()
