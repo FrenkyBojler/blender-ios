@@ -117,18 +117,9 @@ class MapUVOperation : public NodeOperation {
 
   char const *get_shader_name(const Interpolation &interpolation)
   {
-    switch (interpolation) {
-      case Interpolation::Anisotropic:
-        return "compositor_map_uv_anisotropic";
-        break;
-      case Interpolation::Nearest:
-      case Interpolation::Bilinear:
-      case Interpolation::Bicubic:
-        return "compositor_map_uv";
-        break;
+    if (interpolation == Interpolation::Anisotropic) {
+      return "compositor_map_uv_anisotropic";
     }
-
-    BLI_assert_unreachable();
     return "compositor_map_uv";
   }
 
