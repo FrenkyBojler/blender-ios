@@ -61,7 +61,6 @@ struct SurfaceGrid {
 struct Vertex {
   /* All grid coordinates which the vertex corresponding to.
    * For a vertices which are created from inner points of grids there is always one coordinate. */
-  int num_grid_coords;
   blender::Vector<GridCoord> grid_coords;
 
   float sharpness;
@@ -138,10 +137,8 @@ struct MultiresReshapeSmoothContext {
     size_t num_edges;
     blender::Array<Edge> edges;
 
-    int num_corners;
     blender::Array<Corner> corners;
 
-    int num_faces;
     /* Face topology of subdivision level. */
     blender::Array<int> face_offsets;
 
@@ -492,7 +489,6 @@ static bool foreach_topology_info(const blender::bke::subdiv::ForeachContext *fo
 
   reshape_smooth_context->geometry.corners.reinitialize(num_loops);
 
-  reshape_smooth_context->geometry.num_faces = num_faces;
   reshape_smooth_context->geometry.face_offsets.reinitialize(num_faces + 1);
   reshape_smooth_context->geometry.face_offsets.last() = num_loops;
 
@@ -668,7 +664,7 @@ static void foreach_poly(const blender::bke::subdiv::ForeachContext *foreach_con
   MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<MultiresReshapeSmoothContext *>(foreach_context->user_data);
 
-  BLI_assert(subdiv_face_index < reshape_smooth_context->geometry.num_faces);
+  BLI_assert(subdiv_face_index < reshape_smooth_context->geometry.faces().size());
 
   reshape_smooth_context->geometry.face_offsets[subdiv_face_index] = start_loop_index;
 }
@@ -847,7 +843,7 @@ static void get_face_vertices(const OpenSubdiv_Converter *converter,
 {
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
-  BLI_assert(face_index < reshape_smooth_context->geometry.num_faces);
+  BLI_assert(face_index < reshape_smooth_context->geometry.faces().size());
 
   const blender::IndexRange face = reshape_smooth_context->geometry.faces()[face_index];
 
