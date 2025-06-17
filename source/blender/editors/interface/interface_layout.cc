@@ -5851,7 +5851,7 @@ bool UI_block_layout_needs_resolving(const uiBlock *block)
   return !BLI_listbase_is_empty(&block->layouts);
 }
 
-void uiLayout::context_set(StringRef name, PointerRNA *ptr)
+void uiLayout::context_set(StringRef name, const PointerRNA *ptr)
 {
   uiBlock *block = this->block();
   context_ = CTX_store_add(block->contexts, name, ptr);
@@ -5904,7 +5904,7 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
   }
 }
 
-void uiLayout::context_set_from_but(uiBut *but)
+void uiLayout::context_set_from_but(const uiBut *but)
 {
   if (but->opptr) {
     this->context_set("button_operator", but->opptr);
