@@ -74,7 +74,8 @@ static void build_tooltip_description(uiTooltipData &tip_data, const bNodeSocket
 
 static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
                                                  const StringRef value,
-                                                 const StringRef type)
+                                                 const StringRef type,
+                                                 const StringRef value_description = "")
 {
   UI_tooltip_text_field_add(tip_data,
                             fmt::format("{}: {}", TIP_("Value"), value),
@@ -82,6 +83,11 @@ static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
                             UI_TIP_STYLE_MONO,
                             UI_TIP_LC_VALUE);
   add_space(tip_data);
+  if (!value_description.is_empty()) {
+    UI_tooltip_text_field_add(
+        tip_data, value_description, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+    add_space(tip_data);
+  }
   UI_tooltip_text_field_add(
       tip_data, fmt::format("{}: {}", TIP_("Type"), type), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
 }
@@ -124,8 +130,8 @@ static void build_tooltip_value_enum(uiTooltipData &tip_data,
   if (!enum_item) {
     return;
   }
-  build_tooltip_value_and_type_oneline(tip_data, enum_item->name, TIP_("Menu"));
-  /* TODO: menu item description */
+  build_tooltip_value_and_type_oneline(
+      tip_data, enum_item->name, TIP_("Menu"), enum_item->description);
 }
 
 [[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
