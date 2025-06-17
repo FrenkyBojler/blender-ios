@@ -6,6 +6,7 @@
  * \ingroup blenloader
  */
 
+#include "DNA_node_types.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_ID.h"
@@ -172,6 +173,21 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 10)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy == CMP_NODE_MAP_UV) {
+          continue;
+        }
+        node->custom2 = CMP_NODE_INTERPOLATION_ANISOTROPIC;
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**
