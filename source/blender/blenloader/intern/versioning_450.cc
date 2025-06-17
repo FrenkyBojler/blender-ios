@@ -421,6 +421,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
       blender::bke::node_remove_link(node_tree, *link);
     }
 
+    MEM_freeN(&texture_mapping);
+    node->storage = nullptr;
+
     blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
     version_socket_update_is_used(node_tree);
@@ -527,6 +530,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
     version_node_add_link(*node_tree, *final_node, *final_output, *link->tonode, *link->tosock);
     blender::bke::node_remove_link(node_tree, *link);
   }
+
+  MEM_freeN(&texture_mapping);
+  node->storage = nullptr;
 
   blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
