@@ -104,6 +104,62 @@ struct uiLayout : uiItem {
   float search_weight_;
 
  public:
+  bool active() const;
+  /**
+   * Sets the active state of the layout and its items.
+   * When false the layout and its buttons are grayed out, user can still interact with them but
+   * generally they will not have an active use.
+   */
+  void active_set(bool active);
+
+  bool active_default() const;
+  /**
+   * When set to true the next operator button added in the layout will be highlighted as default
+   * action when pressing return, in popup dialogs this overrides default confirmation buttons.
+   */
+  void active_default_set(bool active_default);
+
+  bool activate_init() const;
+  /**
+   * When set to true, the next button added in the layout will be activated on first display.
+   * Only for popups dialogs and only the first button in the popup with this flag will be
+   * activated.
+   */
+  void activate_init_set(bool activate_init);
+
+  uiBlock *block() const;
+
+  bool enabled() const;
+  /**
+   * Sets the enabled state of the layout and its items.
+   * When false the layout and its buttons are grayed out, user can't interaction with them, only
+   * buttons tooltips are available on hovering.
+   */
+  void enabled_set(bool enabled);
+
+  blender::ui::EmbossType emboss() const;
+  void emboss_set(blender::ui::EmbossType emboss);
+
+  wmOperatorCallContext operator_context() const;
+  /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
+  void operator_context_set(wmOperatorCallContext opcontext);
+
+  float scale_x() const;
+  void scale_x_set(float scale);
+
+  float scale_y() const;
+  void scale_y_set(float scale);
+
+  float ui_units_x() const;
+  /** Sets a fixed width size for this layout. */
+  void ui_units_x_set(float width);
+
+  float ui_units_y() const;
+  /** Sets a fixed height size for this layout. */
+  void ui_units_y_set(float height);
+
+  /** Sub-layout items. */
+
   uiLayout &absolute(bool align);
   uiBlock *absolute_block();
 
@@ -343,6 +399,78 @@ struct uiLayout : uiItem {
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
 
+inline bool uiLayout::active() const
+{
+  return active_;
+}
+inline void uiLayout::active_set(bool active)
+{
+  active_ = active;
+}
+
+inline bool uiLayout::active_default() const
+{
+  return active_default_;
+}
+inline void uiLayout::active_default_set(bool active_default)
+{
+  active_default_ = active_default;
+}
+
+inline bool uiLayout::activate_init() const
+{
+  return activate_init_;
+}
+inline void uiLayout::activate_init_set(bool activate_init)
+{
+  activate_init_ = activate_init;
+}
+
+inline bool uiLayout::enabled() const
+{
+  return enabled_;
+}
+inline void uiLayout::enabled_set(bool enabled)
+{
+  enabled_ = enabled;
+}
+
+inline float uiLayout::scale_x() const
+{
+  return scale_[0];
+};
+inline void uiLayout::scale_x_set(float scale)
+{
+  scale_[0] = scale;
+};
+
+inline float uiLayout::scale_y() const
+{
+  return scale_[1];
+};
+inline void uiLayout::scale_y_set(float scale)
+{
+  scale_[1] = scale;
+};
+
+inline float uiLayout::ui_units_x() const
+{
+  return units_[0];
+};
+inline void uiLayout::ui_units_x_set(float width)
+{
+  units_[0] = width;
+};
+
+inline float uiLayout::ui_units_y() const
+{
+  return units_[1];
+};
+inline void uiLayout::ui_units_y_set(float height)
+{
+  units_[1] = height;
+};
+
 enum {
   UI_LAYOUT_HORIZONTAL = 0,
   UI_LAYOUT_VERTICAL = 1,
@@ -429,8 +557,6 @@ void UI_block_layout_free(uiBlock *block);
  */
 bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
 
-uiBlock *uiLayoutGetBlock(uiLayout *layout);
-
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
 void uiLayoutSetContextPointer(uiLayout *layout, blender::StringRef name, PointerRNA *ptr);
 void uiLayoutSetContextString(uiLayout *layout, blender::StringRef name, blender::StringRef value);
@@ -465,40 +591,20 @@ void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 /* Only for convenience. */
 void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
 
-void uiLayoutSetOperatorContext(uiLayout *layout, wmOperatorCallContext opcontext);
-void uiLayoutSetActive(uiLayout *layout, bool active);
-void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
-void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
-void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
 void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
 void uiLayoutSetAlignment(uiLayout *layout, char alignment);
 void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size);
 void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect);
-void uiLayoutSetScaleX(uiLayout *layout, float scale);
-void uiLayoutSetScaleY(uiLayout *layout, float scale);
-void uiLayoutSetUnitsX(uiLayout *layout, float unit);
-void uiLayoutSetUnitsY(uiLayout *layout, float unit);
-void uiLayoutSetEmboss(uiLayout *layout, blender::ui::EmbossType emboss);
 void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
 void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
 void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
 
-wmOperatorCallContext uiLayoutGetOperatorContext(uiLayout *layout);
-bool uiLayoutGetActive(uiLayout *layout);
-bool uiLayoutGetActiveDefault(uiLayout *layout);
-bool uiLayoutGetActivateInit(uiLayout *layout);
-bool uiLayoutGetEnabled(uiLayout *layout);
 bool uiLayoutGetRedAlert(uiLayout *layout);
 int uiLayoutGetAlignment(uiLayout *layout);
 bool uiLayoutGetFixedSize(uiLayout *layout);
 bool uiLayoutGetKeepAspect(uiLayout *layout);
 int uiLayoutGetWidth(uiLayout *layout);
-float uiLayoutGetScaleX(uiLayout *layout);
-float uiLayoutGetScaleY(uiLayout *layout);
-float uiLayoutGetUnitsX(uiLayout *layout);
-float uiLayoutGetUnitsY(uiLayout *layout);
-blender::ui::EmbossType uiLayoutGetEmboss(uiLayout *layout);
 bool uiLayoutGetPropSep(uiLayout *layout);
 bool uiLayoutGetPropDecorate(uiLayout *layout);
 Panel *uiLayoutGetRootPanel(uiLayout *layout);
@@ -543,12 +649,6 @@ void uiItemEnumO_string(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout,
                   blender::StringRefNull opname,
                   blender::StringRefNull propname);
-void uiItemStringO(uiLayout *layout,
-                   std::optional<blender::StringRef> name,
-                   int icon,
-                   blender::StringRefNull opname,
-                   blender::StringRefNull propname,
-                   const char *value);
 
 void uiItemFullOMenuHold_ptr(uiLayout *layout,
                              wmOperatorType *ot,

@@ -1272,13 +1272,6 @@ void **GPU_texture_py_reference_get(GPUTexture *texture);
 void GPU_texture_py_reference_set(GPUTexture *texture, void **py_ref);
 #endif
 
-/**
- * Return the backend handle of the texture.
- * \note This is a legacy feature only working on OpenGL backend. It will be removed once we remove
- * the python BGL module.
- */
-int GPU_texture_opengl_bindcode(const GPUTexture *texture);
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1357,6 +1350,13 @@ size_t GPU_pixel_buffer_size(GPUPixelBuffer *pixel_buf);
 
 /**
  * Return the native handle of the \a pix_buf to use for graphic interoperability registration.
+ *
+ * - OpenGL: pixel buffer object ID.
+ * - Vulkan on Windows: opaque handle for VkBuffer.
+ * - Vulkan on Unix: opaque file descriptor for VkBuffer.
+ * - Metal: MTLBuffer with unified memory.
+ *
+ * For Vulkan, the caller is responsible for closing the handle.
  */
 struct GPUPixelBufferNativeHandle {
   int64_t handle = 0;
