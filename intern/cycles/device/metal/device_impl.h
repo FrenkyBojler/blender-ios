@@ -22,14 +22,12 @@ class DeviceQueue;
 
 class MetalDevice : public Device {
  public:
+  BVHMetal *bvh_metal = nullptr;
+
   id<MTLDevice> mtlDevice = nil;
   id<MTLLibrary> mtlLibrary[PSO_NUM] = {nil};
-  id<MTLArgumentEncoder> mtlBufferKernelParamsEncoder =
-      nil; /* encoder used for fetching device pointers from MTLBuffers */
   id<MTLCommandQueue> mtlComputeCommandQueue = nil;
   id<MTLCommandQueue> mtlGeneralCommandQueue = nil;
-  id<MTLArgumentEncoder> mtlAncillaryArgEncoder =
-      nil; /* encoder used for fetching device pointers from MTLBuffers */
   id<MTLCounterSampleBuffer> mtlCounterSampleBuffer = nil;
   string source[PSO_NUM];
   string kernels_md5[PSO_NUM];
@@ -43,10 +41,7 @@ class MetalDevice : public Device {
   bool use_metalrt = false;
   bool motion_blur = false;
   bool use_pcmi = false;
-  id<MTLArgumentEncoder> mtlASArgEncoder =
-      nil; /* encoder used for fetching device pointers from MTLAccelerationStructure */
 
-  id<MTLArgumentEncoder> mtlBlasArgEncoder = nil;
   id<MTLBuffer> blas_buffer = nil;
 
   API_AVAILABLE(macos(11.0))
@@ -80,13 +75,8 @@ class MetalDevice : public Device {
   /* Bindless Textures */
   bool is_texture(const TextureInfo &tex);
   device_vector<TextureInfo> texture_info;
-  bool need_texture_info = false;
-  id<MTLArgumentEncoder> mtlTextureArgEncoder = nil;
-  id<MTLArgumentEncoder> mtlBufferArgEncoder = nil;
-  id<MTLBuffer> buffer_bindings_1d = nil;
-  id<MTLBuffer> texture_bindings_2d = nil;
-  id<MTLBuffer> texture_bindings_3d = nil;
-  std::vector<id<MTLTexture>> texture_slot_map;
+  id<MTLBuffer> texture_bindings = nil;
+  std::vector<id<MTLResource>> texture_slot_map;
 
   MetalPipelineType kernel_specialization_level = PSO_GENERIC;
 

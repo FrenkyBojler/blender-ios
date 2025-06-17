@@ -14,6 +14,7 @@
 #  include "kernel/device/metal/globals.h"
 
 #  define MAX_SAMPLE_BUFFER_LENGTH 4096
+#  define ANCILLARY_SLOT_COUNT 11
 
 CCL_NAMESPACE_BEGIN
 
@@ -57,7 +58,9 @@ class MetalDeviceQueue : public DeviceQueue {
   id<MTLBlitCommandEncoder> get_blit_encoder();
 
   MetalDevice *metal_device_;
-  MetalBufferPool temp_buffer_pool_;
+
+  /* Argument buffer for static data. */
+  id<MTLBuffer> arg_buffer_ = nil;
 
   API_AVAILABLE(macos(11.0), ios(14.0))
   MTLCommandBufferDescriptor *command_buffer_desc_ = nullptr;

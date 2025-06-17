@@ -38,27 +38,6 @@ struct MetalInfo {
   static string get_device_name(id<MTLDevice> device);
 };
 
-/* Pool of MTLBuffers whose lifetime is linked to a single MTLCommandBuffer */
-class MetalBufferPool {
-  struct MetalBufferListEntry {
-    id<MTLBuffer> buffer;
-    id<MTLCommandBuffer> command_buffer;
-  };
-  std::vector<MetalBufferListEntry> temp_buffers;
-  thread_mutex buffer_mutex;
-  size_t total_temp_mem_size = 0;
-
- public:
-  ~MetalBufferPool();
-
-  id<MTLBuffer> get_buffer(id<MTLDevice> device,
-                           id<MTLCommandBuffer> command_buffer,
-                           NSUInteger length,
-                           const void *pointer,
-                           Stats &stats);
-  void process_command_buffer_completion(id<MTLCommandBuffer> command_buffer);
-};
-
 CCL_NAMESPACE_END
 
 #endif /* WITH_METAL */

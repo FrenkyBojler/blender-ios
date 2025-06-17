@@ -31,6 +31,10 @@ MetalDeviceQueue::MetalDeviceQueue(MetalDevice *device)
     mtlDevice_ = device->mtlDevice;
     mtlCommandQueue_ = device->mtlComputeCommandQueue;
 
+    /* Allocate an argument buffer. */
+    arg_buffer_ = [mtlDevice_ newBufferWithLength:sizeof(KernelParamsMetal) options:MTLResourceStorageModeShared];
+    stats_.mem_alloc(sizeof(KernelParamsMetal));
+
     shared_event_ = [mtlDevice_ newSharedEvent];
     shared_event_id_ = 1;
 
@@ -212,6 +216,9 @@ MetalDeviceQueue::~MetalDeviceQueue()
     [mtlCaptureScope_ release];
   }
 
+  [arg_buffer_ release];
+  stats_.mem_free(sizeof(KernelParamsMetal));
+
   double total_time = 0.0;
 
   /* Show per-kernel timings, if gathered (see CYCLES_METAL_PROFILING). */
@@ -317,10 +324,81 @@ bool MetalDeviceQueue::supports_local_atomic_sort() const
   return metal_device_->use_local_atomic_sort();
 }
 
+void ZeroResource(void* address_in_arg_buffer, int index = 0)
+{
+  uint64_t* pptr = (uint64_t*)address_in_arg_buffer;
+  pptr[index] = 0;  
+}
+
+template <class T> void WriteResource(void* address_in_arg_buffer, T resource, int index = 0)
+{
+  ZeroResource(address_in_arg_buffer, index);
+  if (@available(macos 13.0, *)) {
+    static_assert(sizeof(MTLResourceID) == sizeof(uint64_t), "Bad size assumption");
+    MTLResourceID* pptr = (MTLResourceID*)address_in_arg_buffer;
+    if (resource) {
+      pptr[index] = resource.gpuResourceID;
+    }
+  }
+}
+
+template <> void WriteResource(void* address_in_arg_buffer, id<MTLBuffer> buffer, int index)
+{
+  ZeroResource(address_in_arg_buffer, index);
+  if (@available(macos 13.0, *)) {
+    uint64_t* pptr = (uint64_t*)address_in_arg_buffer;
+    if (buffer) {
+      pptr[index] = buffer.gpuAddress;
+    }
+  }
+}
+
+id<MTLBuffer> PatchResource(void* address_in_arg_buffer, int index = 0)
+{
+  uint64_t* pptr = (uint64_t*)address_in_arg_buffer;
+  if (MetalDevice::MetalMem *mmem = (MetalDevice::MetalMem*)pptr[index]) {
+    WriteResource<id<MTLBuffer>>(address_in_arg_buffer, mmem->mtlBuffer, index);
+    return mmem->mtlBuffer;
+  }
+  return nil;
+}
+
 void MetalDeviceQueue::init_execution()
 {
-  /* Synchronize all textures and memory copies before executing task. */
-  metal_device_->load_texture_info();
+  /* Populate textures, BLAS array, and Synchronize memory copies before executing task. */
+  if (@available(macOS 13.0, *)) {
+
+    /* Populate blas_array. */
+    id<MTLBuffer>& blas_buffer = metal_device_->blas_buffer;
+    if (BVHMetal *bvh_metal = metal_device_->bvh_metal) {
+      MTLResourceID *blas_array = (MTLResourceID*)blas_buffer.contents;
+      for (uint64_t slot = 0; slot < bvh_metal->blas_array.size(); ++slot) {
+        WriteResource(blas_array, bvh_metal->blas_array[slot], slot);
+      }
+    }
+
+    device_vector<TextureInfo>& texture_info = metal_device_->texture_info;
+    id<MTLBuffer>& texture_bindings = metal_device_->texture_bindings;
+    std::vector<id<MTLResource>>& texture_slot_map = metal_device_->texture_slot_map;
+
+    /* Ensure texture_info is allocated before populating. */
+    texture_info.copy_to_device();
+
+    /* Populate texture bindings. */
+    MTLResourceID* bindings = (MTLResourceID*)texture_bindings.contents;
+    memset(bindings, 0, texture_bindings.length);
+    for (int slot = 0; slot < texture_info.size(); ++slot) {
+      if (texture_slot_map[slot]) {
+        if (metal_device_->is_texture(texture_info[slot])) {
+          WriteResource(bindings, id<MTLTexture>(texture_slot_map[slot]), slot);
+        }
+        else {
+          /* The GPU address of a 1D buffer texture is written into the slot data field. */
+          WriteResource(&texture_info[slot].data , id<MTLBuffer>(texture_slot_map[slot]), slot);
+        }
+      }
+    }
+  }
 
   synchronize();
 }
@@ -344,83 +422,6 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
     if (profiling_enabled_) {
       command_encoder_labels_.push_back({kernel, work_size, current_encoder_idx_});
     }
-
-    /* Determine size requirement for argument buffer. */
-    size_t arg_buffer_length = 0;
-    for (size_t i = 0; i < args.count; i++) {
-      size_t size_in_bytes = args.sizes[i];
-      arg_buffer_length = round_up(arg_buffer_length, size_in_bytes) + size_in_bytes;
-    }
-    /* 256 is the Metal offset alignment for constant address space bindings */
-    arg_buffer_length = round_up(arg_buffer_length, 256);
-
-    /* Globals placed after "vanilla" arguments. */
-    size_t globals_offsets = arg_buffer_length;
-    arg_buffer_length += sizeof(KernelParamsMetal);
-    arg_buffer_length = round_up(arg_buffer_length, 256);
-
-    /* Metal ancillary bindless pointers. */
-    size_t metal_offsets = arg_buffer_length;
-    arg_buffer_length += metal_device_->mtlAncillaryArgEncoder.encodedLength;
-    arg_buffer_length = round_up(arg_buffer_length,
-                                 metal_device_->mtlAncillaryArgEncoder.alignment);
-
-    /* Temporary buffer used to prepare arg_buffer */
-    uint8_t *init_arg_buffer = (uint8_t *)alloca(arg_buffer_length);
-    memset(init_arg_buffer, 0, arg_buffer_length);
-
-    /* Prepare the non-pointer "enqueue" arguments */
-    size_t bytes_written = 0;
-    for (size_t i = 0; i < args.count; i++) {
-      size_t size_in_bytes = args.sizes[i];
-      bytes_written = round_up(bytes_written, size_in_bytes);
-      if (args.types[i] != DeviceKernelArguments::POINTER) {
-        memcpy(init_arg_buffer + bytes_written, args.values[i], size_in_bytes);
-      }
-      bytes_written += size_in_bytes;
-    }
-
-    /* Prepare any non-pointer (i.e. plain-old-data) KernelParamsMetal data */
-    /* The plain-old-data is contiguous, continuing to the end of KernelParamsMetal */
-    size_t plain_old_launch_data_offset = offsetof(KernelParamsMetal, integrator_state) +
-                                          offsetof(IntegratorStateGPU, sort_partition_divisor);
-    size_t plain_old_launch_data_size = sizeof(KernelParamsMetal) - plain_old_launch_data_offset;
-    memcpy(init_arg_buffer + globals_offsets + plain_old_launch_data_offset,
-           (uint8_t *)&metal_device_->launch_params + plain_old_launch_data_offset,
-           plain_old_launch_data_size);
-
-    /* Allocate an argument buffer. */
-    id<MTLBuffer> arg_buffer = temp_buffer_pool_.get_buffer(
-        mtlDevice_, mtlCommandBuffer_, arg_buffer_length, init_arg_buffer, stats_);
-
-    /* Encode the pointer "enqueue" arguments */
-    bytes_written = 0;
-    for (size_t i = 0; i < args.count; i++) {
-      size_t size_in_bytes = args.sizes[i];
-      bytes_written = round_up(bytes_written, size_in_bytes);
-      if (args.types[i] == DeviceKernelArguments::POINTER) {
-        [metal_device_->mtlBufferKernelParamsEncoder setArgumentBuffer:arg_buffer
-                                                                offset:bytes_written];
-        if (MetalDevice::MetalMem *mmem = *(MetalDevice::MetalMem **)args.values[i]) {
-          [mtlComputeCommandEncoder useResource:mmem->mtlBuffer
-                                          usage:MTLResourceUsageRead | MTLResourceUsageWrite];
-          [metal_device_->mtlBufferKernelParamsEncoder setBuffer:mmem->mtlBuffer
-                                                          offset:0
-                                                         atIndex:0];
-        }
-        else {
-          if (@available(macos 12.0, *)) {
-            [metal_device_->mtlBufferKernelParamsEncoder setBuffer:nil offset:0 atIndex:0];
-          }
-        }
-      }
-      bytes_written += size_in_bytes;
-    }
-
-    /* Encode KernelParamsMetal buffers */
-    [metal_device_->mtlBufferKernelParamsEncoder setArgumentBuffer:arg_buffer
-                                                            offset:globals_offsets];
-
     if (label_command_encoders_) {
       /* Add human-readable labels if we're doing any form of debugging / profiling. */
       mtlComputeCommandEncoder.label = [NSString
@@ -429,28 +430,6 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
                            work_size];
     }
 
-    /* this relies on IntegratorStateGPU layout being contiguous device_ptrs. */
-    const size_t pointer_block_end = offsetof(KernelParamsMetal, integrator_state) +
-                                     offsetof(IntegratorStateGPU, sort_partition_divisor);
-    for (size_t offset = 0; offset < pointer_block_end; offset += sizeof(device_ptr)) {
-      int pointer_index = int(offset / sizeof(device_ptr));
-      MetalDevice::MetalMem *mmem = *(
-          MetalDevice::MetalMem **)((uint8_t *)&metal_device_->launch_params + offset);
-      if (mmem && mmem->mem && (mmem->mtlBuffer || mmem->mtlTexture)) {
-        [metal_device_->mtlBufferKernelParamsEncoder setBuffer:mmem->mtlBuffer
-                                                        offset:0
-                                                       atIndex:pointer_index];
-      }
-      else {
-        if (@available(macos 12.0, *)) {
-          [metal_device_->mtlBufferKernelParamsEncoder setBuffer:nil
-                                                          offset:0
-                                                         atIndex:pointer_index];
-        }
-      }
-    }
-    bytes_written = globals_offsets + sizeof(KernelParamsMetal);
-
     if (!active_pipelines_[kernel].update(metal_device_, kernel)) {
       metal_device_->set_error(
           string_printf("Could not activate pipeline for %s\n", device_kernel_as_string(kernel)));
@@ -458,50 +437,70 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
     }
     MetalDispatchPipeline &active_pipeline = active_pipelines_[kernel];
 
-    /* Encode ancillaries */
-    [metal_device_->mtlAncillaryArgEncoder setArgumentBuffer:arg_buffer offset:metal_offsets];
-    [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->texture_bindings_2d
-                                              offset:0
-                                             atIndex:0];
-    [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->texture_bindings_3d
-                                              offset:0
-                                             atIndex:1];
-    [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->buffer_bindings_1d
-                                              offset:0
-                                             atIndex:2];
+    uint8_t dynamic_args[512] = {0};
 
-    if (@available(macos 12.0, *)) {
-      if (metal_device_->use_metalrt && device_kernel_has_intersection(kernel)) {
-        if (id<MTLAccelerationStructure> accel_struct = metal_device_->accel_struct) {
-          [metal_device_->mtlAncillaryArgEncoder setAccelerationStructure:accel_struct atIndex:3];
-          [metal_device_->mtlAncillaryArgEncoder setBuffer:metal_device_->blas_buffer
-                                                    offset:0
-                                                   atIndex:(METALRT_TABLE_NUM + 4)];
-        }
-
-        for (int table = 0; table < METALRT_TABLE_NUM; table++) {
-          if (active_pipeline.intersection_func_table[table]) {
-            [active_pipeline.intersection_func_table[table] setBuffer:arg_buffer
-                                                               offset:globals_offsets
-                                                              atIndex:1];
-            [metal_device_->mtlAncillaryArgEncoder
-                setIntersectionFunctionTable:active_pipeline.intersection_func_table[table]
-                                     atIndex:4 + table];
-            [mtlComputeCommandEncoder useResource:active_pipeline.intersection_func_table[table]
-                                            usage:MTLResourceUsageRead];
-          }
-          else {
-            [metal_device_->mtlAncillaryArgEncoder setIntersectionFunctionTable:nil
-                                                                        atIndex:4 + table];
-          }
+    /* Prepare the dynamic "enqueue" arguments */
+    size_t dynamic_bytes_written = 0;
+    for (size_t i = 0; i < args.count; i++) {
+      size_t size_in_bytes = args.sizes[i];
+      dynamic_bytes_written = round_up(dynamic_bytes_written, size_in_bytes);
+      memcpy(dynamic_args + dynamic_bytes_written, args.values[i], size_in_bytes);
+      if (args.types[i] == DeviceKernelArguments::POINTER) {
+        if (id<MTLBuffer> buffer = PatchResource(dynamic_args + dynamic_bytes_written)) {
+          [mtlComputeCommandEncoder useResource:buffer
+                                          usage:MTLResourceUsageRead | MTLResourceUsageWrite];
         }
       }
-      bytes_written = metal_offsets + metal_device_->mtlAncillaryArgEncoder.encodedLength;
+      dynamic_bytes_written += size_in_bytes;
     }
 
-    [mtlComputeCommandEncoder setBuffer:arg_buffer offset:0 atIndex:0];
-    [mtlComputeCommandEncoder setBuffer:arg_buffer offset:globals_offsets atIndex:1];
-    [mtlComputeCommandEncoder setBuffer:arg_buffer offset:metal_offsets atIndex:2];
+    /* Check that the dynamic args didn't overflow too much, and that we have enough room for the ancillary data . */
+    assert (dynamic_bytes_written <= 256);
+    assert (256 + ANCILLARY_SLOT_COUNT * sizeof(uint64_t) <= sizeof(dynamic_args));
+
+    uint8_t* ancillary_args = dynamic_args + 256;
+    uint8_t* launch_params = (uint8_t*)arg_buffer_.contents;
+
+    /* Copy all of KernelParamsMetal into the arg buffer... */
+    memcpy(launch_params, &metal_device_->launch_params, sizeof(KernelParamsMetal));
+
+    /* Patch up the pointers. */
+    size_t plain_old_launch_data_offset = offsetof(KernelParamsMetal, integrator_state) + offsetof(IntegratorStateGPU, sort_partition_divisor);
+    for (size_t offset = 0; offset < plain_old_launch_data_offset; offset += sizeof(device_ptr)) {
+      PatchResource(launch_params + offset);
+    }
+
+    /* Encode ancillaries */
+    int ancillary_index = 0;
+    WriteResource(ancillary_args, metal_device_->texture_bindings, ancillary_index++);
+
+    if (metal_device_->use_metalrt) {
+      WriteResource(ancillary_args, metal_device_->accel_struct, ancillary_index++);
+      WriteResource(ancillary_args, metal_device_->blas_buffer, ancillary_index++);
+
+      /* Write the intersection function table. */
+      for (int table_idx=0; table_idx<METALRT_TABLE_NUM; table_idx++) {
+        WriteResource(ancillary_args, active_pipeline.intersection_func_table[table_idx], ancillary_index++);
+      }
+      assert(ancillary_index == ANCILLARY_SLOT_COUNT);
+    }
+
+    /* Encode ancillaries */
+    if (metal_device_->use_metalrt) {
+      for (int table = 0; table < METALRT_TABLE_NUM; table++) {
+        if (active_pipeline.intersection_func_table[table]) {
+          [active_pipeline.intersection_func_table[table] setBuffer:arg_buffer_
+                                                             offset:0
+                                                            atIndex:1];
+          [mtlComputeCommandEncoder useResource:active_pipeline.intersection_func_table[table]
+                                          usage:MTLResourceUsageRead];
+        }
+      }
+    }
+
+    [mtlComputeCommandEncoder setBytes:dynamic_args length:dynamic_bytes_written atIndex:0];
+    [mtlComputeCommandEncoder setBuffer:arg_buffer_ offset:0 atIndex:1];
+    [mtlComputeCommandEncoder setBytes:ancillary_args length:ANCILLARY_SLOT_COUNT*sizeof(uint64_t) atIndex:2];
 
     if (metal_device_->use_metalrt && device_kernel_has_intersection(kernel)) {
       if (@available(macos 12.0, *)) {
@@ -585,7 +584,7 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
     if (verbose_tracing_ || is_capturing_) {
       /* Force a sync we've enabled step-by-step verbose tracing or if we're capturing. */
       synchronize();
-
+  
       /* Show queue counters and dispatch timing. */
       if (verbose_tracing_) {
         if (kernel == DEVICE_KERNEL_INTEGRATOR_RESET) {
@@ -671,7 +670,6 @@ bool MetalDeviceQueue::synchronize()
 
       [mtlCommandBuffer_ release];
 
-      temp_buffer_pool_.process_command_buffer_completion(mtlCommandBuffer_);
       metal_device_->flush_delayed_free_list();
 
       mtlCommandBuffer_ = nil;
@@ -766,9 +764,7 @@ void MetalDeviceQueue::prepare_resources(DeviceKernel /*kernel*/)
   }
 
   /* ancillaries */
-  [mtlComputeEncoder_ useResource:metal_device_->texture_bindings_2d usage:MTLResourceUsageRead];
-  [mtlComputeEncoder_ useResource:metal_device_->texture_bindings_3d usage:MTLResourceUsageRead];
-  [mtlComputeEncoder_ useResource:metal_device_->buffer_bindings_1d usage:MTLResourceUsageRead];
+  [mtlComputeEncoder_ useResource:metal_device_->texture_bindings usage:MTLResourceUsageRead];
 }
 
 id<MTLComputeCommandEncoder> MetalDeviceQueue::get_compute_encoder(DeviceKernel kernel)
