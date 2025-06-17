@@ -1125,8 +1125,8 @@ const float *BKE_brush_color_get(const Paint *paint, const Brush *brush)
 }
 
 /** Get color jitter settings if enabled. */
-std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(
-    const Paint *paint, const Brush *brush)
+std::optional<BrushColorJitterSettings> BKE_brush_color_jitter_get_settings(const Paint *paint,
+                                                                            const Brush *brush)
 {
   if (BKE_paint_use_unified_color(paint)) {
     if ((paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR_JITTER) == 0) {

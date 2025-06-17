@@ -139,7 +139,6 @@ static void apply_unified_paint_settings_to_all_modes(Scene &scene)
   apply_to_paint(reinterpret_cast<Paint *>(&scene.toolsettings->imapaint));
 }
 
-
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
