@@ -327,7 +327,7 @@ void AbstractHierarchyIterator::export_graph_construct()
         dupli_parent_finder.insert(&dupli_object);
       }
 
-      for (DupliObject &dupli_object : duplilist) {
+      for (const DupliObject &dupli_object : duplilist) {
         if (!should_visit_dupli_object(&dupli_object)) {
           continue;
         }
@@ -466,7 +466,7 @@ ObjectIdentifier AbstractHierarchyIterator::determine_graph_index_object(
   return ObjectIdentifier::for_real_object(context->export_parent);
 }
 
-void AbstractHierarchyIterator::visit_dupli_object(DupliObject *dupli_object,
+void AbstractHierarchyIterator::visit_dupli_object(const DupliObject *dupli_object,
                                                    Object *duplicator,
                                                    const DupliParentFinder &dupli_parent_finder)
 {

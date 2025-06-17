@@ -299,7 +299,7 @@ class AbstractHierarchyIterator {
   void export_graph_clear();
 
   void visit_object(Object *object, Object *export_parent, bool weak_export);
-  void visit_dupli_object(DupliObject *dupli_object,
+  void visit_dupli_object(const DupliObject *dupli_object,
                           Object *duplicator,
                           const DupliParentFinder &dupli_parent_finder);
 
