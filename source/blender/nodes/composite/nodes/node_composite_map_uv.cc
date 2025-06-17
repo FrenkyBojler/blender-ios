@@ -182,7 +182,6 @@ class MapUVOperation : public NodeOperation {
     const Result &input_uv = get_input("UV");
 
     const Domain domain = compute_domain();
-    const Interpolation interpolation = this->get_interpolation();
     Result &output_image = get_result("Image");
     output_image.allocate_texture(domain);
 
