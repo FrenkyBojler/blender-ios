@@ -1,2 +1,3 @@
 Referenced by issue #102620, Combine color node: Wrong labels in material properties tab when mode is other than RGB
 Referenced by pull request #135376, Nodes: Remove legacy combine/separate nodes
+Referenced by commit b561c78f9317079a044e37ab6bb41d195678e90a, Nodes: Remove legacy combine/separate nodes
