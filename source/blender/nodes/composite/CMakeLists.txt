@@ -74,12 +74,8 @@ set(SRC
   nodes/node_composite_lensdist.cc
   nodes/node_composite_levels.cc
   nodes/node_composite_luma_matte.cc
-  nodes/node_composite_map_range.cc
   nodes/node_composite_map_uv.cc
-  nodes/node_composite_map_value.cc
   nodes/node_composite_mask.cc
-  nodes/node_composite_math.cc
-  nodes/node_composite_mixrgb.cc
   nodes/node_composite_movieclip.cc
   nodes/node_composite_moviedistortion.cc
   nodes/node_composite_normal.cc
@@ -96,7 +92,6 @@ set(SRC
   nodes/node_composite_sepcomb_color.cc
   nodes/node_composite_sepcomb_hsva.cc
   nodes/node_composite_sepcomb_rgba.cc
-  nodes/node_composite_sepcomb_xyz.cc
   nodes/node_composite_sepcomb_ycca.cc
   nodes/node_composite_sepcomb_yuva.cc
   nodes/node_composite_setalpha.cc
