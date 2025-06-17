@@ -346,7 +346,7 @@ static void node_buts_image_user(uiLayout *layout,
 
     /* Avoid losing changes image is painted. */
     if (BKE_image_is_dirty((Image *)imaptr->data)) {
-      uiLayoutSetEnabled(split, false);
+      split->enabled_set(false);
     }
   }
 }
@@ -638,9 +638,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_TEXTURE:
       ntype->draw_buttons = node_buts_texture;
-      break;
-    case CMP_NODE_MATH:
-      ntype->draw_buttons = node_buts_math;
       break;
     case CMP_NODE_HUECORRECT:
       ntype->draw_buttons = node_composit_buts_huecorrect;
