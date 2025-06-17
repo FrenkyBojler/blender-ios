@@ -75,7 +75,6 @@ set(SRC
   intern/draw_gpu_context.cc
   intern/draw_hair.cc
   intern/draw_manager.cc
-  intern/draw_manager_shader.cc
   intern/draw_manager_text.cc
   intern/draw_pbvh.cc
   intern/draw_pointcloud.cc
@@ -248,7 +247,6 @@ set(SRC
   engines/overlay/overlay_camera.hh
   engines/overlay/overlay_cursor.hh
   engines/overlay/overlay_curve.hh
-  engines/overlay/overlay_text.hh
   engines/overlay/overlay_empty.hh
   engines/overlay/overlay_engine.h
   engines/overlay/overlay_facing.hh
@@ -277,6 +275,7 @@ set(SRC
   engines/overlay/overlay_relation.hh
   engines/overlay/overlay_sculpt.hh
   engines/overlay/overlay_speaker.hh
+  engines/overlay/overlay_text.hh
   engines/overlay/overlay_wireframe.hh
   engines/overlay/overlay_xray_fade.hh
   engines/select/select_defines.hh

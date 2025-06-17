@@ -486,9 +486,10 @@ void AbstractTreeViewItem::add_indent(uiLayout &row) const
 
   uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
 
-  /* Indent items without collapsing icon some more within their parent. Makes it clear that they
-   * are actually nested and not just a row at the same level without a chevron. */
-  if (!this->is_collapsible()) {
+  const bool is_flat_list = root_ && root_->is_flat_;
+  if (!is_flat_list && !this->is_collapsible()) {
+    /* Indent items without collapsing icon some more within their parent. Makes it clear that they
+     * are actually nested and not just a row at the same level without a chevron. */
     uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, UI_TREEVIEW_INDENT, 0, nullptr, 0.0, 0.0, "");
   }
 
@@ -931,6 +932,9 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   }
   else {
     item.build_row(*row);
+    if (item.is_active_) {
+      ui_layout_list_set_labels_active(row);
+    }
   }
 
   uiLayoutListItemAddPadding(row);
@@ -998,7 +1002,9 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
 
   TreeViewLayoutBuilder builder(layout);
   builder.add_box_ = add_box;
+  UI_block_flag_enable(&block, UI_BLOCK_LIST_ITEM);
   builder.build_from_tree(tree_view);
+  UI_block_flag_disable(&block, UI_BLOCK_LIST_ITEM);
 }
 
 /* ---------------------------------------------------------------------- */

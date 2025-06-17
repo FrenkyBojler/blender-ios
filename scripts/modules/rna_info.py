@@ -487,8 +487,11 @@ class InfoPropertyRNA:
 
         if self.is_path_supports_templates:
             type_info.append(
-                "Supports `template expressions <https://docs.blender.org/manual/en/{:d}.{:d}/files/file_paths.html#path-templates>`_".format(
-                    *bpy.app.version[:2]))
+                "Supports `template expressions "
+                "<https://docs.blender.org/manual/en/{:d}.{:d}/files/file_paths.html#path-templates>`_".format(
+                    *bpy.app.version[:2],
+                ),
+            )
 
         if type_info:
             type_str += ", ({:s})".format(", ".join(type_info))
@@ -682,10 +685,12 @@ def BuildRNAInfo():
     def _bpy_types_iterator():
         # Don't report when these types are ignored.
         suppress_warning = {
+            "GeometrySet",
             "bpy_func",
             "bpy_prop",
             "bpy_prop_array",
             "bpy_prop_collection",
+            "bpy_prop_collection_idprop",
             "bpy_struct",
             "bpy_struct_meta_idprop",
         }
@@ -708,7 +713,7 @@ def BuildRNAInfo():
                 print("rna_info.BuildRNAInfo(..): ignoring type", repr(rna_type_name))
 
         # Now, there are some sub-classes in add-ons we also want to include.
-        # Cycles for e.g. these are referenced from the Scene, but not part of
+        # Cycles for example. These are referenced from the Scene, but not part of
         # bpy.types module.
         # Include all sub-classes we didn't already get from 'bpy.types'.
         i = 0

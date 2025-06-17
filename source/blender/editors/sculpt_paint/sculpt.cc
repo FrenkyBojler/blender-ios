@@ -4039,6 +4039,9 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
+  if (BKE_brush_color_jitter_get_settings(CTX_data_scene(C), &sd.paint, brush)) {
+    cache->initial_hsv_jitter = seed_hsv_jitter();
+  }
   cache->first_time = true;
   cache->plane_brush.first_time = true;
 
@@ -7096,7 +7099,7 @@ void calc_brush_cube_distances(const Brush &brush,
     const T local = math::abs(positions[i]);
 
     if (math::reduce_max(local) > 1.0f) {
-      r_distances[i] = std::numeric_limits<float>::max();
+      r_distances[i] = 1.0f;
       continue;
     }
     if (std::min(local.x, local.y) > hardness) {
@@ -7223,11 +7226,19 @@ void reset_translations_to_original(const MutableSpan<float3> translations,
   }
 }
 
+#ifndef NDEBUG
+static bool contains_nan(const Span<float> values)
+{
+  return std::any_of(values.begin(), values.end(), [&](const float v) { return std::isnan(v); });
+}
+#endif
+
 void apply_translations(const Span<float3> translations,
                         const Span<int> verts,
                         const MutableSpan<float3> positions)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
@@ -7242,6 +7253,7 @@ void apply_translations(const Span<float3> translations,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   MutableSpan<float3> positions = subdiv_ccg.positions;
   BLI_assert(grids.size() * key.grid_area == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   for (const int i : grids.index_range()) {
     const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
@@ -7255,6 +7267,7 @@ void apply_translations(const Span<float3> translations,
 void apply_translations(const Span<float3> translations, const Set<BMVert *, 0> &verts)
 {
   BLI_assert(verts.size() == translations.size());
+  BLI_assert(!contains_nan(translations.cast<float>()));
 
   int i = 0;
   for (BMVert *vert : verts) {

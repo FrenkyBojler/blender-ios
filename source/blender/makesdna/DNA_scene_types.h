@@ -176,8 +176,7 @@ typedef struct AudioData {
 typedef struct SceneRenderLayer {
   struct SceneRenderLayer *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64] DNA_DEPRECATED;
+  char name[/*MAX_NAME*/ 64] DNA_DEPRECATED;
 
   /** Converted to ViewLayer setting. */
   struct Material *mat_override DNA_DEPRECATED;
@@ -322,10 +321,8 @@ typedef enum eScenePassType {
 typedef struct SceneRenderView {
   struct SceneRenderView *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64];
-  /** MAX_NAME. */
-  char suffix[64];
+  char name[/*MAX_NAME*/ 64];
+  char suffix[/*MAX_NAME*/ 64];
 
   int viewflag;
   char _pad2[4];
@@ -588,8 +585,7 @@ enum {
 typedef struct BakeData {
   struct ImageFormatData im_format;
 
-  /** FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   short width, height;
   short margin, flag;
@@ -794,10 +790,11 @@ typedef struct RenderData {
   char _pad9[6];
   float bake_biasdist, bake_user_scale;
 
-  /* Path to render output. */
-  /** 1024 = FILE_MAX. */
-  /* NOTE: Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code. */
-  char pic[1024];
+  /**
+   *  Path to render output.
+   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   */
+  char pic[/*FILE_MAX*/ 1024];
 
   /** Stamps flags. */
   int stamp;
@@ -1429,6 +1426,15 @@ typedef struct UnifiedPaintSettings {
   /** Unified brush secondary color. */
   float secondary_rgb[3];
 
+  /** Unified color jitter settings */
+  int color_jitter_flag;
+  float hsv_jitter[3];
+
+  /** Color jitter pressure curves. */
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
+
   /** Unified brush stroke input samples. */
   int input_samples;
 
@@ -1499,20 +1505,6 @@ typedef struct UnifiedPaintSettings {
   /** ColorSpace cache to avoid locking up during sampling. */
   const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
-
-/** #UnifiedPaintSettings::flag */
-typedef enum {
-  UNIFIED_PAINT_SIZE = (1 << 0),
-  UNIFIED_PAINT_ALPHA = (1 << 1),
-  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
-  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
-  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
-  UNIFIED_PAINT_WEIGHT = (1 << 5),
-  UNIFIED_PAINT_COLOR = (1 << 6),
-  UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-
-} eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {
   char curve_type;
@@ -1675,7 +1667,7 @@ typedef struct ToolSettings {
    * This isn't all that useful in practice, so use a "default" name instead.
    * This approach may be reworked after gathering feedback from users.
    */
-  char uvcalc_weight_group[64]; /* MAX_VGROUP_NAME */
+  char uvcalc_weight_group[/*MAX_VGROUP_NAME*/ 64];
 
   /* Auto-IK. */
   /** Runtime only. */

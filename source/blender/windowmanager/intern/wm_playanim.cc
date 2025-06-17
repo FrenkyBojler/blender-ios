@@ -1005,7 +1005,7 @@ static void build_pict_list(ListBase &picsbase,
 {
   *loading_p = true;
 
-  /* NOTE(@ideasman42): When loading many files (expanded from shell globing for e.g.)
+  /* NOTE(@ideasman42): When loading many files (e.g. expanded from shell globing)
    * it's important the frame number increases each time. Otherwise playing `*.png`
    * in a directory will expand into many arguments, each calling this function adding
    * a frame that's set to zero. */
@@ -2015,6 +2015,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {
@@ -2148,6 +2149,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   /* NOTE: Must happen before GPU Context destruction as GPU resources are released via
    * Color Management module. */
   IMB_exit();
+  MOV_exit();
 
   if (ps.ghost_data.gpu_context) {
     GPU_context_active_set(ps.ghost_data.gpu_context);

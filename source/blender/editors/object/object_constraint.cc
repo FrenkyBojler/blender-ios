@@ -2187,6 +2187,11 @@ static bool get_new_constraint_target(
       only_ob = true;
       add = false;
       break;
+
+    /* Armature only. */
+    case CONSTRAINT_TYPE_ARMATURE:
+      add = false;
+      break;
   }
 
   /* if the active Object is Armature, and we can search for bones, do so... */
@@ -2335,6 +2340,18 @@ static wmOperatorStatus constraint_add_exec(
 
     /* get the target objects, adding them as need be */
     if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, true)) {
+
+      /* Armature constraints dont have a target by default, add one. */
+      if (type == CONSTRAINT_TYPE_ARMATURE) {
+        bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
+        bConstraintTarget *ct = MEM_callocN<bConstraintTarget>("Constraint Target");
+
+        ct->weight = 1.0f;
+        BLI_addtail(&acon->targets, ct);
+
+        constraint_dependency_tag_update(bmain, ob, con);
+      }
+
       /* Method of setting target depends on the type of target we've got - by default,
        * just set the first target (distinction here is only for multiple-targeted constraints).
        */
@@ -2585,20 +2602,20 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      * - the only thing that matters is that we want a target...
      */
     if (tar_pchan) {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Bone"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Bone"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Object"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-    uiItemBooleanO(
-        layout, IFACE_("To New Empty Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
-    uiItemBooleanO(
-        layout, IFACE_("Without Targets"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 0);
+    PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To New Empty Object"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", true);
+    op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Targets"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */

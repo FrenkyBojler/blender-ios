@@ -78,7 +78,8 @@ bool transdata_check_local_islands(TransInfo *t, short around)
   if (t->options & (CTX_CURSOR | CTX_TEXTURE_SPACE)) {
     return false;
   }
-  return ((around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->obedit_type, OB_MESH));
+  return ((around == V3D_AROUND_LOCAL_ORIGINS) &&
+          ELEM(t->obedit_type, OB_MESH, OB_GREASE_PENCIL, OB_CURVES));
 }
 
 /** \} */
@@ -771,7 +772,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Move", ""},
       {TFM_MODAL_VERT_EDGE_SLIDE, "VERT_EDGE_SLIDE", 0, "Vert/Edge Slide", ""},
       {TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
-      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "TrackBall", ""},
+      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "Trackball", ""},
       {TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
       {TFM_MODAL_ROTATE_NORMALS, "ROTATE_NORMALS", 0, "Rotate Normals", ""},
       {TFM_MODAL_AUTOCONSTRAINT, "AUTOCONSTRAIN", 0, "Automatic Constraint", ""},

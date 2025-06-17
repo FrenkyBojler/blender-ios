@@ -1753,7 +1753,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      const int x1 = area->winx - (AREAMINX * UI_SCALE_FAC);
+      const int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
         *bigger = min_ii(*bigger, x1);
@@ -4747,12 +4747,9 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
        lastop = lastop->prev, i--)
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
-      uiItemIntO(layout,
-                 WM_operatortype_name(lastop->type, lastop->ptr).c_str(),
-                 ICON_NONE,
-                 op->type->idname,
-                 "index",
-                 i);
+      PointerRNA op_ptr = layout->op(
+          op->type, WM_operatortype_name(lastop->type, lastop->ptr), ICON_NONE);
+      RNA_int_set(&op_ptr, "index", i);
     }
   }
 
@@ -5139,7 +5136,7 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Expand/Collapse Header Menus";
   ot->idname = "SCREEN_OT_header_toggle_menus";
-  ot->description = "Expand or collapse the header pulldown menus";
+  ot->description = "Expand or collapse the header pull-down menus";
 
   /* API callbacks. */
   ot->exec = header_toggle_menus_exec;
@@ -6093,7 +6090,7 @@ static std::string userpref_show_get_description(bContext *C,
       return fmt::format(fmt::runtime(TIP_("Show {} preferences")), section_name);
     }
   }
-  /* Fallback to default. */
+  /* Fall back to default. */
   return "";
 }
 

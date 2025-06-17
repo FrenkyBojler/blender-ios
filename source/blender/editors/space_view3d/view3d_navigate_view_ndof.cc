@@ -66,6 +66,22 @@ static bool ndof_has_rotate(const wmNDOFMotionData *ndof, const RegionView3D *rv
 }
 
 /**
+ * Return true when `rv3d` should use the navigation preference.
+ *
+ * Views which enforce 2D behavior, typically where rotation is disabled should return false.
+ * (camera views and axis-aligned quad views for example).
+ */
+static bool view3d_ndof_use_navigation_mode(const RegionView3D *rv3d)
+{
+  /* Note that there is no need to check orthographic-axis-aligned views
+   * as these are rotation locked too. */
+  if (rv3d->viewlock & RV3D_LOCK_ROTATION) {
+    return false;
+  }
+  return true;
+}
+
+/**
  * \param depth_pt: A point to calculate the depth (in perspective mode)
  */
 static float view3d_ndof_pan_speed_calc_ex(RegionView3D *rv3d, const float depth_pt[3])
@@ -101,7 +117,7 @@ static float view3d_ndof_pan_speed_calc_from_dist(RegionView3D *rv3d, const floa
 static float view3d_ndof_pan_speed_calc(RegionView3D *rv3d)
 {
   float tvec[3];
-  if ((U.ndof_flag & NDOF_MODE_ORBIT) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
+  if (NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) && (U.ndof_flag & NDOF_ORBIT_CENTER_AUTO) &&
       (rv3d->ndof_flag & RV3D_NDOF_OFS_IS_VALID))
   {
     negate_v3_v3(tvec, rv3d->ndof_ofs);
@@ -128,12 +144,21 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   float view_inv[4];
   float pan_vec[3];
+  float pan_vec_no_navigation[3];
 
   if (has_translate == false && has_zoom == false) {
     return;
   }
 
-  WM_event_ndof_pan_get(ndof, pan_vec, false);
+  WM_event_ndof_pan_get(ndof, pan_vec_no_navigation);
+  negate_v3(pan_vec_no_navigation);
+
+  if (view3d_ndof_use_navigation_mode(rv3d)) {
+    WM_event_ndof_pan_get_for_navigation(ndof, pan_vec);
+  }
+  else {
+    copy_v3_v3(pan_vec, pan_vec_no_navigation);
+  }
 
   if (has_zoom) {
     /* zoom with Z */
@@ -147,12 +172,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData *ndof,
 
     /* "zoom in" or "translate"? depends on zoom mode in user settings? */
     if (ndof->tvec[2]) {
-      float zoom_distance = rv3d->dist * ndof->dt * ndof->tvec[2];
-
-      if (U.ndof_flag & NDOF_ZOOM_INVERT) {
-        zoom_distance = -zoom_distance;
-      }
-
+      float zoom_distance = rv3d->dist * ndof->dt * pan_vec_no_navigation[2];
       rv3d->dist += zoom_distance;
     }
   }
@@ -202,7 +222,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
 
   invert_qt_qt_normalized(view_inv, rv3d->viewquat);
 
-  if (U.ndof_flag & NDOF_TURNTABLE) {
+  if (U.ndof_flag & NDOF_LOCK_HORIZON) {
     float rot[3];
 
     /* Turntable view code adapted for 3D mouse use. */
@@ -211,7 +231,7 @@ static void view3d_ndof_orbit(const wmNDOFMotionData *ndof,
     float yvec[3] = {0, 1, 0};
 
     /* only use XY, ignore Z */
-    WM_event_ndof_rotate_get(ndof, rot);
+    WM_event_ndof_rotate_get_for_navigation(ndof, rot);
 
     /* Determine the direction of the X vector (for rotating up and down). */
     mul_qt_v3(view_inv, xvec);
@@ -301,7 +321,7 @@ void view3d_ndof_fly(const wmNDOFMotionData *ndof,
       speed *= 0.2f;
     }
 
-    WM_event_ndof_pan_get(ndof, trans, false);
+    WM_event_ndof_pan_get(ndof, trans);
     mul_v3_fl(trans, speed * ndof->dt);
     trans_orig_y = trans[1];
 
@@ -600,7 +620,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_zoom = ndof->tvec[2] != 0.0f;
 
   float pan_vec[3];
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
+  WM_event_ndof_pan_get(ndof, pan_vec);
 
   mul_v3_fl(pan_vec, ndof->dt);
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.
@@ -621,8 +641,12 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   bool changed = false;
 
   if (has_translate) {
-    /* Use the X & Y of `pan_vec`. */
-    if (ED_view3d_camera_view_pan(region, pan_vec)) {
+    /* Use the X & Y of `pan_vec`.
+     * Negate while applying the delta time, matches 2D spaces. */
+
+    float pan_2d[2];
+    negate_v2_v2(pan_2d, pan_vec);
+    if (ED_view3d_camera_view_pan(region, pan_2d)) {
       changed = true;
     }
   }
@@ -667,7 +691,7 @@ static wmOperatorStatus ndof_orbit_invoke_impl(bContext *C,
 
   if (ndof->progress != P_FINISHING) {
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
-    /* if we can't rotate, fallback to translate (locked axis views) */
+    /* if we can't rotate, fall back to translate (locked axis views) */
     const bool has_translate = ndof_has_translate(ndof, v3d, rv3d) &&
                                (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION);
     const bool has_zoom = (ndof->tvec[2] != 0.0f) && !rv3d->is_persp;
@@ -772,7 +796,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     }
   }
   else if ((rv3d->persp == RV3D_ORTHO) && RV3D_VIEW_IS_AXIS(rv3d->view)) {
-    /* if we can't rotate, fallback to translate (locked axis views) */
+    /* if we can't rotate, fall back to translate (locked axis views) */
     const bool has_translate = ndof_has_translate(ndof, v3d, rv3d);
     const bool has_zoom = (ndof->tvec[2] != 0.0f) && ED_view3d_offset_lock_check(v3d, rv3d);
 
@@ -785,7 +809,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
     /* NOTE: based on feedback from #67579, users want to have pan and orbit enabled at once.
      * It's arguable that orbit shouldn't pan (since we have a pan only operator),
      * so if there are users who like to separate orbit/pan operations - it can be a preference. */
-    const bool is_orbit_around_pivot = (U.ndof_flag & NDOF_MODE_ORBIT) ||
+    const bool is_orbit_around_pivot = NDOF_IS_ORBIT_AROUND_CENTER_MODE(&U) ||
                                        ED_view3d_offset_lock_check(v3d, rv3d);
     const bool has_rotation = ndof_has_rotate(ndof, rv3d);
     bool has_translate, has_zoom;
@@ -954,15 +978,16 @@ static wmOperatorStatus ndof_all_invoke_impl(bContext *C,
                                              const wmEvent *event,
                                              PointerRNA * /*ptr*/)
 {
-  /* weak!, but it works */
-  const int ndof_flag = U.ndof_flag;
+
   wmOperatorStatus ret;
 
-  U.ndof_flag &= ~NDOF_MODE_ORBIT;
+  /* weak!, but it works */
+  const uint8_t ndof_navigation_mode_backup = U.ndof_navigation_mode;
+  U.ndof_navigation_mode = NDOF_NAVIGATION_MODE_FLY;
 
   ret = ndof_orbit_zoom_invoke_impl(C, vod, event, nullptr);
 
-  U.ndof_flag = ndof_flag;
+  U.ndof_navigation_mode = ndof_navigation_mode_backup;
 
   return ret;
 }
