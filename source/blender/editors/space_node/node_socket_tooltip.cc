@@ -287,12 +287,26 @@ static void build_tooltip_value_float4x4(uiTooltipData &tip_data, const float4x4
   return false;
 }
 
+static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
+                                           const geo_log::StringLog &value_log)
+{
+  std::string value_str = value_log.value;
+  if (value_log.truncated) {
+    value_str += "...";
+  }
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("String"));
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
 {
   if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log)) {
     return build_tooltip_value_generic(tip_data, socket, generic_value_log->value);
+  }
+  if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
+    return build_tooltip_value_string_log(tip_data, *string_value_log);
   }
   return true;
 }
