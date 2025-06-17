@@ -139,6 +139,50 @@ class StructureTypeInferenceTest(unittest.TestCase):
 
         self.assertGrid(node.inputs["grid+grid"])
 
+    def test_requirement_combinations(self):
+        self.load_testfile()
+        tree = bpy.data.node_groups["test_requirement_combinations"]
+
+        node = tree.nodes["Group Input"]
+
+        self.assertDynamic(node.outputs["none"])
+        self.assertDynamic(node.outputs["dynamic"])
+        self.assertSingle(node.outputs["single"])
+        self.assertField(node.outputs["field"])
+        self.assertGrid(node.outputs["grid"])
+
+        self.assertDynamic(node.outputs["none+dynamic"])
+        self.assertSingle(node.outputs["none+single"])
+        self.assertField(node.outputs["none+field"])
+        self.assertGrid(node.outputs["none+grid"])
+
+        self.assertDynamic(node.outputs["dynamic+dynamic"])
+        self.assertSingle(node.outputs["dynamic+single"])
+        self.assertField(node.outputs["dynamic+field"])
+        self.assertGrid(node.outputs["dynamic+grid"])
+
+        self.assertSingle(node.outputs["single+single"])
+        self.assertSingle(node.outputs["single+dynamic"])
+        self.assertSingle(node.outputs["single+field"])
+        self.assertDynamic(node.outputs["single+grid"])
+
+        self.assertField(node.outputs["field+field"])
+        self.assertSingle(node.outputs["field+single"])
+        self.assertField(node.outputs["field+dynamic"])
+        self.assertDynamic(node.outputs["field+grid"])
+
+        self.assertGrid(node.outputs["grid+grid"])
+        self.assertDynamic(node.outputs["grid+single"])
+        self.assertDynamic(node.outputs["grid+field"])
+        self.assertGrid(node.outputs["grid+dynamic"])
+
+        self.assertDynamic(node.outputs["dynamic+single+field"])
+        self.assertDynamic(node.outputs["single+field+grid"])
+        self.assertDynamic(node.outputs["dynamic+field+grid"])
+        self.assertDynamic(node.outputs["dynamic+single+grid"])
+
+        self.assertDynamic(node.outputs["dynamic+single+field+grid"])
+
 
 def main():
     global args
