@@ -225,13 +225,14 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!get_bake_draw_context(C, output_node, ctx)) {
     return;
   }
+  layout->active_set(ctx.is_bakeable_in_current_context);
 
   draw_simulation_state(C, layout, ntree, output_node);
 
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  uiLayoutSetEnabled(layout, ID_IS_EDITABLE(ctx.object));
+  layout->enabled_set(ID_IS_EDITABLE(ctx.object));
 
   {
     uiLayout *col = &layout->column(false);
@@ -864,6 +865,12 @@ static void node_extra_info(NodeExtraInfoParams &params)
   BakeDrawContext ctx;
   if (!get_bake_draw_context(&params.C, params.node, ctx)) {
     return;
+  }
+  if (!ctx.is_bakeable_in_current_context) {
+    NodeExtraInfoRow row;
+    row.text = TIP_("Can't bake in zone");
+    row.icon = ICON_ERROR;
+    params.rows.append(std::move(row));
   }
   if (ctx.is_baked) {
     NodeExtraInfoRow row;
