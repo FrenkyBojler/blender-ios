@@ -726,10 +726,9 @@ class NWMergeNodes(Operator, NWBase):
                             ('ALPHAOVER', ('MIX', ), selected_alphaover),
                             ('BOOLEAN', (''), selected_boolean),
                     ):
-                        if merge_type == type and mode in types_list and output_type != 'BOOLEAN':
-                            dst.append([i, node.location.x, node.location.y, node.dimensions.x, node.hide])
-                        elif output_type == 'BOOLEAN' and type == 'BOOLEAN':
-                            dst.append([i, node.location.x, node.location.y, node.dimensions.x, node.hide])
+                        if (merge_type == type and mode in types_list and output_type != 'BOOLEAN') or (output_type == 'BOOLEAN' and type == 'BOOLEAN'):
+                            dst.append(
+                                [i, node.location.x, node.location.y, node.dimensions.x, node.hide])
         # When nodes with output kinds 'RGBA' and 'VALUE' are selected at the same time
         # use only 'Mix' nodes for merging.
         # For that we add selected_math list to selected_mix list and clear selected_math.
