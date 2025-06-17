@@ -4948,6 +4948,8 @@ static int rna_raw_access(ReportList *reports,
   int array_len = 0;
   /* Item length. Will always be `1` for non-array properties. */
   int item_len = 0;
+  /* Whether the accessed property is an array or not. */
+  bool is_array;
 
   /* initialize in array, stride assumed 0 in following code */
   in.array = inarray;
@@ -4967,6 +4969,7 @@ static int rna_raw_access(ReportList *reports,
 
     /* check type */
     itemtype = RNA_property_type(itemprop);
+    is_array = RNA_property_array_check(itemprop);
 
     if (!ELEM(itemtype, PROP_BOOLEAN, PROP_INT, PROP_FLOAT, PROP_ENUM)) {
       BKE_report(reports, RPT_ERROR, "Only boolean, int, float, and enum properties supported");
@@ -4975,7 +4978,7 @@ static int rna_raw_access(ReportList *reports,
 
     /* check item array */
     array_len = RNA_property_array_length(&itemptr_base, itemprop);
-    item_len = (array_len == 0) ? 1 : array_len;
+    item_len = is_array ? array_len : 1;
 
     /* dynamic array? need to get length per item */
     if (itemprop->getlength) {
@@ -5059,8 +5062,9 @@ static int rna_raw_access(ReportList *reports,
           iprop = RNA_struct_find_property(&itemptr, propname);
 
           if (iprop) {
+            is_array = RNA_property_array_check(itemprop);
             array_len = rna_property_array_length_all_dimensions(&itemptr, iprop);
-            item_len = (array_len == 0) ? 1 : array_len;
+            item_len = is_array ? array_len : 1;
             itemtype = RNA_property_type(iprop);
           }
           else {
