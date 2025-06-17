@@ -128,6 +128,7 @@ struct uiLayout : uiItem {
   void activate_init_set(bool activate_init);
 
   uiBlock *block() const;
+
   bool enabled() const;
   /**
    * Sets the enabled state of the layout and its items.
