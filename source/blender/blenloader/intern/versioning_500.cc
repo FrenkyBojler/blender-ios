@@ -12,6 +12,7 @@
 #include "DNA_mesh_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_numbers.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -21,6 +22,7 @@
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 
 #include "readfile.hh"
 
@@ -103,7 +105,7 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
 {
   using namespace blender;
 
-  bNodeSocket *factor_input = blender::bke::node_find_socket(*node, SOCK_IN, "Factor");
+  bNodeSocket *factor_input = bke::node_find_socket(*node, SOCK_IN, "Factor");
   float factor = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
   bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
@@ -123,7 +125,8 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
 
   switch (node->custom2) {
     case CMP_NODE_SPLIT_HORIZONTAL: {
-      rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = -M_PI_2;
+      rotation_input->default_value_typed<bNodeSocketValueFloat>()->value =
+          -math::numbers::pi_v<float> / 2.0f;
       position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = factor;
       /* The y-coordinate doesn't matter in this case, so set the value to 0.5 so that the gizmo
        * appears nicely at the center.*/
