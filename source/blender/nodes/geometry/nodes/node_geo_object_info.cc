@@ -68,9 +68,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const bool self_transform_evaluated = DEG_object_transform_is_evaluated(*self_object);
-  const bool object_transform_evaluated = DEG_object_transform_is_evaluated(*object);
-  const bool object_geometry_evaluated = DEG_object_geometry_is_evaluated(*object);
+  const bool self_transform_evaluated = false;
+  const bool object_transform_evaluated = false;
+  const bool object_geometry_evaluated = false;
 
   float4x4 output_transform = float4x4::identity();
   bool show_transform_error = false;
