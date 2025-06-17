@@ -1245,6 +1245,7 @@ void MetalDevice::free_bvh()
     [blas release];
   }
   unique_blas_array.clear();
+  blas_array.clear();
 
   if (blas_buffer) {
     [blas_buffer release];
@@ -1271,6 +1272,7 @@ void MetalDevice::update_bvh(BVHMetal *bvh_metal)
 
   accel_struct = bvh_metal->accel_struct;
   unique_blas_array = bvh_metal->unique_blas_array;
+  blas_array = bvh_metal->blas_array;
 
   [accel_struct retain];
   for (id<MTLAccelerationStructure> &blas : unique_blas_array) {
@@ -1278,7 +1280,7 @@ void MetalDevice::update_bvh(BVHMetal *bvh_metal)
   }
 
   // Allocate required buffers for BLAS array.
-  uint64_t buffer_size = bvh_metal->blas_array.size() * sizeof(uint64_t);
+  uint64_t buffer_size = blas_array.size() * sizeof(uint64_t);
   blas_buffer = [mtlDevice newBufferWithLength:buffer_size options:MTLResourceStorageModeShared];
   stats.mem_alloc(blas_buffer.allocatedSize);
 }

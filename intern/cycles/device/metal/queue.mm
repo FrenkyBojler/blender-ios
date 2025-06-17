@@ -365,16 +365,12 @@ id<MTLBuffer> PatchResource(void* address_in_arg_buffer, int index = 0)
 
 void MetalDeviceQueue::init_execution()
 {
-  /* Populate textures, BLAS array, and Synchronize memory copies before executing task. */
+  /* Populate textures, BLAS array, and synchronize memory copies before executing task. */
   if (@available(macOS 13.0, *)) {
-
     /* Populate blas_array. */
-    id<MTLBuffer>& blas_buffer = metal_device_->blas_buffer;
-    if (BVHMetal *bvh_metal = metal_device_->bvh_metal) {
-      MTLResourceID *blas_array = (MTLResourceID*)blas_buffer.contents;
-      for (uint64_t slot = 0; slot < bvh_metal->blas_array.size(); ++slot) {
-        WriteResource(blas_array, bvh_metal->blas_array[slot], slot);
-      }
+    MTLResourceID *blas_array = (MTLResourceID*)metal_device_->blas_buffer.contents;
+    for (uint64_t slot = 0; slot < metal_device_->blas_array.size(); ++slot) {
+      WriteResource(blas_array, metal_device_->blas_array[slot], slot);
     }
 
     device_vector<TextureInfo>& texture_info = metal_device_->texture_info;

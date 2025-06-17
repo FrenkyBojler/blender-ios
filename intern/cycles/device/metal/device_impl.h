@@ -22,8 +22,6 @@ class DeviceQueue;
 
 class MetalDevice : public Device {
  public:
-  BVHMetal *bvh_metal = nullptr;
-
   id<MTLDevice> mtlDevice = nil;
   id<MTLLibrary> mtlLibrary[PSO_NUM] = {nil};
   id<MTLCommandQueue> mtlComputeCommandQueue = nil;
@@ -46,6 +44,9 @@ class MetalDevice : public Device {
 
   API_AVAILABLE(macos(11.0))
   vector<id<MTLAccelerationStructure>> unique_blas_array;
+
+  API_AVAILABLE(macos(11.0))
+  vector<id<MTLAccelerationStructure>> blas_array;
 
   API_AVAILABLE(macos(11.0))
   id<MTLAccelerationStructure> accel_struct = nil;
