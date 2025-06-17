@@ -77,6 +77,8 @@ set(SRC_ONEAPI
   oneapi/device_impl.h
   oneapi/device.cpp
   oneapi/device.h
+  oneapi/graphics_interop.cpp
+  oneapi/graphics_interop.h
   oneapi/queue.cpp
   oneapi/queue.h
 )

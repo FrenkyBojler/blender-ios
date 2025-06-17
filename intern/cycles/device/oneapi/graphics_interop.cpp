@@ -1,0 +1,136 @@
+/* SPDX-FileCopyrightText: 2025 Intel Corporation
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#ifdef WITH_ONEAPI
+
+#  include "device/oneapi/graphics_interop.h"
+
+#  include "device/oneapi/device.h"
+#  include "device/oneapi/device_impl.h"
+#  include "device/oneapi/queue.h"
+
+#  include "session/display_driver.h"
+
+#  ifdef _WIN32
+#    include "util/windows.h"
+#  else
+#    include <unistd.h>
+#  endif
+
+CCL_NAMESPACE_BEGIN
+
+OneapiDeviceGraphicsInterop::OneapiDeviceGraphicsInterop(OneapiDeviceQueue *queue)
+    : queue_(queue), device_(static_cast<OneapiDevice *>(queue->device))
+{
+}
+
+OneapiDeviceGraphicsInterop::~OneapiDeviceGraphicsInterop()
+{
+  free();
+}
+
+void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buffer)
+{
+  if (interop_buffer.is_empty()) {
+    free();
+    return;
+  }
+
+  need_zero_ |= interop_buffer.take_zero();
+
+  if (!interop_buffer.has_new_handle()) {
+    return;
+  }
+  free();
+
+  if (interop_buffer.get_type() != GraphicsInteropDevice::VULKAN) {
+    /* SYCL only supports interop with Vulkan and D3D. */
+    LOG(ERROR) << "OneAPI interop set_buffer called for invalid graphics API";
+    return;
+  }
+
+#  ifdef _WIN32
+  /* import_external_memory will not take ownership of the handle. */
+  vulkan_windows_handle_ = reinterpret_cast<void *>(interop_buffer.take_handle());
+  auto sycl_mem_handle_type =
+      sycl::ext::oneapi::experimental::external_mem_handle_type::win32_nt_handle;
+  sycl::ext::oneapi::experimental::external_mem_descriptor<
+      sycl::ext::oneapi::experimental::resource_win32_handle>
+      sycl_external_mem_descriptor{vulkan_windows_handle_, sycl_mem_handle_type};
+#  else
+  /* import_external_memory will take ownership of the file descriptor. */
+  auto sycl_mem_handle_type = sycl::ext::oneapi::experimental::external_mem_handle_type::opaque_fd;
+  sycl::ext::oneapi::experimental::external_mem_descriptor<
+      sycl::ext::oneapi::experimental::resource_fd>
+      sycl_external_mem_descriptor{interop_buffer.take_handle(), sycl_mem_handle_type};
+#  endif
+
+  sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+  try {
+    sycl_external_memory_ = sycl::ext::oneapi::experimental::import_external_memory(
+        sycl_external_mem_descriptor, *sycl_queue);
+  }
+  catch (sycl::exception &e) {
+#  ifdef _WIN32
+    CloseHandle(HANDLE(vulkan_windows_handle_));
+    vulkan_windows_handle_ = nullptr;
+#  else
+    close(external_memory_handle_desc.handle.fd);
+#  endif
+    LOG(ERROR) << "Error importing Vulkan memory: " << e.what();
+    return;
+  }
+
+  buffer_size_ = interop_buffer.get_size();
+
+  /* TODO: We could consider mapping the handle consistently here.
+   * The CUDA backend says: "Vulkan buffer is always mapped." */
+}
+
+device_ptr OneapiDeviceGraphicsInterop::map()
+{
+  sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+  sycl_memory_ptr_ = sycl::ext::oneapi::experimental::map_external_linear_memory(
+      sycl_external_memory_, 0, buffer_size_, *sycl_queue);
+
+  if (sycl_memory_ptr_ && need_zero_) {
+    /* We do not wait on the returned event here, as CUDA also uses "cuMemsetD8Async". */
+    sycl_queue->memset(sycl_memory_ptr_, 0, buffer_size_);
+    need_zero_ = false;
+  }
+
+  return reinterpret_cast<device_ptr>(sycl_memory_ptr_);
+}
+
+void OneapiDeviceGraphicsInterop::unmap()
+{
+  if (sycl_external_memory_.raw_handle) {
+    sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+    sycl::ext::oneapi::experimental::unmap_external_linear_memory(sycl_memory_ptr_, *sycl_queue);
+  }
+}
+
+void OneapiDeviceGraphicsInterop::free()
+{
+  if (sycl_external_memory_.raw_handle) {
+    sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+    sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
+    sycl_external_memory_ = {};
+  }
+
+#  ifdef _WIN32
+  if (vulkan_windows_handle_) {
+    CloseHandle(HANDLE(vulkan_windows_handle_));
+    vulkan_windows_handle_ = nullptr;
+  }
+#  endif
+
+  buffer_size_ = 0;
+
+  need_zero_ = false;
+}
+
+CCL_NAMESPACE_END
+
+#endif
