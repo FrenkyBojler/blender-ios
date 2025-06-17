@@ -16,9 +16,9 @@
 #include "mtl_capabilities.hh"
 #include "mtl_shader_interface_type.hh"
 
-#include "GPU_common.h"
-#include "GPU_common_types.h"
-#include "GPU_texture.h"
+#include "GPU_common.hh"
+#include "GPU_common_types.hh"
+#include "GPU_texture.hh"
 #include "gpu_texture_private.hh"
 #include <Metal/Metal.h>
 #include <functional>
@@ -130,6 +130,10 @@ struct MTLShaderUniform {
   uint32_t array_len;
 };
 
+struct MTLShaderConstant {
+  uint32_t name_offset;
+};
+
 struct MTLShaderTexture {
   bool used;
   uint32_t name_offset;
@@ -159,7 +163,7 @@ MTLVertexFormat mtl_datatype_to_vertex_type(eMTLDataType type);
 
 /**
  * Implementation of Shader interface for Metal Back-end.
- **/
+ */
 class MTLShaderInterface : public ShaderInterface {
 
  private:
@@ -199,6 +203,10 @@ class MTLShaderInterface : public ShaderInterface {
   int max_texture_index_;
   MTLShaderTexture textures_[MTL_MAX_TEXTURE_SLOTS];
 
+  /* Specialization constants. */
+  uint32_t total_constants_;
+  Vector<MTLShaderConstant> constants_;
+
   /* Whether argument buffers are used for sampler bindings. */
   bool sampler_use_argument_buffer_;
   int sampler_argument_buffer_bind_index_[3];
@@ -211,7 +219,7 @@ class MTLShaderInterface : public ShaderInterface {
 
  public:
   MTLShaderInterface(const char *name);
-  ~MTLShaderInterface();
+  ~MTLShaderInterface() override;
 
   void init();
   void add_input_attribute(uint32_t name_offset,
@@ -241,6 +249,7 @@ class MTLShaderInterface : public ShaderInterface {
                    ShaderStage stage_mask = ShaderStage::FRAGMENT,
                    int tex_buffer_ssbo_location = -1);
   void add_push_constant_block(uint32_t name_offset);
+  void add_constant(uint32_t name_offset);
 
   /* Resolve and cache locations of builtin uniforms and uniform blocks. */
   void map_builtins();
@@ -250,11 +259,14 @@ class MTLShaderInterface : public ShaderInterface {
                               uint32_t argument_buffer_bind_index_compute);
 
   /* Prepare #ShaderInput interface for binding resolution. */
-  void prepare_common_shader_inputs();
+  void prepare_common_shader_inputs(const shader::ShaderCreateInfo *info = nullptr);
 
   /* Fetch Uniforms. */
   const MTLShaderUniform &get_uniform(uint index) const;
   uint32_t get_total_uniforms() const;
+
+  /* Fetch Constants. */
+  uint32_t get_total_constants() const;
 
   /* Fetch Uniform Blocks. */
   const MTLShaderBufferBlock &get_uniform_block(uint index) const;

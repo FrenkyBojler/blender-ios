@@ -10,12 +10,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_editmesh.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_types.hh"
+
 #include "BLI_kdtree.h"
 
 #include "ED_mesh.hh"
@@ -30,11 +30,13 @@ static struct {
   KDTree_3d *tree;
 } MirrKdStore = {nullptr};
 
-void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *me_eval)
+void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  const bool use_em = (!me_eval && em && mesh->edit_mesh == em);
-  const int totvert = use_em ? em->bm->totvert : me_eval ? me_eval->totvert : mesh->totvert;
+  const bool use_em = (!mesh_eval && em && mesh->runtime->edit_mesh.get() == em);
+  const int totvert = use_em    ? em->bm->totvert :
+                      mesh_eval ? mesh_eval->verts_num :
+                                  mesh->verts_num;
 
   if (MirrKdStore.tree) { /* happens when entering this call without ending it */
     ED_mesh_mirror_spatial_table_end(ob);
@@ -55,8 +57,8 @@ void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *me_eva
     }
   }
   else {
-    const blender::Span<blender::float3> positions = me_eval ? me_eval->vert_positions() :
-                                                               mesh->vert_positions();
+    const blender::Span<blender::float3> positions = mesh_eval ? mesh_eval->vert_positions() :
+                                                                 mesh->vert_positions();
     for (int i = 0; i < totvert; i++) {
       BLI_kdtree_3d_insert(MirrKdStore.tree, i, positions[i]);
     }
@@ -67,11 +69,11 @@ void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *me_eva
 
 int ED_mesh_mirror_spatial_table_lookup(Object *ob,
                                         BMEditMesh *em,
-                                        Mesh *me_eval,
+                                        Mesh *mesh_eval,
                                         const float co[3])
 {
   if (MirrKdStore.tree == nullptr) {
-    ED_mesh_mirror_spatial_table_begin(ob, em, me_eval);
+    ED_mesh_mirror_spatial_table_begin(ob, em, mesh_eval);
   }
 
   if (MirrKdStore.tree) {
@@ -142,8 +144,8 @@ bool ED_mesh_mirrtopo_recalc_check(BMEditMesh *em, Mesh *mesh, MirrTopoStore_t *
     totedge = em->bm->totedge;
   }
   else {
-    totvert = mesh->totvert;
-    totedge = mesh->totedge;
+    totvert = mesh->verts_num;
+    totedge = mesh->edges_num;
   }
 
   if ((mesh_topo_store->index_lookup == nullptr) ||
@@ -187,11 +189,10 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
     totvert = em->bm->totvert;
   }
   else {
-    totvert = mesh->totvert;
+    totvert = mesh->verts_num;
   }
 
-  MirrTopoHash_t *topo_hash = static_cast<MirrTopoHash_t *>(
-      MEM_callocN(totvert * sizeof(MirrTopoHash_t), __func__));
+  MirrTopoHash_t *topo_hash = MEM_calloc_arrayN<MirrTopoHash_t>(totvert, __func__);
 
   /* Initialize the vert-edge-user counts used to detect unique topology */
   if (em) {
@@ -204,7 +205,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
     }
   }
   else {
-    totedge = mesh->totedge;
+    totedge = mesh->edges_num;
     for (const blender::int2 &edge : mesh->edges()) {
       topo_hash[edge[0]]++;
       topo_hash[edge[1]]++;
@@ -263,8 +264,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
   }
 
   /* Hash/Index pairs are needed for sorting to find index pairs */
-  MirrTopoVert_t *topo_pairs = static_cast<MirrTopoVert_t *>(
-      MEM_callocN(sizeof(MirrTopoVert_t) * totvert, "MirrTopoPairs"));
+  MirrTopoVert_t *topo_pairs = MEM_calloc_arrayN<MirrTopoVert_t>(totvert, "MirrTopoPairs");
 
   /* since we are looping through verts, initialize these values here too */
   intptr_t *index_lookup = static_cast<intptr_t *>(

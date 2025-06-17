@@ -12,6 +12,9 @@
 #ifdef WIN32
 #  include "utfconv.hh"
 #  include <windows.h>
+#  ifdef WITH_CPU_CHECK
+#    pragma comment(linker, "/include:cpu_check_win32")
+#  endif
 #endif
 
 #if defined(WITH_TBB_MALLOC) && defined(_MSC_VER) && defined(NDEBUG)
@@ -25,6 +28,8 @@
 
 #include "DNA_genfile.h"
 
+#include "BLI_endian_defines.h"
+#include "BLI_fftw.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_task.h"
@@ -32,20 +37,17 @@
 #include "BLI_utildefines.h"
 
 /* Mostly initialization functions. */
-#include "BKE_appdir.h"
-#include "BKE_blender.h"
+#include "BKE_appdir.hh"
+#include "BKE_blender.hh"
 #include "BKE_brush.hh"
-#include "BKE_cachefile.h"
-#include "BKE_callbacks.h"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_cpp_types.hh"
-#include "BKE_global.h"
-#include "BKE_gpencil_modifier_legacy.h"
-#include "BKE_idtype.h"
-#include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_global.hh"
+#include "BKE_idtype.hh"
+#include "BKE_material.hh"
 #include "BKE_modifier.hh"
-#include "BKE_node.h"
+#include "BKE_node.hh"
 #include "BKE_particle.h"
 #include "BKE_shader_fx.h"
 #include "BKE_sound.h"
@@ -58,7 +60,9 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "IMB_imbuf.h" /* For #IMB_init. */
+#include "IMB_imbuf.hh" /* For #IMB_init. */
+
+#include "MOV_util.hh"
 
 #include "RE_engine.h"
 #include "RE_texture.h"
@@ -66,9 +70,12 @@
 #include "ED_datafiles.h"
 
 #include "WM_api.hh"
-#include "WM_toolsystem.h"
 
 #include "RNA_define.hh"
+
+#ifdef WITH_OPENGL_BACKEND
+#  include "GPU_compilation_subprocess.hh"
+#endif
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -86,17 +93,13 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
-#endif
-
-#ifdef WITH_CYCLES_LOGGING
+#elif defined(WITH_CYCLES_LOGGING)
 #  include "CCL_api.h"
 #endif
 
-#ifdef WITH_SDL_DYNLOAD
-#  include "sdlew.h"
-#endif
-
 #include "creator_intern.h" /* Own include. */
+
+BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
@@ -114,12 +117,13 @@
 /** \name Local Application State
  * \{ */
 
-/* written to by 'creator_args.c' */
+/* Written to by `creator_args.cc`. */
 ApplicationState app_state = []() {
   ApplicationState app_state{};
   app_state.signal.use_crash_handler = true;
   app_state.signal.use_abort_handler = true;
   app_state.exit_code_on_error.python = 0;
+  app_state.main_arg_deferred = nullptr;
   return app_state;
 }();
 
@@ -143,7 +147,12 @@ static void main_callback_setup()
   MEM_set_error_callback(callback_mem_error);
 }
 
-/* free data on early exit (if Python calls 'sys.exit()' while parsing args for eg). */
+/** Data to free when Blender exits early on. */
+struct CreatorAtExitData_EarlyExit {
+  bContext *C;
+};
+
+/** Free data on early exit (if Python calls `sys.exit()` while parsing args for eg). */
 struct CreatorAtExitData {
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
@@ -154,9 +163,11 @@ struct CreatorAtExitData {
   int argv_num;
 #endif
 
-#if defined(WITH_PYTHON_MODULE) && !defined(USE_WIN32_UNICODE_ARGS)
-  void *_empty; /* Prevent empty struct error with MSVC. */
-#endif
+  /**
+   * When non-null, run additional exit logic.
+   * Cleared once early initialization is over.
+   */
+  CreatorAtExitData_EarlyExit *early_exit = nullptr;
 };
 
 static void callback_main_atexit(void *user_data)
@@ -168,8 +179,6 @@ static void callback_main_atexit(void *user_data)
     BLI_args_destroy(app_init_data->ba);
     app_init_data->ba = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
 
 #ifdef USE_WIN32_UNICODE_ARGS
@@ -180,9 +189,20 @@ static void callback_main_atexit(void *user_data)
     free((void *)app_init_data->argv);
     app_init_data->argv = nullptr;
   }
-#else
-  UNUSED_VARS(app_init_data); /* May be unused. */
 #endif
+
+  if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
+    CTX_free(early_exit->C);
+
+    DEG_free_node_types();
+
+    BKE_blender_globals_clear();
+    BKE_appdir_exit();
+
+    DNA_sdna_current_free();
+
+    CLG_exit();
+  }
 }
 
 static void callback_clg_fatal(void *fp)
@@ -196,7 +216,7 @@ static void callback_clg_fatal(void *fp)
 /** \name Blender as a Stand-Alone Python Module (bpy)
  *
  * While not officially supported, this can be useful for Python developers.
- * See: https://wiki.blender.org/wiki/Building_Blender/Other/BlenderAsPyModule
+ * See: https://developer.blender.org/docs/handbook/building_blender/python_module/
  * \{ */
 
 #ifdef WITH_PYTHON_MODULE
@@ -205,7 +225,7 @@ static void callback_clg_fatal(void *fp)
 int main_python_enter(int argc, const char **argv);
 void main_python_exit();
 
-/* Rename the 'main' function, allowing Python initialization to call it. */
+/* Rename the `main(..)` function, allowing Python initialization to call it. */
 #  define main main_python_enter
 static void *evil_C = nullptr;
 
@@ -279,21 +299,16 @@ int main(int argc,
 )
 {
   bContext *C;
-
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
 #endif
 
-#ifdef USE_WIN32_UNICODE_ARGS
-  char **argv;
-  int argv_num;
-#endif
-
-  /* --- end declarations --- */
-
   /* Ensure we free data on early-exit. */
   CreatorAtExitData app_init_data = {nullptr};
   BKE_blender_atexit_register(callback_main_atexit, &app_init_data);
+
+  CreatorAtExitData_EarlyExit app_init_data_early_exit = {nullptr};
+  app_init_data.early_exit = &app_init_data_early_exit;
 
 /* Un-buffered `stdout` makes `stdout` and `stderr` better synchronized, and helps
  * when stepping through code in a debugger (prints are immediately
@@ -305,29 +320,32 @@ int main(int argc,
 #endif
 
 #ifdef WIN32
-/* We delay loading of OPENMP so we can set the policy here. */
-#  if defined(_MSC_VER)
-  _putenv_s("OMP_WAIT_POLICY", "PASSIVE");
-#  endif
-
 #  ifdef USE_WIN32_UNICODE_ARGS
   /* Win32 Unicode Arguments. */
   {
     /* NOTE: Can't use `guardedalloc` allocation here, as it's not yet initialized
-     * (it depends on the arguments passed in, which is what we're getting here!) */
+     * (it depends on the arguments passed in, which is what we're getting here!). */
     wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-    argv = static_cast<char **>(malloc(argc * sizeof(char *)));
-    for (argv_num = 0; argv_num < argc; argv_num++) {
-      argv[argv_num] = alloc_utf_8_from_16(argv_16[argv_num], 0);
+    app_init_data.argv = static_cast<char **>(malloc(argc * sizeof(char *)));
+    for (int i = 0; i < argc; i++) {
+      app_init_data.argv[i] = alloc_utf_8_from_16(argv_16[i], 0);
     }
     LocalFree(argv_16);
 
-    /* free on early-exit */
-    app_init_data.argv = argv;
-    app_init_data.argv_num = argv_num;
+    /* Free on early-exit. */
+    app_init_data.argv_num = argc;
   }
+  const char **argv = const_cast<const char **>(app_init_data.argv);
 #  endif /* USE_WIN32_UNICODE_ARGS */
 #endif   /* WIN32 */
+
+#if defined(WITH_OPENGL_BACKEND) && BLI_SUBPROCESS_SUPPORT
+  if (STREQ(argv[0], "--compilation-subprocess")) {
+    BLI_assert(argc == 2);
+    GPU_compilation_subprocess_run(argv[1]);
+    return 0;
+  }
+#endif
 
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
@@ -341,7 +359,7 @@ int main(int argc,
         MEM_use_guarded_allocator();
         break;
       }
-      if (STREQ(argv[i], "--")) {
+      if (STR_ELEM(argv[i], "--", "-c", "--command")) {
         break;
       }
     }
@@ -350,8 +368,8 @@ int main(int argc,
 
 #ifdef BUILD_DATE
   {
-    time_t temp_time = build_commit_timestamp;
-    tm *tm = gmtime(&temp_time);
+    const time_t temp_time = build_commit_timestamp;
+    const tm *tm = gmtime(&temp_time);
     if (LIKELY(tm)) {
       strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
       strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
@@ -364,15 +382,13 @@ int main(int argc,
   }
 #endif
 
-#ifdef WITH_SDL_DYNLOAD
-  sdlewInit();
-#endif
-
   /* Initialize logging. */
   CLG_init();
   CLG_fatal_fn_set(callback_clg_fatal);
 
   C = CTX_create();
+
+  app_init_data_early_exit.C = C;
 
 #ifdef WITH_PYTHON_MODULE
 #  ifdef __APPLE__
@@ -400,7 +416,7 @@ int main(int argc,
   main_callback_setup();
 
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE) && !defined(WITH_HEADLESS)
-  /* Patch to ignore argument finder gives us (PID?) */
+  /* Patch to ignore argument finder gives us (PID?). */
   if (argc == 2 && STRPREFIX(argv[1], "-psn_")) {
     static char firstfilebuf[512];
 
@@ -428,30 +444,21 @@ int main(int argc,
 
   BKE_cpp_types_init();
   BKE_idtype_init();
-  BKE_cachefiles_init();
   BKE_modifier_init();
-  BKE_gpencil_modifier_init();
   BKE_shaderfx_init();
   BKE_volumes_init();
   DEG_register_node_types();
 
-  BKE_brush_system_init();
-  RE_texture_rng_init();
-
   BKE_callback_global_init();
 
-/* First test for background-mode (#Global.background) */
+/* First test for background-mode (#Global.background). */
 #ifndef WITH_PYTHON_MODULE
-  ba = BLI_args_create(argc, (const char **)argv); /* skip binary path */
+  ba = BLI_args_create(argc, argv); /* Skip binary path. */
 
   /* Ensure we free on early exit. */
   app_init_data.ba = ba;
 
   main_args_setup(C, ba, false);
-
-  /* Begin argument parsing, ignore leaks so arguments that call #exit
-   * (such as '--version' & '--help') don't report leaks. */
-  MEM_use_memleak_detection(false);
 
   /* Parse environment handling arguments. */
   BLI_args_parse(ba, ARG_PASS_ENVIRONMENT, nullptr, nullptr);
@@ -468,6 +475,9 @@ int main(int argc,
   /* After parsing number of threads argument. */
   BLI_task_scheduler_init();
 
+  /* Initialize FFTW threading support. */
+  blender::fftw::initialize_float();
+
 #ifndef WITH_PYTHON_MODULE
   /* The settings pass includes:
    * - Background-mode assignment (#Global.background), checked by other subsystems
@@ -483,24 +493,30 @@ int main(int argc,
   main_signal_setup();
 #endif
 
+  /* Continue with regular initialization, no need to use "early" exit. */
+  app_init_data.early_exit = nullptr;
+
   /* Must be initialized after #BKE_appdir_init to account for color-management paths. */
   IMB_init();
-#ifdef WITH_FFMPEG
   /* Keep after #ARG_PASS_SETTINGS since debug flags are checked. */
-  IMB_ffmpeg_init();
-#endif
+  MOV_init();
 
   /* After #ARG_PASS_SETTINGS arguments, this is so #WM_main_playanim skips #RNA_init. */
   RNA_init();
 
+  RE_texture_rng_init();
   RE_engines_init();
-  BKE_node_system_init();
+  blender::bke::node_system_init();
+
+  BKE_brush_system_init();
   BKE_particle_init_rng();
   /* End second initialization. */
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
   /* Python module mode ALWAYS runs in background-mode (for now). */
   G.background = true;
+  /* Manually using `--background` also forces the audio device. */
+  BKE_sound_force_device("None");
 #else
   if (G.background) {
     main_signal_setup_background();
@@ -523,7 +539,7 @@ int main(int argc,
   BLI_args_parse(ba, ARG_PASS_SETTINGS_FORCE, nullptr, nullptr);
 #endif
 
-  WM_init(C, argc, (const char **)argv);
+  WM_init(C, argc, argv);
 
 #ifndef WITH_PYTHON
   printf(
@@ -537,21 +553,18 @@ int main(int argc,
   FRS_set_context(C);
 #endif
 
-/* OK we are ready for it */
+/* OK we are ready for it. */
 #ifndef WITH_PYTHON_MODULE
   /* Handles #ARG_PASS_FINAL. */
   BLI_args_parse(ba, ARG_PASS_FINAL, main_args_handle_load_file, C);
 #endif
 
   /* Explicitly free data allocated for argument parsing:
-   * - 'ba'
-   * - 'argv' on WIN32.
+   * - `ba`
+   * - `argv` on WIN32.
    */
   callback_main_atexit(&app_init_data);
   BKE_blender_atexit_unregister(callback_main_atexit, &app_init_data);
-
-  /* End argument parsing, allow memory leaks to be printed. */
-  MEM_use_memleak_detection(true);
 
 /* Paranoid, avoid accidental re-use. */
 #ifndef WITH_PYTHON_MODULE
@@ -566,10 +579,21 @@ int main(int argc,
 
 #ifndef WITH_PYTHON_MODULE
   if (G.background) {
+    int exit_code;
+    if (app_state.main_arg_deferred != nullptr) {
+      exit_code = main_arg_deferred_handle();
+      main_arg_deferred_free();
+    }
+    else {
+      exit_code = G.is_break ? EXIT_FAILURE : EXIT_SUCCESS;
+    }
     /* Using window-manager API in background-mode is a bit odd, but works fine. */
-    WM_exit(C, G.is_break ? EXIT_FAILURE : EXIT_SUCCESS);
+    WM_exit(C, exit_code);
   }
   else {
+    /* Not supported, although it could be made to work if needed. */
+    BLI_assert(app_state.main_arg_deferred == nullptr);
+
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
 

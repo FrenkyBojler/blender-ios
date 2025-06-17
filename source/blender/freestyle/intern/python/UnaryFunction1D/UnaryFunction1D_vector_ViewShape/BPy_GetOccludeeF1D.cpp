@@ -12,17 +12,15 @@
 #include "../../BPy_Convert.h"
 #include "../../BPy_IntegrationType.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //------------------------INSTANCE METHODS ----------------------------------
 
-static char GetOccludeeF1D___doc__[] =
+PyDoc_STRVAR(
+    /* Wrap. */
+    GetOccludeeF1D___doc__,
     "Class hierarchy: :class:`freestyle.types.UnaryFunction1D` > "
     ":class:`freestyle.types.UnaryFunction1DVectorViewShape` > :class:`GetOccludeeF1D`\n"
     "\n"
@@ -37,7 +35,7 @@ static char GetOccludeeF1D___doc__[] =
     "   :arg inter: An Interface1D object.\n"
     "   :type inter: :class:`freestyle.types.Interface1D`\n"
     "   :return: A list of occluded shapes covered by the Interface1D.\n"
-    "   :rtype: list of :class:`freestyle.types.ViewShape` objects\n";
+    "   :rtype: list[:class:`freestyle.types.ViewShape`]\n");
 
 static int GetOccludeeF1D___init__(BPy_GetOccludeeF1D *self, PyObject *args, PyObject *kwds)
 {
@@ -94,7 +92,3 @@ PyTypeObject GetOccludeeF1D_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

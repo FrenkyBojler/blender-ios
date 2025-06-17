@@ -12,9 +12,8 @@ struct BMFace;
 struct BMVert;
 struct BMesh;
 struct RangeTreeUInt;
-
-typedef struct BMLog BMLog;
-typedef struct BMLogEntry BMLogEntry;
+struct BMLog;
+struct BMLogEntry;
 
 /**
  * Allocate, initialize, and assign a new BMLog.
@@ -24,11 +23,11 @@ BMLog *BM_log_create(BMesh *bm);
 /**
  * Allocate and initialize a new #BMLog using existing #BMLogEntries
  *
- * The 'entry' should be the last entry in the #BMLog. Its `prev` pointer
- * will be followed back to find the first entry.
- *
  * The unused IDs field of the log will be initialized by taking all
- * keys from all GHashes in the log entry.
+ * keys from all Maps in the log entry.
+ *
+ * \param entry: The last entry of the prior BMLog, its `prev` pointer will be followed back to
+ * reconstruct the log.
  */
 BMLog *BM_log_from_existing_entries_create(BMesh *bm, BMLogEntry *entry);
 
@@ -38,23 +37,12 @@ BMLog *BM_log_from_existing_entries_create(BMesh *bm, BMLogEntry *entry);
 void BM_log_free(BMLog *log);
 
 /**
- * Get the number of log entries.
- */
-int BM_log_length(const BMLog *log);
-
-/** Apply a consistent ordering to BMesh vertices and faces. */
-void BM_log_mesh_elems_reorder(BMesh *bm, BMLog *log);
-
-/**
  * Start a new log entry and update the log entry list.
  *
  * If the log entry list is empty, or if the current log entry is the
  * last entry, the new entry is simply appended to the end.
  *
- * Otherwise, the new entry is added after the current entry and all
- * following entries are deleted.
- *
- * In either case, the new entry is set as the current log entry.
+ * Finally, the new entry is set as the current log entry.
  */
 BMLogEntry *BM_log_entry_add(BMLog *log);
 
@@ -67,8 +55,8 @@ void BM_log_cleanup_entry(BMLogEntry *entry);
  * Uses entry->log as the log. If the log is NULL, the entry will be
  * freed but not removed from any list, nor shall its IDs be released.
  *
- * This operation is only valid on the first and last entries in the
- * log. Deleting from the middle will assert.
+ * \warning This operation is only valid on the first and last entries in the log. Deleting from
+ * the middle will assert.
  */
 void BM_log_entry_drop(BMLogEntry *entry);
 
@@ -110,7 +98,7 @@ void BM_log_redo(BMesh *bm, BMLog *log);
  * state so that a subsequent redo operation will restore the newer
  * vertex state.
  */
-void BM_log_vert_before_modified(BMLog *log, struct BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_before_modified(BMLog *log, BMVert *v, int cd_vert_mask_offset);
 
 /**
  * Log a new vertex as added to the #BMesh.
@@ -119,7 +107,7 @@ void BM_log_vert_before_modified(BMLog *log, struct BMVert *v, int cd_vert_mask_
  * of added vertices, with the key being its ID and the value
  * containing everything needed to reconstruct that vertex.
  */
-void BM_log_vert_added(BMLog *log, struct BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_added(BMLog *log, BMVert *v, int cd_vert_mask_offset);
 
 /**
  * Log a face before it is modified.
@@ -127,7 +115,7 @@ void BM_log_vert_added(BMLog *log, struct BMVert *v, int cd_vert_mask_offset);
  * This is intended to handle only header flags and we always
  * assume face has been added before.
  */
-void BM_log_face_modified(BMLog *log, struct BMFace *f);
+void BM_log_face_modified(BMLog *log, BMFace *f);
 
 /**
  * Log a new face as added to the #BMesh.
@@ -136,7 +124,7 @@ void BM_log_face_modified(BMLog *log, struct BMFace *f);
  * of added faces, with the key being its ID and the value containing
  * everything needed to reconstruct that face.
  */
-void BM_log_face_added(BMLog *log, struct BMFace *f);
+void BM_log_face_added(BMLog *log, BMFace *f);
 
 /**
  * Log a vertex as removed from the #BMesh.
@@ -155,7 +143,7 @@ void BM_log_face_added(BMLog *log, struct BMFace *f);
  * If there's a move record for the vertex, that's used as the
  * vertices original location, then the move record is deleted.
  */
-void BM_log_vert_removed(BMLog *log, struct BMVert *v, int cd_vert_mask_offset);
+void BM_log_vert_removed(BMLog *log, BMVert *v, int cd_vert_mask_offset);
 
 /**
  * Log a face as removed from the #BMesh.
@@ -171,7 +159,7 @@ void BM_log_vert_removed(BMLog *log, struct BMVert *v, int cd_vert_mask_offset);
  * its ID and the value containing everything needed to reconstruct
  * that face.
  */
-void BM_log_face_removed(BMLog *log, struct BMFace *f);
+void BM_log_face_removed(BMLog *log, BMFace *f);
 
 /**
  * Log all vertices/faces in the #BMesh as added.
@@ -182,32 +170,32 @@ void BM_log_all_added(BMesh *bm, BMLog *log);
 void BM_log_before_all_removed(BMesh *bm, BMLog *log);
 
 /**
- * Get the logged coordinates of a vertex.
+ * Search the log for the original vertex coordinates.
  *
  * Does not modify the log or the vertex.
+ *
+ * \return the pointer or nullptr if the vertex isn't found.
  */
-const float *BM_log_original_vert_co(BMLog *log, BMVert *v);
+const float *BM_log_find_original_vert_co(BMLog *log, BMVert *v);
 
 /**
- * Get the logged normal of a vertex
+ * Search the log for the original vertex mask.
  *
  * Does not modify the log or the vertex.
- */
-const float *BM_log_original_vert_no(BMLog *log, BMVert *v);
-
-/**
- * Get the logged mask of a vertex
  *
- * Does not modify the log or the vertex.
+ * \return the pointer or nullptr if the vertex isn't found.
  */
-float BM_log_original_mask(BMLog *log, BMVert *v);
+const float *BM_log_find_original_vert_mask(BMLog *log, BMVert *v);
 
 /** Get the logged data of a vertex (avoid multiple lookups). */
 void BM_log_original_vert_data(BMLog *log, BMVert *v, const float **r_co, const float **r_no);
 
+#ifndef NDEBUG
 /** For internal use only (unit testing). */
 BMLogEntry *BM_log_current_entry(BMLog *log);
 /** For internal use only (unit testing) */
 struct RangeTreeUInt *BM_log_unused_ids(BMLog *log);
 
+void BM_log_print(const BMLog *log, const char *description);
 void BM_log_print_entry(BMesh *bm, BMLogEntry *entry);
+#endif

@@ -6,25 +6,25 @@
  * \ingroup spfile
  */
 
-#include <cmath>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_appdir.h"
+#include "BKE_appdir.hh"
 
 #include "ED_fileselect.hh"
 
-#include "UI_interface_icons.hh"
 #include "UI_resources.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -46,7 +46,7 @@ static FSMenu *g_fsmenu = nullptr;
 FSMenu *ED_fsmenu_get()
 {
   if (!g_fsmenu) {
-    g_fsmenu = MEM_cnew<FSMenu>(__func__);
+    g_fsmenu = MEM_callocN<FSMenu>(__func__);
   }
   return g_fsmenu;
 }
@@ -135,11 +135,13 @@ void ED_fsmenu_entry_set_path(FSMenuEntry *fsentry, const char *path)
 
     fsentry->path = (path && path[0]) ? BLI_strdup(path) : nullptr;
 
-    BLI_path_join(tmp_name,
-                  sizeof(tmp_name),
-                  BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr),
-                  BLENDER_BOOKMARK_FILE);
-    fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    const std::optional<std::string> user_config_dir = BKE_appdir_folder_id_create(
+        BLENDER_USER_CONFIG, nullptr);
+
+    if (user_config_dir.has_value()) {
+      BLI_path_join(tmp_name, sizeof(tmp_name), user_config_dir->c_str(), BLENDER_BOOKMARK_FILE);
+      fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    }
   }
 }
 
@@ -163,7 +165,7 @@ static void fsmenu_entry_generate_name(FSMenuEntry *fsentry, char *name, size_t 
     len += 1;
   }
 
-  BLI_strncpy(name, &fsentry->path[offset], MIN2(len, name_size));
+  BLI_strncpy(name, &fsentry->path[offset], std::min(size_t(len), name_size));
   if (!name[0]) {
     name[0] = '/';
     name[1] = '\0';
@@ -199,11 +201,13 @@ void ED_fsmenu_entry_set_name(FSMenuEntry *fsentry, const char *name)
       STRNCPY(fsentry->name, name);
     }
 
-    BLI_path_join(tmp_name,
-                  sizeof(tmp_name),
-                  BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, nullptr),
-                  BLENDER_BOOKMARK_FILE);
-    fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    const std::optional<std::string> user_config_dir = BKE_appdir_folder_id_create(
+        BLENDER_USER_CONFIG, nullptr);
+
+    if (user_config_dir.has_value()) {
+      BLI_path_join(tmp_name, sizeof(tmp_name), user_config_dir->c_str(), BLENDER_BOOKMARK_FILE);
+      fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+    }
   }
 }
 
@@ -257,6 +261,7 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
   if (path_len == 0) {
     return;
   }
+  BLI_assert(!BLI_path_is_rel(path));
   const bool has_trailing_slash = (path[path_len - 1] == SEP);
   FSMenuEntry *fsm_prev;
   FSMenuEntry *fsm_iter;
@@ -293,7 +298,7 @@ void fsmenu_insert_entry(FSMenu *fsmenu,
     }
   }
 
-  fsm_iter = static_cast<FSMenuEntry *>(MEM_mallocN(sizeof(*fsm_iter), "fsme"));
+  fsm_iter = MEM_mallocN<FSMenuEntry>("fsme");
   fsm_iter->path = has_trailing_slash ? BLI_strdup(path) : BLI_string_joinN(path, SEP_STR);
   fsm_iter->save = (flag & FS_INSERT_SAVE) != 0;
 
@@ -607,7 +612,7 @@ static void fsmenu_bookmark_validate_job_startjob(void *fsmenuv, wmJobWorkerStat
         return;
       }
       /* Note that we do not really need atomics primitives or thread locks here, since this only
-       * sets one short, which is assumed to be 'atomic'-enough for us here. */
+       * sets one short, which is assumed to be *atomic* enough for us here. */
       fsmenu_entry_refresh_valid(fsm_iter);
       worker_status->do_update = true;
     }

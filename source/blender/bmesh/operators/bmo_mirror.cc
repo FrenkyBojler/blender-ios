@@ -8,9 +8,7 @@
  * Basic mirror, optionally with UVs's.
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_meshdata_types.h"
+#include "BLI_math_base.h"
 
 #include "BKE_customdata.hh"
 

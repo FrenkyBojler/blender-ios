@@ -207,7 +207,7 @@ will not be found by Blender.
 
 There are two ways to work around this:
 
-- Remove Blender Python subdirectory, Blender will then fallback on the system's Python and use that instead.
+- Remove Blender Python subdirectory, Blender will then fall back on the system's Python and use that instead.
 
   Depending on your platform,
   you may need to explicitly reference the location of your Python installation using
@@ -295,7 +295,7 @@ Advantages include:
 
 This is marked advanced because to run Blender as a Python module requires a special build option.
 For instructions on building see
-`Building Blender as a Python module <https://wiki.blender.org/wiki/Building_Blender/Other/BlenderAsPyModule>`__.
+`Building Blender as a Python module <https://developer.blender.org/docs/handbook/building_blender/python_module/>`__.
 
 
 Python Safety (Build Option)

@@ -14,33 +14,20 @@
 #include "DNA_text_types.h"
 
 #include "BLI_array_store.h"
-#include "BLI_array_utils.h"
-
-#include "BLT_translation.h"
-
-#include "PIL_time.h"
+#include "BLI_array_utils.h" /* For `BLI_array_is_zeroed`. */
 
 #include "BKE_context.hh"
 #include "BKE_main.hh"
-#include "BKE_report.h"
 #include "BKE_text.h"
-#include "BKE_undo_system.h"
+#include "BKE_undo_system.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_curve.hh"
 #include "ED_screen.hh"
 #include "ED_text.hh"
 #include "ED_undo.hh"
 
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-
-#include "RNA_access.hh"
-#include "RNA_define.hh"
-
-#include "text_format.hh"
 #include "text_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -89,7 +76,7 @@ static void text_state_decode(TextState *state, Text *text)
     const uchar *buf = static_cast<const uchar *>(
         BLI_array_store_state_data_get_alloc(state->buf_array_state, &buf_len));
     txt_from_buf_for_undo(text, (const char *)buf, buf_len);
-    MEM_freeN((void *)buf);
+    MEM_freeN(buf);
   }
 
   const bool has_select = ((state->cursor_line != state->cursor_line_select) ||
@@ -207,8 +194,8 @@ static void text_undosys_step_decode(
     /* Not essential, always show text being undo where possible. */
     st->text = text;
   }
-  text_update_cursor_moved(C);
-  text_drawcache_tag_update(st, true);
+  space_text_update_cursor_moved(C);
+  space_text_drawcache_tag_update(st, true);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
 }
 

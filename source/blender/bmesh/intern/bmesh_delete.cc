@@ -8,10 +8,7 @@
  * BM remove functions.
  */
 
-#include "BLI_utildefines.h"
-
 #include "bmesh.hh"
-#include "intern/bmesh_private.hh"
 
 /* BMO functions */
 

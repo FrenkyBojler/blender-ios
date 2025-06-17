@@ -20,7 +20,7 @@
 #include "bmesh.hh"
 #include "bmesh_edgenet.hh" /* own include */
 
-#include "BLI_strict_flags.h" /* keep last */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* Struct for storing a path of verts walked over */
 struct VertNetInfo {
@@ -200,7 +200,8 @@ begin:
 
           if (vn_curr->pass == -vn_next->pass) {
             if ((vn_curr->flag & VNINFO_FLAG_IS_MIXFACE) ||
-                (vn_next->flag & VNINFO_FLAG_IS_MIXFACE)) {
+                (vn_next->flag & VNINFO_FLAG_IS_MIXFACE))
+            {
               /* found connecting edge */
               if (bm_edgenet_path_check_overlap(v_curr, v_next, vnet_info) == false) {
                 return e;
@@ -413,8 +414,7 @@ static LinkNode *bm_edgenet_path_calc_best(BMEdge *e,
 
 void BM_mesh_edgenet(BMesh *bm, const bool use_edge_tag, const bool use_new_face_tag)
 {
-  VertNetInfo *vnet_info = static_cast<VertNetInfo *>(
-      MEM_callocN(sizeof(*vnet_info) * size_t(bm->totvert), __func__));
+  VertNetInfo *vnet_info = MEM_calloc_arrayN<VertNetInfo>(size_t(bm->totvert), __func__);
   BLI_mempool *edge_queue_pool = BLI_mempool_create(sizeof(LinkNode), 0, 512, BLI_MEMPOOL_NOP);
   BLI_mempool *path_pool = BLI_mempool_create(sizeof(LinkNode), 0, 512, BLI_MEMPOOL_NOP);
   LinkNode *edge_queue = nullptr;

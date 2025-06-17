@@ -6,16 +6,19 @@
  * \ingroup spinfo
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "BLI_math_color.h"
+#include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "GPU_immediate.h"
-#include "GPU_state.h"
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
 
 #include "DNA_userdef_types.h" /* For 'UI_SCALE_FAC' */
 
@@ -77,11 +80,11 @@ static void textview_draw_sel(const char *str,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor4ubv(bg_sel);
-    immRecti(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
+    immRectf(pos, xy[0] + (cwidth * sta), xy[1] + lheight, xy[0] + (cwidth * end), xy[1]);
 
     immUnbindProgram();
 
@@ -103,10 +106,8 @@ static int textview_wrap_offsets(
 
   *r_lines = 1;
 
-  *r_offsets = static_cast<int *>(MEM_callocN(
-      sizeof(**r_offsets) *
-          (str_len * column_width_max / std::max(1, width - (column_width_max - 1)) + 1),
-      __func__));
+  *r_offsets = MEM_calloc_arrayN<int>(
+      (str_len * column_width_max / std::max(1, width - (column_width_max - 1)) + 1), __func__);
   (*r_offsets)[0] = 0;
 
   for (i = 0, end = width, j = 0; j < str_len && str[j]; j += BLI_str_utf8_size_safe(str + j)) {
@@ -206,10 +207,10 @@ static bool textview_draw_string(TextViewDrawState *tds,
 
   if (bg) {
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(bg);
-    immRecti(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
+    immRectf(pos, tds->draw_rect_outer->xmin, line_bottom, tds->draw_rect_outer->xmax, line_top);
     immUnbindProgram();
   }
 
@@ -325,10 +326,10 @@ int textview_draw(TextViewContext *tvc,
   const int mval[2] = {
       (mval_init[0] == INT_MAX) ?
           INT_MAX :
-          CLAMPIS(mval_init[0], tvc->draw_rect.xmin, tvc->draw_rect.xmax) - tvc->draw_rect.xmin,
+          std::clamp(mval_init[0], tvc->draw_rect.xmin, tvc->draw_rect.xmax) - tvc->draw_rect.xmin,
       (mval_init[1] == INT_MAX) ?
           INT_MAX :
-          CLAMPIS(mval_init[1], tvc->draw_rect.ymin, tvc->draw_rect.ymax) + tvc->scroll_ymin,
+          std::clamp(mval_init[1], tvc->draw_rect.ymin, tvc->draw_rect.ymax) + tvc->scroll_ymin,
   };
 
   if (r_mval_pick_offset != nullptr) {
@@ -345,9 +346,7 @@ int textview_draw(TextViewContext *tvc,
   /* NOTE: scroll bar must be already subtracted. */
   tds.columns = (tvc->draw_rect.xmax - tvc->draw_rect.xmin) / tds.cwidth;
   /* Avoid divide by zero on small windows. */
-  if (tds.columns < 1) {
-    tds.columns = 1;
-  }
+  tds.columns = std::max(tds.columns, 1);
   tds.draw_rect = &tvc->draw_rect;
   tds.draw_rect_outer = &tvc->draw_rect_outer;
   tds.scroll_ymin = tvc->scroll_ymin;

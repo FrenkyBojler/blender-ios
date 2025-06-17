@@ -8,16 +8,20 @@
 
 #pragma once
 
-#include "BLI_ghash.h"
-#include "BLI_sys_types.h"
-#include "DNA_ID.h"
+#include "BLI_struct_equality_utils.hh"
 #include "intern/node/deg_node.hh"
+
+#include "DNA_ID.h"
+
+#include "BLI_map.hh"
+#include "BLI_string_ref.hh"
+#include "BLI_sys_types.h"
 
 namespace blender::deg {
 
 struct ComponentNode;
 
-typedef uint64_t IDComponentsMask;
+using IDComponentsMask = uint64_t;
 
 /* NOTE: We use max comparison to mark an id node that is linked more than once
  * So keep this enum ordered accordingly. */
@@ -34,34 +38,38 @@ const char *linkedStateAsString(eDepsNode_LinkedState_Type linked_state);
 /* ID-Block Reference */
 struct IDNode : public Node {
   struct ComponentIDKey {
-    ComponentIDKey(NodeType type, const char *name = "");
-    uint64_t hash() const;
-    bool operator==(const ComponentIDKey &other) const;
 
     NodeType type;
-    const char *name;
+    StringRef name;
+
+    ComponentIDKey(NodeType type, StringRef name = "") : type(type), name(name) {}
+    BLI_STRUCT_EQUALITY_OPERATORS_2(ComponentIDKey, type, name);
+    uint64_t hash() const
+    {
+      return get_default_hash(type, name);
+    }
   };
 
   /** Initialize 'id' node - from pointer data given. */
-  virtual void init(const ID *id, const char *subdata) override;
-  void init_copy_on_write(ID *id_cow_hint = nullptr);
-  ~IDNode();
+  void init(const ID *id, const char *subdata) override;
+  void init_copy_on_write(Depsgraph &depsgraph, ID *id_cow_hint = nullptr);
+  ~IDNode() override;
   void destroy();
 
-  virtual string identifier() const override;
+  std::string identifier() const override;
 
-  ComponentNode *find_component(NodeType type, const char *name = "") const;
-  ComponentNode *add_component(NodeType type, const char *name = "");
+  ComponentNode *find_component(NodeType type, StringRef name = "") const;
+  ComponentNode *add_component(NodeType type, StringRef name = "");
 
-  virtual void tag_update(Depsgraph *graph, eUpdateSource source) override;
+  void tag_update(Depsgraph *graph, eUpdateSource source) override;
 
   void finalize_build(Depsgraph *graph);
 
   IDComponentsMask get_visible_components_mask() const;
 
-  /* Type of the ID stored separately, so it's possible to perform check whether CoW is needed
-   * without de-referencing the id_cow (which is not safe when ID is NOT covered by CoW and has
-   * been deleted from the main database.) */
+  /* Type of the ID stored separately, so it's possible to perform check whether evaluated copy is
+   * needed without de-referencing the id_cow (which is not safe when ID is NOT covered by
+   * copy-on-evaluation and has been deleted from the main database.) */
   ID_Type id_type;
 
   /* ID Block referenced. */
@@ -71,10 +79,10 @@ struct IDNode : public Node {
    * Is used on relations update to map evaluated state from old nodes to the new ones, without
    * relying on pointers (which are not guaranteed to be unique) and without dereferencing id_orig
    * which could be "stale" pointer. */
-  uint id_orig_session_uuid;
+  uint id_orig_session_uid;
 
   /* Evaluated data-block.
-   * Will be covered by the copy-on-write system if the ID Type needs it. */
+   * Will be covered by the copy-on-evaluation system if the ID Type needs it. */
   ID *id_cow;
 
   /* Hash to make it faster to look up components. */

@@ -18,10 +18,10 @@
 
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
-#include "BKE_report.h"
+#include "BKE_layer.hh"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -29,14 +29,13 @@
 #include "WM_types.hh"
 
 #include "ED_mesh.hh"
-#include "ED_screen.hh"
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
 
 using blender::float2;
 using blender::float3;
@@ -419,8 +418,7 @@ static UnorderedLoopPair *edbm_tagged_loop_pairs_to_fill(BMesh *bm)
   }
 
   if (total_tag) {
-    UnorderedLoopPair *uloop_pairs = static_cast<UnorderedLoopPair *>(
-        MEM_mallocN(total_tag * sizeof(UnorderedLoopPair), __func__));
+    UnorderedLoopPair *uloop_pairs = MEM_malloc_arrayN<UnorderedLoopPair>(total_tag, __func__);
     UnorderedLoopPair *ulp = uloop_pairs;
 
     BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
@@ -467,10 +465,10 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
         f_verts[3] = ulp->l_pair[0]->e->v2;
 
         if (ulp->flag & ULP_FLIP_0) {
-          SWAP(BMVert *, f_verts[0], f_verts[3]);
+          std::swap(f_verts[0], f_verts[3]);
         }
         if (ulp->flag & ULP_FLIP_1) {
-          SWAP(BMVert *, f_verts[1], f_verts[2]);
+          std::swap(f_verts[1], f_verts[2]);
         }
       }
       else {
@@ -482,7 +480,7 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 
         /* don't use the flip flags */
         if (v_shared == ulp->l_pair[0]->v) {
-          SWAP(BMVert *, f_verts[0], f_verts[1]);
+          std::swap(f_verts[0], f_verts[1]);
         }
       }
 
@@ -724,7 +722,7 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
      * vout[2+] == splice with glue (when vout_len > 2)
      */
     if (vi_best != 0) {
-      SWAP(BMVert *, vout[0], vout[vi_best]);
+      std::swap(vout[0], vout[vi_best]);
       vi_best = 0;
     }
 
@@ -805,7 +803,8 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
         } while ((l_iter = l_iter->radial_next) != l_first);
       }
       else {
-        /* looks like there are no split edges, we could just return/report-error? - Campbell */
+        /* NOTE(@ideasman42): It looks like there are no split edges,
+         * we could just return/report-error? */
       }
     }
 
@@ -1020,13 +1019,12 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
  * \{ */
 
 /* based on mouse cursor position, it defines how is being ripped */
-static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
 
   bool no_vertex_selected = true;
@@ -1034,8 +1032,7 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   bool error_disconnected_vertices = true;
   bool error_rip_failed = true;
 
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
+  for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     BMesh *bm = em->bm;
@@ -1103,13 +1100,11 @@ static int edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
     error_rip_failed = false;
 
     EDBMUpdate_Params params{};
-    params.calc_looptri = true;
+    params.calc_looptris = true;
     params.calc_normals = true;
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
   }
-
-  MEM_freeN(objects);
 
   if (no_vertex_selected) {
     /* Ignore it. */
@@ -1140,7 +1135,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->idname = "MESH_OT_rip";
   ot->description = "Disconnect vertex or edges from connected geometry";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_rip_invoke;
   ot->poll = EDBM_view3d_poll;
 
@@ -1148,7 +1143,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
   /* to give to transform */
-  Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
+  blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
   prop = RNA_def_boolean(ot->srna, "use_fill", false, "Fill", "Fill the ripped region");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
 }

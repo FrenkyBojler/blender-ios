@@ -7,6 +7,11 @@
 # When the version is `(0, 0, 0)`, the key-map being loaded didn't contain any versioning information.
 # This will older than `(2, 92, 0)`.
 
+__all__ = (
+    "keyconfig_update",
+)
+
+
 def keyconfig_update(keyconfig_data, keyconfig_version):
     from bpy.app import version_file as blender_version
     if keyconfig_version >= blender_version:
@@ -28,7 +33,7 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
         nonlocal has_copy
 
         changed_items = []
-        for kmi_index, (km_name, _km_parms, km_items_data) in enumerate(keyconfig_data):
+        for km_index, (_km_name, _km_parms, km_items_data) in enumerate(keyconfig_data):
             for kmi_item_index, (item_op, item_event, item_prop) in enumerate(km_items_data["items"]):
                 if item_prop and item_op in op_prop_map:
                     properties = item_prop.get("properties", [])
@@ -41,17 +46,30 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                         filtered_properties = None
 
                     if filtered_properties is None or len(filtered_properties) < len(properties):
-                        changed_items.append((kmi_index, kmi_item_index, filtered_properties))
+                        changed_items.append((km_index, kmi_item_index, filtered_properties))
 
         if changed_items:
             if not has_copy:
                 keyconfig_data = copy.deepcopy(keyconfig_data)
                 has_copy = True
 
-            for kmi_index, kmi_item_index, filtered_properties in changed_items:
-                item_op, item_event, item_prop = keyconfig_data[kmi_index][2]["items"][kmi_item_index]
+            for km_index, kmi_item_index, filtered_properties in changed_items:
+                item_op, item_event, item_prop = keyconfig_data[km_index][2]["items"][kmi_item_index]
                 item_prop["properties"] = filtered_properties
-                keyconfig_data[kmi_index][2]["items"][kmi_item_index] = (item_op, item_event, item_prop)
+                keyconfig_data[km_index][2]["items"][kmi_item_index] = (item_op, item_event, item_prop)
+
+    def rename_keymap(km_name_map):
+        nonlocal keyconfig_data
+        nonlocal has_copy
+
+        for km_index, (km_name, km_parms, km_items_data) in enumerate(keyconfig_data):
+            km_name_dst = km_name_map.get(km_name)
+            if km_name_dst is None:
+                continue
+            if not has_copy:
+                keyconfig_data = copy.deepcopy(keyconfig_data)
+                has_copy = True
+            keyconfig_data[km_index] = (km_name_dst, km_parms, km_items_data)
 
     # Default repeat to false.
     if keyconfig_version <= (2, 92, 0):
@@ -128,9 +146,13 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
 
     if keyconfig_version <= (4, 1, 5):
         remove_properties({
-            "transform.translate": ["alt_navigation"],
-            "transform.rotate": ["alt_navigation"],
+            "transform.edge_slide": ["alt_navigation"],
             "transform.resize": ["alt_navigation"],
+            "transform.rotate": ["alt_navigation"],
+            "transform.shrink_fatten": ["alt_navigation"],
+            "transform.transform": ["alt_navigation"],
+            "transform.translate": ["alt_navigation"],
+            "transform.vert_slide": ["alt_navigation"],
             "view3d.edit_mesh_extrude_move_normal": ["alt_navigation"],
             "armature.extrude_move": ["TRANSFORM_OT_translate"],
             "curve.extrude_move": ["TRANSFORM_OT_translate"],
@@ -163,5 +185,25 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
 
                 km_items_data["items"].append(
                     ("PASSTHROUGH_NAVIGATE", {"type": 'LEFT_ALT', "value": 'ANY', "any": True}, None))
+
+    if keyconfig_version <= (4, 1, 21):
+        rename_keymap({"NLA Channels": "NLA Tracks"})
+
+    if keyconfig_version <= (4, 5, 10):
+        rename_keymap({"SequencerCommon": "Video Sequence Editor"})
+        rename_keymap({"SequencerPreview": "Preview"})
+        mappings = [
+            ("Sequencer Timeline Tool: Select Box", "Sequencer Tool: Select Box"),
+            ("Sequencer Preview Tool: Tweak", "Preview Tool: Tweak"),
+            ("Sequencer Preview Tool: Select Box", "Preview Tool: Select Box"),
+        ]
+        for old, new in mappings:
+            rename_keymap({old: new})
+            rename_keymap({f"{old} (fallback)": f"{new} (fallback)"})
+        rename_keymap({"Sequencer Tool: Cursor": "Preview Tool: Cursor"})
+        rename_keymap({"Sequencer Tool: Sample": "Preview Tool: Sample"})
+        rename_keymap({"Sequencer Tool: Move": "Preview Tool: Move"})
+        rename_keymap({"Sequencer Tool: Rotate": "Preview Tool: Rotate"})
+        rename_keymap({"Sequencer Tool: Scale": "Preview Tool: Scale"})
 
     return keyconfig_data

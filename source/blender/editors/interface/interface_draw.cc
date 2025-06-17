@@ -23,28 +23,27 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BKE_colorband.h"
-#include "BKE_colortools.h"
+#include "BKE_colorband.hh"
+#include "BKE_colortools.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_node.hh"
 #include "BKE_tracking.h"
 
-#include "IMB_colormanagement.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.hh"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
 
 #include "BIF_glutil.hh"
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_context.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_shader_shared.h"
-#include "GPU_state.h"
+#include "GPU_batch.hh"
+#include "GPU_batch_presets.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_shader_shared.hh"
+#include "GPU_state.hh"
+#include "GPU_uniform_buffer.hh"
 
 #include "UI_interface.hh"
 
@@ -104,7 +103,7 @@ void UI_draw_roundbox_4fv_ex(const rctf *rect,
   widget_params.shade_dir = shade_dir;
   widget_params.alpha_discard = 1.0f;
 
-  GPUBatch *batch = ui_batch_roundbox_widget_get();
+  blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
   GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
   GPU_batch_uniform_4fv_array(batch, "parameters", 11, (const float(*)[4]) & widget_params);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -154,7 +153,8 @@ void ui_draw_rounded_corners_inverted(const rcti &rect,
                                       const blender::float4 color)
 {
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   float vec[4][2] = {
       {0.195, 0.02},
@@ -221,12 +221,13 @@ void UI_draw_text_underline(int pos_x, int pos_y, int len, int height, const flo
   const int ofs_y = 4 * U.pixelsize;
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(color);
 
-  immRecti(pos, pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
+  immRectf(pos, pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
   immUnbindProgram();
 }
 
@@ -237,10 +238,14 @@ void ui_draw_but_TAB_outline(const rcti *rect,
                              uchar highlight[3],
                              uchar highlight_fade[3])
 {
+  /* NOTE: based on `UI_draw_roundbox` functions
+   * check on making a version which allows us to skip some sides. */
+
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   const uint col = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   /* add a 1px offset, looks nicer */
   const int minx = rect->xmin + U.pixelsize, maxx = rect->xmax - U.pixelsize;
   const int miny = rect->ymin + U.pixelsize, maxy = rect->ymax - U.pixelsize;
@@ -260,7 +265,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
   immBeginAtMost(GPU_PRIM_LINE_STRIP, 25);
 
-  immAttr3ubv(col, highlight);
+  immAttr4ub(col, UNPACK3(highlight), 255);
 
   /* start with corner left-top */
   if (roundboxtype & UI_CNR_TOP_LEFT) {
@@ -286,7 +291,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
     immVertex2f(pos, maxx, maxy);
   }
 
-  immAttr3ubv(col, highlight_fade);
+  immAttr4ub(col, UNPACK3(highlight_fade), 255);
 
   /* corner right-bottom */
   if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
@@ -312,7 +317,7 @@ void ui_draw_but_TAB_outline(const rcti *rect,
     immVertex2f(pos, minx, miny);
   }
 
-  immAttr3ubv(col, highlight);
+  immAttr4ub(col, UNPACK3(highlight), 255);
 
   /* back to corner left-top */
   immVertex2f(pos, minx, (roundboxtype & UI_CNR_TOP_LEFT) ? (maxy - rad) : maxy);
@@ -352,7 +357,7 @@ void ui_draw_but_IMAGE(ARegion * /*region*/,
 
   if (w != ibuf->x || h != ibuf->y) {
     /* We scale the bitmap, rather than have OGL do a worse job. */
-    IMB_scaleImBuf(ibuf, w, h);
+    IMB_scale(ibuf, w, h, IMBScaleFilter::Box, false);
   }
 
   float col[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -492,7 +497,7 @@ static void histogram_draw_one(float r,
 
 #define HISTOGRAM_TOT_GRID_LINES 4
 
-void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
+void ui_draw_but_HISTOGRAM(ARegion *region,
                            uiBut *but,
                            const uiWidgetColors * /*wcol*/,
                            const rcti *recti)
@@ -526,13 +531,21 @@ void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
   /* need scissor test, histogram can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -591,26 +604,92 @@ void ui_draw_but_HISTOGRAM(ARegion * /*region*/,
 
 #undef HISTOGRAM_TOT_GRID_LINES
 
-static void waveform_draw_one(float *waveform, int waveform_num, const float col[3])
+static void waveform_draw_one(const float *waveform, int waveform_num, const float col[3])
 {
+  BLI_assert_msg(
+      !immIsShaderBound(),
+      "It is not allowed to draw a batch when immediate mode has a shader bound. It will "
+      "use the incorrect shader and is hard to discover.");
   GPUVertFormat format = {0};
-  const uint pos_id = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos_id = GPU_vertformat_attr_add(
+      &format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
-  GPUVertBuf *vbo = GPU_vertbuf_create_with_format(&format);
-  GPU_vertbuf_data_alloc(vbo, waveform_num);
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
 
   GPU_vertbuf_attr_fill(vbo, pos_id, waveform);
 
-  /* TODO: store the #GPUBatch inside the scope. */
-  GPUBatch *batch = GPU_batch_create_ex(GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_UNIFORM_COLOR);
+  /* TODO: store the #blender::gpu::Batch inside the scope. */
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
   GPU_batch_uniform_4f(batch, "color", col[0], col[1], col[2], 1.0f);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
   GPU_batch_draw(batch);
 
   GPU_batch_discard(batch);
 }
 
-void ui_draw_but_WAVEFORM(ARegion * /*region*/,
+struct WaveformColorVertex {
+  blender::float2 pos;
+  blender::float4 color;
+};
+static_assert(sizeof(WaveformColorVertex) == 24);
+
+static void waveform_draw_rgb(const float *waveform,
+                              int waveform_num,
+                              const float *col,
+                              float alpha)
+{
+  GPUVertFormat format = {0};
+  GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  GPU_vertformat_attr_add(&format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+
+  GPU_vertbuf_data_alloc(*vbo, waveform_num);
+  WaveformColorVertex *data = vbo->data<WaveformColorVertex>().data();
+  for (int i = 0; i < waveform_num; i++) {
+    memcpy(&data->pos, waveform, sizeof(data->pos));
+    memcpy(&data->color, col, sizeof(float) * 3);
+    data->color.w = alpha;
+    waveform += 2;
+    col += 3;
+    data++;
+  }
+  GPU_vertbuf_tag_dirty(vbo);
+  GPU_vertbuf_use(vbo);
+
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_POINTS, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POINT_FLAT_COLOR);
+  GPU_batch_uniform_1f(batch, "size", 1.0f);
+  GPU_batch_draw(batch);
+  GPU_batch_discard(batch);
+}
+
+static void circle_draw_rgb(float *points, int tot_points, const float *col, GPUPrimType prim)
+{
+  GPUVertFormat format = {0};
+  const uint pos_id = GPU_vertformat_attr_add(
+      &format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint col_id = GPU_vertformat_attr_add(
+      &format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+
+  GPU_vertbuf_data_alloc(*vbo, tot_points);
+  GPU_vertbuf_attr_fill(vbo, pos_id, points);
+  GPU_vertbuf_attr_fill(vbo, col_id, col);
+
+  blender::gpu::Batch *batch = GPU_batch_create_ex(prim, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_SMOOTH_COLOR);
+  GPU_batch_draw(batch);
+  GPU_batch_discard(batch);
+}
+
+void ui_draw_but_WAVEFORM(ARegion *region,
                           uiBut *but,
                           const uiWidgetColors * /*wcol*/,
                           const rcti *recti)
@@ -670,10 +749,17 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
 
   /* need scissor test, waveform can draw outside of boundary */
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   /* draw scale numbers first before binding any shader */
   for (int i = 0; i < 6; i++) {
@@ -687,10 +773,9 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
   /* Flush text cache before drawing things on top. */
   BLF_batch_draw_flush();
 
-  GPU_blend(GPU_BLEND_ALPHA);
-
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -763,7 +848,9 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
 
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, col);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_matrix_pop();
 
@@ -784,11 +871,11 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w, h);
-
+      immUnbindProgram();
       waveform_draw_one(scopes->waveform_1, scopes->waveform_tot, colors_alpha[0]);
       waveform_draw_one(scopes->waveform_2, scopes->waveform_tot, colors_alpha[1]);
       waveform_draw_one(scopes->waveform_3, scopes->waveform_tot, colors_alpha[2]);
-
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       GPU_matrix_pop();
     }
     /* PARADE / YCC (3 channels) */
@@ -799,7 +886,7 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
                   SCOPES_WAVEFRM_YCC_JPEG))
     {
       const int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB_PARADE);
-
+      immUnbindProgram();
       GPU_matrix_push();
       GPU_matrix_translate_2f(rect.xmin, yofs);
       GPU_matrix_scale_2f(w3, h);
@@ -816,6 +903,7 @@ void ui_draw_but_WAVEFORM(ARegion * /*region*/,
           scopes->waveform_3, scopes->waveform_tot, (rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 
       GPU_matrix_pop();
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     }
 
     /* min max */
@@ -863,13 +951,16 @@ static float polar_to_y(float center, float diam, float ampli, float angle)
 }
 
 static void vectorscope_draw_target(
-    uint pos, float centerx, float centery, float diam, const float colf[3])
+    uint pos, float centerx, float centery, float diam, const float colf[3], char label)
 {
   float y, u, v;
   float tangle = 0.0f, tampli;
-  float dangle, dampli, dangle2, dampli2;
+  float dangle, dampli;
+  const char labelstr[2] = {label, '\0'};
 
   rgb_to_yuv(colf[0], colf[1], colf[2], &y, &u, &v, BLI_YUV_ITU_BT709);
+  u *= SCOPES_VEC_U_SCALE;
+  v *= SCOPES_VEC_V_SCALE;
 
   if (u > 0 && v >= 0) {
     tangle = atanf(v / u);
@@ -905,75 +996,36 @@ static void vectorscope_draw_target(
   immVertex2f(pos,
               polar_to_x(centerx, diam, tampli + dampli, tangle - dangle),
               polar_to_y(centery, diam, tampli + dampli, tangle - dangle));
-  immEnd();
-  /* big target vary by 10 degree and 20% amplitude */
-  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.12f);
-  dangle = DEG2RADF(10.0f);
-  dampli = 0.2f * tampli;
-  dangle2 = DEG2RADF(5.0f);
-  dampli2 = 0.5f * dampli;
-  immBegin(GPU_PRIM_LINE_STRIP, 3);
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli - dampli2, tangle + dangle),
-              polar_to_y(centery, diam, tampli + dampli - dampli2, tangle + dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli, tangle + dangle),
-              polar_to_y(centery, diam, tampli + dampli, tangle + dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli, tangle + dangle - dangle2),
-              polar_to_y(centery, diam, tampli + dampli, tangle + dangle - dangle2));
-  immEnd();
-  immBegin(GPU_PRIM_LINE_STRIP, 3);
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli + dampli2, tangle + dangle),
-              polar_to_y(centery, diam, tampli - dampli + dampli2, tangle + dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli, tangle + dangle),
-              polar_to_y(centery, diam, tampli - dampli, tangle + dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli, tangle + dangle - dangle2),
-              polar_to_y(centery, diam, tampli - dampli, tangle + dangle - dangle2));
-  immEnd();
-  immBegin(GPU_PRIM_LINE_STRIP, 3);
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli + dampli2, tangle - dangle),
-              polar_to_y(centery, diam, tampli - dampli + dampli2, tangle - dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli, tangle - dangle),
-              polar_to_y(centery, diam, tampli - dampli, tangle - dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli - dampli, tangle - dangle + dangle2),
-              polar_to_y(centery, diam, tampli - dampli, tangle - dangle + dangle2));
-  immEnd();
-  immBegin(GPU_PRIM_LINE_STRIP, 3);
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli - dampli2, tangle - dangle),
-              polar_to_y(centery, diam, tampli + dampli - dampli2, tangle - dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli, tangle - dangle),
-              polar_to_y(centery, diam, tampli + dampli, tangle - dangle));
-  immVertex2f(pos,
-              polar_to_x(centerx, diam, tampli + dampli, tangle - dangle + dangle2),
-              polar_to_y(centery, diam, tampli + dampli, tangle - dangle + dangle2));
+
+  /* draw color letter as text */
+  BLF_color4f(BLF_default(), 1.0f, 1.0f, 1.0f, 0.3f);
+  BLF_draw_default(polar_to_x(centerx, diam, tampli, tangle) + 5,
+                   polar_to_y(centery, diam, tampli, tangle),
+                   0,
+                   labelstr,
+                   strlen(labelstr));
+
   immEnd();
 }
 
-void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
+void ui_draw_but_VECTORSCOPE(ARegion *region,
                              uiBut *but,
                              const uiWidgetColors * /*wcol*/,
                              const rcti *recti)
 {
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
-  Scopes *scopes = (Scopes *)but->poin;
+  const Scopes *scopes = (const Scopes *)but->poin;
 
   const float colors[6][3] = {
-      {0.75, 0.0, 0.0},
-      {0.75, 0.75, 0.0},
-      {0.0, 0.75, 0.0},
-      {0.0, 0.75, 0.75},
-      {0.0, 0.0, 0.75},
-      {0.75, 0.0, 0.75},
+      {0.75, 0.0, 0.0},  /* Red */
+      {0.75, 0.75, 0.0}, /* Yellow */
+      {0.0, 0.75, 0.0},  /* Green */
+      {0.0, 0.75, 0.75}, /* Cyan */
+      {0.0, 0.0, 0.75},  /* Blue */
+      {0.75, 0.0, 0.75}, /* Magenta */
   };
+
+  const char color_names[] = {'R', 'Y', 'G', 'C', 'B', 'M'};
 
   rctf rect{};
   rect.xmin = float(recti->xmin + 1);
@@ -985,10 +1037,11 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   const float h = BLI_rctf_size_y(&rect);
   const float centerx = rect.xmin + w * 0.5f;
   const float centery = rect.ymin + h * 0.5f;
-  const float diam = (w < h) ? w : h;
+  const float diam = ((w < h) ? w : h) * 0.9f;
 
-  const float alpha = scopes->vecscope_alpha * scopes->vecscope_alpha * scopes->vecscope_alpha;
+  const float alpha = scopes->vecscope_alpha;
 
+  GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
 
   float color[4];
@@ -1001,22 +1054,138 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
   back_rect.ymax = rect.ymax + 1;
   UI_draw_roundbox_4fv(&back_rect, true, 3.0f, color);
 
-  /* need scissor test, hvectorscope can draw outside of boundary */
+  /* need scissor test, vectorscope can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  const int increment = 6;
+  const int tot_points = int(360 / increment);
+  const float r = 0.5f;
+  float step = 360.0f / (tot_points - 1);
 
-  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.08f);
+  float circle_fill_points[(tot_points * 2) + 2];
+  float circle_fill_vertex_colors[(tot_points * 4) + 4];
+
+  /* draw filled RGB circle for background, only for LUMA mode */
+  if (scopes->vecscope_mode == SCOPES_VECSCOPE_LUMA) {
+    /* Initialize center point and color */
+    circle_fill_points[0] = centerx;
+    circle_fill_points[1] = centery;
+    circle_fill_vertex_colors[0] = 0.2f;
+    circle_fill_vertex_colors[1] = 0.2f;
+    circle_fill_vertex_colors[2] = 0.2f;
+    circle_fill_vertex_colors[3] = 0.8f;
+
+    for (int i = 0; i < tot_points; i++) {
+      float angle = step * i;
+      const float a = DEG2RADF(angle);
+
+      const float x = polar_to_x(centerx, diam, r, a);
+      const float y = polar_to_y(centery, diam, r, a);
+
+      const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+      const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
+
+      circle_fill_points[(i + 1) * 2] = x;
+      circle_fill_points[(i + 1) * 2 + 1] = y;
+
+      float r, g, b;
+      yuv_to_rgb(0.5f, u, v, &r, &g, &b, BLI_YUV_ITU_BT709);
+
+      circle_fill_vertex_colors[(i + 1) * 4] = r * 0.2f;
+      circle_fill_vertex_colors[(i + 1) * 4 + 1] = g * 0.2f;
+      circle_fill_vertex_colors[(i + 1) * 4 + 2] = b * 0.2f;
+      circle_fill_vertex_colors[(i + 1) * 4 + 3] = 0.8f;
+    }
+
+    GPU_blend(GPU_BLEND_ALPHA);
+    circle_draw_rgb(
+        circle_fill_points, tot_points + 1, circle_fill_vertex_colors, GPU_PRIM_TRI_FAN);
+  }
+  /* draw filled Gray circle for background, only for RGB mode */
+  else if (scopes->vecscope_mode == SCOPES_VECSCOPE_RGB) {
+    GPU_blend(GPU_BLEND_NONE);
+    immBegin(GPU_PRIM_TRI_FAN, tot_points + 2);
+    immUniformColor3f(0.16f, 0.16f, 0.16f);
+    immVertex2f(pos, centerx, centery);
+
+    for (int i = 0; i <= 360; i += increment) {
+      const float a = DEG2RADF(float(i));
+      immVertex2f(pos, polar_to_x(centerx, diam, r, a), polar_to_y(centery, diam, r, a));
+    }
+    immEnd();
+  }
+
+  /* draw RGB ring */
+  float circle_points[(tot_points * 2) + 3] = {};
+  float circle_vertex_colors[(tot_points * 4) + 5] = {};
+
+  for (int i = 0; i < tot_points; i++) {
+    float angle = step * i;
+    const float a = DEG2RADF(angle);
+
+    const float x = polar_to_x(centerx, diam, 0.5f, a);
+    const float y = polar_to_y(centery, diam, 0.5f, a);
+    circle_points[i * 2] = x;
+    circle_points[i * 2 + 1] = y;
+
+    const float u = (x - centerx) / diam / SCOPES_VEC_U_SCALE;
+    const float v = (y - centery) / diam / SCOPES_VEC_V_SCALE;
+    float r, g, b;
+    yuv_to_rgb(0.5f, u, v, &r, &g, &b, BLI_YUV_ITU_BT709);
+
+    circle_vertex_colors[i * 4] = r;
+    circle_vertex_colors[i * 4 + 1] = g;
+    circle_vertex_colors[i * 4 + 2] = b;
+    circle_vertex_colors[i * 4 + 3] = 0.8f;
+  }
+
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_line_width(2.5f);
+  circle_draw_rgb(circle_points, tot_points, circle_vertex_colors, GPU_PRIM_LINE_LOOP);
+  GPU_line_width(1.5f);
+
+  /* inner circles */
+  GPU_blend(GPU_BLEND_ADDITIVE);
+  for (int j = 0; j < 4; j++) {
+    float inner_circle_points[(tot_points * 2) + 3] = {};
+    float inner_circle_colors[(tot_points * 4) + 5] = {};
+    const float r = (j + 1) * 0.1f;
+
+    for (int i = 0; i < tot_points; i++) {
+      float angle = step * i;
+      const float a = DEG2RADF(angle);
+
+      inner_circle_points[i * 2] = polar_to_x(centerx, diam, r, a);
+      inner_circle_points[i * 2 + 1] = polar_to_y(centery, diam, r, a);
+
+      inner_circle_colors[i * 4] = 0.1f;
+      inner_circle_colors[i * 4 + 1] = 0.1f;
+      inner_circle_colors[i * 4 + 2] = 0.1f;
+      inner_circle_colors[i * 4 + 3] = 0.8f;
+    }
+    circle_draw_rgb(inner_circle_points, tot_points, inner_circle_colors, GPU_PRIM_LINE_LOOP);
+  }
+
   /* draw grid elements */
   /* cross */
+  immUniformColor4f(1.0f, 1.0f, 1.0f, 0.1f);
   immBegin(GPU_PRIM_LINES, 4);
 
   immVertex2f(pos, centerx - (diam * 0.5f) - 5, centery);
@@ -1027,19 +1196,9 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
 
   immEnd();
 
-  /* circles */
-  for (int j = 0; j < 5; j++) {
-    const int increment = 15;
-    immBegin(GPU_PRIM_LINE_LOOP, int(360 / increment));
-    for (int i = 0; i <= 360 - increment; i += increment) {
-      const float a = DEG2RADF(float(i));
-      const float r = (j + 1) * 0.1f;
-      immVertex2f(pos, polar_to_x(centerx, diam, r, a), polar_to_y(centery, diam, r, a));
-    }
-    immEnd();
-  }
   /* skin tone line */
-  immUniformColor4f(1.0f, 0.4f, 0.0f, 0.2f);
+  GPU_blend(GPU_BLEND_ADDITIVE);
+  immUniformColor3f(0.25f, 0.25f, 0.25f);
 
   immBegin(GPU_PRIM_LINES, 2);
   immVertex2f(
@@ -1050,21 +1209,26 @@ void ui_draw_but_VECTORSCOPE(ARegion * /*region*/,
 
   /* saturation points */
   for (int i = 0; i < 6; i++) {
-    vectorscope_draw_target(pos, centerx, centery, diam, colors[i]);
+    vectorscope_draw_target(pos, centerx, centery, diam, colors[i], color_names[i]);
   }
 
   if (scopes->ok && scopes->vecscope != nullptr) {
     /* pixel point cloud */
-    const float col[3] = {alpha, alpha, alpha};
-
-    GPU_blend(GPU_BLEND_ADDITIVE);
     GPU_point_size(1.0);
 
     GPU_matrix_push();
     GPU_matrix_translate_2f(centerx, centery);
     GPU_matrix_scale_1f(diam);
 
-    waveform_draw_one(scopes->vecscope, scopes->waveform_tot, col);
+    const float col[3] = {alpha, alpha, alpha};
+    if (scopes->vecscope_mode == SCOPES_VECSCOPE_RGB) {
+      GPU_blend(GPU_BLEND_ALPHA);
+      waveform_draw_rgb(scopes->vecscope, scopes->waveform_tot, scopes->vecscope_rgb, alpha);
+    }
+    else if (scopes->vecscope_mode == SCOPES_VECSCOPE_LUMA) {
+      GPU_blend(GPU_BLEND_ADDITIVE);
+      waveform_draw_one(scopes->vecscope, scopes->waveform_tot, col);
+    }
 
     GPU_matrix_pop();
   }
@@ -1103,7 +1267,7 @@ static void ui_draw_colorband_handle(uint shdr_pos,
                                      const rcti *rect,
                                      float x,
                                      const float rgb[3],
-                                     ColorManagedDisplay *display,
+                                     const ColorManagedDisplay *display,
                                      bool active)
 {
   const float sizey = BLI_rcti_size_y(rect);
@@ -1204,7 +1368,7 @@ static void ui_draw_colorband_handle(uint shdr_pos,
 
 void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *rect)
 {
-  ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
+  const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
   uint pos_id, col_id;
 
   uiButColorBand *but_coba = (uiButColorBand *)but;
@@ -1230,7 +1394,7 @@ void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *r
 
   /* Line width outline. */
   GPUVertFormat *format = immVertexFormat();
-  pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ubv(wcol->outline);
   immBegin(GPU_PRIM_TRI_STRIP, 4);
@@ -1253,8 +1417,9 @@ void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *r
 
   /* New format */
   format = immVertexFormat();
-  pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  col_id = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  col_id = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   CBData *cbd = coba->data;
@@ -1305,7 +1470,7 @@ void ui_draw_but_COLORBAND(uiBut *but, const uiWidgetColors *wcol, const rcti *r
 
   /* New format */
   format = immVertexFormat();
-  pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  pos_id = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* layer: draw handles */
   for (int a = 0; a < coba->tot; a++, cbd++) {
@@ -1360,7 +1525,7 @@ void ui_draw_but_UNITVEC(uiBut *but,
                           rect->ymin + 0.5f * BLI_rcti_size_y(rect));
   GPU_matrix_scale_1f(size);
 
-  GPUBatch *sphere = GPU_batch_preset_sphere(2);
+  blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
   SimpleLightingData simple_lighting_data;
   copy_v4_fl4(simple_lighting_data.l_color, diffuse[0], diffuse[1], diffuse[2], 1.0f);
   copy_v3_v3(simple_lighting_data.light, light);
@@ -1377,7 +1542,8 @@ void ui_draw_but_UNITVEC(uiBut *but,
 
   /* AA circle */
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor3ubv(wcol->inner);
 
@@ -1508,7 +1674,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   GPU_line_width(1.0f);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* backdrop */
@@ -1671,9 +1837,13 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* The points, use aspect to make them visible on edges. */
   format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint size = GPU_vertformat_attr_add(format, "size", blender::gpu::VertAttrType::SFLOAT_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
+
+  GPU_program_point_size(true);
 
   /* Calculate vertex colors based on text theme. */
   float color_vert[4], color_vert_select[4];
@@ -1688,12 +1858,14 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
   }
 
   cmp = cuma->curve;
-  GPU_point_size(max_ff(1.0f, min_ff(UI_SCALE_FAC / but->block->aspect * 4.0f, 4.0f)));
+  const float point_size = max_ff(U.pixelsize * 3.0f,
+                                  min_ff(UI_SCALE_FAC / but->block->aspect * 6.0f, 20.0f));
   immBegin(GPU_PRIM_POINTS, cuma->totpoint);
   for (int a = 0; a < cuma->totpoint; a++) {
     const float fx = rect->xmin + zoomx * (cmp[a].x - offsx);
     const float fy = rect->ymin + zoomy * (cmp[a].y - offsy);
     immAttr4fv(col, (cmp[a].flag & CUMA_SELECT) ? color_vert_select : color_vert);
+    immAttr1f(size, point_size);
     immVertex2f(pos, fx, fy);
   }
   immEnd();
@@ -1704,7 +1876,7 @@ void ui_draw_but_CURVE(ARegion *region, uiBut *but, const uiWidgetColors *wcol, 
 
   /* outline */
   format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor3ubv(wcol->outline);
@@ -1764,7 +1936,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   GPU_line_width(1.0f);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* Draw the backdrop. */
@@ -1851,13 +2023,13 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
     BLI_polyfill_calc(table_coords, tot_points, -1, tri_indices);
 
     /* Draw the triangles for the profile fill. */
-    immUniformColor3ubvAlpha((const uchar *)wcol->item, 128);
+    immUniformColor3ubvAlpha(wcol->item, 128);
     GPU_blend(GPU_BLEND_ALPHA);
     GPU_polygon_smooth(false);
     immBegin(GPU_PRIM_TRIS, 3 * tot_triangles);
     for (uint i = 0; i < tot_triangles; i++) {
+      const uint *tri = tri_indices[i];
       for (uint j = 0; j < 3; j++) {
-        uint *tri = tri_indices[i];
         fx = rect->xmin + zoomx * (table_coords[tri[j]][0] - offsx);
         fy = rect->ymin + zoomy * (table_coords[tri[j]][1] - offsy);
         immVertex2f(pos, fx, fy);
@@ -1923,8 +2095,9 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 
   /* New GPU instructions for control points and sampled points. */
   format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  const uint col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
   /* Calculate vertex colors based on text theme. */
@@ -2001,7 +2174,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
 
   /* Outline */
   format = immVertexFormat();
-  pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor3ubv((const uchar *)wcol->outline);
@@ -2009,7 +2182,7 @@ void ui_draw_but_CURVEPROFILE(ARegion *region,
   immUnbindProgram();
 }
 
-void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
+void ui_draw_but_TRACKPREVIEW(ARegion *region,
                               uiBut *but,
                               const uiWidgetColors * /*wcol*/,
                               const rcti *recti)
@@ -2031,10 +2204,17 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
   /* need scissor test, preview image can draw outside of boundary */
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor((rect.xmin - 1),
-              (rect.ymin - 1),
-              (rect.xmax + 1) - (rect.xmin - 1),
-              (rect.ymax + 1) - (rect.ymin - 1));
+  rcti scissor_new{};
+  scissor_new.xmin = rect.xmin;
+  scissor_new.ymin = rect.ymin;
+  scissor_new.xmax = rect.xmax;
+  scissor_new.ymax = rect.ymax;
+  const rcti scissor_region = {0, region->winx, 0, region->winy};
+  BLI_rcti_isect(&scissor_new, &scissor_region, &scissor_new);
+  GPU_scissor(scissor_new.xmin,
+              scissor_new.ymin,
+              BLI_rcti_size_x(&scissor_new),
+              BLI_rcti_size_y(&scissor_new));
 
   if (scopes->track_disabled) {
     const float color[4] = {0.7f, 0.3f, 0.3f, 0.3f};
@@ -2068,7 +2248,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
                                                  scopes->track_pos);
     if (tmpibuf) {
       if (tmpibuf->float_buffer.data) {
-        IMB_rect_from_float(tmpibuf);
+        IMB_byte_from_float(tmpibuf);
       }
 
       if (tmpibuf->byte_buffer.data) {
@@ -2119,8 +2299,10 @@ void ui_draw_but_TRACKPREVIEW(ARegion * /*region*/,
       GPU_scissor(rect.xmin, rect.ymin, BLI_rctf_size_x(&rect), BLI_rctf_size_y(&rect));
 
       GPUVertFormat *format = immVertexFormat();
-      const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-      const uint col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
+      const uint pos = GPU_vertformat_attr_add(
+          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      const uint col = GPU_vertformat_attr_add(
+          format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
 
       UI_GetThemeColor4fv(TH_SEL_MARKER, col_sel);
@@ -2212,7 +2394,7 @@ void ui_draw_dropshadow(
   widget_params.round_corners[3] = (roundboxtype & UI_CNR_TOP_LEFT) ? 1.0f : 0.0f;
   widget_params.alpha_discard = 1.0f;
 
-  GPUBatch *batch = ui_batch_roundbox_shadow_get();
+  blender::gpu::Batch *batch = ui_batch_roundbox_shadow_get();
   GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_SHADOW);
   GPU_batch_uniform_4fv_array(batch, "parameters", 4, (const float(*)[4]) & widget_params);
   GPU_batch_uniform_1f(batch, "alpha", alpha);

@@ -13,12 +13,11 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_linestyle.h"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -31,17 +30,15 @@
 #include "node_texture_util.hh"
 #include "node_util.hh"
 
-#include "DEG_depsgraph.hh"
-
-#include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "RE_texture.h"
+#include "RNA_prototypes.hh"
 
 #include "UI_resources.hh"
 
-static void texture_get_from_context(
-    const bContext *C, bNodeTreeType * /*treetype*/, bNodeTree **r_ntree, ID **r_id, ID **r_from)
+static void texture_get_from_context(const bContext *C,
+                                     blender::bke::bNodeTreeType * /*treetype*/,
+                                     bNodeTree **r_ntree,
+                                     ID **r_id,
+                                     ID **r_from)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   Scene *scene = CTX_data_scene(C);
@@ -82,7 +79,7 @@ static void texture_get_from_context(
   }
 }
 
-static void foreach_nodeclass(Scene * /*scene*/, void *calldata, bNodeClassCallback func)
+static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
 {
   func(calldata, NODE_CLASS_INPUT, N_("Input"));
   func(calldata, NODE_CLASS_OUTPUT, N_("Output"));
@@ -108,9 +105,9 @@ static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
   for (node = static_cast<bNode *>(localtree->nodes.first); node; node = node_next) {
     node_next = node->next;
 
-    if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
-      blender::bke::nodeInternalRelink(localtree, node);
-      blender::bke::ntreeFreeLocalNode(localtree, node);
+    if (node->is_muted() || node->is_reroute()) {
+      blender::bke::node_internal_relink(*localtree, *node);
+      blender::bke::node_tree_free_local_node(*localtree, *node);
     }
   }
 }
@@ -123,25 +120,26 @@ static void update(bNodeTree *ntree)
   ntree_update_reroute_nodes(ntree);
 }
 
-static bool texture_node_tree_socket_type_valid(bNodeTreeType * /*ntreetype*/,
-                                                bNodeSocketType *socket_type)
+static bool texture_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
+                                                blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::nodeIsStaticSocketType(socket_type) &&
+  return blender::bke::node_is_static_socket_type(*socket_type) &&
          ELEM(socket_type->type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA);
 }
 
-bNodeTreeType *ntreeType_Texture;
+blender::bke::bNodeTreeType *ntreeType_Texture;
 
 void register_node_tree_type_tex()
 {
-  bNodeTreeType *tt = ntreeType_Texture = MEM_cnew<bNodeTreeType>("texture node tree type");
+  blender::bke::bNodeTreeType *tt = ntreeType_Texture = MEM_new<blender::bke::bNodeTreeType>(
+      __func__);
 
   tt->type = NTREE_TEXTURE;
-  STRNCPY(tt->idname, "TextureNodeTree");
-  STRNCPY(tt->group_idname, "TextureNodeGroup");
-  STRNCPY(tt->ui_name, N_("Texture Node Editor"));
+  tt->idname = "TextureNodeTree";
+  tt->group_idname = "TextureNodeGroup";
+  tt->ui_name = N_("Texture Node Editor");
   tt->ui_icon = ICON_NODE_TEXTURE; /* Defined in `drawnode.cc`. */
-  STRNCPY(tt->ui_description, N_("Texture nodes"));
+  tt->ui_description = N_("Texture nodes");
 
   tt->foreach_nodeclass = foreach_nodeclass;
   tt->update = update;
@@ -151,7 +149,7 @@ void register_node_tree_type_tex()
 
   tt->rna_ext.srna = &RNA_TextureNodeTree;
 
-  ntreeTypeAdd(tt);
+  blender::bke::node_tree_type_add(*tt);
 }
 
 /**** Material/Texture trees ****/
@@ -169,7 +167,7 @@ bNodeThreadStack *ntreeGetThreadStack(bNodeTreeExec *exec, int thread)
   }
 
   if (!nts) {
-    nts = MEM_cnew<bNodeThreadStack>("bNodeThreadStack");
+    nts = MEM_callocN<bNodeThreadStack>("bNodeThreadStack");
     nts->stack = (bNodeStack *)MEM_dupallocN(exec->stack);
     nts->used = true;
     BLI_addtail(lb, nts);
@@ -201,7 +199,7 @@ bool ntreeExecThreadNodes(bNodeTreeExec *exec, bNodeThreadStack *nts, void *call
        * If the mute func is not set, assume the node should never be muted,
        * and hence execute it!
        */
-      if (node->typeinfo->exec_fn && !(node->flag & NODE_MUTED)) {
+      if (node->typeinfo->exec_fn && !node->is_muted()) {
         node->typeinfo->exec_fn(callerdata, thread, node, &nodeexec->data, nsin, nsout);
       }
     }
@@ -221,7 +219,7 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
   exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = MEM_cnew_array<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
+  exec->threadstack = MEM_calloc_arrayN<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
 
   LISTBASE_FOREACH (bNode *, node, &exec->nodetree->nodes) {
     node->runtime->need_exec = 1;
@@ -242,9 +240,7 @@ bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
     return ntree->runtime->execdata;
   }
 
-  context.previews = ntree->previews;
-
-  exec = ntreeTexBeginExecTree_internal(&context, ntree, NODE_INSTANCE_KEY_BASE);
+  exec = ntreeTexBeginExecTree_internal(&context, ntree, blender::bke::NODE_INSTANCE_KEY_BASE);
 
   /* XXX this should not be necessary, but is still used for compositor/shading/texture nodes,
    * which only store the ntree pointer. Should be fixed at some point!
@@ -310,9 +306,6 @@ void ntreeTexEndExecTree(bNodeTreeExec *exec)
 int ntreeTexExecTree(bNodeTree *ntree,
                      TexResult *target,
                      const float co[3],
-                     float dxt[3],
-                     float dyt[3],
-                     int osatex,
                      const short thread,
                      const Tex * /*tex*/,
                      short which_output,
@@ -326,9 +319,6 @@ int ntreeTexExecTree(bNodeTree *ntree,
   bNodeTreeExec *exec = ntree->runtime->execdata;
 
   data.co = co;
-  data.dxt = dxt;
-  data.dyt = dyt;
-  data.osatex = osatex;
   data.target = target;
   data.do_preview = preview;
   data.do_manage = true;

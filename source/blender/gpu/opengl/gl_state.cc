@@ -6,12 +6,12 @@
  * \ingroup gpu
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
 #include "BLI_math_base.h"
 #include "BLI_math_bits.h"
 
-#include "GPU_capabilities.h"
+#include "GPU_capabilities.hh"
 
 #include "gl_context.hh"
 #include "gl_framebuffer.hh"
@@ -30,7 +30,6 @@ GLStateManager::GLStateManager()
   /* Set other states that never change. */
   glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
   glEnable(GL_MULTISAMPLE);
-  glEnable(GL_PRIMITIVE_RESTART);
 
   glDisable(GL_DITHER);
 
@@ -38,12 +37,9 @@ GLStateManager::GLStateManager()
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 
-  glPrimitiveRestartIndex((GLuint)0xFFFFFFFF);
-  /* TODO: Should become default. But needs at least GL 4.3 */
-  if (GLContext::fixed_restart_index_support) {
-    /* Takes precedence over #GL_PRIMITIVE_RESTART. */
-    glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
-  }
+  /* Takes precedence over #GL_PRIMITIVE_RESTART.
+   * Sets restart index correctly following the IBO type. */
+  glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 
   /* Limits. */
   glGetFloatv(GL_ALIASED_LINE_WIDTH_RANGE, line_width_range_);
@@ -112,6 +108,9 @@ void GLStateManager::set_state(const GPUState &state)
   }
   if (changed.shadow_bias != 0) {
     set_shadow_bias(state.shadow_bias);
+  }
+  if (changed.clip_control != 0) {
+    set_clip_control(state.clip_control);
   }
 
   /* TODO: remove. */
@@ -252,7 +251,7 @@ void GLStateManager::set_stencil_test(const eGPUStencilTest test, const eGPUSten
   }
 }
 
-void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable state)
+void GLStateManager::set_stencil_mask(const eGPUStencilTest test, const GPUStateMutable &state)
 {
   GLenum func;
   switch (test) {
@@ -331,6 +330,19 @@ void GLStateManager::set_shadow_bias(const bool enable)
   else {
     glDisable(GL_POLYGON_OFFSET_FILL);
     glDisable(GL_POLYGON_OFFSET_LINE);
+  }
+}
+
+void GLStateManager::set_clip_control(const bool enable)
+{
+  if (GLContext::clip_control_support) {
+    if (enable) {
+      /* Match Vulkan and Metal by default. */
+      glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+    }
+    else {
+      glClipControl(GL_LOWER_LEFT, GL_NEGATIVE_ONE_TO_ONE);
+    }
   }
 }
 
@@ -417,6 +429,13 @@ void GLStateManager::set_blend(const eGPUBlend value)
       dst_rgb = GL_SRC1_COLOR;
       src_alpha = GL_ONE;
       dst_alpha = GL_SRC1_ALPHA;
+      break;
+    }
+    case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA: {
+      src_rgb = GL_ZERO;
+      dst_rgb = GL_ONE_MINUS_SRC_ALPHA;
+      src_alpha = GL_ZERO;
+      dst_alpha = GL_ONE_MINUS_SRC_ALPHA;
       break;
     }
   }
@@ -559,7 +578,7 @@ uint64_t GLStateManager::bound_texture_slots()
 void GLStateManager::image_bind(Texture *tex_, int unit)
 {
   /* Minimum support is 8 image in the fragment shader. No image for other stages. */
-  BLI_assert(GPU_shader_image_load_store_support() && unit < 8);
+  BLI_assert(unit < 8);
   GLTexture *tex = static_cast<GLTexture *>(tex_);
   if (G.debug & G_DEBUG_GPU) {
     tex->check_feedback_loop();
@@ -654,7 +673,7 @@ GLFence::~GLFence()
 
 void GLFence::signal()
 {
-  /* If fence is already signalled, create a newly signalled fence primitive. */
+  /* If fence is already signaled, create a newly signaled fence primitive. */
   if (gl_sync_) {
     glDeleteSync(gl_sync_);
   }

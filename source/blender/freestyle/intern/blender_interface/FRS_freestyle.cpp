@@ -7,54 +7,48 @@
  */
 
 #include <iostream>
-#include <map>
-#include <set>
 
-#include "../application/AppCanvas.h"
 #include "../application/AppConfig.h"
 #include "../application/AppView.h"
 #include "../application/Controller.h"
 
 #include "BlenderStrokeRenderer.h"
 
-using namespace std;
-using namespace Freestyle;
-
 #include "MEM_guardedalloc.h"
 
-#include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_text_types.h"
 
-#include "BKE_callbacks.h"
+#include "BKE_callbacks.hh"
 #include "BKE_context.hh"
 #include "BKE_freestyle.h"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_linestyle.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #include "BKE_text.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 
-#include "BPY_extern.h"
+#include "BPY_extern.hh"
 
 #include "DEG_depsgraph_query.hh"
 
-#include "IMB_imbuf.h"
+#include "IMB_imbuf.hh"
 
 #include "pipeline.hh"
 
 #include "FRS_freestyle.h"
 
-extern "C" {
+using namespace std;
+using namespace Freestyle;
 
 FreestyleGlobals g_freestyle;
 
@@ -167,7 +161,7 @@ static void init_view(Render *re)
 
 static char *escape_quotes(char *name)
 {
-  char *s = (char *)MEM_mallocN(strlen(name) * 2 + 1, "escape_quotes");
+  char *s = MEM_malloc_arrayN<char>(strlen(name) * 2 + 1, "escape_quotes");
   char *p = s;
   while (*name) {
     if (*name == '\'') {
@@ -279,7 +273,7 @@ static bool test_edge_type_conditions(edge_type_condition *conditions,
 static void prepare(Render *re, ViewLayer *view_layer, Depsgraph *depsgraph)
 {
   // load mesh
-  re->i.infostr = TIP_("Freestyle: Mesh loading");
+  re->i.infostr = RPT_("Freestyle: Mesh loading");
   re->stats_draw(&re->i);
   re->i.infostr = nullptr;
   if (controller->LoadMesh(re, view_layer, depsgraph)) {
@@ -466,7 +460,7 @@ static void prepare(Render *re, ViewLayer *view_layer, Depsgraph *depsgraph)
   }
 
   // compute view map
-  re->i.infostr = TIP_("Freestyle: View map creation");
+  re->i.infostr = RPT_("Freestyle: View map creation");
   re->stats_draw(&re->i);
   re->i.infostr = nullptr;
   controller->ComputeViewMap();
@@ -618,7 +612,7 @@ void FRS_do_stroke_rendering(Render *re, ViewLayer *view_layer)
    * Objects are transformed into camera coordinate system, therefore the camera position
    * is zero and the modelview matrix is the identity matrix. */
   Object *ob_camera_orig = RE_GetCamera(re);
-  Object *ob_camera_eval = DEG_get_evaluated_object(depsgraph, ob_camera_orig);
+  Object *ob_camera_eval = DEG_get_evaluated(depsgraph, ob_camera_orig);
   zero_v3(g_freestyle.viewpoint);
   unit_m4(g_freestyle.mv);
   RE_GetCameraWindow(re, ob_camera_eval, g_freestyle.proj);
@@ -640,7 +634,7 @@ void FRS_do_stroke_rendering(Render *re, ViewLayer *view_layer)
     // render and composite Freestyle result
     if (controller->_ViewMap) {
       // render strokes
-      re->i.infostr = TIP_("Freestyle: Stroke rendering");
+      re->i.infostr = RPT_("Freestyle: Stroke rendering");
       re->stats_draw(&re->i);
       re->i.infostr = nullptr;
       g_freestyle.scene = DEG_get_evaluated_scene(depsgraph);
@@ -764,5 +758,3 @@ Material *FRS_create_stroke_material(Main *bmain, FreestyleLineStyle *linestyle)
   ma->id.us = 0;
   return ma;
 }
-
-}  // extern "C"

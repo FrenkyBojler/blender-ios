@@ -9,6 +9,7 @@
  */
 
 #include "BKE_subsurf.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_utildefines.h"
 
 struct Depsgraph;
@@ -16,13 +17,14 @@ struct DerivedMesh;
 struct MDisps;
 struct Mesh;
 struct ModifierData;
-struct MLoopTri;
 struct MultiresModifierData;
 struct Object;
 struct Scene;
 struct SubdivCCG;
-struct SubdivSettings;
-struct SubdivToMeshSettings;
+namespace blender::bke::subdiv {
+struct Settings;
+struct ToMeshSettings;
+}  // namespace blender::bke::subdiv
 
 /**
  * Delete mesh mdisps and grid paint masks.
@@ -46,13 +48,13 @@ void multires_modifier_update_hidden(DerivedMesh *dm);
  */
 void multiresModifier_set_levels_from_disps(MultiresModifierData *mmd, Object *ob);
 
-enum MultiresFlags {
-  MULTIRES_USE_LOCAL_MMD = 1,
-  MULTIRES_USE_RENDER_PARAMS = 2,
-  MULTIRES_ALLOC_PAINT_MASK = 4,
-  MULTIRES_IGNORE_SIMPLIFY = 8,
+enum class MultiresFlags : uint8_t {
+  UseLocalMMD = 1,
+  UseRenderParams = 2,
+  AllocPaintMask = 4,
+  IgnoreSimplify = 8,
 };
-ENUM_OPERATORS(MultiresFlags, MULTIRES_IGNORE_SIMPLIFY);
+ENUM_OPERATORS(MultiresFlags, MultiresFlags::IgnoreSimplify);
 
 DerivedMesh *multires_make_derived_from_derived(
     DerivedMesh *dm, MultiresModifierData *mmd, Scene *scene, Object *ob, MultiresFlags flags);
@@ -99,7 +101,7 @@ int multiresModifier_rebuild_subdiv(Depsgraph *depsgraph,
  * synchronize them such that `ob_dst` has the same total number of levels as `ob_src`.
  */
 void multiresModifier_sync_levels_ex(Object *ob_dst,
-                                     MultiresModifierData *mmd_src,
+                                     const MultiresModifierData *mmd_src,
                                      MultiresModifierData *mmd_dst);
 
 void multires_stitch_grids(Object *);
@@ -158,15 +160,15 @@ bool multiresModifier_reshapeFromCCG(int tot_level, Mesh *coarse_mesh, SubdivCCG
 
 /* Subdivide multi-res displacement once. */
 
-enum eMultiresSubdivideModeType {
-  MULTIRES_SUBDIVIDE_CATMULL_CLARK,
-  MULTIRES_SUBDIVIDE_SIMPLE,
-  MULTIRES_SUBDIVIDE_LINEAR,
+enum class MultiresSubdivideModeType : int8_t {
+  CatmullClark,
+  Simple,
+  Linear,
 };
 
 void multiresModifier_subdivide(Object *object,
                                 MultiresModifierData *mmd,
-                                eMultiresSubdivideModeType mode);
+                                MultiresSubdivideModeType mode);
 void multires_subdivide_create_tangent_displacement_linear_grids(Object *object,
                                                                  MultiresModifierData *mmd);
 
@@ -177,14 +179,15 @@ void multires_subdivide_create_tangent_displacement_linear_grids(Object *object,
 void multiresModifier_subdivide_to_level(Object *object,
                                          MultiresModifierData *mmd,
                                          int top_level,
-                                         eMultiresSubdivideModeType mode);
+                                         MultiresSubdivideModeType mode);
 
 /* Subdivision integration, defined in multires_subdiv.cc */
 
-void BKE_multires_subdiv_settings_init(SubdivSettings *settings, const MultiresModifierData *mmd);
+void BKE_multires_subdiv_settings_init(blender::bke::subdiv::Settings *settings,
+                                       const MultiresModifierData *mmd);
 
 /* TODO(sergey): Replace this set of boolean flags with bitmask. */
-void BKE_multires_subdiv_mesh_settings_init(SubdivToMeshSettings *mesh_settings,
+void BKE_multires_subdiv_mesh_settings_init(blender::bke::subdiv::ToMeshSettings *mesh_settings,
                                             const Scene *scene,
                                             const Object *object,
                                             const MultiresModifierData *mmd,
@@ -200,9 +203,9 @@ void BKE_multires_subdiv_mesh_settings_init(SubdivToMeshSettings *mesh_settings,
  * Corner needs to be known to properly "rotate" partial derivatives when the
  * matrix is being constructed for quad. For non-quad the corner is to be set to 0.
  */
-BLI_INLINE void BKE_multires_construct_tangent_matrix(float tangent_matrix[3][3],
-                                                      const float dPdu[3],
-                                                      const float dPdv[3],
+BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent_matrix,
+                                                      const blender::float3 &dPdu,
+                                                      const blender::float3 &dPdv,
                                                       int corner);
 
 /* Versioning. */
@@ -213,4 +216,4 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(float tangent_matrix[3][3]
  */
 void multires_do_versions_simple_to_catmull_clark(Object *object, MultiresModifierData *mmd);
 
-#include "intern/multires_inline.hh"
+#include "intern/multires_inline.hh"  // IWYU pragma: export

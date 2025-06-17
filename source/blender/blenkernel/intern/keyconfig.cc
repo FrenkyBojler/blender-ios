@@ -15,13 +15,12 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_keyconfig.h" /* own include */
 
 #include "MEM_guardedalloc.h"
@@ -37,13 +36,13 @@ wmKeyConfigPref *BKE_keyconfig_pref_ensure(UserDef *userdef, const char *kc_idna
   wmKeyConfigPref *kpt = static_cast<wmKeyConfigPref *>(BLI_findstring(
       &userdef->user_keyconfig_prefs, kc_idname, offsetof(wmKeyConfigPref, idname)));
   if (kpt == nullptr) {
-    kpt = static_cast<wmKeyConfigPref *>(MEM_callocN(sizeof(*kpt), __func__));
+    kpt = MEM_callocN<wmKeyConfigPref>(__func__);
     STRNCPY(kpt->idname, kc_idname);
     BLI_addtail(&userdef->user_keyconfig_prefs, kpt);
   }
   if (kpt->prop == nullptr) {
-    IDPropertyTemplate val = {0};
-    kpt->prop = IDP_New(IDP_GROUP, &val, kc_idname); /* name is unimportant. */
+    /* name is unimportant. */
+    kpt->prop = blender::bke::idprop::create_group(kc_idname).release();
   }
   return kpt;
 }
@@ -115,9 +114,7 @@ void BKE_keyconfig_pref_set_select_mouse(UserDef *userdef, int value, bool overr
   wmKeyConfigPref *kpt = BKE_keyconfig_pref_ensure(userdef, WM_KEYCONFIG_STR_DEFAULT);
   IDProperty *idprop = IDP_GetPropertyFromGroup(kpt->prop, "select_mouse");
   if (!idprop) {
-    IDPropertyTemplate tmp{};
-    tmp.i = value;
-    IDP_AddToGroup(kpt->prop, IDP_New(IDP_INT, &tmp, "select_mouse"));
+    IDP_AddToGroup(kpt->prop, blender::bke::idprop::create("select_mouse", value).release());
   }
   else if (override) {
     IDP_Int(idprop) = value;
@@ -128,7 +125,7 @@ static void keymap_item_free(wmKeyMapItem *kmi)
 {
   IDP_FreeProperty(kmi->properties);
   if (kmi->ptr) {
-    MEM_freeN(kmi->ptr);
+    MEM_delete(kmi->ptr);
   }
   MEM_freeN(kmi);
 }

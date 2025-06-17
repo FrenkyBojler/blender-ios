@@ -11,13 +11,9 @@
 #include "BLI_console.h"
 #include "BLI_hash.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
+#include "BLI_time.h"
 
-#include "PIL_time_utildefines.h"
-
-#include "BKE_global.h"
-
-#include "intern/depsgraph.hh"
+#include "BKE_global.hh"
 
 namespace blender::deg {
 
@@ -34,7 +30,7 @@ void DepsgraphDebug::begin_graph_evaluation()
     return;
   }
 
-  const double current_time = PIL_check_seconds_timer();
+  const double current_time = BLI_time_now_seconds();
 
   graph_evaluation_start_time_ = current_time;
 }
@@ -45,7 +41,7 @@ void DepsgraphDebug::end_graph_evaluation()
     return;
   }
 
-  const double graph_eval_end_time = PIL_check_seconds_timer();
+  const double graph_eval_end_time = BLI_time_now_seconds();
   const double graph_eval_time = graph_eval_end_time - graph_evaluation_start_time_;
 
   if (name.empty()) {
@@ -61,7 +57,7 @@ bool terminal_do_color()
   return (G.debug & G_DEBUG_DEPSGRAPH_PRETTY) != 0;
 }
 
-string color_for_pointer(const void *pointer)
+std::string color_for_pointer(const void *pointer)
 {
   if (!terminal_do_color()) {
     return "";
@@ -70,15 +66,15 @@ string color_for_pointer(const void *pointer)
   BLI_hash_pointer_to_color(pointer, &r, &g, &b);
   char buffer[64];
   SNPRINTF(buffer, TRUECOLOR_ANSI_COLOR_FORMAT, r, g, b);
-  return string(buffer);
+  return std::string(buffer);
 }
 
-string color_end()
+std::string color_end()
 {
   if (!terminal_do_color()) {
     return "";
   }
-  return string(TRUECOLOR_ANSI_COLOR_FINISH);
+  return std::string(TRUECOLOR_ANSI_COLOR_FINISH);
 }
 
 }  // namespace blender::deg

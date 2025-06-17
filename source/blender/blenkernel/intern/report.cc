@@ -14,40 +14,41 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_global.h" /* G.background only */
-#include "BKE_report.h"
+#include "BKE_global.hh" /* G.background only */
+#include "BKE_report.hh"
 
 const char *BKE_report_type_str(eReportType type)
 {
   switch (type) {
     case RPT_DEBUG:
-      return TIP_("Debug");
+      return RPT_("Debug");
     case RPT_INFO:
-      return TIP_("Info");
+      return RPT_("Info");
     case RPT_OPERATOR:
-      return TIP_("Operator");
+      return RPT_("Operator");
     case RPT_PROPERTY:
-      return TIP_("Property");
+      return RPT_("Property");
     case RPT_WARNING:
-      return TIP_("Warning");
+      return RPT_("Warning");
     case RPT_ERROR:
-      return TIP_("Error");
+      return RPT_("Error");
     case RPT_ERROR_INVALID_INPUT:
-      return TIP_("Invalid Input Error");
+      return RPT_("Invalid Input Error");
     case RPT_ERROR_INVALID_CONTEXT:
-      return TIP_("Invalid Context Error");
+      return RPT_("Invalid Context Error");
     case RPT_ERROR_OUT_OF_MEMORY:
-      return TIP_("Out Of Memory Error");
+      return RPT_("Out Of Memory Error");
     default:
-      return TIP_("Undefined Type");
+      return RPT_("Undefined Type");
   }
 }
 
@@ -57,7 +58,7 @@ void BKE_reports_init(ReportList *reports, int flag)
     return;
   }
 
-  memset(reports, 0, sizeof(ReportList));
+  *reports = ReportList{};
 
   reports->storelevel = RPT_INFO;
   reports->printlevel = RPT_ERROR;
@@ -92,7 +93,7 @@ void BKE_reports_clear(ReportList *reports)
 
   while (report) {
     report_next = report->next;
-    MEM_freeN((void *)report->message);
+    MEM_freeN(report->message);
     MEM_freeN(report);
     report = report_next;
   }
@@ -126,7 +127,7 @@ void BKE_report(ReportList *reports, eReportType type, const char *_message)
 {
   Report *report;
   int len;
-  const char *message = TIP_(_message);
+  const char *message = RPT_(_message);
 
   if (BKE_reports_print_test(reports, type)) {
     printf("%s: %s\n", BKE_report_type_str(type), message);
@@ -137,12 +138,12 @@ void BKE_report(ReportList *reports, eReportType type, const char *_message)
     std::scoped_lock lock(*reports->lock);
 
     char *message_alloc;
-    report = static_cast<Report *>(MEM_callocN(sizeof(Report), "Report"));
+    report = MEM_callocN<Report>("Report");
     report->type = type;
     report->typestr = BKE_report_type_str(type);
 
     len = strlen(message);
-    message_alloc = static_cast<char *>(MEM_mallocN(sizeof(char) * (len + 1), "ReportMessage"));
+    message_alloc = MEM_malloc_arrayN<char>(size_t(len) + 1, "ReportMessage");
     memcpy(message_alloc, message, sizeof(char) * (len + 1));
     report->message = message_alloc;
     report->len = len;
@@ -154,7 +155,7 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *_format, ...
 {
   Report *report;
   va_list args;
-  const char *format = TIP_(_format);
+  const char *format = RPT_(_format);
 
   if (BKE_reports_print_test(reports, type)) {
     printf("%s: ", BKE_report_type_str(type));
@@ -168,7 +169,7 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *_format, ...
   if (reports && (reports->flag & RPT_STORE) && (type >= reports->storelevel)) {
     std::scoped_lock lock(*reports->lock);
 
-    report = static_cast<Report *>(MEM_callocN(sizeof(Report), "Report"));
+    report = MEM_callocN<Report>("Report");
 
     va_start(args, _format);
     report->message = BLI_vsprintfN(format, args);
@@ -195,7 +196,7 @@ static void reports_prepend_impl(ReportList *reports, const char *prepend)
   const size_t prefix_len = strlen(prepend);
   LISTBASE_FOREACH (Report *, report, &reports->list) {
     char *message = BLI_string_joinN(prepend, report->message);
-    MEM_freeN((void *)report->message);
+    MEM_freeN(report->message);
     report->message = message;
     report->len += prefix_len;
     BLI_assert(report->len == strlen(message));
@@ -207,7 +208,7 @@ void BKE_reports_prepend(ReportList *reports, const char *prepend)
   if (!reports || !reports->list.first) {
     return;
   }
-  reports_prepend_impl(reports, TIP_(prepend));
+  reports_prepend_impl(reports, RPT_(prepend));
 }
 
 void BKE_reports_prependf(ReportList *reports, const char *prepend_format, ...)
@@ -217,7 +218,7 @@ void BKE_reports_prependf(ReportList *reports, const char *prepend_format, ...)
   }
   va_list args;
   va_start(args, prepend_format);
-  char *prepend = BLI_vsprintfN(TIP_(prepend_format), args);
+  char *prepend = BLI_vsprintfN(RPT_(prepend_format), args);
   va_end(args);
 
   reports_prepend_impl(reports, prepend);
@@ -320,7 +321,8 @@ void BKE_reports_print(ReportList *reports, eReportType level)
     return;
   }
 
-  puts(cstring);
+  /* A trailing newline is already part of `cstring`. */
+  fputs(cstring, stdout);
   fflush(stdout);
   MEM_freeN(cstring);
 }
@@ -361,7 +363,7 @@ bool BKE_report_write_file_fp(FILE *fp, ReportList *reports, const char *header)
   std::scoped_lock lock(*reports->lock);
 
   LISTBASE_FOREACH (Report *, report, &reports->list) {
-    fprintf((FILE *)fp, "%s  # %s\n", report->message, report->typestr);
+    fprintf(fp, "%s  # %s\n", report->message, report->typestr);
   }
 
   return true;

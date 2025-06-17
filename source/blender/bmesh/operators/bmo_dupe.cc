@@ -247,7 +247,8 @@ static void bmo_mesh_copy(BMOperator *op, BMesh *bm_dst, BMesh *bm_src)
   /* duplicate flagged vertices */
   BM_ITER_MESH (v, &viter, bm_src, BM_VERTS_OF_MESH) {
     if (BMO_vert_flag_test(bm_src, v, DUPE_INPUT) &&
-        BMO_vert_flag_test(bm_src, v, DUPE_DONE) == false) {
+        BMO_vert_flag_test(bm_src, v, DUPE_DONE) == false)
+    {
       BMIter iter;
       bool isolated = true;
 
@@ -280,7 +281,8 @@ static void bmo_mesh_copy(BMOperator *op, BMesh *bm_dst, BMesh *bm_src)
   /* now we dupe all the edges */
   BM_ITER_MESH (e, &eiter, bm_src, BM_EDGES_OF_MESH) {
     if (BMO_edge_flag_test(bm_src, e, DUPE_INPUT) &&
-        BMO_edge_flag_test(bm_src, e, DUPE_DONE) == false) {
+        BMO_edge_flag_test(bm_src, e, DUPE_DONE) == false)
+    {
       /* make sure that verts are copied */
       if (!BMO_vert_flag_test(bm_src, e->v1, DUPE_DONE)) {
         bmo_vert_copy(op, slot_vert_map_out, bm_dst, cd_vert_map, e->v1, vhash);
@@ -445,6 +447,12 @@ void bmo_split_exec(BMesh *bm, BMOperator *op)
   BMO_slot_copy(splitop, slots_in, "geom", &dupeop, slots_in, "geom");
   BMO_op_exec(bm, &dupeop);
 
+  BMFace *new_act_face = static_cast<BMFace *>(
+      BMO_slot_map_elem_get(BMO_slot_get(dupeop.slots_out, "face_map.out"), bm->act_face));
+  if (new_act_face) {
+    bm->act_face = new_act_face;
+  }
+
   BMO_slot_buffer_flag_enable(bm, splitop->slots_in, "geom", BM_ALL_NOLOOP, SPLIT_INPUT);
 
   if (use_only_faces) {
@@ -486,6 +494,8 @@ void bmo_split_exec(BMesh *bm, BMOperator *op)
 
   /* now we make our outputs by copying the dupe output */
   BMO_slot_copy(&dupeop, slots_out, "geom.out", splitop, slots_out, "geom.out");
+  BMO_slot_copy(&dupeop, slots_out, "boundary_map.out", splitop, slots_out, "boundary_map.out");
+  BMO_slot_copy(&dupeop, slots_out, "isovert_map.out", splitop, slots_out, "isovert_map.out");
 
   /* cleanup */
   BMO_op_finish(bm, &dupeop);
@@ -539,7 +549,7 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
 
   BMVert **vtable = nullptr;
   if (use_merge) {
-    vtable = static_cast<BMVert **>(MEM_mallocN(sizeof(BMVert *) * bm->totvert, __func__));
+    vtable = MEM_malloc_arrayN<BMVert *>(bm->totvert, __func__);
     int i = 0;
     BMIter iter;
     BMVert *v;

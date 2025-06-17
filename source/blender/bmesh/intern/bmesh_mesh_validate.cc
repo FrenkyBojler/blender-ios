@@ -28,6 +28,13 @@
         errtot++; \
       } \
       (void)0
+#  elif defined(_MSVC_TRADITIONAL) && !_MSVC_TRADITIONAL
+#    define ERRMSG(format, ...) \
+      { \
+        fprintf(stderr, "%s: " format ", " AT "\n", __func__, ##__VA_ARGS__); \
+        errtot++; \
+      } \
+      (void)0
 #  else
 #    define ERRMSG(format, ...) \
       { \
@@ -42,7 +49,7 @@ template<> struct blender::DefaultHash<blender::Set<const BMVert *>> {
   {
     uint64_t hash = 0;
     for (const BMVert *vert : value) {
-      hash = get_default_hash_2(hash, vert);
+      hash = get_default_hash(hash, vert);
     }
     return hash;
   }
@@ -199,7 +206,7 @@ bool BM_mesh_validate(BMesh *bm)
     face_map.add_or_modify(
         std::move(face_verts),
         [&](int *value) { *value = i; },
-        [&](int *value) { ERRMSG("face %d: duplicate of %d", i, *value); });
+        [&](const int *value) { ERRMSG("face %d: duplicate of %d", i, *value); });
 
     if (j != f->len) {
       ERRMSG("face %d: has length of %d but should be %d", i, f->len, j);

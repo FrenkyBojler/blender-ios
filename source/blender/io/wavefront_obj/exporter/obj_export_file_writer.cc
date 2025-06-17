@@ -7,8 +7,7 @@
  */
 
 #include <algorithm>
-#include <cstdio>
-#include <sstream>
+#include <system_error>
 
 #include "BKE_attribute.hh"
 #include "BKE_blender_version.h"
@@ -16,7 +15,10 @@
 
 #include "BLI_color.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_path_util.h"
+#include "BLI_fileops.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
 #include "BLI_task.hh"
 
 #include "IO_path_util.hh"
@@ -26,6 +28,9 @@
 #include "obj_export_nurbs.hh"
 
 #include "obj_export_file_writer.hh"
+
+#include "CLG_log.h"
+static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 /**
@@ -48,6 +53,23 @@ static const char *DEFORM_GROUP_DISABLED = "off";
  * So an empty material name is written. */
 static const char *MATERIAL_GROUP_DISABLED = "";
 
+OBJWriter::OBJWriter(const char *filepath, const OBJExportParams &export_params) noexcept(false)
+    : export_params_(export_params), outfile_path_(filepath), outfile_(nullptr)
+{
+  outfile_ = BLI_fopen(filepath, "wb");
+  if (!outfile_) {
+    throw std::system_error(errno, std::system_category(), "Cannot open file " + outfile_path_);
+  }
+}
+OBJWriter::~OBJWriter()
+{
+  if (outfile_ && std::fclose(outfile_)) {
+    CLOG_ERROR(&LOG,
+               "Error: could not close file '%s' properly, it may be corrupted.",
+               outfile_path_.c_str());
+  }
+}
+
 void OBJWriter::write_vert_uv_normal_indices(FormatHandler &fh,
                                              const IndexOffsets &offsets,
                                              Span<int> vert_indices,
@@ -61,10 +83,10 @@ void OBJWriter::write_vert_uv_normal_indices(FormatHandler &fh,
   const int uv_offset = offsets.uv_vertex_offset + 1;
   const int normal_offset = offsets.normal_offset + 1;
   const int n = vert_indices.size();
-  fh.write_obj_poly_begin();
+  fh.write_obj_face_begin();
   if (!flip) {
     for (int j = 0; j < n; ++j) {
-      fh.write_obj_poly_v_uv_normal(vert_indices[j] + vertex_offset,
+      fh.write_obj_face_v_uv_normal(vert_indices[j] + vertex_offset,
                                     uv_indices[j] + uv_offset,
                                     normal_indices[j] + normal_offset);
     }
@@ -75,12 +97,12 @@ void OBJWriter::write_vert_uv_normal_indices(FormatHandler &fh,
      * then go backwards. Same logic in other write_*_indices functions below. */
     for (int k = 0; k < n; ++k) {
       int j = k == 0 ? 0 : n - k;
-      fh.write_obj_poly_v_uv_normal(vert_indices[j] + vertex_offset,
+      fh.write_obj_face_v_uv_normal(vert_indices[j] + vertex_offset,
                                     uv_indices[j] + uv_offset,
                                     normal_indices[j] + normal_offset);
     }
   }
-  fh.write_obj_poly_end();
+  fh.write_obj_face_end();
 }
 
 void OBJWriter::write_vert_normal_indices(FormatHandler &fh,
@@ -94,21 +116,21 @@ void OBJWriter::write_vert_normal_indices(FormatHandler &fh,
   const int vertex_offset = offsets.vertex_offset + 1;
   const int normal_offset = offsets.normal_offset + 1;
   const int n = vert_indices.size();
-  fh.write_obj_poly_begin();
+  fh.write_obj_face_begin();
   if (!flip) {
     for (int j = 0; j < n; ++j) {
-      fh.write_obj_poly_v_normal(vert_indices[j] + vertex_offset,
+      fh.write_obj_face_v_normal(vert_indices[j] + vertex_offset,
                                  normal_indices[j] + normal_offset);
     }
   }
   else {
     for (int k = 0; k < n; ++k) {
       int j = k == 0 ? 0 : n - k;
-      fh.write_obj_poly_v_normal(vert_indices[j] + vertex_offset,
+      fh.write_obj_face_v_normal(vert_indices[j] + vertex_offset,
                                  normal_indices[j] + normal_offset);
     }
   }
-  fh.write_obj_poly_end();
+  fh.write_obj_face_end();
 }
 
 void OBJWriter::write_vert_uv_indices(FormatHandler &fh,
@@ -122,19 +144,19 @@ void OBJWriter::write_vert_uv_indices(FormatHandler &fh,
   const int vertex_offset = offsets.vertex_offset + 1;
   const int uv_offset = offsets.uv_vertex_offset + 1;
   const int n = vert_indices.size();
-  fh.write_obj_poly_begin();
+  fh.write_obj_face_begin();
   if (!flip) {
     for (int j = 0; j < n; ++j) {
-      fh.write_obj_poly_v_uv(vert_indices[j] + vertex_offset, uv_indices[j] + uv_offset);
+      fh.write_obj_face_v_uv(vert_indices[j] + vertex_offset, uv_indices[j] + uv_offset);
     }
   }
   else {
     for (int k = 0; k < n; ++k) {
       int j = k == 0 ? 0 : n - k;
-      fh.write_obj_poly_v_uv(vert_indices[j] + vertex_offset, uv_indices[j] + uv_offset);
+      fh.write_obj_face_v_uv(vert_indices[j] + vertex_offset, uv_indices[j] + uv_offset);
     }
   }
-  fh.write_obj_poly_end();
+  fh.write_obj_face_end();
 }
 
 void OBJWriter::write_vert_indices(FormatHandler &fh,
@@ -146,19 +168,19 @@ void OBJWriter::write_vert_indices(FormatHandler &fh,
 {
   const int vertex_offset = offsets.vertex_offset + 1;
   const int n = vert_indices.size();
-  fh.write_obj_poly_begin();
+  fh.write_obj_face_begin();
   if (!flip) {
     for (int j = 0; j < n; ++j) {
-      fh.write_obj_poly_v(vert_indices[j] + vertex_offset);
+      fh.write_obj_face_v(vert_indices[j] + vertex_offset);
     }
   }
   else {
     for (int k = 0; k < n; ++k) {
       int j = k == 0 ? 0 : n - k;
-      fh.write_obj_poly_v(vert_indices[j] + vertex_offset);
+      fh.write_obj_face_v(vert_indices[j] + vertex_offset);
     }
   }
-  fh.write_obj_poly_end();
+  fh.write_obj_face_end();
 }
 
 void OBJWriter::write_header() const
@@ -172,7 +194,7 @@ void OBJWriter::write_header() const
 
 void OBJWriter::write_mtllib_name(const StringRefNull mtl_filepath) const
 {
-  /* Split .MTL file path into parent directory and filename. */
+  /* Split `.MTL` file path into parent directory and filename. */
   char mtl_file_name[FILE_MAXFILE];
   char mtl_dir_name[FILE_MAXDIR];
   BLI_path_split_dir_file(mtl_filepath.data(),
@@ -234,8 +256,8 @@ void obj_parallel_chunked_output(FormatHandler &fh, int tot_count, const Functio
     return;
   }
   /* Give each chunk its own temporary output buffer, and process them in parallel. */
-  std::vector<FormatHandler> buffers(chunk_count);
-  blender::threading::parallel_for(IndexRange(chunk_count), 1, [&](IndexRange range) {
+  Array<FormatHandler> buffers(chunk_count);
+  threading::parallel_for(IndexRange(chunk_count), 1, [&](IndexRange range) {
     for (const int r : range) {
       int i_start = r * chunk_size;
       int i_end = std::min(i_start + chunk_size, tot_count);
@@ -259,14 +281,18 @@ void OBJWriter::write_vertex_coords(FormatHandler &fh,
 
   const Mesh *mesh = obj_mesh_data.get_mesh();
   const StringRef name = mesh->active_color_attribute;
+
+  const float4x4 transform = obj_mesh_data.get_world_axes_transform();
+  const Span<float3> positions = obj_mesh_data.get_mesh()->vert_positions();
+
   if (write_colors && !name.is_empty()) {
     const bke::AttributeAccessor attributes = mesh->attributes();
     const VArray<ColorGeometry4f> attribute = *attributes.lookup_or_default<ColorGeometry4f>(
-        name, ATTR_DOMAIN_POINT, {0.0f, 0.0f, 0.0f, 0.0f});
+        name, bke::AttrDomain::Point, {0.0f, 0.0f, 0.0f, 0.0f});
 
     BLI_assert(tot_count == attribute.size());
     obj_parallel_chunked_output(fh, tot_count, [&](FormatHandler &buf, int i) {
-      float3 vertex = obj_mesh_data.calc_vertex_coords(i, export_params_.global_scale);
+      const float3 vertex = math::transform_point(transform, positions[i]);
       ColorGeometry4f linear = attribute.get(i);
       float srgb[3];
       linearrgb_to_srgb_v3_v3(srgb, linear);
@@ -275,7 +301,7 @@ void OBJWriter::write_vertex_coords(FormatHandler &fh,
   }
   else {
     obj_parallel_chunked_output(fh, tot_count, [&](FormatHandler &buf, int i) {
-      float3 vertex = obj_mesh_data.calc_vertex_coords(i, export_params_.global_scale);
+      const float3 vertex = math::transform_point(transform, positions[i]);
       buf.write_obj_vertex(vertex[0], vertex[1], vertex[2]);
     });
   }
@@ -283,26 +309,24 @@ void OBJWriter::write_vertex_coords(FormatHandler &fh,
 
 void OBJWriter::write_uv_coords(FormatHandler &fh, OBJMesh &r_obj_mesh_data) const
 {
-  const Vector<float2> &uv_coords = r_obj_mesh_data.get_uv_coords();
-  const int tot_count = uv_coords.size();
-  obj_parallel_chunked_output(fh, tot_count, [&](FormatHandler &buf, int i) {
+  const Span<float2> uv_coords = r_obj_mesh_data.get_uv_coords();
+  obj_parallel_chunked_output(fh, uv_coords.size(), [&](FormatHandler &buf, int i) {
     const float2 &uv_vertex = uv_coords[i];
     buf.write_obj_uv(uv_vertex[0], uv_vertex[1]);
   });
 }
 
-void OBJWriter::write_poly_normals(FormatHandler &fh, OBJMesh &obj_mesh_data)
+void OBJWriter::write_normals(FormatHandler &fh, OBJMesh &obj_mesh_data)
 {
   /* Poly normals should be calculated earlier via store_normal_coords_and_indices. */
-  const Vector<float3> &normal_coords = obj_mesh_data.get_normal_coords();
-  const int tot_count = normal_coords.size();
-  obj_parallel_chunked_output(fh, tot_count, [&](FormatHandler &buf, int i) {
+  const Span<float3> normal_coords = obj_mesh_data.get_normal_coords();
+  obj_parallel_chunked_output(fh, normal_coords.size(), [&](FormatHandler &buf, int i) {
     const float3 &normal = normal_coords[i];
     buf.write_obj_normal(normal[0], normal[1], normal[2]);
   });
 }
 
-OBJWriter::func_vert_uv_normal_indices OBJWriter::get_poly_element_writer(
+OBJWriter::func_vert_uv_normal_indices OBJWriter::get_face_element_writer(
     const int total_uv_vertices) const
 {
   if (export_params_.export_normals) {
@@ -327,18 +351,18 @@ static int get_smooth_group(const OBJMesh &mesh, const OBJExportParams &params, 
     return NEGATIVE_INIT;
   }
   int group = SMOOTH_GROUP_DISABLED;
-  if (mesh.is_ith_poly_smooth(face_idx)) {
+  if (mesh.is_ith_face_smooth(face_idx)) {
     group = !params.export_smooth_groups ? SMOOTH_GROUP_DEFAULT : mesh.ith_smooth_group(face_idx);
   }
   return group;
 }
 
-void OBJWriter::write_poly_elements(FormatHandler &fh,
+void OBJWriter::write_face_elements(FormatHandler &fh,
                                     const IndexOffsets &offsets,
                                     const OBJMesh &obj_mesh_data,
-                                    std::function<const char *(int)> matname_fn)
+                                    FunctionRef<const char *(int)> matname_fn)
 {
-  const func_vert_uv_normal_indices poly_element_writer = get_poly_element_writer(
+  const func_vert_uv_normal_indices face_element_writer = get_face_element_writer(
       obj_mesh_data.tot_uv_vertices());
 
   const int tot_faces = obj_mesh_data.tot_faces();
@@ -346,7 +370,7 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
   threading::EnumerableThreadSpecific<Vector<float>> group_weights;
   const bke::AttributeAccessor attributes = obj_mesh_data.get_mesh()->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", ATTR_DOMAIN_FACE, 0);
+      "material_index", bke::AttrDomain::Face, 0);
 
   obj_parallel_chunked_output(fh, tot_faces, [&](FormatHandler &buf, int idx) {
     /* Polygon order for writing into the file is not necessarily the same
@@ -355,9 +379,9 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
     int prev_i = obj_mesh_data.remap_face_index(idx - 1);
     int i = obj_mesh_data.remap_face_index(idx);
 
-    Span<int> poly_vertex_indices = obj_mesh_data.calc_poly_vertex_indices(i);
-    Span<int> poly_uv_indices = obj_mesh_data.calc_poly_uv_indices(i);
-    Vector<int> poly_normal_indices = obj_mesh_data.calc_poly_normal_indices(i);
+    const Span<int> face_vertex_indices = obj_mesh_data.calc_face_vert_indices(i);
+    const Span<int> face_uv_indices = obj_mesh_data.get_face_uv_indices(i);
+    const Span<int> face_normal_indices = obj_mesh_data.get_face_normal_indices(i);
 
     /* Write smoothing group if different from previous. */
     {
@@ -373,22 +397,26 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
       Vector<float> &local_weights = group_weights.local();
       local_weights.resize(tot_deform_groups);
       const int16_t prev_group = idx == 0 ? NEGATIVE_INIT :
-                                            obj_mesh_data.get_poly_deform_group_index(
+                                            obj_mesh_data.get_face_deform_group_index(
                                                 prev_i, local_weights);
-      const int16_t group = obj_mesh_data.get_poly_deform_group_index(i, local_weights);
+      const int16_t group = obj_mesh_data.get_face_deform_group_index(i, local_weights);
       if (group != prev_group) {
         buf.write_obj_group(group == NOT_FOUND ? DEFORM_GROUP_DISABLED :
-                                                 obj_mesh_data.get_poly_deform_group_name(group));
+                                                 obj_mesh_data.get_face_deform_group_name(group));
       }
     }
 
     /* Write material name and material group if different from previous. */
-    if (export_params_.export_materials && obj_mesh_data.tot_materials() > 0) {
+    if ((export_params_.export_materials || export_params_.export_material_groups) &&
+        obj_mesh_data.tot_materials() > 0)
+    {
       const int16_t prev_mat = idx == 0 ? NEGATIVE_INIT : std::max(0, material_indices[prev_i]);
       const int16_t mat = std::max(0, material_indices[i]);
       if (mat != prev_mat) {
         if (mat == NOT_FOUND) {
-          buf.write_obj_usemtl(MATERIAL_GROUP_DISABLED);
+          if (export_params_.export_materials) {
+            buf.write_obj_usemtl(MATERIAL_GROUP_DISABLED);
+          }
         }
         else {
           const char *mat_name = matname_fn(mat);
@@ -400,17 +428,19 @@ void OBJWriter::write_poly_elements(FormatHandler &fh,
             spaces_to_underscores(object_name);
             buf.write_obj_group(object_name + "_" + mat_name);
           }
-          buf.write_obj_usemtl(mat_name);
+          if (export_params_.export_materials) {
+            buf.write_obj_usemtl(mat_name);
+          }
         }
       }
     }
 
     /* Write face elements. */
-    (this->*poly_element_writer)(buf,
+    (this->*face_element_writer)(buf,
                                  offsets,
-                                 poly_vertex_indices,
-                                 poly_uv_indices,
-                                 poly_normal_indices,
+                                 face_vertex_indices,
+                                 face_uv_indices,
+                                 face_normal_indices,
                                  obj_mesh_data.is_mirrored_transform());
   });
 }
@@ -436,8 +466,13 @@ void OBJWriter::write_edges_indices(FormatHandler &fh,
 
 void OBJWriter::write_nurbs_curve(FormatHandler &fh, const OBJCurve &obj_nurbs_data) const
 {
+
   const int total_splines = obj_nurbs_data.total_splines();
   for (int spline_idx = 0; spline_idx < total_splines; spline_idx++) {
+    /* Double check no surface is passed in as they are no supported (this is filtered when parsed)
+     */
+    BLI_assert(obj_nurbs_data.get_spline(spline_idx)->pntsv == 1);
+
     const int total_vertices = obj_nurbs_data.total_spline_vertices(spline_idx);
     for (int vertex_idx = 0; vertex_idx < total_vertices; vertex_idx++) {
       const float3 vertex_coords = obj_nurbs_data.vertex_coordinates(
@@ -446,10 +481,10 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const OBJCurve &obj_nurbs_d
     }
 
     const char *nurbs_name = obj_nurbs_data.get_curve_name();
-    const int nurbs_degree = obj_nurbs_data.get_nurbs_degree(spline_idx);
+    const int degree_u = obj_nurbs_data.get_nurbs_degree_u(spline_idx);
     fh.write_obj_group(nurbs_name);
     fh.write_obj_cstype();
-    fh.write_obj_nurbs_degree(nurbs_degree);
+    fh.write_obj_nurbs_degree(degree_u);
     /**
      * The numbers written here are indices into the vertex coordinates written
      * earlier, relative to the line that is going to be written.
@@ -457,36 +492,24 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const OBJCurve &obj_nurbs_d
      * 0.0 1.0 -1 -2 -3 -4 for a non-cyclic curve with 4 vertices.
      * 0.0 1.0 -1 -2 -3 -4 -1 -2 -3 for a cyclic curve with 4 vertices.
      */
-    const int total_control_points = obj_nurbs_data.total_spline_control_points(spline_idx);
+    const int num_points_u = obj_nurbs_data.num_control_points_u(spline_idx);
+    Vector<float> knot_buffer;
+    Span<float> knotsu = obj_nurbs_data.get_knots_u(spline_idx, knot_buffer);
+
     fh.write_obj_curve_begin();
-    for (int i = 0; i < total_control_points; i++) {
+    fh.write_obj_nurbs_parm(knotsu[degree_u]);
+    fh.write_obj_nurbs_parm(knotsu.last(degree_u));
+
+    for (int i = 0; i < num_points_u; i++) {
       /* "+1" to keep indices one-based, even if they're negative: i.e., -1 refers to the
        * last vertex coordinate, -2 second last. */
-      fh.write_obj_poly_v(-((i % total_vertices) + 1));
+      fh.write_obj_face_v(-((i % total_vertices) + 1));
     }
     fh.write_obj_curve_end();
 
-    /**
-     * In `parm u 0 0.1 ..` line:, (total control points + 2) equidistant numbers in the
-     * parameter range are inserted. However for curves with endpoint flag,
-     * first degree+1 numbers are zeroes, and last degree+1 numbers are ones
-     */
-
-    const short flagsu = obj_nurbs_data.get_nurbs_flagu(spline_idx);
-    const bool cyclic = flagsu & CU_NURB_CYCLIC;
-    const bool endpoint = !cyclic && (flagsu & CU_NURB_ENDPOINT);
     fh.write_obj_nurbs_parm_begin();
-    for (int i = 1; i <= total_control_points + 2; i++) {
-      float parm = 1.0f * i / (total_control_points + 2 + 1);
-      if (endpoint) {
-        if (i <= nurbs_degree) {
-          parm = 0;
-        }
-        else if (i > total_control_points + 2 - nurbs_degree) {
-          parm = 1;
-        }
-      }
-      fh.write_obj_nurbs_parm(parm);
+    for (const float &u : knotsu) {
+      fh.write_obj_nurbs_parm(u);
     }
     fh.write_obj_nurbs_parm_end();
     fh.write_obj_nurbs_group_end();
@@ -494,7 +517,7 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const OBJCurve &obj_nurbs_d
 }
 
 /* -------------------------------------------------------------------- */
-/** \name .MTL writers.
+/** \name `.MTL` writers.
  * \{ */
 
 static const char *tex_map_type_to_string[] = {
@@ -518,21 +541,23 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(tex_map_type_to_string) == int(MTLTexMapType::Count
  */
 static std::string float3_to_string(const float3 &numbers)
 {
-  std::ostringstream r_string;
-  r_string << numbers[0] << " " << numbers[1] << " " << numbers[2];
-  return r_string.str();
-};
+  return fmt::format("{} {} {}", numbers[0], numbers[1], numbers[2]);
+}
 
-MTLWriter::MTLWriter(const char *obj_filepath) noexcept(false)
+MTLWriter::MTLWriter(const char *obj_filepath, bool write_file) noexcept(false)
 {
-  mtl_filepath_ = obj_filepath;
-  /* It only makes sense to replace this extension if it's at least as long as the existing one. */
-  BLI_assert(strlen(BLI_path_extension(obj_filepath)) == 4);
-  const bool ok = BLI_path_extension_replace(
-      mtl_filepath_.data(), mtl_filepath_.size() + 1, ".mtl");
+  if (!write_file) {
+    return;
+  }
+  char mtl_path[FILE_MAX];
+  STRNCPY(mtl_path, obj_filepath);
+
+  const bool ok = BLI_path_extension_replace(mtl_path, sizeof(mtl_path), ".mtl");
   if (!ok) {
     throw std::system_error(ENAMETOOLONG, std::system_category(), "");
   }
+
+  mtl_filepath_ = mtl_path;
   outfile_ = BLI_fopen(mtl_filepath_.c_str(), "wb");
   if (!outfile_) {
     throw std::system_error(errno, std::system_category(), "Cannot open file " + mtl_filepath_);
@@ -543,8 +568,9 @@ MTLWriter::~MTLWriter()
   if (outfile_) {
     fmt_handler_.write_to_file(outfile_);
     if (std::fclose(outfile_)) {
-      std::cerr << "Error: could not close the file '" << mtl_filepath_
-                << "' properly, it may be corrupted." << std::endl;
+      CLOG_ERROR(&LOG,
+                 "Error: could not close file '%s' properly, it may be corrupted.",
+                 mtl_filepath_.c_str());
     }
   }
 }
@@ -673,8 +699,8 @@ void MTLWriter::write_materials(const char *blen_filepath,
     return;
   }
 
-  char blen_filedir[PATH_MAX];
-  BLI_path_split_dir_part(blen_filepath, blen_filedir, PATH_MAX);
+  char blen_filedir[FILE_MAX];
+  BLI_path_split_dir_part(blen_filepath, blen_filedir, sizeof(blen_filedir));
   BLI_path_slash_native(blen_filedir);
   BLI_path_normalize(blen_filedir);
 

@@ -8,6 +8,8 @@
  * \ingroup bmesh
  */
 
+#include "bmesh_class.hh"
+
 struct CurveProfile;
 struct MDeformVert;
 
@@ -32,7 +34,7 @@ void BM_mesh_bevel(BMesh *bm,
                    bool affect_type,
                    bool use_weights,
                    bool limit_offset,
-                   const struct MDeformVert *dvert,
+                   const MDeformVert *dvert,
                    int vertex_group,
                    int mat,
                    bool loop_slide,
@@ -43,5 +45,7 @@ void BM_mesh_bevel(BMesh *bm,
                    int miter_outer,
                    int miter_inner,
                    float spread,
-                   const struct CurveProfile *custom_profile,
-                   int vmesh_method);
+                   const CurveProfile *custom_profile,
+                   int vmesh_method,
+                   int bweight_offset_vert,
+                   int bweight_offset_edge);

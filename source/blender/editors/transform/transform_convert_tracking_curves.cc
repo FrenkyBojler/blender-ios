@@ -10,10 +10,10 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "BKE_context.hh"
-#include "BKE_main.hh"
 #include "BKE_movieclip.h"
 #include "BKE_node_tree_update.hh"
 #include "BKE_tracking.h"
@@ -26,10 +26,12 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
+namespace blender::ed::transform {
+
 struct TransDataTrackingCurves {
   int flag;
 
-  /* marker transformation from curves editor */
+  /* Marker transformation from curves editor. */
   float *prev_pos;
   float scale;
   short coord;
@@ -60,12 +62,12 @@ static void markerToTransCurveDataInit(TransData *td,
   tdt->prev_pos = prev_marker->pos;
   tdt->track = track;
 
-  /* calculate values depending on marker's speed */
+  /* Calculate values depending on marker's speed. */
   td2d->loc[0] = marker->framenr;
   td2d->loc[1] = (marker->pos[coord] - prev_marker->pos[coord]) * size / frames_delta;
   td2d->loc[2] = 0.0f;
 
-  td2d->loc2d = marker->pos; /* current location */
+  td2d->loc2d = marker->pos; /* Current location. */
 
   td->flag = 0;
   td->loc = td2d->loc;
@@ -99,7 +101,7 @@ static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
-  /* count */
+  /* Count. */
   tc->data_len = 0;
 
   if ((sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) == 0) {
@@ -131,15 +133,13 @@ static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
     return;
   }
 
-  td = tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransTracking TransData"));
-  td2d = tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "TransTracking TransData2D"));
-  tc->custom.type.data = tdt = static_cast<TransDataTrackingCurves *>(MEM_callocN(
-      tc->data_len * sizeof(TransDataTrackingCurves), "TransTracking TransDataTracking"));
+  td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransTracking TransData");
+  td2d = tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransTracking TransData2D");
+  tc->custom.type.data = tdt = MEM_calloc_arrayN<TransDataTrackingCurves>(
+      tc->data_len, "TransTracking TransDataTracking");
   tc->custom.type.free_cb = nullptr;
 
-  /* create actual data */
+  /* Create actual data. */
   LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, track) && (track->flag & TRACK_LOCKED) == 0) {
       for (int i = 1; i < track->markersnr; i++) {
@@ -191,7 +191,7 @@ static void createTransTrackingCurves(bContext *C, TransInfo *t)
     return;
   }
 
-  /* transformation was called from graph editor */
+  /* Transformation was called from graph editor. */
   BLI_assert(CTX_wm_region(C)->regiontype == RGN_TYPE_PREVIEW);
   createTransTrackingCurvesData(C, t);
 }
@@ -248,7 +248,7 @@ static void flushTransTrackingCurves(TransInfo *t)
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
-  /* flush to 2d vector from internally used 3d vector */
+  /* Flush to 2d vector from internally used 3d vector. */
   for (td_index = 0,
       td = tc->data,
       td2d = tc->data_2d,
@@ -285,14 +285,14 @@ static void special_aftertrans_update__movieclip_for_curves(bContext *C, TransIn
 {
   SpaceClip *sc = static_cast<SpaceClip *>(t->area->spacedata.first);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  if (t->scene->nodetree != nullptr) {
+  if (t->scene->compositing_node_group != nullptr) {
     /* Tracks can be used for stabilization nodes,
      * flush update for such nodes.
      */
     if (t->context != nullptr) {
       Main *bmain = CTX_data_main(C);
       BKE_ntree_update_tag_id_changed(bmain, &clip->id);
-      BKE_ntree_update_main(bmain, nullptr);
+      BKE_ntree_update(*bmain);
       WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
     }
   }
@@ -306,3 +306,5 @@ TransConvertTypeInfo TransConvertType_TrackingCurves = {
     /*recalc_data*/ recalcData_tracking_curves,
     /*special_aftertrans_update*/ special_aftertrans_update__movieclip_for_curves,
 };
+
+}  // namespace blender::ed::transform

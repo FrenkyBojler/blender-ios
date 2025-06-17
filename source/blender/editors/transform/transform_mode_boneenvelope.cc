@@ -11,20 +11,21 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Bone Envelope)
@@ -44,15 +45,15 @@ static void applyBoneEnvelope(TransInfo *t)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
-    SNPRINTF(str, TIP_("Envelope: %s"), c);
+    outputNumInput(&(t->num), c, t->scene->unit);
+    SNPRINTF(str, IFACE_("Envelope: %s"), c);
   }
   else {
-    SNPRINTF(str, TIP_("Envelope: %3f"), ratio);
+    SNPRINTF(str, IFACE_("Envelope: %3f"), ratio);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -63,7 +64,7 @@ static void applyBoneEnvelope(TransInfo *t)
       }
 
       if (td->val) {
-        /* if the old/original value was 0.0f, then just use ratio */
+        /* If the old/original value was 0.0f, then just use ratio. */
         if (td->ival) {
           *td->val = td->ival * ratio;
         }
@@ -105,3 +106,5 @@ TransModeInfo TransMode_boneenvelope = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

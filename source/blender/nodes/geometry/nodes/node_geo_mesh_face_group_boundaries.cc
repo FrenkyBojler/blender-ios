@@ -5,9 +5,6 @@
 #include <atomic>
 
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
-#include "BKE_mesh.hh"
 
 #include "node_geometry_util.hh"
 
@@ -39,10 +36,10 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    const bke::MeshFieldContext face_context{mesh, ATTR_DOMAIN_FACE};
+    const bke::MeshFieldContext face_context{mesh, AttrDomain::Face};
     FieldEvaluator face_evaluator{face_context, mesh.faces_num};
     face_evaluator.add(face_set_);
     face_evaluator.evaluate();
@@ -51,9 +48,9 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
       return {};
     }
 
-    Array<bool> boundary(mesh.totedge, false);
+    Array<bool> boundary(mesh.edges_num, false);
 
-    Array<std::atomic<int>> edge_states(mesh.totedge);
+    Array<std::atomic<int>> edge_states(mesh.edges_num);
     /* State is index of face or one of invalid values: */
     static constexpr int no_face_yet = -1;
     static constexpr int is_boundary = -2;
@@ -89,10 +86,8 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
                 if (faces_group_id[edge_state_value] == group_id) {
                   break;
                 }
-                if (edge_state.compare_exchange_weak(edge_state_value,
-                                                     is_boundary,
-                                                     std::memory_order_release,
-                                                     std::memory_order_release))
+                if (edge_state.compare_exchange_weak(
+                        edge_state_value, is_boundary, std::memory_order_release))
                 {
                   boundary[edge_i] = true;
                   break;
@@ -106,7 +101,7 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
       }
     });
     return mesh.attributes().adapt_domain<bool>(
-        VArray<bool>::ForContainer(std::move(boundary)), ATTR_DOMAIN_EDGE, domain);
+        VArray<bool>::ForContainer(std::move(boundary)), AttrDomain::Edge, domain);
   }
 
   void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override
@@ -114,9 +109,9 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
     face_set_.node().for_each_field_input_recursive(fn);
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const override
   {
-    return ATTR_DOMAIN_EDGE;
+    return AttrDomain::Edge;
   }
 };
 
@@ -129,13 +124,18 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
   geo_node_type_base(
-      &ntype, GEO_NODE_MESH_FACE_GROUP_BOUNDARIES, "Face Group Boundaries", NODE_CLASS_INPUT);
-  bke::node_type_size_preset(&ntype, bke::eNodeSizePreset::MIDDLE);
+      &ntype, "GeometryNodeMeshFaceSetBoundaries", GEO_NODE_MESH_FACE_GROUP_BOUNDARIES);
+  ntype.ui_name = "Face Group Boundaries";
+  ntype.ui_description =
+      "Find edges on the boundaries between groups of faces with the same ID value";
+  ntype.enum_name_legacy = "MESH_FACE_SET_BOUNDARIES";
+  ntype.nclass = NODE_CLASS_INPUT;
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

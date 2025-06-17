@@ -11,20 +11,21 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Bake-Time)
@@ -39,7 +40,7 @@ static void applyBakeTime(TransInfo *t)
   float fac = 0.1f;
 
 /* XXX, disable precision for now,
- * this isn't even accessible by the user */
+ * this isn't even accessible by the user. */
 #if 0
   if (t->mouse.precision) {
     /* Calculate ratio for shift-key position, and for total, and blend these for precision. */
@@ -56,26 +57,26 @@ static void applyBakeTime(TransInfo *t)
 
   applyNumInput(&t->num, &time);
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
 
     if (time >= 0.0f) {
-      SNPRINTF(str, TIP_("Time: +%s %s"), c, t->proptext);
+      SNPRINTF(str, IFACE_("Time: +%s %s"), c, t->proptext);
     }
     else {
-      SNPRINTF(str, TIP_("Time: %s %s"), c, t->proptext);
+      SNPRINTF(str, IFACE_("Time: %s %s"), c, t->proptext);
     }
   }
   else {
-    /* default header print */
+    /* Default header print. */
     if (time >= 0.0f) {
-      SNPRINTF(str, TIP_("Time: +%.3f %s"), time, t->proptext);
+      SNPRINTF(str, IFACE_("Time: +%.3f %s"), time, t->proptext);
     }
     else {
-      SNPRINTF(str, TIP_("Time: %.3f %s"), time, t->proptext);
+      SNPRINTF(str, IFACE_("Time: %.3f %s"), time, t->proptext);
     }
   }
 
@@ -97,8 +98,8 @@ static void applyBakeTime(TransInfo *t)
       }
 
       *dst = ival + time * td->factor;
-      if (td->ext->size && *dst < *td->ext->size) {
-        *dst = *td->ext->size;
+      if (td->ext->scale && *dst < *td->ext->scale) {
+        *dst = *td->ext->scale;
       }
       if (td->ext->quat && *dst > *td->ext->quat) {
         *dst = *td->ext->quat;
@@ -137,3 +138,5 @@ TransModeInfo TransMode_baketime = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

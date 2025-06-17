@@ -8,22 +8,16 @@
  * Helper functions for area/region API.
  */
 
-#include "DNA_userdef_types.h"
-
 #include "BKE_screen.hh"
 
-#include "BLI_blenlib.h"
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
-
-#include "RNA_access.hh"
-#include "RNA_types.hh"
 
 #include "WM_message.hh"
 
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_icons.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Tool System Region Callbacks
@@ -68,6 +62,21 @@ int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, in
       }
     }
     return best_size;
+  }
+  return size;
+}
+
+int ED_region_generic_panel_region_snap_size(const ARegion *region, int size, int axis)
+{
+  if (axis == 0) {
+    if (!UI_panel_category_is_visible(region)) {
+      return size;
+    }
+
+    /* Using Y axis avoids slight feedback loop when adjusting X. */
+    const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                         (BLI_rcti_size_y(&region->v2d.mask) + 1);
+    return int(UI_PANEL_CATEGORY_MIN_WIDTH / aspect);
   }
   return size;
 }

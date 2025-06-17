@@ -3,24 +3,20 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <algorithm>
-#include <iostream>
 #include <random>
 
 #include "GEO_randomize.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_pointcloud_types.h"
 
-#include "BKE_attribute.hh"
-#include "BKE_attribute_math.hh"
+#include "BKE_attribute_storage.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BKE_instances.hh"
-#include "BKE_mesh.hh"
 
 #include "BLI_array.hh"
 
@@ -55,7 +51,7 @@ static Array<int> invert_permutation(const Span<int> permutation)
  */
 static int seed_from_mesh(const Mesh &mesh)
 {
-  return mesh.totvert;
+  return mesh.verts_num;
 }
 
 static int seed_from_pointcloud(const PointCloud &pointcloud)
@@ -76,14 +72,39 @@ static int seed_from_instances(const bke::Instances &instances)
 static void reorder_customdata(CustomData &data, const Span<int> new_by_old_map)
 {
   CustomData new_data;
-  CustomData_copy_layout(&data, &new_data, CD_MASK_ALL, CD_CONSTRUCT, new_by_old_map.size());
+  CustomData_init_layout_from(&data, &new_data, CD_MASK_ALL, CD_CONSTRUCT, new_by_old_map.size());
 
   for (const int old_i : new_by_old_map.index_range()) {
     const int new_i = new_by_old_map[old_i];
     CustomData_copy_data(&data, &new_data, old_i, new_i, 1);
   }
-  CustomData_free(&data, new_by_old_map.size());
+  CustomData_free(&data);
   data = new_data;
+}
+
+static void reorder_attribute_domain(bke::AttributeStorage &data,
+                                     const bke::AttrDomain domain,
+                                     const Span<int> new_by_old_map)
+{
+  data.foreach([&](bke::Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
+        auto new_data = bke::Attribute::ArrayData::ForConstructed(type, new_by_old_map.size());
+        bke::attribute_math::gather(GSpan(type, data.data, data.size),
+                                    new_by_old_map,
+                                    GMutableSpan(type, new_data.data, new_data.size));
+        attr.data_for_write() = std::move(new_data);
+      }
+      case bke::AttrStorageType::Single: {
+        return;
+      }
+    }
+  });
 }
 
 void debug_randomize_vert_order(Mesh *mesh)
@@ -93,7 +114,7 @@ void debug_randomize_vert_order(Mesh *mesh)
   }
 
   const int seed = seed_from_mesh(*mesh);
-  const Array<int> new_by_old_map = get_permutation(mesh->totvert, seed);
+  const Array<int> new_by_old_map = get_permutation(mesh->verts_num, seed);
 
   reorder_customdata(mesh->vert_data, new_by_old_map);
 
@@ -104,7 +125,7 @@ void debug_randomize_vert_order(Mesh *mesh)
     v = new_by_old_map[v];
   }
 
-  BKE_mesh_tag_topology_changed(mesh);
+  mesh->tag_topology_changed();
 }
 
 void debug_randomize_edge_order(Mesh *mesh)
@@ -114,7 +135,7 @@ void debug_randomize_edge_order(Mesh *mesh)
   }
 
   const int seed = seed_from_mesh(*mesh);
-  const Array<int> new_by_old_map = get_permutation(mesh->totedge, seed);
+  const Array<int> new_by_old_map = get_permutation(mesh->edges_num, seed);
 
   reorder_customdata(mesh->edge_data, new_by_old_map);
 
@@ -122,7 +143,7 @@ void debug_randomize_edge_order(Mesh *mesh)
     e = new_by_old_map[e];
   }
 
-  BKE_mesh_tag_topology_changed(mesh);
+  mesh->tag_topology_changed();
 }
 
 static Array<int> make_new_offset_indices(const OffsetIndices<int> old_offsets,
@@ -145,7 +166,7 @@ static void reorder_customdata_groups(CustomData &data,
   const int elements_num = new_offsets.total_size();
   const int groups_num = new_by_old_map.size();
   CustomData new_data;
-  CustomData_copy_layout(&data, &new_data, CD_MASK_ALL, CD_CONSTRUCT, elements_num);
+  CustomData_init_layout_from(&data, &new_data, CD_MASK_ALL, CD_CONSTRUCT, elements_num);
   for (const int old_i : IndexRange(groups_num)) {
     const int new_i = new_by_old_map[old_i];
     const IndexRange old_range = old_offsets[old_i];
@@ -153,7 +174,7 @@ static void reorder_customdata_groups(CustomData &data,
     BLI_assert(old_range.size() == new_range.size());
     CustomData_copy_data(&data, &new_data, old_range.start(), new_range.start(), old_range.size());
   }
-  CustomData_free(&data, elements_num);
+  CustomData_free(&data);
   data = new_data;
 }
 
@@ -173,11 +194,11 @@ void debug_randomize_face_order(Mesh *mesh)
   Array<int> new_face_offsets = make_new_offset_indices(old_faces, old_by_new_map);
   const OffsetIndices<int> new_faces = new_face_offsets.as_span();
 
-  reorder_customdata_groups(mesh->loop_data, old_faces, new_faces, new_by_old_map);
+  reorder_customdata_groups(mesh->corner_data, old_faces, new_faces, new_by_old_map);
 
   mesh->face_offsets_for_write().copy_from(new_face_offsets);
 
-  BKE_mesh_tag_topology_changed(mesh);
+  mesh->tag_topology_changed();
 }
 
 void debug_randomize_point_order(PointCloud *pointcloud)
@@ -188,8 +209,8 @@ void debug_randomize_point_order(PointCloud *pointcloud)
 
   const int seed = seed_from_pointcloud(*pointcloud);
   const Array<int> new_by_old_map = get_permutation(pointcloud->totpoint, seed);
-
-  reorder_customdata(pointcloud->pdata, new_by_old_map);
+  reorder_attribute_domain(
+      pointcloud->attribute_storage.wrap(), bke::AttrDomain::Point, new_by_old_map);
 
   pointcloud->tag_positions_changed();
   pointcloud->tag_radii_changed();
@@ -235,27 +256,10 @@ void debug_randomize_instance_order(bke::Instances *instances)
   if (instances == nullptr || !use_debug_randomization()) {
     return;
   }
-
   const int instances_num = instances->instances_num();
   const int seed = seed_from_instances(*instances);
   const Array<int> new_by_old_map = get_permutation(instances_num, seed);
-
   reorder_customdata(instances->custom_data_attributes(), new_by_old_map);
-
-  const Span<int> old_reference_handles = instances->reference_handles();
-  const Span<float4x4> old_transforms = instances->transforms();
-
-  Vector<int> new_reference_handles(instances_num);
-  Vector<float4x4> new_transforms(instances_num);
-
-  for (const int old_i : new_by_old_map.index_range()) {
-    const int new_i = new_by_old_map[old_i];
-    new_reference_handles[new_i] = old_reference_handles[old_i];
-    new_transforms[new_i] = old_transforms[old_i];
-  }
-
-  instances->reference_handles().copy_from(new_reference_handles);
-  instances->transforms().copy_from(new_transforms);
 }
 
 bool use_debug_randomization()

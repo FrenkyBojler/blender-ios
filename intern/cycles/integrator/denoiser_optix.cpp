@@ -28,8 +28,9 @@ static OptixResult optixUtilDenoiserSplitImage(const OptixImage2D &input,
                                                unsigned int tileHeight,
                                                std::vector<OptixUtilDenoiserImageTile> &tiles)
 {
-  if (tileWidth == 0 || tileHeight == 0)
+  if (tileWidth == 0 || tileHeight == 0) {
     return OPTIX_ERROR_INVALID_VALUE;
+  }
 
   unsigned int inPixelStride = optixUtilGetPixelStride(input);
   unsigned int outPixelStride = optixUtilGetPixelStride(output);
@@ -89,18 +90,19 @@ static OptixResult optixUtilDenoiserInvokeTiled(OptixDenoiser denoiser,
                                                 CUstream stream,
                                                 const OptixDenoiserParams *params,
                                                 CUdeviceptr denoiserState,
-                                                size_t denoiserStateSizeInBytes,
+                                                const size_t denoiserStateSizeInBytes,
                                                 const OptixDenoiserGuideLayer *guideLayer,
                                                 const OptixDenoiserLayer *layers,
                                                 unsigned int numLayers,
                                                 CUdeviceptr scratch,
-                                                size_t scratchSizeInBytes,
+                                                const size_t scratchSizeInBytes,
                                                 unsigned int overlapWindowSizeInPixels,
                                                 unsigned int tileWidth,
                                                 unsigned int tileHeight)
 {
-  if (!guideLayer || !layers)
+  if (!guideLayer || !layers) {
     return OPTIX_ERROR_INVALID_VALUE;
+  }
 
   std::vector<std::vector<OptixUtilDenoiserImageTile>> tiles(numLayers);
   std::vector<std::vector<OptixUtilDenoiserImageTile>> prevTiles(numLayers);
@@ -166,21 +168,22 @@ static OptixResult optixUtilDenoiserInvokeTiled(OptixDenoiser denoiser,
       OptixDenoiserLayer layer = {};
       layer.input = (tiles[l])[t].input;
       layer.output = (tiles[l])[t].output;
-      if (layers[l].previousOutput.data)
+      if (layers[l].previousOutput.data) {
         layer.previousOutput = (prevTiles[l])[t].input;
+      }
       tlayers.push_back(layer);
     }
 
     OptixDenoiserGuideLayer gl = {};
-    if (guideLayer->albedo.data)
+    if (guideLayer->albedo.data) {
       gl.albedo = albedoTiles[t].input;
-
-    if (guideLayer->normal.data)
+    }
+    if (guideLayer->normal.data) {
       gl.normal = normalTiles[t].input;
-
-    if (guideLayer->flow.data)
+    }
+    if (guideLayer->flow.data) {
       gl.flow = flowTiles[t].input;
-
+    }
     if (const OptixResult res = optixDenoiserInvoke(denoiser,
                                                     stream,
                                                     params,
@@ -199,8 +202,8 @@ static OptixResult optixUtilDenoiserInvokeTiled(OptixDenoiser denoiser,
 }
 #  endif
 
-OptiXDenoiser::OptiXDenoiser(Device *path_trace_device, const DenoiseParams &params)
-    : DenoiserGPU(path_trace_device, params), state_(path_trace_device, "__denoiser_state", true)
+OptiXDenoiser::OptiXDenoiser(Device *denoiser_device, const DenoiseParams &params)
+    : DenoiserGPU(denoiser_device, params), state_(denoiser_device, "__denoiser_state", true)
 {
 }
 
@@ -217,6 +220,14 @@ OptiXDenoiser::~OptiXDenoiser()
 uint OptiXDenoiser::get_device_type_mask() const
 {
   return DEVICE_MASK_OPTIX;
+}
+
+bool OptiXDenoiser::is_device_supported(const DeviceInfo &device)
+{
+  if (device.type == DEVICE_OPTIX) {
+    return device.denoisers & DENOISER_OPTIX;
+  }
+  return false;
 }
 
 bool OptiXDenoiser::denoise_buffer(const DenoiseTask &task)
@@ -248,7 +259,7 @@ bool OptiXDenoiser::denoise_create_if_needed(DenoiseContext &context)
   denoiser_options.guideAlbedo = context.use_pass_albedo;
   denoiser_options.guideNormal = context.use_pass_normal;
 
-  OptixDenoiserModelKind model = OPTIX_DENOISER_MODEL_KIND_HDR;
+  OptixDenoiserModelKind model = OPTIX_DENOISER_MODEL_KIND_AOV;
   if (context.use_pass_motion) {
     model = OPTIX_DENOISER_MODEL_KIND_TEMPORAL;
   }
@@ -260,7 +271,7 @@ bool OptiXDenoiser::denoise_create_if_needed(DenoiseContext &context)
       &optix_denoiser_);
 
   if (result != OPTIX_SUCCESS) {
-    denoiser_device_->set_error("Failed to create OptiX denoiser");
+    set_error("Failed to create OptiX denoiser");
     return false;
   }
 
@@ -289,6 +300,9 @@ bool OptiXDenoiser::denoise_configure_if_needed(DenoiseContext &context)
       denoiser_device_,
       optixDenoiserComputeMemoryResources(optix_denoiser_, tile_size.x, tile_size.y, &sizes_));
 
+  const bool tiled = tile_size.x < context.buffer_params.width ||
+                     tile_size.y < context.buffer_params.height;
+
   /* Allocate denoiser state if tile size has changed since last setup. */
   state_.device = denoiser_device_;
   state_.alloc_to_device(sizes_.stateSizeInBytes + sizes_.withOverlapScratchSizeInBytes);
@@ -298,14 +312,14 @@ bool OptiXDenoiser::denoise_configure_if_needed(DenoiseContext &context)
       optix_denoiser_,
       0, /* Work around bug in r495 drivers that causes artifacts when denoiser setup is called
           * on a stream that is not the default stream. */
-      tile_size.x + sizes_.overlapWindowSizeInPixels * 2,
-      tile_size.y + sizes_.overlapWindowSizeInPixels * 2,
+      tile_size.x + (tiled ? sizes_.overlapWindowSizeInPixels * 2 : 0),
+      tile_size.y + (tiled ? sizes_.overlapWindowSizeInPixels * 2 : 0),
       state_.device_pointer,
       sizes_.stateSizeInBytes,
       state_.device_pointer + sizes_.stateSizeInBytes,
       sizes_.withOverlapScratchSizeInBytes);
   if (result != OPTIX_SUCCESS) {
-    denoiser_device_->set_error("Failed to set up OptiX denoiser");
+    set_error("Failed to set up OptiX denoiser");
     return false;
   }
 

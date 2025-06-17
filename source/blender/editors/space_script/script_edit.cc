@@ -6,33 +6,31 @@
  * \ingroup spscript
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
-#include "wm_event_system.h"
+#include "wm_event_system.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "ED_screen.hh"
 
-#include "script_intern.h" /* own include */
+#include "script_intern.hh" /* own include */
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
-static int run_pyfile_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus run_pyfile_exec(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
@@ -59,7 +57,7 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
   ot->description = "Run Python file";
   ot->idname = "SCRIPT_OT_python_file_run";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = run_pyfile_exec;
 
   /* flags */
@@ -91,7 +89,7 @@ static bool script_test_modal_operators(bContext *C)
 }
 #endif
 
-static int script_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus script_reload_exec(bContext *C, wmOperator *op)
 {
 
 #ifdef WITH_PYTHON
@@ -143,6 +141,6 @@ void SCRIPT_OT_reload(wmOperatorType *ot)
   ot->description = "Reload scripts";
   ot->idname = "SCRIPT_OT_reload";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = script_reload_exec;
 }

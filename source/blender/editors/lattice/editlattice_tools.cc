@@ -6,10 +6,7 @@
  * \ingroup edlattice
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
@@ -21,16 +18,19 @@
 
 #include "BKE_context.hh"
 #include "BKE_lattice.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 
 #include "DEG_depsgraph.hh"
 
+#include "ED_object.hh"
 #include "ED_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "lattice_intern.h"
+#include "lattice_intern.hh"
+
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Make Regular Operator
@@ -48,7 +48,7 @@ static bool make_regular_poll(bContext *C)
   return (ob && ob->type == OB_LATTICE);
 }
 
-static int make_regular_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus make_regular_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -56,14 +56,16 @@ static int make_regular_exec(bContext *C, wmOperator * /*op*/)
   const bool is_editmode = CTX_data_edit_object(C) != nullptr;
 
   if (is_editmode) {
-    uint objects_len;
-    Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(C), &objects_len);
-    for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-      Object *ob = objects[ob_index];
+    Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+        scene, view_layer, CTX_wm_view3d(C));
+    for (Object *ob : objects) {
       Lattice *lt = static_cast<Lattice *>(ob->data);
 
       if (lt->editlatt->latt == nullptr) {
+        continue;
+      }
+
+      if (blender::ed::object::shape_key_report_if_locked(ob, op->reports)) {
         continue;
       }
 
@@ -72,7 +74,6 @@ static int make_regular_exec(bContext *C, wmOperator * /*op*/)
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
-    MEM_freeN(objects);
   }
   else {
     FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
@@ -98,7 +99,7 @@ void LATTICE_OT_make_regular(wmOperatorType *ot)
   ot->description = "Set UVW control points a uniform distance apart";
   ot->idname = "LATTICE_OT_make_regular";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = make_regular_exec;
   ot->poll = make_regular_poll;
 
@@ -121,7 +122,7 @@ enum eLattice_FlipAxes {
 
 /**
  * Flip midpoint value so that relative distances between midpoint and neighbor-pair is maintained.
- * Assumes that uvw <=> xyz (i.e. axis-aligned index-axes with coordinate-axes).
+ * Assumes that UVW <=> XYZ (i.e. axis-aligned index-axes with coordinate-axes).
  * - Helper for #lattice_flip_exec()
  */
 static void lattice_flip_point_value(
@@ -195,18 +196,16 @@ static void lattice_swap_point_pairs(
   lattice_flip_point_value(lt, u1, v1, w1, mid, axis);
 }
 
-static int lattice_flip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_flip_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  uint objects_len;
   bool changed = false;
   const eLattice_FlipAxes axis = eLattice_FlipAxes(RNA_enum_get(op->ptr, "axis"));
 
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
-  for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-    Object *obedit = objects[ob_index];
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+  for (Object *obedit : objects) {
     Lattice *lt;
 
     int numU, numV, numW;
@@ -218,6 +217,10 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
     /* get lattice - we need the "edit lattice" from the lattice... confusing... */
     lt = (Lattice *)obedit->data;
     lt = lt->editlatt->latt;
+
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+      continue;
+    }
 
     numU = lt->pntsu;
     numV = lt->pntsv;
@@ -323,7 +326,6 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     changed = true;
   }
-  MEM_freeN(objects);
 
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -342,7 +344,7 @@ void LATTICE_OT_flip(wmOperatorType *ot)
   ot->description = "Mirror all control points without inverting the lattice deform";
   ot->idname = "LATTICE_OT_flip";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_operator_editlattice;
   ot->invoke = WM_menu_invoke;
   ot->exec = lattice_flip_exec;

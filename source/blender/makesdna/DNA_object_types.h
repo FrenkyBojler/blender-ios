@@ -25,6 +25,10 @@
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#endif
+
+#ifdef __cplusplus
 namespace blender::bke {
 struct ObjectRuntime;
 }
@@ -38,11 +42,10 @@ struct BoundBox;
 struct Collection;
 struct Curve;
 struct FluidsimSettings;
+struct ImageUser;
 struct Ipo;
 struct LightgroupMembership;
-struct LightProbeGridCacheFrame;
 struct Material;
-struct Mesh;
 struct Object;
 struct PartDeflect;
 struct Path;
@@ -54,8 +57,7 @@ struct bGPdata;
 /** Vertex Groups - Name Info */
 typedef struct bDeformGroup {
   struct bDeformGroup *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   /* need this flag for locking weights */
   char flag, _pad0[7];
 } bDeformGroup;
@@ -63,8 +65,7 @@ typedef struct bDeformGroup {
 #ifdef DNA_DEPRECATED_ALLOW
 typedef struct bFaceMap {
   struct bFaceMap *next, *prev;
-  /** MAX_VGROUP_NAME. */
-  char name[64];
+  char name[/*MAX_VGROUP_NAME*/ 64];
   char flag;
   char _pad0[7];
 } bFaceMap;
@@ -189,16 +190,15 @@ typedef struct LightLinking {
 } LightLinking;
 
 typedef struct Object {
+#ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Object)
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_OB;
+#endif
 
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
-  /**
-   * Engines draw data, must be immediately after AnimData. See IdDdtTemplate and
-   * DRW_drawdatalist_from_id to understand this requirement.
-   */
-  struct DrawDataList drawdata;
 
   struct SculptSession *sculpt;
 
@@ -206,8 +206,8 @@ typedef struct Object {
   short partype;
   /** Can be vertex indices. */
   int par1, par2, par3;
-  /** String describing sub-object info, `MAX_ID_NAME - 2`. */
-  char parsubstr[64];
+  /** String describing sub-object info. */
+  char parsubstr[/*MAX_NAME*/ 64];
   struct Object *parent, *track;
   /* Proxy pointer are deprecated, only kept for conversion to liboverrides. */
   struct Object *proxy DNA_DEPRECATED;
@@ -274,9 +274,6 @@ typedef struct Object {
   float rotAxis[3], drotAxis[3];
   /** Axis angle rotation - angle part. */
   float rotAngle, drotAngle;
-  /** Final transformation matrices with constraints & animsys applied. */
-  float object_to_world[4][4];
-  float world_to_object[4][4];
   /** Inverse result of parent, so that object doesn't 'stick' to parent. */
   float parentinv[4][4];
   /** Inverse result of constraints.
@@ -383,7 +380,10 @@ typedef struct Object {
 
   /** ObjectModifierFlag */
   uint8_t modifier_flag;
-  char _pad8[4];
+
+  float shadow_terminator_normal_offset;
+  float shadow_terminator_geometry_offset;
+  float shadow_terminator_shading_offset;
 
   struct PreviewImage *preview;
 
@@ -399,6 +399,11 @@ typedef struct Object {
   struct LightProbeObjectCache *lightprobe_cache;
 
   ObjectRuntimeHandle *runtime;
+
+#ifdef __cplusplus
+  const blender::float4x4 &object_to_world() const;
+  const blender::float4x4 &world_to_object() const;
+#endif
 } Object;
 
 /** DEPRECATED: this is not used anymore because hooks are now modifiers. */
@@ -415,8 +420,7 @@ typedef struct ObHook {
   /** If not zero, falloff is distance where influence zero. */
   float falloff;
 
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
 
   int *indexar;
   /** Curindex is cache for fast lookup. */
@@ -431,7 +435,7 @@ typedef struct ObHook {
 /**
  * This is used as a flag for many kinds of data that use selections, examples include:
  * - #BezTriple.f1, #BezTriple.f2, #BezTriple.f3
- * - #bNote.flag
+ * - #bNode.flag
  * - #MovieTrackingTrack.flag
  * And more, ideally this would have a generic location.
  */
@@ -474,7 +478,7 @@ typedef enum ObjectType {
 /* check if the object type supports materials */
 #define OB_TYPE_SUPPORT_MATERIAL(_type) \
   (((_type) >= OB_MESH && (_type) <= OB_MBALL) || \
-   ((_type) >= OB_GPENCIL_LEGACY && (_type) <= OB_GREASE_PENCIL))
+   ((_type) >= OB_CURVES && (_type) <= OB_GREASE_PENCIL))
 /**
  * Does the object have some render-able geometry (unlike empties, cameras, etc.). True for
  * #OB_CURVES_LEGACY, since these often evaluate to objects with geometry.
@@ -485,13 +489,12 @@ typedef enum ObjectType {
         OB_SURF, \
         OB_FONT, \
         OB_MBALL, \
-        OB_GPENCIL_LEGACY, \
         OB_CURVES_LEGACY, \
         OB_CURVES, \
         OB_POINTCLOUD, \
         OB_VOLUME, \
         OB_GREASE_PENCIL))
-#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GPENCIL_LEGACY))
+#define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
         OB_MESH, \
@@ -574,6 +577,8 @@ enum {
   OB_TRANSFLAG_UNUSED_12 = 1 << 12, /* cleared */
   /* runtime constraints disable */
   OB_NO_CONSTRAINTS = 1 << 13,
+  /* when calculating vertex parent position, ignore CD_ORIGINDEX layer */
+  OB_PARENT_USE_FINAL_INDICES = 1 << 14,
 
   OB_DUPLI = OB_DUPLIVERTS | OB_DUPLICOLLECTION | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
@@ -627,9 +632,9 @@ enum {
   GP_EMPTY = 0,
   GP_STROKE = 1,
   GP_MONKEY = 2,
-  GP_LRT_SCENE = 3,
-  GP_LRT_OBJECT = 4,
-  GP_LRT_COLLECTION = 5,
+  GREASE_PENCIL_LINEART_SCENE = 3,
+  GREASE_PENCIL_LINEART_OBJECT = 4,
+  GREASE_PENCIL_LINEART_COLLECTION = 5,
 };
 
 /** #Object.boundtype */
@@ -768,5 +773,3 @@ enum {
 typedef enum ObjectModifierFlag {
   OB_MODIFIER_FLAG_ADD_REST_POSITION = 1 << 0,
 } ObjectModifierFlag;
-
-#define MAX_DUPLI_RECUR 8

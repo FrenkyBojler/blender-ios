@@ -8,10 +8,9 @@
 
 #include "BLI_generic_pointer.hh"
 
-#include "BKE_attribute.h"
+#include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_context.hh"
-#include "BKE_report.h"
 #include "BKE_type_conversions.hh"
 
 #include "WM_api.hh"
@@ -26,15 +25,12 @@
 
 #include "RNA_access.hh"
 
-#include "BLT_translation.h"
-
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "DNA_object_types.h"
 
 #include "DEG_depsgraph.hh"
-#include "DEG_depsgraph_query.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Delete Operator
@@ -47,28 +43,22 @@ static bool active_attribute_poll(bContext *C)
   if (!editable_curves_in_edit_mode_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
-  Curves &curves_id = *static_cast<Curves *>(object->data);
-  const CustomDataLayer *layer = BKE_id_attributes_active_get(&const_cast<ID &>(curves_id.id));
-  if (!layer) {
-    CTX_wm_operator_poll_msg_set(C, "No active attribute");
-    return false;
-  }
-  if (layer->type == CD_PROP_STRING) {
-    CTX_wm_operator_poll_msg_set(C, "Active string attribute not supported");
+  const Object *object = CTX_data_active_object(C);
+  const ID &object_data = *static_cast<const ID *>(object->data);
+  if (!geometry::attribute_set_poll(*C, object_data)) {
     return false;
   }
   return true;
 }
 
 static IndexMask retrieve_selected_elements(const Curves &curves_id,
-                                            const eAttrDomain domain,
+                                            const bke::AttrDomain domain,
                                             IndexMaskMemory &memory)
 {
   switch (domain) {
-    case ATTR_DOMAIN_POINT:
+    case bke::AttrDomain::Point:
       return retrieve_selected_points(curves_id, memory);
-    case ATTR_DOMAIN_CURVE:
+    case bke::AttrDomain::Curve:
       return retrieve_selected_curves(curves_id, memory);
     default:
       BLI_assert_unreachable();
@@ -98,13 +88,16 @@ static void validate_value(const bke::AttributeAccessor attributes,
   type.copy_assign(validated_buffer, buffer);
 }
 
-static int set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
-  CustomDataLayer *active_attribute = BKE_id_attributes_active_get(&active_curves_id.id);
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
+  AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
+  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  const bke::AttributeMetaData active_meta_data =
+      *active_curves_id.geometry.wrap().attributes().lookup_meta_data(name);
+  const eCustomDataType active_type = active_meta_data.data_type;
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
@@ -116,12 +109,11 @@ static int set_attribute_exec(bContext *C, wmOperator *op)
 
   for (Curves *curves_id : get_unique_editable_curves(*C)) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    CustomDataLayer *layer = BKE_id_attributes_active_get(&curves_id->id);
-    if (!layer) {
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
+    if (!attribute) {
       continue;
     }
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(layer->name);
 
     /* Use implicit conversions to try to handle the case where the active attribute has a
      * different type on multiple objects. */
@@ -133,7 +125,7 @@ static int set_attribute_exec(bContext *C, wmOperator *op)
     BLI_SCOPED_DEFER([&]() { dst_type.destruct(dst_buffer); });
     conversions.convert_to_uninitialized(type, dst_type, value.get(), dst_buffer);
 
-    validate_value(attributes, layer->name, dst_type, dst_buffer);
+    validate_value(attributes, name, dst_type, dst_buffer);
     const GPointer dst_value(type, dst_buffer);
 
     IndexMaskMemory memory;
@@ -152,16 +144,17 @@ static int set_attribute_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
-  CustomDataLayer *active_attribute = BKE_id_attributes_active_get(&active_curves_id.id);
+  AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
   const bke::CurvesGeometry &curves = active_curves_id.geometry.wrap();
   const bke::AttributeAccessor attributes = curves.attributes();
-  const bke::GAttributeReader attribute = attributes.lookup(active_attribute->name);
-  const eAttrDomain domain = attribute.domain;
+  const bke::GAttributeReader attribute = attributes.lookup(name);
+  const bke::AttrDomain domain = attribute.domain;
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_elements(active_curves_id, domain, memory);
@@ -192,18 +185,20 @@ static int set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *even
 
 static void set_attribute_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = uiLayoutColumn(op->layout, true);
+  uiLayout *layout = &op->layout->column(true);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
   Object *object = CTX_data_active_object(C);
   Curves &curves_id = *static_cast<Curves *>(object->data);
 
-  CustomDataLayer *active_attribute = BKE_id_attributes_active_get(&curves_id.id);
-  const eCustomDataType active_type = eCustomDataType(active_attribute->type);
-  const StringRefNull prop_name = geometry::rna_property_name_for_type(active_type);
-  const char *name = active_attribute->name;
-  uiItemR(layout, op->ptr, prop_name.c_str(), UI_ITEM_NONE, name, ICON_NONE);
+  AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
+  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const bke::AttributeMetaData meta_data = *attributes.lookup_meta_data(name);
+  const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
+  layout->prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)

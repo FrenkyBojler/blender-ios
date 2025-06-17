@@ -8,6 +8,7 @@
 
 #include <cerrno>
 #include <fcntl.h>
+#include <mutex>
 #include <sys/types.h>
 
 #ifndef WIN32
@@ -24,27 +25,30 @@
 
 #include "BLI_fileops.h"
 #include "BLI_math_vector.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_task.h"
+#include "BLI_time.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_lib_id.h"
+#include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_movieclip.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_tracking.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
+#include "IMB_imbuf.hh"
+#include "IMB_imbuf_types.hh"
+
+#include "MOV_read.hh"
 
 #include "ED_clip.hh"
 #include "ED_screen.hh"
@@ -57,12 +61,10 @@
 
 #include "UI_view2d.hh"
 
-#include "PIL_time.h"
-
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name View Navigation Utilities
@@ -167,17 +169,20 @@ static void open_init(bContext *C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
-  op->customdata = pprop = MEM_cnew<PropertyPointerRNA>("OpenPropertyPointerRNA");
+  op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
   UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
-  op->customdata = nullptr;
+  if (op->customdata) {
+    PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+    op->customdata = nullptr;
+    MEM_delete(pprop);
+  }
 }
 
-static int open_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus open_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   bScreen *screen = CTX_wm_screen(C);
@@ -217,14 +222,16 @@ static int open_exec(bContext *C, wmOperator *op)
 
   if (!clip) {
     if (op->customdata) {
-      MEM_freeN(op->customdata);
+      pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+      op->customdata = nullptr;
+      MEM_delete(pprop);
     }
 
     BKE_reportf(op->reports,
                 RPT_ERROR,
                 "Cannot read '%s': %s",
                 filepath,
-                errno ? strerror(errno) : TIP_("unsupported movie clip format"));
+                errno ? strerror(errno) : RPT_("unsupported movie clip format"));
 
     return OPERATOR_CANCELLED;
   }
@@ -252,12 +259,13 @@ static int open_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_ADDED, clip);
 
   DEG_relations_tag_update(bmain);
-  MEM_freeN(op->customdata);
+  op->customdata = nullptr;
+  MEM_delete(pprop);
 
   return OPERATOR_FINISHED;
 }
 
-static int open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   char dirpath[FILE_MAX];
@@ -299,7 +307,7 @@ void CLIP_OT_open(wmOperatorType *ot)
   ot->description = "Load a sequence of frames or a movie file";
   ot->idname = "CLIP_OT_open";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = open_exec;
   ot->invoke = open_invoke;
   ot->cancel = open_cancel;
@@ -323,7 +331,7 @@ void CLIP_OT_open(wmOperatorType *ot)
 /** \name Reload Clip Operator
  * \{ */
 
-static int reload_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus reload_exec(bContext *C, wmOperator * /*op*/)
 {
   MovieClip *clip = CTX_data_edit_movieclip(C);
 
@@ -346,7 +354,7 @@ void CLIP_OT_reload(wmOperatorType *ot)
   ot->description = "Reload clip";
   ot->idname = "CLIP_OT_reload";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reload_exec;
 }
 
@@ -356,6 +364,8 @@ void CLIP_OT_reload(wmOperatorType *ot)
 /** \name View Pan Operator
  * \{ */
 
+namespace {
+
 struct ViewPanData {
   float x, y;
   float xof, yof, xorig, yorig;
@@ -364,13 +374,15 @@ struct ViewPanData {
   float *vec;
 };
 
+}  // namespace
+
 static void view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
   SpaceClip *sc = CTX_wm_space_clip(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = MEM_cnew<ViewPanData>("ClipViewPanData");
+  op->customdata = vpd = MEM_callocN<ViewPanData>("ClipViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -409,10 +421,10 @@ static void view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
-static int view_pan_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_pan_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   float offset[2];
@@ -433,7 +445,7 @@ static int view_pan_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->type == MOUSEPAN) {
     SpaceClip *sc = CTX_wm_space_clip(C);
@@ -454,7 +466,7 @@ static int view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ViewPanData *vpd = static_cast<ViewPanData *>(op->customdata);
@@ -500,7 +512,7 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_pan";
   ot->description = "Pan the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_pan_exec;
   ot->invoke = view_pan_invoke;
   ot->modal = view_pan_modal;
@@ -529,6 +541,8 @@ void CLIP_OT_view_pan(wmOperatorType *ot)
 /** \name View Zoom Operator
  * \{ */
 
+namespace {
+
 struct ViewZoomData {
   float x, y;
   float zoom;
@@ -539,6 +553,8 @@ struct ViewZoomData {
   bool own_cursor;
 };
 
+}  // namespace
+
 static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -546,7 +562,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = MEM_cnew<ViewZoomData>("ClipViewZoomData");
+  op->customdata = vpd = MEM_callocN<ViewZoomData>("ClipViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = (win->grabcursor == 0);
@@ -557,7 +573,7 @@ static void view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
     vpd->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
-    vpd->timer_lastdraw = PIL_check_seconds_timer();
+    vpd->timer_lastdraw = BLI_time_now_seconds();
   }
 
   vpd->x = event->xy[0];
@@ -587,10 +603,10 @@ static void view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(op->customdata);
+  MEM_freeN(vpd);
 }
 
-static int view_zoom_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_zoom_exec(bContext *C, wmOperator *op)
 {
   sclip_zoom_set_factor(C, RNA_float_get(op->ptr, "factor"), nullptr, false);
 
@@ -599,7 +615,7 @@ static int view_zoom_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int view_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (ELEM(event->type, MOUSEZOOM, MOUSEPAN)) {
     float delta, factor;
@@ -649,7 +665,7 @@ static void view_zoom_apply(
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     SpaceClip *sclip = CTX_wm_space_clip(C);
-    double time = PIL_check_seconds_timer();
+    double time = BLI_time_now_seconds();
     float time_step = float(time - vpd->timer_lastdraw);
     float zfac;
 
@@ -666,7 +682,7 @@ static void view_zoom_apply(
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-static int view_zoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_zoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
@@ -705,7 +721,7 @@ void CLIP_OT_view_zoom(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom";
   ot->description = "Zoom in/out the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_exec;
   ot->invoke = view_zoom_invoke;
   ot->modal = view_zoom_modal;
@@ -736,7 +752,7 @@ void CLIP_OT_view_zoom(wmOperatorType *ot)
 /** \name View Zoom In/Out Operator
  * \{ */
 
-static int view_zoom_in_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_zoom_in_exec(bContext *C, wmOperator *op)
 {
   float location[2];
 
@@ -749,7 +765,7 @@ static int view_zoom_in_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int view_zoom_in_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_zoom_in_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -771,7 +787,7 @@ void CLIP_OT_view_zoom_in(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_in";
   ot->description = "Zoom in the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_in_exec;
   ot->invoke = view_zoom_in_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
@@ -793,7 +809,7 @@ void CLIP_OT_view_zoom_in(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static int view_zoom_out_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_zoom_out_exec(bContext *C, wmOperator *op)
 {
   float location[2];
 
@@ -806,7 +822,7 @@ static int view_zoom_out_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int view_zoom_out_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view_zoom_out_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -828,7 +844,7 @@ void CLIP_OT_view_zoom_out(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_out";
   ot->description = "Zoom out the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_out_exec;
   ot->invoke = view_zoom_out_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
@@ -856,7 +872,7 @@ void CLIP_OT_view_zoom_out(wmOperatorType *ot)
 /** \name View Zoom Ratio Operator
  * \{ */
 
-static int view_zoom_ratio_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_zoom_ratio_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
 
@@ -878,7 +894,7 @@ void CLIP_OT_view_zoom_ratio(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_zoom_ratio";
   ot->description = "Set the zoom ratio (based on clip size)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_zoom_ratio_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -903,7 +919,7 @@ void CLIP_OT_view_zoom_ratio(wmOperatorType *ot)
 /** \name View All Operator
  * \{ */
 
-static int view_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_all_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc;
   ARegion *region;
@@ -963,7 +979,7 @@ void CLIP_OT_view_all(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_all";
   ot->description = "View whole image with markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_all_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -981,7 +997,7 @@ void CLIP_OT_view_all(wmOperatorType *ot)
 /** \name Center View To Cursor Operator
  * \{ */
 
-static int view_center_cursor_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_center_cursor_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -1000,7 +1016,7 @@ void CLIP_OT_view_center_cursor(wmOperatorType *ot)
   ot->description = "Center the view so that the cursor is in the middle of the view";
   ot->idname = "CLIP_OT_view_center_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_center_cursor_exec;
   ot->poll = ED_space_clip_maskedit_poll;
 }
@@ -1011,7 +1027,7 @@ void CLIP_OT_view_center_cursor(wmOperatorType *ot)
 /** \name Frame Selected Operator
  * \{ */
 
-static int view_selected_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_selected_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
@@ -1032,7 +1048,7 @@ void CLIP_OT_view_selected(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_selected";
   ot->description = "View all selected elements";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view_selected_exec;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -1070,7 +1086,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 
-static int change_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_frame_exec(bContext *C, wmOperator *op)
 {
   change_frame_apply(C, op);
 
@@ -1099,7 +1115,7 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   return framenr;
 }
 
-static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -1119,7 +1135,7 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   switch (event->type) {
     case EVT_ESCKEY:
@@ -1136,6 +1152,9 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -1148,7 +1167,7 @@ void CLIP_OT_change_frame(wmOperatorType *ot)
   ot->idname = "CLIP_OT_change_frame";
   ot->description = "Interactively change the current frame number";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = change_frame_exec;
   ot->invoke = change_frame_invoke;
   ot->modal = change_frame_modal;
@@ -1173,7 +1192,7 @@ struct ProxyJob {
   MovieClip *clip;
   int clip_flag;
   bool stop;
-  IndexBuildContext *index_context;
+  MovieProxyBuilder *proxy_builder;
 };
 
 static void proxy_freejob(void *pjv)
@@ -1217,7 +1236,7 @@ static int proxy_bitflag_to_array(int size_flag, int build_sizes[4], int undisto
 static void do_movie_proxy(void *pjv,
                            int * /*build_sizes*/,
                            int /*build_count*/,
-                           int *build_undistort_sizes,
+                           const int *build_undistort_sizes,
                            int build_undistort_count,
                            bool *stop,
                            bool *do_update,
@@ -1227,8 +1246,8 @@ static void do_movie_proxy(void *pjv,
   MovieClip *clip = pj->clip;
   MovieDistortion *distortion = nullptr;
 
-  if (pj->index_context) {
-    IMB_anim_index_rebuild(pj->index_context, stop, do_update, progress);
+  if (pj->proxy_builder) {
+    MOV_proxy_builder_process(pj->proxy_builder, stop, do_update, progress);
   }
 
   if (!build_undistort_count) {
@@ -1243,13 +1262,11 @@ static void do_movie_proxy(void *pjv,
   const int efra = clip->len;
 
   if (build_undistort_count) {
-    int threads = BLI_system_thread_count();
     int width, height;
 
     BKE_movieclip_get_size(clip, nullptr, &width, &height);
 
     distortion = BKE_tracking_distortion_new(&clip->tracking, width, height);
-    BKE_tracking_distortion_set_threads(distortion, threads);
   }
 
   for (int cfra = sfra; cfra <= efra; cfra++) {
@@ -1283,7 +1300,7 @@ struct ProxyQueue {
   int cfra;
   int sfra;
   int efra;
-  SpinLock spin;
+  std::mutex mutex;
 
   const bool *stop;
   bool *do_update;
@@ -1304,7 +1321,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 {
   uchar *mem = nullptr;
 
-  BLI_spin_lock(&queue->spin);
+  std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
     char filepath[FILE_MAX];
@@ -1316,22 +1333,19 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
     file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
     if (file < 0) {
-      BLI_spin_unlock(&queue->spin);
       return nullptr;
     }
 
     const size_t size = BLI_file_descriptor_size(file);
     if (UNLIKELY(ELEM(size, 0, size_t(-1)))) {
       close(file);
-      BLI_spin_unlock(&queue->spin);
       return nullptr;
     }
 
-    mem = MEM_cnew_array<uchar>(size, "movieclip proxy memory file");
+    mem = MEM_calloc_arrayN<uchar>(size, "movieclip proxy memory file");
 
     if (BLI_read(file, mem, size) != size) {
       close(file);
-      BLI_spin_unlock(&queue->spin);
       MEM_freeN(mem);
       return nullptr;
     }
@@ -1345,8 +1359,6 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
     *queue->do_update = true;
     *queue->progress = float(queue->cfra - queue->sfra) / (queue->efra - queue->sfra);
   }
-  BLI_spin_unlock(&queue->spin);
-
   return mem;
 }
 
@@ -1361,11 +1373,12 @@ static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = proxy_thread_next_frame(queue, data->clip, &size, &cfra))) {
     ImBuf *ibuf;
 
-    ibuf = IMB_ibImageFromMemory(mem,
-                                 size,
-                                 IB_rect | IB_multilayer | IB_alphamode_detect,
-                                 data->clip->colorspace_settings.name,
-                                 "proxy frame");
+    ibuf = IMB_load_image_from_memory(mem,
+                                      size,
+                                      IB_byte_data | IB_multilayer | IB_alphamode_detect,
+                                      "proxy frame",
+                                      nullptr,
+                                      data->clip->colorspace_settings.name);
 
     BKE_movieclip_build_proxy_frame_for_ibuf(
         data->clip, ibuf, nullptr, cfra, data->build_sizes, data->build_count, false);
@@ -1408,8 +1421,6 @@ static void do_sequence_proxy(void *pjv,
   }
 
   ProxyQueue queue;
-  BLI_spin_init(&queue.spin);
-
   queue.cfra = sfra;
   queue.sfra = sfra;
   queue.efra = efra;
@@ -1418,7 +1429,7 @@ static void do_sequence_proxy(void *pjv,
   queue.progress = progress;
 
   TaskPool *task_pool = BLI_task_pool_create(&queue, TASK_PRIORITY_LOW);
-  handles = MEM_cnew_array<ProxyThread>(tot_thread, "proxy threaded handles");
+  handles = MEM_calloc_arrayN<ProxyThread>(tot_thread, "proxy threaded handles");
   for (int i = 0; i < tot_thread; i++) {
     ProxyThread *handle = &handles[i];
 
@@ -1447,7 +1458,6 @@ static void do_sequence_proxy(void *pjv,
     }
   }
 
-  BLI_spin_end(&queue.spin);
   MEM_freeN(handles);
 }
 
@@ -1492,11 +1502,11 @@ static void proxy_endjob(void *pjv)
   ProxyJob *pj = static_cast<ProxyJob *>(pjv);
 
   if (pj->clip->anim) {
-    IMB_close_anim_proxies(pj->clip->anim);
+    MOV_close_proxies(pj->clip->anim);
   }
 
-  if (pj->index_context) {
-    IMB_anim_index_rebuild_finish(pj->index_context, pj->stop);
+  if (pj->proxy_builder) {
+    MOV_proxy_builder_finish(pj->proxy_builder, pj->stop);
   }
 
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
@@ -1511,7 +1521,7 @@ static void proxy_endjob(void *pjv)
   WM_main_add_notifier(NC_MOVIECLIP | ND_DISPLAY, pj->clip);
 }
 
-static int clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
 {
   wmJob *wm_job;
   ProxyJob *pj;
@@ -1531,21 +1541,20 @@ static int clip_rebuild_proxy_exec(bContext *C, wmOperator * /*op*/)
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_BUILD_PROXY);
 
-  pj = MEM_cnew<ProxyJob>("proxy rebuild job");
+  pj = MEM_callocN<ProxyJob>("proxy rebuild job");
   pj->scene = scene;
   pj->main = CTX_data_main(C);
   pj->clip = clip;
   pj->clip_flag = clip->flag & MCLIP_TIMECODE_FLAGS;
 
   if (clip->anim) {
-    pj->index_context = IMB_anim_index_rebuild_context(
-        clip->anim,
-        IMB_Timecode_Type(clip->proxy.build_tc_flag),
-        IMB_Proxy_Size(clip->proxy.build_size_flag),
-        clip->proxy.quality,
-        true,
-        nullptr,
-        false);
+    pj->proxy_builder = MOV_proxy_builder_start(clip->anim,
+                                                IMB_Timecode_Type(clip->proxy.build_tc_flag),
+                                                IMB_Proxy_Size(clip->proxy.build_size_flag),
+                                                clip->proxy.quality,
+                                                true,
+                                                nullptr,
+                                                false);
   }
 
   WM_jobs_customdata_set(wm_job, pj, proxy_freejob);
@@ -1567,7 +1576,7 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
   ot->idname = "CLIP_OT_rebuild_proxy";
   ot->description = "Rebuild all selected proxies and timecode indices in the background";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clip_rebuild_proxy_exec;
   ot->poll = ED_space_clip_poll;
 
@@ -1581,7 +1590,7 @@ void CLIP_OT_rebuild_proxy(wmOperatorType *ot)
 /** \name Mode Set Operator
  * \{ */
 
-static int mode_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mode_set_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   int mode = RNA_enum_get(op->ptr, "mode");
@@ -1605,7 +1614,7 @@ void CLIP_OT_mode_set(wmOperatorType *ot)
   ot->description = "Set the clip interaction mode";
   ot->idname = "CLIP_OT_mode_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mode_set_exec;
 
   ot->poll = ED_space_clip_poll;
@@ -1630,7 +1639,9 @@ void CLIP_OT_mode_set(wmOperatorType *ot)
  * that explains the negative signs in the code below
  */
 
-static int clip_view_ndof_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus clip_view_ndof_invoke(bContext *C,
+                                              wmOperator * /*op*/,
+                                              const wmEvent *event)
 {
   if (event->type != NDOF_MOTION) {
     return OPERATOR_CANCELLED;
@@ -1638,14 +1649,11 @@ static int clip_view_ndof_invoke(bContext *C, wmOperator * /*op*/, const wmEvent
 
   SpaceClip *sc = CTX_wm_space_clip(C);
   ARegion *region = CTX_wm_region(C);
-  float pan_vec[3];
 
-  const wmNDOFMotionData *ndof = static_cast<wmNDOFMotionData *>(event->customdata);
+  const wmNDOFMotionData &ndof = *static_cast<wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
-
-  mul_v3_fl(pan_vec, ndof->dt);
+  blender::float3 pan_vec = -ndof.time_delta * WM_event_ndof_translation_get(ndof);
   mul_v2_fl(pan_vec, pan_speed / sc->zoom);
 
   sclip_zoom_set_factor(C, max_ff(0.0f, 1.0f - pan_vec[2]), nullptr, false);
@@ -1664,7 +1672,7 @@ void CLIP_OT_view_ndof(wmOperatorType *ot)
   ot->idname = "CLIP_OT_view_ndof";
   ot->description = "Use a 3D mouse device to pan/zoom the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = clip_view_ndof_invoke;
   ot->poll = ED_space_clip_view_clip_poll;
 
@@ -1680,7 +1688,7 @@ void CLIP_OT_view_ndof(wmOperatorType *ot)
 /** \name Prefetch Operator
  * \{ */
 
-static int clip_prefetch_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus clip_prefetch_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_CLIP_PREFETCH)) {
@@ -1691,12 +1699,17 @@ static int clip_prefetch_modal(bContext *C, wmOperator * /*op*/, const wmEvent *
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_PASS_THROUGH;
 }
 
-static int clip_prefetch_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
+static wmOperatorStatus clip_prefetch_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*_event*/)
 {
   clip_start_prefetch_job(C);
 
@@ -1713,7 +1726,7 @@ void CLIP_OT_prefetch(wmOperatorType *ot)
   ot->idname = "CLIP_OT_prefetch";
   ot->description = "Prefetch frames from disk for faster playback/tracking";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_view_clip_poll;
   ot->invoke = clip_prefetch_invoke;
   ot->modal = clip_prefetch_modal;
@@ -1725,7 +1738,7 @@ void CLIP_OT_prefetch(wmOperatorType *ot)
 /** \name Set Scene Frames Operator
  * \{ */
 
-static int clip_set_scene_frames_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clip_set_scene_frames_exec(bContext *C, wmOperator * /*op*/)
 {
   MovieClip *clip = CTX_data_edit_movieclip(C);
   Scene *scene = CTX_data_scene(C);
@@ -1754,7 +1767,7 @@ void CLIP_OT_set_scene_frames(wmOperatorType *ot)
   ot->idname = "CLIP_OT_set_scene_frames";
   ot->description = "Set scene's start and end frame to match clip's start frame and length";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_view_clip_poll;
   ot->exec = clip_set_scene_frames_exec;
 }
@@ -1765,7 +1778,7 @@ void CLIP_OT_set_scene_frames(wmOperatorType *ot)
 /** \name Set 3d Cursor Operator
  * \{ */
 
-static int clip_set_2d_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clip_set_2d_cursor_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sclip = CTX_wm_space_clip(C);
   bool show_cursor = false;
@@ -1785,7 +1798,9 @@ static int clip_set_2d_cursor_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static int clip_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus clip_set_2d_cursor_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceClip *sclip = CTX_wm_space_clip(C);
@@ -1804,7 +1819,7 @@ void CLIP_OT_cursor_set(wmOperatorType *ot)
   ot->description = "Set 2D cursor location";
   ot->idname = "CLIP_OT_cursor_set";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clip_set_2d_cursor_exec;
   ot->invoke = clip_set_2d_cursor_invoke;
   ot->poll = ED_space_clip_poll;
@@ -1831,7 +1846,7 @@ void CLIP_OT_cursor_set(wmOperatorType *ot)
 /** \name Toggle Lock To Selection Operator
  * \{ */
 
-static int lock_selection_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lock_selection_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceClip *space_clip = CTX_wm_space_clip(C);
 
@@ -1854,7 +1869,7 @@ void CLIP_OT_lock_selection_toggle(wmOperatorType *ot)
   ot->description = "Toggle Lock Selection option of the current clip editor";
   ot->idname = "CLIP_OT_lock_selection_toggle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = ED_space_clip_poll;
   ot->exec = lock_selection_toggle_exec;
 

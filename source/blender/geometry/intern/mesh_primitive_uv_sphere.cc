@@ -2,7 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_vector.hh"
+#include <cmath>
+
+#include "BLI_math_numbers.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
@@ -17,7 +19,7 @@ Bounds<float3> calculate_bounds_radial_primitive(const float radius_top,
                                                  const float height)
 {
   const float radius = std::max(radius_top, radius_bottom);
-  const float delta_phi = (2.0f * M_PI) / float(segments);
+  const float delta_phi = (2.0f * math::numbers::pi) / float(segments);
 
   const float x_max = radius;
   const float x_min = std::cos(std::round(0.5f * segments) * delta_phi) * radius;
@@ -64,8 +66,8 @@ BLI_NOINLINE static void calculate_sphere_vertex_data(MutableSpan<float3> positi
                                                       const int segments,
                                                       const int rings)
 {
-  const float delta_theta = M_PI / rings;
-  const float delta_phi = (2.0f * M_PI) / segments;
+  const float delta_theta = math::numbers::pi / rings;
+  const float delta_phi = (2.0f * math::numbers::pi) / segments;
 
   Array<float, 64> segment_cosines(segments + 1);
   for (const int segment : IndexRange(1, segments)) {
@@ -237,12 +239,12 @@ BLI_NOINLINE static void calculate_sphere_corners(MutableSpan<int> corner_verts,
 BLI_NOINLINE static void calculate_sphere_uvs(Mesh *mesh,
                                               const float segments,
                                               const float rings,
-                                              const bke::AttributeIDRef &uv_map_id)
+                                              const StringRef uv_map_id)
 {
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
   bke::SpanAttributeWriter<float2> uv_attribute =
-      attributes.lookup_or_add_for_write_only_span<float2>(uv_map_id, ATTR_DOMAIN_CORNER);
+      attributes.lookup_or_add_for_write_only_span<float2>(uv_map_id, bke::AttrDomain::Corner);
   MutableSpan<float2> uvs = uv_attribute.span;
 
   const float dy = 1.0f / rings;
@@ -287,7 +289,7 @@ static Bounds<float3> calculate_bounds_uv_sphere(const float radius,
                                                  const int segments,
                                                  const int rings)
 {
-  const float delta_theta = M_PI / float(rings);
+  const float delta_theta = math::numbers::pi / float(rings);
   const float sin_equator = std::sin(std::round(0.5f * rings) * delta_theta);
 
   return calculate_bounds_radial_primitive(0.0f, radius * sin_equator, segments, radius);
@@ -296,7 +298,7 @@ static Bounds<float3> calculate_bounds_uv_sphere(const float radius,
 Mesh *create_uv_sphere_mesh(const float radius,
                             const int segments,
                             const int rings,
-                            const bke::AttributeIDRef &uv_map_id)
+                            const std::optional<StringRef> uv_map_id)
 {
   Mesh *mesh = BKE_mesh_new_nomain(sphere_vert_total(segments, rings),
                                    sphere_edge_total(segments, rings),
@@ -307,12 +309,12 @@ Mesh *create_uv_sphere_mesh(const float radius,
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   MutableSpan<int> corner_edges = mesh->corner_edges_for_write();
-  BKE_mesh_smooth_flag_set(mesh, false);
+  bke::mesh_smooth_set(*mesh, false);
 
   threading::parallel_invoke(
       1024 < segments * rings,
       [&]() {
-        Vector<float3> vert_normals(mesh->totvert);
+        Vector<float3> vert_normals(mesh->verts_num);
         calculate_sphere_vertex_data(positions, vert_normals, radius, segments, rings);
         bke::mesh_vert_normals_assign(*mesh, std::move(vert_normals));
       },
@@ -321,7 +323,7 @@ Mesh *create_uv_sphere_mesh(const float radius,
       [&]() { calculate_sphere_corners(corner_verts, corner_edges, segments, rings); },
       [&]() {
         if (uv_map_id) {
-          calculate_sphere_uvs(mesh, segments, rings, uv_map_id);
+          calculate_sphere_uvs(mesh, segments, rings, *uv_map_id);
         }
       });
 

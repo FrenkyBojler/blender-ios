@@ -138,7 +138,8 @@ static void hull_output_triangles(BMesh *bm, BLI_mempool *hull_triangles)
         const int next = (i == 2 ? 0 : i + 1);
         BMEdge *e = BM_edge_exists(t->v[i], t->v[next]);
         if (e && BMO_edge_flag_test(bm, e, HULL_FLAG_INPUT) &&
-            !BMO_edge_flag_test(bm, e, HULL_FLAG_HOLE)) {
+            !BMO_edge_flag_test(bm, e, HULL_FLAG_HOLE))
+        {
           BMO_edge_flag_enable(bm, e, HULL_FLAG_OUTPUT_GEOM);
         }
       }
@@ -175,7 +176,7 @@ static int hull_final_edges_lookup(HullFinalEdges *final_edges, BMVert *v1, BMVe
 
   /* Use lower vertex pointer for hash key */
   if (v1 > v2) {
-    SWAP(BMVert *, v1, v2);
+    std::swap(v1, v2);
   }
 
   adj = static_cast<ListBase *>(BLI_ghash_lookup(final_edges->edges, v1));
@@ -191,8 +192,7 @@ static HullFinalEdges *hull_final_edges(BLI_mempool *hull_triangles)
 {
   HullFinalEdges *final_edges;
 
-  final_edges = static_cast<HullFinalEdges *>(
-      MEM_callocN(sizeof(HullFinalEdges), "HullFinalEdges"));
+  final_edges = MEM_callocN<HullFinalEdges>("HullFinalEdges");
   final_edges->edges = BLI_ghash_ptr_new("final edges ghash");
   final_edges->base_pool = BLI_mempool_create(sizeof(ListBase), 0, 128, BLI_MEMPOOL_NOP);
   final_edges->link_pool = BLI_mempool_create(sizeof(LinkData), 0, 128, BLI_MEMPOOL_NOP);
@@ -212,7 +212,7 @@ static HullFinalEdges *hull_final_edges(BLI_mempool *hull_triangles)
 
       /* Use lower vertex pointer for hash key */
       if (v1 > v2) {
-        SWAP(BMVert *, v1, v2);
+        std::swap(v1, v2);
       }
 
       adj = static_cast<ListBase *>(BLI_ghash_lookup(final_edges->edges, v1));
@@ -445,7 +445,7 @@ static BMVert **hull_verts_from_bullet(plConvexHull hull,
                                        const int num_input_verts)
 {
   const int num_verts = plConvexHullNumVertices(hull);
-  BMVert **hull_verts = static_cast<BMVert **>(MEM_mallocN(sizeof(*hull_verts) * num_verts, AT));
+  BMVert **hull_verts = MEM_malloc_arrayN<BMVert *>(num_verts, AT);
   int i;
 
   for (i = 0; i < num_verts; i++) {

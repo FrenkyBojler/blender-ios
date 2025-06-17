@@ -17,6 +17,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_linklist.h"
+#include "BLI_math_base.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -155,7 +156,8 @@ BMFace *BM_vert_pair_shared_face_cb(BMVert *v_a,
       BMFace *f = l_a->f;
       l_b = BM_face_vert_share_loop(f, v_b);
       if (l_b && (allow_adjacent || !BM_loop_is_adjacent(l_a, l_b)) &&
-          callback(f, l_a, l_b, user_data)) {
+          callback(f, l_a, l_b, user_data))
+      {
         *r_l_a = l_a;
         *r_l_b = l_b;
 
@@ -593,7 +595,7 @@ bool BM_vert_is_edge_pair_manifold(const BMVert *v)
   return false;
 }
 
-bool BM_vert_edge_pair(BMVert *v, BMEdge **r_e_a, BMEdge **r_e_b)
+bool BM_vert_edge_pair(const BMVert *v, BMEdge **r_e_a, BMEdge **r_e_b)
 {
   BMEdge *e_a = v->e;
   if (e_a) {
@@ -989,14 +991,14 @@ int BM_face_share_edge_count(BMFace *f_a, BMFace *f_b)
   return count;
 }
 
-bool BM_face_share_edge_check(BMFace *f1, BMFace *f2)
+bool BM_face_share_edge_check(BMFace *f_a, BMFace *f_b)
 {
   BMLoop *l_iter;
   BMLoop *l_first;
 
-  l_iter = l_first = BM_FACE_FIRST_LOOP(f1);
+  l_iter = l_first = BM_FACE_FIRST_LOOP(f_a);
   do {
-    if (BM_edge_in_face(l_iter->e, f2)) {
+    if (BM_edge_in_face(l_iter->e, f_b)) {
       return true;
     }
   } while ((l_iter = l_iter->next) != l_first);
@@ -1495,13 +1497,13 @@ float BM_vert_calc_median_tagged_edge_length(const BMVert *v)
 
 BMLoop *BM_face_find_shortest_loop(BMFace *f)
 {
-  BMLoop *shortest_loop = nullptr;
   float shortest_len = FLT_MAX;
 
   BMLoop *l_iter;
   BMLoop *l_first;
 
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+  BMLoop *shortest_loop = l_first; /* Fallback for non-finite coordinates, see #108658. */
 
   do {
     const float len_sq = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
@@ -1516,13 +1518,13 @@ BMLoop *BM_face_find_shortest_loop(BMFace *f)
 
 BMLoop *BM_face_find_longest_loop(BMFace *f)
 {
-  BMLoop *longest_loop = nullptr;
   float len_max_sq = 0.0f;
 
   BMLoop *l_iter;
   BMLoop *l_first;
 
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+  BMLoop *longest_loop = l_first; /* Fallback for non-finite coordinates, see #108658. */
 
   do {
     const float len_sq = len_squared_v3v3(l_iter->v->co, l_iter->next->v->co);
@@ -2085,7 +2087,7 @@ static double bm_mesh_calc_volume_face(const BMFace *f)
 }
 double BM_mesh_calc_volume(BMesh *bm, bool is_signed)
 {
-  /* warning, calls own tessellation function, may be slow */
+  /* warning, calls its own tessellation function, may be slow */
   double vol = 0.0;
   BMFace *f;
   BMIter fiter;
@@ -2156,7 +2158,7 @@ int BM_mesh_calc_face_groups(BMesh *bm,
   bm->elem_index_dirty &= ~BM_FACE;
 
   /* detect groups */
-  stack = static_cast<BMFace **>(MEM_mallocN(sizeof(*stack) * tot_faces, __func__));
+  stack = MEM_malloc_arrayN<BMFace *>(tot_faces, __func__);
 
   f_next = static_cast<BMFace *>(BM_iter_new(&iter, bm, BM_FACES_OF_MESH, nullptr));
 
@@ -2206,7 +2208,8 @@ int BM_mesh_calc_face_groups(BMesh *bm,
         do {
           BMLoop *l_radial_iter = l_iter->radial_next;
           if ((l_radial_iter != l_iter) &&
-              ((filter_fn == nullptr) || filter_fn(l_iter, user_data))) {
+              ((filter_fn == nullptr) || filter_fn(l_iter, user_data)))
+          {
             do {
               if ((filter_pair_fn == nullptr) || filter_pair_fn(l_iter, l_radial_iter, user_data))
               {
@@ -2307,7 +2310,7 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
   bm->elem_index_dirty &= ~BM_EDGE;
 
   /* detect groups */
-  stack = static_cast<BMEdge **>(MEM_mallocN(sizeof(*stack) * tot_edges, __func__));
+  stack = MEM_malloc_arrayN<BMEdge *>(tot_edges, __func__);
 
   e_next = static_cast<BMEdge *>(BM_iter_new(&iter, bm, BM_EDGES_OF_MESH, nullptr));
 
@@ -2385,14 +2388,14 @@ int BM_mesh_calc_edge_groups(BMesh *bm,
 int BM_mesh_calc_edge_groups_as_arrays(
     BMesh *bm, BMVert **verts, BMEdge **edges, BMFace **faces, int (**r_groups)[3])
 {
-  int(*groups)[3] = static_cast<int(*)[3]>(MEM_mallocN(sizeof(*groups) * bm->totvert, __func__));
+  int(*groups)[3] = MEM_malloc_arrayN<int[3]>(bm->totvert, __func__);
   STACK_DECLARE(groups);
   STACK_INIT(groups, bm->totvert);
 
   /* Clear all selected vertices */
   BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
-  BMVert **stack = static_cast<BMVert **>(MEM_mallocN(sizeof(*stack) * bm->totvert, __func__));
+  BMVert **stack = MEM_malloc_arrayN<BMVert *>(bm->totvert, __func__);
   STACK_DECLARE(stack);
   STACK_INIT(stack, bm->totvert);
 

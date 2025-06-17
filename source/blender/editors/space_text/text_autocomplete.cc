@@ -13,8 +13,10 @@
 
 #include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -28,8 +30,6 @@
 #include "ED_text.hh"
 #include "ED_undo.hh"
 
-#include "UI_interface.hh"
-
 #include "text_format.hh"
 #include "text_intern.hh" /* own include */
 
@@ -37,7 +37,7 @@
 /** \name Public API
  * \{ */
 
-bool text_do_suggest_select(SpaceText *st, ARegion *region, const int mval[2])
+bool space_text_do_suggest_select(SpaceText *st, const ARegion *region, const int mval[2])
 {
   const int lheight = TXT_LINE_HEIGHT(st);
   SuggItem *item, *first, *last /* , *sel */ /* UNUSED */;
@@ -69,12 +69,12 @@ bool text_do_suggest_select(SpaceText *st, ARegion *region, const int mval[2])
     return false;
   }
 
-  text_update_character_width(st);
+  space_text_update_character_width(st);
 
-  x = TXT_BODY_LEFT(st) + (st->runtime.cwidth_px * (st->text->curc - st->left));
+  x = TXT_BODY_LEFT(st) + (st->runtime->cwidth_px * (st->text->curc - st->left));
   y = region->winy - lheight * l - 2;
 
-  w = SUGG_LIST_WIDTH * st->runtime.cwidth_px + U.widget_unit;
+  w = SUGG_LIST_WIDTH * st->runtime->cwidth_px + U.widget_unit;
   h = SUGG_LIST_SIZE * lheight + 0.4f * U.widget_unit;
 
   if (mval[0] < x || x + w < mval[0] || mval[1] < y - h || y < mval[1]) {
@@ -287,7 +287,9 @@ static void confirm_suggestion(Text *text)
 /** \name Auto Complete Operator
  * \{ */
 
-static int text_autocomplete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus text_autocomplete_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
 {
   SpaceText *st = CTX_wm_space_text(C);
   Text *text = CTX_data_edit_text(C);
@@ -315,7 +317,7 @@ static int text_autocomplete_invoke(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_CANCELLED;
 }
 
-static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* NOTE(@ideasman42): this code could be refactored or rewritten. */
   SpaceText *st = CTX_wm_space_text(C);
@@ -323,7 +325,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int draw = 0, tools = 0, swallow = 0, scroll = 1;
-  int retval = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus retval = OPERATOR_RUNNING_MODAL;
 
   if (st->doplugins && texttool_text_is_active(st->text)) {
     if (texttool_suggest_first()) {
@@ -333,7 +335,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
 
   switch (event->type) {
     case MOUSEMOVE: {
-      if (text_do_suggest_select(st, region, event->mval)) {
+      if (space_text_do_suggest_select(st, region, event->mval)) {
         draw = 1;
       }
       swallow = 1;
@@ -341,7 +343,7 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
     }
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
-        if (text_do_suggest_select(st, region, event->mval)) {
+        if (space_text_do_suggest_select(st, region, event->mval)) {
           if (tools & TOOL_SUGG_LIST) {
             ED_text_undo_push_init(C);
             confirm_suggestion(st->text);
@@ -510,22 +512,24 @@ static int text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *e
     case EVT_RIGHTSHIFTKEY:
     case EVT_LEFTSHIFTKEY:
       break;
+    default: {
 #if 0
-    default:
       if (tools & TOOL_SUGG_LIST) {
         texttool_suggest_clear();
         draw = 1;
       }
 #endif
+      break;
+    }
   }
 
   if (draw) {
     ED_area_tag_redraw(area);
   }
 
-  //  if (swallow) {
-  //      retval = OPERATOR_RUNNING_MODAL;
-  //  }
+  if (swallow) {
+    // retval = OPERATOR_RUNNING_MODAL;
+  }
 
   if (texttool_suggest_first()) {
     if (retval != OPERATOR_RUNNING_MODAL) {
@@ -565,7 +569,7 @@ void TEXT_OT_autocomplete(wmOperatorType *ot)
   ot->description = "Show a list of used text in the open document";
   ot->idname = "TEXT_OT_autocomplete";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = text_autocomplete_invoke;
   ot->cancel = text_autocomplete_cancel;
   ot->modal = text_autocomplete_modal;

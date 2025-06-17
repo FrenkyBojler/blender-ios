@@ -13,14 +13,14 @@
 
 #include "DNA_userdef_types.h"
 
-#include "GPU_capabilities.h"
-#include "GPU_framebuffer.h"
-#include "GPU_platform.h"
+#include "GPU_capabilities.hh"
+#include "GPU_framebuffer.hh"
+#include "GPU_platform.hh"
 
+#include "GPU_vertex_buffer.hh" /* TODO: should be `gl_vertex_buffer.hh`. */
 #include "gl_backend.hh"
 #include "gl_debug.hh"
 #include "gl_state.hh"
-#include "gpu_vertex_buffer_private.hh" /* TODO: should be `gl_vertex_buffer.hh`. */
 
 #include "gl_texture.hh"
 
@@ -59,12 +59,6 @@ bool GLTexture::init_internal()
     format_ = GPU_DEPTH32F_STENCIL8;
   }
 
-  if ((type_ == GPU_TEXTURE_CUBE_ARRAY) && (GLContext::texture_cube_map_array_support == false)) {
-    /* Silently fail and let the caller handle the error. */
-    // debug::raise_gl_error("Attempt to create a cubemap array without hardware support!");
-    return false;
-  }
-
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -76,72 +70,18 @@ bool GLTexture::init_internal()
 
   GLenum internal_format = to_gl_internal_format(format_);
   const bool is_cubemap = bool(type_ == GPU_TEXTURE_CUBE);
-  const bool is_layered = bool(type_ & GPU_TEXTURE_ARRAY);
-  const bool is_compressed = bool(format_flag_ & GPU_FORMAT_COMPRESSED);
   const int dimensions = (is_cubemap) ? 2 : this->dimensions_count();
-  GLenum gl_format = to_gl_data_format(format_);
-  GLenum gl_type = to_gl(to_data_format(format_));
 
-  auto mip_size = [&](int h, int w = 1, int d = 1) -> size_t {
-    return divide_ceil_u(w, 4) * divide_ceil_u(h, 4) * divide_ceil_u(d, 4) *
-           to_block_size(format_);
-  };
   switch (dimensions) {
     default:
     case 1:
-      if (GLContext::texture_storage_support) {
-        glTexStorage1D(target_, mipmaps_, internal_format, w_);
-      }
-      else {
-        for (int i = 0, w = w_; i < mipmaps_; i++) {
-          if (is_compressed) {
-            glCompressedTexImage1D(target_, i, internal_format, w, 0, mip_size(w), nullptr);
-          }
-          else {
-            glTexImage1D(target_, i, internal_format, w, 0, gl_format, gl_type, nullptr);
-          }
-          w = max_ii(1, (w / 2));
-        }
-      }
+      glTexStorage1D(target_, mipmaps_, internal_format, w_);
       break;
     case 2:
-      if (GLContext::texture_storage_support) {
-        glTexStorage2D(target_, mipmaps_, internal_format, w_, h_);
-      }
-      else {
-        for (int i = 0, w = w_, h = h_; i < mipmaps_; i++) {
-          for (int f = 0; f < (is_cubemap ? 6 : 1); f++) {
-            GLenum target = (is_cubemap) ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : target_;
-            if (is_compressed) {
-              glCompressedTexImage2D(target, i, internal_format, w, h, 0, mip_size(w, h), nullptr);
-            }
-            else {
-              glTexImage2D(target, i, internal_format, w, h, 0, gl_format, gl_type, nullptr);
-            }
-          }
-          w = max_ii(1, (w / 2));
-          h = is_layered ? h_ : max_ii(1, (h / 2));
-        }
-      }
+      glTexStorage2D(target_, mipmaps_, internal_format, w_, h_);
       break;
     case 3:
-      if (GLContext::texture_storage_support) {
-        glTexStorage3D(target_, mipmaps_, internal_format, w_, h_, d_);
-      }
-      else {
-        for (int i = 0, w = w_, h = h_, d = d_; i < mipmaps_; i++) {
-          if (is_compressed) {
-            glCompressedTexImage3D(
-                target_, i, internal_format, w, h, d, 0, mip_size(w, h, d), nullptr);
-          }
-          else {
-            glTexImage3D(target_, i, internal_format, w, h, d, 0, gl_format, gl_type, nullptr);
-          }
-          w = max_ii(1, (w / 2));
-          h = max_ii(1, (h / 2));
-          d = is_layered ? d_ : max_ii(1, (d / 2));
-        }
-      }
+      glTexStorage3D(target_, mipmaps_, internal_format, w_, h_, d_);
       break;
   }
   this->mip_range_set(0, mipmaps_ - 1);
@@ -158,9 +98,9 @@ bool GLTexture::init_internal()
   return true;
 }
 
-bool GLTexture::init_internal(GPUVertBuf *vbo)
+bool GLTexture::init_internal(VertBuf *vbo)
 {
-  GLVertBuf *gl_vbo = static_cast<GLVertBuf *>(unwrap(vbo));
+  GLVertBuf *gl_vbo = static_cast<GLVertBuf *>(vbo);
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -182,8 +122,6 @@ bool GLTexture::init_internal(GPUVertBuf *vbo)
 
 bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil)
 {
-  BLI_assert(GLContext::texture_storage_support);
-
   const GLTexture *gl_src = static_cast<const GLTexture *>(unwrap(src));
   GLenum internal_format = to_gl_internal_format(format_);
   target_ = to_gl_target(type_);
@@ -331,7 +269,7 @@ void GLTexture::update_sub(int offset[3],
   GLContext::state_manager_active_get()->texture_bind_temp(this);
 
   /* Bind pixel buffer for source data. */
-  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf);
+  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf).handle;
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pix_buf_handle);
 
   switch (dimensions) {
@@ -390,24 +328,20 @@ void GLTexture::clear(eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(validate_data_format(format_, data_format));
 
-  if (GLContext::clear_texture_support) {
-    int mip = 0;
-    GLenum gl_format = to_gl_data_format(format_);
-    GLenum gl_type = to_gl(data_format);
-    glClearTexImage(tex_id_, mip, gl_format, gl_type, data);
-  }
-  else {
-    /* Fallback for older GL. */
-    GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  /* Note: do not use glClearTexImage, even if it is available (via
+   * extension or GL 4.4). It causes GL framebuffer binding to be
+   * way slower at least on some drivers (e.g. Win10 / NV RTX 3080,
+   * but also reportedly others), as if glClearTexImage causes
+   * "pixel data" to exist which is then uploaded CPU -> GPU at bind
+   * time. */
 
-    FrameBuffer *fb = this->framebuffer_get();
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
+  GPUFrameBuffer *prev_fb = GPU_framebuffer_active_get();
 
-    GPU_framebuffer_bind(prev_fb);
-  }
+  FrameBuffer *fb = this->framebuffer_get();
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data_format, data);
 
-  has_pixels_ = true;
+  GPU_framebuffer_bind(prev_fb);
 }
 
 void GLTexture::copy_to(Texture *dst_)
@@ -648,7 +582,8 @@ void GLTexture::samplers_update()
         const GPUSamplerFiltering filtering = GPUSamplerFiltering(filtering_i);
 
         if ((filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC) &&
-            (filtering & GPU_SAMPLER_FILTERING_MIPMAP)) {
+            (filtering & GPU_SAMPLER_FILTERING_MIPMAP))
+        {
           glSamplerParameterf(samplers_state_cache_[extend_yz_i][extend_x_i][filtering_i],
                               GL_TEXTURE_MAX_ANISOTROPY_EXT,
                               anisotropic_filter);
@@ -685,10 +620,11 @@ GLuint GLTexture::get_sampler(const GPUSamplerState &sampler_state)
  * Dummy texture to see if the implementation supports the requested size.
  * \{ */
 
-/* NOTE: This only checks if this mipmap is valid / supported.
- * TODO(fclem): make the check cover the whole mipmap chain. */
 bool GLTexture::proxy_check(int mip)
 {
+  /* NOTE: This only checks if this mipmap is valid / supported.
+   * TODO(fclem): make the check cover the whole mipmap chain. */
+
   /* Manual validation first, since some implementation have issues with proxy creation. */
   int max_size = GPU_max_texture_size();
   int max_3d_size = GPU_max_texture_3d_size();
@@ -801,7 +737,8 @@ void GLTexture::check_feedback_loop()
       /* Check for when texture is used with texture barrier. */
       GPUAttachment attachment_read = fb->tmp_detached_[type];
       if (attachment.mip <= mip_max_ && attachment.mip >= mip_min_ &&
-          attachment_read.tex == nullptr) {
+          attachment_read.tex == nullptr)
+      {
         char msg[256];
         SNPRINTF(msg,
                  "Feedback loop: Trying to bind a texture (%s) with mip range %d-%d but mip %d is "
@@ -818,9 +755,10 @@ void GLTexture::check_feedback_loop()
   }
 }
 
-/* TODO(fclem): Legacy. Should be removed at some point. */
 uint GLTexture::gl_bindcode_get() const
 {
+  /* TODO(fclem): Legacy. Should be removed at some point. */
+
   return tex_id_;
 }
 
@@ -828,7 +766,7 @@ uint GLTexture::gl_bindcode_get() const
 /** \name Pixel Buffer
  * \{ */
 
-GLPixelBuffer::GLPixelBuffer(uint size) : PixelBuffer(size)
+GLPixelBuffer::GLPixelBuffer(size_t size) : PixelBuffer(size)
 {
   glGenBuffers(1, &gl_id_);
   BLI_assert(gl_id_);
@@ -872,9 +810,12 @@ void GLPixelBuffer::unmap()
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-int64_t GLPixelBuffer::get_native_handle()
+GPUPixelBufferNativeHandle GLPixelBuffer::get_native_handle()
 {
-  return int64_t(gl_id_);
+  GPUPixelBufferNativeHandle native_handle;
+  native_handle.handle = int64_t(gl_id_);
+  native_handle.size = size_;
+  return native_handle;
 }
 
 size_t GLPixelBuffer::get_size()

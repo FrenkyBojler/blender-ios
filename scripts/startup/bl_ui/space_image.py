@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import (
+    AssetShelf,
     Header,
     Menu,
     Panel,
@@ -23,6 +24,7 @@ from bl_ui.properties_paint_common import (
     SmoothStrokePanel,
     FalloffPanel,
     DisplayPanel,
+    BrushAssetShelf,
 )
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -71,10 +73,12 @@ class IMAGE_MT_view(Menu):
 
         show_uvedit = sima.show_uvedit
         show_render = sima.show_render
+        show_maskedit = sima.show_maskedit
 
         layout.prop(sima, "show_region_toolbar")
         layout.prop(sima, "show_region_ui")
         layout.prop(sima, "show_region_tool_header")
+        layout.prop(sima, "show_region_asset_shelf")
         layout.prop(sima, "show_region_hud")
 
         layout.separator()
@@ -82,28 +86,15 @@ class IMAGE_MT_view(Menu):
         layout.prop(sima, "use_realtime_update")
         layout.prop(uv, "show_metadata")
 
-        if paint.brush and (context.image_paint_object or sima.mode == 'PAINT'):
-            layout.prop(uv, "show_texpaint")
-            layout.prop(tool_settings, "show_uv_local_view", text="Show Same Material")
-
         layout.separator()
 
-        layout.operator("image.view_zoom_in")
-        layout.operator("image.view_zoom_out")
-
-        layout.separator()
-
-        layout.menu("IMAGE_MT_view_zoom")
-
-        layout.separator()
-
-        if show_uvedit:
+        if show_uvedit or show_maskedit:
             layout.operator("image.view_selected", text="Frame Selected")
 
         layout.operator("image.view_all")
-        layout.operator("image.view_all", text="Frame All Fit").fit_view = True
-
         layout.operator("image.view_center_cursor", text="Center View to Cursor")
+
+        layout.menu("IMAGE_MT_view_zoom")
 
         layout.separator()
 
@@ -117,26 +108,37 @@ class IMAGE_MT_view(Menu):
             layout.operator("image.cycle_render_slot", text="Render Slot Cycle Previous").reverse = True
             layout.separator()
 
+        if paint.brush and (context.image_paint_object or sima.mode == 'PAINT'):
+            layout.prop(tool_settings, "show_uv_local_view", text="Show Same Material")
+
         layout.menu("INFO_MT_area")
 
 
 class IMAGE_MT_view_zoom(Menu):
-    bl_label = "Fractional Zoom"
+    bl_label = "Zoom"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        from math import isclose
 
+        current_zoom = context.space_data.zoom_percentage
         ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
 
-        for i, (a, b) in enumerate(ratios):
-            if i in {3, 4}:  # Draw separators around Zoom 1:1.
-                layout.separator()
-
+        for (a, b) in ratios:
+            ratio = a / b
+            percent = ratio * 100.0
             layout.operator(
                 "image.view_zoom_ratio",
-                text=iface_("Zoom %d:%d") % (a, b),
+                text="{:g}% ({:d}:{:d})".format(percent, a, b),
                 translate=False,
-            ).ratio = a / b
+                icon='LAYER_ACTIVE' if isclose(percent, current_zoom, abs_tol=0.5) else 'NONE',
+            ).ratio = ratio
+
+        layout.separator()
+        layout.operator("image.view_zoom_in")
+        layout.operator("image.view_zoom_out")
+        layout.operator("image.view_all", text="Zoom to Fit").fit_view = True
+        layout.operator("image.view_zoom_border", text="Zoom Region...")
 
 
 class IMAGE_MT_select(Menu):
@@ -154,20 +156,21 @@ class IMAGE_MT_select(Menu):
         layout.operator("uv.select_box").pinned = False
         layout.operator("uv.select_box", text="Box Select Pinned").pinned = True
         layout.operator("uv.select_circle")
+        layout.operator_menu_enum("uv.select_lasso", "mode", text="Lasso Select")
 
         layout.separator()
 
-        layout.operator("uv.select_less", text="Less")
         layout.operator("uv.select_more", text="More")
+        layout.operator("uv.select_less", text="Less")
 
         layout.separator()
 
-        layout.operator("uv.select_pinned")
+        layout.operator_menu_enum("uv.select_similar", "type", text="Select Similar")
         layout.menu("IMAGE_MT_select_linked")
-        layout.operator("uv.select_similar")
 
         layout.separator()
 
+        layout.operator("uv.select_pinned", text="Select Pinned")
         layout.operator("uv.select_split")
         layout.operator("uv.select_overlap")
 
@@ -194,8 +197,7 @@ class IMAGE_MT_image(Menu):
         ima = sima.image
         show_render = sima.show_render
 
-        layout.operator("image.new", text="New",
-                        text_ctxt=i18n_contexts.id_image)
+        layout.operator("image.new", text="New...", text_ctxt=i18n_contexts.id_image, icon='FILE_NEW')
         layout.operator("image.open", text="Open...", icon='FILE_FOLDER')
 
         layout.operator("image.read_viewlayers")
@@ -211,7 +213,16 @@ class IMAGE_MT_image(Menu):
 
         layout.separator()
 
-        if sys.platform[:3] == "win":
+        has_image_clipboard = False
+        if (sys.platform[:3] == "win") or (sys.platform == "darwin"):
+            has_image_clipboard = True
+        else:
+            from _bpy import _ghost_backend
+            if _ghost_backend() == 'WAYLAND':
+                has_image_clipboard = True
+            del _ghost_backend
+
+        if has_image_clipboard:
             layout.operator("image.clipboard_copy", text="Copy")
             layout.operator("image.clipboard_paste", text="Paste")
             layout.separator()
@@ -231,7 +242,7 @@ class IMAGE_MT_image(Menu):
 
             layout.menu("IMAGE_MT_image_invert")
             layout.operator("image.resize", text="Resize")
-            layout.menu("IMAGE_MT_image_flip")
+            layout.menu("IMAGE_MT_image_transform")
 
         if ima and not show_render:
             if ima.packed_file:
@@ -245,16 +256,19 @@ class IMAGE_MT_image(Menu):
         if ima and context.area.ui_type == 'IMAGE_EDITOR':
             layout.separator()
             layout.operator("palette.extract_from_image", text="Extract Palette")
-            layout.operator("gpencil.image_to_grease_pencil", text="Generate Grease Pencil")
 
 
-class IMAGE_MT_image_flip(Menu):
-    bl_label = "Flip"
+class IMAGE_MT_image_transform(Menu):
+    bl_label = "Transform"
 
     def draw(self, _context):
         layout = self.layout
-        layout.operator("image.flip", text="Horizontally").use_flip_x = True
-        layout.operator("image.flip", text="Vertically").use_flip_y = True
+        layout.operator("image.flip", text="Flip Horizontally").use_flip_x = True
+        layout.operator("image.flip", text="Flip Vertically").use_flip_y = True
+        layout.separator()
+        layout.operator("image.rotate_orthogonal", text="Rotate 90\u00B0 Clockwise").degrees = '90'
+        layout.operator("image.rotate_orthogonal", text="Rotate 90\u00B0 Counter-Clockwise").degrees = '270'
+        layout.operator("image.rotate_orthogonal", text="Rotate 180\u00B0").degrees = '180'
 
 
 class IMAGE_MT_image_invert(Menu):
@@ -270,9 +284,9 @@ class IMAGE_MT_image_invert(Menu):
 
         layout.separator()
 
-        layout.operator("image.invert", text="Invert Red Channel", icon='COLOR_RED').invert_r = True
-        layout.operator("image.invert", text="Invert Green Channel", icon='COLOR_GREEN').invert_g = True
-        layout.operator("image.invert", text="Invert Blue Channel", icon='COLOR_BLUE').invert_b = True
+        layout.operator("image.invert", text="Invert Red Channel", icon='RGB_RED').invert_r = True
+        layout.operator("image.invert", text="Invert Green Channel", icon='RGB_GREEN').invert_g = True
+        layout.operator("image.invert", text="Invert Blue Channel", icon='RGB_BLUE').invert_b = True
         layout.operator("image.invert", text="Invert Alpha Channel", icon='IMAGE_ALPHA').invert_a = True
 
 
@@ -300,6 +314,11 @@ class IMAGE_MT_uvs_transform(Menu):
         layout.separator()
 
         layout.operator("transform.shear")
+
+        layout.separator()
+
+        layout.operator("transform.vert_slide")
+        layout.operator("transform.edge_slide")
 
         layout.separator()
 
@@ -381,7 +400,11 @@ class IMAGE_MT_uvs_unwrap(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("uv.unwrap")
+        # It would be nice to do: `layout.operator_enum("uv.unwrap", "method")`
+        # However the menu items don't have an "Unwrap" prefix, so inline the operators.
+        layout.operator("uv.unwrap", text="Unwrap Angle Based").method = 'ANGLE_BASED'
+        layout.operator("uv.unwrap", text="Unwrap Conformal").method = 'CONFORMAL'
+        layout.operator("uv.unwrap", text="Unwrap Minimum Stretch").method = 'MINIMUM_STRETCH'
 
         layout.separator()
 
@@ -421,6 +444,10 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
+        layout.operator("uv.rip_move")
+
+        layout.separator()
+
         layout.prop(uv, "use_live_unwrap")
         layout.menu("IMAGE_MT_uvs_unwrap")
 
@@ -438,7 +465,7 @@ class IMAGE_MT_uvs(Menu):
 
         layout.separator()
 
-        layout.operator_context = 'INVOKE_DEFAULT'
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.pack_islands")
         layout.operator_context = 'EXEC_REGION_WIN'
         layout.operator("uv.average_islands_scale")
@@ -446,7 +473,9 @@ class IMAGE_MT_uvs(Menu):
         layout.separator()
 
         layout.operator("uv.minimize_stretch")
+        layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("uv.stitch")
+        layout.operator_context = 'EXEC_REGION_WIN'
         layout.menu("IMAGE_MT_uvs_align")
         layout.operator("uv.align_rotation")
 
@@ -503,9 +532,17 @@ class IMAGE_MT_uvs_select_mode(Menu):
             props.value = 'FACE'
             props.data_path = "tool_settings.uv_select_mode"
 
-            props = layout.operator("wm.context_set_string", text="Island", icon='UV_ISLANDSEL')
-            props.value = 'ISLAND'
-            props.data_path = "tool_settings.uv_select_mode"
+        layout.separator()
+
+        is_select_island_supported = True
+        if tool_settings.use_uv_select_sync:
+            mesh_select_mode = tool_settings.mesh_select_mode
+            if mesh_select_mode[0] or mesh_select_mode[1]:
+                is_select_island_supported = False
+
+        row = layout.row()
+        row.active = is_select_island_supported
+        row.prop(tool_settings, "use_uv_select_island", text="Island")
 
 
 class IMAGE_MT_uvs_context_menu(Menu):
@@ -518,6 +555,16 @@ class IMAGE_MT_uvs_context_menu(Menu):
 
         # UV Edit Mode
         if sima.show_uvedit:
+            ts = context.tool_settings
+            if ts.use_uv_select_sync:
+                is_vert_mode, is_edge_mode, _ = ts.mesh_select_mode
+            else:
+                uv_select_mode = ts.uv_select_mode
+                is_vert_mode = uv_select_mode == 'VERTEX'
+                is_edge_mode = uv_select_mode == 'EDGE'
+                # is_face_mode = uv_select_mode == 'FACE'
+                # is_island_mode = ts.use_uv_select_island
+
             # Add
             layout.operator("uv.unwrap")
             layout.operator("uv.follow_active_quads")
@@ -541,9 +588,23 @@ class IMAGE_MT_uvs_context_menu(Menu):
 
             layout.separator()
 
+            if is_vert_mode or is_edge_mode:
+                layout.operator_context = 'INVOKE_DEFAULT'
+
+                if is_vert_mode:
+                    layout.operator("transform.vert_slide")
+
+                if is_edge_mode:
+                    layout.operator("transform.edge_slide")
+
+                layout.operator_context = 'EXEC_REGION_WIN'
+                layout.separator()
+
             # Remove
             layout.menu("IMAGE_MT_uvs_merge")
+            layout.operator_context = 'INVOKE_REGION_WIN'
             layout.operator("uv.stitch")
+            layout.operator_context = 'EXEC_REGION_WIN'
             layout.menu("IMAGE_MT_uvs_split")
 
 
@@ -667,17 +728,13 @@ class IMAGE_HT_tool_header(Header):
             draw_fn(context, layout, tool)
 
         if tool_mode == 'PAINT':
-            if (tool is not None) and tool.has_datablock:
+            if (tool is not None) and tool.use_brushes:
                 layout.popover("IMAGE_PT_paint_settings_advanced")
                 layout.popover("IMAGE_PT_paint_stroke")
                 layout.popover("IMAGE_PT_paint_curve")
                 layout.popover("IMAGE_PT_tools_brush_display")
                 layout.popover("IMAGE_PT_tools_brush_texture")
                 layout.popover("IMAGE_PT_tools_mask_texture")
-        elif tool_mode == 'UV':
-            if (tool is not None) and tool.has_datablock:
-                layout.popover("IMAGE_PT_uv_sculpt_curve")
-                layout.popover("IMAGE_PT_uv_sculpt_options")
 
     def draw_mode_settings(self, context):
         layout = self.layout
@@ -695,7 +752,7 @@ class IMAGE_HT_tool_header(Header):
 class _draw_tool_settings_context_mode:
     @staticmethod
     def UV(context, layout, tool):
-        if tool and tool.has_datablock:
+        if tool and tool.use_brushes:
             if context.mode == 'EDIT_MESH':
                 tool_settings = context.tool_settings
                 uv_sculpt = tool_settings.uv_sculpt
@@ -724,13 +781,14 @@ class _draw_tool_settings_context_mode:
 
     @staticmethod
     def PAINT(context, layout, tool):
-        if (tool is None) or (not tool.has_datablock):
+        if (tool is None) or (not tool.use_brushes):
             return
 
         paint = context.tool_settings.image_paint
-        layout.template_ID_preview(paint, "brush", rows=3, cols=8, hide_buttons=True)
-
         brush = paint.brush
+
+        BrushAssetShelf.draw_popup_selector(layout, context, brush)
+
         if brush is None:
             return
 
@@ -744,17 +802,22 @@ class IMAGE_HT_header(Header):
     def draw_xform_template(layout, context):
         sima = context.space_data
         show_uvedit = sima.show_uvedit
-        show_maskedit = sima.show_maskedit
 
-        if show_uvedit or show_maskedit:
+        if show_uvedit:
             layout.prop(sima, "pivot_point", icon_only=True)
 
         if show_uvedit:
             tool_settings = context.tool_settings
 
             # Snap.
-            snap_uv_element = tool_settings.snap_uv_element
-            act_snap_uv_element = tool_settings.bl_rna.properties["snap_uv_element"].enum_items[snap_uv_element]
+            snap_uv_elements = tool_settings.snap_uv_element
+            if len(snap_uv_elements) == 1:
+                text = ""
+                elem = next(iter(snap_uv_elements))
+                act_snap_icon = tool_settings.bl_rna.properties["snap_uv_element"].enum_items[elem].icon
+            else:
+                text = iface_("Mix", i18n_contexts.id_image)
+                act_snap_icon = 'NONE'
 
             row = layout.row(align=True)
             row.prop(tool_settings, "use_snap_uv", text="")
@@ -762,8 +825,8 @@ class IMAGE_HT_header(Header):
             sub = row.row(align=True)
             sub.popover(
                 panel="IMAGE_PT_snapping",
-                icon=act_snap_uv_element.icon,
-                text="",
+                icon=act_snap_icon,
+                text=text,
             )
 
             # Proportional Editing
@@ -808,6 +871,19 @@ class IMAGE_HT_header(Header):
 
             if tool_settings.use_uv_select_sync:
                 layout.template_edit_mode_selection()
+
+                # Currently this only works for face-select mode.
+                mesh_select_mode = tool_settings.mesh_select_mode
+                row = layout.row()
+                if mesh_select_mode[0] or mesh_select_mode[1]:
+                    row.active = False
+                row.prop(tool_settings, "use_uv_select_island", icon_only=True)
+
+                # Currently this only works for edge-select & face-select modes.
+                row = layout.row()
+                if mesh_select_mode[0]:
+                    row.active = False
+                row.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
             else:
                 row = layout.row(align=True)
                 uv_select_mode = tool_settings.uv_select_mode[:]
@@ -817,9 +893,8 @@ class IMAGE_HT_header(Header):
                              depress=(uv_select_mode == 'EDGE')).type = 'EDGE'
                 row.operator("uv.select_mode", text="", icon='UV_FACESEL',
                              depress=(uv_select_mode == 'FACE')).type = 'FACE'
-                row.operator("uv.select_mode", text="", icon='UV_ISLANDSEL',
-                             depress=(uv_select_mode == 'ISLAND')).type = 'ISLAND'
 
+                layout.prop(tool_settings, "use_uv_select_island", icon_only=True)
                 layout.prop(tool_settings, "uv_sticky_select_mode", icon_only=True)
 
         IMAGE_MT_editor_menus.draw_collapsible(context, layout)
@@ -831,8 +906,20 @@ class IMAGE_HT_header(Header):
         layout.template_ID(sima, "image", new="image.new", open="image.open")
 
         if show_maskedit:
-            row = layout.row()
-            row.template_ID(sima, "mask", new="mask.new")
+            layout.template_ID(sima, "mask", new="mask.new")
+            layout.prop(sima, "pivot_point", icon_only=True)
+
+            row = layout.row(align=True)
+            row.prop(tool_settings, "use_proportional_edit_mask", text="", icon_only=True)
+            sub = row.row(align=True)
+            sub.active = tool_settings.use_proportional_edit_mask
+            sub.prop_with_popover(
+                tool_settings,
+                "proportional_edit_falloff",
+                text="",
+                icon_only=True,
+                panel="IMAGE_PT_proportional_edit",
+            )
 
         if not show_render:
             layout.prop(sima, "use_image_pin", text="", emboss=False)
@@ -863,7 +950,7 @@ class IMAGE_HT_header(Header):
                 row.prop(sima, "show_stereo_3d", text="")
             if show_maskedit:
                 row = layout.row()
-                row.popover(panel='IMAGE_PT_mask_display')
+                row.popover(panel="IMAGE_PT_mask_display")
 
             # layers.
             layout.template_image_layers(ima, iuser)
@@ -927,6 +1014,7 @@ from bl_ui.properties_mask_common import (
     MASK_PT_layers,
     MASK_PT_spline,
     MASK_PT_point,
+    MASK_PT_animation,
     MASK_PT_display,
 )
 
@@ -955,6 +1043,12 @@ class IMAGE_PT_active_mask_point(MASK_PT_point, Panel):
     bl_category = "Mask"
 
 
+class IMAGE_PT_mask_animation(MASK_PT_animation, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Mask"
+
+
 class IMAGE_PT_mask_display(MASK_PT_display, Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
@@ -972,23 +1066,31 @@ class IMAGE_PT_snapping(Panel):
 
         layout = self.layout
         col = layout.column()
-        col.label(text="Snapping")
+        col.label(text="Snap Target")
         col.prop(tool_settings, "snap_uv_element", expand=True)
 
-        if tool_settings.snap_uv_element != 'INCREMENT':
-            col.label(text="Target")
-            row = col.row(align=True)
-            row.prop(tool_settings, "snap_target", expand=True)
+        col.label(text="Snap Base")
+        row = col.row(align=True)
+        row.active = bool(tool_settings.snap_uv_element.difference({'INCREMENT', 'GRID'}))
+        row.prop(tool_settings, "snap_target", expand=True)
 
         col.separator()
-        if 'INCREMENT' in tool_settings.snap_uv_element:
-            col.prop(tool_settings, "use_snap_uv_grid_absolute")
 
         col.label(text="Affect")
         row = col.row(align=True)
-        row.prop(tool_settings, "use_snap_translate", text="Move", toggle=True)
-        row.prop(tool_settings, "use_snap_rotate", text="Rotate", toggle=True)
-        row.prop(tool_settings, "use_snap_scale", text="Scale", toggle=True)
+        row.prop(
+            tool_settings,
+            "use_snap_translate",
+            text="Move",
+            text_ctxt=i18n_contexts.operator_default,
+            toggle=True,
+        )
+        row.prop(tool_settings, "use_snap_rotate", text="Rotate", text_ctxt=i18n_contexts.operator_default, toggle=True)
+        row.prop(tool_settings, "use_snap_scale", text="Scale", text_ctxt=i18n_contexts.operator_default, toggle=True)
+        col.label(text="Rotation Increment")
+        row = col.row(align=True)
+        row.prop(tool_settings, "snap_angle_increment_2d", text="")
+        row.prop(tool_settings, "snap_angle_increment_2d_precision", text="")
 
 
 class IMAGE_PT_proportional_edit(Panel):
@@ -1141,7 +1243,7 @@ class IMAGE_PT_udim_tiles(Panel):
 
 
 class IMAGE_PT_paint_select(Panel, ImagePaintPanel, BrushSelectPanel):
-    bl_label = "Brushes"
+    bl_label = "Brush Asset"
     bl_context = ".paint_common_2d"
     bl_category = "Tool"
 
@@ -1179,8 +1281,8 @@ class IMAGE_PT_paint_settings_advanced(Panel, ImagePaintPanel):
 
         settings = context.tool_settings.image_paint
         brush = settings.brush
-
-        brush_settings_advanced(layout.column(), context, brush, self.is_popover)
+        if brush:
+            brush_settings_advanced(layout.column(), context, settings, brush, self.is_popover)
 
 
 class IMAGE_PT_paint_color(Panel, ImagePaintPanel):
@@ -1193,16 +1295,17 @@ class IMAGE_PT_paint_color(Panel, ImagePaintPanel):
     def poll(cls, context):
         settings = context.tool_settings.image_paint
         brush = settings.brush
+        if not brush:
+            return False
         capabilities = brush.image_paint_capabilities
-
         return capabilities.has_color
 
     def draw(self, context):
         layout = self.layout
         settings = context.tool_settings.image_paint
         brush = settings.brush
-
-        draw_color_settings(context, layout, brush, color_type=True)
+        if brush:
+            draw_color_settings(context, layout, brush, color_type=True)
 
 
 class IMAGE_PT_paint_swatches(Panel, ImagePaintPanel, ColorPalettePanel):
@@ -1299,64 +1402,42 @@ class IMAGE_PT_tools_imagepaint_symmetry(BrushButtonsPanel, Panel):
         row.prop(ipaint, "tile_y", text="Y", toggle=True)
 
 
-class UVSculptPanel(UnifiedPaintPanel):
-    @classmethod
-    def poll(cls, context):
-        return cls.get_brush_mode(context) == 'UV_SCULPT'
+# Only a popover.
+class IMAGE_PT_uv_sculpt_curve(Panel):
+    bl_space_type = 'TOPBAR'  # dummy.
+    bl_region_type = 'HEADER'
 
-
-class IMAGE_PT_uv_sculpt_brush_select(Panel, BrushSelectPanel, ImagePaintPanel, UVSculptPanel):
-    bl_context = ".uv_sculpt"
-    bl_category = "Tool"
-    bl_label = "Brushes"
-
-
-class IMAGE_PT_uv_sculpt_brush_settings(Panel, ImagePaintPanel, UVSculptPanel):
-    bl_context = ".uv_sculpt"
-    bl_category = "Tool"
-    bl_label = "Brush Settings"
+    bl_context = ".uv_sculpt"  # Dot on purpose (access from top-bar).
+    bl_label = "Falloff"
 
     def draw(self, context):
         layout = self.layout
+        props = context.scene.tool_settings.uv_sculpt
 
-        tool_settings = context.tool_settings
-        uvsculpt = tool_settings.uv_sculpt
+        col = layout.column()
+        col.prop(props, "curve_preset", expand=True)
 
-        brush = uvsculpt.brush
-
-        brush_settings(layout.column(), context, brush)
-
-        if brush:
-            if brush.uv_sculpt_tool == 'RELAX':
-                # Although this settings is stored in the scene,
-                # it is only used by a single tool,
-                # so it doesn't make sense from a user perspective to move it to the Options panel.
-                layout.prop(tool_settings, "uv_relax_method")
+        if props.curve_preset == 'CUSTOM':
+            col = layout.column()
+            col.template_curve_mapping(props, "strength_curve")
 
 
-class IMAGE_PT_uv_sculpt_curve(Panel, FalloffPanel, ImagePaintPanel, UVSculptPanel):
+# Only a popover.
+class IMAGE_PT_uv_sculpt_options(Panel):
+    bl_space_type = 'TOPBAR'  # dummy.
+    bl_region_type = 'HEADER'
+
     bl_context = ".uv_sculpt"  # Dot on purpose (access from top-bar).
-    bl_parent_id = "IMAGE_PT_uv_sculpt_brush_settings"
-    bl_category = "Tool"
-    bl_label = "Falloff"
-    bl_options = {'DEFAULT_CLOSED'}
-
-
-class IMAGE_PT_uv_sculpt_options(Panel, ImagePaintPanel, UVSculptPanel):
-    bl_context = ".uv_sculpt"  # Dot on purpose (access from top-bar).
-    bl_category = "Tool"
     bl_label = "Options"
 
     def draw(self, context):
         layout = self.layout
 
         tool_settings = context.tool_settings
-        uvsculpt = tool_settings.uv_sculpt
 
         col = layout.column()
         col.prop(tool_settings, "uv_sculpt_lock_borders")
         col.prop(tool_settings, "uv_sculpt_all_islands")
-        col.prop(uvsculpt, "show_brush", text="Display Cursor")
 
 
 class ImageScopesPanel:
@@ -1424,8 +1505,11 @@ class IMAGE_PT_view_vectorscope(ImageScopesPanel, Panel):
         layout = self.layout
 
         sima = context.space_data
+
         layout.template_vectorscope(sima, "scopes")
-        layout.prop(sima.scopes, "vectorscope_alpha")
+        row = layout.split(factor=0.75)
+        row.prop(sima.scopes, "vectorscope_alpha")
+        row.prop(sima.scopes, "vectorscope_mode", text="")
 
 
 class IMAGE_PT_sample_line(ImageScopesPanel, Panel):
@@ -1518,7 +1602,7 @@ class IMAGE_PT_overlay(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 13
+    bl_ui_units_x = 14
 
     def draw(self, context):
         pass
@@ -1565,10 +1649,10 @@ class IMAGE_PT_overlay_guides(Panel):
             layout.prop(uvedit, "tile_grid_shape", text="Tiles")
 
 
-class IMAGE_PT_overlay_uv_edit(Panel):
+class IMAGE_PT_overlay_uv_stretch(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
-    bl_label = "UV Editing"
+    bl_label = "UV Stretch"
     bl_parent_id = "IMAGE_PT_overlay"
 
     @classmethod
@@ -1585,12 +1669,12 @@ class IMAGE_PT_overlay_uv_edit(Panel):
 
         layout.active = overlay.show_overlays
 
-        # UV Stretching
-        row = layout.row()
-        row.prop(uvedit, "show_stretch")
-        subrow = row.row(align=True)
+        row = layout.row(align=True)
+        row.row().prop(uvedit, "show_stretch", text="")
+        subrow = row.row()
         subrow.active = uvedit.show_stretch
         subrow.prop(uvedit, "display_stretch_type", text="")
+        subrow.prop(uvedit, "stretch_opacity", text="Opacity")
 
 
 class IMAGE_PT_overlay_uv_edit_geometry(Panel):
@@ -1625,7 +1709,7 @@ class IMAGE_PT_overlay_uv_edit_geometry(Panel):
         row.prop(uvedit, "show_faces", text="Faces")
 
 
-class IMAGE_PT_overlay_texture_paint(Panel):
+class IMAGE_PT_overlay_uv_display(Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Geometry"
@@ -1634,7 +1718,7 @@ class IMAGE_PT_overlay_texture_paint(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and (sima.show_paint))
+        return (sima and sima.mode in {'UV', 'PAINT'} and not (sima.show_uvedit or sima.show_render))
 
     def draw(self, context):
         layout = self.layout
@@ -1644,7 +1728,8 @@ class IMAGE_PT_overlay_texture_paint(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_texpaint")
+        layout.prop(uvedit, "show_uv")
+        layout.prop(uvedit, "uv_face_opacity")
 
 
 class IMAGE_PT_overlay_image(Panel):
@@ -1664,6 +1749,40 @@ class IMAGE_PT_overlay_image(Panel):
         layout.prop(uvedit, "show_metadata")
 
 
+class IMAGE_PT_overlay_render_guides(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'HEADER'
+    bl_label = "Guides"
+    bl_parent_id = "IMAGE_PT_overlay"
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        return (
+            (sima.mode in {'MASK', 'VIEW'}) and
+            (image := sima.image) is not None and
+            (image.source == 'VIEWER') and
+            (image.type == 'COMPOSITING')
+        )
+
+    def draw(self, context):
+        layout = self.layout
+
+        sima = context.space_data
+        overlay = sima.overlay
+
+        layout.active = overlay.show_overlays
+
+        row = layout.row(align=True)
+        layout.prop(overlay, "show_text_info")
+
+        row = layout.row(align=True)
+        row.prop(overlay, "show_render_size")
+        subrow = row.row()
+        subrow.active = overlay.show_render_size
+        subrow.prop(overlay, "passepartout_alpha", text="Passepartout")
+
+
 # Grease Pencil properties
 class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -1675,13 +1794,26 @@ class IMAGE_PT_annotation(AnnotationDataPanel, Panel):
 # Grease Pencil drawing tools.
 
 
+class ImageAssetShelf(BrushAssetShelf):
+    bl_space_type = 'IMAGE_EDITOR'
+
+
+class IMAGE_AST_brush_paint(ImageAssetShelf, AssetShelf):
+    mode_prop = "use_paint_image"
+    brush_type_prop = "image_brush_type"
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data and context.space_data.mode == 'PAINT'
+
+
 classes = (
     IMAGE_MT_view,
     IMAGE_MT_view_zoom,
     IMAGE_MT_select,
     IMAGE_MT_select_linked,
     IMAGE_MT_image,
-    IMAGE_MT_image_flip,
+    IMAGE_MT_image_transform,
     IMAGE_MT_image_invert,
     IMAGE_MT_uvs,
     IMAGE_MT_uvs_showhide,
@@ -1707,6 +1839,7 @@ classes = (
     IMAGE_PT_mask_display,
     IMAGE_PT_active_mask_spline,
     IMAGE_PT_active_mask_point,
+    IMAGE_PT_mask_animation,
     IMAGE_PT_snapping,
     IMAGE_PT_proportional_edit,
     IMAGE_PT_image_properties,
@@ -1728,8 +1861,6 @@ classes = (
     IMAGE_PT_paint_curve,
     IMAGE_PT_tools_brush_display,
     IMAGE_PT_tools_imagepaint_symmetry,
-    IMAGE_PT_uv_sculpt_brush_select,
-    IMAGE_PT_uv_sculpt_brush_settings,
     IMAGE_PT_uv_sculpt_options,
     IMAGE_PT_uv_sculpt_curve,
     IMAGE_PT_view_histogram,
@@ -1742,10 +1873,12 @@ classes = (
     IMAGE_PT_gizmo_display,
     IMAGE_PT_overlay,
     IMAGE_PT_overlay_guides,
-    IMAGE_PT_overlay_uv_edit,
+    IMAGE_PT_overlay_uv_stretch,
     IMAGE_PT_overlay_uv_edit_geometry,
-    IMAGE_PT_overlay_texture_paint,
+    IMAGE_PT_overlay_uv_display,
     IMAGE_PT_overlay_image,
+    IMAGE_PT_overlay_render_guides,
+    IMAGE_AST_brush_paint,
 )
 
 

@@ -11,10 +11,6 @@
 #include "../../BPy_Convert.h"
 #include "../BPy_SVertex.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -22,6 +18,7 @@ using namespace Freestyle;
 /*----------------------NonTVertex methods ----------------------------*/
 
 PyDoc_STRVAR(
+    /* Wrap. */
     NonTVertex_doc,
     "Class hierarchy: :class:`Interface0D` > :class:`ViewVertex` > :class:`NonTVertex`\n"
     "\n"
@@ -60,10 +57,12 @@ static int NonTVertex_init(BPy_NonTVertex *self, PyObject *args, PyObject *kwds)
 
 /*----------------------NonTVertex get/setters ----------------------------*/
 
-PyDoc_STRVAR(NonTVertex_svertex_doc,
-             "The SVertex on top of which this NonTVertex is built.\n"
-             "\n"
-             ":type: :class:`SVertex`");
+PyDoc_STRVAR(
+    /* Wrap. */
+    NonTVertex_svertex_doc,
+    "The SVertex on top of which this NonTVertex is built.\n"
+    "\n"
+    ":type: :class:`SVertex`");
 
 static PyObject *NonTVertex_svertex_get(BPy_NonTVertex *self, void * /*closure*/)
 {
@@ -137,7 +136,3 @@ PyTypeObject NonTVertex_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

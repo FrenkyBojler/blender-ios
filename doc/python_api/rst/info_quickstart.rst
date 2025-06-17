@@ -30,13 +30,13 @@ but some areas are still being extended and improved.
 Before Starting
 ===============
 
-This document its intended to familiarize you with Blender Python API
+This document is intended to familiarize you with Blender Python API
 but not to fully cover each topic.
 
 A quick list of helpful things to know before starting:
 
-- Enable :ref:`Developer Extra <blender_manual:prefs-interface-dev-extras>`
-  and :ref:`Python Tooltips <blender_manual:prefs-interface-tooltips-python>`.
+- Enable :ref:`Developer Extra <blender_manual:bpy.types.PreferencesView.show_developer_ui>`
+  and :ref:`Python Tooltips <blender_manual:bpy.types.PreferencesView.show_tooltips_python>`.
 - The :ref:`Python Console <blender_manual:bpy.types.SpaceConsole>`
   is great for testing one-liners; it has autocompletion so you can inspect the API quickly.
 - Button tooltips show Python attributes and operator names (when enabled see above).
@@ -60,7 +60,7 @@ Both the *Text Editor* and *Python Console* are space types you can select from 
 Rather than manually configuring your spaces for Python development,
 you can use the *Scripting* workspace accessible from the Topbar tabs.
 
-From the text editor you can open ``.py`` files or paste then from the clipboard, then test using *Run Script*.
+From the text editor you can open ``.py`` files or paste them from the clipboard, then test using *Run Script*.
 The Python Console is typically used for typing in snippets and for testing to get immediate feedback,
 but can also have entire scripts pasted into it.
 Scripts can also run from the command line with Blender but to learn scripting in Blender this isn't essential.
@@ -182,7 +182,7 @@ This data is saved with the blend-file and copied with objects, for example:
    # which can have a fallback value.
    value = bpy.data.scenes["Scene"].get("test_prop", "fallback value")
 
-   # dictionaries can be assigned as long as they only use basic types.
+   # Dictionaries can be assigned as long as they only use basic types.
    collection = bpy.data.collections.new("MyTestCollection")
    collection["MySettings"] = {"foo": 10, "bar": "spam", "baz": {}}
 
@@ -363,10 +363,10 @@ so these are accessed as normal Python types.
 
   .. code-block:: python
 
-     # setting multiple camera overlay guides
-     bpy.context.scene.camera.data.show_guide = {'GOLDEN', 'CENTER'}
+     # Setting multiple snap targets.
+     bpy.context.scene.tool_settings.snap_elements_base = {'VERTEX', 'EDGE'}
 
-     # passing as an operator argument for report types
+     # Passing as an operator argument for report types.
      self.report({'WARNING', 'INFO'}, "Some message!")
 
 
@@ -411,10 +411,10 @@ Example of a matrix, vector multiplication:
 
    .. code-block:: python
 
-      # modifies the Z axis in place.
+      # Modifies the Z axis in place.
       bpy.context.object.location.z += 2.0
 
-      # location variable holds a reference to the object too.
+      # Location variable holds a reference to the object too.
       location = bpy.context.object.location
       location *= 2.0
 
@@ -447,9 +447,22 @@ Using low-level functions:
 .. code-block:: python
 
    obj = bpy.context.object
-   obj.animation_data_create()
-   obj.animation_data.action = bpy.data.actions.new(name="MyAction")
-   fcu_z = obj.animation_data.action.fcurves.new(data_path="location", index=2)
+
+   # Create the action, with a slot for the object, a layer, and a keyframe strip:
+   action = bpy.data.actions.new(name="MyAction")
+   slot = action.slots.new(obj.id_type, obj.name)
+   strip = action.layers.new("MyLayer").strips.new(type='KEYFRAME')
+
+   # Create a channelbag to hold the F-Curves for the slot:
+   channelbag = strip.channelbag(slot, ensure=True)
+
+   # Create the F-Curve with two keyframes:
+   fcu_z = channelbag.fcurves.new(data_path="location", index=2)
    fcu_z.keyframe_points.add(2)
    fcu_z.keyframe_points[0].co = 10.0, 0.0
    fcu_z.keyframe_points[1].co = 20.0, 1.0
+
+   # Assign the action and the slot to the object:
+   adt = obj.animation_data_create()
+   adt.action = action
+   adt.action_slot = slot

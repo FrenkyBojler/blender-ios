@@ -11,16 +11,15 @@
 /* Silence warnings from copying deprecated fields. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "MEM_guardedalloc.h"
-
-#include "BKE_duplilist.h"
-#include "BKE_geometry_set.hh"
-#include "BKE_idprop.h"
-#include "BKE_layer.h"
+#include "BKE_duplilist.hh"
+#include "BKE_idprop.hh"
+#include "BKE_layer.hh"
+#include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
@@ -114,17 +113,17 @@ bool deg_object_hide_original(eEvaluationMode eval_mode, Object *ob, DupliObject
   return false;
 }
 
-void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object, ListBase *duplis)
+void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
 {
   data->dupli_parent = object;
-  data->dupli_list = duplis;
-  data->dupli_object_next = static_cast<DupliObject *>(duplis->first);
+  data->dupli_object_next = data->dupli_list.is_empty() ? nullptr : &data->dupli_list.first();
+  data->dupli_object_next_index = data->dupli_object_next ? 0 : -1;
 }
 
 /* Returns false when iterator is exhausted. */
 bool deg_iterator_duplis_step(DEGObjectIterData *data)
 {
-  if (data->dupli_list == nullptr) {
+  if (data->dupli_list.is_empty()) {
     return false;
   }
 
@@ -132,7 +131,13 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     DupliObject *dob = data->dupli_object_next;
     Object *obd = dob->ob;
 
-    data->dupli_object_next = data->dupli_object_next->next;
+    if (++data->dupli_object_next_index < data->dupli_list.size()) {
+      data->dupli_object_next = &data->dupli_list[data->dupli_object_next_index];
+    }
+    else {
+      data->dupli_object_next = nullptr;
+      data->dupli_object_next_index = -1;
+    }
 
     if (dob->no_draw) {
       continue;
@@ -142,6 +147,14 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     }
     if (obd->type != OB_MBALL && deg_object_hide_original(data->eval_mode, dob->ob, dob)) {
       continue;
+    }
+
+    DEGObjectIterSettings *settings = data->settings;
+    if (settings->included_objects) {
+      Object *object_orig = DEG_get_original(obd);
+      if (!settings->included_objects->contains(object_orig)) {
+        continue;
+      }
     }
 
     free_owned_memory(data);
@@ -180,18 +193,19 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     bool is_neg_scale = is_negative_m4(dob->mat);
     SET_FLAG_FROM_TEST(data->temp_dupli_object.transflag, is_neg_scale, OB_NEG_SCALE);
 
-    copy_m4_m4(data->temp_dupli_object.object_to_world, dob->mat);
-    invert_m4_m4(data->temp_dupli_object.world_to_object, data->temp_dupli_object.object_to_world);
+    copy_m4_m4(data->temp_dupli_object.runtime->object_to_world.ptr(), dob->mat);
+    invert_m4_m4(data->temp_dupli_object.runtime->world_to_object.ptr(),
+                 data->temp_dupli_object.object_to_world().ptr());
     data->next_object = &data->temp_dupli_object;
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&data->temp_dupli_object.id));
+    BLI_assert(deg::deg_validate_eval_copy_datablock(&data->temp_dupli_object.id));
     return true;
   }
 
   free_owned_memory(data);
-  free_object_duplilist(data->dupli_list);
+  data->dupli_list.clear();
   data->dupli_parent = nullptr;
-  data->dupli_list = nullptr;
   data->dupli_object_next = nullptr;
+  data->dupli_object_next_index = -1;
   data->dupli_object_current = nullptr;
   deg_invalidate_iterator_work_data(data);
   return false;
@@ -236,15 +250,30 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
     }
 
     Object *object = (Object *)id_node->id_cow;
-    Object *object_orig = DEG_get_original_object(object);
-    BLI_assert(deg::deg_validate_copy_on_write_datablock(&object->id));
+    Object *object_orig = DEG_get_original(object);
+
+    DEGObjectIterSettings *settings = data->settings;
+    if (settings->included_objects) {
+      if (!settings->included_objects->contains(object_orig)) {
+        continue;
+      }
+    }
+
+    /* NOTE: The object might be invisible after the latest depsgraph evaluation, in which case
+     * going into its evaluated state might not be safe. For example, its evaluated mesh state
+     * might point to a freed data-block if the mesh is animated.
+     * So it is required to perform the visibility checks prior to looking into any deeper into the
+     * object. */
+
+    BLI_assert(deg::deg_eval_copy_is_expanded(&object->id));
+
     object->runtime->select_id = object_orig->runtime->select_id;
 
     const bool use_preview = object_orig == data->object_orig_with_preview;
     if (use_preview) {
-      ListBase *preview_duplis = object_duplilist_preview(
-          data->graph, data->scene, object, data->settings->viewer_path);
-      deg_iterator_duplis_init(data, object, preview_duplis);
+      object_duplilist_preview(
+          data->graph, data->scene, object, data->settings->viewer_path, data->dupli_list);
+      deg_iterator_duplis_init(data, object);
       data->id_node_index++;
       return true;
     }
@@ -262,12 +291,15 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
       if ((data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) &&
           ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
       {
-        ListBase *duplis = object_duplilist(data->graph, data->scene, object);
-        deg_iterator_duplis_init(data, object, duplis);
+        BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
+        object_duplilist(
+            data->graph, data->scene, object, data->settings->included_objects, data->dupli_list);
+        deg_iterator_duplis_init(data, object);
       }
     }
 
     if (ob_visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) {
+      BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
       data->next_object = object;
     }
     data->id_node_index++;
@@ -278,27 +310,59 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
 
 }  // namespace
 
-DEGObjectIterData &DEGObjectIterData::operator=(const DEGObjectIterData &other)
+void DEGObjectIterData::transfer_from(DEGObjectIterData &other)
 {
-  if (this != &other) {
-    this->settings = other.settings;
-    this->graph = other.graph;
-    this->flag = other.flag;
-    this->scene = other.scene;
-    this->eval_mode = other.eval_mode;
-    this->object_orig_with_preview = other.object_orig_with_preview;
-    this->next_object = other.next_object;
-    this->dupli_parent = other.dupli_parent;
-    this->dupli_list = other.dupli_list;
-    this->dupli_object_next = other.dupli_object_next;
-    this->dupli_object_current = other.dupli_object_current;
-    this->temp_dupli_object = blender::dna::shallow_copy(other.temp_dupli_object);
-    this->temp_dupli_object_runtime = other.temp_dupli_object_runtime;
-    this->temp_dupli_object.runtime = &temp_dupli_object_runtime;
-    this->id_node_index = other.id_node_index;
-    this->num_id_nodes = other.num_id_nodes;
+  BLI_assert(this != &other);
+
+  this->settings = other.settings;
+  this->graph = other.graph;
+  this->flag = other.flag;
+  this->scene = other.scene;
+  this->eval_mode = other.eval_mode;
+  this->object_orig_with_preview = other.object_orig_with_preview;
+  this->next_object = other.next_object;
+  this->dupli_parent = other.dupli_parent;
+  this->dupli_list = std::move(other.dupli_list);
+  this->dupli_object_next = other.dupli_object_next;
+  this->dupli_object_next_index = other.dupli_object_next_index;
+  this->dupli_object_current = other.dupli_object_current;
+  this->temp_dupli_object = blender::dna::shallow_copy(other.temp_dupli_object);
+  this->temp_dupli_object_runtime = other.temp_dupli_object_runtime;
+  this->temp_dupli_object.runtime = &temp_dupli_object_runtime;
+  this->id_node_index = other.id_node_index;
+  this->num_id_nodes = other.num_id_nodes;
+}
+
+static Object *find_object_with_preview_geometry(const ViewerPath &viewer_path)
+{
+  if (BLI_listbase_is_empty(&viewer_path.path)) {
+    return nullptr;
   }
-  return *this;
+  const ViewerPathElem *elem = static_cast<const ViewerPathElem *>(viewer_path.path.first);
+  if (elem->type != VIEWER_PATH_ELEM_TYPE_ID) {
+    return nullptr;
+  }
+  const IDViewerPathElem *id_elem = reinterpret_cast<const IDViewerPathElem *>(elem);
+  if (id_elem->id == nullptr) {
+    return nullptr;
+  }
+  if (GS(id_elem->id->name) != ID_OB) {
+    return nullptr;
+  }
+  Object *object = reinterpret_cast<Object *>(id_elem->id);
+  if (elem->next->type != VIEWER_PATH_ELEM_TYPE_MODIFIER) {
+    return nullptr;
+  }
+  const ModifierViewerPathElem *modifier_elem = reinterpret_cast<const ModifierViewerPathElem *>(
+      elem->next);
+  ModifierData *md = BKE_modifiers_findby_persistent_uid(object, modifier_elem->modifier_uid);
+  if (md == nullptr) {
+    return nullptr;
+  }
+  if (!(md->mode & eModifierMode_Realtime)) {
+    return nullptr;
+  }
+  return reinterpret_cast<Object *>(id_elem->id);
 }
 
 void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
@@ -316,8 +380,9 @@ void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
 
   data->next_object = nullptr;
   data->dupli_parent = nullptr;
-  data->dupli_list = nullptr;
+  data->dupli_list.clear();
   data->dupli_object_next = nullptr;
+  data->dupli_object_next_index = -1;
   data->dupli_object_current = nullptr;
   data->scene = DEG_get_evaluated_scene(depsgraph);
   data->id_node_index = 0;
@@ -328,17 +393,7 @@ void DEG_iterator_objects_begin(BLI_Iterator *iter, DEGObjectIterData *data)
   /* Determine if the preview of any object should be in the iterator. */
   const ViewerPath *viewer_path = data->settings->viewer_path;
   if (viewer_path != nullptr) {
-    if (!BLI_listbase_is_empty(&viewer_path->path)) {
-      const ViewerPathElem *elem = static_cast<const ViewerPathElem *>(viewer_path->path.first);
-      if (elem->type == VIEWER_PATH_ELEM_TYPE_ID) {
-        const IDViewerPathElem *id_elem = reinterpret_cast<const IDViewerPathElem *>(elem);
-        if (id_elem->id != nullptr) {
-          if (GS(id_elem->id->name) == ID_OB) {
-            data->object_orig_with_preview = reinterpret_cast<Object *>(id_elem->id);
-          }
-        }
-      }
-    }
+    data->object_orig_with_preview = find_object_with_preview_geometry(*viewer_path);
   }
 
   DEG_iterator_objects_next(iter);
@@ -381,15 +436,18 @@ static void DEG_iterator_ids_step(BLI_Iterator *iter, deg::IDNode *id_node, bool
   ID *id_cow = id_node->id_cow;
 
   /* Use the build time visibility so that the ID is not appearing/disappearing throughout
-   * animation export. */
-  if (!id_node->is_visible_on_build) {
+   * animation export.
+   * When the dependency graph is asked for updates report all IDs, as the user of those updates
+   * might need to react to updates coming from IDs which do change visibility throughout the
+   * life-time of the graph. */
+  if (!only_updated && !id_node->is_visible_on_build) {
     iter->skip = true;
     return;
   }
 
   if (only_updated && !(id_cow->recalc & ID_RECALC_ALL)) {
     /* Node-tree is considered part of the data-block. */
-    bNodeTree *ntree = ntreeFromID(id_cow);
+    bNodeTree *ntree = blender::bke::node_tree_from_id(id_cow);
     if (ntree == nullptr) {
       iter->skip = true;
       return;

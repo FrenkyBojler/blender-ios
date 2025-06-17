@@ -11,13 +11,10 @@
 
 #include "node_geometry_util.hh"
 
-#include "DNA_mesh_types.h"
-
 #include "BLI_task.hh"
 
 #include "BKE_geometry_set.hh"
-#include "BKE_lib_id.h"
-#include "BKE_mesh.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_openvdb.hh"
 
@@ -82,7 +79,7 @@ class Grid3DFieldContext : public FieldContext {
 
   GVArray get_varray_for_input(const FieldInput &field_input,
                                const IndexMask & /*mask*/,
-                               ResourceScope & /*scope*/) const
+                               ResourceScope & /*scope*/) const override
   {
     const bke::AttributeFieldInput *attribute_field_input =
         dynamic_cast<const bke::AttributeFieldInput *>(&field_input);
@@ -139,7 +136,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const double3 scale_fac = double3(bounds_max - bounds_min) / double3(resolution - 1);
-  if (!BKE_volume_grid_determinant_valid(scale_fac.x * scale_fac.y * scale_fac.z)) {
+  if (!BKE_volume_voxel_size_valid(float3(scale_fac))) {
     params.error_message_add(NodeWarningType::Warning,
                              TIP_("Volume scale is lower than permitted by OpenVDB"));
     params.set_default_remaining_outputs();
@@ -170,28 +167,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   grid->transform().postTranslate(
       openvdb::math::Vec3<float>(bounds_min.x, bounds_min.y, bounds_min.z));
 
-  Volume *volume = reinterpret_cast<Volume *>(BKE_id_new_nomain(ID_VO, nullptr));
+  Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
   BKE_volume_grid_add_vdb(*volume, "density", std::move(grid));
 
   GeometrySet r_geometry_set;
   r_geometry_set.replace_volume(volume);
   params.set_output("Volume", r_geometry_set);
 #else
-  params.set_default_remaining_outputs();
-  params.error_message_add(NodeWarningType::Error,
-                           TIP_("Disabled, Blender was compiled without OpenVDB"));
+  node_geo_exec_with_missing_openvdb(params);
 #endif
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_VOLUME_CUBE, "Volume Cube", NODE_CLASS_GEOMETRY);
-
+  geo_node_type_base(&ntype, "GeometryNodeVolumeCube", GEO_NODE_VOLUME_CUBE);
+  ntype.ui_name = "Volume Cube";
+  ntype.ui_description =
+      "Generate a dense volume with a field that controls the density at each grid voxel based on "
+      "its position";
+  ntype.enum_name_legacy = "VOLUME_CUBE";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

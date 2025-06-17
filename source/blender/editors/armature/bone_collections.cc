@@ -9,23 +9,26 @@
 
 #include <cstring>
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 
-#include "BKE_action.h"
-#include "BKE_context.hh"
-#include "BKE_layer.h"
-#include "BKE_report.h"
+#include "BLI_listbase.h"
 
-#include "BLT_translation.h"
+#include "BKE_action.hh"
+#include "BKE_context.hh"
+#include "BKE_lib_override.hh"
+#include "BKE_library.hh"
+#include "BKE_report.hh"
+
+#include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -33,12 +36,11 @@
 #include "ED_armature.hh"
 #include "ED_object.hh"
 #include "ED_outliner.hh"
-#include "ED_screen.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
-#include "armature_intern.h"
+#include "armature_intern.hh"
 
 struct wmOperator;
 
@@ -47,19 +49,22 @@ struct wmOperator;
 
 static bool bone_collection_add_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
+  bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return false;
   }
 
-  if (ob->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be added to an Armature");
+  if (!ID_IS_EDITABLE(&armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot add bone collections to a linked Armature without an "
+                                 "override on the Armature Data");
     return false;
   }
 
-  if (ID_IS_LINKED(ob->data)) {
-    CTX_wm_operator_poll_msg_set(
-        C, "Cannot add bone collections to a linked Armature without an override");
+  if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot add bone collections to a linked Armature with a system "
+                                 "override; explicitly create an override on the Armature Data");
     return false;
   }
 
@@ -69,19 +74,19 @@ static bool bone_collection_add_poll(bContext *C)
 /** Allow edits of local bone collection only (full local or local override). */
 static bool active_bone_collection_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
+  bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return false;
   }
 
-  if (ob->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be edited on an Armature");
+  if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot update a linked Armature with a system override; "
+                                 "explicitly create an override on the Armature Data");
     return false;
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
   BoneCollection *bcoll = armature->runtime.active_collection;
-
   if (bcoll == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "Armature has no active bone collection, select one first");
     return false;
@@ -95,18 +100,28 @@ static bool active_bone_collection_poll(bContext *C)
   return true;
 }
 
-static int bone_collection_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus bone_collection_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
-    return OPERATOR_CANCELLED;
+  using namespace blender::animrig;
+
+  bArmature *armature = ED_armature_context(C);
+
+  /* If there is an active bone collection, create the new one as a sibling. */
+  const int parent_index = armature_bonecoll_find_parent_index(
+      armature, armature->runtime.active_collection_index);
+
+  BoneCollection *bcoll = ANIM_armature_bonecoll_new(armature, nullptr, parent_index);
+
+  if (armature->runtime.active_collection) {
+    const int active_child_index = armature_bonecoll_child_number_find(
+        armature, armature->runtime.active_collection);
+    armature_bonecoll_child_number_set(armature, bcoll, active_child_index + 1);
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
-  BoneCollection *bcoll = ANIM_armature_bonecoll_new(armature, nullptr);
   ANIM_armature_bonecoll_active_set(armature, bcoll);
+  /* TODO: ensure the ancestors of the new bone collection are all expanded. */
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -117,7 +132,7 @@ void ARMATURE_OT_collection_add(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_add";
   ot->description = "Add a new bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_add_exec;
   ot->poll = bone_collection_add_poll;
 
@@ -125,19 +140,14 @@ void ARMATURE_OT_collection_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int bone_collection_remove_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus bone_collection_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
-
   /* The poll function ensures armature->active_collection is not NULL. */
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = ED_armature_context(C);
   ANIM_armature_bonecoll_remove(armature, armature->runtime.active_collection);
 
   /* notifiers for updates */
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
   DEG_id_tag_update(&armature->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
@@ -150,7 +160,7 @@ void ARMATURE_OT_collection_remove(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_remove";
   ot->description = "Remove the active bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_remove_exec;
   ot->poll = active_bone_collection_poll;
 
@@ -158,16 +168,12 @@ void ARMATURE_OT_collection_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int bone_collection_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bone_collection_move_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
-    return OPERATOR_CANCELLED;
-  }
   const int direction = RNA_enum_get(op->ptr, "direction");
 
   /* Poll function makes sure this is valid. */
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = ED_armature_context(C);
 
   const bool ok = ANIM_armature_bonecoll_move(
       armature, armature->runtime.active_collection, direction);
@@ -175,7 +181,9 @@ static int bone_collection_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  ANIM_armature_bonecoll_active_runtime_refresh(armature);
+
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -192,7 +200,7 @@ void ARMATURE_OT_collection_move(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_move";
   ot->description = "Change position of active Bone Collection in list of Bone collections";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_move_exec;
   ot->poll = active_bone_collection_poll;
 
@@ -207,15 +215,7 @@ void ARMATURE_OT_collection_move(wmOperatorType *ot)
                "Direction to move the active Bone Collection towards");
 }
 
-typedef enum eMayCreate {
-  FAIL_IF_MISSING = 0,
-  CREATE_IF_MISSING = 1,
-} eMayCreate;
-
-static BoneCollection *get_bonecoll_named_or_active(bContext * /*C*/,
-                                                    wmOperator *op,
-                                                    Object *ob,
-                                                    const eMayCreate may_create)
+static BoneCollection *get_bonecoll_named_or_active(bContext * /*C*/, wmOperator *op, Object *ob)
 {
   bArmature *armature = static_cast<bArmature *>(ob->data);
 
@@ -227,21 +227,12 @@ static BoneCollection *get_bonecoll_named_or_active(bContext * /*C*/,
   }
 
   BoneCollection *bcoll = ANIM_armature_bonecoll_get_by_name(armature, bcoll_name);
-  if (bcoll) {
-    return bcoll;
+  if (!bcoll) {
+    BKE_reportf(op->reports, RPT_ERROR, "No bone collection named '%s'", bcoll_name);
+    return nullptr;
   }
 
-  switch (may_create) {
-    case CREATE_IF_MISSING:
-      bcoll = ANIM_armature_bonecoll_new(armature, bcoll_name);
-      ANIM_armature_bonecoll_active_set(armature, bcoll);
-      return bcoll;
-    case FAIL_IF_MISSING:
-      WM_reportf(RPT_ERROR, "No bone collection named '%s'", bcoll_name);
-      return nullptr;
-  }
-
-  return nullptr;
+  return bcoll;
 }
 
 using assign_bone_func = bool (*)(BoneCollection *bcoll, Bone *bone);
@@ -281,7 +272,7 @@ static void bone_collection_assign_editbones(bContext *C,
   ED_armature_edit_sync_selection(arm->edbo);
 
   LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_EDITABLE(ebone)) {
+    if (!EBONE_EDITABLE(ebone) || !blender::animrig::bone_is_visible_editbone(arm, ebone)) {
       continue;
     }
     *made_any_changes |= assign_func(bcoll, ebone);
@@ -290,7 +281,7 @@ static void bone_collection_assign_editbones(bContext *C,
 
   ED_armature_edit_sync_selection(arm->edbo);
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, ob);
-  DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
 /**
@@ -314,17 +305,9 @@ static bool bone_collection_assign_mode_specific(bContext *C,
     }
 
     case CTX_MODE_EDIT_ARMATURE: {
-      uint objects_len = 0;
-      Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-          CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &objects_len);
+      bone_collection_assign_editbones(
+          C, ob, bcoll, assign_ebone_func, made_any_changes, had_bones_to_assign);
 
-      for (uint ob_index = 0; ob_index < objects_len; ob_index++) {
-        Object *ob = objects[ob_index];
-        bone_collection_assign_editbones(
-            C, ob, bcoll, assign_ebone_func, made_any_changes, had_bones_to_assign);
-      }
-
-      MEM_freeN(objects);
       ED_outliner_select_sync_from_edit_bone_tag(C);
       return true;
     }
@@ -377,7 +360,7 @@ static bool bone_collection_assign_named_mode_specific(bContext *C,
 
       ED_armature_edit_sync_selection(arm->edbo);
       WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, ob);
-      DEG_id_tag_update(&ob->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
       return true;
     }
 
@@ -388,7 +371,7 @@ static bool bone_collection_assign_named_mode_specific(bContext *C,
 
 static bool bone_collection_assign_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (ob == nullptr) {
     return false;
   }
@@ -398,11 +381,25 @@ static bool bone_collection_assign_poll(bContext *C)
     return false;
   }
 
-  if (ID_IS_LINKED(ob->data)) {
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+  if (armature != ED_armature_context(C)) {
+    CTX_wm_operator_poll_msg_set(C, "Pinned armature is not active in the 3D viewport");
+    return false;
+  }
+
+  if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(
         C, "Cannot edit bone collections on linked Armatures without override");
     return false;
   }
+  if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot edit bone collections on a linked Armature with a system "
+                                 "override; explicitly create an override on the Armature Data");
+    return false;
+  }
+
+  CTX_wm_operator_poll_msg_set(C, "Linked bone collections are not editable");
 
   /* The target bone collection can be specified by name in an operator property, but that's not
    * available here. So just allow in the poll function, and do the final check in the execute. */
@@ -410,21 +407,21 @@ static bool bone_collection_assign_poll(bContext *C)
 }
 
 /* Assign selected pchans to the bone collection that the user selects */
-static int bone_collection_assign_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bone_collection_assign_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob, CREATE_IF_MISSING);
+  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob);
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
   bArmature *armature = static_cast<bArmature *>(ob->data);
   if (!ANIM_armature_bonecoll_is_editable(armature, bcoll)) {
-    WM_reportf(RPT_ERROR, "Cannot assign to linked bone collection %s", bcoll->name);
+    BKE_reportf(op->reports, RPT_ERROR, "Cannot assign to linked bone collection %s", bcoll->name);
     return OPERATOR_CANCELLED;
   }
 
@@ -440,15 +437,18 @@ static int bone_collection_assign_exec(bContext *C, wmOperator *op)
       &had_bones_to_assign);
 
   if (!mode_is_supported) {
-    WM_report(RPT_ERROR, "This operator only works in pose mode and armature edit mode");
+    BKE_report(
+        op->reports, RPT_ERROR, "This operator only works in pose mode and armature edit mode");
     return OPERATOR_CANCELLED;
   }
   if (!had_bones_to_assign) {
-    WM_report(RPT_WARNING, "No bones selected, nothing to assign to bone collection");
+    BKE_report(
+        op->reports, RPT_WARNING, "No bones selected, nothing to assign to bone collection");
     return OPERATOR_CANCELLED;
   }
   if (!made_any_changes) {
-    WM_report(RPT_WARNING, "All selected bones were already part of this collection");
+    BKE_report(
+        op->reports, RPT_WARNING, "All selected bones were already part of this collection");
     return OPERATOR_CANCELLED;
   }
 
@@ -463,14 +463,12 @@ void ARMATURE_OT_collection_assign(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_assign";
   ot->description = "Add selected bones to the chosen bone collection";
 
-  /* api callbacks */
-  // TODO: reinstate the menu?
-  // ot->invoke = bone_collections_menu_invoke;
+  /* API callbacks. */
   ot->exec = bone_collection_assign_exec;
   ot->poll = bone_collection_assign_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO;
 
   /* properties */
   RNA_def_string(ot->srna,
@@ -482,14 +480,112 @@ void ARMATURE_OT_collection_assign(wmOperatorType *ot)
                  "active bone collection");
 }
 
-static int bone_collection_unassign_exec(bContext *C, wmOperator *op)
+static bool bone_collection_create_and_assign_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
+  if (ob == nullptr) {
+    return false;
+  }
+
+  if (ob->type != OB_ARMATURE) {
+    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be edited on an Armature");
+    return false;
+  }
+
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+  if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Cannot edit bone collections on linked Armatures without override");
+    return false;
+  }
+  if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot edit bone collections on a linked Armature with a system "
+                                 "override; explicitly create an override on the Armature Data");
+    return false;
+  }
+
+  return true;
+}
+
+/* Assign selected pchans to the bone collection that the user selects */
+static wmOperatorStatus bone_collection_create_and_assign_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = blender::ed::object::context_object(C);
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob, FAIL_IF_MISSING);
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+
+  char bcoll_name[MAX_NAME];
+  RNA_string_get(op->ptr, "name", bcoll_name);
+
+  /* Note that this bone collection can be removed later on, if the assignment part of this
+   * operation failed. */
+  BoneCollection *bcoll = ANIM_armature_bonecoll_new(armature, bcoll_name);
+
+  bool made_any_changes = false;
+  bool had_bones_to_assign = false;
+  const bool mode_is_supported = bone_collection_assign_mode_specific(
+      C,
+      ob,
+      bcoll,
+      ANIM_armature_bonecoll_assign,
+      ANIM_armature_bonecoll_assign_editbone,
+      &made_any_changes,
+      &had_bones_to_assign);
+
+  if (!mode_is_supported) {
+    BKE_report(
+        op->reports, RPT_ERROR, "This operator only works in pose mode and armature edit mode");
+    ANIM_armature_bonecoll_remove(armature, bcoll);
+    return OPERATOR_CANCELLED;
+  }
+  if (!had_bones_to_assign) {
+    BKE_report(
+        op->reports, RPT_WARNING, "No bones selected, nothing to assign to bone collection");
+    return OPERATOR_FINISHED;
+  }
+  /* Not checking for `made_any_changes`, as if there were any bones to assign, they never could
+   * have already been assigned to this brand new bone collection. */
+
+  ANIM_armature_bonecoll_active_set(armature, bcoll);
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, &ob->id);
+  return OPERATOR_FINISHED;
+}
+
+void ARMATURE_OT_collection_create_and_assign(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Selected Bones to New Collection";
+  ot->idname = "ARMATURE_OT_collection_create_and_assign";
+  ot->description = "Create a new bone collection and assign all selected bones";
+
+  /* API callbacks. */
+  ot->exec = bone_collection_create_and_assign_exec;
+  ot->poll = bone_collection_create_and_assign_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* properties */
+  RNA_def_string(ot->srna,
+                 "name",
+                 nullptr,
+                 MAX_NAME,
+                 "Bone Collection",
+                 "Name of the bone collection to create");
+}
+
+static wmOperatorStatus bone_collection_unassign_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  if (ob == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob);
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -506,15 +602,18 @@ static int bone_collection_unassign_exec(bContext *C, wmOperator *op)
       &had_bones_to_unassign);
 
   if (!mode_is_supported) {
-    WM_report(RPT_ERROR, "This operator only works in pose mode and armature edit mode");
+    BKE_reportf(
+        op->reports, RPT_ERROR, "This operator only works in pose mode and armature edit mode");
     return OPERATOR_CANCELLED;
   }
   if (!had_bones_to_unassign) {
-    WM_report(RPT_WARNING, "No bones selected, nothing to unassign from bone collection");
+    BKE_reportf(
+        op->reports, RPT_WARNING, "No bones selected, nothing to unassign from bone collection");
     return OPERATOR_CANCELLED;
   }
   if (!made_any_changes) {
-    WM_report(RPT_WARNING, "None of the selected bones were assigned to this collection");
+    BKE_reportf(
+        op->reports, RPT_WARNING, "None of the selected bones were assigned to this collection");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
@@ -527,12 +626,12 @@ void ARMATURE_OT_collection_unassign(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_unassign";
   ot->description = "Remove selected bones from the active bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_unassign_exec;
   ot->poll = bone_collection_assign_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO;
 
   RNA_def_string(ot->srna,
                  "name",
@@ -543,14 +642,14 @@ void ARMATURE_OT_collection_unassign(wmOperatorType *ot)
                  "the active bone collection");
 }
 
-static int bone_collection_unassign_named_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bone_collection_unassign_named_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob, FAIL_IF_MISSING);
+  BoneCollection *bcoll = get_bonecoll_named_or_active(C, op, ob);
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -558,7 +657,7 @@ static int bone_collection_unassign_named_exec(bContext *C, wmOperator *op)
   char bone_name[MAX_NAME];
   RNA_string_get(op->ptr, "bone_name", bone_name);
   if (!bone_name[0]) {
-    WM_report(RPT_ERROR, "Missing bone name");
+    BKE_reportf(op->reports, RPT_ERROR, "Missing bone name");
     return OPERATOR_CANCELLED;
   }
 
@@ -575,16 +674,20 @@ static int bone_collection_unassign_named_exec(bContext *C, wmOperator *op)
       &had_bones_to_unassign);
 
   if (!mode_is_supported) {
-    WM_report(RPT_ERROR, "This operator only works in pose mode and armature edit mode");
+    BKE_reportf(
+        op->reports, RPT_ERROR, "This operator only works in pose mode and armature edit mode");
     return OPERATOR_CANCELLED;
   }
   if (!had_bones_to_unassign) {
-    WM_reportf(RPT_WARNING, "Could not find bone '%s'", bone_name);
+    BKE_reportf(op->reports, RPT_WARNING, "Could not find bone '%s'", bone_name);
     return OPERATOR_CANCELLED;
   }
   if (!made_any_changes) {
-    WM_reportf(
-        RPT_WARNING, "Bone '%s' was not assigned to collection '%s'", bone_name, bcoll->name);
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Bone '%s' was not assigned to collection '%s'",
+                bone_name,
+                bcoll->name);
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
@@ -595,14 +698,14 @@ void ARMATURE_OT_collection_unassign_named(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Remove Bone from Bone Collection";
   ot->idname = "ARMATURE_OT_collection_unassign_named";
-  ot->description = "Unassign the bone from this bone collection";
+  ot->description = "Unassign the named bone from this bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_unassign_named_exec;
   ot->poll = bone_collection_assign_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO;
 
   RNA_def_string(ot->srna,
                  "name",
@@ -631,20 +734,23 @@ static bool editbone_is_member(const EditBone *ebone, const BoneCollection *bcol
 
 static bool armature_bone_select_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr || ob->type != OB_ARMATURE) {
+  Object *ob = blender::ed::object::context_object(C);
+  if (ob && ob->type == OB_ARMATURE) {
+
+    /* For bone selection, at least the pose should be editable to actually store
+     * the selection state. */
+    if (!ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob)) {
+      CTX_wm_operator_poll_msg_set(
+          C, "Cannot (de)select bones on linked object, that would need an override");
+      return false;
+    }
+  }
+
+  const bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return false;
   }
 
-  /* For bone selection, at least the pose should be editable to actually store
-   * the selection state. */
-  if (ID_IS_LINKED(ob) && !ID_IS_OVERRIDE_LIBRARY(ob)) {
-    CTX_wm_operator_poll_msg_set(
-        C, "Cannot (de)select bones on linked object, that would need an override");
-    return false;
-  }
-
-  const bArmature *armature = reinterpret_cast<bArmature *>(ob->data);
   if (armature->runtime.active_collection == nullptr) {
     CTX_wm_operator_poll_msg_set(C, "No active bone collection");
     return false;
@@ -653,11 +759,10 @@ static bool armature_bone_select_poll(bContext *C)
 }
 
 static void bone_collection_select(bContext *C,
-                                   Object *ob,
+                                   bArmature *armature,
                                    BoneCollection *bcoll,
                                    const bool select)
 {
-  bArmature *armature = static_cast<bArmature *>(ob->data);
   const bool is_editmode = armature->edbo != nullptr;
 
   if (is_editmode) {
@@ -674,7 +779,7 @@ static void bone_collection_select(bContext *C,
   else {
     LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
       Bone *bone = member->bone;
-      if (!ANIM_bone_is_visible(armature, bone)) {
+      if (!blender::animrig::bone_is_visible(armature, bone)) {
         continue;
       }
       if (bone->flag & BONE_UNSELECTABLE) {
@@ -691,7 +796,7 @@ static void bone_collection_select(bContext *C,
   }
 
   DEG_id_tag_update(&armature->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 
   if (is_editmode) {
     ED_outliner_select_sync_from_edit_bone_tag(C);
@@ -701,20 +806,19 @@ static void bone_collection_select(bContext *C,
   }
 }
 
-static int bone_collection_select_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus bone_collection_select_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
+  bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  bArmature *armature = reinterpret_cast<bArmature *>(ob->data);
   BoneCollection *bcoll = armature->runtime.active_collection;
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  bone_collection_select(C, ob, bcoll, true);
+  bone_collection_select(C, armature, bcoll, true);
   return OPERATOR_FINISHED;
 }
 
@@ -725,7 +829,7 @@ void ARMATURE_OT_collection_select(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_select";
   ot->description = "Select bones in active Bone Collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_select_exec;
   ot->poll = armature_bone_select_poll;
 
@@ -733,20 +837,19 @@ void ARMATURE_OT_collection_select(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int bone_collection_deselect_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus bone_collection_deselect_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = ED_object_context(C);
-  if (ob == nullptr) {
+  bArmature *armature = ED_armature_context(C);
+  if (armature == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  bArmature *armature = reinterpret_cast<bArmature *>(ob->data);
   BoneCollection *bcoll = armature->runtime.active_collection;
   if (bcoll == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  bone_collection_select(C, ob, bcoll, false);
+  bone_collection_select(C, armature, bcoll, false);
   return OPERATOR_FINISHED;
 }
 
@@ -757,7 +860,7 @@ void ARMATURE_OT_collection_deselect(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_deselect";
   ot->description = "Deselect bones of active Bone Collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_deselect_exec;
   ot->poll = armature_bone_select_poll;
 
@@ -769,14 +872,19 @@ void ARMATURE_OT_collection_deselect(wmOperatorType *ot)
 
 static BoneCollection *add_or_move_to_collection_bcoll(wmOperator *op, bArmature *arm)
 {
-  const int collection_index = RNA_enum_get(op->ptr, "collection");
+  const int collection_index = RNA_int_get(op->ptr, "collection_index");
   BoneCollection *target_bcoll;
 
-  if (collection_index < 0) {
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "new_collection_name");
+  if (RNA_property_is_set(op->ptr, prop) ||
+      /* Neither properties can be used, the operator may have been called with defaults.
+       * In this case add a root collection, the default name will be used. */
+      (collection_index < 0))
+  {
     /* TODO: check this with linked, non-overridden armatures. */
     char new_collection_name[MAX_NAME];
     RNA_string_get(op->ptr, "new_collection_name", new_collection_name);
-    target_bcoll = ANIM_armature_bonecoll_new(arm, new_collection_name);
+    target_bcoll = ANIM_armature_bonecoll_new(arm, new_collection_name, collection_index);
     BLI_assert_msg(target_bcoll,
                    "It should always be possible to create a new bone collection on an armature");
     ANIM_armature_bonecoll_active_set(arm, target_bcoll);
@@ -796,7 +904,7 @@ static BoneCollection *add_or_move_to_collection_bcoll(wmOperator *op, bArmature
   if (!ANIM_armature_bonecoll_is_editable(arm, target_bcoll)) {
     BKE_reportf(op->reports,
                 RPT_ERROR,
-                "Bone collection %s is not editable, maybe add an override on the armature?",
+                "Bone collection %s is not editable, maybe add an override on the armature Data?",
                 target_bcoll->name);
     return nullptr;
   }
@@ -804,12 +912,12 @@ static BoneCollection *add_or_move_to_collection_bcoll(wmOperator *op, bArmature
   return target_bcoll;
 }
 
-static int add_or_move_to_collection_exec(bContext *C,
-                                          wmOperator *op,
-                                          const assign_bone_func assign_func_bone,
-                                          const assign_ebone_func assign_func_ebone)
+static wmOperatorStatus add_or_move_to_collection_exec(bContext *C,
+                                                       wmOperator *op,
+                                                       const assign_bone_func assign_func_bone,
+                                                       const assign_ebone_func assign_func_ebone)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   if (ob->mode == OB_MODE_POSE) {
     ob = ED_pose_object_from_context(C);
   }
@@ -820,6 +928,10 @@ static int add_or_move_to_collection_exec(bContext *C,
 
   bArmature *arm = static_cast<bArmature *>(ob->data);
   BoneCollection *target_bcoll = add_or_move_to_collection_bcoll(op, arm);
+  if (!target_bcoll) {
+    /* add_or_move_to_collection_bcoll() already reported the reason. */
+    return OPERATOR_CANCELLED;
+  }
 
   bool made_any_changes = false;
   bool had_bones_to_assign = false;
@@ -832,15 +944,18 @@ static int add_or_move_to_collection_exec(bContext *C,
                                                                       &had_bones_to_assign);
 
   if (!mode_is_supported) {
-    WM_report(RPT_ERROR, "This operator only works in pose mode and armature edit mode");
+    BKE_report(
+        op->reports, RPT_ERROR, "This operator only works in pose mode and armature edit mode");
     return OPERATOR_CANCELLED;
   }
   if (!had_bones_to_assign) {
-    WM_report(RPT_WARNING, "No bones selected, nothing to assign to bone collection");
+    BKE_report(
+        op->reports, RPT_WARNING, "No bones selected, nothing to assign to bone collection");
     return OPERATOR_CANCELLED;
   }
   if (!made_any_changes) {
-    WM_report(RPT_WARNING, "All selected bones were already part of this collection");
+    BKE_report(
+        op->reports, RPT_WARNING, "All selected bones were already part of this collection");
     return OPERATOR_CANCELLED;
   }
 
@@ -851,7 +966,7 @@ static int add_or_move_to_collection_exec(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int move_to_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
 {
   return add_or_move_to_collection_exec(C,
                                         op,
@@ -859,7 +974,7 @@ static int move_to_collection_exec(bContext *C, wmOperator *op)
                                         ANIM_armature_bonecoll_assign_and_move_editbone);
 }
 
-static int assign_to_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus assign_to_collection_exec(bContext *C, wmOperator *op)
 {
   return add_or_move_to_collection_exec(
       C, op, ANIM_armature_bonecoll_assign, ANIM_armature_bonecoll_assign_editbone);
@@ -867,7 +982,7 @@ static int assign_to_collection_exec(bContext *C, wmOperator *op)
 
 static bool move_to_collection_poll(bContext *C)
 {
-  Object *ob = ED_object_context(C);
+  Object *ob = blender::ed::object::context_object(C);
   if (ob == nullptr) {
     return false;
   }
@@ -877,10 +992,20 @@ static bool move_to_collection_poll(bContext *C)
     return false;
   }
 
-  if (ID_IS_LINKED(ob->data) && !ID_IS_OVERRIDE_LIBRARY(ob->data)) {
+  const bArmature *armature = static_cast<bArmature *>(ob->data);
+  if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(C, "This needs a local Armature or an override");
     return false;
   }
+
+  if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
+    CTX_wm_operator_poll_msg_set(C,
+                                 "Cannot update a linked Armature with a system override; "
+                                 "explicitly create an override on the Armature Data");
+    return false;
+  }
+
+  CTX_wm_operator_poll_msg_set(C, "Linked bone collections are not editable");
 
   /* Ideally this would also check the target bone collection to move/assign to.
    * However, that requires access to the operator properties, and those are not
@@ -888,98 +1013,177 @@ static bool move_to_collection_poll(bContext *C)
   return true;
 }
 
-static bool bone_collection_enum_itemf_for_object(Object *ob,
-                                                  EnumPropertyItem **item,
-                                                  int *totitem)
+/**
+ * Encode the parameters into an integer, and return as void*.
+ *
+ * NOTE(@sybren): This makes it possible to use these values and pass them directly as
+ * 'custom data' pointer to `uiLayout::menu_fn()`. This makes it possible to give every menu a
+ * unique bone collection index for which it should show the child collections, without having to
+ * allocate memory or use static variables.  See `move_to_collection_invoke()` in `object_edit.cc`
+ * for the alternative that I wanted to avoid.
+ */
+static void *menu_custom_data_encode(const int bcoll_index, const bool is_move_operation)
 {
-  EnumPropertyItem item_tmp = {0};
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  /* Add 1 to the index, so that it's never negative (it can be -1 to indicate 'all roots'). */
+  const uintptr_t index_and_move_bit = ((bcoll_index + 1) << 1) | (is_move_operation << 0);
+  return reinterpret_cast<void *>(index_and_move_bit);
+}
 
-  for (int bcoll_index = 0; bcoll_index < arm->collection_array_num; bcoll_index++) {
-    BoneCollection *bcoll = arm->collection_array[bcoll_index];
+/**
+ * Decode the `void*` back into a bone collection index and a boolean `is_move_operation`.
+ *
+ * \see menu_custom_data_encode for rationale.
+ */
+static std::pair<int, bool> menu_custom_data_decode(void *menu_custom_data)
+{
+  const uintptr_t index_and_move_bit = reinterpret_cast<intptr_t>(menu_custom_data);
+  const bool is_move_operation = (index_and_move_bit & 1) == 1;
+  const int bcoll_index = int(index_and_move_bit >> 1) - 1;
+  return std::make_pair(bcoll_index, is_move_operation);
+}
+
+static int icon_for_bone_collection(const bool collection_contains_active_bone)
+{
+  return collection_contains_active_bone ? ICON_REMOVE : ICON_ADD;
+}
+
+static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
+                                                   const bArmature *arm,
+                                                   const BoneCollection *bcoll,
+                                                   const int bcoll_index,
+                                                   const bool is_move_operation)
+{
+  if (is_move_operation) {
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_move_to_collection", bcoll->name, ICON_NONE);
+    RNA_int_set(&op_ptr, "collection_index", bcoll_index);
+    return;
+  }
+
+  const bool contains_active_bone = ANIM_armature_bonecoll_contains_active_bone(arm, bcoll);
+  const int icon = icon_for_bone_collection(contains_active_bone);
+
+  if (contains_active_bone) {
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_unassign", bcoll->name, icon);
+    RNA_string_set(&op_ptr, "name", bcoll->name);
+  }
+  else {
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_assign", bcoll->name, icon);
+    RNA_string_set(&op_ptr, "name", bcoll->name);
+  }
+}
+
+/**
+ * Add menu items to the layout, for a set of bone collections.
+ *
+ * \param menu_custom_data: Contains two values, encoded as void* to match the signature required
+ * by `uiLayout::menu_fn`. It contains the parent bone collection index (either -1 to show all
+ * roots, or another value to show the children of that collection), as well as a boolean that
+ * indicates whether the menu is created for the "move to collection" or "assign to collection"
+ * operator.
+ *
+ * \see menu_custom_data_encode
+ */
+static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *menu_custom_data)
+{
+  int parent_bcoll_index;
+  bool is_move_operation;
+  std::tie(parent_bcoll_index, is_move_operation) = menu_custom_data_decode(menu_custom_data);
+
+  const Object *ob = blender::ed::object::context_object(C);
+  const bArmature *arm = static_cast<bArmature *>(ob->data);
+
+  /* The "Create a new collection" mode of this operator has its own menu, and should thus be
+   * invoked. */
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  PointerRNA op_ptr = layout->op(
+      is_move_operation ? "ARMATURE_OT_move_to_collection" : "ARMATURE_OT_assign_to_collection",
+      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "New Bone Collection"),
+      ICON_ADD);
+  RNA_int_set(&op_ptr, "collection_index", parent_bcoll_index);
+
+  layout->separator();
+
+  /* The remaining operators in this menu should be executed on click. Invoking
+   * them would show this same menu again. */
+  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
+
+  int child_index, child_count;
+  if (parent_bcoll_index == -1) {
+    child_index = 0;
+    child_count = arm->collection_root_count;
+  }
+  else {
+    /* Add a menu item to assign to the parent first, before listing the children.
+     * The parent is assumed to be editable, because otherwise the menu would
+     * have been disabled already one recursion level higher. */
+    const BoneCollection *parent = arm->collection_array[parent_bcoll_index];
+    menu_add_item_for_move_assign_unassign(
+        layout, arm, parent, parent_bcoll_index, is_move_operation);
+    layout->separator();
+
+    child_index = parent->child_index;
+    child_count = parent->child_count;
+  }
+
+  /* Loop over the children. There should be at least one, otherwise this parent
+   * bone collection wouldn't have been drawn as a menu. */
+  for (int index = child_index; index < child_index + child_count; index++) {
+    const BoneCollection *bcoll = arm->collection_array[index];
+
+    /* Avoid assigning/moving to a linked bone collection. */
     if (!ANIM_armature_bonecoll_is_editable(arm, bcoll)) {
-      /* Skip bone collections that cannot be assigned to because they're
-       * linked and thus uneditable. If there is a way to still show these, but in a disabled
-       * state, that would be preferred. */
+      uiLayout *sub = &layout->row(false);
+      sub->enabled_set(false);
+
+      menu_add_item_for_move_assign_unassign(sub, arm, bcoll, index, is_move_operation);
       continue;
     }
-    item_tmp.identifier = bcoll->name;
-    item_tmp.name = bcoll->name;
-    item_tmp.value = bcoll_index;
-    RNA_enum_item_add(item, totitem, &item_tmp);
-  }
 
-  return true;
+    if (blender::animrig::bonecoll_has_children(bcoll)) {
+      layout->menu_fn(bcoll->name,
+                      ICON_NONE,
+                      move_to_collection_menu_create,
+                      menu_custom_data_encode(index, is_move_operation));
+    }
+    else {
+      menu_add_item_for_move_assign_unassign(layout, arm, bcoll, index, is_move_operation);
+    }
+  }
 }
 
-static const EnumPropertyItem *bone_collection_enum_itemf(bContext *C,
-                                                          PointerRNA * /*ptr*/,
-                                                          PropertyRNA * /*prop*/,
-                                                          bool *r_free)
+static wmOperatorStatus move_to_collection_regular_invoke(bContext *C, wmOperator *op)
 {
-  *r_free = false;
-
-  if (!C) {
-    /* This happens when operators are being tested, and not during normal invocation. */
-    return rna_enum_dummy_NULL_items;
-  }
-
-  Object *ob = ED_object_context(C);
-  if (!ob || ob->type != OB_ARMATURE) {
-    return rna_enum_dummy_NULL_items;
-  }
-
-  EnumPropertyItem *item = nullptr;
-  int totitem = 0;
-  switch (ob->mode) {
-    case OB_MODE_POSE: {
-      Object *obpose = ED_pose_object_from_context(C);
-      if (!obpose) {
-        return nullptr;
-      }
-      bone_collection_enum_itemf_for_object(obpose, &item, &totitem);
-      break;
-    }
-    case OB_MODE_EDIT:
-      bone_collection_enum_itemf_for_object(ob, &item, &totitem);
-      break;
-    default:
-      return rna_enum_dummy_NULL_items;
-  }
-
-  /* New Collection. */
-  EnumPropertyItem item_tmp = {0};
-  item_tmp.identifier = "__NEW__";
-  item_tmp.name = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "New Collection");
-  item_tmp.value = -1;
-  RNA_enum_item_add(&item, &totitem, &item_tmp);
-
-  RNA_enum_item_end(&item, &totitem);
-  *r_free = true;
-
-  return item;
-}
-
-static int move_to_collection_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
-{
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection");
-  if (RNA_property_is_set(op->ptr, prop)) {
-    const int collection_index = RNA_property_enum_get(op->ptr, prop);
-    if (collection_index < 0) {
-      return WM_operator_props_dialog_popup(C, op, 200);
-    }
-    /* Either call move_to_collection_exec() or assign_to_collection_exec(), depending on which
-     * operator got invoked. */
-    return op->type->exec(C, op);
-  }
-
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
   uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-  uiItemsEnumO(layout, op->idname, "collection");
+
+  const bool is_move_operation = STREQ(op->type->idname, "ARMATURE_OT_move_to_collection");
+  move_to_collection_menu_create(C, layout, menu_custom_data_encode(-1, is_move_operation));
+
   UI_popup_menu_end(C, pup);
+
   return OPERATOR_INTERFACE;
+}
+
+static wmOperatorStatus move_to_new_collection_invoke(bContext *C, wmOperator *op)
+{
+  RNA_string_set(op->ptr, "new_collection_name", IFACE_("Bones"));
+  return WM_operator_props_dialog_popup(
+      C, op, 200, IFACE_("Move to New Bone Collection"), IFACE_("Create"));
+}
+
+static wmOperatorStatus move_to_collection_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent * /*event*/)
+{
+  /* Invoking with `collection_index` set has a special meaning: show the menu to create a new bone
+   * collection as the child of this one. */
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_index");
+  if (RNA_property_is_set(op->ptr, prop)) {
+    return move_to_new_collection_invoke(C, op);
+  }
+
+  return move_to_collection_regular_invoke(C, op);
 }
 
 void ARMATURE_OT_move_to_collection(wmOperatorType *ot)
@@ -991,7 +1195,7 @@ void ARMATURE_OT_move_to_collection(wmOperatorType *ot)
   ot->description = "Move bones to a collection";
   ot->idname = "ARMATURE_OT_move_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;
@@ -1002,24 +1206,28 @@ void ARMATURE_OT_move_to_collection(wmOperatorType *ot)
    * 'Name' property, without any choice for another collection. */
   ot->flag = OPTYPE_UNDO;
 
-  prop = RNA_def_enum(ot->srna,
-                      "collection",
-                      rna_enum_dummy_DEFAULT_items,
-                      0,
-                      "Collection",
-                      "The bone collection to move the selected bones to");
-  RNA_def_enum_funcs(prop, bone_collection_enum_itemf);
-  /* Translation of items is handled by bone_collection_enum_itemf if needed, most are actually
-   * data (bone collections) names and therefore should not be translated at all. So disable
-   * automatic translation. */
-  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN | PROP_ENUM_NO_TRANSLATE);
+  prop = RNA_def_int(
+      ot->srna,
+      "collection_index",
+      -1,
+      -1,
+      INT_MAX,
+      "Collection Index",
+      "Index of the collection to move selected bones to. When the operator should create a new "
+      "bone collection, do not include this parameter and pass new_collection_name",
+      -1,
+      INT_MAX);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
-  prop = RNA_def_string(ot->srna,
-                        "new_collection_name",
-                        nullptr,
-                        MAX_NAME,
-                        "Name",
-                        "Name of the newly added bone collection");
+  prop = RNA_def_string(
+      ot->srna,
+      "new_collection_name",
+      nullptr,
+      MAX_NAME,
+      "Name",
+      "Name of a to-be-added bone collection. Only pass this if you want to create a new bone "
+      "collection and move the selected bones to it. To move to an existing collection, do not "
+      "include this parameter and use collection_index");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   ot->prop = prop;
 }
@@ -1030,10 +1238,12 @@ void ARMATURE_OT_assign_to_collection(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Assign to Collection";
-  ot->description = "Assign bones to a collection";
+  ot->description =
+      "Assign all selected bones to a collection, or unassign them, depending on whether the "
+      "active bone is already assigned or not";
   ot->idname = "ARMATURE_OT_assign_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = assign_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;
@@ -1044,21 +1254,29 @@ void ARMATURE_OT_assign_to_collection(wmOperatorType *ot)
    * 'Name' property, without any choice for another collection. */
   ot->flag = OPTYPE_UNDO;
 
-  prop = RNA_def_enum(ot->srna,
-                      "collection",
-                      rna_enum_dummy_DEFAULT_items,
-                      0,
-                      "Collection",
-                      "The bone collection to move the selected bones to");
-  RNA_def_enum_funcs(prop, bone_collection_enum_itemf);
+  prop = RNA_def_int(
+      ot->srna,
+      "collection_index",
+      -1,
+      -1,
+      INT_MAX,
+      "Collection Index",
+      "Index of the collection to assign selected bones to. When the operator should create a new "
+      "bone collection, use new_collection_name to define the collection name, and set this "
+      "parameter to the parent index of the new bone collection",
+      -1,
+      INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 
-  prop = RNA_def_string(ot->srna,
-                        "new_collection_name",
-                        nullptr,
-                        MAX_NAME,
-                        "Name",
-                        "Name of the newly added bone collection");
+  prop = RNA_def_string(
+      ot->srna,
+      "new_collection_name",
+      nullptr,
+      MAX_NAME,
+      "Name",
+      "Name of a to-be-added bone collection. Only pass this if you want to create a new bone "
+      "collection and assign the selected bones to it. To assign to an existing collection, do "
+      "not include this parameter and use collection_index");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   ot->prop = prop;
 }

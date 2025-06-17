@@ -18,6 +18,8 @@
 #include "BLI_memarena.h"
 #include "BLI_utildefines_stack.h"
 
+#include "DNA_modifier_enums.h"
+
 #include "BKE_customdata.hh"
 
 #include "bmesh.hh"
@@ -572,8 +574,7 @@ static float bm_edge_info_average_length_fallback(BMVert *v_lookup,
     STACK_DECLARE(vert_stack);
     STACK_INIT(vert_stack, bm->totvert);
 
-    vert_lengths = static_cast<VertLengths *>(
-        MEM_callocN(sizeof(*vert_lengths) * bm->totvert, __func__));
+    vert_lengths = MEM_calloc_arrayN<VertLengths>(bm->totvert, __func__);
 
     /* Needed for 'vert_lengths' lookup from connected vertices. */
     BM_mesh_elem_index_ensure(bm, BM_VERT);
@@ -753,8 +754,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
   }
   bm->elem_index_dirty |= BM_EDGE;
 
-  edge_info = static_cast<SplitEdgeInfo *>(
-      MEM_mallocN(edge_info_len * sizeof(SplitEdgeInfo), __func__));
+  edge_info = MEM_malloc_arrayN<SplitEdgeInfo>(edge_info_len, __func__);
 
   /* fill in array and initialize tagging */
   es = edge_info;
@@ -904,7 +904,8 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
           /* find adjacent */
           BM_ITER_ELEM (e, &iter, v_split, BM_EDGES_OF_VERT) {
             if (BM_elem_flag_test(e, BM_ELEM_TAG) && e->l &&
-                BM_elem_flag_test(e->l->f, BM_ELEM_TAG)) {
+                BM_elem_flag_test(e->l->f, BM_ELEM_TAG))
+            {
               if (vert_edge_tag_tot < 2) {
                 vecpair[vert_edge_tag_tot] = BM_elem_index_get(e);
                 BLI_assert(vecpair[vert_edge_tag_tot] != -1);
@@ -1355,7 +1356,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
      * which BM_vert_calc_shell_factor uses. */
 
     /* over allocate */
-    varr_co = static_cast<float(*)[3]>(MEM_callocN(sizeof(*varr_co) * bm->totvert, __func__));
+    varr_co = MEM_calloc_arrayN<float[3]>(bm->totvert, __func__);
     void *vert_lengths_p = nullptr;
 
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {

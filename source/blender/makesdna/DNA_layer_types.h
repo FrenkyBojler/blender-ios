@@ -32,7 +32,7 @@ typedef enum eViewLayerEEVEEPassType {
   EEVEE_RENDER_PASS_ENVIRONMENT = (1 << 11),
   EEVEE_RENDER_PASS_SHADOW = (1 << 12),
   EEVEE_RENDER_PASS_AO = (1 << 13),
-  EEVEE_RENDER_PASS_BLOOM = (1 << 14),
+  EEVEE_RENDER_PASS_UNUSED_14 = (1 << 14), /* EEVEE_RENDER_PASS_BLOOM */
   EEVEE_RENDER_PASS_AOV = (1 << 15),
   /*
    * TODO(@jbakker): Clean up conflicting bits after EEVEE has been removed.
@@ -49,6 +49,11 @@ typedef enum eViewLayerEEVEEPassType {
 } eViewLayerEEVEEPassType;
 #define EEVEE_RENDER_PASS_MAX_BIT 21
 ENUM_OPERATORS(eViewLayerEEVEEPassType, 1 << EEVEE_RENDER_PASS_MAX_BIT)
+
+/* #ViewLayer::grease_pencil_flags */
+typedef enum eViewLayerGreasePencilFlags {
+  GREASE_PENCIL_AS_SEPARATE_PASS = (1 << 0),
+} eViewLayerGreasePencilFlags;
 
 /* #ViewLayerAOV.type */
 typedef enum eViewLayerAOVType {
@@ -94,13 +99,6 @@ typedef struct Base {
   char _pad1[2];
 } Base;
 
-typedef struct ViewLayerEngineData {
-  struct ViewLayerEngineData *next, *prev;
-  struct DrawEngineType *engine_type;
-  void *storage;
-  void (*free)(void *storage);
-} ViewLayerEngineData;
-
 typedef struct LayerCollection {
   struct LayerCollection *next, *prev;
   struct Collection *collection;
@@ -119,7 +117,7 @@ typedef struct LayerCollection {
 /* Type containing EEVEE settings per view-layer */
 typedef struct ViewLayerEEVEE {
   int render_passes;
-  int _pad[1];
+  float ambient_occlusion_distance;
 } ViewLayerEEVEE;
 
 /** AOV Render-pass definition. */
@@ -150,8 +148,7 @@ typedef struct LightgroupMembership {
 
 typedef struct ViewLayer {
   struct ViewLayer *next, *prev;
-  /** MAX_NAME. */
-  char name[64];
+  char name[/*MAX_NAME*/ 64];
   short flag;
   char _pad[6];
   /** ObjectBase. */
@@ -173,13 +170,21 @@ typedef struct ViewLayer {
   float pass_alpha_threshold;
   short cryptomatte_flag;
   short cryptomatte_levels;
-  char _pad1[4];
+  int grease_pencil_flags;
 
   int samples;
 
   struct Material *mat_override;
-  /** Equivalent to datablocks ID properties. */
+  struct World *world_override;
+  /** Equivalent to data-blocks ID properties. */
   struct IDProperty *id_properties;
+  /**
+   * Equivalent to data-blocks system-defined ID properties.
+   *
+   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
+   * management consistency.
+   */
+  struct IDProperty *system_properties;
 
   struct FreestyleConfig freestyle_config;
   struct ViewLayerEEVEE eevee;
@@ -193,8 +198,6 @@ typedef struct ViewLayer {
   ViewLayerLightgroup *active_lightgroup;
 
   /* Runtime data */
-  /** ViewLayerEngineData. */
-  ListBase drawdata;
   struct Base **object_bases_array;
   struct GHash *object_bases_hash;
 } ViewLayer;
@@ -274,4 +277,5 @@ enum {
   /* VIEW_LAYER_DEPRECATED  = (1 << 1), */
   VIEW_LAYER_FREESTYLE = (1 << 2),
   VIEW_LAYER_OUT_OF_SYNC = (1 << 3),
+  VIEW_LAYER_HAS_EXPORT_COLLECTIONS = (1 << 4),
 };

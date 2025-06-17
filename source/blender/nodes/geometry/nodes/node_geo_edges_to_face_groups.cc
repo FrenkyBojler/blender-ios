@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
+
 #include "BKE_mesh_mapping.hh"
 
 #include "BLI_atomic_disjoint_set.hh"
@@ -43,11 +44,11 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
-                                 const eAttrDomain domain,
+                                 const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    const bke::MeshFieldContext context{mesh, ATTR_DOMAIN_EDGE};
-    fn::FieldEvaluator evaluator{context, mesh.totedge};
+    const bke::MeshFieldContext context{mesh, AttrDomain::Edge};
+    fn::FieldEvaluator evaluator{context, mesh.edges_num};
     evaluator.add(non_boundary_edge_field_);
     evaluator.evaluate();
     const IndexMask non_boundary_edges = evaluator.get_evaluated_as_mask(0);
@@ -57,7 +58,7 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     Array<int> edge_to_face_offsets;
     Array<int> edge_to_face_indices;
     const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_face_map(
-        faces, mesh.corner_edges(), mesh.totedge, edge_to_face_offsets, edge_to_face_indices);
+        faces, mesh.corner_edges(), mesh.edges_num, edge_to_face_offsets, edge_to_face_indices);
 
     AtomicDisjointSet islands(faces.size());
     non_boundary_edges.foreach_index(
@@ -67,7 +68,7 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     islands.calc_reduced_ids(output);
 
     return mesh.attributes().adapt_domain(
-        VArray<int>::ForContainer(std::move(output)), ATTR_DOMAIN_FACE, domain);
+        VArray<int>::ForContainer(std::move(output)), AttrDomain::Face, domain);
   }
 
   uint64_t hash() const override
@@ -83,9 +84,9 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
     return false;
   }
 
-  std::optional<eAttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
+  std::optional<AttrDomain> preferred_domain(const Mesh & /*mesh*/) const final
   {
-    return ATTR_DOMAIN_FACE;
+    return AttrDomain::Face;
   }
 };
 
@@ -100,14 +101,17 @@ static void geo_node_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_EDGES_TO_FACE_GROUPS, "Edges to Face Groups", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeEdgesToFaceGroups", GEO_NODE_EDGES_TO_FACE_GROUPS);
+  ntype.ui_name = "Edges to Face Groups";
+  ntype.ui_description = "Group faces into regions surrounded by the selected boundary edges";
+  ntype.enum_name_legacy = "EDGES_TO_FACE_GROUPS";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

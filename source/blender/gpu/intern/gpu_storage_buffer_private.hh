@@ -8,13 +8,11 @@
 
 #pragma once
 
-#include "BLI_span.hh"
 #include "BLI_sys_types.h"
 
 struct GPUStorageBuf;
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
 class VertBuf;
 
@@ -30,7 +28,7 @@ class VertBuf;
  */
 class StorageBuf {
  protected:
-  /** Data size in bytes. */
+  /** Data size in bytes. Doesn't need to match actual allocation size due to alignment rules. */
   size_t size_in_bytes_;
   /** Continuous memory block to copy to GPU. This data is owned by the StorageBuf. */
   void *data_ = nullptr;
@@ -48,6 +46,7 @@ class StorageBuf {
   virtual void copy_sub(VertBuf *src, uint dst_offset, uint src_offset, uint copy_size) = 0;
   virtual void read(void *data) = 0;
   virtual void async_flush_to_host() = 0;
+  virtual void sync_as_indirect_buffer() = 0;
 };
 
 /* Syntactic sugar. */
@@ -66,5 +65,4 @@ static inline const StorageBuf *unwrap(const GPUStorageBuf *storage_buf)
 
 #undef DEBUG_NAME_LEN
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

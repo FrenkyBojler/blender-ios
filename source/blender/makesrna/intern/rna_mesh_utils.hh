@@ -8,16 +8,18 @@
 
 #pragma once
 
+#include "BKE_anonymous_attribute_id.hh"  // IWYU pragma: export
+
 /* Macros to help reduce code clutter in rna_mesh.cc */
 
 /* Define the accessors for a basic CustomDataLayer collection, skipping anonymous layers */
 #define DEFINE_CUSTOMDATA_LAYER_COLLECTION(collection_name, customdata_type, layer_type) \
   /* check */ \
-  [[maybe_unused]] static int rna_##collection_name##_check(CollectionPropertyIterator *, \
-                                                            void *data) \
+  [[maybe_unused]] static bool rna_##collection_name##_check(CollectionPropertyIterator *, \
+                                                             void *data) \
   { \
     CustomDataLayer *layer = (CustomDataLayer *)data; \
-    return (layer->anonymous_id != NULL || layer->type != layer_type); \
+    return (blender::bke::attribute_name_is_anonymous(layer->name) || layer->type != layer_type); \
   } \
   /* begin */ \
   [[maybe_unused]] static void rna_Mesh_##collection_name##s_begin( \
@@ -26,6 +28,7 @@
     CustomData *data = rna_mesh_##customdata_type(ptr); \
     if (data) { \
       rna_iterator_array_begin(iter, \
+                               ptr, \
                                (void *)data->layers, \
                                sizeof(CustomDataLayer), \
                                data->totlayer, \
@@ -33,7 +36,7 @@
                                rna_##collection_name##_check); \
     } \
     else { \
-      rna_iterator_array_begin(iter, NULL, 0, 0, 0, NULL); \
+      rna_iterator_array_begin(iter, ptr, NULL, 0, 0, 0, NULL); \
     } \
   } \
   /* length */ \
@@ -53,7 +56,7 @@
     *max = data ? CustomData_number_of_layers(data, layer_type) - \
                       CustomData_number_of_anonymous_layers(data, layer_type) - 1 : \
                   0; \
-    *max = MAX2(0, *max); \
+    *max = std::max(0, *max); \
   }
 
 /* Define the accessors for special CustomDataLayers in the collection
@@ -73,7 +76,7 @@
     else { \
       layer = NULL; \
     } \
-    return rna_pointer_inherit_refine(ptr, &RNA_##layer_rna_type, layer); \
+    return RNA_pointer_create_with_parent(*ptr, &RNA_##layer_rna_type, layer); \
   } \
 \
   [[maybe_unused]] static void rna_Mesh_##collection_name##_##active_type##_set( \
@@ -86,7 +89,8 @@
       CustomDataLayer *layer; \
       int layer_index = CustomData_get_layer_index(data, layer_type); \
       for (layer = data->layers + layer_index, a = 0; layer_index + a < data->totlayer; \
-           layer++, a++) { \
+           layer++, a++) \
+      { \
         if (value.data == layer) { \
           CustomData_set_layer_##active_type(data, layer_type, a); \
           BKE_mesh_tessface_clear(mesh); \

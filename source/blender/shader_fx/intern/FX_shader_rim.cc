@@ -6,14 +6,12 @@
  * \ingroup shader_fx
  */
 
-#include <cstdio>
-
 #include "DNA_screen_types.h"
 #include "DNA_shader_fx_types.h"
 
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -52,15 +50,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "rim_color", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "mask_color", UI_ITEM_NONE, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, IFACE_("Blend Mode"), ICON_NONE);
+  layout->prop(ptr, "rim_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mask_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, IFACE_("Blend Mode"), ICON_NONE);
 
   /* Add the X, Y labels manually because offset is a #PROP_PIXEL. */
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "offset");
-  uiItemFullR(col, ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Offset X"), ICON_NONE);
-  uiItemFullR(col, ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  col->prop(ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Offset X"), ICON_NONE);
+  col->prop(ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }
@@ -75,12 +73,12 @@ static void blur_panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   /* Add the X, Y labels manually because blur is a #PROP_PIXEL. */
-  col = uiLayoutColumn(layout, true);
+  col = &layout->column(true);
   PropertyRNA *prop = RNA_struct_find_property(ptr, "blur");
-  uiItemFullR(col, ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Blur X"), ICON_NONE);
-  uiItemFullR(col, ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
+  col->prop(ptr, prop, 0, 0, UI_ITEM_NONE, IFACE_("Blur X"), ICON_NONE);
+  col->prop(ptr, prop, 1, 0, UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
-  uiItemR(layout, ptr, "samples", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "samples", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

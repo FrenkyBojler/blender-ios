@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 #pragma once
 
 #include <numeric>
@@ -9,6 +13,7 @@
 #include "BLI_generic_span.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_index_mask.hh"
+#include "BLI_math_base.h"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
@@ -66,6 +71,29 @@ inline void copy(const Span<T> src,
                                              [&](const int64_t i) { dst[i] = src[i]; });
 }
 
+template<typename T> T compute_sum(const Span<T> data)
+{
+  /* Explicitly splitting work into chunks for a couple of reasons:
+   * - Improve numerical stability. While there are even more stable algorithms (e.g. Kahan
+   *   summation), they also add more complexity to the hot code path. So far, this simple approach
+   *   seems to solve the common issues people run into.
+   * - Support computing the sum using multiple threads.
+   * - Ensure deterministic results even with floating point numbers.
+   */
+  constexpr int64_t chunk_size = 1024;
+  const int64_t chunks_num = divide_ceil_ul(data.size(), chunk_size);
+  Array<T> partial_sums(chunks_num);
+  threading::parallel_for(partial_sums.index_range(), 1, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      const int64_t start = i * chunk_size;
+      const Span<T> chunk = data.slice_safe(start, chunk_size);
+      const T partial_sum = std::accumulate(chunk.begin(), chunk.end(), T());
+      partial_sums[i] = partial_sum;
+    }
+  });
+  return std::accumulate(partial_sums.begin(), partial_sums.end(), T());
+}
+
 /**
  * Fill the specified indices of the destination with the values in the source span.
  */
@@ -81,6 +109,19 @@ inline void scatter(const Span<T> src,
       dst[indices[i]] = src[i];
     }
   });
+}
+
+template<typename T>
+inline void scatter(const Span<T> src,
+                    const IndexMask &indices,
+                    MutableSpan<T> dst,
+                    const int64_t grain_size = 4096)
+{
+  BLI_assert(indices.size() == src.size());
+  BLI_assert(indices.min_array_size() <= dst.size());
+  indices.foreach_index_optimized<int64_t>(
+      GrainSize(grain_size),
+      [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
 }
 
 /**
@@ -178,6 +219,18 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
 }
 
 template<typename T>
+inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
+                                  const OffsetIndices<int> dst_offsets,
+                                  const IndexMask &selection,
+                                  const VArray<T> src,
+                                  MutableSpan<T> dst)
+{
+  selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+    src.materialize_compressed(src_offsets[src_i], dst.slice(dst_offsets[dst_i]));
+  });
+}
+
+template<typename T>
 inline void gather_to_groups(const OffsetIndices<int> dst_offsets,
                              const IndexMask &src_selection,
                              const Span<T> src,
@@ -248,7 +301,7 @@ template<typename T> inline Vector<IndexRange> find_all_ranges(const Span<T> spa
   int64_t length = (span.first() == value) ? 1 : 0;
   for (const int64_t i : span.index_range().drop_front(1)) {
     if (span[i - 1] == value && span[i] != value) {
-      ranges.append(IndexRange(i - length, length));
+      ranges.append(IndexRange::from_end_size(i, length));
       length = 0;
     }
     else if (span[i] == value) {
@@ -256,7 +309,7 @@ template<typename T> inline Vector<IndexRange> find_all_ranges(const Span<T> spa
     }
   }
   if (length > 0) {
-    ranges.append(IndexRange(span.size() - length, length));
+    ranges.append(IndexRange::from_end_size(span.size(), length));
   }
   return ranges;
 }
@@ -275,10 +328,12 @@ bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const
 {
   for (const int i : indices.index_range()) {
     if (all_values[indices[i]] != values[i]) {
-      return true;
+      return false;
     }
   }
-  return false;
+  return true;
 }
+
+bool indices_are_range(Span<int> indices, IndexRange range);
 
 }  // namespace blender::array_utils

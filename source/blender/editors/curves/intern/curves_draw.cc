@@ -9,10 +9,14 @@
 #include "BLI_math_vector.h"
 #include "BLI_mempool.h"
 
-#include "BKE_attribute.h"
+#include "BLT_translation.hh"
+
+#include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_report.h"
+#include "BKE_object_types.hh"
+#include "BKE_report.hh"
+#include "BKE_screen.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -23,18 +27,19 @@
 #include "ED_space_api.hh"
 #include "ED_view3d.hh"
 
-#include "GPU_batch.h"
-#include "GPU_batch_presets.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
+#include "GPU_batch.hh"
+#include "GPU_batch_presets.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_state.hh"
 
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 extern "C" {
 #include "curve_fit_nd.h"
@@ -58,7 +63,7 @@ struct StrokeElem {
   float location_world[3];
   float location_local[3];
 
-  /* surface normal, may be zero'd */
+  /* Surface normal, may be zeroed. */
   float normal_world[3];
   float normal_local[3];
 
@@ -140,7 +145,8 @@ static void stroke_elem_pressure_set(const CurveDrawData *cdd, StrokeElem *selem
     const float adjust = stroke_elem_radius_from_pressure(cdd, pressure) -
                          stroke_elem_radius_from_pressure(cdd, selem->pressure);
     madd_v3_v3fl(selem->location_local, selem->normal_local, adjust);
-    mul_v3_m4v3(selem->location_world, cdd->vc.obedit->object_to_world, selem->location_local);
+    mul_v3_m4v3(
+        selem->location_world, cdd->vc.obedit->object_to_world().ptr(), selem->location_local);
   }
   selem->pressure = pressure;
 }
@@ -237,11 +243,11 @@ static bool stroke_elem_project_fallback(const CurveDrawData *cdd,
         cdd->vc.v3d, cdd->vc.region, location_fallback_depth, mval_fl, r_location_world);
     zero_v3(r_normal_local);
   }
-  mul_v3_m4v3(r_location_local, cdd->vc.obedit->world_to_object, r_location_world);
+  mul_v3_m4v3(r_location_local, cdd->vc.obedit->world_to_object().ptr(), r_location_world);
 
   if (!is_zero_v3(r_normal_world)) {
     copy_v3_v3(r_normal_local, r_normal_world);
-    mul_transposed_mat3_m4_v3(cdd->vc.obedit->object_to_world, r_normal_local);
+    mul_transposed_mat3_m4_v3(cdd->vc.obedit->object_to_world().ptr(), r_normal_local);
     normalize_v3(r_normal_local);
   }
   else {
@@ -296,7 +302,8 @@ static void curve_draw_stroke_from_operator_elem(wmOperator *op, PointerRNA *ite
 
   RNA_float_get_array(itemptr, "mouse", selem->mval);
   RNA_float_get_array(itemptr, "location", selem->location_world);
-  mul_v3_m4v3(selem->location_local, cdd->vc.obedit->world_to_object, selem->location_world);
+  mul_v3_m4v3(
+      selem->location_local, cdd->vc.obedit->world_to_object().ptr(), selem->location_world);
   selem->pressure = RNA_float_get(itemptr, "pressure");
 }
 
@@ -338,7 +345,9 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
   Object *obedit = cdd->vc.obedit;
 
-  if (cdd->bevel_radius > 0.0f) {
+  /* Disabled: not representative in enough cases, and curves draw shape is not per object yet.
+   * In the future this could be enabled when the object's draw shape is "strand" or "3D". */
+  if (false && cdd->bevel_radius > 0.0f) {
     BLI_mempool_iter iter;
     const StrokeElem *selem;
 
@@ -348,13 +357,13 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
     float color[3];
     UI_GetThemeColor3fv(TH_WIRE, color);
 
-    GPUBatch *sphere = GPU_batch_preset_sphere(0);
+    gpu::Batch *sphere = GPU_batch_preset_sphere(0);
     GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_batch_uniform_3fv(sphere, "color", color);
 
     /* scale to edit-mode space */
     GPU_matrix_push();
-    GPU_matrix_mul(obedit->object_to_world);
+    GPU_matrix_mul(obedit->object_to_world().ptr());
 
     BLI_mempool_iternew(cdd->stroke_elem_pool, &iter);
     for (selem = static_cast<const StrokeElem *>(BLI_mempool_iterstep(&iter)); selem;
@@ -395,7 +404,8 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
 
     {
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(
+          format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
       GPU_depth_test(GPU_DEPTH_NONE);
@@ -436,7 +446,7 @@ static void curve_draw_event_add(wmOperator *op, const wmEvent *event)
   CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
   Object *obedit = cdd->vc.obedit;
 
-  invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
+  invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
 
   StrokeElem *selem = static_cast<StrokeElem *>(BLI_mempool_calloc(cdd->stroke_elem_pool));
 
@@ -553,7 +563,7 @@ static void curve_draw_exit(wmOperator *op)
   CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
   if (cdd) {
     if (cdd->draw_handle_view) {
-      ED_region_draw_cb_exit(cdd->vc.region->type, cdd->draw_handle_view);
+      ED_region_draw_cb_exit(cdd->vc.region->runtime->type, cdd->draw_handle_view);
       WM_cursor_modal_restore(cdd->vc.win);
     }
 
@@ -573,7 +583,7 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 {
   BLI_assert(op->customdata == nullptr);
 
-  CurveDrawData *cdd = static_cast<CurveDrawData *>(MEM_callocN(sizeof(*cdd), __func__));
+  CurveDrawData *cdd = MEM_callocN<CurveDrawData>(__func__);
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
@@ -621,7 +631,111 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
   return true;
 }
 
-static int curves_draw_exec(bContext *C, wmOperator *op)
+static void create_Bezier(bke::CurvesGeometry &curves,
+                          bke::MutableAttributeAccessor &attributes,
+                          const CurveDrawData *cdd,
+                          const int curve_index,
+                          const bool is_cyclic,
+                          const uint cubic_spline_len,
+                          const int dims,
+                          const int radius_index,
+                          const float radius_max,
+                          const float *cubic_spline,
+                          const uint *corners_index,
+                          const uint corners_index_len)
+{
+  curves.resize(curves.points_num() + cubic_spline_len, curve_index + 1);
+
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<float3> handle_positions_l = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handle_positions_r = curves.handle_positions_right_for_write();
+  MutableSpan<int8_t> handle_types_l = curves.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_r = curves.handle_types_right_for_write();
+
+  const IndexRange new_points = curves.points_by_curve()[curve_index];
+
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
+      "radius", bke::AttrDomain::Point);
+
+  const float *co = cubic_spline;
+
+  for (const int64_t i : new_points) {
+    const float *handle_l = co + (dims * 0);
+    const float *pt = co + (dims * 1);
+    const float *handle_r = co + (dims * 2);
+
+    copy_v3_v3(handle_positions_l[i], handle_l);
+    copy_v3_v3(positions[i], pt);
+    copy_v3_v3(handle_positions_r[i], handle_r);
+
+    const float radius = (radius_index != -1) ?
+                             (pt[radius_index] * cdd->radius.range) + cdd->radius.min :
+                             radius_max;
+    radii.span[i] = radius;
+
+    handle_types_l[i] = BEZIER_HANDLE_ALIGN;
+    handle_types_r[i] = BEZIER_HANDLE_ALIGN;
+    co += (dims * 3);
+  }
+
+  if (corners_index) {
+    /* ignore the first and last */
+    uint i_start = 0, i_end = corners_index_len;
+
+    if ((corners_index_len >= 2) && !is_cyclic) {
+      i_start += 1;
+      i_end -= 1;
+    }
+
+    for (const auto i : IndexRange(i_start, i_end - i_start)) {
+      const int64_t corner_i = new_points[corners_index[i]];
+      handle_types_l[corner_i] = BEZIER_HANDLE_FREE;
+      handle_types_r[corner_i] = BEZIER_HANDLE_FREE;
+    }
+  }
+
+  radii.finish();
+}
+
+static void create_NURBS(bke::CurvesGeometry &curves,
+                         bke::MutableAttributeAccessor &attributes,
+                         const CurveDrawData *cdd,
+                         const int curve_index,
+                         const bool is_cyclic,
+                         const uint cubic_spline_len,
+                         const int dims,
+                         const int radius_index,
+                         const float radius_max,
+                         const float *cubic_spline)
+{
+  const int point_num = (cubic_spline_len - 2) * 3 + 4 + (is_cyclic ? 2 : 0);
+  curves.resize(curves.points_num() + point_num, curve_index + 1);
+
+  MutableSpan<float3> positions = curves.positions_for_write();
+  MutableSpan<float> weights = curves.nurbs_weights_for_write();
+
+  const IndexRange new_points = curves.points_by_curve()[curve_index];
+
+  bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
+      "radius", bke::AttrDomain::Point);
+  /* If cyclic shows to first left handle else first control point. */
+  const float *pt = cubic_spline + (is_cyclic ? 0 : dims);
+
+  for (const int64_t i : new_points) {
+    const float radius = (radius_index != -1) ?
+                             (pt[radius_index] * cdd->radius.range) + cdd->radius.min :
+                             radius_max;
+    copy_v3_v3(positions[i], pt);
+    weights[i] = 1.0f;
+    radii.span[i] = radius;
+
+    pt += dims;
+  }
+
+  radii.finish();
+}
+
+static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
 {
   if (op->customdata == nullptr) {
     if (!curve_draw_init(C, op, false)) {
@@ -636,7 +750,7 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
 
   int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
-  invert_m4_m4(obedit->world_to_object, obedit->object_to_world);
+  invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
 
   if (BLI_mempool_len(cdd->stroke_elem_pool) == 0) {
     curve_draw_stroke_from_operator(op);
@@ -648,6 +762,8 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
   const float error_threshold = RNA_float_get(op->ptr, "error_threshold");
   const float corner_angle = RNA_float_get(op->ptr, "corner_angle");
   const bool use_cyclic = RNA_boolean_get(op->ptr, "use_cyclic");
+  const bool bezier_as_nurbs = RNA_boolean_get(op->ptr, "bezier_as_nurbs");
+  bool is_cyclic = (stroke_len > 2) && use_cyclic;
 
   const float radius_min = cps->radius_min;
   const float radius_max = cps->radius_max;
@@ -655,20 +771,22 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
 
   Curves *curves_id = static_cast<Curves *>(obedit->data);
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  const eAttrDomain selection_domain = eAttrDomain(curves_id->selection_domain);
   const int curve_index = curves.curves_num();
 
   const bool use_pressure_radius = (cps->flag & CURVE_PAINT_FLAG_PRESSURE_RADIUS) ||
                                    ((cps->radius_taper_start != 0.0f) ||
                                     (cps->radius_taper_end != 0.0f));
 
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+  Span<StringRef> selection_attribute_names = get_curves_selection_attribute_names(curves);
+  remove_selection_attributes(attributes, selection_attribute_names);
+
   if (cdd->curve_type == CU_BEZIER) {
     /* Allow to interpolate multiple channels */
     int dims = 3;
     const int radius_index = use_pressure_radius ? dims++ : -1;
 
-    float *coords = static_cast<float *>(
-        MEM_mallocN(sizeof(*coords) * stroke_len * dims, __func__));
+    float *coords = MEM_malloc_arrayN<float>(stroke_len * dims, __func__);
 
     float *cubic_spline = nullptr;
     uint cubic_spline_len = 0;
@@ -722,6 +840,10 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
     if ((stroke_len > 2) && use_cyclic) {
       calc_flag |= CURVE_FIT_CALC_CYCLIC;
     }
+    else {
+      /* Might need this update if stroke_len <= 2 after removing doubles. */
+      is_cyclic = false;
+    }
 
     int result;
     if (fit_method == CURVE_PAINT_FIT_METHOD_REFIT) {
@@ -760,78 +882,89 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
     }
 
     if (result == 0) {
-      curves.resize(curves.points_num() + cubic_spline_len, curve_index + 1);
-      MutableSpan<int8_t> curve_types = curves.curve_types_for_write();
-      curve_types[curve_index] = CURVE_TYPE_BEZIER;
-      curves.update_curve_types();
+      int8_t knots_mode;
+      int8_t order;
+      CurveType curve_type;
+      if (bezier_as_nurbs) {
+        bool is_cyclic_curve = calc_flag & CURVE_FIT_CALC_CYCLIC;
+        create_NURBS(curves,
+                     attributes,
+                     cdd,
+                     curve_index,
+                     is_cyclic_curve,
+                     cubic_spline_len,
+                     dims,
+                     radius_index,
+                     radius_max,
+                     cubic_spline);
+        order = 4;
+        knots_mode = is_cyclic_curve ? NURBS_KNOT_MODE_BEZIER : NURBS_KNOT_MODE_ENDPOINT_BEZIER;
+        curve_type = CURVE_TYPE_NURBS;
+      }
+      else {
+        create_Bezier(curves,
+                      attributes,
+                      cdd,
+                      curve_index,
+                      is_cyclic,
+                      cubic_spline_len,
+                      dims,
+                      radius_index,
+                      radius_max,
+                      cubic_spline,
+                      corners_index,
+                      corners_index_len);
+        order = 0;
+        knots_mode = 0;
+        curve_type = CURVE_TYPE_BEZIER;
+      }
+      curves.nurbs_knots_modes_for_write()[curve_index] = knots_mode;
+      curves.nurbs_orders_for_write()[curve_index] = order;
+      curves.fill_curve_types(IndexRange(curve_index, 1), curve_type);
 
-      MutableSpan<float3> handle_positions_l = curves.handle_positions_left_for_write();
-      MutableSpan<float3> handle_positions_r = curves.handle_positions_right_for_write();
-      MutableSpan<int8_t> handle_types_l = curves.handle_types_left_for_write();
-      MutableSpan<int8_t> handle_types_r = curves.handle_types_right_for_write();
-      MutableSpan<bool> cyclic = curves.cyclic_for_write();
-      MutableSpan<int> resolution = curves.resolution_for_write();
-
-      resolution[curve_index] = 12;
-      IndexRange new_points = curves.points_by_curve()[curve_index];
-      MutableSpan<float3> positions = curves.positions_for_write();
-
-      bke::MutableAttributeAccessor curves_attributes = curves.attributes_for_write();
-      bke::SpanAttributeWriter<float> radius_attribute =
-          curves_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
-      MutableSpan<float> radii = radius_attribute.span;
-
-      bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-          curves, selection_domain, CD_PROP_BOOL);
-
-      curves::fill_selection_false(selection.span);
-
-      float *co = cubic_spline;
-
-      for (const int64_t i : new_points) {
-        const float *handle_l = co + (dims * 0);
-        const float *pt = co + (dims * 1);
-        const float *handle_r = co + (dims * 2);
-
-        copy_v3_v3(handle_positions_l[i], handle_l);
-        copy_v3_v3(positions[i], pt);
-        copy_v3_v3(handle_positions_r[i], handle_r);
-
-        const float radius = (radius_index != -1) ?
-                                 (pt[radius_index] * cdd->radius.range) + cdd->radius.min :
-                                 radius_max;
-        radii[i] = radius;
-
-        handle_types_l[i] = BEZIER_HANDLE_ALIGN;
-        handle_types_r[i] = BEZIER_HANDLE_ALIGN;
-        co += (dims * 3);
+      /* If Bezier curve is being added, loop through all three names, otherwise through ones in
+       * `selection_attribute_names`. */
+      for (const StringRef selection_name :
+           (bezier_as_nurbs ? selection_attribute_names :
+                              get_curves_all_selection_attribute_names()))
+      {
+        bke::AttributeWriter<bool> selection = attributes.lookup_or_add_for_write<bool>(
+            selection_name, bke::AttrDomain::Curve);
+        if (selection_name == ".selection" || !bezier_as_nurbs) {
+          selection.varray.set(curve_index, true);
+        }
+        selection.finish();
       }
 
-      curves::fill_selection_true(
-          selection.span,
-          selection.domain == ATTR_DOMAIN_POINT ? new_points : IndexRange(curve_index, 1));
-      selection.finish();
-      //         bezt->f1 = bezt->f2 = bezt->f3 = SELECT;
-
-      if (corners_index) {
-        /* ignore the first and last */
-        uint i_start = 0, i_end = corners_index_len;
-
-        if ((corners_index_len >= 2) && (calc_flag & CURVE_FIT_CALC_CYCLIC) == 0) {
-          i_start += 1;
-          i_end -= 1;
-        }
-
-        for (const auto i : IndexRange(i_start, i_end - i_start)) {
-          const int64_t corner_i = new_points[corners_index[i]];
-          handle_types_l[corner_i] = BEZIER_HANDLE_FREE;
-          handle_types_r[corner_i] = BEZIER_HANDLE_FREE;
-        }
+      if (attributes.contains("resolution")) {
+        curves.resolution_for_write()[curve_index] = 12;
       }
-
-      cyclic[curve_index] = bool(calc_flag & CURVE_FIT_CALC_CYCLIC);
-
-      radius_attribute.finish();
+      bke::fill_attribute_range_default(
+          attributes,
+          bke::AttrDomain::Point,
+          bke::attribute_filter_from_skip_ref({"position",
+                                               "radius",
+                                               "handle_left",
+                                               "handle_right",
+                                               "handle_type_left",
+                                               "handle_type_right",
+                                               "nurbs_weight",
+                                               ".selection",
+                                               ".selection_handle_left",
+                                               ".selection_handle_right"}),
+          curves.points_by_curve()[curve_index]);
+      bke::fill_attribute_range_default(
+          attributes,
+          bke::AttrDomain::Curve,
+          bke::attribute_filter_from_skip_ref({"curve_type",
+                                               "resolution",
+                                               "cyclic",
+                                               "nurbs_order",
+                                               "knots_mode",
+                                               ".selection",
+                                               ".selection_handle_left",
+                                               ".selection_handle_right"}),
+          IndexRange(curve_index, 1));
     }
 
     if (corners_index) {
@@ -844,26 +977,19 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
   }
   else { /* CU_POLY */
     curves.resize(curves.points_num() + stroke_len, curve_index + 1);
-    MutableSpan<int8_t> curve_types = curves.curve_types_for_write();
-    curve_types[curve_index] = CURVE_TYPE_POLY;
-    curves.update_curve_types();
+    curves.fill_curve_types(IndexRange(curve_index, 1), CURVE_TYPE_POLY);
 
-    IndexRange new_points = curves.points_by_curve()[curve_index];
     MutableSpan<float3> positions = curves.positions_for_write();
-    bke::MutableAttributeAccessor curves_attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<float> radius_attribute =
-        curves_attributes.lookup_or_add_for_write_only_span<float>("radius", ATTR_DOMAIN_POINT);
-    MutableSpan<float> radii = radius_attribute.span;
+    bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
+        "radius", bke::AttrDomain::Point);
 
-    bke::GSpanAttributeWriter selection = ensure_selection_attribute(
-        curves, selection_domain, CD_PROP_BOOL);
-    curves::fill_selection_false(selection.span);
+    const IndexRange new_points = curves.points_by_curve()[curve_index];
 
     IndexRange::Iterator points_iter = new_points.begin();
 
     BLI_mempool_iter iter;
     BLI_mempool_iternew(cdd->stroke_elem_pool, &iter);
-    for (auto *selem = static_cast<const StrokeElem *>(BLI_mempool_iterstep(&iter)); selem;
+    for (const auto *selem = static_cast<const StrokeElem *>(BLI_mempool_iterstep(&iter)); selem;
          selem = static_cast<const StrokeElem *>(BLI_mempool_iterstep(&iter)), points_iter++)
     {
       const int64_t i = *points_iter;
@@ -872,14 +998,44 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
         positions[i][2] = 0.0f;
       }
 
-      radii[i] = use_pressure_radius ? (selem->pressure * radius_range) + radius_min :
-                                       cps->radius_max;
+      radii.span[i] = use_pressure_radius ? (selem->pressure * radius_range) + radius_min :
+                                            cps->radius_max;
     }
-    curves::fill_selection_true(
-        selection.span,
-        selection.domain == ATTR_DOMAIN_POINT ? new_points : IndexRange(curve_index, 1));
+
+    radii.finish();
+
+    bke::AttributeWriter<bool> selection = attributes.lookup_or_add_for_write<bool>(
+        ".selection", bke::AttrDomain::Curve);
+    selection.varray.set(curve_index, true);
     selection.finish();
-    radius_attribute.finish();
+
+    /* Creates ".selection_handle_left" and ".selection_handle_right" attributes, otherwise all
+     * existing Bezier handles would be treated as selected. */
+    for (const StringRef selection_name : get_curves_bezier_selection_attribute_names(curves)) {
+      bke::AttributeWriter<bool> selection = attributes.lookup_or_add_for_write<bool>(
+          selection_name, bke::AttrDomain::Curve);
+      selection.finish();
+    }
+
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Point,
+        bke::attribute_filter_from_skip_ref({"position",
+                                             "radius",
+                                             ".selection",
+                                             ".selection_handle_left",
+                                             ".selection_handle_right"}),
+        new_points);
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref(
+            {"curve_type", ".selection", ".selection_handle_left", ".selection_handle_right"}),
+        IndexRange(curve_index, 1));
+  }
+
+  if (is_cyclic) {
+    curves.cyclic_for_write()[curve_index] = true;
   }
 
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
@@ -890,7 +1046,7 @@ static int curves_draw_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (RNA_struct_property_is_set(op->ptr, "stroke")) {
     return curves_draw_exec(C, op);
@@ -916,7 +1072,7 @@ static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
   }
 
   cdd->draw_handle_view = ED_region_draw_cb_activate(
-      cdd->vc.region->type, curve_draw_stroke_3d, op, REGION_DRAW_POST_VIEW);
+      cdd->vc.region->runtime->type, curve_draw_stroke_3d, op, REGION_DRAW_POST_VIEW);
   WM_cursor_modal_set(cdd->vc.win, WM_CURSOR_PAINT_BRUSH);
 
   {
@@ -929,20 +1085,26 @@ static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
     if (cdd->is_curve_2d) {
       /* 2D overrides other options */
-      plane_co = obedit->object_to_world[3];
-      plane_no = obedit->object_to_world[2];
+      plane_co = obedit->object_to_world().location();
+      plane_no = obedit->object_to_world().ptr()[2];
       cdd->project.use_plane = true;
     }
     else {
       if ((cps->depth_mode == CURVE_PAINT_PROJECT_SURFACE) && (v3d->shading.type > OB_WIRE)) {
         /* needed or else the draw matrix can be incorrect */
-        view3d_operator_needs_opengl(C);
+        view3d_operator_needs_gpu(C);
+
+        eV3DDepthOverrideMode depth_mode = V3D_DEPTH_ALL;
+        if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
+          depth_mode = V3D_DEPTH_SELECTED_ONLY;
+        }
 
         ED_view3d_depth_override(cdd->vc.depsgraph,
                                  cdd->vc.region,
                                  cdd->vc.v3d,
                                  nullptr,
-                                 V3D_DEPTH_NO_GPENCIL,
+                                 depth_mode,
+                                 false,
                                  &cdd->depths);
 
         if (cdd->depths != nullptr) {
@@ -954,7 +1116,7 @@ static int curves_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
         }
       }
 
-      /* use view plane (when set or as fallback when surface can't be found) */
+      /* use view plane (when set or as a fallback when surface can't be found) */
       if (cdd->project.use_depth == false) {
         plane_co = cdd->vc.scene->cursor.location;
         plane_no = rv3d->viewinv[2];
@@ -1066,7 +1228,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
     BLI_mempool_iter iter;
     StrokeElem *selem, *selem_prev;
 
-    float *lengths = static_cast<float *>(MEM_mallocN(sizeof(float) * stroke_len, __func__));
+    float *lengths = MEM_malloc_arrayN<float>(stroke_len, __func__);
     StrokeElem **selem_array = static_cast<StrokeElem **>(
         MEM_mallocN(sizeof(*selem_array) * stroke_len, __func__));
     lengths[0] = 0.0f;
@@ -1110,9 +1272,9 @@ static void curve_draw_exec_precalc(wmOperator *op)
   }
 }
 
-static int curves_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  int ret = OPERATOR_RUNNING_MODAL;
+  wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
   CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
 
   UNUSED_VARS(C, op);
@@ -1178,6 +1340,7 @@ void CURVES_OT_draw(wmOperatorType *ot)
                                 "Error distance threshold (in object units)",
                                 0.0001f,
                                 10.0f);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_ui_range(prop, 0.0, 10, 1, 4);
 
   RNA_def_enum(ot->srna,
@@ -1201,6 +1364,9 @@ void CURVES_OT_draw(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(ot->srna, "is_curve_2d", false, "Curve 2D", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna, "bezier_as_nurbs", false, "As NURBS", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
