@@ -1,3 +1,4 @@
 Referenced by issue #140465, bmesh.ops.delete() - no longer works
 Referenced by issue #140469, Workspace Tab Bar Becomes Inaccessible – UI Overlap Bug
 Referenced by issue #140490, EEVEE: Broken hair motion vectors
+Referenced by issue #140511, Blender crash upon going to material preview or rendered (z2  or z8)
