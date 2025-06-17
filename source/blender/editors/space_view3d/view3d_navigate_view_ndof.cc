@@ -256,6 +256,10 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     float axis[3];
     float angle = ndof.time_delta * WM_event_ndof_to_axis_angle(ndof, axis);
 
+    if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) {
+      angle = -angle;
+    }
+
     /* transform rotation axis from view to world coordinates */
     mul_qt_v3(view_inv, axis);
 
