@@ -220,6 +220,7 @@ VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_
 /* -------------------------------------------------------------------- */
 
 #define FORMAT_BUFFER_SIZE 128
+#define VARIABLE_NAME_BUFFER_SIZE 128
 
 namespace {
 
@@ -254,6 +255,9 @@ struct FormatSpecifier {
 enum class TokenType {
   /* Either "{variable_name}" or "{variable_name:format_spec}". */
   VARIABLE_EXPRESSION,
+  
+  /* "{$VARIABLE_NAME}". */
+  ENVIRONMENT_VARIABLE,
 
   /* "{{", which is an escaped "{". */
   LEFT_CURLY_BRACE,
@@ -538,6 +542,7 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
    * found yet. When a component is found, the respective token here is set
    * to the byte offset it was found at. */
   int start = -1;                  /* "{" */
+  int env_specifier = -1;          /* "$" */
   int format_specifier_split = -1; /* ":" */
   int end = -1;                    /* "}" */
 
@@ -590,6 +595,19 @@ static std::optional<Token> next_token(blender::StringRef path, const int from_c
      * yet. */
     if (start == -1) {
       continue;
+    }
+
+    /* Check if we've found a environment token. */
+    if (path[byte_index] == '$') {
+      if (env_specifier != -1) {
+        /* Only set if it's the first "$" we've encountered in the variable
+         * expression
+         */
+        token.type = TokenType::VARIABLE_SYNTAX_ERROR;
+        return token;
+      }
+      env_specifier = byte_index;
+      token.type = TokenType::ENVIRONMENT_VARIABLE;
     }
 
     /* Check if we've found a format splitter. */
@@ -682,6 +700,7 @@ static std::optional<Error> token_to_syntax_error(const Token &token)
 
     /* Non-errors. */
     case TokenType::VARIABLE_EXPRESSION:
+    case TokenType::ENVIRONMENT_VARIABLE:
     case TokenType::LEFT_CURLY_BRACE:
     case TokenType::RIGHT_CURLY_BRACE:
       return std::nullopt;
@@ -802,6 +821,25 @@ static blender::Vector<Error> eval_template(char *out_path,
         errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
         continue;
       }
+    case TokenType::ENVIRONMENT_VARIABLE: {
+        char env_variable_name[VARIABLE_NAME_BUFFER_SIZE];
+        BLI_strncpy(env_variable_name, token.variable_name.data() + 1, token.variable_name.size());
+        const char * env_value = BLI_getenv(env_variable_name);
+        if (env_value != nullptr) {
+          /* String variable found, but we only process it if there's no format
+           * specifier: string variables do not support format specifiers. */
+          if (token.format.type != FormatSpecifierType::NONE) {
+            /* String variables don't take format specifiers: error. */
+            errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
+            continue;
+          }
+          BLI_strncpy(replacement_string, env_value, sizeof(replacement_string));
+        }
+        break;
+      }
+      /* No matching environment variable found: error. */
+      errors.append({ErrorType::UNKNOWN_ENVIRONMENT, token.byte_range});
+      continue;
     }
 
     /* Perform the actual substitution with the expanded value. */
@@ -868,6 +906,9 @@ std::string BKE_path_template_error_to_string(const Error &error, blender::Strin
 
     case ErrorType::UNKNOWN_VARIABLE: {
       return std::string("Unknown variable referenced in template expression '") + subpath + "'.";
+    }
+    case ErrorType::UNKNOWN_ENVIRONMENT: {
+      return std::string("Unknown environment variable referenced in template expression '") + subpath + "'.";
     }
   }
 

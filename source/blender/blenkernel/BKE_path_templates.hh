@@ -121,6 +121,7 @@ enum class ErrorType {
   VARIABLE_SYNTAX,
   FORMAT_SPECIFIER,
   UNKNOWN_VARIABLE,
+  UNKNOWN_ENVIRONMENT,
 };
 
 struct Error {
