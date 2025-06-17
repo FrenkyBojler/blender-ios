@@ -2,3 +2,4 @@ Referenced by issue #140082, Regression: Collection Instances are ignored by Gre
 Referenced by pull request #140095, Fix #140082: Line Art: Use original object id to check dupli objects
 Referenced by commit ea9ab0ec04e20ceaed54161cedb023f89396020e, Fix #140082: Line Art: Use original object id to check dupli objects
 Referenced by commit f87c821b9659756bdfa33f0124ce0e95cc441c84, Fix #140082: Line Art: Use original object id to check dupli objects
+Referenced by pull request #140218, LineArt: Improve collection filtering
