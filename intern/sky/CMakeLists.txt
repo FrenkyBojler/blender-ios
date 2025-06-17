@@ -11,7 +11,7 @@ set(INC_SYS
 )
 
 set(SRC
-  source/sky_nishita.cpp
+  source/sky_single_scattering.cpp
 
   include/sky_model.h
   source/sky_float3.h

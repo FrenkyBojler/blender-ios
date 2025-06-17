@@ -32,7 +32,7 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 {
   layout->prop(ptr, "sky_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
-  if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_NISHITA) {
+  if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_SINGLE_SCATTERING) {
     Scene *scene = CTX_data_scene(C);
     if (BKE_scene_uses_blender_eevee(scene)) {
       layout->label(RPT_("Sun disc not available in EEVEE"), ICON_ERROR);
@@ -73,7 +73,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->air_density = 1.0f;
   tex->dust_density = 1.0f;
   tex->ozone_density = 1.0f;
-  tex->sky_model = SHD_SKY_NISHITA;
+  tex->sky_model = SHD_SKY_SINGLE_SCATTERING;
   node->storage = tex;
 }
 
@@ -87,22 +87,22 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   node_shader_gpu_tex_mapping(mat, node, in, out);
   NodeTexSky *tex = (NodeTexSky *)node->storage;
 
-  /* Nishita */
+  /* Single Scattering */
 
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
   threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
-    SKY_nishita_skymodel_precompute_texture(pixels.data(),
-                                            4,
-                                            range.first(),
-                                            range.one_after_last(),
-                                            GPU_SKY_WIDTH,
-                                            GPU_SKY_HEIGHT,
-                                            tex->sun_elevation,
-                                            tex->altitude,
-                                            tex->air_density,
-                                            tex->dust_density,
-                                            tex->ozone_density);
+    SKY_single_scattering_skymodel_precompute_texture(pixels.data(),
+                                                      4,
+                                                      range.first(),
+                                                      range.one_after_last(),
+                                                      GPU_SKY_WIDTH,
+                                                      GPU_SKY_HEIGHT,
+                                                      tex->sun_elevation,
+                                                      tex->altitude,
+                                                      tex->air_density,
+                                                      tex->dust_density,
+                                                      tex->ozone_density);
   });
 
   float sun_rotation = fmodf(tex->sun_rotation, 2.0f * M_PI);
@@ -123,7 +123,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
       mat, GPU_SKY_WIDTH, GPU_SKY_HEIGHT, pixels.data(), &layer, sampler);
   return GPU_stack_link(mat,
                         node,
-                        "node_tex_sky_nishita",
+                        "node_tex_sky_single_scattering",
                         in,
                         out,
                         GPU_constant(&sun_rotation),

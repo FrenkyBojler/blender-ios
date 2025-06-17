@@ -2608,7 +2608,7 @@ enum {
 };
 
 /* sky texture */
-enum { SHD_SKY_NISHITA = 0 };
+enum { SHD_SKY_SINGLE_SCATTERING = 0 };
 
 /* environment texture */
 enum {

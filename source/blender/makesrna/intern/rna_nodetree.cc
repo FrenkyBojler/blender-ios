@@ -5049,7 +5049,11 @@ static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 {
   static const EnumPropertyItem prop_sky_type[] = {
-      {SHD_SKY_NISHITA, "NISHITA", 0, "Nishita", "Nishita 1993 improved"},
+      {SHD_SKY_SINGLE_SCATTERING,
+       "SINGLE_SCATTERING",
+       0,
+       "Single Scattering",
+       "Single scattering sky model"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

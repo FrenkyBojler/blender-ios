@@ -10,7 +10,7 @@ vector sky_spherical_coordinates(vector dir)
   return vector(acos(dir[2]), atan2(dir[0], dir[1]), 0);
 }
 
-/* Nishita improved */
+/* Single Scattering */
 vector geographical_to_direction(float lat, float lon)
 {
   return vector(cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat));
@@ -21,13 +21,13 @@ float precise_angle(vector a, vector b)
   return 2.0 * atan2(length(a - b), length(a + b));
 }
 
-color sky_radiance_nishita(vector dir, float nishita_data[10], string filename)
+color sky_radiance_single_scattering(vector dir, float single_scattering_data[10], string filename)
 {
   /* definitions */
-  float sun_elevation = nishita_data[6];
-  float sun_rotation = nishita_data[7];
-  float angular_diameter = nishita_data[8];
-  float sun_intensity = nishita_data[9];
+  float sun_elevation = single_scattering_data[6];
+  float sun_rotation = single_scattering_data[7];
+  float angular_diameter = single_scattering_data[8];
+  float sun_intensity = single_scattering_data[9];
   int sun_disc = angular_diameter > 0;
   float alpha = 1.0;
   color xyz;
@@ -46,8 +46,8 @@ color sky_radiance_nishita(vector dir, float nishita_data[10], string filename)
      * Alternatively, ignore the sun if we're evaluating the background texture. */
     if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
       /* get 2 pixels data */
-      color pixel_bottom = color(nishita_data[0], nishita_data[1], nishita_data[2]);
-      color pixel_top = color(nishita_data[3], nishita_data[4], nishita_data[5]);
+      color pixel_bottom = color(single_scattering_data[0], single_scattering_data[1], single_scattering_data[2]);
+      color pixel_top = color(single_scattering_data[3], single_scattering_data[4], single_scattering_data[5]);
       float y;
 
       /* sun interpolation */
@@ -107,15 +107,11 @@ shader node_sky_texture(
     int use_mapping = 0,
     matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
     vector Vector = P,
-    string sky_type = "nishita_improved",
+    string sky_type = "single_scattering",
     float theta = 0.0,
     float phi = 0.0,
     string filename = "",
-    color radiance = color(0.0, 0.0, 0.0),
-    float config_x[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    float config_y[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    float config_z[9] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    float nishita_data[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+    float single_scattering_data[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
     output color Color = color(0.0, 0.0, 0.0))
 {
   vector p = Vector;
@@ -123,5 +119,5 @@ shader node_sky_texture(
   if (use_mapping)
     p = transform(mapping, p);
 
-  Color = sky_radiance_nishita(p, nishita_data, filename);
+  Color = sky_radiance_single_scattering(p, single_scattering_data, filename);
 }

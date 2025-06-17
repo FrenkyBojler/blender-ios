@@ -636,38 +636,37 @@ struct SunSky {
   float theta, phi;
 
   /* Parameter */
-  float radiance_x, radiance_y, radiance_z;
-  float config_x[9], config_y[9], config_z[9], nishita_data[10];
+  float single_scattering_data[10];
 };
 
-/* Nishita improved */
-static void sky_texture_precompute_nishita(SunSky *sunsky,
-                                           bool sun_disc,
-                                           const float sun_size,
-                                           const float sun_intensity,
-                                           const float sun_elevation,
-                                           const float sun_rotation,
-                                           const float altitude,
-                                           const float air_density,
-                                           const float dust_density)
+/* Single Scattering */
+static void sky_texture_precompute_single_scattering(SunSky *sunsky,
+                                                     bool sun_disc,
+                                                     const float sun_size,
+                                                     const float sun_intensity,
+                                                     const float sun_elevation,
+                                                     const float sun_rotation,
+                                                     const float altitude,
+                                                     const float air_density,
+                                                     const float dust_density)
 {
   /* sample 2 sun pixels */
   float pixel_bottom[3];
   float pixel_top[3];
-  SKY_nishita_skymodel_precompute_sun(
+  SKY_single_scattering_skymodel_precompute_sun(
       sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
 
   /* send data to svm_sky */
-  sunsky->nishita_data[0] = pixel_bottom[0];
-  sunsky->nishita_data[1] = pixel_bottom[1];
-  sunsky->nishita_data[2] = pixel_bottom[2];
-  sunsky->nishita_data[3] = pixel_top[0];
-  sunsky->nishita_data[4] = pixel_top[1];
-  sunsky->nishita_data[5] = pixel_top[2];
-  sunsky->nishita_data[6] = sun_elevation;
-  sunsky->nishita_data[7] = sun_rotation;
-  sunsky->nishita_data[8] = sun_disc ? sun_size : -1.0f;
-  sunsky->nishita_data[9] = sun_intensity;
+  sunsky->single_scattering_data[0] = pixel_bottom[0];
+  sunsky->single_scattering_data[1] = pixel_bottom[1];
+  sunsky->single_scattering_data[2] = pixel_bottom[2];
+  sunsky->single_scattering_data[3] = pixel_top[0];
+  sunsky->single_scattering_data[4] = pixel_top[1];
+  sunsky->single_scattering_data[5] = pixel_top[2];
+  sunsky->single_scattering_data[6] = sun_elevation;
+  sunsky->single_scattering_data[7] = sun_rotation;
+  sunsky->single_scattering_data[8] = sun_disc ? sun_size : -1.0f;
+  sunsky->single_scattering_data[9] = sun_intensity;
 }
 
 float SkyTextureNode::get_sun_average_radiance()
@@ -677,13 +676,13 @@ float SkyTextureNode::get_sun_average_radiance()
 
   float pix_bottom[3];
   float pix_top[3];
-  SKY_nishita_skymodel_precompute_sun(sun_elevation,
-                                      angular_diameter,
-                                      clamped_altitude,
-                                      air_density,
-                                      dust_density,
-                                      pix_bottom,
-                                      pix_top);
+  SKY_single_scattering_skymodel_precompute_sun(sun_elevation,
+                                                angular_diameter,
+                                                clamped_altitude,
+                                                air_density,
+                                                dust_density,
+                                                pix_bottom,
+                                                pix_top);
 
   /* Approximate the direction's elevation as the sun's elevation. */
   const float dir_elevation = sun_elevation;
@@ -739,8 +738,8 @@ NODE_DEFINE(SkyTextureNode)
   TEXTURE_MAPPING_DEFINE(SkyTextureNode);
 
   static NodeEnum type_enum;
-  type_enum.insert("nishita_improved", NODE_SKY_NISHITA);
-  SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_NISHITA);
+  type_enum.insert("single_scattering", NODE_SKY_SINGLE_SCATTERING);
+  SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_SINGLE_SCATTERING);
 
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
@@ -802,15 +801,15 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
    * Below 1m causes numerical issues and above 60km is space. */
   const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
 
-  sky_texture_precompute_nishita(&sunsky,
-                                 sun_disc,
-                                 get_sun_size(),
-                                 sun_intensity,
-                                 sun_elevation,
-                                 sun_rotation,
-                                 clamped_altitude,
-                                 air_density,
-                                 dust_density);
+  sky_texture_precompute_single_scattering(&sunsky,
+                                           sun_disc,
+                                           get_sun_size(),
+                                           sun_intensity,
+                                           sun_elevation,
+                                           sun_rotation,
+                                           clamped_altitude,
+                                           air_density,
+                                           dust_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
@@ -828,16 +827,16 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
 
   compiler.stack_assign(color_out);
   compiler.add_node(NODE_TEX_SKY, vector_offset, compiler.stack_assign(color_out), sky_type);
-  compiler.add_node(__float_as_uint(sunsky.nishita_data[0]),
-                    __float_as_uint(sunsky.nishita_data[1]),
-                    __float_as_uint(sunsky.nishita_data[2]),
-                    __float_as_uint(sunsky.nishita_data[3]));
-  compiler.add_node(__float_as_uint(sunsky.nishita_data[4]),
-                    __float_as_uint(sunsky.nishita_data[5]),
-                    __float_as_uint(sunsky.nishita_data[6]),
-                    __float_as_uint(sunsky.nishita_data[7]));
-  compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
-                    __float_as_uint(sunsky.nishita_data[9]),
+  compiler.add_node(__float_as_uint(sunsky.single_scattering_data[0]),
+                    __float_as_uint(sunsky.single_scattering_data[1]),
+                    __float_as_uint(sunsky.single_scattering_data[2]),
+                    __float_as_uint(sunsky.single_scattering_data[3]));
+  compiler.add_node(__float_as_uint(sunsky.single_scattering_data[4]),
+                    __float_as_uint(sunsky.single_scattering_data[5]),
+                    __float_as_uint(sunsky.single_scattering_data[6]),
+                    __float_as_uint(sunsky.single_scattering_data[7]));
+  compiler.add_node(__float_as_uint(sunsky.single_scattering_data[8]),
+                    __float_as_uint(sunsky.single_scattering_data[9]),
                     handle.svm_slot(),
                     0);
 
@@ -853,15 +852,15 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
    * Below 1m causes numerical issues and above 60km is space. */
   const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
 
-  sky_texture_precompute_nishita(&sunsky,
-                                 sun_disc,
-                                 get_sun_size(),
-                                 sun_intensity,
-                                 sun_elevation,
-                                 sun_rotation,
-                                 clamped_altitude,
-                                 air_density,
-                                 dust_density);
+  sky_texture_precompute_single_scattering(&sunsky,
+                                           sun_disc,
+                                           get_sun_size(),
+                                           sun_intensity,
+                                           sun_elevation,
+                                           sun_rotation,
+                                           clamped_altitude,
+                                           air_density,
+                                           dust_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
@@ -878,12 +877,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter(this, "sky_type");
   compiler.parameter("theta", sunsky.theta);
   compiler.parameter("phi", sunsky.phi);
-  compiler.parameter_color("radiance",
-                           make_float3(sunsky.radiance_x, sunsky.radiance_y, sunsky.radiance_z));
-  compiler.parameter_array("config_x", sunsky.config_x, 9);
-  compiler.parameter_array("config_y", sunsky.config_y, 9);
-  compiler.parameter_array("config_z", sunsky.config_z, 9);
-  compiler.parameter_array("nishita_data", sunsky.nishita_data, 10);
+  compiler.parameter_array("single_scattering_data", sunsky.single_scattering_data, 10);
   compiler.parameter_texture("filename", handle);
   compiler.add(this, "node_sky_texture");
 }

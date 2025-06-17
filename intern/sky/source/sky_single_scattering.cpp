@@ -283,17 +283,17 @@ static void single_scattering(float3 ray_dir,
   }
 }
 
-void SKY_nishita_skymodel_precompute_texture(float *pixels,
-                                             int stride,
-                                             int start_y,
-                                             int end_y,
-                                             int width,
-                                             int height,
-                                             float sun_elevation,
-                                             float altitude,
-                                             float air_density,
-                                             float dust_density,
-                                             float ozone_density)
+void SKY_single_scattering_skymodel_precompute_texture(float *pixels,
+                                                       int stride,
+                                                       int start_y,
+                                                       int end_y,
+                                                       int width,
+                                                       int height,
+                                                       float sun_elevation,
+                                                       float altitude,
+                                                       float air_density,
+                                                       float dust_density,
+                                                       float ozone_density)
 {
   /* calculate texture pixels */
   float spectrum[num_wavelengths];
@@ -351,13 +351,13 @@ static void sun_radiation(float3 cam_dir,
   }
 }
 
-void SKY_nishita_skymodel_precompute_sun(float sun_elevation,
-                                         float angular_diameter,
-                                         float altitude,
-                                         float air_density,
-                                         float dust_density,
-                                         float *r_pixel_bottom,
-                                         float *r_pixel_top)
+void SKY_single_scattering_skymodel_precompute_sun(float sun_elevation,
+                                                   float angular_diameter,
+                                                   float altitude,
+                                                   float air_density,
+                                                   float dust_density,
+                                                   float *r_pixel_bottom,
+                                                   float *r_pixel_top)
 {
   /* definitions */
   float half_angular = angular_diameter / 2.0f;

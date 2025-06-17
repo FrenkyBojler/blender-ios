@@ -308,7 +308,7 @@ enum NodeWaveProfile {
   NODE_WAVE_PROFILE_TRI,
 };
 
-enum NodeSkyType { NODE_SKY_NISHITA };
+enum NodeSkyType { NODE_SKY_SINGLE_SCATTERING };
 
 enum NodeGradientType {
   NODE_BLEND_LINEAR,

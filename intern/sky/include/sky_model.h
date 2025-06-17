@@ -9,27 +9,27 @@
 extern "C" {
 #endif
 
-/* Nishita improved sky model */
+/* Single Scattering sky model */
 
-void SKY_nishita_skymodel_precompute_texture(float *pixels,
-                                             int stride,
-                                             int start_y,
-                                             int end_y,
-                                             int width,
-                                             int height,
-                                             float sun_elevation,
-                                             float altitude,
-                                             float air_density,
-                                             float dust_density,
-                                             float ozone_density);
+void SKY_single_scattering_skymodel_precompute_texture(float *pixels,
+                                                       int stride,
+                                                       int start_y,
+                                                       int end_y,
+                                                       int width,
+                                                       int height,
+                                                       float sun_elevation,
+                                                       float altitude,
+                                                       float air_density,
+                                                       float dust_density,
+                                                       float ozone_density);
 
-void SKY_nishita_skymodel_precompute_sun(float sun_elevation,
-                                         float angular_diameter,
-                                         float altitude,
-                                         float air_density,
-                                         float dust_density,
-                                         float *r_pixel_bottom,
-                                         float *r_pixel_top);
+void SKY_single_scattering_skymodel_precompute_sun(float sun_elevation,
+                                                   float angular_diameter,
+                                                   float altitude,
+                                                   float air_density,
+                                                   float dust_density,
+                                                   float *r_pixel_bottom,
+                                                   float *r_pixel_top);
 
 #ifdef __cplusplus
 }

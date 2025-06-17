@@ -50,17 +50,17 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
   const int rows_per_task = divide_up(1024, width);
   parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                [&](const blocked_range<size_t> &r) {
-                 SKY_nishita_skymodel_precompute_texture(pixel_data,
-                                                         metadata.channels,
-                                                         r.begin(),
-                                                         r.end(),
-                                                         width,
-                                                         height,
-                                                         sun_elevation,
-                                                         altitude,
-                                                         air_density,
-                                                         dust_density,
-                                                         ozone_density);
+                 SKY_single_scattering_skymodel_precompute_texture(pixel_data,
+                                                                   metadata.channels,
+                                                                   r.begin(),
+                                                                   r.end(),
+                                                                   width,
+                                                                   height,
+                                                                   sun_elevation,
+                                                                   altitude,
+                                                                   air_density,
+                                                                   dust_density,
+                                                                   ozone_density);
                });
 
   return true;
@@ -68,7 +68,7 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
 
 string SkyLoader::name() const
 {
-  return "sky_nishita";
+  return "sky_single_scattering";
 }
 
 bool SkyLoader::equals(const ImageLoader & /*other*/) const

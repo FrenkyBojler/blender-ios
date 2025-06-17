@@ -9,7 +9,7 @@
 #ifndef __SKY_FLOAT3_H__
 #define __SKY_FLOAT3_H__
 
-// minimal float3 + util_math.h implementation for nishita sky model
+// minimal float3 + util_math.h implementation for sky model
 
 #include <cmath>
 
