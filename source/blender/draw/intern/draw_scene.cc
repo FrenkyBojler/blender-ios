@@ -6,7 +6,11 @@
 
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
+#include "BKE_particle.h"
+#include "BKE_scene.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "DEG_depsgraph_query.hh"
@@ -19,18 +23,19 @@ namespace blender::draw {
 
 static bool supports_handle_ranges(Object *ob)
 {
-  if (ob->particlesystem.first) {
-    return false;
+  if (ob->type == OB_MESH) {
+    /* Hair drawing doesn't support handle ranges. */
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+      const int draw_as = (psys->part->draw_as == PART_DRAW_REND) ? psys->part->ren_as :
+                                                                    psys->part->draw_as;
+      if (draw_as == PART_DRAW_PATH && DRW_object_is_visible_psys_in_active_context(ob, psys)) {
+        return false;
+      }
+    }
+    /* Smoke drawing doesn't support handle ranges. */
+    return !BKE_modifiers_findby_type(ob, eModifierType_Fluid);
   }
-
-  return ELEM(ob->type,
-              OB_MESH,
-              OB_CURVES_LEGACY,
-              OB_SURF,
-              OB_FONT,
-              OB_POINTCLOUD,
-              OB_VOLUME,
-              OB_GREASE_PENCIL);
+  return ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL);
 }
 
 void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback)
@@ -46,6 +51,10 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
   View3D *v3d = draw_ctx.v3d;
+
+  /* EEVEE is not supported for now. */
+  const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
+                                             BKE_scene_uses_blender_workbench(draw_ctx.scene);
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -85,7 +94,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
         continue;
       }
 
-      if (!supports_handle_ranges(dupli.ob)) {
+      if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
         /* Sync the dupli as a single object. */
         if (!DEG_iterator_setup_temp_object(
                 ob, dupli.ob, dupli.ob_data, &tmp_object, &tmp_runtime, eval_mode))
