@@ -623,6 +623,11 @@ static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3>
   return bounds::merge(a, b);
 }
 
+static Bounds<float3> negative_bounds()
+{
+  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
+}
+
 void partition_faces_recursively(const Span<float3> face_centers,
                                  MutableSpan<int> face_indices,
                                  Vector<int> &children_offsets,
@@ -663,7 +668,7 @@ void partition_faces_recursively(const Span<float3> face_centers,
       bounds = threading::parallel_reduce(
           face_indices.index_range(),
           1024,
-          blender::bke::pbvh::negative_bounds(),
+          negative_bounds(),
           [&](const IndexRange range, Bounds<float3> value) {
             for (const int face : face_indices.slice(range)) {
               math::min_max(face_centers[face], value.min, value.max);
@@ -803,7 +808,7 @@ SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
   const Bounds<float3> bounds = threading::parallel_reduce(
       faces.index_range(),
       1024,
-      blender::bke::pbvh::negative_bounds(),
+      negative_bounds(),
       [&](const IndexRange range, const Bounds<float3> &init) {
         Bounds<float3> current = init;
         for (const int face : range) {

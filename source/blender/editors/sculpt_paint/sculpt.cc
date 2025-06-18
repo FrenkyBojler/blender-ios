@@ -7077,13 +7077,11 @@ void calc_brush_distances_squared(const SculptSession &ss,
 
 void calc_brush_distances(const SculptSession &ss,
                           const Span<float3> positions,
-                          const int start_offset,
-                          const int num_verts,
+                          const Span<int> verts,
                           const eBrushFalloffShape falloff_shape,
                           const MutableSpan<float> r_distances)
 {
-  calc_brush_distances_squared(ss, positions, start_offset, num_verts, falloff_shape, r_distances);
-  // std::cout << "ran fine" << std::endl;
+  calc_brush_distances_squared(ss, positions, verts, falloff_shape, r_distances);
   for (float &value : r_distances) {
     value = std::sqrt(value);
   }

@@ -313,12 +313,6 @@ void calc_brush_distances(const SculptSession &ss,
                           eBrushFalloffShape falloff_shape,
                           MutableSpan<float> r_distances);
 void calc_brush_distances(const SculptSession &ss,
-                          Span<float3> vert_positions,
-                          int start_offset,
-                          int num_verts,
-                          eBrushFalloffShape falloff_shape,
-                          MutableSpan<float> r_distances);
-void calc_brush_distances(const SculptSession &ss,
                           Span<float3> positions,
                           eBrushFalloffShape falloff_shape,
                           MutableSpan<float> r_distances);

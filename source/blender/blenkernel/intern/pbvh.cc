@@ -48,7 +48,7 @@ namespace blender::bke::pbvh {
 #define STACK_FIXED_DEPTH 100
 
 /** Create invalid bounds for use with #math::min_max. */
-Bounds<float3> negative_bounds()
+static Bounds<float3> negative_bounds()
 {
   return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }

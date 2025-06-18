@@ -353,7 +353,7 @@ int partition_along_axis(const Span<float3> face_centers,
                          const int axis,
                          const float middle);
 
-Bounds<float3> negative_bounds();
+// Bounds<float3> negative_bounds();
 
 int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces);
 
