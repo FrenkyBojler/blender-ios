@@ -873,29 +873,41 @@ static void build_tooltip_supported_geometry_types(uiTooltipData &tip_data,
                             UI_TIP_LC_NORMAL);
 }
 
+static void build_tooltip_extend_socket(uiTooltipData &tip_data)
+{
+  UI_tooltip_text_field_add(tip_data,
+                            TIP_("Connect a link to create a new socket."),
+                            {},
+                            UI_TIP_STYLE_NORMAL,
+                            UI_TIP_LC_NORMAL);
+}
+
 void build_socket_tooltip(uiTooltipData &tip_data,
                           bContext &C,
                           const bNodeTree &tree,
                           const bNodeSocket &socket)
 {
   const bNode &node = socket.owner_node();
-
+  const bool is_extend = StringRef(socket.idname) == "NodeSocketVirtual";
+  if (is_extend) {
+    build_tooltip_extend_socket(tip_data);
+    return;
+  }
   build_tooltip_label(tip_data, socket);
   if (node.is_dangling_reroute()) {
     build_tooltip_dangling_reroute(tip_data);
+    return;
   }
-  else {
-    build_tooltip_description(tip_data, socket);
-    build_tooltip_value(tip_data, C, socket);
-    if (tree.type == NTREE_GEOMETRY) {
-      build_tooltip_structure_type(tip_data, socket);
-      if (socket.type == SOCK_GEOMETRY) {
-        build_tooltip_supported_geometry_types(tip_data, socket);
-      }
+  build_tooltip_description(tip_data, socket);
+  build_tooltip_value(tip_data, C, socket);
+  if (tree.type == NTREE_GEOMETRY) {
+    build_tooltip_structure_type(tip_data, socket);
+    if (socket.type == SOCK_GEOMETRY) {
+      build_tooltip_supported_geometry_types(tip_data, socket);
     }
-    /* Extra padding at the bottom. */
-    add_space(tip_data);
   }
+  /* Extra padding at the bottom. */
+  add_space(tip_data);
 }
 
 }  // namespace blender::ed::space_node
