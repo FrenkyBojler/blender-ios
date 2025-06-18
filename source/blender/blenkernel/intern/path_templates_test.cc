@@ -28,6 +28,9 @@ static std::string error_to_string(const Error &error)
     case ErrorType::UNKNOWN_VARIABLE:
       type = "UNKNOWN_VARIABLE";
       break;
+    case ErrorType::UNKNOWN_ENVIRONMENT:
+      type = "UNKNOWN_ENVIRONMENT";
+      break;
   }
 
   std::string s;
@@ -138,6 +141,7 @@ TEST(path_templates, validate_and_apply_template)
     variables.add_string("hi", "hello");
     variables.add_string("bye", "goodbye");
     variables.add_string("long", "This string is exactly 32 bytes.");
+    variables.add_string("ENV", "env_variable_value");
     variables.add_integer("the_answer", 42);
     variables.add_integer("prime", 7);
     variables.add_integer("i_negative", -7);
@@ -154,9 +158,9 @@ TEST(path_templates, validate_and_apply_template)
       /* Simple case, testing all variables. */
       {
           "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_"
-          "{tiny}",
+          "{tiny}_{$ENV}",
           "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.970029970029973_2.0_-3."
-          "141592653589793_2e+32_2e-33",
+          "141592653589793_2e+32_2e-33_env_variable_value",
           {},
       },
 
@@ -235,6 +239,15 @@ TEST(path_templates, validate_and_apply_template)
           "{hi}_{missing}_{bye}",
           {
               {ErrorType::UNKNOWN_VARIABLE, IndexRange(5, 9)},
+          },
+      },
+
+      /* Error: missing environment variable. */
+      {
+          "{hi}_{$MISSING}_{bye}",
+          "{hi}_{$MISSING}_{bye}",
+          {
+              {ErrorType::UNKNOWN_ENVIRONMENT, IndexRange(5, 10)},
           },
       },
 
