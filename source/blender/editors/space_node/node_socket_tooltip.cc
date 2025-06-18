@@ -76,6 +76,7 @@ static void build_tooltip_description(uiTooltipData &tip_data, const bNodeSocket
   if (description[description.size() - 1] != '.') {
     description += '.';
   }
+  add_space(tip_data, 2);
   UI_tooltip_text_field_add(
       tip_data, std::move(description), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
 }
@@ -303,6 +304,65 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
   return true;
 }
 
+static const char *get_field_type_name(const CPPType &base_type)
+{
+  if (base_type.is<int>()) {
+    return TIP_("Integer Field");
+  }
+  if (base_type.is<float>()) {
+    return TIP_("Float Field");
+  }
+  if (base_type.is<blender::float3>()) {
+    return TIP_("3D Float Vector Field");
+  }
+  if (base_type.is<bool>()) {
+    return TIP_("Boolean Field");
+  }
+  if (base_type.is<std::string>()) {
+    return TIP_("String Field");
+  }
+  if (base_type.is<blender::ColorGeometry4f>()) {
+    return TIP_("Color Field");
+  }
+  if (base_type.is<math::Quaternion>()) {
+    return TIP_("Rotation Field");
+  }
+  BLI_assert_unreachable();
+  return TIP_("Field");
+}
+
+static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
+                                          const bNodeSocket &socket,
+                                          const geo_log::FieldInfoLog &value_log)
+{
+  const CPPType &socket_base_cpp_type = *socket.typeinfo->base_cpp_type;
+  const Span<std::string> input_tooltips = value_log.input_tooltips;
+
+  if (input_tooltips.is_empty()) {
+    /* Should have been logged as constant value. */
+    BLI_assert_unreachable();
+    return false;
+  }
+
+  UI_tooltip_text_field_add(
+      tip_data, TIP_("Field dependending on:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+
+  for (const std::string &input_tooltip : input_tooltips) {
+    add_space(tip_data);
+    UI_tooltip_text_field_add(
+        tip_data, fmt::format("\u2022 {}", input_tooltip), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  }
+
+  add_space(tip_data);
+  std::string type_str = get_field_type_name(socket_base_cpp_type);
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format("{}: {}", TIP_("Type"), type_str),
+                            {},
+                            UI_TIP_STYLE_MONO,
+                            UI_TIP_LC_VALUE);
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
@@ -312,6 +372,9 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
   }
   if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
     return build_tooltip_value_string_log(tip_data, *string_value_log);
+  }
+  if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log)) {
+    return build_tooltip_value_field_log(tip_data, socket, *field_value_log);
   }
   return true;
 }
@@ -335,7 +398,7 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
   return build_tooltip_value_geo_log(tip_data, socket, *value_log);
 }
 
-static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket &socket)
+static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket & /*socket*/)
 {
   build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
 }
@@ -418,9 +481,10 @@ void build_socket_tooltip(uiTooltipData &tip_data,
                           const bNodeSocket &socket)
 {
   build_tooltip_label(tip_data, socket);
-  add_space(tip_data, 2);
   build_tooltip_description(tip_data, socket);
+  add_space(tip_data, 2);
   build_tooltip_last_value(tip_data, C, socket);
+  add_space(tip_data, 1);
 
   /* Dangling reroute. */
   /* Add allowed type. */
