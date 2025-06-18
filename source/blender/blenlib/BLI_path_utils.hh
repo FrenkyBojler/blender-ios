@@ -776,6 +776,7 @@ void BLI_setenv_if_new(const char *env, const char *val) ATTR_NONNULL(1);
  * runtime environment variables. The result will be UTF8 encoded.
  */
 const char *BLI_getenv(const char *env) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+char **BLI_getenvironment() ATTR_WARN_UNUSED_RESULT;
 
 /** \} */
 

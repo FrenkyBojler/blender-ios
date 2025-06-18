@@ -1394,6 +1394,18 @@ const char *BLI_getenv(const char *env)
 #endif
 }
 
+char **BLI_getenvironment()
+{
+  char **environment;
+#if _MSC_VER
+  env = *__p__environ();
+#else
+  extern char **environ;
+  environment = environ;
+#endif
+  return environment;
+}
+
 static bool path_extension_check_ex(const char *path,
                                     const size_t path_len,
                                     const char *ext,
