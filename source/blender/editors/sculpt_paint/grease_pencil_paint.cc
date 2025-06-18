@@ -188,7 +188,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   /** Xr space coordinates from input samples. */
   Vector<float3> xr_space_coords_orig_;
   Vector<float3> xr_space_smoothed_coords_;
-  Vector<float3>xr_space_final_coords_;
+  Vector<float3> xr_space_final_coords_;
   Vector<Vector<float3>> xr_space_curve_fitted_coords_;
 
   /** Screen space coordinates from input samples. */
@@ -756,10 +756,10 @@ struct PaintOperationExecutor {
                                                            coords,
                                                        smoothing_rate_factor);
       if (extension_sample.is_xr) {
-        self.smoothed_xr_ctrl_direction_ = math::interpolate(
-            self.smoothed_xr_ctrl_direction_,
-            self.xr_space_coords_orig_.last() - coords3,
-            smoothing_rate_factor);
+        self.smoothed_xr_ctrl_direction_ = math::interpolate(self.smoothed_xr_ctrl_direction_,
+                                                             self.xr_space_coords_orig_.last() -
+                                                                 coords3,
+                                                             smoothing_rate_factor);
       }
     }
 
@@ -839,21 +839,20 @@ struct PaintOperationExecutor {
     Set<std::string> point_attributes_to_skip;
     /* Subdivide new segment. */
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
-	Array<float3> new_xr_space_coords(new_points_num);
+    Array<float3> new_xr_space_coords(new_points_num);
     Array<float2> new_screen_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<float3> new_positions = positions.slice(new_points);
     MutableSpan<float> new_radii = self.drawing_->radii_for_write().slice(new_points);
     MutableSpan<float> new_opacities = self.drawing_->opacities_for_write().slice(new_points);
 
-
     /* Interpolate the screen space positions. */
-	if (extension_sample.is_xr) {
-		linear_interpolation<float3>(prev_coords3, coords3, new_xr_space_coords, is_first_sample);
-	  }
-	  else {
-		linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
-	  }
+    if (extension_sample.is_xr) {
+      linear_interpolation<float3>(prev_coords3, coords3, new_xr_space_coords, is_first_sample);
+    }
+    else {
+      linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
+    }
     point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
 
     /* Randomize radii. */
@@ -978,9 +977,6 @@ struct PaintOperationExecutor {
                                          self.screen_space_coords_orig_.index_range().drop_front(
                                              self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
-      //   if (extension_sample.is_xr) {
-      //     self.placement_.store_xr_point(new_xr_space_coords, new_positions);
-      //   } else
       if (self.placement_.use_project_to_stroke()) {
         const Span<std::optional<float>> new_depths =
             self.stroke_placement_depths_.as_mutable_span().take_back(new_points_num);
@@ -1025,7 +1021,6 @@ struct PaintOperationExecutor {
         /* Not jitter, so we just copy the positions over. */
         final_coords.copy_from(smoothed_coords);
         MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-        // self.placement_.store_xr_point(curve_positions_slice, final_coords);
         for (const int64_t window_i : smooth_window.index_range()) {
           curve_positions_slice[window_i] = final_coords[window_i];
         }

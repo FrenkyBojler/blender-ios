@@ -6417,7 +6417,10 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 }
 
 #ifdef WITH_XR_OPENXR
-void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val)
+void wm_event_add_xrevent(wmWindowManager *wm,
+                          wmWindow *win,
+                          wmXrActionData *actiondata,
+                          short val)
 {
   BLI_assert(ELEM(val, KM_PRESS, KM_RELEASE));
 
@@ -6428,6 +6431,11 @@ void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val)
   event.custom = EVT_DATA_XR;
   event.customdata = actiondata;
   event.customdata_free = true;
+  copy_v3_v3(event.cval, actiondata->controller_loc);
+  if (wm->winactive && wm->winactive->eventstate) {
+    event.modifier = wm->winactive->eventstate->modifier;
+    event.keymodifier = wm->winactive->eventstate->keymodifier;
+  }
 
   WM_event_add(win, &event);
 }

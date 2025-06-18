@@ -311,9 +311,9 @@ bool paint_brush_update(bContext *C,
                         const PaintMode mode,
                         PaintStroke *stroke,
                         const float mouse_init[2],
-						const float controller_init[3],
+                        const float controller_init[3],
                         float mouse[2],
-						float controller[3],
+                        float controller[3],
                         const float pressure,
                         float r_location[3],
                         bool *r_location_is_set)
@@ -335,7 +335,7 @@ bool paint_brush_update(bContext *C,
    *      changing events. We should avoid this after events system re-design */
   if (!stroke->brush_init) {
     copy_v2_v2(stroke->initial_mouse, mouse);
-	copy_v3_v3(stroke->initial_controller, controller);
+    copy_v3_v3(stroke->initial_controller, controller);
     copy_v2_v2(ups.last_rake, mouse);
     copy_v2_v2(ups.tex_mouse, mouse);
     copy_v2_v2(ups.mask_tex_mouse, mouse);
@@ -903,7 +903,8 @@ static int paint_space_stroke(bContext *C,
                                                            spacing / no_pressure_spacing);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
-      paint_brush_stroke_add_step(C, op, stroke, mouse, stroke->last_controller_position, pressure);
+      paint_brush_stroke_add_step(
+          C, op, stroke, mouse, stroke->last_controller_position, pressure);
 
       length -= spacing;
       pressure = stroke->last_pressure;
@@ -938,7 +939,6 @@ PaintStroke *paint_stroke_new(bContext *C,
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-  
   /** XR stuff */
   bool is_xr = event_type == EVT_XR_ACTION;
 
@@ -1255,7 +1255,7 @@ static void paint_stroke_sample_average(const PaintStroke *stroke, PaintSample *
 
   for (int i = 0; i < stroke->num_samples; i++) {
     average->mouse += stroke->samples[i].mouse;
-	average->controller += stroke->samples[i].controller;
+    average->controller += stroke->samples[i].controller;
     average->pressure += stroke->samples[i].pressure;
   }
 

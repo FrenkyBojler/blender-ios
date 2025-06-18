@@ -206,7 +206,6 @@ class DrawingPlacement {
   float3 reproject(float3 pos) const;
   void reproject(Span<float3> src, MutableSpan<float3> dst) const;
 
-  void store_xr_point(Span<float3> src, MutableSpan<float3> dst) const;
   float4x4 to_world_space() const;
 
   /** Return depth buffer if possible. */
