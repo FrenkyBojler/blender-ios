@@ -24,6 +24,7 @@
 struct LineartBoundingArea;
 struct LineartEdge;
 struct LineartVert;
+struct LineartInstance;
 struct Mesh;
 struct Object;
 
@@ -100,7 +101,7 @@ struct LineartElementLinkNode {
   LineartElementLinkNode *next, *prev;
   void *pointer;
   int element_count;
-  void *object_ref;
+  LineartInstance *instance_ref;
   eLineArtElementNodeFlag flags;
 
   /* For edge element link nodes, used for shadow edge matching. */
@@ -205,8 +206,8 @@ struct LineartEdge {
    * Records source object reference for filtering. Having two of these for intersections because
    * they can come from between two objects.
    */
-  void *object_ref;
-  void *object_ref2;
+  LineartInstance *instance_ref;
+  LineartInstance *instance_ref2;
 };
 
 struct LineartEdgeChain {
@@ -232,9 +233,9 @@ struct LineartEdgeChain {
    * local_index=lineart_index-index_offset. */
   uint32_t index_offset;
 
-  void *object_ref;
-  void *object_ref2;
-  void *silhouette_backdrop;
+  LineartInstance *instance_ref;
+  LineartInstance *instance_ref2;
+  LineartInstance *silhouette_backdrop;
 };
 
 struct LineartEdgeChainItem {
