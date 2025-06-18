@@ -22,10 +22,9 @@
 
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
-
 #include "NOD_socket.hh"
 #include "NOD_socket_declarations_geometry.hh"
-#include "RNA_enum_types.hh"
+
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -465,9 +464,9 @@ static void build_tooltip_value_grid_log(uiTooltipData &tip_data,
     value_str = TIP_("None");
   }
   else {
-    value_str = TIP_("Grid");
+    value_str = TIP_("Volume Grid");
   }
-  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Grid"));
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Volume Grid"));
 }
 
 static void build_tooltip_value_bundle_log(uiTooltipData &tip_data,
