@@ -947,6 +947,16 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
         region->runtime->type && region->runtime->type->layout)
     {
       CTX_wm_region_set(C, region);
+      bool use_viewport = WM_region_use_viewport(area, region);
+      wmXrData *xr_data = &wm->xr;
+      if (WM_xr_session_is_ready(&wm->xr) && use_viewport) {
+        ARegion *xr_region = WM_xr_get_xr_region(xr_data);
+        if (!xr_region) {
+          ScrArea *view3d_area = CTX_wm_area(C);
+          ARegion *view3d_region = BKE_area_find_region_active_win(view3d_area);
+          WM_xr_set_xr_region(xr_data, view3d_region);
+        }
+      }
       ED_region_do_layout(C, region);
       CTX_wm_region_set(C, nullptr);
     }

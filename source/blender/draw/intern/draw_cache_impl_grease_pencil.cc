@@ -9,6 +9,7 @@
  */
 
 #include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
@@ -27,6 +28,8 @@
 #include "ED_grease_pencil.hh"
 
 #include "GPU_batch.hh"
+
+#include "WM_api.hh"
 
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
@@ -1246,6 +1249,26 @@ static void grease_pencil_geom_batch_ensure(Object &object,
        * use negative values as a special 'flag' to get rounded caps. */
       s_vert.radius = math::max(radii[point_i], 0.0f) *
                       ((end_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
+
+      float _pixfactor = 1.0f;
+      const DRWContextState *draw_ctx = DRW_context_state_get();
+      if (draw_ctx->evil_C != NULL)  // && draw_ctx->evil_C->wm != NULL
+      {
+        View3D *v3d = draw_ctx->v3d;
+        wmWindowManager *wm = CTX_wm_manager(draw_ctx->evil_C);
+        wmXrData *xr_data = &wm->xr;
+        if ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0) {
+          float _tmp;
+          WM_xr_session_state_nav_scale_get(xr_data, &_tmp);
+          _pixfactor = 1.0 / _tmp;
+        }
+      }
+      /* Convert to legacy "pixel" space. We divide here, because the shader expects the values to
+       * be in the `px` space rather than world space. Otherwise the values will get clamped. */
+      _pixfactor /= bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+
+      s_vert.radius *= _pixfactor;
+
       s_vert.opacity = opacities[point_i] *
                        ((start_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
       s_vert.point_id = verts_range[idx];

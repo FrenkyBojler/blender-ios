@@ -8,6 +8,7 @@
 #include "BLI_math_vector.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_camera.h"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -20,6 +21,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+
+#include "DRW_render.hh"
 
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
@@ -38,6 +41,8 @@
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_format.hh"
+
+#include "WM_api.hh"
 
 namespace blender::ed::greasepencil::image_render {
 
@@ -336,8 +341,20 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
                                                    indices.size() + cyclic_add + 2);
 
   auto draw_point = [&](const int point_i) {
-    constexpr const float radius_to_pixel_factor =
-        1.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+    float _pixfactor = 1.0f;
+    const DRWContextState *draw_ctx = DRW_context_state_get();
+    if (draw_ctx->evil_C != NULL) {
+      View3D *v3d = draw_ctx->v3d;
+      wmWindowManager *wm = CTX_wm_manager(draw_ctx->evil_C);
+      wmXrData *xr_data = &wm->xr;
+      if ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0) {
+        float _tmp;
+        WM_xr_session_state_nav_scale_get(xr_data, &_tmp);
+        _pixfactor = 1.0 / _tmp;
+      }
+    }
+    const float radius_to_pixel_factor = _pixfactor /
+                                         bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     const float thickness = radii[point_i] * radius_scale * radius_to_pixel_factor;
 
     immAttr4fv(attr_color, colors[point_i]);
@@ -424,8 +441,21 @@ static void draw_dots(const float4x4 &transform,
   immBegin(GPU_PRIM_POINTS, indices.size());
 
   for (const int point_i : indices) {
-    constexpr const float radius_to_pixel_factor =
-        1.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+    float _pixfactor = 1.0f;
+    const DRWContextState *draw_ctx = DRW_context_state_get();
+    if (draw_ctx->evil_C != NULL)
+    {
+      View3D *v3d = draw_ctx->v3d;
+      wmWindowManager *wm = CTX_wm_manager(draw_ctx->evil_C);
+      wmXrData *xr_data = &wm->xr;
+      if ((v3d->flag & (V3D_XR_SESSION_SURFACE | V3D_XR_SESSION_MIRROR)) != 0) {
+        float _tmp;
+        WM_xr_session_state_nav_scale_get(xr_data, &_tmp);
+        _pixfactor = 1.0 / _tmp;
+      }
+    }
+    const float radius_to_pixel_factor = _pixfactor /
+                                         bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     const float thickness = radii[point_i] * radius_scale * radius_to_pixel_factor;
 
     immAttr4fv(attr_color, colors[point_i]);

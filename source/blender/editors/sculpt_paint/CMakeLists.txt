@@ -166,6 +166,14 @@ set(SRC
   brushes/brushes.hh
 )
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+
+  list(APPEND SRC
+    grease_pencil_xr_draw_ops.cc
+  )
+endif()
+
 set(LIB
   PRIVATE bf::asset_system
   PRIVATE bf::blenkernel

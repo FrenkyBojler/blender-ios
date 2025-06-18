@@ -85,6 +85,7 @@ void ED_filltool_modal_keymap(wmKeyConfig *keyconf);
 void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot);
 
 void ED_undosys_type_grease_pencil(UndoType *ut);
 
@@ -107,6 +108,17 @@ bool ED_grease_pencil_sculpt_segment_selection_enabled(const ToolSettings *tool_
 bool ED_grease_pencil_vertex_segment_selection_enabled(const ToolSettings *tool_settings);
 bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_settings,
                                                 const Object *object);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name GreasePencil XR Ops
+ * \{ */
+
+int gpencilxr_brush_set_size(bContext *C, int value);
+float gpencilxr_brush_set_strength(bContext *C, float value);
+int gpencilxr_brush_get_size(bContext *C);
+float gpencilxr_brush_get_strength(bContext *C);
 
 /** \} */
 
@@ -194,6 +206,7 @@ class DrawingPlacement {
   float3 reproject(float3 pos) const;
   void reproject(Span<float3> src, MutableSpan<float3> dst) const;
 
+  void store_xr_point(Span<float3> src, MutableSpan<float3> dst) const;
   float4x4 to_world_space() const;
 
   /** Return depth buffer if possible. */

@@ -6,8 +6,23 @@ set(INC
   .
   intern
   intern/lineart
+
+  ../blenkernel
+  ../blenloader
+  ../blentranslation
+  ../bmesh
+  ../draw
+  ../draw/intern
   ../editors/include
+  ../functions
+  ../geometry
+  ../gpu
+  ../gpu/intern
   ../makesrna
+  ../nodes
+  ../render
+  ../render/intern
+  ../windowmanager
   ../../../intern/eigen
 
   # RNA_prototypes.hh
@@ -238,6 +253,10 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
+endif()
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
 endif()
 
 # So we can have special tricks in modifier system.

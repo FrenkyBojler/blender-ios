@@ -185,6 +185,12 @@ class PaintOperation : public GreasePencilStrokeOperation {
   int frame_number_;
   Vector<ed::greasepencil::MutableDrawingInfo> multi_frame_drawings_;
 
+  /** Xr space coordinates from input samples. */
+  Vector<float3> xr_space_coords_orig_;
+  Vector<float3> xr_space_smoothed_coords_;
+  Vector<float3>xr_space_final_coords_;
+  Vector<Vector<float3>> xr_space_curve_fitted_coords_;
+
   /** Screen space coordinates from input samples. */
   Vector<float2> screen_space_coords_orig_;
 
@@ -216,6 +222,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
 
   /** Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
+  float3 smoothed_xr_ctrl_direction_ = float3(0.0f);
 
   /** Accumulated distance along the stroke. */
   float accum_distance_ = 0.0f;
@@ -308,11 +315,22 @@ struct PaintOperationExecutor {
                             const bool use_fill)
   {
     const float2 start_coords = start_sample.mouse_position;
+    const float3 start_coords_xr = start_sample.controller_position;
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
 
+    if (start_sample.is_xr) {
+      wmWindowManager *wm = CTX_wm_manager(&C);
+      wmXrData *xr_data = &wm->xr;
+      region = WM_xr_get_xr_region(xr_data);
+      rv3d = static_cast<RegionView3D *>(region->regiondata);
+    }
+
     float3 start_location;
-    if (self.placement_.use_project_to_stroke()) {
+    if (start_sample.is_xr) {
+      start_location = start_sample.controller_position;
+    }
+    else if (self.placement_.use_project_to_stroke()) {
       const std::optional<float> depth = self.placement_.get_depth(start_coords);
       if (depth) {
         start_location = self.placement_.place(start_coords, *depth);
@@ -357,6 +375,14 @@ struct PaintOperationExecutor {
 
     Scene *scene = CTX_data_scene(&C);
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+
+    if (start_sample.is_xr) {
+      self.xr_space_coords_orig_.append(start_coords_xr);
+      self.xr_space_curve_fitted_coords_.append(Vector<float3>({start_coords_xr}));
+      /* TODO add jitter to xr */
+      self.xr_space_smoothed_coords_.append(start_coords_xr);
+      self.xr_space_final_coords_.append(start_coords_xr);
+    }
 
     self.screen_space_coords_orig_.append(start_coords);
     self.screen_space_curve_fitted_coords_.append(Vector<float2>({start_coords}));
@@ -642,11 +668,24 @@ struct PaintOperationExecutor {
     Scene *scene = CTX_data_scene(&C);
     const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
     const ARegion *region = CTX_wm_region(&C);
+    wmXrData *xr_data;
+    if (extension_sample.is_xr) {
+      wmWindowManager *wm = CTX_wm_manager(&C);
+      xr_data = &wm->xr;
+      region = WM_xr_get_xr_region(xr_data);
+      rv3d = static_cast<RegionView3D *>(region->regiondata);
+    }
+
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     const float2 coords = extension_sample.mouse_position;
+    const float3 coords3 = extension_sample.controller_position;
+
     float3 position;
-    if (self.placement_.use_project_to_stroke()) {
+    if (extension_sample.is_xr) {
+      position = extension_sample.controller_position;
+    }
+    else if (self.placement_.use_project_to_stroke()) {
       const std::optional<float> depth = self.stroke_placement_depths_.is_empty() ?
                                              std::nullopt :
                                              self.stroke_placement_depths_.last();
@@ -672,7 +711,11 @@ struct PaintOperationExecutor {
         extension_sample.pressure, brush_, settings_);
 
     const float brush_radius_px = brush_radius_to_pixel_radius(
-        rv3d, brush_, math::transform_point(self.placement_.to_world_space(), position));
+        rv3d,
+        brush_,
+        (extension_sample.is_xr) ?
+            position :
+            math::transform_point(self.placement_.to_world_space(), position));
 
     bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
     OffsetIndices<int> points_by_curve = curves.points_by_curve();
@@ -684,6 +727,9 @@ struct PaintOperationExecutor {
     const int last_active_point = curve_points.last();
 
     const float2 prev_coords = self.screen_space_coords_orig_.last();
+    const float3 prev_coords3 = extension_sample.is_xr ?
+                                    self.xr_space_coords_orig_.last() :
+                                    float3(prev_coords[0], prev_coords[1], 0.0f);
     float prev_radius = self.drawing_->radii()[last_active_point];
     const float prev_opacity = self.drawing_->opacities()[last_active_point];
     const ColorGeometry4f prev_vertex_color = self.drawing_->vertex_colors()[last_active_point];
@@ -694,6 +740,9 @@ struct PaintOperationExecutor {
      * samples. For subsequent samples, interpolate with the previous direction to get a smoothed
      * value over time. */
     if (is_first_sample) {
+      if (extension_sample.is_xr) {
+        self.smoothed_xr_ctrl_direction_ = self.xr_space_coords_orig_.last() - coords3;
+      }
       self.smoothed_pen_direction_ = self.screen_space_coords_orig_.last() - coords;
     }
     else {
@@ -706,6 +755,12 @@ struct PaintOperationExecutor {
                                                        self.screen_space_coords_orig_.last() -
                                                            coords,
                                                        smoothing_rate_factor);
+      if (extension_sample.is_xr) {
+        self.smoothed_xr_ctrl_direction_ = math::interpolate(
+            self.smoothed_xr_ctrl_direction_,
+            self.xr_space_coords_orig_.last() - coords3,
+            smoothing_rate_factor);
+      }
     }
 
     /* Approximate brush with non-circular shape by changing the radius based on the angle. */
@@ -717,8 +772,15 @@ struct PaintOperationExecutor {
 
       /* The angle factor is 1.0f when the direction is aligned with the angle vector and 0.0f when
        * it is orthogonal to the angle vector. This is consistent with the behavior from GPv2. */
-      const float angle_factor = math::abs(
-          math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
+      float angle_factor = 0.0f;
+      if (extension_sample.is_xr) {
+        angle_factor = math::abs(
+            math::dot(float3(angle_vec, 0.0f), math::normalize(self.smoothed_xr_ctrl_direction_)));
+      }
+      else {
+        angle_factor = math::abs(
+            math::dot(angle_vec, math::normalize(self.smoothed_pen_direction_)));
+      }
 
       /* Influence is controlled by `draw_angle_factor`. */
       radius_factor = math::interpolate(1.0f, angle_factor, settings_->draw_angle_factor);
@@ -726,8 +788,9 @@ struct PaintOperationExecutor {
     }
 
     /* Overwrite last point if it's very close. */
-    const float distance_px = math::distance(coords, prev_coords);
-    constexpr float point_override_threshold_px = 2.0f;
+    float distance_px = (extension_sample.is_xr) ? math::distance(coords3, prev_coords3) :
+                                                   math::distance(coords, prev_coords);
+    float point_override_threshold_px = extension_sample.is_xr ? XR_POT_PX : 2.0f;
     if (distance_px < point_override_threshold_px) {
       self.accum_distance_ += distance_px;
       /* Don't move the first point of the stroke. */
@@ -776,14 +839,21 @@ struct PaintOperationExecutor {
     Set<std::string> point_attributes_to_skip;
     /* Subdivide new segment. */
     const IndexRange new_points = curves.points_by_curve()[active_curve].take_back(new_points_num);
+	Array<float3> new_xr_space_coords(new_points_num);
     Array<float2> new_screen_space_coords(new_points_num);
     MutableSpan<float3> positions = curves.positions_for_write();
     MutableSpan<float3> new_positions = positions.slice(new_points);
     MutableSpan<float> new_radii = self.drawing_->radii_for_write().slice(new_points);
     MutableSpan<float> new_opacities = self.drawing_->opacities_for_write().slice(new_points);
 
+
     /* Interpolate the screen space positions. */
-    linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
+	if (extension_sample.is_xr) {
+		linear_interpolation<float3>(prev_coords3, coords3, new_xr_space_coords, is_first_sample);
+	  }
+	  else {
+		linear_interpolation<float2>(prev_coords, coords, new_screen_space_coords, is_first_sample);
+	  }
     point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
 
     /* Randomize radii. */
@@ -875,25 +945,42 @@ struct PaintOperationExecutor {
     /* Update the current delta time. */
     self.delta_time_ = new_delta_time;
 
-    /* Update screen space buffers with new points. */
-    self.screen_space_coords_orig_.extend(new_screen_space_coords);
-    self.screen_space_smoothed_coords_.extend(new_screen_space_coords);
-    self.screen_space_final_coords_.extend(new_screen_space_coords);
-    for (float2 new_position : new_screen_space_coords) {
-      self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
+    if (extension_sample.is_xr) {
+      /* Update screen space buffers with new points. XR or what*/
+      self.xr_space_coords_orig_.extend(new_xr_space_coords);
+      self.xr_space_smoothed_coords_.extend(new_xr_space_coords);
+      self.xr_space_final_coords_.extend(new_xr_space_coords);
+      for (float3 new_position : new_xr_space_coords) {
+        self.xr_space_curve_fitted_coords_.append(Vector<float3>({new_position}));
+      }
     }
-    if (self.placement_.use_project_to_stroke()) {
-      const std::optional<float> last_depth = self.stroke_placement_depths_.is_empty() ?
-                                                  std::nullopt :
-                                                  self.stroke_placement_depths_.last();
-      self.stroke_placement_depths_.append_n_times(last_depth, new_points_num);
+    else {
+      /* Update screen space buffers with new points. XR or what */
+      self.screen_space_coords_orig_.extend(new_screen_space_coords);
+      self.screen_space_smoothed_coords_.extend(new_screen_space_coords);
+      self.screen_space_final_coords_.extend(new_screen_space_coords);
+      for (float2 new_position : new_screen_space_coords) {
+        self.screen_space_curve_fitted_coords_.append(Vector<float2>({new_position}));
+      }
+      if (self.placement_.use_project_to_stroke()) {
+        const std::optional<float> last_depth = self.stroke_placement_depths_.is_empty() ?
+                                                    std::nullopt :
+                                                    self.stroke_placement_depths_.last();
+        self.stroke_placement_depths_.append_n_times(last_depth, new_points_num);
+      }
     }
 
     /* Only start smoothing if there are enough points. */
     constexpr int64_t min_active_smoothing_points_num = 8;
-    const IndexRange smooth_window = self.screen_space_coords_orig_.index_range().drop_front(
-        self.active_smooth_start_index_);
+    const IndexRange smooth_window = (extension_sample.is_xr) ?
+                                         self.xr_space_coords_orig_.index_range().drop_front(
+                                             self.active_smooth_start_index_) :
+                                         self.screen_space_coords_orig_.index_range().drop_front(
+                                             self.active_smooth_start_index_);
     if (smooth_window.size() < min_active_smoothing_points_num) {
+      //   if (extension_sample.is_xr) {
+      //     self.placement_.store_xr_point(new_xr_space_coords, new_positions);
+      //   } else
       if (self.placement_.use_project_to_stroke()) {
         const Span<std::optional<float>> new_depths =
             self.stroke_placement_depths_.as_mutable_span().take_back(new_points_num);
@@ -914,7 +1001,8 @@ struct PaintOperationExecutor {
     else {
       /* Active smoothing is done in a window at the end of the new stroke.
        * Final positions are written below. */
-      this->active_smoothing(self, smooth_window);
+      if (!extension_sample.is_xr)
+        this->active_smoothing(self, smooth_window);
     }
 
     /* Jitter uses smoothed coordinates as input. In case smoothing is not applied these are the
@@ -929,28 +1017,44 @@ struct PaintOperationExecutor {
                           curve_positions);
     }
     else {
-      MutableSpan<float2> smoothed_coords =
-          self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
-      MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
-          smooth_window);
-      /* Not jitter, so we just copy the positions over. */
-      final_coords.copy_from(smoothed_coords);
-      MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
-      if (self.placement_.use_project_to_stroke()) {
-        BLI_assert(self.stroke_placement_depths_.size() == self.screen_space_coords_orig_.size());
-        const Span<std::optional<float>> stroke_depths =
-            self.stroke_placement_depths_.as_mutable_span().slice(smooth_window);
+      if (extension_sample.is_xr) {
+        MutableSpan<float3> smoothed_coords =
+            self.xr_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
+        MutableSpan<float3> final_coords = self.xr_space_final_coords_.as_mutable_span().slice(
+            smooth_window);
+        /* Not jitter, so we just copy the positions over. */
+        final_coords.copy_from(smoothed_coords);
+        MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
+        // self.placement_.store_xr_point(curve_positions_slice, final_coords);
         for (const int64_t window_i : smooth_window.index_range()) {
-          const std::optional<float> depth = stroke_depths[window_i];
-          curve_positions_slice[window_i] = depth ?
-                                                self.placement_.place(final_coords[window_i],
-                                                                      *depth) :
-                                                self.placement_.project(final_coords[window_i]);
+          curve_positions_slice[window_i] = final_coords[window_i];
         }
       }
       else {
-        for (const int64_t window_i : smooth_window.index_range()) {
-          curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+        MutableSpan<float2> smoothed_coords =
+            self.screen_space_smoothed_coords_.as_mutable_span().slice(smooth_window);
+        MutableSpan<float2> final_coords = self.screen_space_final_coords_.as_mutable_span().slice(
+            smooth_window);
+        /* Not jitter, so we just copy the positions over. */
+        final_coords.copy_from(smoothed_coords);
+        MutableSpan<float3> curve_positions_slice = curve_positions.slice(smooth_window);
+        if (self.placement_.use_project_to_stroke()) {
+          BLI_assert(self.stroke_placement_depths_.size() ==
+                     self.screen_space_coords_orig_.size());
+          const Span<std::optional<float>> stroke_depths =
+              self.stroke_placement_depths_.as_mutable_span().slice(smooth_window);
+          for (const int64_t window_i : smooth_window.index_range()) {
+            const std::optional<float> depth = stroke_depths[window_i];
+            curve_positions_slice[window_i] = depth ?
+                                                  self.placement_.place(final_coords[window_i],
+                                                                        *depth) :
+                                                  self.placement_.project(final_coords[window_i]);
+          }
+        }
+        else {
+          for (const int64_t window_i : smooth_window.index_range()) {
+            curve_positions_slice[window_i] = self.placement_.project(final_coords[window_i]);
+          }
         }
       }
     }
@@ -1141,6 +1245,11 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
   ARegion *region = CTX_wm_region(&C);
+  if (start_sample.is_xr) {
+    wmWindowManager *wm = CTX_wm_manager(&C);
+    wmXrData *xr_data = &wm->xr;
+    region = WM_xr_get_xr_region(xr_data);
+  }
   View3D *view3d = CTX_wm_view3d(&C);
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
@@ -1293,26 +1402,40 @@ static void smooth_stroke(bke::greasepencil::Drawing &drawing,
 
 static void simplify_stroke(bke::greasepencil::Drawing &drawing,
                             const float epsilon,
-                            const int active_curve)
+                            const int active_curve,
+                            const bool xr)
 {
   const bke::CurvesGeometry &curves = drawing.strokes();
   const bke::AttributeAccessor attributes = curves.attributes();
   const IndexRange points = curves.points_by_curve()[active_curve];
-  const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
-      ".draw_tool_screen_space_positions");
-  BLI_assert(screen_space_positions_attribute.is_span());
-
-  const Span<float2> screen_space_positions =
-      screen_space_positions_attribute.get_internal_span().slice(points);
-
   Array<bool> points_to_delete_arr(drawing.strokes().points_num(), false);
   points_to_delete_arr.as_mutable_span().slice(points).fill(true);
-  geometry::curve_simplify(curves.positions().slice(points),
-                           curves.cyclic()[active_curve],
-                           epsilon,
-                           screen_space_positions,
-                           points_to_delete_arr.as_mutable_span().slice(points));
+  if (xr) {
+    const VArray<float3> xr_space_positions_attribute = *attributes.lookup<float3>(
+        ".draw_tool_xr_space_position");
+    BLI_assert(xr_space_positions_attribute.is_span());
 
+    const Span<float3> xr_space_positions = xr_space_positions_attribute.get_internal_span().slice(
+        points);
+    geometry::curve_simplify(curves.positions().slice(points),
+                             curves.cyclic()[active_curve],
+                             epsilon,
+                             xr_space_positions,
+                             points_to_delete_arr.as_mutable_span().slice(points));
+  }
+  else {
+    const VArray<float2> screen_space_positions_attribute = *attributes.lookup<float2>(
+        ".draw_tool_screen_space_positions");
+    BLI_assert(screen_space_positions_attribute.is_span());
+
+    const Span<float2> screen_space_positions =
+        screen_space_positions_attribute.get_internal_span().slice(points);
+    geometry::curve_simplify(curves.positions().slice(points),
+                             curves.cyclic()[active_curve],
+                             epsilon,
+                             screen_space_positions,
+                             points_to_delete_arr.as_mutable_span().slice(points));
+  }
   IndexMaskMemory memory;
   const IndexMask points_to_delete = IndexMask::from_bools(points_to_delete_arr, memory);
   if (!points_to_delete.is_empty()) {
@@ -1644,6 +1767,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   using namespace blender::bke;
   Scene *scene = CTX_data_scene(&C);
   Object *object = CTX_data_active_object(&C);
+  wmWindowManager *wm = CTX_wm_manager(&C);
   RegionView3D *rv3d = CTX_wm_region_view3d(&C);
   const ARegion *region = CTX_wm_region(&C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
@@ -1669,13 +1793,25 @@ void PaintOperation::on_stroke_done(const bContext &C)
   /* Write the screen space positions of the new stroke as a temporary attribute, so all the
    * changes in topology with the operations below get propagated correctly. */
   bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
-  bke::SpanAttributeWriter<float2> screen_space_positions =
-      attributes.lookup_or_add_for_write_only_span<float2>(".draw_tool_screen_space_positions",
-                                                           bke::AttrDomain::Point);
-  BLI_assert(screen_space_positions);
-  screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
-  screen_space_positions.finish();
 
+  if (WM_xr_session_is_ready(&wm->xr)) {
+    bke::SpanAttributeWriter<float3> xr_space_positions =
+        attributes.lookup_or_add_for_write_only_span<float3>(".draw_tool_xr_space_position",
+                                                             bke::AttrDomain::Point);
+    BLI_assert(xr_space_positions);
+    if (this->xr_space_final_coords_.size() != 0) {
+      xr_space_positions.span.slice(points).copy_from(this->xr_space_final_coords_);
+      xr_space_positions.finish();
+    }
+  }
+  else {
+    bke::SpanAttributeWriter<float2> screen_space_positions =
+        attributes.lookup_or_add_for_write_only_span<float2>(".draw_tool_screen_space_positions",
+                                                             bke::AttrDomain::Point);
+    BLI_assert(screen_space_positions);
+    screen_space_positions.span.slice(points).copy_from(this->screen_space_final_coords_);
+    screen_space_positions.finish();
+  }
   /* Remove trailing points with radii close to zero. */
   trim_end_points(drawing, 1e-5f, on_back, active_curve);
 
@@ -1687,7 +1823,17 @@ void PaintOperation::on_stroke_done(const bContext &C)
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
     }
     if (settings->simplify_px > 0.0f) {
-      simplify_stroke(drawing, settings->simplify_px, active_curve);
+      if (WM_xr_session_is_ready(&wm->xr)) {
+        /* this has changed, we had this param before (instead of true false value for xr):
+         * this->xr_space_smoothed_coords_.as_span().drop_back(num_points_removed),
+         * seems to be the MutableAttributeAccessor / writer from above...
+         */
+        simplify_stroke(drawing, (settings->simplify_px / 10000), active_curve, true);
+      }
+      else {
+
+        simplify_stroke(drawing, settings->simplify_px, active_curve, false);
+      }
     }
     if ((settings->flag & GP_BRUSH_TRIM_STROKE) != 0) {
       trim_stroke_ends(drawing, active_curve, on_back);
@@ -1714,7 +1860,13 @@ void PaintOperation::on_stroke_done(const bContext &C)
   /* Remove the temporary attribute. */
   attributes.remove(".draw_tool_screen_space_positions");
 
-  drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));
+  if (WM_xr_session_is_ready(&wm->xr)) {
+    attributes.remove(".draw_tool_xr_space_position");
+  }
+
+  if (!WM_xr_session_is_ready(&wm->xr)) {
+    drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));
+  }
 
   if (do_automerge_endpoints) {
     constexpr float merge_distance = 20.0f;

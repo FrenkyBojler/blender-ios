@@ -3943,10 +3943,20 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_ui_text(prop, "Mouse", "");
 
+  prop = RNA_def_property(srna, "controller", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_flag(prop, PROP_IDPROPERTY);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Controller", "");
+
   prop = RNA_def_property(srna, "mouse_event", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);
   RNA_def_property_array(prop, 2);
   RNA_def_property_ui_text(prop, "Mouse Event", "");
+
+  prop = RNA_def_property(srna, "controller_event", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_flag(prop, PROP_IDPROPERTY);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Controller Event", "");
 
   prop = RNA_def_property(srna, "pressure", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_flag(prop, PROP_IDPROPERTY);

@@ -16,6 +16,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_time.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -27,6 +28,7 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_transform_snap_object_context.hh"
@@ -45,6 +47,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "wm_event_system.hh"
 #include "wm_xr_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -134,8 +137,30 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   }
 
   v3d->runtime.flag |= V3D_RUNTIME_XR_SESSION_ROOT;
+
+  /**
+   * TODO this would be better suited of at the exit callback but we require the context for that
+   * and the context is not something that we can ingest easily into ghost, unless using a
+   * void * to our knowledge.
+   */
+  if (WM_xr_session_exists(&wm->xr)) {
+    Object *object = CTX_data_active_object(C);
+    if (object->type == OB_GREASE_PENCIL) {
+      GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+      DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+    }
+  }
+
   wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
+
+  wmXrData *xr_data = &wm->xr;
+  if (WM_xr_session_exists(xr_data)) {
+    if (!win) {
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
@@ -567,6 +592,15 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
    * ends when the input is "released" (state falls below the threshold). */
   switch (event->val) {
     case KM_PRESS:
+      if (do_bimanual) {
+        /** tell greasepencil object to rescale itself with new world scale from xr */
+        Object *object = CTX_data_active_object(C);
+        if (object->type == OB_GREASE_PENCIL) {
+          GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+          DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+          WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+        }
+      }
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE:
       wm_xr_grab_uninit(op);
@@ -1548,6 +1582,162 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Brush Settings for Gpencil Operator in XR
+ * \{ */
+
+static wmOperatorStatus gpencil_xr_brush_settings_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  BLI_assert(op->customdata == NULL);
+
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus gpencil_xr_brush_settings_modal(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  wmWindowManager *wm = CTX_wm_manager(C);
+  int factor = RNA_int_get(op->ptr, "factor");
+
+  switch (event->val) {
+    case KM_PRESS: {
+      if ((event->modifier & KM_CTRL) != 0) {
+        gpencilxr_brush_set_strength(C, (factor / 10.0f));
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+      }
+      else {
+        gpencilxr_brush_set_size(C, factor);
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+      }
+      return OPERATOR_RUNNING_MODAL;
+    }
+    case KM_RELEASE:
+    default: {
+      if (!op->customdata)
+        return OPERATOR_FINISHED;
+
+      MEM_freeN(op->customdata);
+
+      return OPERATOR_FINISHED;
+    }
+  }
+}
+
+static bool wm_xr_brush_settings_poll(bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  return wm_xr_operator_sessionactive(C) &&
+         (blender::ed::greasepencil::grease_pencil_painting_poll(C));
+}
+
+static void WM_OT_gpencil_xr_brush_settings(wmOperatorType *ot)
+{
+  ot->name = "Change Gpencil brush strength and pressure in XR";
+  ot->idname = "WM_OT_xr_gpencil_brush_settings";
+  ot->description = "Change Gpencil brush strength and pressure in XR";
+
+  ot->invoke = gpencil_xr_brush_settings_invoke;
+  ot->modal = gpencil_xr_brush_settings_modal;
+  ot->poll = wm_xr_brush_settings_poll;
+  ot->flag = OPTYPE_UNDO;
+
+  /* rna */
+  RNA_def_int(ot->srna, "factor", 0, -1, 1, "Factor", "", -1, 1);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Gpencil KM_CTRL XR Operators
+ * \{ */
+
+static void set_xr_modifier_kd(bContext *C, int type, GHOST_TKey key)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  GHOST_TEventKeyData kdata{};
+  kdata.key = key;
+  kdata.utf8_buf[0] = '\0';
+  kdata.is_repeat = false;
+  wmWindow *win = CTX_wm_window(C);
+  wm_event_add_ghostevent(
+      wm, win, type, (void *)&kdata, 10);  // 10 is a temporary value, set average time
+}
+
+static wmOperatorStatus wm_xr_modifier_exec(bContext * /*C*/, wmOperator * /*op*/)
+{
+  return OPERATOR_CANCELLED;
+}
+
+/* CTRL */
+
+static wmOperatorStatus wm_xr_ctrl_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  set_xr_modifier_kd(C, GHOST_kEventKeyDown, GHOST_kKeyLeftControl);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus wm_xr_ctrl_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE: {
+      set_xr_modifier_kd(C, GHOST_kEventKeyUp, GHOST_kKeyLeftControl);
+      return OPERATOR_FINISHED;
+    }
+    default:
+      /* XR events currently only support press and release. */
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_ctrl(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "XR CTRL Modifier";
+  ot->idname = "WM_OT_xr_ctrl";
+  ot->description = "CTRL Press Modifier";
+
+  /* callbacks */
+  ot->invoke = wm_xr_ctrl_invoke;
+  ot->exec = wm_xr_modifier_exec;
+  ot->modal = wm_xr_ctrl_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Operator Registration
  * \{ */
 
@@ -1558,6 +1748,8 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_fly);
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
+  WM_operatortype_append(WM_OT_gpencil_xr_brush_settings);
+  WM_operatortype_append(WM_OT_xr_ctrl);
 }
 
 /** \} */

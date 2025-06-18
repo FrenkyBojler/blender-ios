@@ -758,6 +758,8 @@ struct wmEvent {
   int xy[2];
   /** Region relative mouse position (name convention before Blender 2.5). */
   int mval[2];
+  /** xr controller position. */
+  float cval[3];
   /**
    * A single UTF8 encoded character.
    *

@@ -4,8 +4,21 @@
 
 set(INC
   ../include
+  ../../blenkernel
+  ../../blentranslation
+  ../../bmesh
+  ../../gpu
+  ../../imbuf
   ../../makesrna
+  ../../draw
+  ../../draw/intern
+  ../../render
+  ../../render/intern
+  ../../windowmanager
+  ../../windowmanager/xr
+  ../../windowmanager/intern
   ../../../../extern/curve_fit_nd
+  ../../geometry
   ../sculpt_paint
   ../../modifiers/intern/lineart
   # RNA_prototypes.hh
@@ -37,6 +50,7 @@ set(SRC
   intern/grease_pencil_utils.cc
   intern/grease_pencil_vertex_paint.cc
   intern/grease_pencil_weight_paint.cc
+  intern/grease_pencil_xr_utils.cc
 )
 
 set(LIB
@@ -57,6 +71,10 @@ set(LIB
   extern_curve_fit_nd
   extern_fmtlib
 )
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
 
 blender_add_lib(bf_editor_grease_pencil "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_dependencies(bf_editor_curves bf_rna)

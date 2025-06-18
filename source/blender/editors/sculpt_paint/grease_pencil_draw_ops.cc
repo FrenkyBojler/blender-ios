@@ -193,6 +193,8 @@ static void stroke_update_step(bContext *C,
   InputSample sample;
   RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
+  sample.is_xr = false;
+  sample.controller_position = {0.0, 0.0, 0.0};
 
   if (!operation) {
     std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*C, op);

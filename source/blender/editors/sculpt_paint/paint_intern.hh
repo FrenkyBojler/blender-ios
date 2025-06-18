@@ -88,7 +88,7 @@ using StrokeGetLocation = bool (*)(bContext *C,
  *
  * In many cases, this is a check to whether the stroke is over the active mesh.
  */
-using StrokeTestStart = bool (*)(bContext *C, wmOperator *op, const float mouse[2]);
+using StrokeTestStart = bool (*)(bContext *C, wmOperator *op, const float mouse[3]);
 
 /**
  * Callback function for performing a paint stroke for a new step.
@@ -188,7 +188,9 @@ bool paint_brush_update(bContext *C,
                         PaintMode mode,
                         PaintStroke *stroke,
                         const float mouse_init[2],
+                        const float controller_init[3],
                         float mouse[2],
+                        float controller[3],
                         float pressure,
                         float r_location[3],
                         bool *r_location_is_set);
