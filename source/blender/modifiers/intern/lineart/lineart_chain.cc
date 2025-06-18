@@ -780,7 +780,7 @@ static void lineart_chain_connect(LineartData * /*ld*/,
     if (sub->type != MOD_LINEART_EDGE_FLAG_INTERSECTION) {
       onto->type = MOD_LINEART_EDGE_FLAG_CONTOUR;
     }
-    if (sub->object_ref) {
+    if (sub->instance_ref) {
       onto->instance_ref = sub->instance_ref;
       onto->instance_ref2 = sub->instance_ref2;
     }

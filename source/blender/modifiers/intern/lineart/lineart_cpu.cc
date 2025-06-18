@@ -4814,10 +4814,10 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
       LineartElementLinkNode *eln2 = obi1 == obi2 ? eln1 :
                                                     lineart_find_matching_eln(
                                                         &ld->geom.line_buffer_pointers, obi2);
-      LineartInstance *inst1 ? eln1->object_ref : nullptr;
-      LineartInstance *inst2 ? eln2->object_ref : nullptr;
-      e->object_ref = inst1;
-      e->object_ref2 = inst2;
+      LineartInstance *inst1=eln1 ? eln1->instance_ref : nullptr;
+      LineartInstance *inst2=eln2 ? eln2->instance_ref : nullptr;
+      e->instance_ref = inst1;
+      e->instance_ref2 = inst2;
 
       lineart_add_edge_to_array(&ld->pending_edges, e);
 
