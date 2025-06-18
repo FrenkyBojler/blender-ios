@@ -827,9 +827,9 @@ void build_socket_tooltip(uiTooltipData &tip_data,
     if (tree.type == NTREE_GEOMETRY) {
       build_tooltip_structure_type(tip_data, socket);
     }
+    /* Extra padding at the bottom. */
+    add_space(tip_data);
   }
-
-  add_space(tip_data, 2);
 }
 
 }  // namespace blender::ed::space_node
