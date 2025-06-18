@@ -381,6 +381,11 @@ class GridMesh : Overlay {
 
   gpu::Batch *generate_batch(int next_subdivision)
   {
+    if (next_subdivision == 1) {
+      /* This only happens for the last level. In this case, do not skip any line. */
+      next_subdivision = INT_MAX;
+    }
+
     const int res = 512;
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
@@ -466,12 +471,13 @@ class GridMesh : Overlay {
           0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
       ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps.data());
 
-      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN - 1)) {
+      /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
+      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
         /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
          * write from transparent pixel in smaller grid level. */
-        int i = SI_GRID_STEPS_LEN - 2 - i_acc;
+        int i = (SI_GRID_STEPS_LEN - 1) - i_acc;
 
-        int level_subdiv = roundf(grid_steps[i + 1] / grid_steps[i]);
+        int level_subdiv = roundf(grid_steps[(i_acc == 0) ? i : (i + 1)] / grid_steps[i]);
 
         if (assign_if_different(level_subdiv_[i], level_subdiv)) {
           GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
@@ -479,8 +485,6 @@ class GridMesh : Overlay {
         if (level_grids_[i] == nullptr) {
           level_grids_[i] = generate_batch(level_subdiv);
         }
-        /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip.
-         */
         grid_ps_.push_constant("axis", 0);
         grid_ps_.push_constant("unit_scale", grid_steps[i]);
         grid_ps_.push_constant("next_divider", float(level_subdiv));
