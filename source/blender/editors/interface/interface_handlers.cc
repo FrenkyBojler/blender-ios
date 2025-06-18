@@ -7104,11 +7104,11 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
 
       /* Get original color pick position within the circle. */
       ui_hsvcircle_pos_from_vals(
-          cpicker, &rect, hsvo, &data->relative_drag[0], &data->relative_drag[1]);
+          cpicker, &rect, hsvo, &data->relative_drag.x, &data->relative_drag.y);
     }
     else {
-      data->relative_drag[0] = mx;
-      data->relative_drag[1] = my;
+      data->relative_drag.x = mx;
+      data->relative_drag.y = my;
     }
   }
 
@@ -7119,8 +7119,8 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
 
   if (use_continuous_grab || shift) {
     const float fac = ui_mouse_scale_warp_factor(shift);
-    data->relative_drag[0] += (mx - float(data->draglastx)) * fac;
-    data->relative_drag[1] += (my - float(data->draglasty)) * fac;
+    data->relative_drag.x += (mx - float(data->draglastx)) * fac;
+    data->relative_drag.y += (my - float(data->draglasty)) * fac;
 
     const float radius = min_ff(BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect)) / 2.0f;
     const float cent[2] = {BLI_rctf_cent_x(&but->rect), BLI_rctf_cent_y(&but->rect)};
@@ -7131,15 +7131,15 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
   else {
-    data->relative_drag[0] = mx;
-    data->relative_drag[1] = my;
+    data->relative_drag.x = mx;
+    data->relative_drag.y = my;
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
   if (use_continuous_grab) {
     /* OK but can go outside bounds */
-    data->ungrab_mval[0] = data->relative_drag[0];
-    data->ungrab_mval[1] = data->relative_drag[1];
+    data->ungrab_mval[0] = data->relative_drag.x;
+    data->ungrab_mval[1] = data->relative_drag.y;
   }
 #endif
   /* exception, when using color wheel in 'locked' value state:
@@ -7158,7 +7158,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
     }
   }
 
-  ui_hsvcircle_vals_from_pos(&rect, data->relative_drag[0], data->relative_drag[1], hsv, hsv + 1);
+  ui_hsvcircle_vals_from_pos(&rect, data->relative_drag.x, data->relative_drag.y, hsv, hsv + 1);
 
   if ((cpicker->use_color_cubic) && (U.color_picker_type == USER_CP_CIRCLE_HSV)) {
     hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
@@ -7281,8 +7281,10 @@ static int ui_do_but_HSVCIRCLE(
       data->draglasty = my;
       button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
       const bool shift = event->modifier & KM_SHIFT;
+      const bool use_continuous_grab = ui_but_is_cursor_warp(but) &&
+                                       event->tablet.active == EVT_TABLET_NONE;
       /* also do drag the first time */
-      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, false, true)) {
+      if (ui_numedit_but_HSVCIRCLE(but, data, mx, my, snap, shift, use_continuous_grab, true)) {
         ui_numedit_apply(C, block, but, data);
       }
 
