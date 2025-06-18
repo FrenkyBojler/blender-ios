@@ -618,50 +618,11 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   }
 }
 
-inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
-                                       const Span<int> face_verts)
-{
-  Bounds<float3> bounds{vert_positions[face_verts.first()]};
-  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
-    math::min_max(vert_positions[vert], bounds.min, bounds.max);
-  }
-  return bounds;
-}
-static Bounds<float3> negative_bounds()
-{
-  return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
-}
-static int partition_along_axis(const Span<float3> face_centers,
-                                MutableSpan<int> faces,
-                                const int axis,
-                                const float middle)
-{
-  const int *split = std::partition(faces.begin(), faces.end(), [&](const int face) {
-    return face_centers[face][axis] >= middle;
-  });
-  return split - faces.begin();
-}
-
 static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3> &b)
 {
   return bounds::merge(a, b);
 }
-static int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
-{
-  const int first = material_indices[faces.first()];
-  const int *split = std::partition(
-      faces.begin(), faces.end(), [&](const int face) { return material_indices[face] == first; });
-  return split - faces.begin();
-}
-static bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
-{
-  if (material_indices.is_empty()) {
-    return false;
-  }
-  const int first = material_indices[faces.first()];
-  return std::any_of(
-      faces.begin(), faces.end(), [&](const int face) { return material_indices[face] != first; });
-}
+
 void partition_faces_recursively(const Span<float3> face_centers,
                                  MutableSpan<int> face_indices,
                                  Vector<int> &children_offsets,
@@ -675,7 +636,7 @@ void partition_faces_recursively(const Span<float3> face_centers,
   const int target_group_size = 2500;
 
   if (face_indices.size() <= target_group_size || depth >= 99) {
-    if (!leaf_needs_material_split(face_indices, material_indices)) {
+    if (!blender::bke::pbvh::leaf_needs_material_split(face_indices, material_indices)) {
       children_offsets[node_index] = 0;
       face_data[node_index] = Array<int>(face_indices.size(), NoInitialization());
       std::memcpy(
@@ -702,7 +663,7 @@ void partition_faces_recursively(const Span<float3> face_centers,
       bounds = threading::parallel_reduce(
           face_indices.index_range(),
           1024,
-          negative_bounds(),
+          blender::bke::pbvh::negative_bounds(),
           [&](const IndexRange range, Bounds<float3> value) {
             for (const int face : face_indices.slice(range)) {
               math::min_max(face_centers[face], value.min, value.max);
@@ -713,11 +674,11 @@ void partition_faces_recursively(const Span<float3> face_centers,
     }
     const int axis = math::dominant_axis(bounds.max - bounds.min);
 
-    split = partition_along_axis(
+    split = blender::bke::pbvh::partition_along_axis(
         face_centers, face_indices, axis, math::midpoint(bounds.min[axis], bounds.max[axis]));
   }
   else {
-    split = partition_material_indices(material_indices, face_indices);
+    split = blender::bke::pbvh::partition_material_indices(material_indices, face_indices);
   }
 
   partition_faces_recursively(face_centers,
@@ -842,12 +803,12 @@ SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
   const Bounds<float3> bounds = threading::parallel_reduce(
       faces.index_range(),
       1024,
-      negative_bounds(),
+      blender::bke::pbvh::negative_bounds(),
       [&](const IndexRange range, const Bounds<float3> &init) {
         Bounds<float3> current = init;
         for (const int face : range) {
-          const Bounds<float3> bounds = calc_face_bounds(vert_positions,
-                                                         corner_verts.slice(faces[face]));
+          const Bounds<float3> bounds = blender::bke::pbvh::calc_face_bounds(
+              vert_positions, corner_verts.slice(faces[face]));
           face_centers[face] = bounds.center();
           current = bounds::merge(current, bounds);
         }
@@ -898,7 +859,7 @@ SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
           std::move(children_offsets)};
 }
 
-void BKE_mesh_apply_spatial_organization(Mesh &mesh)
+void mesh_apply_spatial_organization(Mesh &mesh)
 {
   SpatialFaceGroupsResult spatial_groups = compute_spatial_groups(mesh);
 

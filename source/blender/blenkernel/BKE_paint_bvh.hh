@@ -346,6 +346,19 @@ void raycast(Tree &pbvh,
              const float3 &ray_normal,
              bool original);
 
+Bounds<float3> calc_face_bounds(const Span<float3> vert_positions, const Span<int> face_verts);
+
+int partition_along_axis(const Span<float3> face_centers,
+                         MutableSpan<int> faces,
+                         const int axis,
+                         const float middle);
+
+Bounds<float3> negative_bounds();
+
+int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces);
+
+bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices);
+
 bool node_raycast_mesh(const MeshNode &node,
                        Span<float3> node_positions,
                        Span<float3> vert_positions,

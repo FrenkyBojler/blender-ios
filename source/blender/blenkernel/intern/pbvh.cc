@@ -48,7 +48,7 @@ namespace blender::bke::pbvh {
 #define STACK_FIXED_DEPTH 100
 
 /** Create invalid bounds for use with #math::min_max. */
-static Bounds<float3> negative_bounds()
+Bounds<float3> negative_bounds()
 {
   return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }
@@ -58,10 +58,10 @@ static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3>
   return bounds::merge(a, b);
 }
 
-static int partition_along_axis(const Span<float3> face_centers,
-                                MutableSpan<int> faces,
-                                const int axis,
-                                const float middle)
+int partition_along_axis(const Span<float3> face_centers,
+                         MutableSpan<int> faces,
+                         const int axis,
+                         const float middle)
 {
   const int *split = std::partition(faces.begin(), faces.end(), [&](const int face) {
     return face_centers[face][axis] >= middle;
@@ -69,7 +69,7 @@ static int partition_along_axis(const Span<float3> face_centers,
   return split - faces.begin();
 }
 
-static int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
+int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
 {
   const int first = material_indices[faces.first()];
   const int *split = std::partition(
@@ -130,7 +130,7 @@ BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
   }
 }
 
-static bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
+bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
 {
   if (material_indices.is_empty()) {
     return false;
@@ -220,8 +220,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              nodes);
 }
 
-inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
-                                       const Span<int> face_verts)
+Bounds<float3> calc_face_bounds(const Span<float3> vert_positions, const Span<int> face_verts)
 {
   Bounds<float3> bounds{vert_positions[face_verts.first()]};
   for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {

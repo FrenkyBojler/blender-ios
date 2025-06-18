@@ -1555,13 +1555,13 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   /* Apply spatial reordering */
-  blender::bke::BKE_mesh_apply_spatial_organization(*mesh);
+  blender::bke::mesh_apply_spatial_organization(*mesh);
 
   /* Tag for update */
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
-  BKE_report(op->reports, RPT_INFO, "Mesh vertices reordered spatially");
+  BKE_report(op->reports, RPT_INFO, "Mesh faces and vertices reordered spatially");
 
   return OPERATOR_FINISHED;
 }
