@@ -1683,8 +1683,6 @@ struct sAreaMoveData {
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
   bScreen *screen;
-  double start_time;
-  double end_time;
   void *draw_callback; /* Call #screen_draw_move_highlight */
 };
 
@@ -1772,15 +1770,7 @@ static void area_move_draw_cb(const wmWindow *win, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   const sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-
-  float factor = 1.0f;
-  const double now = BLI_time_now_seconds();
-  if (now < md->end_time) {
-    factor = pow((now - md->start_time) / (md->end_time - md->start_time), 2);
-    md->screen->do_refresh = true;
-  }
-
-  screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
+  screen_draw_move_highlight(win, md->screen, md->dir_axis);
 }
 
 /* validate selection inside screen, set variables OK */
@@ -1835,8 +1825,6 @@ static bool area_move_init(bContext *C, wmOperator *op)
   md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
 
   md->screen = screen;
-  md->start_time = BLI_time_now_seconds();
-  md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
   md->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_move_draw_cb, op);
 
   return true;
@@ -2796,9 +2784,6 @@ struct RegionMoveData {
   ARegion *region;
   ScrArea *area;
   wmWindow *win;
-  bScreen *screen;
-  double start_time;
-  double end_time;
   void *draw_callback;
   int bigger, smaller, origval;
   int orig_xy[2];
@@ -2881,15 +2866,7 @@ static void region_scale_draw_cb(const wmWindow * /*win*/, void *userdata)
 {
   const wmOperator *op = static_cast<const wmOperator *>(userdata);
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
-
-  float factor = 1.0f;
-  const double now = BLI_time_now_seconds();
-  if (now < rmd->end_time) {
-    factor = pow((now - rmd->start_time) / (rmd->end_time - rmd->start_time), 2);
-    rmd->screen->do_refresh = true;
-  }
-
-  screen_draw_region_scale_highlight(rmd->region, factor);
+  screen_draw_region_scale_highlight(rmd->region);
 }
 
 static void region_scale_exit(wmOperator *op)
@@ -2970,9 +2947,6 @@ static wmOperatorStatus region_scale_invoke(bContext *C, wmOperator *op, const w
     CLAMP(rmd->maxsize, 0, 1000);
 
     rmd->win = CTX_wm_window(C);
-    rmd->screen = CTX_wm_screen(C);
-    rmd->start_time = BLI_time_now_seconds();
-    rmd->end_time = rmd->start_time + REGION_MOVE_LINE_FADEIN;
     rmd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), region_scale_draw_cb, op);
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
