@@ -983,9 +983,9 @@ bool USDMaterialReader::follow_connection(const pxr::UsdShadeInput &usd_input,
 
   pxr::TfToken shader_id;
   if (!source_shader.GetShaderId(&shader_id)) {
-    CLOG_ERROR(&LOG,
-               "Couldn't get shader id for source shader %s",
-               source_shader.GetPath().GetAsString().c_str());
+    CLOG_WARN(&LOG,
+              "Couldn't get shader id for source shader %s",
+              source_shader.GetPath().GetAsString().c_str());
     return false;
   }
 
