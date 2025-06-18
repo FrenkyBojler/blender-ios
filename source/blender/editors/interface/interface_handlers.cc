@@ -7092,8 +7092,6 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
   if (is_begin) {
-    data->draglastx = mx;
-    data->draglasty = my;
     /* Allow start editing the original color if shift is pressed at start. */
     if (shift) {
       float hsvo[3], rgbo[3];
