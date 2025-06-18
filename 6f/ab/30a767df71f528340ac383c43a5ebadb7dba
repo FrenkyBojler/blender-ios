@@ -1,1 +1,2 @@
 Referenced by issue #139843, Blender crashes when doing things with materals (including resizing windowes)
+Referenced by issue #140574, Manifold boolean leaves redundant 2-edged vertices
