@@ -574,7 +574,9 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
                                                  const bNodeSocket &socket)
 {
   const Span<const bNodeLink *> connected_links = socket.directly_linked_links();
-  bool is_first = true;
+
+  Vector<std::pair<int, geo_log::ValueLog *>> value_logs;
+  bool all_value_logs_missing = true;
   for (const int i : connected_links.index_range()) {
     const bNodeLink &link = *connected_links[i];
     if (!link.is_used()) {
@@ -584,6 +586,19 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
       continue;
     }
     const bNodeSocket &from_socket = *link.fromsock;
+    add_space(tip_data);
+    geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket);
+    value_logs.append({i, value_log});
+    if (value_log) {
+      all_value_logs_missing = false;
+    }
+  }
+  if (all_value_logs_missing) {
+    return false;
+  }
+
+  bool is_first = true;
+  for (const auto &[i, value_log] : value_logs) {
     const int connection_number = i + 1;
     add_space(tip_data, is_first ? 0 : 2);
     is_first = false;
@@ -593,7 +608,7 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
                               UI_TIP_STYLE_NORMAL,
                               UI_TIP_LC_NORMAL);
     add_space(tip_data);
-    if (geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket)) {
+    if (value_log) {
       build_tooltip_value_geo_log(tip_data, socket, *value_log);
     }
     else {
@@ -630,11 +645,8 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
 static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
   if (socket.is_multi_input()) {
-    /* TODO */
-    return;
-  }
-  if (socket.owner_node().is_reroute()) {
-    /* TODO */
+    UI_tooltip_text_field_add(
+        tip_data, TIP_("Values: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
     return;
   }
   const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
