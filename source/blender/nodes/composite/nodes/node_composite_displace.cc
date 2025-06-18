@@ -276,12 +276,16 @@ class DisplaceOperation : public NodeOperation {
 
   const char *get_shader_name(const Interpolation &interpolation) const
   {
-    if (interpolation == Interpolation::Anisotropic) {
-      return "compositor_displace_anisotropic";
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_displace_anisotropic";
+      case Interpolation::Bicubic:
+        return "compositor_displace_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_displace";
     }
-    if (interpolation == Interpolation::Bicubic) {
-      return "compositor_displace_bicubic";
-    }
+    BLI_assert_unreachable();
     return "compositor_displace";
   }
 
