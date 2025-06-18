@@ -619,22 +619,18 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
   return true;
 }
 
-[[nodiscard]] static bool build_tooltip_last_value(uiTooltipData &tip_data,
-                                                   geo_log::GeoTreeLog *geo_tree_log,
-                                                   const bNodeSocket &socket)
+[[nodiscard]] static bool build_tooltip_value_from_geometry_nodes_log(
+    uiTooltipData &tip_data, geo_log::GeoTreeLog &geo_tree_log, const bNodeSocket &socket)
 
 {
-  if (!geo_tree_log) {
-    return false;
-  }
   if (socket.typeinfo->base_cpp_type == nullptr) {
     return false;
   }
-  geo_tree_log->ensure_socket_values();
+  geo_tree_log.ensure_socket_values();
   if (socket.is_multi_input()) {
-    return build_tooltip_last_value_multi_input(tip_data, *geo_tree_log, socket);
+    return build_tooltip_last_value_multi_input(tip_data, geo_tree_log, socket);
   }
-  geo_log::ValueLog *value_log = geo_tree_log->find_socket_value_log(socket);
+  geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(socket);
   if (!value_log) {
     return false;
   }
@@ -732,9 +728,7 @@ static bool is_socket_default_value_used(const bNodeSocket &socket)
   return true;
 }
 
-static void build_tooltip_last_value(uiTooltipData &tip_data,
-                                     bContext &C,
-                                     const bNodeSocket &socket)
+static void build_tooltip_value(uiTooltipData &tip_data, bContext &C, const bNodeSocket &socket)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
   const bNode &node = socket.owner_node();
@@ -744,7 +738,8 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
     geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
   }
   geo_log::GeoTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket);
-  if (build_tooltip_last_value(tip_data, geo_tree_log, socket)) {
+  if (geo_tree_log && build_tooltip_value_from_geometry_nodes_log(tip_data, *geo_tree_log, socket))
+  {
     return;
   }
   if (node.is_reroute()) {
@@ -828,7 +823,7 @@ void build_socket_tooltip(uiTooltipData &tip_data,
   }
   else {
     build_tooltip_description(tip_data, socket);
-    build_tooltip_last_value(tip_data, C, socket);
+    build_tooltip_value(tip_data, C, socket);
     if (tree.type == NTREE_GEOMETRY) {
       build_tooltip_structure_type(tip_data, socket);
     }
