@@ -989,11 +989,27 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
     /* Better not show the value of a password. */
     if ((rnaprop && (RNA_property_subtype(rnaprop) == PROP_PASSWORD)) == 0) {
-      /* Full string. */
-      ui_but_string_get(but, buf, sizeof(buf));
-      if (buf[0]) {
+      PropertySubType subtype = RNA_property_subtype(rnaprop);
+      char text_props[FILE_MAX];
+      ui_but_string_get(but, text_props, FILE_MAX);
+      /* Check but red alert flag in order to prevent parse template path multiple times.*/
+      if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE) &&
+          ((but->flag & UI_BUT_REDALERT) == 0))
+      {
+        /* Template parse errors, for paths that support it. */
+        if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
+          if (BKE_path_contains_template_syntax(text_props)) {
+            const std::optional<blender::bke::path_templates::VariableMap> variables =
+                BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
+            BLI_assert(variables.has_value());
+            BKE_path_apply_template(text_props, FILE_MAX, *variables);
+          }
+        }
+      }
+
+      if (text_props[0]) {
         UI_tooltip_text_field_add(*data,
-                                  fmt::format(fmt::runtime(TIP_("Value: {}")), buf),
+                                  fmt::format(fmt::runtime(TIP_("Value: {}")), text_props),
                                   {},
                                   UI_TIP_STYLE_NORMAL,
                                   UI_TIP_LC_VALUE,
