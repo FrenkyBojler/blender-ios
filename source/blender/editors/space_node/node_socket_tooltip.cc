@@ -23,6 +23,7 @@
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 
+#include "RNA_enum_types.hh"
 #include "node_intern.hh"
 
 namespace geo_log = blender::nodes::geo_eval_log;
@@ -597,11 +598,9 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
     return false;
   }
 
-  bool is_first = true;
   for (const auto &[i, value_log] : value_logs) {
     const int connection_number = i + 1;
-    add_space(tip_data, is_first ? 0 : 2);
-    is_first = false;
+    add_space(tip_data, 2);
     UI_tooltip_text_field_add(tip_data,
                               fmt::format("{}:", connection_number),
                               {},
@@ -638,6 +637,7 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
   if (!value_log) {
     return false;
   }
+  add_space(tip_data, 2);
   build_tooltip_value_geo_log(tip_data, socket, *value_log);
   return true;
 }
@@ -692,12 +692,14 @@ static void build_tooltip_value_implicit_default(uiTooltipData &tip_data,
 static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
   if (socket.is_multi_input()) {
+    add_space(tip_data, 2);
     UI_tooltip_text_field_add(
         tip_data, TIP_("Values: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
     return;
   }
   const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
   if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+    add_space(tip_data, 2);
     build_tooltip_value_implicit_default(tip_data, socket_decl->default_input_type);
     return;
   }
@@ -708,6 +710,7 @@ static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bN
   BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
   socket.typeinfo->get_base_cpp_value(socket.default_value, socket_value);
   BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
+  add_space(tip_data, 2);
   build_tooltip_value_generic(tip_data, socket, {cpp_type, socket_value});
 }
 
@@ -744,6 +747,7 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
     return;
   }
   if (node.is_reroute()) {
+    add_space(tip_data, 2);
     build_tooltip_value_unknown(tip_data, socket);
     return;
   }
@@ -753,11 +757,13 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
       return;
     }
   }
+  add_space(tip_data, 2);
   build_tooltip_value_unknown(tip_data, socket);
 }
 
 static void build_tooltip_dangling_reroute(uiTooltipData &tip_data)
 {
+  add_space(tip_data, 2);
   UI_tooltip_text_field_add(tip_data,
                             TIP_("Dangling reroute nodes are ignored."),
                             {},
@@ -765,23 +771,56 @@ static void build_tooltip_dangling_reroute(uiTooltipData &tip_data)
                             UI_TIP_LC_ALERT);
 }
 
+static StringRef get_structure_type_tooltip(const nodes::StructureType &structure_type)
+{
+  switch (structure_type) {
+    case nodes::StructureType::Single: {
+      return TIP_("Single value");
+    }
+    case nodes::StructureType::Dynamic: {
+      return TIP_("Dynamic");
+    }
+    case nodes::StructureType::Field: {
+      return TIP_("Field");
+    }
+    case nodes::StructureType::Grid: {
+      return TIP_("Grid");
+    }
+  }
+  BLI_assert_unreachable();
+  return "Unknown";
+}
+
+static void build_tooltip_structure_type(uiTooltipData &tip_data, const bNodeSocket &socket)
+{
+  const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
+  const nodes::StructureType structure_type = socket_decl->structure_type;
+  const StringRef structure_type_name = get_structure_type_tooltip(structure_type);
+  add_space(tip_data, 2);
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format(TIP_("Structure: {}"), structure_type_name),
+                            {},
+                            UI_TIP_STYLE_MONO,
+                            UI_TIP_LC_NORMAL);
+}
+
 void build_socket_tooltip(uiTooltipData &tip_data,
                           bContext &C,
-                          const bNodeTree & /*tree*/,
+                          const bNodeTree &tree,
                           const bNodeSocket &socket)
 {
   const bNode &node = socket.owner_node();
 
   build_tooltip_label(tip_data, socket);
   if (node.is_dangling_reroute()) {
-    add_space(tip_data, 2);
     build_tooltip_dangling_reroute(tip_data);
   }
   else {
     build_tooltip_description(tip_data, socket);
-    add_space(tip_data, 2);
-    build_tooltip_last_value(tip_data, C, socket);
-    /* Add allowed type. */
+    if (tree.type == NTREE_GEOMETRY) {
+      build_tooltip_last_value(tip_data, C, socket);
+      build_tooltip_structure_type(tip_data, socket);
+    }
   }
 
   add_space(tip_data, 2);
