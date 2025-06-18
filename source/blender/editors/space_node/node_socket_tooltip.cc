@@ -13,6 +13,7 @@
 #include "BKE_type_conversions.hh"
 
 #include "BLI_math_euler.hh"
+#include "BLI_string.h"
 #include "BLT_translation.hh"
 
 #include "DNA_collection_types.h"
@@ -363,6 +364,93 @@ static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
   return true;
 }
 
+static std::string count_to_string(const int count)
+{
+  char str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
+  BLI_str_format_int_grouped(str, count);
+  return std::string(str);
+}
+
+static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
+                                             const bNodeSocket &socket,
+                                             const geo_log::GeometryInfoLog &geometry_log)
+{
+  Span<bke::GeometryComponent::Type> component_types = geometry_log.component_types;
+  if (component_types.is_empty()) {
+    build_tooltip_value_and_type_oneline(tip_data, TIP_("None"), TIP_("Geometry Set"));
+    return true;
+  }
+  UI_tooltip_text_field_add(
+      tip_data, TIP_("Geometry components:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  for (const bke::GeometryComponent::Type type : component_types) {
+    std::string component_str;
+    switch (type) {
+      case bke::GeometryComponent::Type::Mesh: {
+        const geo_log::GeometryInfoLog::MeshInfo &info = *geometry_log.mesh_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Mesh: {} vertices, {} edges, {} faces")),
+                                    count_to_string(info.verts_num),
+                                    count_to_string(info.edges_num),
+                                    count_to_string(info.faces_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::PointCloud: {
+        const geo_log::GeometryInfoLog::PointCloudInfo &info = *geometry_log.pointcloud_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Point Cloud: {} points")),
+                                    count_to_string(info.points_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::Instance: {
+        const geo_log::GeometryInfoLog::InstancesInfo &info = *geometry_log.instances_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Instances: {}")),
+                                    count_to_string(info.instances_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::Volume: {
+        const geo_log::GeometryInfoLog::VolumeInfo &info = *geometry_log.volume_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Volume: {} grids")),
+                                    count_to_string(info.grids_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::Curve: {
+        const geo_log::GeometryInfoLog::CurveInfo &info = *geometry_log.curve_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Curve: {} points, {} splines")),
+                                    count_to_string(info.points_num),
+                                    count_to_string(info.splines_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::GreasePencil: {
+        const geo_log::GeometryInfoLog::GreasePencilInfo &info = *geometry_log.grease_pencil_info;
+        component_str = fmt::format(fmt::runtime(TIP_("Grease Pencil: {} layers")),
+                                    count_to_string(info.layers_num));
+        break;
+      }
+      case bke::GeometryComponent::Type::Edit: {
+        if (geometry_log.edit_data_info.has_value()) {
+          const geo_log::GeometryInfoLog::EditDataInfo &info = *geometry_log.edit_data_info;
+          component_str = fmt::format(
+              fmt::runtime(TIP_("Edit: {}, {}, {}")),
+              info.has_deformed_positions ? TIP_("positions") : TIP_("no positions"),
+              info.has_deform_matrices ? TIP_("matrices") : TIP_("no matrices"),
+              info.gizmo_transforms_num > 0 ? TIP_("gizmos") : TIP_("no gizmos"));
+        }
+        break;
+      }
+    }
+    if (!component_str.empty()) {
+      add_space(tip_data);
+      UI_tooltip_text_field_add(tip_data,
+                                fmt::format("\u2022 {}", component_str),
+                                {},
+                                UI_TIP_STYLE_MONO,
+                                UI_TIP_LC_VALUE);
+    }
+  }
+  add_space(tip_data);
+  UI_tooltip_text_field_add(
+      tip_data, TIP_("Type: Geometry Set"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
@@ -375,6 +463,9 @@ static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
   }
   if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log)) {
     return build_tooltip_value_field_log(tip_data, socket, *field_value_log);
+  }
+  if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log)) {
+    return build_tooltip_value_geometry_log(tip_data, socket, *geometry_log);
   }
   return true;
 }

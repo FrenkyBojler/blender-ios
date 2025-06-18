@@ -1697,12 +1697,13 @@ static void create_inspection_string_for_geometry_info(const geo_log::GeometryIn
     return std::string(str);
   };
 
-  if (value_log.grid_info) {
-    const geo_log::GeometryInfoLog::GridInfo &grid_info = *value_log.grid_info;
-    fmt::format_to(
-        fmt::appender(buf), "{}", grid_info.is_empty ? TIP_("Empty Grid") : TIP_("\u2022 Grid"));
-    return;
-  }
+  // if (value_log.grid_info) {
+  //   const geo_log::GeometryInfoLog::GridInfo &grid_info = *value_log.grid_info;
+  //   fmt::format_to(
+  //       fmt::appender(buf), "{}", grid_info.is_empty ? TIP_("Empty Grid") : TIP_("\u2022
+  //       Grid"));
+  //   return;
+  // }
 
   Span<bke::GeometryComponent::Type> component_types = value_log.component_types;
   if (component_types.is_empty()) {
