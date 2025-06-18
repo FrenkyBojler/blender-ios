@@ -322,7 +322,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 17)) {
+  if (!USER_VERSION_ATLEAST(500, 18)) {
     FROM_DEFAULT_V4_UCHAR(space_preferences.button);
   }
 
