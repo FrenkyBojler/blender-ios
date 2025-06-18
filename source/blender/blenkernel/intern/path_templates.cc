@@ -269,7 +269,7 @@ struct FormatSpecifier {
 enum class TokenType {
   /* Either "{variable_name}" or "{variable_name:format_spec}". */
   VARIABLE_EXPRESSION,
-  
+
   /* "{$VARIABLE_NAME}". */
   ENVIRONMENT_VARIABLE,
 
@@ -922,7 +922,8 @@ std::string BKE_path_template_error_to_string(const Error &error, blender::Strin
       return std::string("Unknown variable referenced in template expression '") + subpath + "'.";
     }
     case ErrorType::UNKNOWN_ENVIRONMENT: {
-      return std::string("Unknown environment variable referenced in template expression '") + subpath + "'.";
+      return std::string("Unknown environment variable referenced in template expression '") +
+             subpath + "'.";
     }
   }
 
