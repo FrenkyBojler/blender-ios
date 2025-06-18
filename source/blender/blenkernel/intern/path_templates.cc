@@ -214,7 +214,21 @@ VariableMap BKE_build_template_variables_for_render_path(const char *blend_file_
     variables.add_float("fps", fps);
   }
 
+  BKE_add_environment_template_variables(variables);
+
   return variables;
+}
+
+void BKE_add_environment_template_variables(VariableMap &variables)
+{
+  char **environment = BLI_getenvironment();
+  for (char **env = environment; *env != 0; env++) {
+    std::string env_tuple_info = *env;
+    int64_t delimiter_pos = env_tuple_info.find_first_of('=');
+    std::string name = env_tuple_info.substr(0, delimiter_pos);
+    std::string value = env_tuple_info.substr(delimiter_pos + 1);
+    variables.add_string(name, value);
+  }
 }
 
 /* -------------------------------------------------------------------- */

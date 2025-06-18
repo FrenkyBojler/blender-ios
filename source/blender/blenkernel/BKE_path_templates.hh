@@ -177,6 +177,8 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
 blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
     const char *blend_file_path, const RenderData *render_data);
 
+void BKE_add_environment_template_variables(blender::bke::path_templates::VariableMap &variables);
+
 /**
  * Check if a path contains any templating syntax at all.
  *
