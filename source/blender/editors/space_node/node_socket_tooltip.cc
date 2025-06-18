@@ -642,6 +642,53 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
   return true;
 }
 
+static void build_tooltip_value_implicit_default(uiTooltipData &tip_data,
+                                                 const NodeDefaultInputType &type)
+{
+  switch (type) {
+    case NODE_DEFAULT_INPUT_VALUE: {
+      /* Should be handled elsewhere. */
+      BLI_assert_unreachable();
+      break;
+    }
+    case NODE_DEFAULT_INPUT_INDEX_FIELD: {
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("Index Field"), get_field_type_name(CPPType::get<int>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_ID_INDEX_FIELD: {
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("ID or Index Field"), get_field_type_name(CPPType::get<int>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_NORMAL_FIELD: {
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("Normal Field"), get_field_type_name(CPPType::get<float3>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_POSITION_FIELD: {
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("Position Field"), get_field_type_name(CPPType::get<float3>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_INSTANCE_TRANSFORM_FIELD: {
+      build_tooltip_value_and_type_oneline(tip_data,
+                                           TIP_("Instance Transform Field"),
+                                           get_field_type_name(CPPType::get<float4x4>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_HANDLE_LEFT_FIELD: {
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("Left Handle Field"), get_field_type_name(CPPType::get<float3>()));
+      break;
+    }
+    case NODE_DEFAULT_INPUT_HANDLE_RIGHT_FIELD:
+      build_tooltip_value_and_type_oneline(
+          tip_data, TIP_("Right Handle Field"), get_field_type_name(CPPType::get<float3>()));
+      break;
+  }
+}
+
 static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
   if (socket.is_multi_input()) {
@@ -651,7 +698,7 @@ static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bN
   }
   const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
   if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
-    /* TODO */
+    build_tooltip_value_implicit_default(tip_data, socket_decl->default_input_type);
     return;
   }
   if (socket.typeinfo->base_cpp_type == nullptr) {
