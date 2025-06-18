@@ -24,6 +24,7 @@
 #include "NOD_node_declaration.hh"
 
 #include "NOD_socket.hh"
+#include "NOD_socket_declarations_geometry.hh"
 #include "RNA_enum_types.hh"
 #include "node_intern.hh"
 
@@ -806,7 +807,69 @@ static void build_tooltip_structure_type(uiTooltipData &tip_data, const bNodeSoc
   UI_tooltip_text_field_add(tip_data,
                             fmt::format(TIP_("Structure: {}"), structure_type_name),
                             {},
-                            UI_TIP_STYLE_MONO,
+                            UI_TIP_STYLE_NORMAL,
+                            UI_TIP_LC_NORMAL);
+}
+
+static void build_tooltip_supported_geometry_types(uiTooltipData &tip_data,
+                                                   const bNodeSocket &socket)
+{
+  if (socket.is_output()) {
+    return;
+  }
+  const nodes::decl::Geometry *socket_decl = dynamic_cast<const nodes::decl::Geometry *>(
+      socket.runtime->declaration);
+  if (!socket_decl) {
+    return;
+  }
+  std::string supported_types_str;
+  const Span<bke::GeometryComponent::Type> supported_types = socket_decl->supported_types();
+  if (supported_types.is_empty()) {
+    supported_types_str = TIP_("All");
+  }
+  else {
+    for (bke::GeometryComponent::Type type : supported_types) {
+      StringRef component_name;
+      switch (type) {
+        case bke::GeometryComponent::Type::Mesh: {
+          component_name = TIP_("Mesh");
+          break;
+        }
+        case bke::GeometryComponent::Type::PointCloud: {
+          component_name = TIP_("Point Cloud");
+          break;
+        }
+        case bke::GeometryComponent::Type::Instance: {
+          component_name = TIP_("Instances");
+          break;
+        }
+        case bke::GeometryComponent::Type::Volume: {
+          component_name = TIP_("Volume");
+          break;
+        }
+        case bke::GeometryComponent::Type::Curve: {
+          component_name = TIP_("Curves");
+          break;
+        }
+        case bke::GeometryComponent::Type::Edit: {
+          continue;
+        }
+        case bke::GeometryComponent::Type::GreasePencil: {
+          component_name = TIP_("Grease Pencil");
+          break;
+        }
+      }
+      supported_types_str += component_name;
+      if (type != supported_types.last()) {
+        supported_types_str += ", ";
+      }
+    }
+  }
+  add_space(tip_data);
+  UI_tooltip_text_field_add(tip_data,
+                            fmt::format(TIP_("Geometry Types: {}"), supported_types_str),
+                            {},
+                            UI_TIP_STYLE_NORMAL,
                             UI_TIP_LC_NORMAL);
 }
 
@@ -826,6 +889,9 @@ void build_socket_tooltip(uiTooltipData &tip_data,
     build_tooltip_value(tip_data, C, socket);
     if (tree.type == NTREE_GEOMETRY) {
       build_tooltip_structure_type(tip_data, socket);
+      if (socket.type == SOCK_GEOMETRY) {
+        build_tooltip_supported_geometry_types(tip_data, socket);
+      }
     }
     /* Extra padding at the bottom. */
     add_space(tip_data);

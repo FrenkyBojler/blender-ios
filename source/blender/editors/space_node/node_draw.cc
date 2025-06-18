@@ -231,10 +231,6 @@ void tag_update_id(ID *id)
   }
 }
 
-static std::string node_socket_get_tooltip(const SpaceNode *snode,
-                                           const bNodeTree &ntree,
-                                           const bNodeSocket &socket);
-
 static const char *node_socket_get_translation_context(const bNodeSocket &socket)
 {
   /* The node is not explicitly defined. */
