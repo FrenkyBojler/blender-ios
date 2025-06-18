@@ -823,7 +823,7 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Inferred Structure Type",
                            "Best known structure type of the socket. This may not match the "
-                           "socket shape for e.g. unlinked input sockets");
+                           "socket shape, e.g. for unlinked input sockets");
 
   /* registration */
   prop = RNA_def_property(srna, "bl_idname", PROP_STRING, PROP_NONE);
