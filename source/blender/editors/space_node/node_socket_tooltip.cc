@@ -29,6 +29,11 @@ namespace blender::ed::space_node {
 
 static void build_tooltip_label(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
+  const bNode &node = socket.owner_node();
+  if (node.is_reroute()) {
+    UI_tooltip_text_field_add(tip_data, TIP_("Reroute"), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+    return;
+  }
   const StringRefNull translated_socket_label = node_socket_get_label(&socket, nullptr);
   UI_tooltip_text_field_add(
       tip_data, translated_socket_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
@@ -330,7 +335,12 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
   return build_tooltip_value_geo_log(tip_data, socket, *value_log);
 }
 
-static void build_tooltip_value_unlinked_input(uiTooltipData &tip_data, const bNodeSocket &socket)
+static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket &socket)
+{
+  build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
+}
+
+static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
   if (socket.is_multi_input()) {
     /* TODO */
@@ -357,11 +367,29 @@ static void build_tooltip_value_unlinked_input(uiTooltipData &tip_data, const bN
   }
 }
 
+static bool is_socket_default_value_used(const bNodeSocket &socket)
+{
+  BLI_assert(socket.is_input());
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!link->is_used()) {
+      continue;
+    }
+    const bNodeSocket &from_socket = *link->fromsock;
+    const bNode &from_node = from_socket.owner_node();
+    if (from_node.is_dangling_reroute()) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
 static void build_tooltip_last_value(uiTooltipData &tip_data,
                                      bContext &C,
                                      const bNodeSocket &socket)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
+  const bNode &node = socket.owner_node();
 
   geo_log::ContextualGeoTreeLogs geo_tree_logs;
   if (snode) {
@@ -371,12 +399,17 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
   if (build_tooltip_last_value(tip_data, geo_tree_log, socket)) {
     return;
   }
+  if (node.is_reroute()) {
+    build_tooltip_value_unknown(tip_data, socket);
+    return;
+  }
   if (socket.is_input()) {
-    if (!socket.is_directly_linked()) {
-      build_tooltip_value_unlinked_input(tip_data, socket);
+    if (is_socket_default_value_used(socket)) {
+      build_tooltip_value_socket_default(tip_data, socket);
       return;
     }
   }
+  build_tooltip_value_unknown(tip_data, socket);
 }
 
 void build_socket_tooltip(uiTooltipData &tip_data,
@@ -389,6 +422,7 @@ void build_socket_tooltip(uiTooltipData &tip_data,
   build_tooltip_description(tip_data, socket);
   build_tooltip_last_value(tip_data, C, socket);
 
+  /* Dangling reroute. */
   /* Add allowed type. */
 }
 
