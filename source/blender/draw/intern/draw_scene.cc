@@ -49,7 +49,6 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
-  /* TODO: Skip dupli expansion. */
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | DEG_ITER_OBJECT_FLAG_VISIBLE;
   if (v3d->flag2 & V3D_SHOW_VIEWER) {
