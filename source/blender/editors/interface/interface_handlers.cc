@@ -3221,19 +3221,24 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int incr
 {
   std::string str_edit{text_edit.edit_string};
 
-  if (!isdigit(text_edit.edit_string[but->pos]))
-  {
+  if (!isdigit(text_edit.edit_string[but->pos])) {
     str_edit.insert(str_edit.begin() + but->pos, '0');
     ui_textedit_string_set(but, text_edit, str_edit.c_str());
   }
   else {
-    int dot_pos = 0;
+    bool dot_found = false;
+    int dot_pos = -1;
     int num_str_start = -1;
 
     for (int i = but->pos; i >= 0; i--) {
       char c = text_edit.edit_string[i];
-      if ((c == '.') && (dot_pos != 0)) {
-        break;
+      if (c == '.') {
+        if (dot_found) {
+          break;
+        }
+        dot_pos = but->pos - i;
+        dot_found = true;
+        continue;
       }
       if (c == '-') {
         num_str_start = i;
@@ -3245,34 +3250,51 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int incr
       num_str_start = i;
     }
 
+    std::string str_num{str_edit.substr(num_str_start, (but->pos + 1) - num_str_start)};
+
     double fadd = 10;
 
-    for (int i = dot_pos; i >= 0; i--) {
-      fadd /= 10;
+    if (dot_pos >= 0) {
+      for (int i = dot_pos; i >= 0; i--) {
+        fadd /= 10;
+      }
+    }
+    else {
+      fadd = 1;
     }
 
-    std::string str_num{str_edit.substr(num_str_start, but->pos - num_str_start + 1)};
+    int zero_dot_pos = str_num.find("0.");
+    int leading_zeros_count = 0;
+
+    if (zero_dot_pos == -1 && (str_num != "0" && str_num[0] == '0')) {
+      while (str_num[leading_zeros_count] == '0') {
+        leading_zeros_count++;
+      }
+    }
 
     double prev_result = std::stod(str_num);
     double result = prev_result + fadd * increment;
 
-    int is_positive = 0;
-
-    if (signum_i(prev_result) > signum_i(result)) {
-      is_positive = -1;
-    }
-    else if (signum_i(prev_result) < signum_i(result)) {
-      is_positive = 1;
-    }
-
     std::string str_num_incremented = std::to_string(result);
 
-    if (dot_pos == 0) {
-      str_num_incremented.erase(str_num_incremented.find_last_not_of('0') + 1, std::string::npos);
-      str_num_incremented.erase(str_num_incremented.find_last_not_of('.') + 1, std::string::npos);
+    int prev_sign_pos = str_num.find_first_of('-') + 1;
+    int sign_pos = str_num_incremented.find_first_of('-') + 1;
+
+    if (leading_zeros_count > 0) {
+      str_num.substr(prev_sign_pos, leading_zeros_count - prev_sign_pos);
     }
-    else {
-      str_num_incremented = str_num_incremented.substr(0, str_num.length() - is_positive);
+
+    int decimal_pos = std::to_string(abs(result)).find_first_of('.');
+    int prev_decimal_pos = std::to_string(abs(prev_result)).find_first_of('.');
+
+    str_num_incremented = str_num_incremented.substr(
+        0, str_num.length() + (decimal_pos - prev_decimal_pos) + (sign_pos - prev_sign_pos));
+
+    if (leading_zeros_count > 0) {
+      std::string itos = std::to_string((int)(result));
+      if (int(itos.size() < str_num.size()))
+        itos.insert(0, str_num.size() - itos.size(), '0');
+      str_num_incremented = itos;
     }
 
     std::string lstrip = str_edit.substr(0, num_str_start);
