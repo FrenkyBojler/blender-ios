@@ -756,19 +756,35 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
   build_tooltip_value_unknown(tip_data, socket);
 }
 
+static void build_tooltip_dangling_reroute(uiTooltipData &tip_data)
+{
+  UI_tooltip_text_field_add(tip_data,
+                            TIP_("Dangling reroute nodes are ignored."),
+                            {},
+                            UI_TIP_STYLE_NORMAL,
+                            UI_TIP_LC_ALERT);
+}
+
 void build_socket_tooltip(uiTooltipData &tip_data,
                           bContext &C,
                           const bNodeTree & /*tree*/,
                           const bNodeSocket &socket)
 {
-  build_tooltip_label(tip_data, socket);
-  build_tooltip_description(tip_data, socket);
-  add_space(tip_data, 2);
-  build_tooltip_last_value(tip_data, C, socket);
-  add_space(tip_data, 2);
+  const bNode &node = socket.owner_node();
 
-  /* Dangling reroute. */
-  /* Add allowed type. */
+  build_tooltip_label(tip_data, socket);
+  if (node.is_dangling_reroute()) {
+    add_space(tip_data, 2);
+    build_tooltip_dangling_reroute(tip_data);
+  }
+  else {
+    build_tooltip_description(tip_data, socket);
+    add_space(tip_data, 2);
+    build_tooltip_last_value(tip_data, C, socket);
+    /* Add allowed type. */
+  }
+
+  add_space(tip_data, 2);
 }
 
 }  // namespace blender::ed::space_node
