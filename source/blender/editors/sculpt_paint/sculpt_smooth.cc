@@ -31,12 +31,12 @@
 
 namespace blender::ed::sculpt_paint::smooth {
 
-template<typename T> T calc_average(const Span<T> positions, const Span<int> indices)
+template<typename T> T calc_average(const Span<T> values, const Span<int> indices)
 {
-  const float factor = math::rcp(float(indices.size()));
+  const float factor = math::safe_rcp(float(indices.size()));
   T result{};
   for (const int i : indices) {
-    result += positions[i] * factor;
+    result += values[i] * factor;
   }
   return result;
 }
@@ -78,7 +78,6 @@ void neighbor_data_average_mesh(const Span<T> src,
   BLI_assert(vert_neighbors.size() == dst.size());
 
   for (const int i : vert_neighbors.index_range()) {
-    BLI_assert(!vert_neighbors[i].is_empty());
     dst[i] = calc_average(src, vert_neighbors[i]);
   }
 }
