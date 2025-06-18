@@ -1234,7 +1234,7 @@ void ui_draw_layout_panels_backdrop(const ARegion *region,
 }
 
 static void panel_draw_softshadow(const rctf *box_rect,
-                                  int roundboxalign,
+                                  const int roundboxalign,
                                   const float radius,
                                   const float shadow_width)
 {
