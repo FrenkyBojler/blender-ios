@@ -73,7 +73,7 @@ static void tracking_segment_start_cb(void *userdata,
       UI_GetThemeColor4fv(TH_AXIS_Y, col);
       break;
     case CLIP_VALUE_SOURCE_REPROJECTION_ERROR:
-      col[2] = 1.0f;
+      UI_GetThemeColor4fv(TH_AXIS_Z, col);
       break;
   }
 
