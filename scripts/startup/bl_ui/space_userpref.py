@@ -1049,7 +1049,7 @@ class PreferenceThemeWidgetColorPanel:
 
         layout.use_property_split = True
 
-        flow = layout.grid_flow(row_major=True, columns=3, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
         col.prop(widget_style, "text")
@@ -1729,23 +1729,14 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(asset_library, "name", text="", emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(asset_library, "name", text="", emboss=False)
+        layout.prop(asset_library, "name", text="", emboss=False)
 
 
 class USERPREF_UL_extension_repos(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         repo = item
         icon = 'INTERNET' if repo.use_remote_url else 'DISK_DRIVE'
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
+        layout.prop(repo, "name", text="", icon=icon, emboss=False)
 
         # Show an error icon if this repository has unusable settings.
         if repo.enabled:
@@ -2116,8 +2107,8 @@ class USERPREF_PT_ndof_settings(Panel):
         layout_header.label(text="Advanced")
         if layout_advanced:
             col = layout_advanced.column()
-            col.prop(props, "ndof_sensitivity", text="Pan Sensitivity")
-            col.prop(props, "ndof_orbit_sensitivity")
+            col.prop(props, "ndof_translation_sensitivity")
+            col.prop(props, "ndof_rotation_sensitivity")
             col.prop(props, "ndof_deadzone")
 
             col.separator()
@@ -2876,8 +2867,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
             context, (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "write_large_blend_file_blocks"}, ("/blender/blender/issues/129309", "#129309")),
-                ({"property": "use_attribute_storage_write"}, ("/blender/blender/issues/122398", "#122398")),
+                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
             ),
         )
 

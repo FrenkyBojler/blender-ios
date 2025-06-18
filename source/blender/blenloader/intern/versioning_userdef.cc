@@ -114,8 +114,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(400, 14)) {
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(400, 24)) {
@@ -162,8 +162,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(402, 21)) {
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_image.asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
   }
 
   if (!USER_VERSION_ATLEAST(402, 47)) {
@@ -295,9 +295,31 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 9)) {
-    copy_v4_v4_uchar(btheme->tui.panel_header, U_theme_default.tui.panel_header);
-    copy_v4_v4_uchar(btheme->tui.panel_back, U_theme_default.tui.panel_back);
-    copy_v4_v4_uchar(btheme->tui.panel_sub_back, U_theme_default.tui.panel_sub_back);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_header);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_back);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 12)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxs);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxb);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxn);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxv);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxc);
+    FROM_DEFAULT_V4_UCHAR(space_node.syntaxd);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_attribute);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_filter);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_geometry);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_output);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_script);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_shader);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_texture);
+    FROM_DEFAULT_V4_UCHAR(space_node.nodeclass_vector);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 15)) {
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.header_back);
+    FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
   }
 
   /**
@@ -900,14 +922,14 @@ void blo_do_versions_userdef(UserDef *userdef)
       userdef->anisotropic_filter = 1;
     }
 
-    if (userdef->ndof_sensitivity == 0.0f) {
-      userdef->ndof_sensitivity = 1.0f;
+    if (userdef->ndof_translation_sensitivity == 0.0f) {
+      userdef->ndof_translation_sensitivity = 1.0f;
       userdef->ndof_flag = (NDOF_LOCK_HORIZON | NDOF_SHOULD_PAN | NDOF_SHOULD_ZOOM |
                             NDOF_SHOULD_ROTATE);
     }
 
-    if (userdef->ndof_orbit_sensitivity == 0.0f) {
-      userdef->ndof_orbit_sensitivity = userdef->ndof_sensitivity;
+    if (userdef->ndof_rotation_sensitivity == 0.0f) {
+      userdef->ndof_rotation_sensitivity = userdef->ndof_translation_sensitivity;
 
       if (!(userdef->flag & USER_TRACKBALL)) {
         userdef->ndof_flag |= NDOF_TURNTABLE;
@@ -1557,6 +1579,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     if (userdef->gpu_shader_workers > 0) {
       userdef->shader_compilation_method = USER_SHADER_COMPILE_SUBPROCESS;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 11)) {
+    userdef->gpu_flag &= ~USER_GPU_FLAG_UNUSED_0;
   }
 
   /**
