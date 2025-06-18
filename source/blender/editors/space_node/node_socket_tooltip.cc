@@ -372,7 +372,6 @@ static std::string count_to_string(const int count)
 }
 
 static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
-                                             const bNodeSocket &socket,
                                              const geo_log::GeometryInfoLog &geometry_log)
 {
   Span<bke::GeometryComponent::Type> component_types = geometry_log.component_types;
@@ -451,6 +450,20 @@ static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
   return true;
 }
 
+static bool build_tooltip_value_grid_log(uiTooltipData &tip_data,
+                                         const geo_log::GridInfoLog &grid_log)
+{
+  std::string value_str;
+  if (grid_log.is_empty) {
+    value_str = TIP_("None");
+  }
+  else {
+    value_str = TIP_("Grid");
+  }
+  build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Grid"));
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
@@ -465,7 +478,10 @@ static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
     return build_tooltip_value_field_log(tip_data, socket, *field_value_log);
   }
   if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log)) {
-    return build_tooltip_value_geometry_log(tip_data, socket, *geometry_log);
+    return build_tooltip_value_geometry_log(tip_data, *geometry_log);
+  }
+  if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
+    return build_tooltip_value_grid_log(tip_data, *grid_log);
   }
   return true;
 }
