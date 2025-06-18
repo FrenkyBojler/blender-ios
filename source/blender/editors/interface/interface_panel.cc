@@ -1080,6 +1080,12 @@ static void panel_draw_border(const Panel *panel,
     return;
   }
 
+  float color[4];
+  UI_GetThemeColor4fv(is_active ? TH_SELECT_ACTIVE : TH_PANEL_OUTLINE, color);
+  if (color[3] == 0.0f) {
+    return; /* No border to draw. */
+  }
+
   const bTheme *btheme = UI_GetTheme();
   const float aspect = panel->runtime->block->aspect;
   const float radius = (btheme->tui.panel_roundness * U.widget_unit * 0.5f) / aspect;
@@ -1090,9 +1096,6 @@ static void panel_draw_border(const Panel *panel,
   box_rect.xmax = rect->xmax;
   box_rect.ymin = UI_panel_is_closed(panel) ? header_rect->ymin : rect->ymin;
   box_rect.ymax = header_rect->ymax;
-
-  float color[4];
-  UI_GetThemeColor4fv(is_active ? TH_SELECT_ACTIVE : TH_PANEL_OUTLINE, color);
   UI_draw_roundbox_4fv(&box_rect, false, radius, color);
 }
 
