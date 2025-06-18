@@ -1009,7 +1009,7 @@ static inline void square_points_clamped_to_window(const int2 &p1,
                                                    int2 &p2,
                                                    const wmWindow *window)
 {
-  int2 delta = p2 - p1;
+  const int2 delta = p2 - p1;
 
   /* Determine the drag direction for each axis. */
   const int dir_x = (delta.x >= 0) ? 1 : -1;
@@ -1323,8 +1323,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     case MOUSEMOVE: {
       if (data->shift_area) {
         const int2 delta = screen_space_cursor - data->last_cursor;
-        int2 new_p1 = data->p1 + delta;
-        int2 new_p2 = data->p2 + delta;
+        const int2 new_p1 = data->p1 + delta;
+        const int2 new_p2 = data->p2 + delta;
 
         /* Apply movement only if the entire rectangle stays within window bounds. */
         if (is_within_window(new_p1) && is_within_window(new_p2)) {
