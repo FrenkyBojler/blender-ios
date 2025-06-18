@@ -130,6 +130,7 @@ struct uiLayout : uiItem {
 
   blender::ui::LayoutAlign alignment() const;
   void alignment_set(blender::ui::LayoutAlign alignment);
+
   uiBlock *block() const;
 
   void context_copy(const bContextStore *context);
