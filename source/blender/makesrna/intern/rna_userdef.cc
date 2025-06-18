@@ -3263,7 +3263,6 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Node Editor", "Theme settings for the Node Editor");
 
   rna_def_userdef_theme_spaces_main(srna);
-  rna_def_userdef_theme_spaces_list_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -4466,7 +4465,6 @@ static void rna_def_userdef_theme_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
-  rna_def_userdef_theme_spaces_list_main(srna);
 }
 
 static void rna_def_userdef_themes(BlenderRNA *brna)
@@ -7587,12 +7585,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
-
-  prop = RNA_def_property(srna, "use_attribute_storage_write", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Write New Attribute Storage Format",
-                           "Instead of writing with the older \"CustomData\" format for forward "
-                           "compatibility, use the new \"AttributeStorage\" format");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
