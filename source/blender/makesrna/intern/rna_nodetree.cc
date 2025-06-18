@@ -6899,17 +6899,10 @@ static void def_cmp_double_edge_mask(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_cmp_map_uv(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem filter_type_items[] = {
-      {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", ""},
-      {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", ""},
-      {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", ""},
-      {CMP_NODE_INTERPOLATION_ANISOTROPIC, "ANISOTROPIC", 0, "Anisotropic", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 
   PropertyRNA *prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom2");
-  RNA_def_property_enum_items(prop, filter_type_items);
+  RNA_def_property_enum_items(prop, cmp_interpolation_items);
   RNA_def_property_ui_text(prop, "Filter Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");

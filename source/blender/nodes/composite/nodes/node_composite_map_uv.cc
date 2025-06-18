@@ -7,7 +7,6 @@
  */
 
 #include "BLI_assert.h"
-#include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -87,15 +86,14 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     if (interpolation == Interpolation::Anisotropic) {
       GPU_texture_anisotropic_filter(input_image, true);
-      GPU_texture_mipmap_mode(input_image, true, true);
     }
     else {
       const bool use_bilinear = ELEM(
           interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
       GPU_texture_filter_mode(input_image, use_bilinear);
-      GPU_texture_mipmap_mode(input_image, false, false);
     }
 
+    GPU_texture_mipmap_mode(input_image, true, true);
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -119,6 +117,10 @@ class MapUVOperation : public NodeOperation {
   {
     if (interpolation == Interpolation::Anisotropic) {
       return "compositor_map_uv_anisotropic";
+    }
+
+    if (interpolation == Interpolation::Bicubic) {
+      return "compositor_map_uv_bicubic";
     }
     return "compositor_map_uv";
   }
@@ -145,8 +147,9 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color{};
+    float4 sampled_color{0.f};
     switch (interpolation) {
+      // FIXME: requires unit derivatives
       case Interpolation::Anisotropic:
         BLI_assert_unreachable();
         break;
@@ -187,7 +190,7 @@ class MapUVOperation : public NodeOperation {
 
     parallel_for(domain.size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
-      float4 sampled_color{};
+      float4 sampled_color{0.f};
 
       switch (interpolation) {
         /* Anisotropic is handled separately. */
