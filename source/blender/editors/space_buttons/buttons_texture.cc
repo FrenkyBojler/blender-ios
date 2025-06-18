@@ -266,7 +266,7 @@ static void buttons_texture_users_from_context(ListBase *users,
       ob = (Object *)pinid;
     }
     else if (GS(pinid->name) == ID_BR) {
-      brush = (Brush *)pinid;
+      brush = reinterpret_cast<Brush *>(pinid);
     }
     else if (GS(pinid->name) == ID_LS) {
       linestyle = (FreestyleLineStyle *)pinid;
@@ -292,8 +292,9 @@ static void buttons_texture_users_from_context(ListBase *users,
   /* fill users */
   BLI_listbase_clear(users);
 
-  if (scene && scene->nodetree) {
-    buttons_texture_users_find_nodetree(users, &scene->id, scene->nodetree, N_("Compositor"));
+  if (scene && scene->compositing_node_group) {
+    buttons_texture_users_find_nodetree(
+        users, &scene->id, scene->compositing_node_group, N_("Compositor"));
   }
 
   if (linestyle && !limited_mode) {
@@ -491,7 +492,7 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
   /* callback when opening texture user selection menu, to create buttons. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   const char *last_category = nullptr;
 
   LISTBASE_FOREACH (ButsTextureUser *, user, &ct->users) {
@@ -500,7 +501,7 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
 
     /* add label per category */
     if (!last_category || !STREQ(last_category, user->category)) {
-      uiItemL(layout, IFACE_(user->category), ICON_NONE);
+      layout->label(IFACE_(user->category), ICON_NONE);
       but = block->buttons.last().get();
       but->drawflag = UI_BUT_TEXT_LEFT;
     }
@@ -552,7 +553,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
    * display the current item. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   ButsTextureUser *user;
   char name[UI_MAX_NAME_STR];
@@ -565,7 +566,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   user = ct->user;
 
   if (!user) {
-    uiItemL(layout, TIP_("No textures in context"), ICON_NONE);
+    layout->label(TIP_("No textures in context"), ICON_NONE);
     return;
   }
 
@@ -694,7 +695,7 @@ void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr,
   }
 
   /* Draw button (disabled if we cannot find a Properties Editor to display this in). */
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   but = uiDefIconBut(block,
                      UI_BTYPE_BUT,

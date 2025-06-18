@@ -32,7 +32,7 @@ static void cmp_node_levels_declare(NodeDeclarationBuilder &b)
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
       .compositor_domain_priority(0);
   b.add_output<decl::Float>("Mean");
-  b.add_output<decl::Float>("Std Dev");
+  b.add_output<decl::Float>("Standard Deviation");
 }
 
 static void node_composit_init_view_levels(bNodeTree * /*ntree*/, bNode *node)
@@ -42,7 +42,7 @@ static void node_composit_init_view_levels(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_view_levels(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "channel", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "channel", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -69,7 +69,7 @@ class LevelsOperation : public NodeOperation {
       mean_result.set_single_value(mean);
     }
 
-    Result &standard_deviation_result = get_result("Std Dev");
+    Result &standard_deviation_result = get_result("Standard Deviation");
     if (standard_deviation_result.should_compute()) {
       const float standard_deviation = compute_standard_deviation(mean);
       standard_deviation_result.allocate_single_value();
@@ -79,7 +79,7 @@ class LevelsOperation : public NodeOperation {
 
   void execute_single_value()
   {
-    Result &standard_deviation_result = get_result("Std Dev");
+    Result &standard_deviation_result = get_result("Standard Deviation");
     if (standard_deviation_result.should_compute()) {
       standard_deviation_result.allocate_single_value();
       standard_deviation_result.set_single_value(0.0f);
@@ -192,7 +192,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_levels_cc
 
-void register_node_type_cmp_view_levels()
+static void register_node_type_cmp_view_levels()
 {
   namespace file_ns = blender::nodes::node_composite_levels_cc;
 
@@ -211,3 +211,4 @@ void register_node_type_cmp_view_levels()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_view_levels)

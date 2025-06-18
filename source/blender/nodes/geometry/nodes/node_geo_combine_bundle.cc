@@ -5,8 +5,10 @@
 #include "node_geometry_util.hh"
 
 #include "NOD_geo_bundle.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "BLO_read_write.hh"
 
@@ -30,7 +32,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = CombineBundleItemsAccessor::socket_identifier_for_item(item);
       b.add_input(socket_type, name, identifier)
-          .socket_name_ptr(&tree->id, CombineBundleItemsAccessor::item_srna, &item, "name");
+          .socket_name_ptr(&tree->id, CombineBundleItemsAccessor::item_srna, &item, "name")
+          .supports_field()
+          .structure_type(StructureType::Dynamic);
     }
   }
   b.add_input<decl::Extend>("", "__extend__");
@@ -69,12 +73,14 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
   bNode &node = *static_cast<bNode *>(node_ptr->data);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "bundle_items", false, TIP_("Bundle Items"))) {
+  if (uiLayout *panel = layout->panel(C, "bundle_items", false, TIP_("Bundle Items"))) {
+    panel->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+
     socket_items::ui::draw_items_list_with_operators<CombineBundleItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<CombineBundleItemsAccessor>(
         ntree, node, [&](PointerRNA *item_ptr) {
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, "Type", ICON_NONE);
         });
   }
 }
@@ -116,6 +122,35 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Bundle", std::move(bundle_ptr));
 }
 
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  if (other_socket.type != SOCK_BUNDLE) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_OUT) {
+    return;
+  }
+
+  params.add_item("Bundle", [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("GeometryNodeCombineBundle");
+    params.connect_available_socket(node, "Bundle");
+
+    SpaceNode &snode = *CTX_wm_space_node(&params.C);
+    ed::space_node::sync_sockets_combine_bundle(snode, node, nullptr);
+  });
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<CombineBundleItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<CombineBundleItemsAccessor>(&reader, node);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -129,7 +164,10 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(ntype, "NodeGeometryCombineBundle", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
 }
@@ -140,9 +178,6 @@ NOD_REGISTER_NODE(node_register)
 namespace blender::nodes {
 
 StructRNA *CombineBundleItemsAccessor::item_srna = &RNA_NodeGeometryCombineBundleItem;
-int CombineBundleItemsAccessor::node_type = GEO_NODE_COMBINE_BUNDLE;
-int CombineBundleItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeGeometryCombineBundleItem);
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

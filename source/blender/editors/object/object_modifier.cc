@@ -110,7 +110,7 @@ static CLG_LogRef LOG = {"ed.object"};
 static void modifier_skin_customdata_delete(Object *ob);
 
 /* ------------------------------------------------------------------- */
-/** \name Public Api
+/** \name Public API
  * \{ */
 
 static void object_force_modifier_update_for_bind(Depsgraph *depsgraph, Object *ob)
@@ -978,11 +978,7 @@ static bool apply_grease_pencil_for_modifier(Depsgraph *depsgraph,
 
   Main *bmain = DEG_get_bmain(depsgraph);
   /* There might be layers with empty names after evaluation. Make sure to rename them. */
-  for (Layer *layer : grease_pencil_orig.layers_for_write()) {
-    if (layer->name().is_empty()) {
-      grease_pencil_orig.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
-    }
-  }
+  bke::greasepencil::ensure_non_empty_layer_names(*bmain, grease_pencil_result);
   BKE_object_material_from_eval_data(bmain, ob, &grease_pencil_result.id);
   return true;
 }
@@ -1062,11 +1058,7 @@ static bool apply_grease_pencil_for_modifier_all_keyframes(Depsgraph *depsgraph,
   BKE_scene_graph_update_for_newframe(depsgraph);
 
   /* There might be layers with empty names after evaluation. Make sure to rename them. */
-  for (Layer *layer : grease_pencil_orig.layers_for_write()) {
-    if (layer->name().is_empty()) {
-      grease_pencil_orig.rename_node(*bmain, layer->as_node(), DATA_("Layer"));
-    }
-  }
+  bke::greasepencil::ensure_non_empty_layer_names(*bmain, grease_pencil_orig);
 
   WM_cursor_wait(false);
   return changed;
@@ -1211,7 +1203,7 @@ static bool modifier_apply_obdata(ReportList *reports,
     }
 
     bke::GeometrySet geometry_set = bke::GeometrySet::from_pointcloud(
-        &points, bke::GeometryOwnershipType::ReadOnly);
+        BKE_pointcloud_copy_for_eval(&points));
 
     ModifierEvalContext mectx = {depsgraph, ob, MOD_APPLY_TO_ORIGINAL};
     mti->modify_geometry_set(md_eval, &mectx, &geometry_set);
@@ -1512,7 +1504,7 @@ void OBJECT_OT_modifier_add(wmOperatorType *ot)
   ot->description = "Add a procedural operation/effect to the active object";
   ot->idname = "OBJECT_OT_modifier_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = modifier_add_invoke;
   ot->exec = modifier_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2813,7 +2805,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   bArmature *arm = static_cast<bArmature *>(arm_ob->data);
   ANIM_armature_bonecoll_show_all(arm);
   arm_ob->dtx |= OB_DRAW_IN_FRONT;
-  arm->drawtype = ARM_LINE;
+  arm->drawtype = ARM_DRAW_TYPE_STICK;
   arm->edbo = MEM_callocN<ListBase>("edbo armature");
 
   MVertSkin *mvert_skin = static_cast<MVertSkin *>(
@@ -2990,7 +2982,7 @@ void OBJECT_OT_correctivesmooth_bind(wmOperatorType *ot)
   ot->description = "Bind base pose in Corrective Smooth modifier";
   ot->idname = "OBJECT_OT_correctivesmooth_bind";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = correctivesmooth_poll;
   ot->invoke = correctivesmooth_bind_invoke;
   ot->exec = correctivesmooth_bind_exec;
@@ -3067,7 +3059,7 @@ void OBJECT_OT_meshdeform_bind(wmOperatorType *ot)
   ot->description = "Bind mesh to cage in mesh deform modifier";
   ot->idname = "OBJECT_OT_meshdeform_bind";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = meshdeform_poll;
   ot->invoke = meshdeform_bind_invoke;
   ot->exec = meshdeform_bind_exec;
@@ -3403,7 +3395,7 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
   ot->description = "Bind mesh to system in laplacian deform modifier";
   ot->idname = "OBJECT_OT_laplaciandeform_bind";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = laplaciandeform_poll;
   ot->invoke = laplaciandeform_bind_invoke;
   ot->exec = laplaciandeform_bind_exec;
@@ -3472,7 +3464,7 @@ void OBJECT_OT_surfacedeform_bind(wmOperatorType *ot)
   ot->description = "Bind mesh to target in surface deform modifier";
   ot->idname = "OBJECT_OT_surfacedeform_bind";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = surfacedeform_bind_poll;
   ot->invoke = surfacedeform_bind_invoke;
   ot->exec = surfacedeform_bind_exec;
@@ -3676,7 +3668,7 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_add(wmOperatorType *ot)
   ot->description = "Add a segment to the dash modifier";
   ot->idname = "OBJECT_OT_grease_pencil_dash_modifier_segment_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = dash_modifier_segment_poll;
   ot->invoke = dash_modifier_segment_add_invoke;
   ot->exec = dash_modifier_segment_add_exec;
@@ -3731,7 +3723,7 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_remove(wmOperatorType *ot)
   ot->description = "Remove the active segment from the dash modifier";
   ot->idname = "OBJECT_OT_grease_pencil_dash_modifier_segment_remove";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = dash_modifier_segment_poll;
   ot->invoke = dash_modifier_segment_remove_invoke;
   ot->exec = dash_modifier_segment_remove_exec;
@@ -3819,7 +3811,7 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_move(wmOperatorType *ot)
   ot->description = "Move the active dash segment up or down";
   ot->idname = "OBJECT_OT_grease_pencil_dash_modifier_segment_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = dash_modifier_segment_poll;
   ot->invoke = dash_modifier_segment_move_invoke;
   ot->exec = dash_modifier_segment_move_exec;
@@ -3912,7 +3904,7 @@ void OBJECT_OT_grease_pencil_time_modifier_segment_add(wmOperatorType *ot)
   ot->description = "Add a segment to the time modifier";
   ot->idname = "OBJECT_OT_grease_pencil_time_modifier_segment_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = time_modifier_segment_poll;
   ot->invoke = time_modifier_segment_add_invoke;
   ot->exec = time_modifier_segment_add_exec;
@@ -3967,7 +3959,7 @@ void OBJECT_OT_grease_pencil_time_modifier_segment_remove(wmOperatorType *ot)
   ot->description = "Remove the active segment from the time modifier";
   ot->idname = "OBJECT_OT_grease_pencil_time_modifier_segment_remove";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = time_modifier_segment_poll;
   ot->invoke = time_modifier_segment_remove_invoke;
   ot->exec = time_modifier_segment_remove_exec;
@@ -4055,7 +4047,7 @@ void OBJECT_OT_grease_pencil_time_modifier_segment_move(wmOperatorType *ot)
   ot->description = "Move the active time segment up or down";
   ot->idname = "OBJECT_OT_grease_pencil_time_modifier_segment_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = time_modifier_segment_poll;
   ot->invoke = time_modifier_segment_move_invoke;
   ot->exec = time_modifier_segment_move_exec;

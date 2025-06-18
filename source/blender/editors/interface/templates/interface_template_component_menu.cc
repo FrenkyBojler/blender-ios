@@ -40,7 +40,7 @@ static uiBlock *component_menu(bContext *C, ARegion *region, void *args_v)
                                      UI_style_get())
                          ->column(false);
 
-  uiItemR(&layout, &args->ptr, args->propname, UI_ITEM_R_EXPAND, "", ICON_NONE);
+  layout.prop(&args->ptr, args->propname, UI_ITEM_R_EXPAND, "", ICON_NONE);
 
   UI_block_bounds_set_normal(block, 0.3f * U.widget_unit);
   UI_block_direction_set(block, UI_DIR_DOWN);
@@ -57,7 +57,7 @@ void uiTemplateComponentMenu(uiLayout *layout,
   args->ptr = *ptr;
   STRNCPY(args->propname, propname.c_str());
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_align_begin(block);
 
   uiBut *but = uiDefBlockButN(block,

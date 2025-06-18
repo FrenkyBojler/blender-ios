@@ -55,7 +55,9 @@
 
 #include "BLO_read_write.hh"
 
-#include "image_cache.hh"
+#include "cache/final_image_cache.hh"
+#include "cache/intra_frame_cache.hh"
+#include "cache/source_image_cache.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -125,7 +127,7 @@ static void seq_free_strip(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
   Strip *strip;
 
@@ -137,7 +139,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 
   strip->flag = SELECT;
   strip->start = timeline_frame;
-  strip_channel_set(strip, machine);
+  strip_channel_set(strip, channel);
   strip->sat = 1.0;
   strip->mul = 1.0;
   strip->blend_opacity = 100.0;
@@ -181,7 +183,7 @@ static void seq_strip_free_ex(Scene *scene,
   relations_strip_free_anim(strip);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    EffectHandle sh = effect_handle_get(strip);
+    EffectHandle sh = strip_effect_handle_get(strip);
     sh.free(strip, do_id_user);
   }
 
@@ -211,6 +213,10 @@ static void seq_strip_free_ex(Scene *scene,
   if (strip->prop) {
     IDP_FreePropertyContent_ex(strip->prop, do_id_user);
     MEM_freeN(strip->prop);
+  }
+  if (strip->system_properties) {
+    IDP_FreePropertyContent_ex(strip->system_properties, do_id_user);
+    MEM_freeN(strip->system_properties);
   }
 
   /* free modifiers */
@@ -275,8 +281,7 @@ Editing *editing_ensure(Scene *scene)
 
     ed = scene->ed = MEM_callocN<Editing>("addseq");
     ed->seqbasep = &ed->seqbase;
-    ed->cache = nullptr;
-    ed->cache_flag = (SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
+    ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     ed->displayed_channels = &ed->channels;
     channels_ensure(ed->displayed_channels);
@@ -294,7 +299,6 @@ void editing_free(Scene *scene, const bool do_id_user)
   }
 
   seq_prefetch_free(scene);
-  seq_cache_destruct(scene);
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &ed->seqbase) {
@@ -305,6 +309,9 @@ void editing_free(Scene *scene, const bool do_id_user)
   strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
+  blender::seq::intra_frame_cache_destroy(scene);
+  blender::seq::source_image_cache_destroy(scene);
+  blender::seq::final_image_cache_destroy(scene);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -315,8 +322,8 @@ void editing_free(Scene *scene, const bool do_id_user)
 static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Strip *> strip_map)
 {
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->seq1 = strip_map.lookup_default(strip->seq1, strip->seq1);
-    strip->seq2 = strip_map.lookup_default(strip->seq2, strip->seq2);
+    strip->input1 = strip_map.lookup_default(strip->input1, strip->input1);
+    strip->input2 = strip_map.lookup_default(strip->input2, strip->input2);
   }
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
@@ -531,6 +538,9 @@ static Strip *strip_duplicate(const Scene *scene_src,
   if (strip->prop) {
     strip_new->prop = IDP_CopyProperty_ex(strip->prop, flag);
   }
+  if (strip->system_properties) {
+    strip_new->system_properties = IDP_CopyProperty_ex(strip->system_properties, flag);
+  }
 
   if (strip_new->modifiers.first) {
     BLI_listbase_clear(&strip_new->modifiers);
@@ -578,7 +588,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
   }
   else if (strip->type & STRIP_TYPE_EFFECT) {
     EffectHandle sh;
-    sh = effect_handle_get(strip);
+    sh = strip_effect_handle_get(strip);
     if (sh.copy) {
       sh.copy(strip_new, strip, flag);
     }
@@ -704,7 +714,7 @@ void seqbase_duplicate_recursive(const Scene *scene_src,
 
 bool is_valid_strip_channel(const Strip *strip)
 {
-  return strip->machine >= 1 && strip->machine <= MAX_CHANNELS;
+  return strip->channel >= 1 && strip->channel <= MAX_CHANNELS;
 }
 
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
@@ -788,6 +798,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
   if (strip->prop) {
     IDP_BlendWrite(writer, strip->prop);
   }
+  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
+   * the matching call to #BLO_read_struct). */
 
   modifier_blend_write(writer, &strip->modifiers);
 
@@ -826,8 +838,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   relations_session_uid_generate(strip);
 
-  BLO_read_struct(reader, Strip, &strip->seq1);
-  BLO_read_struct(reader, Strip, &strip->seq2);
+  BLO_read_struct(reader, Strip, &strip->input1);
+  BLO_read_struct(reader, Strip, &strip->input2);
 
   if (strip->effectdata) {
     switch (strip->type) {
@@ -876,6 +888,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, IDProperty, &strip->prop);
   IDP_BlendDataRead(reader, &strip->prop);
+  BLO_read_struct(reader, IDProperty, &strip->system_properties);
+  IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
   if (strip->data && strip->data->done == 0) {

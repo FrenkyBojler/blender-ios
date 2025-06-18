@@ -209,11 +209,11 @@ static void ui_popup_menu_create_block(bContext *C,
   const wmOperatorCallContext opcontext = pup->but ? WM_OP_INVOKE_REGION_WIN :
                                                      WM_OP_EXEC_REGION_WIN;
 
-  uiLayoutSetOperatorContext(pup->layout, opcontext);
+  pup->layout->operator_context_set(opcontext);
 
   if (pup->but) {
     if (pup->but->context) {
-      uiLayoutContextCopy(pup->layout, pup->but->context);
+      pup->layout->context_copy(pup->but->context);
     }
   }
 }
@@ -233,9 +233,9 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
       pup->block->handle = nullptr;
     }
 
-    if (uiLayoutGetUnitsX(pup->layout) != 0.0f) {
+    if (pup->layout->ui_units_x() != 0.0f) {
       /* Use the minimum width from the layout if it's set. */
-      minwidth = uiLayoutGetUnitsX(pup->layout) * UI_UNIT_X;
+      minwidth = pup->layout->ui_units_x() * UI_UNIT_X;
     }
 
     pup->layout = nullptr;
@@ -449,7 +449,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 static void create_title_button(uiLayout *layout, const char *title, int icon)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   char titlestr[256];
 
   if (icon) {
@@ -463,7 +463,7 @@ static void create_title_button(uiLayout *layout, const char *title, int icon)
     but->drawflag = UI_BUT_TEXT_LEFT;
   }
 
-  uiItemS(layout);
+  layout->separator();
 }
 
 uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
@@ -574,7 +574,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
       layout = UI_popup_menu_layout(pup);
     }
     else {
-      uiItemS(layout);
+      layout->separator();
     }
 
     /* split each newline into a label */
@@ -588,7 +588,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
         BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
         msg = buf;
       }
-      uiItemL(layout, msg, icon);
+      layout->label(msg, icon);
       icon = ICON_NONE;
     } while ((msg = msg_next) && *msg);
   }
@@ -792,7 +792,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
                                         bool cancel_default,
                                         PointerRNA *r_ptr)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   const StringRef confirm_text = confirm_text_opt.value_or(IFACE_("OK"));
   const StringRef cancel_text = cancel_text_opt.value_or(IFACE_("Cancel"));
@@ -811,16 +811,9 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_confirm) {
       return nullptr;
     }
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     const uiBut *but_ref = block->last_but();
-    uiItemFullO_ptr(row,
-                    ot,
-                    confirm_text,
-                    icon,
-                    nullptr,
-                    uiLayoutGetOperatorContext(row),
-                    UI_ITEM_NONE,
-                    r_ptr);
+    *r_ptr = row->op(ot, confirm_text, icon, row->operator_context(), UI_ITEM_NONE);
 
     if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
       return nullptr;
@@ -832,7 +825,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_cancel) {
       return nullptr;
     }
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     uiBut *but = uiDefIconTextBut(block,
                                   UI_BTYPE_BUT,
                                   1,

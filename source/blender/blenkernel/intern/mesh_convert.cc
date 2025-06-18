@@ -71,7 +71,7 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
       /* 2D polys are filled with #DispList.type == #DL_INDEX3. */
       (CU_DO_2DFILL(cu) == false) ||
       /* surf polys are never filled */
-      BKE_curve_type_get(cu) == OB_SURF);
+      (cu->ob_type == OB_SURF));
 
   /* count */
   int totvert = 0;
@@ -534,6 +534,8 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
 
 void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   BLI_assert(ob->type == OB_MESH);
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
@@ -545,11 +547,12 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   }
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
-
-  CustomData_free(&pointcloud->pdata);
   pointcloud->totpoint = mesh_eval->verts_num;
-  CustomData_merge(
-      &mesh_eval->vert_data, &pointcloud->pdata, CD_MASK_PROP_ALL, mesh_eval->verts_num);
+  copy_attributes(mesh_eval->attributes(),
+                  AttrDomain::Point,
+                  AttrDomain::Point,
+                  {},
+                  pointcloud->attributes_for_write());
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)pointcloud);
 
@@ -562,17 +565,21 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
 void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Object *ob)
 {
+  using namespace blender;
+  using namespace blender::bke;
   BLI_assert(ob->type == OB_POINTCLOUD);
 
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-  const blender::bke::GeometrySet geometry = blender::bke::object_get_evaluated_geometry_set(
-      *ob_eval);
+  const GeometrySet geometry = object_get_evaluated_geometry_set(*ob_eval);
 
   Mesh *mesh = BKE_mesh_add(bmain, ob->id.name + 2);
-
   if (const PointCloud *points = geometry.get_pointcloud()) {
     mesh->verts_num = points->totpoint;
-    CustomData_merge(&points->pdata, &mesh->vert_data, CD_MASK_PROP_ALL, points->totpoint);
+    copy_attributes(points->attributes(),
+                    AttrDomain::Point,
+                    AttrDomain::Point,
+                    {},
+                    mesh->attributes_for_write());
   }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)mesh);
@@ -755,12 +762,12 @@ static Mesh *mesh_new_from_mball_object(Object *object)
    *
    * Create empty mesh so script-authors don't run into None objects. */
   if (!DEG_is_evaluated(object)) {
-    return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
+    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
   }
 
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
   if (mesh_eval == nullptr) {
-    return (Mesh *)BKE_id_new_nomain(ID_ME, ((ID *)object->data)->name + 2);
+    return BKE_id_new_nomain<Mesh>(((ID *)object->data)->name + 2);
   }
 
   return BKE_mesh_copy_for_eval(*mesh_eval);
@@ -1055,7 +1062,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
   }
 }
 
-void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
+void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool process_shape_keys)
 {
   using namespace blender::bke;
   BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
@@ -1095,16 +1102,18 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob)
 
   /* For original meshes, shape key data is stored in the #Key data-block, so it
    * must be moved from the storage in #CustomData layers used for evaluation. */
-  if (Key *key_dst = mesh_dst->key) {
-    if (CustomData_has_layer(&mesh_src->vert_data, CD_SHAPEKEY)) {
-      /* If no object, set to -1 so we don't mess up any shapekey layers. */
-      const int uid_active = ob ? find_object_active_key_uid(*key_dst, *ob) : -1;
-      move_shapekey_layers_to_keyblocks(*mesh_dst, mesh_src->vert_data, *key_dst, uid_active);
-    }
-    else if (verts_num_changed) {
-      CLOG_WARN(&LOG, "Shape key data lost when replacing mesh '%s' in Main", mesh_src->id.name);
-      id_us_min(&mesh_dst->key->id);
-      mesh_dst->key = nullptr;
+  if (process_shape_keys) {
+    if (Key *key_dst = mesh_dst->key) {
+      if (CustomData_has_layer(&mesh_src->vert_data, CD_SHAPEKEY)) {
+        /* If no object, set to -1 so we don't mess up any shapekey layers. */
+        const int uid_active = ob ? find_object_active_key_uid(*key_dst, *ob) : -1;
+        move_shapekey_layers_to_keyblocks(*mesh_dst, mesh_src->vert_data, *key_dst, uid_active);
+      }
+      else if (verts_num_changed) {
+        CLOG_WARN(&LOG, "Shape key data lost when replacing mesh '%s' in Main", mesh_src->id.name);
+        id_us_min(&mesh_dst->key->id);
+        mesh_dst->key = nullptr;
+      }
     }
   }
 

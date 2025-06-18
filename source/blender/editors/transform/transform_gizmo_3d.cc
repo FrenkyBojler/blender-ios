@@ -11,6 +11,7 @@
  */
 
 #include "BLI_array_utils.h"
+#include "BLI_bounds.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -56,7 +57,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 
 /* Local module include. */
 #include "transform.hh"
@@ -603,7 +604,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
               mat_local, obedit->world_to_object().ptr(), ob_iter->object_to_world().ptr());
         }
         LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-          if (EBONE_VISIBLE(arm, ebo)) {
+          if (blender::animrig::bone_is_visible_editbone(arm, ebo)) {
             if (ebo->flag & BONE_TIPSEL) {
               run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
               totsel++;
@@ -611,7 +612,8 @@ static int gizmo_3d_foreach_selected(const bContext *C,
             if ((ebo->flag & BONE_ROOTSEL) &&
                 /* Don't include same point multiple times. */
                 ((ebo->flag & BONE_CONNECTED) && (ebo->parent != nullptr) &&
-                 (ebo->parent->flag & BONE_TIPSEL) && EBONE_VISIBLE(arm, ebo->parent)) == 0)
+                 (ebo->parent->flag & BONE_TIPSEL) &&
+                 blender::animrig::bone_is_visible_editbone(arm, ebo->parent)) == 0)
             {
               run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
               totsel++;
@@ -902,11 +904,10 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
 
       /* Get the boundbox out of the evaluated object. */
-      std::optional<BoundBox> bb;
+      std::optional<std::array<float3, 8>> bb;
       if (use_only_center == false) {
         if (std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(base->object)) {
-          bb.emplace();
-          BKE_boundbox_init_from_minmax(&*bb, bounds->min, bounds->max);
+          bb.emplace(bounds::corners(*bounds));
         }
       }
 
@@ -916,7 +917,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       else {
         for (uint j = 0; j < 8; j++) {
           float co[3];
-          mul_v3_m4v3(co, base->object->object_to_world().ptr(), bb->vec[j]);
+          mul_v3_m4v3(co, base->object->object_to_world().ptr(), (*bb)[j]);
           user_fn(co);
         }
       }

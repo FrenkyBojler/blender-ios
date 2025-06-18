@@ -341,13 +341,13 @@ static void curvemap_buttons_layout(uiLayout *layout,
   const float dx = UI_UNIT_X;
   eButGradientType bg = UI_GRAD_NONE;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   if (tone) {
     uiLayout *split = &layout->split(0.0f, false);
-    uiItemR(&split->row(false), ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    split->row(false).prop(ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
   /* curve chooser */
@@ -726,8 +726,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
   /* black/white levels */
   if (levels) {
     uiLayout *split = &layout->split(0.0f, false);
-    uiItemR(&split->column(false), ptr, "black_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-    uiItemR(&split->column(false), ptr, "white_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    split->column(false).prop(ptr, "black_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    split->column(false).prop(ptr, "white_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
     layout->row(false);
     bt = uiDefBut(block,
@@ -770,7 +770,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool tone)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   if (!prop) {
     RNA_warning(

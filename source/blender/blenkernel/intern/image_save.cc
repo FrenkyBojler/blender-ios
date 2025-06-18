@@ -109,6 +109,17 @@ bool BKE_image_save_options_init(ImageSaveOptions *opts,
      * by the image saving code itself. */
     BKE_image_user_file_path_ex(bmain, iuser, ima, opts->filepath, false, false);
 
+    /* For movies, replace extension and add the frame number to avoid writing over the movie file
+     * itself and provide a good default file path. */
+    if (ima->source == IMA_SRC_MOVIE) {
+      char filepath_no_ext[FILE_MAX];
+      STRNCPY(filepath_no_ext, opts->filepath);
+      BLI_path_extension_strip(filepath_no_ext);
+      SNPRINTF(opts->filepath, "%s_%.*d", filepath_no_ext, 4, ibuf->fileframe);
+      BKE_image_path_ext_from_imformat_ensure(
+          opts->filepath, sizeof(opts->filepath), &opts->im_format);
+    }
+
     /* sanitize all settings */
 
     /* unlikely but just in case */
@@ -334,8 +345,7 @@ static bool image_save_single(ReportList *reports,
 
   /* we need renderresult for exr and rendered multiview */
   rr = BKE_image_acquire_renderresult(opts->scene, ima);
-  const bool is_mono = rr ? BLI_listbase_count_at_most(&rr->views, 2) < 2 :
-                            BLI_listbase_count_at_most(&ima->views, 2) < 2;
+  const bool is_mono = !(rr ? RE_ResultIsMultiView(rr) : BKE_image_is_multiview(ima));
   const bool is_exr_rr = rr && ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);
   const bool is_multilayer = is_exr_rr && (imf->imtype == R_IMF_IMTYPE_MULTILAYER);
@@ -1084,7 +1094,7 @@ bool BKE_image_render_write(ReportList *reports,
                                                &format->linear_colorspace_settings);
   }
 
-  const bool is_mono = BLI_listbase_count_at_most(&rr->views, 2) < 2;
+  const bool is_mono = !RE_ResultIsMultiView(rr);
   const bool is_exr_rr = ELEM(
                              image_format.imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER) &&
                          RE_HasFloatPixels(rr);

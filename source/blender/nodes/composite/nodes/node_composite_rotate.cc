@@ -27,7 +27,7 @@ static void cmp_node_rotate_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_realization_mode(CompositorInputRealizationMode::None)
       .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Degr")
+  b.add_input<decl::Float>("Angle")
       .default_value(0.0f)
       .min(-10000.0f)
       .max(10000.0f)
@@ -43,7 +43,7 @@ static void node_composit_init_rotate(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_rotate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -54,14 +54,15 @@ class RotateOperation : public NodeOperation {
 
   void execute() override
   {
-    const math::AngleRadian rotation = this->get_input("Degr").get_single_value_default(0.0f);
+    const math::AngleRadian rotation = this->get_input("Angle").get_single_value_default(0.0f);
     const float3x3 transformation = math::from_rotation<float3x3>(rotation);
 
     const Result &input = this->get_input("Image");
     Result &output = this->get_result("Image");
     output.share_data(input);
     output.transform(transformation);
-    output.get_realization_options().interpolation = this->get_interpolation();
+    Interpolation interpolation = this->get_interpolation();
+    output.get_realization_options().interpolation = interpolation;
   }
 
   Interpolation get_interpolation()
@@ -71,6 +72,7 @@ class RotateOperation : public NodeOperation {
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:
         return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
       case CMP_NODE_INTERPOLATION_BICUBIC:
         return Interpolation::Bicubic;
     }
@@ -87,7 +89,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_rotate_cc
 
-void register_node_type_cmp_rotate()
+static void register_node_type_cmp_rotate()
 {
   namespace file_ns = blender::nodes::node_composite_rotate_cc;
 
@@ -105,3 +107,4 @@ void register_node_type_cmp_rotate()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_rotate)

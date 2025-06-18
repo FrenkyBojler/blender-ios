@@ -25,10 +25,10 @@ static void keymap_item_modified(bContext * /*C*/, void *kmi_p, void * /*unused*
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
 {
-  uiItemS(layout);
+  layout->separator();
 
   if (title) {
-    uiItemL(layout, title, ICON_NONE);
+    layout->label(title, ICON_NONE);
   }
 
   uiLayout *flow = &layout->column_flow(2, false);
@@ -49,15 +49,15 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
     }
 
     uiLayout *box = &flow->box();
-    uiLayoutSetActive(box, is_set);
+    box->active_set(is_set);
     uiLayout *row = &box->row(false);
 
     /* property value */
-    uiItemFullR(row, ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(ptr, prop, -1, 0, UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (is_set) {
       /* unset operator */
-      uiBlock *block = uiLayoutGetBlock(row);
+      uiBlock *block = row->block();
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
       but = uiDefIconButO(block,
                           UI_BTYPE_BUT,
@@ -82,8 +82,8 @@ void uiTemplateKeymapItemProperties(uiLayout *layout, PointerRNA *ptr)
   PointerRNA propptr = RNA_pointer_get(ptr, "properties");
 
   if (propptr.data) {
-    uiBlock *block = uiLayoutGetBlock(layout);
-    int i = uiLayoutGetBlock(layout)->buttons.size() - 1;
+    uiBlock *block = layout->block();
+    int i = layout->block()->buttons.size() - 1;
 
     WM_operator_properties_sanitize(&propptr, false);
     template_keymap_item_properties(layout, nullptr, &propptr);
