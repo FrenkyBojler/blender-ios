@@ -4,3 +4,4 @@ Referenced by issue #132451, Operators break if they don't singly and directly i
 Referenced by issue #129699, Python: declaring __init__ for an operator causes RuntimeError
 Referenced by issue #137077, Bmesh in 4.4.0: Significant performance loss (~ 40%)
 Referenced by issue #138064, Querying a `CollectionProperty` in poll-style methods attempts to create new `bpy_struct` instead of returning existing entry
+Referenced by issue #140332, Blender crashes running certain python code in background
