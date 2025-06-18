@@ -54,6 +54,7 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
         if self.properties.is_property_set("filepath"):
             return self.execute(context)
         context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
     def execute(self, context):
         from . import import_svg
