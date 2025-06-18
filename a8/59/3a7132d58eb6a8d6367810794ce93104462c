@@ -1,2 +1,3 @@
 Referenced by issue #139887, Regression: Outliner crash after excluding collection
 Referenced by issue #140396, bmesh.ops.dissolve_edges)
+Referenced by issue #140574, Manifold boolean leaves redundant 2-edged vertices
