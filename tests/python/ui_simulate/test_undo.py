@@ -288,6 +288,26 @@ def text_editor_edit_mode_mix():
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
     t.assertEqual(text.as_string(), "AABBCC")
 
+# -----------------------------------------------------------------------------
+# Node Editor
+
+def _compositor_startup_area(e):
+    """
+    Set up the compositor node editor
+    """
+    yield e.shift.f3(2)                # Twice to get compositor node editor
+
+def compositor_make_group():
+    e, t = _test_vars(window := _test_window())
+    yield from _compositor_startup_area(e)
+    # Create a node tree and select all nodes.
+    window.scene.use_nodes = True
+    t.assertGreater(window.scene.compositing_node_group.nodes, 1)
+    e.ctrl.g()
+    t.assertEqual(window.scene.compositing_node_group.nodes, 1)
+    e.ctrl.z()
+    t.assertGreater(window.scene.compositing_node_group.nodes, 1)
+
 
 # -----------------------------------------------------------------------------
 # 3D View
