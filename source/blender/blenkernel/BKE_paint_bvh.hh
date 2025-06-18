@@ -255,8 +255,11 @@ class Tree {
    */
   BitVector<> visibility_dirty_;
 
+  static Tree from_spatially_organized_mesh(const Mesh &mesh);
+
  public:
   std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
+
   pixels::PBVHData *pixels_ = nullptr;
 
   std::unique_ptr<DrawCache> draw_data;
@@ -269,7 +272,6 @@ class Tree {
 
   /** Build a BVH tree from base mesh triangles. */
   static Tree from_mesh(const Mesh &mesh);
-  static Tree from_spatially_organized_mesh(const Mesh &mesh);
   /** Build a BVH tree from grids geometry. */
   static Tree from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg);
   /** Build a BVH tree from a triangle BMesh. */
@@ -323,7 +325,7 @@ class Tree {
   void update_bounds_grids(Span<float3> positions, int grid_area);
   void update_bounds_bmesh(const BMesh &bm);
 
-  void update_normals(Object &object_orig, Object &object_eval, Tree &pbvh);
+  void update_normals(Object &object_orig, Object &object_eval);
 
   void update_visibility(const Object &object);
 
@@ -358,21 +360,6 @@ bool node_raycast_mesh(const MeshNode &node,
                        int &r_active_vertex,
                        int &r_active_face_index,
                        float3 &r_face_normal);
-bool node_raycast_mesh(const MeshNode &node,
-                       Span<float3> node_positions,
-                       Span<float3> vert_positions,
-                       OffsetIndices<int> faces,
-                       Span<int> corner_verts,
-                       Span<int3> corner_tris,
-                       Span<bool> hide_poly,
-                       const float3 &ray_start,
-                       const float3 &ray_normal,
-                       IsectRayPrecalc *isect_precalc,
-                       float *depth,
-                       int &r_active_vertex,
-                       int &r_active_face_index,
-                       float3 &r_face_normal,
-                       const Tree &Tree);
 
 bool node_raycast_grids(const SubdivCCG &subdiv_ccg,
                         GridsNode &node,

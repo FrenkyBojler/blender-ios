@@ -1552,20 +1552,10 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
 
-  /* Check if object is in object mode */
-  if (ob->mode != OB_MODE_OBJECT) {
-    BKE_report(op->reports, RPT_ERROR, "Object must be in Object Mode");
-    return OPERATOR_CANCELLED;
-  }
-
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  if (!mesh) {
-    BKE_report(op->reports, RPT_ERROR, "Object has no mesh data");
-    return OPERATOR_CANCELLED;
-  }
 
   /* Apply spatial reordering */
-  blender::bke::BKE_mesh_apply_spatial_organization(mesh);
+  blender::bke::BKE_mesh_apply_spatial_organization(*mesh);
 
   /* Tag for update */
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -1580,11 +1570,6 @@ static bool mesh_reorder_vertices_spatial_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   if (!ob || ob->type != OB_MESH) {
-    return false;
-  }
-
-  /* Only available in object mode */
-  if (ob->mode != OB_MODE_OBJECT) {
     return false;
   }
 

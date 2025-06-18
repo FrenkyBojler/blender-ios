@@ -123,7 +123,7 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
   }
 
   mesh_calc_edges(*mesh, false, false);
-
+  blender::bke::BKE_mesh_apply_spatial_organization(*mesh);
   MEM_freeN(qrd.out_faces);
   MEM_freeN(qrd.out_verts);
 
@@ -295,6 +295,7 @@ Mesh *BKE_mesh_remesh_voxel(const Mesh *mesh,
   openvdb::FloatGrid::Ptr level_set = remesh_voxel_level_set_create(mesh, transform);
   Mesh *result = remesh_voxel_volume_to_mesh(level_set, isovalue, adaptivity, false);
   BKE_mesh_copy_parameters(result, mesh);
+  blender::bke::BKE_mesh_apply_spatial_organization(*result);
   return result;
 #else
   UNUSED_VARS(mesh, voxel_size, adaptivity, isovalue, reports);

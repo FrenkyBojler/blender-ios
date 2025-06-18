@@ -18,13 +18,13 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
-#include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_customdata_types.h"
+
 struct BMEditMesh;
 struct BVHTree;
 struct Mesh;
@@ -128,29 +128,23 @@ struct TrianglesCache {
   /** Call instead of `data.tag_dirty()`. */
   void tag_dirty();
 };
-struct BVHNodeOffsets {
-  Vector<int> group_unique_offsets;
-  Vector<int> group_all_offsets;
-  Vector<int> group_face_offsets;
-  Vector<int> parent_offsets;
-  Vector<int> children_offsets;
-  Vector<Array<int>> vert_groups;
 
-  BVHNodeOffsets(Vector<int> unique_offsets,
-                 Vector<int> all_offsets,
-                 Vector<int> face_offsets,
-                 Vector<int> parent_offsets,
-                 Vector<int> children_offsets,
-                 Vector<Array<int>> vert_groups)
-      : group_unique_offsets(std::move(unique_offsets)),
-        group_all_offsets(std::move(all_offsets)),
-        group_face_offsets(std::move(face_offsets)),
-        parent_offsets(std::move(parent_offsets)),
-        children_offsets(std::move(children_offsets)),
-        vert_groups(std::move(vert_groups))
-  {
-  }
+struct MeshGroup {
+  /**Range of unique vertices in reordered mesh */
+  IndexRange unique_verts;
+  /**Range of all faces in reordered mesh */
+  IndexRange faces;
+  /**
+   * Indices of vertices that are shared with other groups in reordered mesh.
+   * This is empty if all vertices in the group are unique.
+   */
+  Array<int> shared_verts;
+  /** Parent node index (-1 for root) */
+  int parent;
+  /** Children node indices (empty for leaf nodes). */
+  Array<int> children;
 };
+
 struct MeshRuntime {
   /**
    * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
@@ -217,7 +211,12 @@ struct MeshRuntime {
 
   /** Needed in case we need to lazily initialize the mesh. */
   CustomData_MeshMasks cd_mask_extra = {};
-  std::unique_ptr<BVHNodeOffsets> spatial_offsets;
+
+  /**
+   * Pre Computed offsets for the BVH nodes, used to quickly access the node data for the BVH.
+   * Used to avoid recomputing the offsets every time the BVH is built.
+   */
+  std::unique_ptr<Array<MeshGroup>> spatial_groups;
 
   /**
    * Grids representation for multi-resolution sculpting. When this is set, the mesh data

@@ -198,17 +198,6 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       const bke::pbvh::MeshNode &node,
                                       MutableSpan<float> factors,
                                       MutableSpan<float> distances);
-void calc_factors_common_mesh_contiguous(const Depsgraph &depsgraph,
-                                         const Brush &brush,
-                                         const Object &object,
-                                         const MeshAttributeData &attribute_data,
-                                         Span<float3> vert_positions,
-                                         Span<float3> vert_normals,
-                                         const int start_offset,
-                                         const int num_vertices,
-                                         const bke::pbvh::MeshNode &node,
-                                         Vector<float> &r_factors,
-                                         Vector<float> &r_distances);
 void calc_factors_common_grids(const Depsgraph &depsgraph,
                                const Brush &brush,
                                const Object &object,
@@ -283,11 +272,6 @@ void fill_factor_from_hide_and_mask(Span<bool> hide_vert,
 void calc_front_face(const float3 &view_normal, Span<float3> normals, MutableSpan<float> factors);
 void calc_front_face(const float3 &view_normal,
                      Span<float3> vert_normals,
-                     int start_offset,
-                     int num_verts,
-                     MutableSpan<float> factors);
-void calc_front_face(const float3 &view_normal,
-                     Span<float3> vert_normals,
                      Span<int> verts,
                      MutableSpan<float> factors);
 void calc_front_face(const float3 &view_normal,
@@ -347,12 +331,6 @@ void calc_brush_distances_squared(const SculptSession &ss,
                                   Span<float3> positions,
                                   eBrushFalloffShape falloff_shape,
                                   MutableSpan<float> r_distances);
-void calc_brush_distances_squared(const SculptSession &ss,
-                                  const Span<float3> positions,
-                                  const int start_offset,
-                                  const int num_verts,
-                                  const eBrushFalloffShape falloff_shape,
-                                  const MutableSpan<float> r_distances);
 /** Set the factor to zero for all distances greater than the radius. */
 void filter_distances_with_radius(float radius, Span<float> distances, MutableSpan<float> factors);
 

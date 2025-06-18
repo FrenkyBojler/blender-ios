@@ -423,8 +423,7 @@ void mesh_data_update(Depsgraph &depsgraph,
 
 /** Remove strings referring to attributes if they no longer exist. */
 void mesh_remove_invalid_attribute_strings(Mesh &mesh);
-void BKE_mesh_reorder_vertices_spatial(Object *object);
-void BKE_mesh_apply_spatial_organization(Mesh *mesh);
+void BKE_mesh_apply_spatial_organization(Mesh &mesh);
 const AttributeAccessorFunctions &mesh_attribute_accessor_functions();
 
 }  // namespace blender::bke

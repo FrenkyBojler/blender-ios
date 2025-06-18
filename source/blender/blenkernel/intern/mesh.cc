@@ -14,7 +14,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "BLI_array_utils.hh"
 #include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
@@ -23,6 +22,7 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array.hh"
+#include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_hash.h"
@@ -720,7 +720,6 @@ void partition_faces_recursively(const Span<float3> face_centers,
     split = partition_material_indices(material_indices, face_indices);
   }
 
-  // Recursively build children
   partition_faces_recursively(face_centers,
                               face_indices.take_front(split),
                               children_offsets,
@@ -740,14 +739,15 @@ void partition_faces_recursively(const Span<float3> face_centers,
                               std::nullopt,
                               material_indices);
 }
-struct leaf_groups_result {
+struct LeafGroupsResult {
   Vector<Array<int>> vert_groups;
   Vector<int> unique_counts;
 };
-leaf_groups_result build_mesh_leaf_nodes(const int verts_num,
-                                         const OffsetIndices<int> faces,
-                                         const Span<int> corner_verts,
-                                         const Vector<Array<int>> &leaf_groups)
+
+LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
+                                       const OffsetIndices<int> faces,
+                                       const Span<int> corner_verts,
+                                       const Vector<Array<int>> &leaf_groups)
 {
   Vector<Array<int>> vert_groups;
   vert_groups.resize(leaf_groups.size());
@@ -823,7 +823,7 @@ struct SpatialFaceGroupsResult {
   Vector<int> children_offsets;
 };
 
-SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
+SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
 {
   Vector<Array<int>> face_groups;
   Vector<Array<int>> vert_groups;
@@ -831,9 +831,9 @@ SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
   Vector<int> parent_offsets;
   Vector<int> children_offsets;
 
-  const Span<float3> vert_positions = mesh->vert_positions();
-  const OffsetIndices<int> faces = mesh->faces();
-  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<float3> vert_positions = mesh.vert_positions();
+  const OffsetIndices<int> faces = mesh.faces();
+  const Span<int> corner_verts = mesh.corner_verts();
   if (faces.is_empty()) {
     return {face_groups, vert_groups, unique_counts, parent_offsets, children_offsets};
   }
@@ -855,7 +855,7 @@ SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
       },
       merge_bounds);
 
-  Array<int> prim_face_indices(mesh->faces_num);
+  Array<int> prim_face_indices(mesh.faces_num);
   array_utils::fill_index_range<int>(prim_face_indices);
 
   Vector<Array<int>> face_data;
@@ -864,7 +864,7 @@ SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
   parent_offsets.resize(1, -1);
   face_data.resize(1);
 
-  const AttributeAccessor attributes = mesh->attributes();
+  const AttributeAccessor attributes = mesh.attributes();
   const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
 
   partition_faces_recursively(face_centers,
@@ -887,7 +887,7 @@ SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
   }
 
   auto [vertex_groups, vertex_unique_counts] = build_mesh_leaf_nodes(
-      mesh->verts_num, faces, corner_verts, face_groups);
+      mesh.verts_num, faces, corner_verts, face_groups);
   vert_groups = std::move(vertex_groups);
   unique_counts = std::move(vertex_unique_counts);
 
@@ -898,41 +898,35 @@ SpatialFaceGroupsResult compute_spatial_groups(const Mesh *mesh)
           std::move(children_offsets)};
 }
 
-void BKE_mesh_apply_spatial_organization(Mesh *mesh)
+void BKE_mesh_apply_spatial_organization(Mesh &mesh)
 {
   SpatialFaceGroupsResult spatial_groups = compute_spatial_groups(mesh);
 
   Vector<int> new_vert_order;
-  new_vert_order.reserve(mesh->verts_num);
+  new_vert_order.reserve(mesh.verts_num);
 
   Vector<int> new_face_order;
-  new_face_order.reserve(mesh->faces_num);
+  new_face_order.reserve(mesh.faces_num);
 
-  BitVector<> added_verts(mesh->verts_num, false);
+  BitVector<> added_verts(mesh.verts_num, false);
 
-  // Store offsets for unique vertices in each group
   Vector<int> group_unique_offsets;
   group_unique_offsets.reserve(spatial_groups.vert_groups.size() + 1);
   group_unique_offsets.append(0);
 
-  // Store offsets for all vertices in each group
   Vector<int> group_all_offsets;
   group_all_offsets.reserve(spatial_groups.vert_groups.size() + 1);
   group_all_offsets.append(0);
 
-  // Store face offsets for each group
   Vector<int> group_face_offsets;
   group_face_offsets.reserve(spatial_groups.face_groups.size() + 1);
   group_face_offsets.append(0);
-
-  // Process each spatial group
 
   for (const int group_index : spatial_groups.vert_groups.index_range()) {
     const Array<int> &vert_group = spatial_groups.vert_groups[group_index];
     const Array<int> &face_group = spatial_groups.face_groups[group_index];
     const int unique_count = spatial_groups.unique_counts[group_index];
 
-    // Add unique vertices first
     for (int j = 0; j < unique_count; j++) {
       int vert_idx = vert_group[j];
       if (!added_verts[vert_idx]) {
@@ -942,7 +936,6 @@ void BKE_mesh_apply_spatial_organization(Mesh *mesh)
     }
     group_unique_offsets.append(new_vert_order.size());
 
-    // Add shared vertices
     for (int j = unique_count; j < vert_group.size(); j++) {
       int vert_idx = vert_group[j];
       if (!added_verts[vert_idx]) {
@@ -952,36 +945,26 @@ void BKE_mesh_apply_spatial_organization(Mesh *mesh)
     }
     group_all_offsets.append(new_vert_order.size());
 
-    // Add faces for this group
     for (const int face_idx : face_group) {
       new_face_order.append(face_idx);
     }
     group_face_offsets.append(new_face_order.size());
   }
 
-  Vector<int> vert_reverse_map(mesh->verts_num);
-  for (int i = 0; i < mesh->verts_num; i++) {
+  Vector<int> vert_reverse_map(mesh.verts_num);
+  for (int i = 0; i < mesh.verts_num; i++) {
     vert_reverse_map[new_vert_order[i]] = i;
   }
 
-  MutableSpan positions = mesh->vert_positions_for_write();
-  Array<float3> new_positions(positions.size());
-  for (int i = 0; i < positions.size(); i++) {
-    new_positions[i] = positions[new_vert_order[i]];
-  }
-  positions.copy_from(new_positions);
-
-  MutableSpan edges = mesh->edges_for_write();
+  MutableSpan edges = mesh.edges_for_write();
   for (int2 &edge : edges) {
     edge.x = vert_reverse_map[edge.x];
     edge.y = vert_reverse_map[edge.y];
   }
 
-  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
-  MutableSpan<int> corner_edges = mesh->corner_edges_for_write();
+  MutableSpan<int> corner_verts = mesh.corner_verts_for_write();
   Array<int> new_corner_verts(corner_verts.size());
-  Array<int> new_corner_edges(corner_edges.size());
-  const OffsetIndices<int> old_faces = mesh->faces();
+  const OffsetIndices<int> old_faces = mesh.faces();
 
   int new_corner_idx = 0;
   for (const int old_face_idx : new_face_order) {
@@ -989,93 +972,114 @@ void BKE_mesh_apply_spatial_organization(Mesh *mesh)
 
     for (const int corner : face) {
       new_corner_verts[new_corner_idx] = vert_reverse_map[corner_verts[corner]];
-      new_corner_edges[new_corner_idx] = corner_edges[corner];
       new_corner_idx++;
     }
   }
-  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
-
-  int corner_offset = 0;
-  face_offsets[0] = 0;
-
-  for (int i = 0; i < new_face_order.size(); i++) {
-    const int old_face_idx = new_face_order[i];
-    const IndexRange old_face = old_faces[old_face_idx];
-    corner_offset += old_face.size();
-    face_offsets[i + 1] = corner_offset;
-  }
   corner_verts.copy_from(new_corner_verts);
-  corner_edges.copy_from(new_corner_edges);
 
-  MutableAttributeAccessor attributes_for_write = mesh->attributes_for_write();
+  MutableSpan<int> face_offsets = mesh.face_offsets_for_write();
+  MutableSpan<int> face_sizes_view = face_offsets.take_front(new_face_order.size());
+  gather_group_sizes(old_faces, new_face_order, face_sizes_view);
+  offset_indices::accumulate_counts_to_offsets(face_offsets);
+
+  MutableAttributeAccessor attributes_for_write = mesh.attributes_for_write();
   attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.domain == bke::AttrDomain::Face && iter.name != ".select_face") {
-      bke::attribute_math::convert_to_static_type(iter.data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        bke::SpanAttributeWriter<T> attribute = attributes_for_write.lookup_for_write_span<T>(
-            iter.name);
-        if (attribute) {
-          Array<T> new_values(attribute.span.size());
-          for (int i = 0; i < new_face_order.size(); i++) {
-            new_values[i] = attribute.span[new_face_order[i]];
-          }
-          attribute.span.copy_from(new_values);
-          attribute.finish();
-        }
-      });
+    if (iter.domain == bke::AttrDomain::Face) {
+      bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
+      if (attribute) {
+        const CPPType &type = attribute.span.type();
+        GArray<> new_values(type, new_face_order.size());
+        bke::attribute_math::gather(attribute.span, new_face_order, new_values.as_mutable_span());
+        attribute.span.copy_from(new_values.as_span());
+        attribute.finish();
+      }
     }
-    if (iter.domain == bke::AttrDomain::Point && iter.name == ".select_vert") {
-      bke::attribute_math::convert_to_static_type(iter.data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        bke::SpanAttributeWriter<T> attribute = attributes_for_write.lookup_for_write_span<T>(
-            iter.name);
-        if (attribute) {
-          Array<T> new_values(attribute.span.size());
-          for (int i = 0; i < new_vert_order.size(); i++) {
-            new_values[i] = attribute.span[new_vert_order[i]];
-          }
-          attribute.span.copy_from(new_values);
-          attribute.finish();
-        }
-      });
+    else if (iter.domain == bke::AttrDomain::Point) {
+      bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
+      if (attribute) {
+        const CPPType &type = attribute.span.type();
+        GArray<> new_values(type, new_vert_order.size());
+        bke::attribute_math::gather(attribute.span, new_vert_order, new_values.as_mutable_span());
+        attribute.span.copy_from(new_values.as_span());
+        attribute.finish();
+      }
     }
-    if (iter.domain == bke::AttrDomain::Corner && iter.name == "UVMap") {
-      bke::attribute_math::convert_to_static_type(iter.data_type, [&](auto dummy) {
-        using T = decltype(dummy);
-        bke::SpanAttributeWriter<T> attribute = attributes_for_write.lookup_for_write_span<T>(
-            iter.name);
-        if (attribute) {
-          Array<T> new_values(attribute.span.size());
-          int new_corner_idx = 0;
+    else if (iter.domain == bke::AttrDomain::Corner && iter.name != ".corner_vert") {
+      bke::GSpanAttributeWriter attribute = attributes_for_write.lookup_for_write_span(iter.name);
+      if (attribute) {
+        GMutableSpan attribute_data = attribute.span;
+        const CPPType &type = attribute_data.type();
+        Array<char> new_data_storage(attribute_data.size() * type.size);
+        GMutableSpan new_data(type, new_data_storage.data(), attribute_data.size());
 
-          for (const int old_face_idx : new_face_order) {
-            const IndexRange face = old_faces[old_face_idx];
-            for (const int corner : face) {
-              new_values[new_corner_idx] = attribute.span[corner];
-              new_corner_idx++;
-            }
+        int new_corner_idx = 0;
+        for (const int old_face_idx : new_face_order) {
+          const IndexRange face = old_faces[old_face_idx];
+
+          for (const int old_corner_idx : face) {
+            type.copy_construct(attribute_data[old_corner_idx], new_data[new_corner_idx]);
+            new_corner_idx++;
           }
-          attribute.span.copy_from(new_values);
-          attribute.finish();
         }
-      });
+        attribute_data.copy_from(new_data);
+        attribute.finish();
+      }
     }
   });
-  // reorder vert groups to be used by the fast method for setting vert indices
+
   for (Array<int> &vert_group : spatial_groups.vert_groups) {
     for (int &vert_idx : vert_group) {
       vert_idx = vert_reverse_map[vert_idx];
     }
   }
-  mesh->runtime->spatial_offsets = std::make_unique<BVHNodeOffsets>(
-      std::move(group_unique_offsets),
-      std::move(group_all_offsets),
-      std::move(group_face_offsets),
-      std::move(spatial_groups.parent_offsets),
-      std::move(spatial_groups.children_offsets),
-      std ::move(spatial_groups.vert_groups));
-  mesh->tag_positions_changed();
-  mesh->tag_topology_changed();
+
+  Array<MeshGroup> nodes(spatial_groups.children_offsets.size());
+
+  for (int node_idx = 0; node_idx < spatial_groups.children_offsets.size(); node_idx++) {
+    nodes[node_idx].parent = (node_idx < spatial_groups.parent_offsets.size()) ?
+                                 spatial_groups.parent_offsets[node_idx] :
+                                 -1;
+
+    if (spatial_groups.children_offsets[node_idx] != 0) {
+      nodes[node_idx].children = Array<int>(2);
+      nodes[node_idx].children[0] = spatial_groups.children_offsets[node_idx];
+      nodes[node_idx].children[1] = spatial_groups.children_offsets[node_idx] + 1;
+
+      nodes[node_idx].unique_verts = IndexRange(0, 0);
+      nodes[node_idx].faces = IndexRange(0, 0);
+    }
+    else {
+      const Array<int> &face_group = spatial_groups.face_groups[node_idx];
+      const Array<int> &vert_group = spatial_groups.vert_groups[node_idx];
+      const int unique_count = spatial_groups.unique_counts[node_idx];
+
+      if (!face_group.is_empty()) {
+        int unique_start = (node_idx == 0) ? 0 : group_unique_offsets[node_idx];
+        int unique_end = group_unique_offsets[node_idx + 1];
+        nodes[node_idx].unique_verts = IndexRange(unique_start, unique_end - unique_start);
+
+        int face_start = (node_idx == 0) ? 0 : group_face_offsets[node_idx];
+        int face_end = group_face_offsets[node_idx + 1];
+        nodes[node_idx].faces = IndexRange(face_start, face_end - face_start);
+
+        int shared_count = vert_group.size() - unique_count;
+        if (shared_count > 0) {
+          nodes[node_idx].shared_verts = Array<int>(shared_count);
+          for (int j = 0; j < shared_count; j++) {
+            nodes[node_idx].shared_verts[j] = vert_group[unique_count + j];
+          }
+        }
+      }
+      else {
+        nodes[node_idx].unique_verts = IndexRange(0, 0);
+        nodes[node_idx].faces = IndexRange(0, 0);
+      }
+    }
+  }
+
+  mesh.runtime->spatial_groups = std::make_unique<Array<MeshGroup>>(std::move(nodes));
+  mesh.tag_positions_changed();
+  mesh.tag_topology_changed();
 }
 
 }  // namespace blender::bke

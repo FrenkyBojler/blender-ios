@@ -8,11 +8,8 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "DNA_brush_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include <iostream>
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector.hh"
@@ -134,24 +131,18 @@ static void offset_positions(const Depsgraph &depsgraph,
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (!(nodes[i].flag_ & bke::pbvh::Node::Leaf)) {
-          std::cout << "not a leaf node" << std::endl;
-          return;
-        }
-        else {
-          LocalData &tls = all_tls.local();
-          calc_faces(depsgraph,
-                     sd,
-                     brush,
-                     offset,
-                     attribute_data,
-                     vert_normals,
-                     nodes[i],
-                     object,
-                     tls,
-                     position_data);
-          bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
-        }
+        LocalData &tls = all_tls.local();
+        calc_faces(depsgraph,
+                   sd,
+                   brush,
+                   offset,
+                   attribute_data,
+                   vert_normals,
+                   nodes[i],
+                   object,
+                   tls,
+                   position_data);
+        bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
       });
       break;
     }

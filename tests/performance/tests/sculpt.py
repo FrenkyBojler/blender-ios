@@ -38,36 +38,17 @@ def set_view3d_context_override(context_override):
                     continue
                 context_override["area"] = area
                 context_override["region"] = region
-                
-def operator_exists(idname):
-    import bpy
-    names = idname.split(".")
-    print(names)
-    a = bpy.ops
-    for prop in names:
-        a = getattr(a, prop)
-        
-    try:
-        name = a.__repr__()
-    except Exception as e:
-        print(e)
-        return False
-
-    return True
 
 def try_reorder_vertices_spatial():
     import bpy
     """
     Try to call the SCULPT_OT_reorder_vertices_spatial operator if available.
     """
-    if operator_exists("sculpt.reorder_vertices_spatial"):
-        try:
-            bpy.ops.sculpt.reorder_vertices_spatial()
-            print("Successfully reordered vertices spatially")
-        except Exception as e:
-            print(f"Error calling reorder_vertices_spatial: {e}")
-    else:
-        print("SCULPT_OT_reorder_vertices_spatial operator not available")
+    try:
+        bpy.ops.sculpt.reorder_vertices_spatial()
+        print("Successfully reordered vertices spatially")
+    except Exception as e:
+        print(f"Error calling reorder_vertices_spatial: {e}")
 
 
 

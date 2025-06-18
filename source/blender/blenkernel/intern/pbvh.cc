@@ -230,10 +230,6 @@ inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
   return bounds;
 }
 
-template<> MutableSpan<MeshNode> Tree::nodes()
-{
-  return std::get<Vector<MeshNode>>(this->nodes_);
-}
 Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 {
 #ifdef DEBUG_BUILD_TIME
@@ -241,68 +237,68 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 #endif
 
   Tree pbvh(Type::Mesh);
-  Span<float3> vert_positions = mesh.vert_positions();
+  const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
-  const BVHNodeOffsets &spatial_offsets = *mesh.runtime->spatial_offsets;
-  const int num_groups = spatial_offsets.group_face_offsets.size() - 1;
 
-  if (num_groups == 0) {
+  const Array<MeshGroup> &spatial_groups = *mesh.runtime->spatial_groups;
+
+  if (spatial_groups.is_empty()) {
     return pbvh;
   }
 
   Vector<MeshNode> &nodes = std::get<Vector<MeshNode>>(pbvh.nodes_);
-  nodes.resize(num_groups);
+  nodes.resize(spatial_groups.size());
+
   pbvh.prim_indices_.reinitialize(mesh.faces_num);
   array_utils::fill_index_range<int>(pbvh.prim_indices_);
-  OffsetIndices<int> face_ranges(spatial_offsets.group_face_offsets);
-  OffsetIndices<int> unique_vert_ranges(spatial_offsets.group_unique_offsets);
-  OffsetIndices<int> all_vert_ranges(spatial_offsets.group_all_offsets);
 
   threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
-    for (const int group_idx : range) {
-      MeshNode &node = nodes[group_idx];
-      if (group_idx < spatial_offsets.parent_offsets.size()) {
-        node.parent_ = spatial_offsets.parent_offsets[group_idx];
+    for (const int node_idx : range) {
+      MeshNode &pbvh_node = nodes[node_idx];
+      pbvh_node.parent_ = spatial_groups[node_idx].parent;
+
+      if (!spatial_groups[node_idx].children.is_empty()) {
+        pbvh_node.children_offset_ = spatial_groups[node_idx].children[0];  // First child index
       }
       else {
-        node.parent_ = -1;
-      }
-      if (group_idx < spatial_offsets.children_offsets.size()) {
-        node.children_offset_ = spatial_offsets.children_offsets[group_idx];
-      }
-      else {
-        node.children_offset_ = 0;
-      }
+        pbvh_node.children_offset_ = 0;
+        pbvh_node.flag_ = Node::Leaf;
 
-      const IndexRange face_range = face_ranges[group_idx];
-      const int face_count = face_range.size();
+        const IndexRange face_range = spatial_groups[node_idx].faces;
+        const int face_count = face_range.size();
 
-      if (face_count == 0) {
-        continue;
-      }
-      else {
-        const IndexRange unique_vert_range = unique_vert_ranges[group_idx];
+        if (face_count > 0) {
+          pbvh_node.face_indices_ = Span<int>(&pbvh.prim_indices_[face_range.start()], face_count);
 
-        const int unique_vert_count = unique_vert_range.size();
+          int corners_count = 0;
+          for (const int face_index : pbvh_node.face_indices_) {
+            const IndexRange face = faces[face_index];
+            corners_count += face.size();
+          }
+          pbvh_node.corners_num_ = corners_count;
 
-        node.flag_ = Node::Leaf;
-        node.unique_verts_num_ = unique_vert_count;
+          pbvh_node.unique_verts_num_ = spatial_groups[node_idx].unique_verts.size();
 
-        node.face_indices_ = Span<int>(&pbvh.prim_indices_[face_range.start()], face_count);
-        int corners_count = 0;
-        for (const int face_index : node.face_indices_) {
-          const IndexRange face = faces[face_index];
-          corners_count += face.size();
+          pbvh_node.vert_indices_.reserve(spatial_groups[node_idx].unique_verts.size() +
+                                          spatial_groups[node_idx].shared_verts.size());
+
+          for (const int i : spatial_groups[node_idx].unique_verts.index_range()) {
+            const int vert_idx = spatial_groups[node_idx].unique_verts.start() + i;
+            pbvh_node.vert_indices_.add(vert_idx);
+          }
+
+          for (const int vert_idx : spatial_groups[node_idx].shared_verts) {
+            pbvh_node.vert_indices_.add(vert_idx);
+          }
         }
-        node.corners_num_ = corners_count;
-        const Array<int> &vertex_group = spatial_offsets.vert_groups[group_idx];
-        node.vert_indices_.reserve(vertex_group.size());
-        for (const int vert_idx : vertex_group) {
-          node.vert_indices_.add(vert_idx);
+        else {
+          pbvh_node.unique_verts_num_ = 0;
+          pbvh_node.corners_num_ = 0;
         }
       }
     }
   });
+
   pbvh.tag_positions_changed(nodes.index_range());
   pbvh.update_bounds_mesh(vert_positions);
   store_bounds_orig(pbvh);
@@ -319,6 +315,7 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
   }
 
   update_mask_mesh(mesh, nodes.index_range(), pbvh);
+
   return pbvh;
 }
 
@@ -327,7 +324,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
 #ifdef DEBUG_BUILD_TIME
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
-  if (mesh.runtime->spatial_offsets) {
+  if (mesh.runtime->spatial_groups) {
     std::cout << "Fast Method" << std::endl;
     return from_spatially_organized_mesh(mesh);
   }
@@ -392,6 +389,7 @@ Tree Tree::from_mesh(const Mesh &mesh)
   }
 
   update_mask_mesh(mesh, nodes.index_range(), pbvh);
+
   return pbvh;
 }
 
@@ -611,6 +609,11 @@ Tree::Tree(const Type type) : type_(type)
 int Tree::nodes_num() const
 {
   return std::visit([](const auto &nodes) { return nodes.size(); }, this->nodes_);
+}
+
+template<> MutableSpan<MeshNode> Tree::nodes()
+{
+  return std::get<Vector<MeshNode>>(this->nodes_);
 }
 
 template<> Span<MeshNode> Tree::nodes() const
@@ -1130,14 +1133,13 @@ static void update_normals_mesh(Object &object_orig,
     });
   }
 }
-void Tree::update_normals(Object &object_orig, Object &object_eval, Tree &pbvh)
+void Tree::update_normals(Object &object_orig, Object &object_eval)
 {
   IndexMaskMemory memory;
   const IndexMask nodes_to_update = IndexMask::from_bits(normals_dirty_, memory);
 
   switch (this->type()) {
     case Type::Mesh: {
-      //  std::cout << "update_normals 1" << std::endl;
       update_normals_mesh(object_orig, object_eval, this->nodes<MeshNode>(), nodes_to_update);
       break;
     }
@@ -1163,7 +1165,7 @@ void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
   BLI_assert(DEG_is_original(&object_orig));
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
-  pbvh.update_normals(object_orig, object_eval, pbvh);
+  pbvh.update_normals(object_orig, object_eval);
 }
 
 void update_normals_from_eval(Object &object_eval, Tree &pbvh)
@@ -1173,7 +1175,7 @@ void update_normals_from_eval(Object &object_eval, Tree &pbvh)
    * their result), and also because (currently) sculpt deformations skip tagging the mesh normals
    * caches dirty. */
   Object &object_orig = *DEG_get_original(&object_eval);
-  pbvh.update_normals(object_orig, object_eval, pbvh);
+  pbvh.update_normals(object_orig, object_eval);
 }
 
 void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)

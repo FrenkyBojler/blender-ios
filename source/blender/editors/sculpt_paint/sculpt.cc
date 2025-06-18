@@ -37,7 +37,6 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include <iostream>
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
@@ -6533,49 +6532,6 @@ void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
 
   calc_brush_texture_factors(ss, brush, vert_positions, verts, factors);
 }
-void calc_factors_common_mesh_contiguous(const Depsgraph &depsgraph,
-                                         const Brush &brush,
-                                         const Object &object,
-                                         const MeshAttributeData &attribute_data,
-                                         const Span<float3> vert_positions,
-                                         const Span<float3> vert_normals,
-                                         const int start_offset,
-                                         const int num_verts,
-                                         const bke::pbvh::MeshNode &node,
-                                         Vector<float> &r_factors,
-                                         Vector<float> &r_distances)
-{
-  const SculptSession &ss = *object.sculpt;
-  const StrokeCache &cache = *ss.cache;
-
-  // const Span<int> verts = node.verts();
-
-  r_factors.resize(num_verts);
-  const MutableSpan<float> factors = r_factors;
-  fill_factor_from_hide_and_mask(
-      attribute_data.hide_vert, attribute_data.mask, start_offset, num_verts, factors);
-  filter_region_clip_factors(ss, vert_positions, start_offset, num_verts, factors);
-  if (brush.flag & BRUSH_FRONTFACE) {
-    calc_front_face(cache.view_normal_symm, vert_normals, start_offset, num_verts, factors);
-  }
-
-  r_distances.resize(num_verts);
-  const MutableSpan<float> distances = r_distances;
-  calc_brush_distances(ss,
-                       vert_positions,
-                       start_offset,
-                       num_verts,
-                       eBrushFalloffShape(brush.falloff_shape),
-                       distances);
-  filter_distances_with_radius(cache.radius, distances, factors);
-  apply_hardness_to_distances(cache, distances);
-  calc_brush_strength_factors(cache, brush, distances, factors);
-
-  auto_mask::calc_vert_factors_contiguous(
-      depsgraph, object, cache.automasking.get(), start_offset, num_verts, node, factors);
-
-  calc_brush_texture_factors(ss, brush, vert_positions, start_offset, num_verts, factors);
-}
 
 void calc_factors_common_mesh(const Depsgraph &depsgraph,
                               const Brush &brush,
@@ -6950,21 +6906,6 @@ void calc_front_face(const float3 &view_normal,
 }
 
 void calc_front_face(const float3 &view_normal,
-                     const Span<float3> vert_normals,
-                     const int start_offset,
-                     const int num_verts,
-                     const MutableSpan<float> factors)
-{
-  BLI_assert(num_verts == factors.size());
-
-  for (int i = 0; i < num_verts; i++) {
-    const int vert = start_offset + i;
-    const float dot = math::dot(view_normal, vert_normals[vert]);
-    factors[i] *= std::max(dot, 0.0f);
-  }
-}
-
-void calc_front_face(const float3 &view_normal,
                      const Span<float3> normals,
                      const MutableSpan<float> factors)
 {
@@ -7134,56 +7075,6 @@ void calc_brush_distances_squared(const SculptSession &ss,
   }
 }
 
-void calc_brush_distances_squared(const SculptSession &ss,
-                                  const Span<float3> positions,
-                                  const int start_offset,
-                                  const int num_verts,
-                                  const eBrushFalloffShape falloff_shape,
-                                  const MutableSpan<float> r_distances)
-{
-  if (num_verts == r_distances.size()) {
-    // std::cout << "equal" << std::endl;
-  }
-  else {
-    std::cout << "not equal" << std::endl;
-    return;
-  }
-  BLI_assert(num_verts == r_distances.size());
-
-  const float3 &test_location = ss.cache ? ss.cache->location_symm : ss.cursor_location;
-  if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE && (ss.cache || ss.filter_cache)) {
-    std::cout << "tube shape falloff" << std::endl;
-    /* The tube falloff shape requires the cached view normal. */
-    const float3 &view_normal = ss.cache ? ss.cache->view_normal_symm :
-                                           ss.filter_cache->view_normal;
-    float4 test_plane;
-    plane_from_point_normal_v3(test_plane, test_location, view_normal);
-    for (int i = 0; i < num_verts; i++) {
-      const int vert = start_offset + i;
-      float3 projected;
-      closest_to_plane_normalized_v3(projected, test_plane, positions[vert]);
-      r_distances[i] = math::distance_squared(projected, test_location);
-    }
-  }
-  else {
-    // std::cout << "not tube shape falloff" << std::endl;
-    for (int i = 0; i < num_verts; i++) {
-      const int vert = start_offset + i;
-      r_distances[i] = math::distance_squared(test_location, positions[vert]);
-    }
-  }
-}
-void calc_brush_distances(const SculptSession &ss,
-                          const Span<float3> positions,
-                          const Span<int> verts,
-                          const eBrushFalloffShape falloff_shape,
-                          const MutableSpan<float> r_distances)
-{
-  calc_brush_distances_squared(ss, positions, verts, falloff_shape, r_distances);
-  for (float &value : r_distances) {
-    value = std::sqrt(value);
-  }
-}
 void calc_brush_distances(const SculptSession &ss,
                           const Span<float3> positions,
                           const int start_offset,

@@ -693,6 +693,14 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 
         draw_attribute_warnings(context, layout, mesh.color_attributes)
 
+class DATA_PT_reorder_vertices_spatial(Panel):
+    bl_label = "Reorder Vertices"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("mesh.reorder_vertices_spatial", text="Reorder Vertices Spatially", icon='SCULPTMODE_HLT')
 
 classes = (
     MESH_MT_vertex_group_context_menu,
@@ -715,6 +723,7 @@ classes = (
     DATA_PT_custom_props_mesh,
     MESH_UL_color_attributes,
     MESH_UL_color_attributes_selector,
+    DATA_PT_reorder_vertices_spatial,
 )
 
 if __name__ == "__main__":  # only for live edit.
