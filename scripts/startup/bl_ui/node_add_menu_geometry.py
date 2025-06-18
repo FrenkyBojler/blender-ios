@@ -600,6 +600,7 @@ class NODE_MT_category_simulation(Menu):
     def draw(self, _context):
         layout = self.layout
         node_add_menu.add_simulation_zone(layout, label="Simulation")
+        node_add_menu.add_node_type(layout, "GeometryNodeHairSimulation")
         node_add_menu.add_node_type(layout, "GeometryNodeSolveConstraints")
         node_add_menu.add_node_type(layout, "GeometryNodeConstraintResiduals")
         layout.menu("NODE_MT_geometry_node_constraint")
