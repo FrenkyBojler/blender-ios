@@ -4,9 +4,12 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BKE_anonymous_attribute_make.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
+
+#include "FN_field.hh"
 
 #include "GEO_hair_solver.hh"
 
@@ -31,11 +34,23 @@ using geometry::hair_solver::ConstraintEvalData;
 using geometry::hair_solver::VariableIndexArrays;
 using hair_constraints::ConstraintBundleItems;
 
+static const std::string position_attr = "position";
+static const std::string rotation_attr = "rotation";
+static const std::string velocity_attr = "velocity";
+static const std::string angular_velocity_attr = "angular_velocity";
+static const std::string position_cache_attr = ".old_position";
+static const std::string rotation_cache_attr = ".old_rotation";
+static const std::string mass_attr = "mass";
+static const std::string inv_mass_attr = "inv_mass";
+static const std::string inertia_attr = "inertia";
+static const std::string inv_inertia_attr = "inv_inertia";
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Delta Time").min(0.0f).hide_value();
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
+  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
   b.add_output<decl::Geometry>("Hair").propagate_all();
 }
@@ -50,28 +65,31 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   UNUSED_VARS(node);
 }
 
-static bool store_hair_rest_shape(GeometrySet &hair_geometry)
+static bool store_hair_rest_shape(GeometryComponent &hair_component)
 {
-  CurveComponent &curves = hair_geometry.get_component_for_write<CurveComponent>();
   Field<float3> position_field{AttributeFieldInput::Create<float3>("position")};
   Field<float3> normal_field{std::make_shared<bke::NormalFieldInput>(false, false)};
-  return bke::try_capture_fields_on_geometry(
-      curves, {"rest_position", "rest_normal"}, AttrDomain::Point, {position_field, normal_field});
+  return bke::try_capture_fields_on_geometry(hair_component,
+                                             {"rest_position", "rest_normal"},
+                                             AttrDomain::Point,
+                                             {position_field, normal_field});
 }
 
 /* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
-static void init_hair_physics(GeometrySet &hair_geometry)
+static void init_hair_physics(GeometryComponent &hair_component, const Field<bool> selection_field)
 {
-  UNUSED_VARS(hair_geometry);
+  UNUSED_VARS(hair_component, selection_field);
 }
 
 /* Create internal stretch/shear and bending constraints. */
-static void generate_elastic_rod_constraints(BundlePtr &bundle, const GeometrySet &hair_geometry)
+static void generate_elastic_rod_constraints(BundlePtr &bundle,
+                                             const GeometryComponent &hair_component,
+                                             const Field<bool> selection_field)
 {
   GeometrySet stretch_constraints;
   GeometrySet bending_constraints;
 
-  UNUSED_VARS(hair_geometry);
+  UNUSED_VARS(hair_component, selection_field);
 
   hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
   hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
@@ -79,15 +97,89 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle, const GeometrySe
 
 /* Create root attachment constraints. */
 static void generate_root_attachment_constraints(BundlePtr &bundle,
-                                                 const GeometrySet &hair_geometry)
+                                                 const GeometryComponent &hair_component,
+                                                 const Field<bool> selection_field)
 {
   GeometrySet position_constraints;
   GeometrySet rotation_constraints;
 
-  UNUSED_VARS(hair_geometry);
+  UNUSED_VARS(hair_component, selection_field);
 
   hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
   hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+}
+
+/* Capture motions state attribute for later velocity estimation. */
+static bool capture_motion_state(GeometryComponent &component, const Field<bool> &selection_field)
+{
+  const Field<float3> position_field{AttributeFieldInput::Create<float3>(position_attr)};
+  const Field<math::Quaternion> rotation_field{
+      AttributeFieldInput::Create<math::Quaternion>(rotation_attr)};
+  return bke::try_capture_fields_on_geometry(
+      component,
+      {position_cache_attr, rotation_cache_attr},
+      AttrDomain::Point,
+      selection_field,
+      {std::move(position_field), std::move(rotation_field)});
+}
+
+static bool apply_external_impulse(GeometryComponent &component,
+                                   const Field<bool> &selection_field,
+                                   const Field<float3> &impulse)
+{
+}
+
+static bool apply_external_force(GeometryComponent &component,
+                                 const Field<bool> &selection_field,
+                                 const float delta_time,
+                                 const Field<float3> &force)
+{
+}
+
+static bool integrate_positions(GeometryComponent &component,
+                                const Field<bool> &selection_field,
+                                const float delta_time,
+                                const float linear_factor)
+{
+  static const auto integrate_positions_fn = fn::multi_function::build::SI1_SO<float, float3>(
+      "Integrate Positions", [=](const float3 &position, const float3 &velocity) -> float3 {
+        return position + linear_factor * delta_time * velocity;
+      });
+  static const GField field = Field<float3>(
+      fn::FieldOperation::Create(integrate_positions_fn,
+                                 {bke::AttributeFieldInput::Create<float3>(position_attr),
+                                  bke::AttributeFieldInput::Create<float3>(velocity_attr)}));
+
+  bke::try_capture_field_on_geometry(
+      component, position_attr, bke::AttrDomain::Point, selection_field, field);
+}
+
+static bool integrate_rotations(GeometryComponent &component,
+                                const Field<bool> &selection_field,
+                                const float delta_time,
+                                const float angular_factor)
+{
+  static const auto integrate_rotations_fn =
+      fn::multi_function::build::SI1_SO<float, math::Quaternion>(
+          "Integrate Rotations",
+          [=](const math::Quaternion &rotation, const float3 &angular_velocity)
+              -> math::Quaternion { return position + linear_factor * delta_time * velocity; });
+  static const GField field = Field<float3>(fn::FieldOperation::Create(
+      integrate_rotations_fn,
+      {bke::AttributeFieldInput::Create<float3>(rotation_attr),
+       bke::AttributeFieldInput::Create<float3>(angular_velocity_attr)}));
+
+  bke::try_capture_field_on_geometry(
+      component, rotation_attr, bke::AttrDomain::Point, selection_field, field);
+}
+
+static void cosserat_rod_dynamics_integration(GeometryComponent &component,
+                                              const Field<bool> &selection_field,
+                                              const float delta_time,
+                                              const float linear_factor,
+                                              const float angular_factor)
+{
+  integrate_positions(component, selection_field, delta_time, linear_factor);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
@@ -377,18 +469,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
                                              0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+
+  if (!hair_geometry.has_curves()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+  CurveComponent &hair_curves = hair_geometry.get_component_for_write<CurveComponent>();
 
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
-    if (!store_hair_rest_shape(hair_geometry)) {
+    if (!store_hair_rest_shape(hair_curves)) {
       params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
     }
-    init_hair_physics(hair_geometry);
+    init_hair_physics(hair_curves, selection_field);
 
     BundlePtr constraint_bundle = Bundle::create();
-    generate_elastic_rod_constraints(constraint_bundle, hair_geometry);
-    generate_root_attachment_constraints(constraint_bundle, hair_geometry);
+    generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field);
+    generate_root_attachment_constraints(constraint_bundle, hair_curves, selection_field);
   }
+
+  /* Store current motion state for later velocity estimation. */
+  capture_motion_state(hair_curves, selection_field);
+
+  /* Unconstrained motion. */
+  cosserat_rod_dynamics_integration(hair_curves, selection_field, delta_time, 1.0f, 1.0f);
 
   params.set_output("Hair", std::move(hair_geometry));
 }
