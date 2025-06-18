@@ -742,9 +742,12 @@ static void build_tooltip_value(uiTooltipData &tip_data, bContext &C, const bNod
   {
     return;
   }
+  const bool always_show_value = socket.owner_tree().type == NTREE_GEOMETRY;
   if (node.is_reroute()) {
-    add_space(tip_data, 2);
-    build_tooltip_value_unknown(tip_data, socket);
+    if (always_show_value) {
+      add_space(tip_data, 2);
+      build_tooltip_value_unknown(tip_data, socket);
+    }
     return;
   }
   if (socket.is_input()) {
@@ -753,7 +756,7 @@ static void build_tooltip_value(uiTooltipData &tip_data, bContext &C, const bNod
       return;
     }
   }
-  if (socket.owner_tree().type == NTREE_GEOMETRY) {
+  if (always_show_value) {
     add_space(tip_data, 2);
     build_tooltip_value_unknown(tip_data, socket);
   }
