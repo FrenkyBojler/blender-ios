@@ -132,7 +132,6 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
     {UV_SELECT_VERTEX, "VERTEX", ICON_UV_VERTEXSEL, "Vertex", "Vertex selection mode"},
     {UV_SELECT_EDGE, "EDGE", ICON_UV_EDGESEL, "Edge", "Edge selection mode"},
     {UV_SELECT_FACE, "FACE", ICON_UV_FACESEL, "Face", "Face selection mode"},
-    {UV_SELECT_ISLAND, "ISLAND", ICON_UV_ISLANDSEL, "Island", "Island selection mode"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1432,7 +1431,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (MOV_codec_supports_alpha(rd->ffcodecdata)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec, rd->ffcodecdata.ffmpeg_prores_profile)) {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
@@ -1998,10 +1997,24 @@ static std::optional<std::string> rna_SceneRenderView_path(const PointerRNA *ptr
   return fmt::format("render.views[\"{}\"]", srv_name_esc);
 }
 
+static bool rna_Scene_use_nodes_get(PointerRNA *ptr)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
+  return scene->r.scemode & R_DOCOMP;
+}
+
+static void rna_Scene_use_nodes_set(PointerRNA *ptr, const bool use_nodes)
+{
+  Scene *scene = reinterpret_cast<Scene *>(ptr->data);
+  SET_FLAG_FROM_TEST(scene->r.scemode, use_nodes, R_DOCOMP);
+}
+
+/* Todo(#140111): Remove in 6.0. In Python API, this function is used to create a compositing node
+ * tree if none exists. scene.use_nodes will be replaced by the existing scene.use_compositing. */
 static void rna_Scene_use_nodes_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->data;
-  if (scene->use_nodes && scene->compositing_node_group == nullptr) {
+  if (scene->r.scemode & R_DOCOMP && scene->compositing_node_group == nullptr) {
     ED_node_composit_default(C, scene);
   }
   DEG_relations_tag_update(CTX_data_main(C));
@@ -4178,15 +4191,22 @@ static void rna_def_tool_settings(BlenderRNA *brna)
       prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_sticky_select_mode_update");
 
   prop = RNA_def_property(srna, "use_uv_select_sync", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_SYNC_SELECTION);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SYNC_SELECT);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_ISLAND_SELECT);
+  RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
+  RNA_def_property_ui_text(prop, "UV Island Selection", "Island selection");
+  RNA_def_property_ui_icon(prop, ICON_UV_ISLANDSEL, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   prop = RNA_def_property(srna, "show_uv_local_view", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_SHOW_SAME_IMAGE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SHOW_SAME_IMAGE);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "UV Local View", "Display only faces with the currently displayed image assigned");
@@ -4913,6 +4933,13 @@ static void rna_def_view_layer_eevee(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Transparent", "Deliver alpha blended surfaces in a separate pass");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
+
+  prop = RNA_def_property(srna, "ambient_occlusion_distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_range(prop, 0.0f, 100000.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
+  RNA_def_property_ui_text(
+      prop, "Distance", "Distance of object that contribute to the ambient occlusion effect");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_view_layer_aovs(BlenderRNA *brna, PropertyRNA *cprop)
@@ -5136,7 +5163,6 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
 
     prop = RNA_def_property(srna, "pass_cryptomatte_depth", PROP_INT, PROP_NONE);
     RNA_def_property_int_sdna(prop, nullptr, "cryptomatte_levels");
-    RNA_def_property_int_default(prop, 6);
     RNA_def_property_range(prop, 2.0, 16.0);
     RNA_def_property_ui_text(
         prop, "Cryptomatte Levels", "Sets how many unique objects can be distinguished per pixel");
@@ -5146,7 +5172,6 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
     prop = RNA_def_property(srna, "use_pass_cryptomatte_accurate", PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(
         prop, nullptr, "cryptomatte_flag", VIEW_LAYER_CRYPTOMATTE_ACCURATE);
-    RNA_def_property_boolean_default(prop, true);
     RNA_def_property_ui_text(
         prop, "Cryptomatte Accurate", "Generate a more accurate cryptomatte pass");
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
@@ -6929,7 +6954,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem engine_items[] = {
-      {0, "BLENDER_EEVEE_NEXT", 0, "EEVEE", ""},
+      {0, "BLENDER_EEVEE", 0, "EEVEE", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7321,7 +7346,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Compositing",
                            "Process the render result through the compositing pipeline, "
-                           "if compositing nodes are enabled");
+                           "if a compositing node group is assigned to the scene");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_sequencer", PROP_BOOLEAN, PROP_NONE);
@@ -8448,32 +8473,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
                            "Enable custom start and end clip distances for volume computation");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
-  /* Ambient Occlusion */
-  prop = RNA_def_property(srna, "use_gtao", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SCE_EEVEE_GTAO_ENABLED);
-  RNA_def_property_ui_text(prop,
-                           "Ambient Occlusion",
-                           "Enable ambient occlusion to simulate medium scale indirect shadowing");
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
-  /* TODO: remove this, kept for EEVEE 4.2 compatibility,
-   * this is a duplicate of "fast_gi_quality"). */
-  prop = RNA_def_property(srna, "gtao_quality", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "fast_gi_quality");
-  RNA_def_property_ui_text(prop, "Trace Precision", "Precision of the horizon search");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
-  prop = RNA_def_property(srna, "gtao_distance", PROP_FLOAT, PROP_DISTANCE);
-  RNA_def_property_ui_text(
-      prop, "Distance", "Distance of object that contribute to the ambient occlusion effect");
-  RNA_def_property_range(prop, 0.0f, 100000.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 100.0f, 1, 3);
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
-
   /* Fast GI approximation */
 
   prop = RNA_def_property(srna, "use_fast_gi", PROP_BOOLEAN, PROP_NONE);
@@ -8539,7 +8538,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "fast_gi_bias", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "gtao_focus");
   RNA_def_property_ui_text(
       prop, "Bias", "Bias the shading normal to reduce self intersection artifacts");
   RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -8548,7 +8546,6 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "fast_gi_resolution", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "gtao_resolution");
   RNA_def_property_enum_items(prop, eevee_resolution_scale_items);
   RNA_def_property_ui_text(prop,
                            "Resolution",
@@ -9068,7 +9065,9 @@ void RNA_def_scene(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_nodes", 1);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_ui_text(prop, "Use Nodes", "Enable the compositing node tree");
+  RNA_def_property_ui_text(
+      prop, "Use Nodes", "Enable the compositing node tree. (Deprecated: use use_compositing)");
+  RNA_def_property_boolean_funcs(prop, "rna_Scene_use_nodes_get", "rna_Scene_use_nodes_set");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_use_nodes_update");
 
   /* Sequencer */

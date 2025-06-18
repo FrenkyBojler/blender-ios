@@ -908,17 +908,6 @@ class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "image_draw_method", text="Image Display Method")
 
 
-class USERPREF_PT_viewport_selection(ViewportPanel, CenterAlignMixIn, Panel):
-    bl_label = "Selection"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_centered(self, context, layout):
-        prefs = context.preferences
-        system = prefs.system
-
-        layout.prop(system, "use_select_pick_depth")
-
-
 class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
     bl_label = "Subdivision"
     bl_options = {'DEFAULT_CLOSED'}
@@ -968,7 +957,6 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeNLAEditor",
         "ThemeNodeEditor",
         "ThemeOutliner",
-        "ThemePanelColors",
         "ThemePreferences",
         "ThemeProperties",
         "ThemeSequenceEditor",
@@ -1061,7 +1049,7 @@ class PreferenceThemeWidgetColorPanel:
 
         layout.use_property_split = True
 
-        flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
         col = flow.column(align=True)
         col.prop(widget_style, "text")
@@ -1071,7 +1059,10 @@ class PreferenceThemeWidgetColorPanel:
         col = flow.column(align=True)
         col.prop(widget_style, "inner", slider=True)
         col.prop(widget_style, "inner_sel", text="Selected", slider=True)
+
+        col = flow.column(align=True)
         col.prop(widget_style, "outline")
+        col.prop(widget_style, "outline_sel", text="Selected", slider=True)
 
         col.separator()
 
@@ -1101,6 +1092,29 @@ class PreferenceThemeWidgetShadePanel:
         widget_style = getattr(ui, self.wcol)
 
         self.layout.prop(widget_style, "show_shaded", text="")
+
+
+class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
+    bl_label = "Panel"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "USERPREF_PT_theme_user_interface"
+
+    def draw_centered(self, context, layout):
+        theme = context.preferences.themes[0]
+        ui = theme.user_interface
+
+        flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
+
+        col = flow.column()
+        col.prop(ui, "panel_header", text="Header")
+
+        col = col.column(align=True)
+        col.prop(ui, "panel_back", text="Background")
+        col.prop(ui, "panel_sub_back", text="Sub-Panel")
+
+        col = flow.column()
+        col.prop(ui, "panel_outline", text="Outline")
+        col.prop(ui, "panel_roundness", text="Roundness")
 
 
 class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
@@ -1168,13 +1182,14 @@ class USERPREF_PT_theme_interface_styles(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "icon_alpha")
         col.prop(ui, "icon_saturation", text="Saturation")
 
-        col = flow.column(align=True)
-        col.prop(ui, "menu_shadow_fac")
-        col.prop(ui, "menu_shadow_width", text="Shadow Width")
+        flow.separator()
 
         col = flow.column()
         col.prop(ui, "widget_emboss")
-        col.prop(ui, "panel_roundness")
+
+        col = flow.column(align=True)
+        col.prop(ui, "menu_shadow_fac")
+        col.prop(ui, "menu_shadow_width", text="Shadow Width")
 
 
 class USERPREF_PT_theme_interface_transparent_checker(ThemePanel, CenterAlignMixIn, Panel):
@@ -1717,23 +1732,14 @@ class USERPREF_PT_file_paths_asset_libraries(FilePathsPanel, Panel):
 class USERPREF_UL_asset_libraries(UIList):
     def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         asset_library = item
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(asset_library, "name", text="", emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(asset_library, "name", text="", emboss=False)
+        layout.prop(asset_library, "name", text="", emboss=False)
 
 
 class USERPREF_UL_extension_repos(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, _index):
         repo = item
         icon = 'INTERNET' if repo.use_remote_url else 'DISK_DRIVE'
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(repo, "name", text="", icon=icon, emboss=False)
+        layout.prop(repo, "name", text="", icon=icon, emboss=False)
 
         # Show an error icon if this repository has unusable settings.
         if repo.enabled:
@@ -2104,8 +2110,8 @@ class USERPREF_PT_ndof_settings(Panel):
         layout_header.label(text="Advanced")
         if layout_advanced:
             col = layout_advanced.column()
-            col.prop(props, "ndof_sensitivity", text="Pan Sensitivity")
-            col.prop(props, "ndof_orbit_sensitivity")
+            col.prop(props, "ndof_translation_sensitivity")
+            col.prop(props, "ndof_rotation_sensitivity")
             col.prop(props, "ndof_deadzone")
 
             col.separator()
@@ -2864,8 +2870,7 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
             context, (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "write_large_blend_file_blocks"}, ("/blender/blender/issues/129309", "#129309")),
-                ({"property": "use_attribute_storage_write"}, ("/blender/blender/issues/122398", "#122398")),
+                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
             ),
         )
 
@@ -2939,7 +2944,6 @@ classes = (
     USERPREF_PT_viewport_display,
     USERPREF_PT_viewport_quality,
     USERPREF_PT_viewport_textures,
-    USERPREF_PT_viewport_selection,
     USERPREF_PT_viewport_subdivision,
 
     USERPREF_PT_edit_objects,
@@ -2968,6 +2972,7 @@ classes = (
 
     USERPREF_MT_interface_theme_presets,
     USERPREF_PT_theme,
+    USERPREF_PT_theme_interface_panel,
     USERPREF_PT_theme_interface_gizmos,
     USERPREF_PT_theme_interface_icons,
     USERPREF_PT_theme_interface_state,
