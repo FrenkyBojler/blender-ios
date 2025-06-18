@@ -216,7 +216,10 @@ void ED_screen_draw_edges(wmWindow *win)
   GPU_scissor_test(false);
 }
 
-void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis)
+void screen_draw_move_highlight(const wmWindow *win,
+                                bScreen *screen,
+                                eScreenAxis dir_axis,
+                                float anim_factor)
 {
   rctf rect = {SHRT_MAX, SHRT_MIN, SHRT_MAX, SHRT_MIN};
 
@@ -256,7 +259,8 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
     }
   }
 
-  const float width = std::min(2.0f * U.border_width * UI_SCALE_FAC, 5.0f * UI_SCALE_FAC);
+  const float width = std::min(2.0f * U.border_width * UI_SCALE_FAC, 5.0f * UI_SCALE_FAC) *
+                      anim_factor;
 
   if (dir_axis == SCREEN_AXIS_H) {
     BLI_rctf_pad(&rect, 0.0f, width);
@@ -265,52 +269,65 @@ void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxi
     BLI_rctf_pad(&rect, width, 0.0f);
   }
 
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
   float outline[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, outline);
+  outline[3] *= anim_factor;
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  UI_draw_roundbox_4fv_ex(
-      &rect, inner, nullptr, 1.0f, outline, width - U.pixelsize, 2.5f * UI_SCALE_FAC);
+  UI_draw_roundbox_4fv_ex(&rect,
+                          inner,
+                          nullptr,
+                          1.0f,
+                          outline,
+                          width - (U.pixelsize * anim_factor),
+                          2.5f * UI_SCALE_FAC);
 }
 
-void screen_draw_region_scale_highlight(ARegion *region)
+void screen_draw_region_scale_highlight(ARegion *region, float anim_factor)
 {
   rctf rect;
   BLI_rctf_rcti_copy(&rect, &region->winrct);
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
+  const float half_width = (2.0f * U.pixelsize * anim_factor);
+  const float movement = (4.0f * U.pixelsize * anim_factor);
+
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
-      rect.xmax = rect.xmin - U.pixelsize;
-      rect.xmin = rect.xmax - (4.0f * U.pixelsize);
-      rect.ymax -= EDITORRADIUS;
-      rect.ymin += EDITORRADIUS;
+      rect.xmax = rect.xmin;
+      if (region->flag & RGN_FLAG_HIDDEN) {
+        BLI_rctf_translate(&rect, -movement, 0.0f);
+      }
+      BLI_rctf_pad(&rect, half_width, -EDITORRADIUS);
       break;
     case RGN_ALIGN_LEFT:
-      rect.xmin = rect.xmax + U.pixelsize;
-      rect.xmax = rect.xmin + (4.0f * U.pixelsize);
-      rect.ymax -= EDITORRADIUS;
-      rect.ymin += EDITORRADIUS;
+      rect.xmin = rect.xmax;
+      if (region->flag & RGN_FLAG_HIDDEN) {
+        BLI_rctf_translate(&rect, movement, 0.0f);
+      }
+      BLI_rctf_pad(&rect, half_width, -EDITORRADIUS);
       break;
     case RGN_ALIGN_TOP:
-      rect.ymax = rect.ymin - U.pixelsize;
-      rect.ymin = rect.ymax - (4.0f * U.pixelsize);
-      rect.xmax -= EDITORRADIUS;
-      rect.xmin += EDITORRADIUS;
+      rect.ymax = rect.ymin;
+      if (region->flag & RGN_FLAG_HIDDEN) {
+        BLI_rctf_translate(&rect, 0.0f, -movement);
+      }
+      BLI_rctf_pad(&rect, -EDITORRADIUS, half_width);
       break;
     case RGN_ALIGN_BOTTOM:
-      rect.ymin = rect.ymax + U.pixelsize;
-      rect.ymax = rect.ymin + (4.0f * U.pixelsize);
-      rect.xmax -= EDITORRADIUS;
-      rect.xmin += EDITORRADIUS;
+      rect.ymin = rect.ymax;
+      if (region->flag & RGN_FLAG_HIDDEN) {
+        BLI_rctf_translate(&rect, 0.0f, movement);
+      }
+      BLI_rctf_pad(&rect, -EDITORRADIUS, half_width);
       break;
     default:
       return;
   }
 
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f * anim_factor};
   UI_draw_roundbox_4fv_ex(
       &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
 }

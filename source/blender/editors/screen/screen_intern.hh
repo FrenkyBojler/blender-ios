@@ -80,6 +80,9 @@ enum class AreaDockTarget {
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)
 
+#define AREA_MOVE_LINE_FADEIN 0.18f   /* seconds */
+#define REGION_MOVE_LINE_FADEIN 0.25f /* seconds */
+
 /* `area.cc` */
 
 /**
@@ -108,9 +111,12 @@ void screen_draw_dock_preview(const wmWindow *win,
                               int y);
 void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor);
 
-void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis);
+void screen_draw_move_highlight(const wmWindow *win,
+                                bScreen *screen,
+                                eScreenAxis dir_axis,
+                                float anim_factor);
 
-void screen_draw_region_scale_highlight(ARegion *region);
+void screen_draw_region_scale_highlight(ARegion *region, float anim_factor);
 
 /* `screen_edit.cc` */
 
