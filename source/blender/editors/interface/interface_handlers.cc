@@ -6831,19 +6831,19 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
     BLI_rcti_rctf_copy(&rect, &but->rect);
 
     const float fac = ui_mouse_scale_warp_factor(shift);
-    data->relative_drag[0] += float(mx - data->draglastx) * fac;
-    data->relative_drag[1] += float(my - data->draglasty) * fac;
+    data->relative_drag.x += float(mx - data->draglastx) * fac;
+    data->relative_drag.y += float(my - data->draglasty) * fac;
     BLI_rctf_clamp_pt_v(&but->rect, data->relative_drag);
   }
   else {
-    data->relative_drag[0] = mx;
-    data->relative_drag[1] = my;
+    data->relative_drag.x = mx;
+    data->relative_drag.y = my;
   }
 
 #ifdef USE_CONT_MOUSE_CORRECT
   if (use_continuous_grab) {
-    data->ungrab_mval[0] = data->relative_drag[0];
-    data->ungrab_mval[1] = data->relative_drag[1];
+    data->ungrab_mval[0] = data->relative_drag.x;
+    data->ungrab_mval[1] = data->relative_drag.y;
   }
 #endif
 
@@ -6853,8 +6853,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
   ui_rgb_to_color_picker_HSVCUBE_compat_v(hsv_but, rgb, hsv);
 
   /* relative position within box */
-  x = (float(data->relative_drag[0]) - but->rect.xmin) / BLI_rctf_size_x(&but->rect);
-  y = (float(data->relative_drag[1]) - but->rect.ymin) / BLI_rctf_size_y(&but->rect);
+  x = (float(data->relative_drag.x) - but->rect.xmin) / BLI_rctf_size_x(&but->rect);
+  y = (float(data->relative_drag.y) - but->rect.ymin) / BLI_rctf_size_y(&but->rect);
   CLAMP(x, 0.0f, 1.0f);
   CLAMP(y, 0.0f, 1.0f);
 
@@ -6910,6 +6910,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
   }
 
   copy_v3_v3(data->vec, rgb);
+
   data->draglastx = mx;
   data->draglasty = my;
 
