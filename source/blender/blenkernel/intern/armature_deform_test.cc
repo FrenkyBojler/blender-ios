@@ -30,6 +30,13 @@
 
 #include "testing/testing.h"
 
+/* TODO Parameterized tests are not registered in `blender_test`.
+ * Possible reason: the cmake gtest_add_tests function may not be able to detect them reliably.
+ * https://cmake.org/cmake/help/latest/module/GoogleTest.html
+ * https://www.kitware.com/dynamic-google-test-discovery-in-cmake-3-10/
+ */
+// #define USE_PARAMETERIZED_TESTS
+
 namespace blender::bke::tests {
 
 /**
@@ -553,6 +560,127 @@ class ArmatureDeformTestBase {
   }
 };
 
+#ifdef USE_PARAMETERIZED_TESTS
+
+class ArmatureDeformParamTest : public ArmatureDeformTestBase,
+                                public testing::TestWithParam<ArmatureDeformTestParams> {
+ public:
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
+};
+
+TEST_P(ArmatureDeformParamTest, MeshDeformParameterized)
+{
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+  VertexWeightSource dvert_source = std::get<3>(params);
+
+  mesh_test(interpolation, weighting, masking, dvert_source);
+}
+
+TEST_P(ArmatureDeformParamTest, EditMeshDeformParameterized)
+{
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+
+  edit_mesh_test(interpolation, weighting, masking);
+}
+
+TEST_P(ArmatureDeformParamTest, CurvesDeformParameterized)
+{
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+
+  curves_test(interpolation, weighting, masking);
+}
+
+TEST_P(ArmatureDeformParamTest, GreasePencilDeformParameterized)
+{
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+
+  grease_pencil_test(interpolation, weighting, masking);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AllArmatureDeformTests,
+    ArmatureDeformParamTest,
+    testing::Combine(
+        testing::Values(InterpolationTest::Linear, InterpolationTest::DualQuaternion),
+        testing::Values(WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups),
+        testing::Values(MaskingTest::All, MaskingTest::VertexGroup),
+        testing::Values(VertexWeightSource::TargetObject, VertexWeightSource::SeparateMesh)),
+    [](const testing::TestParamInfo<ArmatureDeformTestParams> &info) {
+      InterpolationTest interpolation = std::get<0>(info.param);
+      WeightingTest weighting = std::get<1>(info.param);
+      MaskingTest masking = std::get<2>(info.param);
+      VertexWeightSource dvert_source = std::get<3>(info.param);
+
+      std::string name;
+      switch (interpolation) {
+        case InterpolationTest::Linear:
+          name += "linear";
+          break;
+        case InterpolationTest::DualQuaternion:
+          name += "dualquat";
+          break;
+      }
+      switch (weighting) {
+        case WeightingTest::None:
+          name += "_disabled";
+          break;
+        case WeightingTest::Envelope:
+          name += "_envelope";
+          break;
+        case WeightingTest::VertexGroups:
+          name += "_vgroups";
+          break;
+      }
+      switch (masking) {
+        case MaskingTest::All:
+          break;
+        case MaskingTest::VertexGroup:
+          name += "_masked";
+          break;
+      }
+      switch (dvert_source) {
+        case VertexWeightSource::TargetObject:
+          break;
+        case VertexWeightSource::SeparateMesh:
+          name += "_dvertsource";
+          break;
+      }
+      return name;
+    });
+
+#else  // USE_PARAMETERIZED_TESTS
+
 class ArmatureDeformTest : public ArmatureDeformTestBase, public testing::Test {
  public:
   static void SetUpTestSuite()
@@ -633,197 +761,6 @@ TEST_F(ArmatureDeformTest, GreasePencilDeform)
   }
 }
 
-/* TODO Parameterized tests are not registered in `blender_test`.
- * Possible reason: the cmake gtest_add_tests function may not be able to detect them reliably.
- * https://cmake.org/cmake/help/latest/module/GoogleTest.html
- * https://www.kitware.com/dynamic-google-test-discovery-in-cmake-3-10/
- */
-#if 0
-class ArmatureDeformParamTest : public ArmatureDeformTestBase,
-                                public testing::TestWithParam<ArmatureDeformTestParams> {
- public:
-  static void SetUpTestSuite()
-  {
-    CLG_init();
-    BKE_idtype_init();
-  }
-
-  static void TearDownTestSuite()
-  {
-    CLG_exit();
-  }
-
-  void SetUp() override
-  {
-    bmain = BKE_main_new();
-  }
-
-  void TearDown() override
-  {
-    BKE_main_free(bmain);
-  }
-};
-
-TEST_P(ArmatureDeformParamTest, MeshDeformParameterized)
-{
-  const ArmatureDeformTestParams &params = this->GetParam();
-  InterpolationTest interpolation = std::get<0>(params);
-  WeightingTest weighting = std::get<1>(params);
-  MaskingTest masking = std::get<2>(params);
-  VertexWeightSource dvert_source = std::get<3>(params);
-
-  mesh_test(interpolation, weighting, masking, dvert_source);
-
-  // mesh_test(InterpolationTest::Linear,
-  //           WeightingTest::None,
-  //           MaskingTest::All,
-  //           VertexWeightSource::TargetObject);
-  // mesh_test(InterpolationTest::Linear, WeightingTest::Envelope,
-  // VertexWeightSource::TargetObject); mesh_test(
-  //     InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::TargetObject);
-  // mesh_test(InterpolationTest::Linear,
-  //           WeightingTest::SingleVertexGroup,
-  //           VertexWeightSource::TargetObject);
-  // mesh_test(
-  //     InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::TargetObject);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::Envelope,
-  //           VertexWeightSource::TargetObject);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::VertexGroups,
-  //           VertexWeightSource::TargetObject);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::SingleVertexGroup,
-  //           VertexWeightSource::TargetObject);
-
-  // mesh_test(InterpolationTest::Linear, WeightingTest::None, VertexWeightSource::SeparateMesh);
-  // mesh_test(InterpolationTest::Linear, WeightingTest::Envelope,
-  // VertexWeightSource::SeparateMesh); mesh_test(
-  //     InterpolationTest::Linear, WeightingTest::VertexGroups, VertexWeightSource::SeparateMesh);
-  // mesh_test(InterpolationTest::Linear,
-  //           WeightingTest::SingleVertexGroup,
-  //           VertexWeightSource::SeparateMesh);
-  // mesh_test(
-  //     InterpolationTest::DualQuaternion, WeightingTest::None, VertexWeightSource::SeparateMesh);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::Envelope,
-  //           VertexWeightSource::SeparateMesh);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::VertexGroups,
-  //           VertexWeightSource::SeparateMesh);
-  // mesh_test(InterpolationTest::DualQuaternion,
-  //           WeightingTest::SingleVertexGroup,
-  //           VertexWeightSource::SeparateMesh);
-}
-
-TEST_P(ArmatureDeformParamTest, EditMeshDeformParameterized)
-{
-  const ArmatureDeformTestParams &params = this->GetParam();
-  InterpolationTest interpolation = std::get<0>(params);
-  WeightingTest weighting = std::get<1>(params);
-  MaskingTest masking = std::get<2>(params);
-  // VertexWeightSource dvert_source = std::get<3>(params);
-
-  edit_mesh_test(interpolation, weighting, masking);
-
-  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::None);
-  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  // edit_mesh_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
-}
-
-TEST_P(ArmatureDeformParamTest, CurvesDeformParameterized)
-{
-  const ArmatureDeformTestParams &params = this->GetParam();
-  InterpolationTest interpolation = std::get<0>(params);
-  WeightingTest weighting = std::get<1>(params);
-  MaskingTest masking = std::get<2>(params);
-  // VertexWeightSource dvert_source = std::get<3>(params);
-
-  curves_test(interpolation, weighting, masking);
-
-  // curves_test(InterpolationTest::Linear, WeightingTest::None);
-  // curves_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  // curves_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  // curves_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  // curves_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
-}
-
-TEST_P(ArmatureDeformParamTest, GreasePencilDeformParameterized)
-{
-  const ArmatureDeformTestParams &params = this->GetParam();
-  InterpolationTest interpolation = std::get<0>(params);
-  WeightingTest weighting = std::get<1>(params);
-  MaskingTest masking = std::get<2>(params);
-  // VertexWeightSource dvert_source = std::get<3>(params);
-
-  grease_pencil_test(interpolation, weighting, masking);
-
-  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::None);
-  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::Envelope);
-  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::VertexGroups);
-  // grease_pencil_test(InterpolationTest::Linear, WeightingTest::SingleVertexGroup);
-  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::None);
-  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::Envelope);
-  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
-  // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
-}
-
-INSTANTIATE_TEST_SUITE_P(AllArmatureDeformTests,
-                         ArmatureDeformParamTest,
-                         testing::Values(std::make_tuple(InterpolationTest::Linear,
-                                                         WeightingTest::None,
-                                                         MaskingTest::All,
-                                                         VertexWeightSource::TargetObject)),
-                         [](const testing::TestParamInfo<ArmatureDeformTestParams> &info) {
-                           InterpolationTest interpolation = std::get<0>(info.param);
-                           WeightingTest weighting = std::get<1>(info.param);
-                           MaskingTest masking = std::get<2>(info.param);
-                           VertexWeightSource dvert_source = std::get<3>(info.param);
-
-                           std::string name;
-                           switch (interpolation) {
-                             case InterpolationTest::Linear:
-                               name += "linear";
-                               break;
-                             case InterpolationTest::DualQuaternion:
-                               name += "dualquat";
-                               break;
-                           }
-                           switch (weighting) {
-                             case WeightingTest::None:
-                               name += "_disabled";
-                               break;
-                             case WeightingTest::Envelope:
-                               name += "_envelope";
-                               break;
-                             case WeightingTest::VertexGroups:
-                               name += "_vgroups";
-                               break;
-                           }
-                           switch (masking) {
-                             case MaskingTest::All:
-                               break;
-                             case MaskingTest::VertexGroup:
-                               name += "_masked";
-                               break;
-                           }
-                           switch (dvert_source) {
-                             case VertexWeightSource::TargetObject:
-                               break;
-                             case VertexWeightSource::SeparateMesh:
-                               name += "_dvertsource";
-                               break;
-                           }
-                           return name;
-                         });
 #endif
 
 }  // namespace blender::bke::tests
