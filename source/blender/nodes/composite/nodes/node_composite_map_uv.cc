@@ -149,16 +149,14 @@ class MapUVOperation : public NodeOperation {
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
     float4 sampled_color{0.f};
     switch (interpolation) {
-      // FIXME: requires unit derivatives
-      case Interpolation::Anisotropic:
-        BLI_assert_unreachable();
-        break;
       case Interpolation::Nearest:
         sampled_color = input_image.sample_nearest_zero(uv_coordinates);
         break;
       case Interpolation::Bilinear:
         sampled_color = input_image.sample_bilinear_zero(uv_coordinates);
         break;
+      /* NOTE: The anisotropic case should be handled after reimplementation of EWA. */
+      case Interpolation::Anisotropic:
       case Interpolation::Bicubic:
         sampled_color = input_image.sample_cubic_wrap(uv_coordinates, false, false);
         break;
