@@ -301,16 +301,21 @@ def _compositor_startup_area(e):
 
 
 def compositor_make_group():
+    import bpy
     e, t = _test_vars(window := _test_window())
     yield from _compositor_startup_area(e)
+
     # Create a node tree with multiple nodes and select all nodes.
-    window.scene.use_nodes = True
+    node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
+    window.scene.compositing_node_group = node_group
+    node_group.nodes.new("CompositorNodeComposite")
+    node_group.nodes.new("ShaderNodeMix")
     yield e.a()
-    t.assertGreater(len(window.scene.compositing_node_group.nodes), 1)
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
     yield e.ctrl.g()
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
     yield e.ctrl.z()
-    t.assertGreater(len(window.scene.compositing_node_group.nodes), 1)
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
 
 
 # -----------------------------------------------------------------------------
