@@ -1007,6 +1007,11 @@ struct WeightGradientDrawingCache {
   Array<float2> point_positions;
   Array<float> point_original_weights;
   Array<uint8_t> point_flags;
+
+  /* The vertex weights of the auto-normalized vertex groups. */
+  Vector<VMutableArray<float>> auto_normalized_weights;
+  /* The original vertex weights of the auto-normalized vertex groups. */
+  Vector<Array<float>> auto_normalized_original_weights;
 };
 
 struct WeightGradientToolData {
@@ -1066,6 +1071,15 @@ static wmOperatorStatus weight_gradient_exec(bContext *C, wmOperator *op)
             {
               cache.deform_weights.set(point, cache.point_original_weights[point]);
               cache.point_flags[point] &= ~WPAINT_GRADIENT_POINT_IS_MODIFIED;
+
+              /* If applicable, restore the weights of auto-normalized groups. */
+              if (tool.auto_normalize) {
+                for (const int auto_normalized_index : cache.auto_normalized_weights.index_range())
+                {
+                  cache.auto_normalized_weights[auto_normalized_index].set(
+                      point, cache.auto_normalized_original_weights[auto_normalized_index][point]);
+                }
+              }
             }
 
             /* Get the vector of gradient line starting point to the stroke point. */
@@ -1156,8 +1170,17 @@ static void weight_gradient_cancel(const bContext &C, WeightGradientToolData &to
             if ((cache.point_flags[point] & WPAINT_GRADIENT_POINT_IS_MODIFIED) == 0) {
               continue;
             }
-            if (cache.point_flags[point] & WPAINT_GRADIENT_POINT_DW_EXISTS) {
+            if ((cache.point_flags[point] & WPAINT_GRADIENT_POINT_DW_EXISTS) != 0) {
               cache.deform_weights.set(point, cache.point_original_weights[point]);
+
+              /* If applicable, restore the weights of auto-normalized groups. */
+              if (tool.auto_normalize) {
+                for (const int auto_normalized_index : cache.auto_normalized_weights.index_range())
+                {
+                  cache.auto_normalized_weights[auto_normalized_index].set(
+                      point, cache.auto_normalized_original_weights[auto_normalized_index][point]);
+                }
+              }
             }
             else {
               BKE_defvert_remove_group(&cache.deform_verts[point], cache.deform_verts[point].dw);
@@ -1253,8 +1276,8 @@ static void init_weight_gradient_tool(const bContext &C,
 
   const Vector<MutableDrawingInfo> drawing_infos = retrieve_editable_drawings_with_falloff(
       scene, *tool.grease_pencil);
-  tool.drawings = Array<bke::greasepencil::Drawing *>(drawing_infos.size());
-  tool.drawing_cache = Array<WeightGradientDrawingCache>(drawing_infos.size());
+  tool.drawings.reinitialize(drawing_infos.size());
+  tool.drawing_cache.reinitialize(drawing_infos.size());
 
   threading::parallel_for(tool.drawings.index_range(), 1, [&](const IndexRange drawing_range) {
     for (const int drawing_index : drawing_range) {
@@ -1276,10 +1299,20 @@ static void init_weight_gradient_tool(const bContext &C,
       /* Create boolean arrays indicating whether a vertex group is locked/bone deformed
        * or not. */
       if (tool.auto_normalize) {
-        LISTBASE_FOREACH (bDeformGroup *, dg, &curves.vertex_group_names) {
-          cache.vertex_group_is_locked.append(object_locked_defgroups.contains(dg->name));
-          cache.vertex_group_is_bone_deformed.append(
-              object_bone_deformed_defgroups.contains(dg->name));
+        int vertex_group_index = 0;
+        LISTBASE_FOREACH_INDEX (bDeformGroup *, dg, &curves.vertex_group_names, vertex_group_index)
+        {
+          const bool is_locked = object_locked_defgroups.contains(dg->name);
+          const bool is_bone_deformed = object_bone_deformed_defgroups.contains(dg->name);
+          cache.vertex_group_is_locked.append(is_locked);
+          cache.vertex_group_is_bone_deformed.append(is_bone_deformed);
+
+          /* Keep track of the auto-normalized vertex groups, for restoring original weights. */
+          if (is_bone_deformed && !is_locked && vertex_group_index != cache.active_vertex_group) {
+            cache.auto_normalized_weights.append(
+                bke::varray_for_mutable_deform_verts(cache.deform_verts, vertex_group_index));
+            cache.auto_normalized_original_weights.append(Array<float>(curves.points_num()));
+          }
         }
       }
 
@@ -1303,6 +1336,15 @@ static void init_weight_gradient_tool(const bContext &C,
             cache.point_flags[point] = WPAINT_GRADIENT_POINT_DW_EXISTS;
           }
           cache.point_original_weights[point] = cache.deform_weights[point];
+
+          /* When auto-normalize is enabled, store the original vertex weight of the
+           * auto-normalized groups. */
+          if (tool.auto_normalize) {
+            for (const int auto_normalized_index : cache.auto_normalized_weights.index_range()) {
+              cache.auto_normalized_original_weights[auto_normalized_index][point] =
+                  cache.auto_normalized_weights[auto_normalized_index][point];
+            }
+          }
         }
       });
     }
