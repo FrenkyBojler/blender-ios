@@ -24,6 +24,7 @@
 struct LineartBoundingArea;
 struct LineartEdge;
 struct LineartVert;
+struct LineartInstance;
 struct Mesh;
 struct Object;
 
@@ -100,7 +101,7 @@ struct LineartElementLinkNode {
   LineartElementLinkNode *next, *prev;
   void *pointer;
   int element_count;
-  void *object_ref;
+  LineartInstance *instance_ref;
   eLineArtElementNodeFlag flags;
 
   /* For edge element link nodes, used for shadow edge matching. */
@@ -208,7 +209,7 @@ struct LineartEdge {
    * TODO: If really need more savings, we can allocate this in a "extended" way too, but we need
    * another bit in flags to be able to show the difference.
    */
-  void *object_ref;
+  LineartInstance *instance_ref;
 };
 
 struct LineartEdgeChain {
@@ -234,8 +235,8 @@ struct LineartEdgeChain {
    * local_index=lineart_index-index_offset. */
   uint32_t index_offset;
 
-  void *object_ref;
-  void *silhouette_backdrop;
+  LineartInstance *instance_ref;
+  LineartInstance *silhouette_backdrop;
 };
 
 struct LineartEdgeChainItem {

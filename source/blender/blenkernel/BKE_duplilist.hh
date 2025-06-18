@@ -25,6 +25,11 @@ struct ViewerPath;
 
 /**
  * \return a #ListBase of #DupliObject.
+ * - If optional argument #include_objects is set, then only objects that are instances of supplied
+ *   set of objects are returned.
+ * - If optional argument #recorded_parents_stack is set, then each #DupliObject returned will have
+ *   #DupliObject::parents_stack set. Note that it's up to the caller to deconstruct
+ *   #recorded_parents_stack.
  */
 ListBase *object_duplilist(
     Depsgraph *depsgraph,

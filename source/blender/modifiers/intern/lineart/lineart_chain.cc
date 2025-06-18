@@ -27,7 +27,7 @@ static LineartEdge *lineart_line_get_connected(LineartBoundingArea *ba,
                                                LineartVert **new_vt,
                                                int match_flag,
                                                uint8_t match_isec_mask,
-                                               void *match_isec_object)
+                                               LineartInstance *match_isec_object)
 {
   for (int i = 0; i < ba->line_count; i++) {
     LineartEdge *n_e = ba->linked_lines[i];
@@ -52,7 +52,7 @@ static LineartEdge *lineart_line_get_connected(LineartBoundingArea *ba,
     }
 
     if (n_e->flags & MOD_LINEART_EDGE_FLAG_INTERSECTION) {
-      if (n_e->object_ref != match_isec_object) {
+      if (n_e->instance_ref != match_isec_object) {
         continue;
       }
       if (vt->fbcoord[0] == n_e->v1->fbcoord[0] && vt->fbcoord[1] == n_e->v1->fbcoord[1]) {
@@ -208,9 +208,9 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
 
     ec = lineart_chain_create(ld);
 
-    /* One chain can only have one object_ref and intersection_mask,
+    /* One chain can only have one instance_ref and intersection_mask,
      * so we assign them based on the first segment we found. */
-    ec->object_ref = e->object_ref;
+    ec->instance_ref = e->instance_ref;
     ec->intersection_mask = e->intersection_mask;
 
     LineartEdge *new_e;
@@ -247,7 +247,7 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
                                 es->shadow_mask_bits,
                                 e->v1->index);
     while (ba && (new_e = lineart_line_get_connected(
-                      ba, new_vt, &new_vt, e->flags, ec->intersection_mask, ec->object_ref)))
+                      ba, new_vt, &new_vt, e->flags, ec->intersection_mask, ec->instance_ref)))
     {
       new_e->flags |= MOD_LINEART_EDGE_FLAG_CHAIN_PICKED;
 
@@ -392,7 +392,7 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
     ba = MOD_lineart_get_bounding_area(ld, e->v2->fbcoord[0], e->v2->fbcoord[1]);
     new_vt = e->v2;
     while (ba && (new_e = lineart_line_get_connected(
-                      ba, new_vt, &new_vt, e->flags, ec->intersection_mask, ec->object_ref)))
+                      ba, new_vt, &new_vt, e->flags, ec->intersection_mask, ec->instance_ref)))
     {
       new_e->flags |= MOD_LINEART_EDGE_FLAG_CHAIN_PICKED;
 
@@ -731,7 +731,7 @@ void MOD_lineart_chain_split_for_fixed_occlusion(LineartData *ld)
                                    fixed_mask,
                                    fixed_shadow,
                                    eci->index);
-        new_ec->object_ref = ec->object_ref;
+        new_ec->instance_ref = ec->instance_ref;
         new_ec->type = ec->type;
         new_ec->intersection_mask = ec->intersection_mask;
         ec = new_ec;
@@ -766,8 +766,8 @@ static void lineart_chain_connect(LineartData * /*ld*/,
     if (sub->type != MOD_LINEART_EDGE_FLAG_INTERSECTION) {
       onto->type = MOD_LINEART_EDGE_FLAG_CONTOUR;
     }
-    if (sub->object_ref) {
-      onto->object_ref = sub->object_ref;
+    if (sub->instance_ref) {
+      onto->instance_ref = sub->instance_ref;
     }
   }
   else if (sub->type == MOD_LINEART_EDGE_FLAG_INTERSECTION) {
@@ -834,7 +834,7 @@ static LineartChainRegisterEntry *lineart_chain_get_closest_cre(LineartData *ld,
   /* Keep using for loop because `cre` could be removed from the iteration before getting to the
    * next one. */
   LISTBASE_FOREACH_MUTABLE (LineartChainRegisterEntry *, cre, &ba->linked_chains) {
-    if (cre->ec->object_ref != ec->object_ref) {
+    if (cre->ec->instance_ref != ec->instance_ref) {
       if (!ld->conf.fuzzy_everything) {
         if (ld->conf.fuzzy_intersections) {
           /* If none of those are intersection lines... */
@@ -1087,7 +1087,7 @@ void MOD_lineart_chain_clear_picked_flag(LineartCache *lc)
 LineartElementLinkNode *lineart_find_matching_eln_obj(ListBase *elns, void *instance)
 {
   LISTBASE_FOREACH (LineartElementLinkNode *, eln, elns) {
-    if (eln->object_ref == instance) {
+    if (eln->instance_ref == instance) {
       return eln;
     }
   }
@@ -1105,7 +1105,7 @@ void MOD_lineart_finalize_chains(LineartData *ld)
       continue;
     }
     LineartElementLinkNode *eln = lineart_find_matching_eln_obj(&ld->geom.vertex_buffer_pointers,
-                                                                ec->object_ref);
+                                                                ec->instance_ref);
     BLI_assert(eln != nullptr);
     if (LIKELY(eln)) {
       LISTBASE_FOREACH (LineartEdgeChainItem *, eci, &ec->chain) {
@@ -1344,7 +1344,7 @@ void MOD_lineart_chain_split_angle(LineartData *ld, float angle_threshold_rad)
                                    eci->material_mask_bits,
                                    eci->shadow_mask_bits,
                                    eci->index);
-        new_ec->object_ref = ec->object_ref;
+        new_ec->instance_ref = ec->instance_ref;
         new_ec->type = ec->type;
         new_ec->level = ec->level;
         new_ec->loop_id = ec->loop_id;
@@ -1408,7 +1408,7 @@ void MOD_lineart_chain_find_silhouette_backdrop_objects(LineartData *ld)
       if (!eln) {
         continue;
       }
-      ec->silhouette_backdrop = static_cast<Object *>(eln->object_ref);
+      ec->silhouette_backdrop = eln->instance_ref;
     }
   }
 }

@@ -820,7 +820,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
     e->v1->index = (v1_link)->index; \
     e->v2->index = (v1_link)->index; \
     e->flags = new_flag; \
-    e->object_ref = ob; \
+    e->instance_ref = ob; \
     e->t1 = ((old_e->t1 == tri) ? (new_tri) : (old_e->t1)); \
     e->t2 = ((old_e->t2 == tri) ? (new_tri) : (old_e->t2)); \
     lineart_add_edge_to_array(&ld->pending_edges, e); \
@@ -919,7 +919,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         /* Only one adjacent triangle, because the other side is the near plane. */
         /* Use `tl` or `tr` doesn't matter. */
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         /* New line connecting original point 0 and a new point, only when it's a selected line. */
         SELECT_EDGE(2, tri->v[0], &vt[0], tri1)
@@ -963,7 +963,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         e->v1 = &vt[0];
         e->v2 = &vt[1];
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         SELECT_EDGE(2, tri->v[2], &vt[0], tri1)
         SELECT_EDGE(1, tri->v[2], &vt[1], tri1)
@@ -1004,7 +1004,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         e->v1 = &vt[1];
         e->v2 = &vt[0];
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         SELECT_EDGE(1, tri->v[1], &vt[0], tri1)
         SELECT_EDGE(0, tri->v[1], &vt[1], tri1)
@@ -1079,7 +1079,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         e->v1 = &vt[1];
         e->v2 = &vt[0];
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         /* New line connects new point 0 and old point 1,
          * this is a border line. */
@@ -1132,7 +1132,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         e->v2 = &vt[0];
 
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         SELECT_EDGE(1, tri->v[2], &vt[0], tri1)
         SELECT_EDGE(0, tri->v[0], &vt[1], tri2)
@@ -1181,7 +1181,7 @@ static void lineart_triangle_cull_single(LineartData *ld,
         e->v2 = &vt[0];
 
         e->t1 = tri1;
-        e->object_ref = ob;
+        e->instance_ref = ob;
 
         SELECT_EDGE(2, tri->v[0], &vt[0], tri1)
         SELECT_EDGE(1, tri->v[1], &vt[1], tri2)
@@ -1327,7 +1327,7 @@ void lineart_main_cull_triangles(LineartData *ld, bool clip_far)
                                    view_dir,
                                    allow_boundaries,
                                    m_view_projection,
-                                   static_cast<LineartInstance *>(eln->object_ref),
+                                   static_cast<LineartInstance *>(eln->instance_ref),
                                    &v_count,
                                    &e_count,
                                    &t_count,
@@ -2011,7 +2011,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
 
   elem_link_node->obindex = ob_info->obindex;
   elem_link_node->element_count = mesh->verts_num;
-  elem_link_node->object_ref = ob_info->instance;
+  elem_link_node->instance_ref = ob_info->instance;
   ob_info->v_eln = elem_link_node;
 
   bool use_auto_smooth = false;
@@ -2040,7 +2040,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   int usage = ob_info->usage;
 
   elem_link_node->element_count = corner_tris.size();
-  elem_link_node->object_ref = ob_info->instance;
+  elem_link_node->instance_ref = ob_info->instance;
   elem_link_node->flags = eLineArtElementNodeFlag(
       elem_link_node->flags |
       ((usage == OBJECT_LRT_NO_INTERSECTION) ? LRT_ELEMENT_NO_INTERSECTION : 0));
@@ -2176,7 +2176,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
                                                     sizeof(LineartElementLinkNode)));
   BLI_spin_unlock(&la_data->lock_task);
   elem_link_node->element_count = allocate_la_e;
-  elem_link_node->object_ref = ob_info->instance;
+  elem_link_node->instance_ref = ob_info->instance;
   elem_link_node->obindex = ob_info->obindex;
 
   LineartElementLinkNode *shadow_eln = nullptr;
@@ -2226,7 +2226,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
         }
       }
       la_edge->flags = use_type;
-      la_edge->object_ref = ob_info->instance;
+      la_edge->instance_ref = ob_info->instance;
       la_edge->edge_identifier = LRT_EDGE_IDENTIFIER(ob_info, la_edge);
       BLI_addtail(&la_edge->segments, la_seg);
 
@@ -2271,7 +2271,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
       la_edge->v1 = &la_v_arr[edge[0]];
       la_edge->v2 = &la_v_arr[edge[1]];
       la_edge->flags = MOD_LINEART_EDGE_FLAG_LOOSE;
-      la_edge->object_ref = ob_info->instance;
+      la_edge->instance_ref = ob_info->instance;
       la_edge->edge_identifier = LRT_EDGE_IDENTIFIER(ob_info, la_edge);
       BLI_addtail(&la_edge->segments, la_seg);
       if (ELEM(usage,
@@ -4814,18 +4814,19 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
       LineartElementLinkNode *eln2 = obi1 == obi2 ? eln1 :
                                                     lineart_find_matching_eln(
                                                         &ld->geom.line_buffer_pointers, obi2);
-      void *ob1 = eln1 ? eln1->object_ref : nullptr;
-      void *ob2 = eln2 ? eln2->object_ref : nullptr;
+      LineartInstance *inst1 = eln1 ? eln1->instance_ref : nullptr;
+      LineartInstance *inst2 = eln2 ? eln2->instance_ref : nullptr;
       if (e->t1->intersection_priority > e->t2->intersection_priority) {
-        e->object_ref = ob1;
+        e->instance_ref = inst1;
       }
       else if (e->t1->intersection_priority < e->t2->intersection_priority) {
-        e->object_ref = ob2;
+        e->instance_ref = inst2;
       }
       else { /* equal priority */
-        if (ob1 == ob2) {
-          /* object_ref should be ambiguous if intersection lines comes from different objects. */
-          e->object_ref = ob1;
+        if (inst1 == inst2) {
+          /* instance_ref should be ambiguous if intersection lines comes from different objects.
+           */
+          e->instance_ref = inst1;
         }
       }
 
@@ -5414,7 +5415,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       continue;
     }
 
-    LineartInstance *instance = reinterpret_cast<LineartInstance *>(ec->object_ref);
+    LineartInstance *instance = reinterpret_cast<LineartInstance *>(ec->instance_ref);
 
     if (orig_ob) {
       if (!orig_col) { /* Filtering strokes from "normal" objects. */
@@ -5569,7 +5570,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     int src_deform_group = -1;
     Mesh *src_mesh = nullptr;
     if (source_vgname && vgroup_weights) {
-      LineartInstance *instance = reinterpret_cast<LineartInstance *>(cwi.chain->object_ref);
+      LineartInstance *instance = reinterpret_cast<LineartInstance *>(cwi.chain->instance_ref);
       Object *eval_ob = DEG_get_evaluated(depsgraph, instance->object);
       if (eval_ob && eval_ob->type == OB_MESH) {
         src_mesh = BKE_object_get_evaluated_mesh(eval_ob);
