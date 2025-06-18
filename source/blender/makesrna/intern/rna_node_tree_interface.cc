@@ -1008,6 +1008,13 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
           rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfaceSocket, socket, *r_ptr);
           return true;
         }
+      }
+    }
+  }
+  for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
         if (STREQ(socket->name, key)) {
           rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfaceSocket, socket, *r_ptr);
           return true;
