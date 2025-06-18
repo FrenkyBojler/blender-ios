@@ -3291,6 +3291,7 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int incr
         0, str_num.length() + (decimal_pos - prev_decimal_pos) + (sign_pos - prev_sign_pos));
 
     if (leading_zeros_count > 0) {
+      result = std::max(0.0, result);
       std::string itos = std::to_string((int)(result));
       if (int(itos.size() < str_num.size()))
         itos.insert(0, str_num.size() - itos.size(), '0');
