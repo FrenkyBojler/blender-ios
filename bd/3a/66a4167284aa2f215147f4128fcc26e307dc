@@ -1,2 +1,3 @@
 Referenced by issue #140451, BMesh operators called from python are fully broken.
 Referenced by commit c605c71a96db0bb18bb4f42f545e74a84e95f3b6, Fix #140451: Revert "Fix #140396: bmesh.ops.dissolve_edges fails to dissolve vertices"
+Referenced by commit 4dba0113fdfd325b54955b799f041b662cd50dd6, Fix #140396: bmesh.ops.dissolve_edges fails to dissolve vertices
