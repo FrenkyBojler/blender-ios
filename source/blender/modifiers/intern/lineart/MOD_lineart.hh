@@ -202,13 +202,11 @@ struct LineartEdge {
   uint64_t target_reference;
 
   /**
-   * Still need this entry because culled lines will not add to object
-   * #LineartElementLinkNode node (known as `eln` internally).
-   *
-   * TODO: If really need more savings, we can allocate this in a "extended" way too, but we need
-   * another bit in flags to be able to show the difference.
+   * Records source object reference for filtering. Having two of these for intersections because
+   * they can come from between two objects.
    */
   void *object_ref;
+  void *object_ref2;
 };
 
 struct LineartEdgeChain {
@@ -235,6 +233,7 @@ struct LineartEdgeChain {
   uint32_t index_offset;
 
   void *object_ref;
+  void *object_ref2;
   void *silhouette_backdrop;
 };
 
@@ -957,6 +956,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
                                      int16_t edge_types,
                                      uchar mask_switches,
                                      uchar material_mask_bits,
+                                     const uchar intersection_filter_mode,
                                      uchar intersection_mask,
                                      float thickness,
                                      float opacity,

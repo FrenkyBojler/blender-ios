@@ -8775,6 +8775,13 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem modifier_lineart_intersection_filter_mode[] = {
+      {LINEART_INTERSECTION_SELF, "SELF", 0, "Self", ""},
+      {LINEART_INTERSECTION_EXTERNAL, "EXTERNAL", 0, "External", ""},
+      {LINEART_INTERSECTION_BOTH, "BOTH", 0, "Both", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "GreasePencilLineartModifier", "Modifier");
   RNA_def_struct_ui_text(
       srna, "Line Art Modifier", "Generate Line Art strokes from selected source");
@@ -9132,6 +9139,13 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Opacity", "The strength value for the generate strokes");
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.01f, 2);
   RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+  prop = RNA_def_property(srna, "intersection_filter_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "intersection_filter_mode");
+  RNA_def_property_enum_items(prop, modifier_lineart_intersection_filter_mode);
+  RNA_def_property_ui_text(
+      prop, "Filter Mode", "Require matching all material masks instead of just one");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "use_material_mask", PROP_BOOLEAN, PROP_NONE);

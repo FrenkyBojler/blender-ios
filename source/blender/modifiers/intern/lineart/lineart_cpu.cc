@@ -4816,18 +4816,8 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
                                                         &ld->geom.line_buffer_pointers, obi2);
       void *ob1 = eln1 ? eln1->object_ref : nullptr;
       void *ob2 = eln2 ? eln2->object_ref : nullptr;
-      if (e->t1->intersection_priority > e->t2->intersection_priority) {
-        e->object_ref = ob1;
-      }
-      else if (e->t1->intersection_priority < e->t2->intersection_priority) {
-        e->object_ref = ob2;
-      }
-      else { /* equal priority */
-        if (ob1 == ob2) {
-          /* object_ref should be ambiguous if intersection lines comes from different objects. */
-          e->object_ref = ob1;
-        }
-      }
+      e->object_ref = ob1;
+      e->object_ref2 = ob2;
 
       lineart_add_edge_to_array(&ld->pending_edges, e);
 
@@ -5342,6 +5332,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
                                      const int16_t edge_types,
                                      const uchar mask_switches,
                                      const uchar material_mask_bits,
+                                     const uchar intersection_filter_mode,
                                      const uchar intersection_mask,
                                      const float thickness,
                                      const float opacity,
@@ -5415,31 +5406,65 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
     }
 
     LineartInstance *instance = reinterpret_cast<LineartInstance *>(ec->object_ref);
+    LineartInstance *instance2 = reinterpret_cast<LineartInstance *>(ec->object_ref2);
 
-    if (orig_ob) {
-      if (!orig_col) { /* Filtering strokes from "normal" objects. */
-        if (orig_ob != instance->object || lineart_instance_from_any_instancer(*instance)) {
-          continue;
-        }
+    auto chain_inside_source_selection =
+        [modifier_flags](Object *orig_ob, Collection *orig_col, LineartInstance *instance) {
+          if (!instance) {
+            return false;
+          }
+          if (orig_ob) {
+            if (!orig_col) { /* Filtering strokes from "normal" objects. */
+              if (orig_ob != instance->object || lineart_instance_from_any_instancer(*instance)) {
+                return false;
+              }
+            }
+            else
+            { /* Filtering strokes from the child instances of a collection instancer object */
+              if (!lineart_collection_instancer_has_lineart_instance(orig_ob, *instance)) {
+                return false;
+              }
+            }
+          }
+          else if (orig_col && instance) {
+            if (lineart_collection_contains_lineart_instance(*orig_col, *instance, false)) {
+              if (modifier_flags & MOD_LINEART_INVERT_COLLECTION) {
+                return false;
+              }
+            }
+            else {
+              if (!(modifier_flags & MOD_LINEART_INVERT_COLLECTION)) {
+                return false;
+              }
+            }
+          }
+          return true;
+        };
+
+    if (ec->type == MOD_LINEART_EDGE_FLAG_INTERSECTION) {
+      bool passing = false;
+      const bool pass1 = chain_inside_source_selection(orig_ob, orig_col, instance);
+      const bool pass2 = chain_inside_source_selection(orig_ob, orig_col, instance2);
+      switch (intersection_filter_mode) {
+        case LINEART_INTERSECTION_SELF:
+          passing = pass1 && pass2;
+          break;
+        case LINEART_INTERSECTION_EXTERNAL:
+          passing = (pass1 && (!pass2)) || ((!pass1) && pass2);
+          break;
+        case LINEART_INTERSECTION_BOTH:
+          passing = pass1 || pass2;
       }
-      else { /* Filtering strokes from the child instances of a collection instancer object */
-        if (!lineart_collection_instancer_has_lineart_instance(orig_ob, *instance)) {
-          continue;
-        }
+      if (!passing) {
+        continue;
       }
     }
-    else if (orig_col && instance) {
-      if (lineart_collection_contains_lineart_instance(*orig_col, *instance, false)) {
-        if (modifier_flags & MOD_LINEART_INVERT_COLLECTION) {
-          continue;
-        }
-      }
-      else {
-        if (!(modifier_flags & MOD_LINEART_INVERT_COLLECTION)) {
-          continue;
-        }
+    else {
+      if (!chain_inside_source_selection(orig_ob, orig_col, instance)) {
+        continue;
       }
     }
+
     if (mask_switches & MOD_LINEART_MATERIAL_MASK_ENABLE) {
       if (mask_switches & MOD_LINEART_MATERIAL_MASK_MATCH) {
         if (ec->material_mask_bits != material_mask_bits) {
@@ -5453,6 +5478,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       }
     }
     if (ec->type & MOD_LINEART_EDGE_FLAG_INTERSECTION) {
+
+#if 0
       if (mask_switches & MOD_LINEART_INTERSECTION_MATCH) {
         if (ec->intersection_mask != intersection_mask) {
           continue;
@@ -5463,6 +5490,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
           continue;
         }
       }
+#endif
     }
     if (shadow_selection) {
       if (ec->shadow_mask_bits != LRT_SHADOW_MASK_UNDEFINED) {

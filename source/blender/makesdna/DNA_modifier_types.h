@@ -3045,6 +3045,12 @@ typedef enum eGreasePencilLineartMaskSwitches {
   LINEART_GPENCIL_INTERSECTION_MATCH = (1 << 2),
 } eGreasePencilLineartMaskSwitches;
 
+typedef enum eGreasePencilIntersectionFilterMode {
+  LINEART_INTERSECTION_SELF = 0,
+  LINEART_INTERSECTION_EXTERNAL = 1,
+  LINEART_INTERSECTION_BOTH = 2,
+} eGreasePencilIntersectionFilterMode;
+
 typedef enum eGreasePencilLineartSilhouetteFilter {
   LINEART_SILHOUETTE_FILTER_NONE = 0,
   LINEART_SILHOUETTE_FILTER_GROUP = (1 << 0),
@@ -3103,7 +3109,7 @@ typedef struct GreasePencilLineartModifierData {
 
   unsigned char shadow_selection;
   unsigned char silhouette_selection;
-  char _pad[1];
+  unsigned char intersection_filter_mode;
 
   /** `0..1` range for cosine angle */
   float crease_threshold;

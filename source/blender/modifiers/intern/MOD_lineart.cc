@@ -274,8 +274,9 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
 
   const bool is_baked = RNA_boolean_get(ptr, "is_baked");
   const bool use_cache = RNA_boolean_get(ptr, "use_cache");
-  const bool is_first = is_first_lineart(
-      *static_cast<const GreasePencilLineartModifierData *>(ptr->data));
+  const GreasePencilLineartModifierData &lmd =
+      *static_cast<const GreasePencilLineartModifierData *>(ptr->data);
+  const bool is_first = is_first_lineart(lmd);
   const bool has_light = RNA_pointer_get(ptr, "light_contour_object").data != nullptr;
 
   uiLayoutSetEnabled(layout, !is_baked);
@@ -315,6 +316,11 @@ static void edge_types_panel_draw(const bContext * /*C*/, Panel *panel)
   }
 
   col->prop(ptr, "use_intersection", UI_ITEM_NONE, IFACE_("Intersections"), ICON_NONE);
+
+  if (lmd.edge_types & MOD_LINEART_EDGE_FLAG_INTERSECTION) {
+    col->prop(ptr, "intersection_filter_mode", UI_ITEM_NONE, IFACE_("From"), ICON_NONE);
+  }
+
   col->prop(ptr, "use_material", UI_ITEM_NONE, IFACE_("Material Borders"), ICON_NONE);
   col->prop(ptr, "use_edge_mark", UI_ITEM_NONE, IFACE_("Edge Marks"), ICON_NONE);
   col->prop(ptr, "use_loose", UI_ITEM_NONE, IFACE_("Loose"), ICON_NONE);
@@ -806,6 +812,7 @@ static void generate_strokes(ModifierData &md,
         lmd.edge_types,
         lmd.mask_switches,
         lmd.material_mask_bits,
+        lmd.intersection_filter_mode,
         lmd.intersection_mask,
         float(lmd.thickness) / 1000.0f,
         lmd.opacity,
