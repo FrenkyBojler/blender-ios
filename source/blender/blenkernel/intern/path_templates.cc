@@ -835,11 +835,11 @@ static blender::Vector<Error> eval_template(char *out_path,
         errors.append({ErrorType::UNKNOWN_VARIABLE, token.byte_range});
         continue;
       }
-    case TokenType::ENVIRONMENT_VARIABLE: {
-        char env_variable_name[VARIABLE_NAME_BUFFER_SIZE];
-        BLI_strncpy(env_variable_name, token.variable_name.data() + 1, token.variable_name.size());
-        const char * env_value = BLI_getenv(env_variable_name);
-        if (env_value != nullptr) {
+      case TokenType::ENVIRONMENT_VARIABLE: {
+        blender::StringRef env_variable_name = token.variable_name.drop_known_prefix("$");
+        if (std::optional<blender::StringRefNull> string_value = template_variables.get_string(
+                env_variable_name))
+        {
           /* String variable found, but we only process it if there's no format
            * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
@@ -847,13 +847,13 @@ static blender::Vector<Error> eval_template(char *out_path,
             errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
-          BLI_strncpy(replacement_string, env_value, sizeof(replacement_string));
+          BLI_strncpy(replacement_string, string_value->c_str(), sizeof(replacement_string));
+          break;
         }
-        break;
+        /* No matching environment variable found: error. */
+        errors.append({ErrorType::UNKNOWN_ENVIRONMENT, token.byte_range});
+        continue;
       }
-      /* No matching environment variable found: error. */
-      errors.append({ErrorType::UNKNOWN_ENVIRONMENT, token.byte_range});
-      continue;
     }
 
     /* Perform the actual substitution with the expanded value. */
