@@ -72,26 +72,17 @@ struct ResourceHandle {
 /* Refers to a range of contiguous handles in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
  * The associated objects will all share handedness and state and can be rendered together. */
-struct ResourceHandleRange {
-  /* First handle in the range. */
-  ResourceHandle handle_first;
+struct ResourceHandleRange : ResourceHandle {
   /* Number of handle in the range. */
-  uint32_t count;
+  uint32_t count = 0;
 
-  ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : handle_first(handle), count(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : handle_first(handle), count(len) {}
+  ResourceHandleRange() : ResourceHandle(0) {}
+  ResourceHandleRange(ResourceHandle handle) : ResourceHandle(handle), count(1) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : ResourceHandle(handle), count(len) {}
 
   IndexRange index_range() const
   {
-    return {handle_first.raw, count};
-  }
-
-  /* TODO(fclem): Temporary workaround to keep existing code to work. Should be removed once we
-   * complete the instance optimization project. */
-  operator ResourceHandle() const
-  {
-    return handle_first;
+    return {resource_index(), count};
   }
 };
 
@@ -108,8 +99,8 @@ class ObjectRef {
   Object *const dupli_parent_ = nullptr;
 
   /** Unique handle per object ref. */
-  ResourceHandleRange handle_ = {0, 0};
-  ResourceHandleRange sculpt_handle_ = {0, 0};
+  ResourceHandleRange handle_ = {};
+  ResourceHandleRange sculpt_handle_ = {};
 
  public:
   Object *const object;
