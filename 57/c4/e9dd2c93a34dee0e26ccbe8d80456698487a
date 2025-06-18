@@ -1,1 +1,2 @@
 Referenced by issue #140556, Mask operators are not properly applied on the entire geoemtry
+Referenced by pull request #140570, WIP: Fix #140556: Mask filter operations behave incorrectly on dense meshes
