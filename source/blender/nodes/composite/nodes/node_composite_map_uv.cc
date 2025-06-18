@@ -86,6 +86,7 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
     if (interpolation == Interpolation::Anisotropic) {
       GPU_texture_anisotropic_filter(input_image, true);
+      GPU_texture_mipmap_mode(input_image, true, true);
     }
     else {
       const bool use_bilinear = ELEM(
@@ -93,7 +94,6 @@ class MapUVOperation : public NodeOperation {
       GPU_texture_filter_mode(input_image, use_bilinear);
     }
 
-    GPU_texture_mipmap_mode(input_image, true, true);
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     input_image.bind_as_texture(shader, "input_tx");
 
@@ -115,13 +115,16 @@ class MapUVOperation : public NodeOperation {
 
   char const *get_shader_name(const Interpolation &interpolation)
   {
-    if (interpolation == Interpolation::Anisotropic) {
-      return "compositor_map_uv_anisotropic";
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_map_uv_anisotropic";
+      case Interpolation::Bicubic:
+        return "compositor_map_uv_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_map_uv";
     }
-
-    if (interpolation == Interpolation::Bicubic) {
-      return "compositor_map_uv_bicubic";
-    }
+    BLI_assert_unreachable();
     return "compositor_map_uv";
   }
 
@@ -147,7 +150,7 @@ class MapUVOperation : public NodeOperation {
     const Result &input_image = get_input("Image");
 
     float2 uv_coordinates = input_uv.get_single_value<float3>().xy();
-    float4 sampled_color{0.f};
+    float4 sampled_color{0.0f};
     switch (interpolation) {
       case Interpolation::Nearest:
         sampled_color = input_image.sample_nearest_zero(uv_coordinates);
@@ -188,7 +191,7 @@ class MapUVOperation : public NodeOperation {
 
     parallel_for(domain.size, [&](const int2 texel) {
       float2 uv_coordinates = input_uv.load_pixel<float3>(texel).xy();
-      float4 sampled_color{0.f};
+      float4 sampled_color{0.0f};
 
       switch (interpolation) {
         /* Anisotropic is handled separately. */
