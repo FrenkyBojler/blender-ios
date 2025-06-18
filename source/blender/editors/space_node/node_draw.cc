@@ -2643,20 +2643,32 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     if (input_socket && !input_socket->is_logically_linked()) {
       PointerRNA socket_ptr = RNA_pointer_create_discrete(
           &ntree.id, &RNA_NodeSocket, input_socket);
-      uiDefButR(&block,
-                UI_BTYPE_CHECKBOX,
-                -1,
-                "",
-                offsetx,
-                int(*panel_runtime.header_center_y - NODE_DYS),
-                UI_UNIT_X,
-                NODE_DY,
-                &socket_ptr,
-                "default_value",
-                0,
-                0,
-                0,
-                "");
+      uiBut *panel_toggle_but = uiDefButR(&block,
+                                          UI_BTYPE_CHECKBOX,
+                                          -1,
+                                          "",
+                                          offsetx,
+                                          int(*panel_runtime.header_center_y - NODE_DYS),
+                                          UI_UNIT_X,
+                                          NODE_DY,
+                                          &socket_ptr,
+                                          "default_value",
+                                          0,
+                                          0,
+                                          0,
+                                          "");
+      UI_but_func_tooltip_custom_set(
+          panel_toggle_but,
+          [](bContext &C, uiTooltipData &tip, void *argN) {
+            const SpaceNode &snode = *CTX_wm_space_node(&C);
+            const bNodeTree &ntree = *snode.edittree;
+            const int index_in_tree = POINTER_AS_INT(argN);
+            ntree.ensure_topology_cache();
+            const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
+            build_socket_tooltip(tip, C, ntree, socket);
+          },
+          POINTER_FROM_INT(input_socket->index_in_tree()),
+          nullptr);
       offsetx += UI_UNIT_X;
     }
 
