@@ -750,7 +750,7 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::sync_object(const Object *ob,
                                const ObjectHandle &handle,
-                               const ResourceHandle &resource_handle,
+                               const ResourceHandleRange &resource_handle,
                                bool is_alpha_blend,
                                bool has_transparent_shadows)
 {

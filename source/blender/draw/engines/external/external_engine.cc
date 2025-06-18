@@ -98,7 +98,7 @@ class Prepass {
   {
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = {0};
+    ResourceHandleRange handle = {0};
 
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
@@ -123,7 +123,7 @@ class Prepass {
 
   void sculpt_sync(Manager &manager, const ObjectRef &ob_ref)
   {
-    ResourceHandle handle = manager.unique_handle_for_sculpt(ob_ref);
+    ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
       mesh_ps_->draw(batch.batch, handle);
@@ -173,7 +173,7 @@ class Prepass {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     for (int material_id : geom_list.index_range()) {
       pass->draw(geom_list[material_id], res_handle);
