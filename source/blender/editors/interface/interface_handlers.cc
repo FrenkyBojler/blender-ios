@@ -3597,6 +3597,8 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item(IFACE_("Increment Unit"), ctrl_icon, ICON_EVENT_UP_ARROW);
+  status.item(IFACE_("Decrement Unit"), ctrl_icon, ICON_EVENT_DOWN_ARROW);
 
   if (!is_num_but) {
     status.item(IFACE_("Select All"), ctrl_icon, ICON_EVENT_A);
