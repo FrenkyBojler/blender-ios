@@ -34,120 +34,143 @@ static bool gpu_pass_validate(GPUCodegenCreateInfo *create_info);
  * \{ */
 
 struct GPUPass {
-  static inline std::atomic<uint64_t> compilation_counts = 0;
+ private:
+  GPUCodegenCreateInfo *create_info_ = nullptr;
+  BatchHandle compilation_handle_ = 0;
+  /* The last time the refcount was greater than 0. */
+  double gc_timestamp_ = 0.0f;
+  bool is_optimization_pass_ = false;
+  std::mutex mutex_;
 
-  GPUCodegenCreateInfo *create_info = nullptr;
-  BatchHandle compilation_handle = 0;
+ public:
+  static inline std::atomic<uint64_t> compilation_counts = 0;
   std::atomic<GPUShader *> shader = nullptr;
   std::atomic<eGPUPassStatus> status = GPU_PASS_QUEUED;
   /* Orphaned GPUPasses gets freed by the garbage collector. */
   std::atomic<int> refcount = 1;
-  /* The last time the refcount was greater than 0. */
-  double gc_timestamp = 0.0f;
-
-  uint64_t compilation_timestamp = 0;
-
+  std::atomic<uint64_t> compilation_timestamp = 0;
   /** Hint that an optimized variant of this pass should be created.
    *  Based on a complexity heuristic from pass code generation. */
-  bool should_optimize = false;
-  bool is_optimization_pass = false;
+  std::atomic<bool> should_optimize = false;
 
   GPUPass(GPUCodegenCreateInfo *info,
           bool deferred_compilation,
           bool is_optimization_pass,
           bool should_optimize)
-      : create_info(info),
-        should_optimize(should_optimize),
-        is_optimization_pass(is_optimization_pass)
+      : create_info_(info),
+        is_optimization_pass_(is_optimization_pass),
+        should_optimize(should_optimize)
   {
-    BLI_assert(!is_optimization_pass || !should_optimize);
-    if (is_optimization_pass && deferred_compilation) {
+    BLI_assert(!is_optimization_pass_ || !should_optimize);
+    if (is_optimization_pass_) {
       // Defer until all non optimization passes are compiled.
       return;
     }
 
-    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
+    GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info_);
 
-    if (deferred_compilation) {
-      compilation_handle = GPU_shader_batch_create_from_infos(
-          Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
-    }
-    else {
-      shader = GPU_shader_create_from_info(base_info);
-      finalize_compilation();
-    }
+    compilation_handle_ = GPU_shader_batch_create_from_infos(
+        Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority(deferred_compilation));
   }
 
   ~GPUPass()
   {
-    if (compilation_handle) {
-      GPU_shader_batch_cancel(compilation_handle);
+    BLI_assert(refcount == 0);
+
+    if (compilation_handle_) {
+      GPU_shader_batch_cancel(compilation_handle_);
     }
     else {
-      BLI_assert(create_info == nullptr || (is_optimization_pass && status == GPU_PASS_QUEUED));
+      BLI_assert(create_info_ == nullptr || (is_optimization_pass_ && status == GPU_PASS_QUEUED));
     }
-    MEM_delete(create_info);
+    MEM_delete(create_info_);
     GPU_SHADER_FREE_SAFE(shader);
   }
 
-  CompilationPriority compilation_priority()
+  CompilationPriority compilation_priority(bool deferred_compilation = true)
   {
-    return is_optimization_pass ? CompilationPriority::Low : CompilationPriority::Medium;
-  }
-
-  void finalize_compilation()
-  {
-    BLI_assert_msg(create_info, "GPUPass::finalize_compilation() called more than once.");
-
-    if (compilation_handle) {
-      shader = GPU_shader_batch_finalize(compilation_handle).first();
+    if (!deferred_compilation) {
+      return CompilationPriority::High;
     }
-
-    compilation_timestamp = ++compilation_counts;
-
-    if (!shader && !gpu_pass_validate(create_info)) {
-      fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
-    }
-
-    status = shader ? GPU_PASS_SUCCESS : GPU_PASS_FAILED;
-
-    MEM_delete(create_info);
-    create_info = nullptr;
+    return is_optimization_pass_ ? CompilationPriority::Low : CompilationPriority::Medium;
   }
 
   void update(double timestamp)
   {
+    std::unique_lock lock(mutex_, std::try_to_lock);
+    if (!lock.owns_lock()) {
+      /* Don't block the calling thread is some other thread is doing synchronous compilation. */
+      return;
+    }
+
     update_compilation();
     update_gc_timestamp(timestamp);
   }
 
+  bool should_gc(int gc_collect_rate, double timestamp)
+  {
+    std::unique_lock lock(mutex_, std::try_to_lock);
+    if (!lock.owns_lock()) {
+      /* Don't block the calling thread is some other thread is doing synchronous compilation. */
+      return false;
+    }
+
+    update_gc_timestamp(timestamp);
+
+    return !compilation_handle_ && status != GPU_PASS_FAILED &&
+           (timestamp - gc_timestamp_) >= gc_collect_rate;
+  }
+
+  void finalize_compilation()
+  {
+    std::lock_guard lock(mutex_);
+    if (status == GPU_PASS_QUEUED) {
+      finalize_compilation_internal();
+    }
+  }
+
+ private:
   void update_compilation()
   {
-    if (compilation_handle) {
-      if (GPU_shader_batch_is_ready(compilation_handle)) {
-        finalize_compilation();
+    if (compilation_handle_) {
+      if (GPU_shader_batch_is_ready(compilation_handle_)) {
+        finalize_compilation_internal();
       }
     }
     else if (status == GPU_PASS_QUEUED && refcount > 0) {
-      BLI_assert(is_optimization_pass);
-      GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
-      compilation_handle = GPU_shader_batch_create_from_infos(
+      BLI_assert(is_optimization_pass_);
+      GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info_);
+      compilation_handle_ = GPU_shader_batch_create_from_infos(
           Span<GPUShaderCreateInfo *>(&base_info, 1), compilation_priority());
     }
   }
 
   void update_gc_timestamp(double timestamp)
   {
-    if (refcount != 0 || gc_timestamp == 0.0f) {
-      gc_timestamp = timestamp;
+    if (refcount != 0 || gc_timestamp_ == 0.0f) {
+      gc_timestamp_ = timestamp;
     }
   }
 
-  bool should_gc(int gc_collect_rate, double timestamp)
+  void finalize_compilation_internal()
   {
-    BLI_assert(gc_timestamp != 0.0f);
-    return !compilation_handle && status != GPU_PASS_FAILED &&
-           (timestamp - gc_timestamp) >= gc_collect_rate;
+    BLI_assert_msg(create_info_,
+                   "GPUPass::finalize_compilation_internal() called more than once.");
+
+    if (compilation_handle_) {
+      shader = GPU_shader_batch_finalize(compilation_handle_).first();
+    }
+
+    compilation_timestamp = ++compilation_counts;
+
+    if (!shader && !gpu_pass_validate(create_info_)) {
+      fprintf(stderr, "GPUShader: error: too many samplers in shader.\n");
+    }
+
+    status = shader ? GPU_PASS_SUCCESS : GPU_PASS_FAILED;
+
+    MEM_delete(create_info_);
+    create_info_ = nullptr;
   }
 };
 
@@ -243,12 +266,16 @@ class GPUPassCache {
                bool allow_deferred,
                bool is_optimization_pass)
   {
-    std::lock_guard lock(mutex_);
-    std::unique_ptr<GPUPass> *pass = passes_[engine][is_optimization_pass].lookup_ptr(hash);
-    if (!allow_deferred && pass && pass->get()->status == GPU_PASS_QUEUED) {
-      pass->get()->finalize_compilation();
+    GPUPass *pass = nullptr;
+    {
+      std::lock_guard lock(mutex_);
+      std::unique_ptr<GPUPass> *pass_ptr = passes_[engine][is_optimization_pass].lookup_ptr(hash);
+      pass = pass_ptr ? pass_ptr->get() : nullptr;
     }
-    return pass ? pass->get() : nullptr;
+    if (!allow_deferred && pass && pass->status == GPU_PASS_QUEUED) {
+      pass->finalize_compilation();
+    }
+    return pass;
   }
 
   void update()
@@ -274,10 +301,6 @@ class GPUPassCache {
 
     /* Optimization Passes GC. */
     for (auto &engine_passes : passes_) {
-      for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_gc_timestamp(timestamp);
-      }
-
       engine_passes[true].remove_if(
           /* TODO: Use lower rate for optimization passes? */
           [&](auto item) { return item.value->should_gc(gc_collect_rate_, timestamp); });
@@ -295,14 +318,9 @@ class GPUPassCache {
     /* Optimization Passes Compilation. */
     for (auto &engine_passes : passes_) {
       for (std::unique_ptr<GPUPass> &pass : engine_passes[true].values()) {
-        pass->update_compilation();
+        pass->update(timestamp);
       }
     }
-  }
-
-  std::mutex &get_mutex()
-  {
-    return mutex_;
   }
 };
 
@@ -311,10 +329,7 @@ static GPUPassCache *g_cache = nullptr;
 void GPU_pass_ensure_its_ready(GPUPass *pass)
 {
   if (pass->status == GPU_PASS_QUEUED) {
-    std::lock_guard lock(g_cache->get_mutex());
-    if (pass->status == GPU_PASS_QUEUED) {
-      pass->finalize_compilation();
-    }
+    pass->finalize_compilation();
   }
 }
 
