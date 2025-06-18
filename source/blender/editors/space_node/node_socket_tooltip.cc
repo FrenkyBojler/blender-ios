@@ -774,7 +774,7 @@ static StringRef get_structure_type_tooltip(const nodes::StructureType &structur
 {
   switch (structure_type) {
     case nodes::StructureType::Single: {
-      return TIP_("Single value");
+      return TIP_("Single Value");
     }
     case nodes::StructureType::Dynamic: {
       return TIP_("Dynamic");
@@ -783,7 +783,7 @@ static StringRef get_structure_type_tooltip(const nodes::StructureType &structur
       return TIP_("Field");
     }
     case nodes::StructureType::Grid: {
-      return TIP_("Grid");
+      return TIP_("Volume Grid");
     }
   }
   BLI_assert_unreachable();
