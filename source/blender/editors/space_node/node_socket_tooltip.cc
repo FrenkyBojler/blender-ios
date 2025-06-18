@@ -570,6 +570,46 @@ static bool build_tooltip_value_closure_log(uiTooltipData &tip_data,
   return true;
 }
 
+static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket & /*socket*/)
+{
+  build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
+}
+
+static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
+                                                 geo_log::GeoTreeLog &geo_tree_log,
+                                                 const bNodeSocket &socket)
+{
+  const Span<const bNodeLink *> connected_links = socket.directly_linked_links();
+  bool is_first = true;
+  for (const int i : connected_links.index_range()) {
+    const bNodeLink &link = *connected_links[i];
+    if (!link.is_used()) {
+      continue;
+    }
+    if (!(link.flag & NODE_LINK_VALID)) {
+      continue;
+    }
+    const bNodeSocket &from_socket = *link.fromsock;
+    const int connection_number = i + 1;
+    add_space(tip_data, is_first ? 0 : 2);
+    is_first = false;
+    UI_tooltip_text_field_add(tip_data,
+                              fmt::format("{}:", connection_number),
+                              {},
+                              UI_TIP_STYLE_NORMAL,
+                              UI_TIP_LC_NORMAL);
+    add_space(tip_data);
+    if (geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket)) {
+      build_tooltip_value_geo_log(tip_data, socket, *value_log);
+    }
+    else {
+      build_tooltip_value_unknown(tip_data, socket);
+    }
+  }
+
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_last_value(uiTooltipData &tip_data,
                                                    geo_log::GeoTreeLog *geo_tree_log,
                                                    const bNodeSocket &socket)
@@ -582,16 +622,14 @@ static bool build_tooltip_value_closure_log(uiTooltipData &tip_data,
     return false;
   }
   geo_tree_log->ensure_socket_values();
+  if (socket.is_multi_input()) {
+    return build_tooltip_last_value_multi_input(tip_data, *geo_tree_log, socket);
+  }
   geo_log::ValueLog *value_log = geo_tree_log->find_socket_value_log(socket);
   if (!value_log) {
     return false;
   }
   return build_tooltip_value_geo_log(tip_data, socket, *value_log);
-}
-
-static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket & /*socket*/)
-{
-  build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
 }
 
 static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
