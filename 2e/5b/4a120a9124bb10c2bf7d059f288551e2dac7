@@ -1,1 +1,2 @@
 Referenced by issue #140485, Breakdown tool not working in newer 4.5.0 builds
+Referenced by issue #140578, Blender 4.5b Regression - When several UiLists are declared, customized filtering in Python is not working on some of them
