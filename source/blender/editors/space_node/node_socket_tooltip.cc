@@ -497,6 +497,51 @@ static bool build_tooltip_value_bundle_log(uiTooltipData &tip_data,
   return true;
 }
 
+static bool build_tooltip_value_closure_log(uiTooltipData &tip_data,
+                                            const geo_log::ClosureValueLog &closure_log)
+{
+  if (closure_log.inputs.is_empty() && closure_log.outputs.is_empty()) {
+    UI_tooltip_text_field_add(
+        tip_data, TIP_("Value: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  }
+  else {
+    if (!closure_log.inputs.is_empty()) {
+      UI_tooltip_text_field_add(tip_data, TIP_("Inputs:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      for (const geo_log::ClosureValueLog::Item &item : closure_log.inputs) {
+        add_space(tip_data);
+        const std::string type_name = TIP_(item.type->label);
+        UI_tooltip_text_field_add(tip_data,
+                                  fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
+                                              item.key.identifiers().first(),
+                                              type_name),
+                                  {},
+                                  UI_TIP_STYLE_MONO,
+                                  UI_TIP_LC_VALUE);
+      }
+    }
+    if (!closure_log.outputs.is_empty()) {
+      add_space(tip_data);
+      UI_tooltip_text_field_add(
+          tip_data, TIP_("Outputs:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      for (const geo_log::ClosureValueLog::Item &item : closure_log.outputs) {
+        add_space(tip_data);
+        const std::string type_name = TIP_(item.type->label);
+        UI_tooltip_text_field_add(tip_data,
+                                  fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
+                                              item.key.identifiers().first(),
+                                              type_name),
+                                  {},
+                                  UI_TIP_STYLE_MONO,
+                                  UI_TIP_LC_VALUE);
+      }
+    }
+  }
+  add_space(tip_data);
+  UI_tooltip_text_field_add(
+      tip_data, TIP_("Type: Closure"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
@@ -518,6 +563,9 @@ static bool build_tooltip_value_bundle_log(uiTooltipData &tip_data,
   }
   if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
     return build_tooltip_value_bundle_log(tip_data, *bundle_log);
+  }
+  if (const auto *closure_log = dynamic_cast<const geo_log::ClosureValueLog *>(&value_log)) {
+    return build_tooltip_value_closure_log(tip_data, *closure_log);
   }
   return true;
 }
@@ -627,7 +675,7 @@ void build_socket_tooltip(uiTooltipData &tip_data,
   build_tooltip_description(tip_data, socket);
   add_space(tip_data, 2);
   build_tooltip_last_value(tip_data, C, socket);
-  add_space(tip_data, 1);
+  add_space(tip_data, 2);
 
   /* Dangling reroute. */
   /* Add allowed type. */
