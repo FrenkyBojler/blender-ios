@@ -14,6 +14,7 @@
 
 #include "BLI_math_euler.hh"
 #include "BLI_string.h"
+
 #include "BLT_translation.hh"
 
 #include "DNA_collection_types.h"
@@ -464,6 +465,38 @@ static bool build_tooltip_value_grid_log(uiTooltipData &tip_data,
   return true;
 }
 
+static bool build_tooltip_value_bundle_log(uiTooltipData &tip_data,
+                                           const geo_log::BundleValueLog &bundle_log)
+{
+  if (bundle_log.items.is_empty()) {
+    UI_tooltip_text_field_add(
+        tip_data, TIP_("Values: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  }
+  else {
+    UI_tooltip_text_field_add(tip_data, TIP_("Values:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    Vector<geo_log::BundleValueLog::Item> sorted_items = bundle_log.items;
+    std::sort(sorted_items.begin(), sorted_items.end(), [](const auto &a, const auto &b) {
+      return BLI_strcasecmp_natural(a.key.identifiers().first().c_str(),
+                                    b.key.identifiers().first().c_str()) < 0;
+    });
+    for (const geo_log::BundleValueLog::Item &item : sorted_items) {
+      add_space(tip_data);
+      const std::string type_name = TIP_(item.type->label);
+      UI_tooltip_text_field_add(tip_data,
+                                fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
+                                            item.key.identifiers().first(),
+                                            type_name),
+                                {},
+                                UI_TIP_STYLE_MONO,
+                                UI_TIP_LC_VALUE);
+    }
+  }
+  add_space(tip_data);
+  UI_tooltip_text_field_add(
+      tip_data, TIP_("Type: Bundle"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+  return true;
+}
+
 [[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
                                                       const bNodeSocket &socket,
                                                       geo_log::ValueLog &value_log)
@@ -482,6 +515,9 @@ static bool build_tooltip_value_grid_log(uiTooltipData &tip_data,
   }
   if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
     return build_tooltip_value_grid_log(tip_data, *grid_log);
+  }
+  if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
+    return build_tooltip_value_bundle_log(tip_data, *bundle_log);
   }
   return true;
 }
