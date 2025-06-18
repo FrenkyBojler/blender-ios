@@ -280,7 +280,12 @@ static int rna_NodeSocket_inferred_structure_type_get(PointerRNA *ptr)
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNodeSocket *socket = ptr->data_as<bNodeSocket>();
   tree->ensure_topology_cache();
-  return int(tree->runtime->inferred_structure_types[socket->index_in_tree()]);
+  if (tree->runtime->inferred_structure_types.size() != tree->all_sockets().size()) {
+    /* This cache is outdated or not available on this tree type. */
+    return int(blender::nodes::StructureType::Dynamic);
+  }
+  const int index = socket->index_in_tree();
+  return int(tree->runtime->inferred_structure_types[index]);
 }
 
 static void rna_NodeSocket_bl_idname_get(PointerRNA *ptr, char *value)
