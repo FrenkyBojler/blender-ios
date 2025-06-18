@@ -877,24 +877,27 @@ static StringRef template_id_browse_tip(const StructRNA *type)
   return N_("Browse ID data to be linked");
 }
 
-/**
- * Add a superimposed extra icon to \a but, for workspace pinning.
- * Rather ugly special handling, but this is really a special case at this point, nothing worth
- * generalizing.
- */
-static void template_id_workspace_pin_extra_icon(const TemplateID &template_ui, uiBut *but)
+static void template_id_pin_button(TemplateID &template_ui, uiBut *but, const char *pin_propname)
 {
-  if ((template_ui.idcode != ID_SCE) || (template_ui.ptr.type != &RNA_Window)) {
+  PropertyRNA *pin_prop = RNA_struct_find_property(&template_ui.ptr, pin_propname);
+  if (!pin_prop) {
+    RNA_warning(
+        "property not found: %s.%s", RNA_struct_identifier(template_ui.ptr.type), pin_propname);
+    return;
+  }
+  if (RNA_property_type(pin_prop) != PROP_BOOLEAN) {
+    RNA_warning("property not a boolean: %s.%s",
+                RNA_struct_identifier(template_ui.ptr.type),
+                pin_propname);
     return;
   }
 
-  const wmWindow *win = static_cast<const wmWindow *>(template_ui.ptr.data);
-  const WorkSpace *workspace = WM_window_get_active_workspace(win);
-  UI_but_extra_operator_icon_add(but,
-                                 "WORKSPACE_OT_scene_pin_toggle",
-                                 WM_OP_INVOKE_DEFAULT,
-                                 (workspace->flags & WORKSPACE_USE_PIN_SCENE) ? ICON_PINNED :
-                                                                                ICON_UNPINNED);
+  const bool is_pinned = RNA_property_boolean_get(&template_ui.ptr, pin_prop);
+  const int icon = is_pinned ? ICON_PINNED : ICON_UNPINNED;
+  PointerRNA *op_ptr = UI_but_extra_operator_icon_add(
+      but, "UI_OT_template_id_toggle_pin", WM_OP_EXEC_DEFAULT, icon);
+  RNA_string_set(op_ptr, "prop_name", pin_propname);
+  RNA_string_set(op_ptr, "prop_ui_name", RNA_property_ui_name(pin_prop));
 }
 
 /**
@@ -1026,7 +1029,8 @@ static void template_ID(const bContext *C,
                         const char *unlinkop,
                         const std::optional<StringRef> text,
                         const bool live_icon,
-                        const bool hide_buttons)
+                        const bool hide_buttons,
+                        const char *pin_propname)
 {
   uiBut *but;
   const bool editable = RNA_property_editable(&template_ui.ptr, template_ui.prop);
@@ -1115,7 +1119,23 @@ static void template_ID(const bContext *C,
       UI_but_flag_enable(but, UI_BUT_REDALERT);
     }
 
-    template_id_workspace_pin_extra_icon(template_ui, but);
+    if ((template_ui.idcode == ID_SCE) && (template_ui.ptr.type == &RNA_Window)) {
+      /**
+       * Add a superimposed extra icon to \a but, for workspace pinning.
+       * Rather ugly special handling, but this is really a special case at this point, nothing
+       * worth generalizing.
+       */
+      const wmWindow *win = static_cast<const wmWindow *>(template_ui.ptr.data);
+      const WorkSpace *workspace = WM_window_get_active_workspace(win);
+      UI_but_extra_operator_icon_add(but,
+                                     "WORKSPACE_OT_scene_pin_toggle",
+                                     WM_OP_INVOKE_DEFAULT,
+                                     (workspace->flags & WORKSPACE_USE_PIN_SCENE) ? ICON_PINNED :
+                                                                                    ICON_UNPINNED);
+    }
+    else if (pin_propname && pin_propname[0] != '\0') {
+      template_id_pin_button(template_ui, but, pin_propname);
+    }
 
     if (!hide_buttons && !(idfrom && ID_IS_LINKED(idfrom))) {
       if (ID_IS_LINKED(id)) {
@@ -1512,7 +1532,8 @@ static void ui_template_id(uiLayout *layout,
                            bool use_tabs,
                            float scale,
                            const bool live_icon,
-                           const bool hide_buttons)
+                           const bool hide_buttons,
+                           const char *pin_propname)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -1568,7 +1589,8 @@ static void ui_template_id(uiLayout *layout,
                   unlinkop,
                   text,
                   live_icon,
-                  hide_buttons);
+                  hide_buttons,
+                  pin_propname);
     }
   }
 }
@@ -1582,6 +1604,7 @@ void uiTemplateID(uiLayout *layout,
                   const char *unlinkop,
                   int filter,
                   const bool live_icon,
+                  const char *pin_propname,
                   const std::optional<StringRef> text)
 {
   ui_template_id(layout,
@@ -1600,7 +1623,8 @@ void uiTemplateID(uiLayout *layout,
                  false,
                  1.0f,
                  live_icon,
-                 false);
+                 false,
+                 pin_propname);
 }
 
 void uiTemplateAction(uiLayout *layout,
@@ -1647,8 +1671,18 @@ void uiTemplateAction(uiLayout *layout,
   BLI_assert(template_ui.idlb);
 
   uiLayout *row = &layout->row(true);
-  template_ID(
-      C, row, template_ui, &RNA_Action, flag, newop, nullptr, unlinkop, text, false, false);
+  template_ID(C,
+              row,
+              template_ui,
+              &RNA_Action,
+              flag,
+              newop,
+              nullptr,
+              unlinkop,
+              text,
+              false,
+              false,
+              nullptr);
 }
 
 void uiTemplateIDBrowse(uiLayout *layout,
@@ -1677,7 +1711,8 @@ void uiTemplateIDBrowse(uiLayout *layout,
                  false,
                  1.0f,
                  false,
-                 false);
+                 false,
+                 nullptr);
 }
 
 void uiTemplateIDPreview(uiLayout *layout,
@@ -1708,7 +1743,8 @@ void uiTemplateIDPreview(uiLayout *layout,
                  false,
                  1.0f,
                  false,
-                 hide_buttons);
+                 hide_buttons,
+                 nullptr);
 }
 
 void uiTemplateGpencilColorPreview(uiLayout *layout,
@@ -1736,7 +1772,8 @@ void uiTemplateGpencilColorPreview(uiLayout *layout,
                  false,
                  scale < 0.5f ? 0.5f : scale,
                  false,
-                 false);
+                 false,
+                 nullptr);
 }
 
 void uiTemplateIDTabs(uiLayout *layout,
@@ -1763,7 +1800,8 @@ void uiTemplateIDTabs(uiLayout *layout,
                  true,
                  1.0f,
                  false,
-                 false);
+                 false,
+                 nullptr);
 }
 
 void uiTemplateAnyID(uiLayout *layout,

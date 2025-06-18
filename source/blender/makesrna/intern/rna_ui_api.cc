@@ -562,6 +562,7 @@ static void rna_uiTemplateID(uiLayout *layout,
                              const char *unlinkop,
                              int filter,
                              const bool live_icon,
+                             const char *pin_propname,
                              const char *name,
                              const char *text_ctxt,
                              bool translate)
@@ -577,7 +578,7 @@ static void rna_uiTemplateID(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiTemplateID(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
+  uiTemplateID(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, pin_propname, text);
 }
 
 static void rna_uiTemplateAnyID(uiLayout *layout,
@@ -1649,6 +1650,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                "",
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "live_icon", false, "", "Show preview instead of fixed icon");
+  RNA_def_string(func, "pin_property", nullptr, 0, "", "Property identifier to pin the ID block");
   api_ui_item_common_text(func);
 
   func = RNA_def_function(srna, "template_ID_preview", "uiTemplateIDPreview");

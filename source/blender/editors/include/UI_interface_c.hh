@@ -2254,6 +2254,7 @@ void uiTemplateID(uiLayout *layout,
                   const char *unlinkop,
                   int filter = UI_TEMPLATE_ID_FILTER_ALL,
                   bool live_icon = false,
+                  const char *pin_propname = nullptr,
                   std::optional<blender::StringRef> text = std::nullopt);
 void uiTemplateIDBrowse(uiLayout *layout,
                         bContext *C,

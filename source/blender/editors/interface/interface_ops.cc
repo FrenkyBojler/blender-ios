@@ -1031,6 +1031,81 @@ static void override_idtemplate_menu()
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Toggle ID Pin Operator
+ * \{ */
+
+static PropertyRNA *template_id_toggle_pin_get_property(PointerRNA *op_ptr, PointerRNA *dataptr)
+{
+  char *pin_prop_name = RNA_string_get_alloc(op_ptr, "prop_name", nullptr, 0, nullptr);
+  BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(pin_prop_name); });
+  return RNA_struct_find_property(dataptr, pin_prop_name);
+}
+
+static wmOperatorStatus template_id_toggle_pin_exec(bContext *C, wmOperator *op)
+{
+  PointerRNA dataptr;
+  PropertyRNA *template_prop;
+  UI_context_active_but_prop_get_templateID(C, &dataptr, &template_prop);
+  if (RNA_pointer_is_null(&dataptr)) {
+    return OPERATOR_FINISHED;
+  }
+  PropertyRNA *pin_prop = template_id_toggle_pin_get_property(op->ptr, &dataptr);
+  if (!pin_prop || RNA_property_type(pin_prop) != PROP_BOOLEAN) {
+    return OPERATOR_FINISHED;
+  }
+
+  /* Toggle the property. */
+  const bool pinned = RNA_property_boolean_get(&dataptr, pin_prop);
+  RNA_property_boolean_set(&dataptr, pin_prop, !pinned);
+  return OPERATOR_FINISHED;
+}
+
+static std::string template_id_toggle_pin_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  char *pin_prop_name = RNA_string_get_alloc(ptr, "prop_ui_name", nullptr, 0, nullptr);
+  BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(pin_prop_name); });
+  return std::string(pin_prop_name);
+}
+
+static std::string template_id_toggle_pin_get_description(bContext *C,
+                                                          wmOperatorType * /*ot*/,
+                                                          PointerRNA *ptr)
+{
+  PointerRNA dataptr;
+  PropertyRNA *template_prop;
+  UI_context_active_but_prop_get_templateID(C, &dataptr, &template_prop);
+  if (RNA_pointer_is_null(&dataptr)) {
+    return {};
+  }
+  PropertyRNA *pin_prop = template_id_toggle_pin_get_property(ptr, &dataptr);
+  if (!pin_prop) {
+    return {};
+  }
+  return RNA_property_ui_description(pin_prop);
+}
+
+static void UI_OT_template_id_toggle_pin(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Toggle ID Pin";
+  ot->idname = "UI_OT_template_id_toggle_pin";
+  ot->description = "Toggle the ID pin of this ID template";
+
+  /* callbacks */
+  ot->exec = template_id_toggle_pin_exec;
+  ot->get_name = template_id_toggle_pin_get_name;
+  ot->get_description = template_id_toggle_pin_get_description;
+
+  ot->prop = RNA_def_string(ot->srna, "prop_name", nullptr, 0, "", "");
+  RNA_def_string(ot->srna, "prop_ui_name", nullptr, 0, "", "");
+
+  /* flags */
+  ot->flag = OPTYPE_INTERNAL;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Copy To Selected Operator
  * \{ */
 
@@ -2865,6 +2940,8 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_override_idtemplate_reset);
   WM_operatortype_append(UI_OT_override_idtemplate_clear);
   override_idtemplate_menu();
+
+  WM_operatortype_append(UI_OT_template_id_toggle_pin);
 
   /* external */
   WM_operatortype_append(UI_OT_eyedropper_color);
