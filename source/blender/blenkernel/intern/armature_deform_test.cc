@@ -90,6 +90,8 @@ enum class WeightingTest {
   Envelope,
   /* Vertex group weight. */
   VertexGroups,
+  /* Use both envelopes and vertex groups. */
+  EnvelopeAndVertexGroups,
 };
 
 enum class MaskingTest {
@@ -363,8 +365,11 @@ class ArmatureDeformTestBase {
      * does not! Curves does not have vgroups and therefore masking in the first place. */
     const bool allow_masking_with_envelope = ELEM(
         target_type, TargetDataType::Mesh, TargetDataType::GreasePencil);
+    const bool vertex_groups_enabled = ELEM(
+        weighting, WeightingTest::VertexGroups, WeightingTest::EnvelopeAndVertexGroups);
     const bool masked = (masking == MaskingTest::VertexGroup) &&
-                        (weighting == WeightingTest::VertexGroups || allow_masking_with_envelope);
+                        ((vgroups_supported && vertex_groups_enabled) ||
+                         allow_masking_with_envelope);
 
     switch (weighting) {
       case WeightingTest::None:
@@ -377,6 +382,13 @@ class ArmatureDeformTestBase {
         }
         else {
           return vertex_positions();
+        }
+      case WeightingTest::EnvelopeAndVertexGroups:
+        if (vgroups_supported) {
+          return masked ? data_vgroups_masked : data_vgroups;
+        }
+        else {
+          return masked ? data_envelope_masked : data_envelope;
         }
     }
     BLI_assert_unreachable();
@@ -405,6 +417,9 @@ class ArmatureDeformTestBase {
         break;
       case WeightingTest::VertexGroups:
         deform_flag |= ARM_DEF_VGROUP;
+        break;
+      case WeightingTest::EnvelopeAndVertexGroups:
+        deform_flag |= ARM_DEF_ENVELOPE | ARM_DEF_VGROUP;
         break;
     }
 
@@ -631,11 +646,14 @@ TEST_P(ArmatureDeformParamTest, GreasePencilDeformParameterized)
 INSTANTIATE_TEST_SUITE_P(
     AllArmatureDeformTests,
     ArmatureDeformParamTest,
-    testing::Combine(
-        testing::Values(InterpolationTest::Linear, InterpolationTest::DualQuaternion),
-        testing::Values(WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups),
-        testing::Values(MaskingTest::All, MaskingTest::VertexGroup),
-        testing::Values(VertexWeightSource::TargetObject, VertexWeightSource::SeparateMesh)),
+    testing::Combine(testing::Values(InterpolationTest::Linear, InterpolationTest::DualQuaternion),
+                     testing::Values(WeightingTest::None,
+                                     WeightingTest::Envelope,
+                                     WeightingTest::VertexGroups,
+                                     WeightingTest::EnvelopeAndVertexGroups),
+                     testing::Values(MaskingTest::All, MaskingTest::VertexGroup),
+                     testing::Values(VertexWeightSource::TargetObject,
+                                     VertexWeightSource::SeparateMesh)),
     [](const testing::TestParamInfo<ArmatureDeformTestParams> &info) {
       InterpolationTest interpolation = std::get<0>(info.param);
       WeightingTest weighting = std::get<1>(info.param);
@@ -660,6 +678,9 @@ INSTANTIATE_TEST_SUITE_P(
           break;
         case WeightingTest::VertexGroups:
           name += "_vgroups";
+          break;
+        case WeightingTest::VertexGroups:
+          name += "_envelopevgroups";
           break;
       }
       switch (masking) {
@@ -708,8 +729,10 @@ class ArmatureDeformTest : public ArmatureDeformTestBase, public testing::Test {
 TEST_F(ArmatureDeformTest, MeshDeform)
 {
   for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
-    for (WeightingTest weight :
-         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    for (WeightingTest weight : {WeightingTest::None,
+                                 WeightingTest::Envelope,
+                                 WeightingTest::VertexGroups,
+                                 WeightingTest::EnvelopeAndVertexGroups})
     {
       for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
         for (VertexWeightSource dvert_source :
@@ -725,8 +748,10 @@ TEST_F(ArmatureDeformTest, MeshDeform)
 TEST_F(ArmatureDeformTest, EditMeshDeform)
 {
   for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
-    for (WeightingTest weight :
-         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    for (WeightingTest weight : {WeightingTest::None,
+                                 WeightingTest::Envelope,
+                                 WeightingTest::VertexGroups,
+                                 WeightingTest::EnvelopeAndVertexGroups})
     {
       for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
         edit_mesh_test(ipol, weight, mask);
@@ -738,8 +763,10 @@ TEST_F(ArmatureDeformTest, EditMeshDeform)
 TEST_F(ArmatureDeformTest, CurvesDeform)
 {
   for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
-    for (WeightingTest weight :
-         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    for (WeightingTest weight : {WeightingTest::None,
+                                 WeightingTest::Envelope,
+                                 WeightingTest::VertexGroups,
+                                 WeightingTest::EnvelopeAndVertexGroups})
     {
       for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
         curves_test(ipol, weight, mask);
@@ -751,8 +778,10 @@ TEST_F(ArmatureDeformTest, CurvesDeform)
 TEST_F(ArmatureDeformTest, GreasePencilDeform)
 {
   for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
-    for (WeightingTest weight :
-         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    for (WeightingTest weight : {WeightingTest::None,
+                                 WeightingTest::Envelope,
+                                 WeightingTest::VertexGroups,
+                                 WeightingTest::EnvelopeAndVertexGroups})
     {
       for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
         grease_pencil_test(ipol, weight, mask);
