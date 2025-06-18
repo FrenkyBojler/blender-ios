@@ -341,12 +341,16 @@ class GridMesh : Overlay {
   std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {};
 
   /* Contains only an index buffer connecting visible vertices.
-   * Position is derived from. */
+   * Position is derived from indices. */
   std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
 
   std::array<gpu::Batch *, 2> axes_ = {};
 
+  std::array<float, SI_GRID_STEPS_LEN> grid_steps_;
+
   float far_clip_ = 0.0f;
+  /* Offset to the origin in maximum grid increment. */
+  int2 origin_offset_ = int2(INT_MAX);
 
  public:
   ~GridMesh()
@@ -381,11 +385,8 @@ class GridMesh : Overlay {
 
   gpu::Batch *generate_batch(int next_subdivision)
   {
-    if (next_subdivision == 1) {
-      /* This only happens for the last level. In this case, do not skip any line. */
-      next_subdivision = INT_MAX;
-    }
-
+    /* Chosen as for a maximum of 8px grid in 4K. */
+    /* TODO: Reduce to the amount that can be seen on screen. */
     const int res = 512;
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
@@ -395,12 +396,19 @@ class GridMesh : Overlay {
       for (int j : IndexRange(res + 1)) {
         int x = i - res / 2;
         int y = j - res / 2;
+        /* To avoid the grid to overlap the axes, we only issue edges over even row/column.
+         * This allows to discard the edges overlapping the axes without removing the perpendicular
+         * lines crossing the overlapped axis. This is only necessary for the coarser subdivision
+         * level. However we still do it in the general case as it divides the number of vertices
+         * by 4. */
+        bool x_odd = (x & 1) == 1;
+        bool y_odd = (y & 1) == 1;
         /* TODO(fclem): Use circular mask for perspective to cull corners. */
-        if (i != res && (y % next_subdivision) != 0) {
-          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
+        if (x_odd && i != res && ((next_subdivision > 1) ? (y % next_subdivision) != 0 : true)) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 2, y));
         }
-        if (j != res && (x % next_subdivision) != 0) {
-          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
+        if (y_odd && j != res && ((next_subdivision > 1) ? (x % next_subdivision) != 0 : true)) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 2));
         }
       }
     }
@@ -439,6 +447,7 @@ class GridMesh : Overlay {
       /* TODO(fclem): Set unit to camera far plane. */
       grid_ps_.push_constant("unit_scale", 100.0f);
       grid_ps_.push_constant("next_divider", 1.0f); /* UNUSED. */
+      grid_ps_.push_constant("origin_offset", int2(INT_MAX));
 
       if (show_axis_x) {
         grid_ps_.push_constant("axis", int(1));
@@ -466,18 +475,26 @@ class GridMesh : Overlay {
       }
     }
 
-    if (show_floor) {
-      std::array<float, SI_GRID_STEPS_LEN> grid_steps = {
-          0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
-      ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps.data());
+    grid_steps_ = {0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
+    ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps_.data());
 
+    if (show_floor) {
       /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
       for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
         /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
          * write from transparent pixel in smaller grid level. */
         int i = (SI_GRID_STEPS_LEN - 1) - i_acc;
 
-        int level_subdiv = roundf(grid_steps[(i_acc == 0) ? i : (i + 1)] / grid_steps[i]);
+        if (i_acc > 0) {
+          /* Check if next step is the same. */
+          if (grid_steps_[i] == grid_steps_[i + 1]) {
+            /* Avoid displaying the same level more than once. */
+            continue;
+          }
+        }
+        std::cout << "grid_steps_[i]" << grid_steps_[i] << std::endl;
+
+        int level_subdiv = (i_acc == 0) ? 1 : int(roundf(grid_steps_[i + 1] / grid_steps_[i]));
 
         if (assign_if_different(level_subdiv_[i], level_subdiv)) {
           GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
@@ -486,7 +503,14 @@ class GridMesh : Overlay {
           level_grids_[i] = generate_batch(level_subdiv);
         }
         grid_ps_.push_constant("axis", 0);
-        grid_ps_.push_constant("unit_scale", grid_steps[i]);
+        if (i_acc == 0) {
+          /* Reject edges overlapping with axes. */
+          grid_ps_.push_constant("origin_offset", &origin_offset_);
+        }
+        else {
+          grid_ps_.push_constant("origin_offset", int2(INT_MAX));
+        }
+        grid_ps_.push_constant("unit_scale", grid_steps_[i]);
         grid_ps_.push_constant("next_divider", float(level_subdiv));
         grid_ps_.draw(level_grids_[i]);
       }
@@ -500,6 +524,9 @@ class GridMesh : Overlay {
     }
 
     far_clip_ = abs(view.far_clip());
+
+    float snap_to = grid_steps_[SI_GRID_STEPS_LEN - 1] * 2.0f;
+    origin_offset_ = -int2(floor(view.location().xy() / snap_to));
 
     GPU_framebuffer_bind(framebuffer);
     manager.submit(grid_ps_, view);

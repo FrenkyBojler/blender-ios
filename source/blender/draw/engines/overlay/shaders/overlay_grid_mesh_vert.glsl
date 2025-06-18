@@ -12,6 +12,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_mesh)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 float approximate_grid_cell_screen_size(float dist_to_cam, float view_angle)
 {
@@ -21,7 +22,7 @@ float approximate_grid_cell_screen_size(float dist_to_cam, float view_angle)
 }
 
 float4 get_homogenous_space_grid_point(
-    int x, int y, out float dist_to_cam, out float z_to_cam, out float view_angle)
+    const int x, const int y, out float dist_to_cam, out float z_to_cam, out float view_angle)
 {
   float3 ls_P = float3(x, y, 0.0) * unit_scale;
 
@@ -29,7 +30,6 @@ float4 get_homogenous_space_grid_point(
     ls_P = ls_P.zzx;
   }
 
-  float snap_to = next_divider * unit_scale;
   /* Round to grid increment. */
   float3 camera_P = drw_view_position();
   if (axis > 0) {
@@ -37,6 +37,7 @@ float4 get_homogenous_space_grid_point(
     ls_P.xy -= camera_P.xy;
   }
   else {
+    float snap_to = next_divider * unit_scale * 2.0;
     ls_P.xy -= fract(camera_P.xy / snap_to) * snap_to;
   }
   ls_P.z -= camera_P.z;
@@ -63,6 +64,14 @@ void main()
 {
   int x = int(uint(gl_VertexID) >> 16u) - 0x7FFF;
   int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
+  /* The largest grid level can overlap with the axes display.
+   * Discard vertices that can overlap. */
+  const bool is_over_axis = any(equal(int2(x, y), origin_offset));
+  if (is_over_axis) {
+    /* Discard vertex. */
+    gl_Position = float4(NAN_FLT);
+    return;
+  }
 
   float dist_to_cam, z_to_cam, view_angle;
   float4 hs_P = get_homogenous_space_grid_point(x, y, dist_to_cam, z_to_cam, view_angle);
@@ -95,6 +104,13 @@ void main()
 
   /* Distance fading. */
   finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
+
+  // if (origin_offset.x == x) {
+  //   finalColor.r = 1.0f;
+  // }
+  // if (origin_offset.y == y) {
+  //   finalColor.g = 1.0f;
+  // }
 
   edgePos = edgeStart = ss_P;
 
