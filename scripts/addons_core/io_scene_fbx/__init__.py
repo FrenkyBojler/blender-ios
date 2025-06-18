@@ -51,7 +51,10 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
     bl_label = "Import FBX"
     bl_options = {'UNDO', 'PRESET'}
 
-    directory: StringProperty()
+    directory: StringProperty(
+        subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_PRESET'},
+    )
 
     filename_ext = ".fbx"
     filter_glob: StringProperty(default="*.fbx", options={'HIDDEN'})
@@ -59,6 +62,7 @@ class ImportFBX(bpy.types.Operator, ImportHelper):
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
+        options={'HIDDEN', 'SKIP_PRESET'},
     )
 
     ui_tab: EnumProperty(

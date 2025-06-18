@@ -41,6 +41,7 @@ using namespace draw;
 
 constexpr GPUSamplerState no_filter = GPUSamplerState::default_sampler();
 constexpr GPUSamplerState with_filter = {GPU_SAMPLER_FILTERING_LINEAR};
+
 #endif
 
 #define EEVEE_PI 3.14159265358979323846 /* pi */
@@ -54,6 +55,38 @@ enum eCubeFace : uint32_t {
   Y_NEG = 4u,
   Z_POS = 5u,
 };
+
+/**
+ * Bitmask representing the shader categories.
+ * This allows the loading of certain parts of the engine to kick-in as soon as the shaders that
+ * depends on it are compiled.
+ */
+enum ShaderGroups : uint32_t {
+  NONE = 0,
+  DEFERRED_LIGHTING_SHADERS = 1 << 0,
+  DEFERRED_CAPTURE_SHADERS = 1 << 1,
+  DEFERRED_PLANAR_SHADERS = 1 << 2,
+  DEPTH_OF_FIELD_SHADERS = 1 << 3,
+  HIZ_SHADERS = 1 << 4,
+  HORIZON_SCAN_SHADERS = 1 << 5,
+  LIGHT_CULLING_SHADERS = 1 << 6,
+  IRRADIANCE_BAKE_SHADERS = 1 << 7,
+  SPHERE_PROBE_SHADERS = 1 << 8,
+  SHADOW_SHADERS = 1 << 9,
+  AMBIENT_OCCLUSION_SHADERS = 1 << 10,
+  MOTION_BLUR_SHADERS = 1 << 11,
+  RAYTRACING_SHADERS = 1 << 12,
+  FILM_SHADERS = 1 << 13,
+  SUBSURFACE_SHADERS = 1 << 14,
+  SURFEL_SHADERS = 1 << 15,
+  VERTEX_COPY_SHADERS = 1 << 16,
+  VOLUME_EVAL_SHADERS = 1 << 17,
+  DEFAULT_MATERIALS = 1 << 18,
+  WORLD_SHADERS = 1 << 19,
+  MATERIAL_SHADERS = 1 << 20,
+  VOLUME_PROBE_SHADERS = 1 << 21,
+};
+ENUM_OPERATORS(ShaderGroups, VOLUME_PROBE_SHADERS)
 
 /* -------------------------------------------------------------------- */
 /** \name Transform
@@ -837,7 +870,7 @@ enum LightingType : uint32_t {
   LIGHT_TRANSMISSION = 2u,
   LIGHT_VOLUME = 3u,
   /* WORKAROUND: Special value used to tag translucent BSDF with thickness.
-   * Fallback to LIGHT_DIFFUSE. */
+   * Fall back to LIGHT_DIFFUSE. */
   LIGHT_TRANSLUCENT_WITH_THICKNESS = 4u,
 };
 
@@ -1315,7 +1348,7 @@ struct ShadowTileMapData {
   float4x4 viewmat;
   /** Precomputed matrix, not used for rendering but for tagging. */
   float4x4 winmat;
-  /** Punctual : Corners of the frustum. (vec3 padded to vec4) */
+  /** Punctual : Corners of the frustum. (float3 padded to float4) */
   float4 corners[4];
   /** Integer offset of the center of the 16x16 tiles from the origin of the tile space. */
   int2 grid_offset;
@@ -1903,7 +1936,7 @@ enum GBufferMode : uint32_t {
   /** None mode for pixels not rendered. */
   GBUF_NONE = 0u,
 
-  /* Reflection.  */
+  /* Reflection. */
   GBUF_DIFFUSE = 1u,
   GBUF_REFLECTION = 2u,
   GBUF_REFLECTION_COLORLESS = 3u,
@@ -2139,13 +2172,13 @@ BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 #ifdef GPU_SHADER
 
 #  if defined(GPU_FRAGMENT_SHADER)
-#    define UTIL_TEXEL vec2(gl_FragCoord.xy)
+#    define UTIL_TEXEL float2(gl_FragCoord.xy)
 #  elif defined(GPU_COMPUTE_SHADER)
-#    define UTIL_TEXEL vec2(gl_GlobalInvocationID.xy)
+#    define UTIL_TEXEL float2(gl_GlobalInvocationID.xy)
 #  elif defined(GPU_VERTEX_SHADER)
-#    define UTIL_TEXEL vec2(gl_VertexID, 0)
+#    define UTIL_TEXEL float2(gl_VertexID, 0)
 #  elif defined(GPU_LIBRARY_SHADER)
-#    define UTIL_TEXEL vec2(0)
+#    define UTIL_TEXEL float2(0)
 #  endif
 
 /* Fetch texel. Wrapping if above range. */
@@ -2190,7 +2223,7 @@ float4 utility_tx_sample_lut(sampler2DArray util_tx, float cos_theta, float roug
 {
   /* LUTs are parameterized by `sqrt(1.0 - cos_theta)` for more precision near grazing incidence.
    */
-  vec2 coords = vec2(roughness, sqrt(clamp(1.0 - cos_theta, 0.0, 1.0)));
+  float2 coords = float2(roughness, sqrt(clamp(1.0 - cos_theta, 0.0, 1.0)));
   return utility_tx_sample_lut(util_tx, coords, layer);
 }
 

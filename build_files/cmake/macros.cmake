@@ -404,7 +404,6 @@ function(blender_link_libraries
   endif()
 endfunction()
 
-# only MSVC uses SOURCE_GROUP
 function(blender_add_lib__impl
   name
   sources
@@ -551,7 +550,7 @@ macro(TEST_SSE_SUPPORT
   if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
     set(${_sse42_flags} "-march=x86-64-v2")
   elseif(MSVC)
-    # msvc has no specific build flags for SSE42, but when using intrinsics it will
+    # MSVC has no specific build flags for SSE42, but when using intrinsics it will
     # generate the right instructions.
     set(${_sse42_flags} "")
   elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -694,6 +693,10 @@ macro(remove_strict_flags)
   endif()
 
   if(MSVC)
+    add_cxx_flag(
+      # Warning C5038: data member 'foo' will be initialized after data member 'bar'.
+      "/wd5038"
+    )
     remove_cc_flag(
       # Restore warn C4100 (unreferenced formal parameter) back to w4.
       "/w34100"
@@ -1037,9 +1040,10 @@ function(glsl_to_c
   )
 
   # remove ../'s
-  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}   REALPATH)
-  get_filename_component(_file_tmp  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}   REALPATH)
-  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c REALPATH)
+  get_filename_component(_file_from ${CMAKE_CURRENT_SOURCE_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_tmp  ${CMAKE_CURRENT_BINARY_DIR}/${file_from}    REALPATH)
+  get_filename_component(_file_meta ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.hh REALPATH)
+  get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
 
   list(APPEND ${list_to_add} ${_file_to})
   source_group(Generated FILES ${_file_to})
@@ -1049,14 +1053,15 @@ function(glsl_to_c
   get_filename_component(_file_to_path ${_file_to} PATH)
 
   add_custom_command(
-    OUTPUT  ${_file_to}
+    OUTPUT  ${_file_to} ${_file_meta}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
-    COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp}
+    COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp} ${_file_meta}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc glsl_preprocess)
 
   set_source_files_properties(${_file_tmp} PROPERTIES GENERATED TRUE)
   set_source_files_properties(${_file_to}  PROPERTIES GENERATED TRUE)
+  set_source_files_properties(${_file_meta}  PROPERTIES GENERATED TRUE)
 endfunction()
 
 
@@ -1271,7 +1276,7 @@ endmacro()
 function(print_all_vars)
   get_cmake_property(_vars VARIABLES)
   foreach(_var ${_vars})
-    message("${_var}=${${_var}}")
+    message(STATUS "${_var}=${${_var}}")
   endforeach()
 endfunction()
 
@@ -1508,3 +1513,15 @@ function(compile_sources_as_cpp
   target_include_directories(${executable} PUBLIC ${INC_GLSL})
   target_compile_definitions(${executable} PRIVATE ${define})
 endfunction()
+
+macro(optimize_debug_target executable)
+  if(WITH_OPTIMIZED_BUILD_TOOLS)
+    if(WIN32)
+      remove_cc_flag(${executable} "/Od" "/RTC1")
+      target_compile_options(${executable} PRIVATE "/Ox")
+      target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
+    else()
+      target_compile_options(${executable} PRIVATE "-O2")
+    endif()
+  endif()
+endmacro()

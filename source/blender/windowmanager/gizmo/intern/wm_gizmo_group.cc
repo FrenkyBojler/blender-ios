@@ -572,8 +572,16 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
 
   if (!gz) {
     /* #wm_handlers_do_intern shouldn't let this happen. */
-    BLI_assert_unreachable();
-    return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
+    BLI_assert_msg(false, "the gizmo should never be null, this is a bug!");
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
+  }
+
+  if (!WM_gizmo_group_type_poll(C, gz->parent_gzgroup->type)) {
+    /* The event-system should prevent this from happening, see: #137146.
+     * May be caused by the context changing without tagging #wmGizmoMap::tag_highlight_pending,
+     * typically via #WM_gizmomap_tag_refresh. */
+    BLI_assert_msg(false, "the gizmo-group's poll should always succeed, this is a bug!");
+    return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
   const int highlight_part_init = gz->highlight_part;
@@ -1011,7 +1019,7 @@ wmGizmoGroup *WM_gizmomaptype_group_init_runtime_with_region(wmGizmoMapType *gzm
 
   wmGizmoGroup *gzgroup = wm_gizmogroup_new_from_type(gzmap, gzgt);
 
-  /* Don't allow duplicates when switching modes for e.g. see: #66229. */
+  /* Don't allow duplicates when switching modes for example. See: #66229. */
   LISTBASE_FOREACH (wmGizmoGroup *, gzgroup_iter, &gzmap->groups) {
     if (gzgroup_iter->type == gzgt) {
       if (gzgroup_iter != gzgroup) {

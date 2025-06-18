@@ -168,8 +168,8 @@ void WM_event_print(const wmEvent *event)
       printf(", tablet: active: %d, pressure %.4f, tilt: (%.4f %.4f)",
              wmtab->active,
              wmtab->pressure,
-             wmtab->x_tilt,
-             wmtab->y_tilt);
+             wmtab->tilt.x,
+             wmtab->tilt.y);
     }
     printf("\n");
   }
@@ -375,8 +375,8 @@ bool WM_event_consecutive_gesture_test_break(const wmWindow *win, const wmEvent 
     }
   }
   else if (ISKEYBOARD_OR_BUTTON(event->type)) {
-    /* Modifiers are excluded because from a user perspective,
-     * releasing a modifier (for e.g.) should not begin a new action. */
+    /* Modifiers are excluded because from a user perspective.
+     * For example, releasing a modifier should not begin a new action. */
     if (!ISKEYMODIFIER(event->type)) {
       return true;
     }
@@ -503,12 +503,27 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 
 #ifdef WITH_INPUT_NDOF
 
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom)
+void WM_event_ndof_pan_get_for_navigation(const wmNDOFMotionData *ndof, float r_pan[3])
 {
-  int z_flag = use_zoom ? NDOF_ZOOM_INVERT : NDOF_PANZ_INVERT_AXIS;
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign);
+  r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_rotate_get_for_navigation(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+  const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
+  r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -sign : sign);
+  r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -sign : sign);
+  r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -sign : sign);
+}
+
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3])
+{
   r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
   r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
-  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & z_flag) ? -1.0f : 1.0f);
+  r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f);
 }
 
 void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
@@ -577,8 +592,7 @@ float wm_pressure_curve(float raw_pressure)
 float WM_event_tablet_data(const wmEvent *event, bool *r_pen_flip, float r_tilt[2])
 {
   if (r_tilt) {
-    r_tilt[0] = event->tablet.x_tilt;
-    r_tilt[1] = event->tablet.y_tilt;
+    copy_v2_v2(r_tilt, event->tablet.tilt);
   }
 
   if (r_pen_flip) {

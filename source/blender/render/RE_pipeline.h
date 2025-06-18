@@ -128,6 +128,14 @@ struct RenderResult {
   /* for render results in Image, verify validity for sequences */
   int framenr;
 
+  /**
+   * Pixels per meter (for image output).
+   * - Typically initialized via #BKE_scene_ppm_get.
+   * - May be zero which indicates the PPM being "unset".
+   *   Although in most cases a scene is available.
+   */
+  double ppm[2];
+
   /* for acquire image, to indicate if it there is a combined layer */
   bool have_combined;
 
@@ -260,6 +268,8 @@ struct RenderStats *RE_GetStats(struct Render *re);
 void RE_ResultGet32(struct Render *re, unsigned int *rect);
 void RE_ResultGetFloat(struct Render *re, float *rect);
 
+bool RE_ResultIsMultiView(struct RenderResult *rr);
+
 void RE_render_result_full_channel_name(char *fullname,
                                         const char *layname,
                                         const char *passname,
@@ -350,7 +360,7 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
  * \note Only #RE_NewRender() needed, main Blender render calls.
  *
  * \param write_still: Saves frames to disk (typically disabled). Useful for batch-operations
- * (rendering from Python for e.g.) when an additional save action for is inconvenient.
+ * (e.g. rendering from Python) when an additional save action for is inconvenient.
  * This is the default behavior for #RE_RenderAnim.
  */
 void RE_RenderFrame(struct Render *re,

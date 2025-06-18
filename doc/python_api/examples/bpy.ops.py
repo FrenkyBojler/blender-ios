@@ -16,7 +16,9 @@ saving an undo history entry.
 
 If operator was cancelled but there wasn't any reports from it with ``{'ERROR'}`` type,
 it will just return ``{'CANCELLED'}`` without raising any exceptions.
-If it had error reports, then it will raise a ``RuntimeError`` including all report messages.
+However, if there are error reports, a ``RuntimeError`` will be raised
+after the operator finishes execution, including all error report messages,
+regardless of the return status (even if it was ``{'FINISHED'}``).
 
 Calling an operator in the wrong context will raise a ``RuntimeError``,
 there is a poll() method to avoid this problem.
@@ -45,10 +47,10 @@ Each of these arguments is optional, but must be given in the order above.
 """
 import bpy
 
-# calling an operator
+# Calling an operator.
 bpy.ops.mesh.subdivide(number_cuts=3, smoothness=0.5)
 
 
-# check poll() to avoid exception.
+# Check poll() to avoid exception.
 if bpy.ops.object.mode_set.poll():
     bpy.ops.object.mode_set(mode='EDIT')

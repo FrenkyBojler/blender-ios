@@ -21,6 +21,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
   PRIVATE bf::windowmanager
+  PRIVATE bf::dependencies::optional::opencolorio
 )
 
 if(HAVE_FEENABLEEXCEPT)
@@ -133,10 +134,6 @@ endif()
 if(WITH_GMP)
   list(APPEND INC ${GMP_INCLUDE_DIRS})
   add_definitions(-DWITH_GMP)
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
 endif()
 
 # Setup the EXE sources and `buildinfo`.
@@ -1425,7 +1422,18 @@ elseif(WIN32)
 
   # Filenames change slightly between FFMPEG versions check both 6.0 and fallback to 5.0
   # to ease the transition between versions.
-  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
+  if(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-61.dll")
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ffmpeg/lib/avcodec-61.dll
+        ${LIBDIR}/ffmpeg/lib/avformat-61.dll
+        ${LIBDIR}/ffmpeg/lib/avdevice-61.dll
+        ${LIBDIR}/ffmpeg/lib/avutil-59.dll
+        ${LIBDIR}/ffmpeg/lib/swscale-8.dll
+        ${LIBDIR}/ffmpeg/lib/swresample-5.dll
+      ALL
+    )
+  elseif(EXISTS "${LIBDIR}/ffmpeg/lib/avcodec-60.dll")
     windows_install_shared_manifest(
       FILES
         ${LIBDIR}/ffmpeg/lib/avcodec-60.dll
@@ -1501,12 +1509,7 @@ elseif(WIN32)
 
   windows_install_shared_manifest(
     FILES ${LIBDIR}/shaderc/bin/shaderc_shared.dll
-    RELEASE
-  )
-
-  windows_install_shared_manifest(
-    FILES ${LIBDIR}/shaderc/bin/shaderc_shared_d.dll
-    DEBUG
+    ALL
   )
 
   windows_install_shared_manifest(
@@ -1832,7 +1835,7 @@ install(
 # -----------------------------------------------------------------------------
 # Bundle assets
 
-set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/release/datafiles/assets/publish/)
+set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/assets/)
 
 if(EXISTS "${ASSET_BUNDLE_DIR}")
   install(
@@ -1950,24 +1953,26 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND EXISTS ${BOOST_LIBPATH})
-  set(BOOST_COMPONENTS atomic chrono date_time filesystem
-    iostreams locale program_options regex
-    serialization system thread wave wserialization
-    python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-  )
-  foreach(component ${BOOST_COMPONENTS})
-    if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-        RELEASE
-      )
-      windows_install_shared_manifest(
-        FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-        DEBUG
-      )
-    endif()
-  endforeach()
+if(WIN32 AND DEFINED BOOST_LIBPATH)
+  if(EXISTS ${BOOST_LIBPATH})
+    set(BOOST_COMPONENTS atomic chrono date_time filesystem
+      iostreams locale program_options regex
+      serialization system thread wave wserialization
+      python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
+    )
+    foreach(component ${BOOST_COMPONENTS})
+      if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
+        windows_install_shared_manifest(
+          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
+          RELEASE
+        )
+        windows_install_shared_manifest(
+          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
+          DEBUG
+        )
+      endif()
+    endforeach()
+  endif()
 endif()
 
 if(WIN32)

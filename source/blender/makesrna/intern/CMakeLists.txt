@@ -253,6 +253,7 @@ set(INC
   ../../io/usd
   ../../modifiers
   ../../nodes
+  ../../nodes/function/include
   ../../nodes/geometry/include
   ../../sequencer
   ../../simulation
@@ -287,19 +288,19 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_AUDASPACE)
@@ -353,10 +354,6 @@ endif()
 
 if(WITH_WASAPI)
   add_definitions(-DWITH_WASAPI)
-endif()
-
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_INTERNATIONAL)
