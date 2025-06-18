@@ -13,8 +13,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
-#include "BLI_vector.hh"
-#include "BLI_vector_list.hh"
 
 #include "ED_grease_pencil.hh"
 
