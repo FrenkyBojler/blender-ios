@@ -23,6 +23,7 @@
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 
+#include "NOD_socket.hh"
 #include "RNA_enum_types.hh"
 #include "node_intern.hh"
 
@@ -793,8 +794,16 @@ static StringRef get_structure_type_tooltip(const nodes::StructureType &structur
 
 static void build_tooltip_structure_type(uiTooltipData &tip_data, const bNodeSocket &socket)
 {
-  const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration;
-  const nodes::StructureType structure_type = socket_decl->structure_type;
+  nodes::StructureType structure_type;
+  if (nodes::socket_type_always_single(socket.typeinfo->type)) {
+    structure_type = nodes::StructureType::Single;
+  }
+  else if (const nodes::SocketDeclaration *socket_decl = socket.runtime->declaration) {
+    structure_type = socket_decl->structure_type;
+  }
+  else {
+    structure_type = nodes::StructureType::Dynamic;
+  }
   const StringRef structure_type_name = get_structure_type_tooltip(structure_type);
   add_space(tip_data, 2);
   UI_tooltip_text_field_add(tip_data,
