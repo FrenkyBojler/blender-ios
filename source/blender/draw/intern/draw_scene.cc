@@ -38,7 +38,9 @@ static bool supports_handle_ranges(Object *ob)
   return ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT, OB_POINTCLOUD, OB_GREASE_PENCIL);
 }
 
-void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback)
+void foreach_obref_in_scene(DRWContext &draw_ctx,
+                            std::function<bool(Object &)> should_draw_object_cb,
+                            std::function<void(ObjectRef &)> draw_object_cb)
 {
   DupliList duplilist;
   Map<DrawObjectKey, VectorList<DupliObject *>> dupli_map;
@@ -60,21 +62,16 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
                             DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | DEG_ITER_OBJECT_FLAG_VISIBLE;
-  if (v3d->flag2 & V3D_SHOW_VIEWER) {
+  if (v3d && v3d->flag2 & V3D_SHOW_VIEWER) {
     deg_iter_settings.viewer_path = &v3d->viewer_path;
   }
+
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if ((v3d->object_type_exclude_viewport & (1 << ob->type)) != 0) {
-      continue;
-    }
-    if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-      continue;
+    if (should_draw_object_cb(*ob)) {
+      ObjectRef ob_ref(data_, ob);
+      draw_object_cb(ob_ref);
     }
 
-    {
-      ObjectRef ob_ref(data_, ob);
-      callback(ob_ref);
-    }
     if (!data_.dupli_parent) {
       continue;
     }
@@ -94,6 +91,10 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
         continue;
       }
 
+      if (!should_draw_object_cb(*dupli.ob)) {
+        continue;
+      }
+
       if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
         /* Sync the dupli as a single object. */
         if (!DEG_iterator_setup_temp_object(
@@ -109,7 +110,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
         tmp_object.runtime->world_to_object = invert(tmp_object.runtime->object_to_world);
 
         blender::draw::ObjectRef ob_ref(&tmp_object, ob, &dupli);
-        callback(ob_ref);
+        draw_object_cb(ob_ref);
 
         DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
         continue;
@@ -156,7 +157,7 @@ void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &
       tmp_object.runtime->world_to_object = float4x4();
 
       blender::draw::ObjectRef ob_ref(tmp_object, ob, key, instances);
-      callback(ob_ref);
+      draw_object_cb(ob_ref);
 
       DEG_iterator_free_temp_object_properties(key.object, &tmp_object);
     }

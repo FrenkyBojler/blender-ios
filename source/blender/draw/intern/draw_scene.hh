@@ -115,6 +115,8 @@ struct DrawObjectKey {
   }
 };
 
-void foreach_obref_in_scene(DRWContext &draw_ctx, std::function<void(ObjectRef &)> callback);
+void foreach_obref_in_scene(DRWContext &draw_ctx,
+                            std::function<bool(Object &)> should_draw_object_cb,
+                            std::function<void(ObjectRef &)> draw_object_cb);
 
 }  // namespace blender::draw

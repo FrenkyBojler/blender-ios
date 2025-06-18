@@ -1249,12 +1249,24 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
+  const int object_type_exclude_viewport = v3d ? v3d->object_type_exclude_viewport : 0;
+
+  auto should_draw_object = [&](Object &ob) -> bool {
+    if (object_type_exclude_viewport & (1 << ob.type)) {
+      return false;
+    }
+    if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+      return false;
+    }
+    return true;
+  };
+
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
   draw_ctx.engines_data_validate();
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects for internal engines or when overlays are enabled */
     if (do_populate_loop) {
-      foreach_obref_in_scene(draw_ctx, [&](ObjectRef &ob_ref) {
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
       });
     }
@@ -1563,33 +1575,36 @@ void DRW_render_object_iter(
     Depsgraph *depsgraph,
     std::function<void(blender::draw::ObjectRef &, RenderEngine *, Depsgraph *)> callback)
 {
-  DRWContext &draw_ctx = drw_get();
+  using namespace blender::draw;
 
-  const int object_type_exclude_viewport = draw_ctx.v3d ?
-                                               draw_ctx.v3d->object_type_exclude_viewport :
-                                               0;
+  DRWContext &draw_ctx = drw_get();
+  View3D *v3d = draw_ctx.v3d;
+  const int object_type_exclude_viewport = v3d ? v3d->object_type_exclude_viewport : 0;
+
+  auto should_draw_object = [&](Object &ob) -> bool {
+    if (object_type_exclude_viewport & (1 << ob.type)) {
+      return false;
+    }
+    if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+      return false;
+    }
+    return true;
+  };
 
   draw_ctx.sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
-    DEGObjectIterSettings deg_iter_settings = {nullptr};
-    deg_iter_settings.depsgraph = depsgraph;
-    deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-    DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-      if ((object_type_exclude_viewport & (1 << ob->type)) == 0) {
-        blender::draw::ObjectRef ob_ref(data_, ob);
-        if (ob_ref.is_dupli() == false) {
-          blender::draw::drw_batch_cache_validate(ob);
-        }
-        else {
-          duplis.try_add(ob_ref);
-        }
-        callback(ob_ref, engine, depsgraph);
-        if (ob_ref.is_dupli() == false) {
-          blender::draw::drw_batch_cache_generate_requested(ob, *extraction.graph);
-        }
-        /* Batch generation for duplis happens after iter_callback. */
+    foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+      if (ob_ref.is_dupli() == false) {
+        blender::draw::drw_batch_cache_validate(ob_ref.object);
       }
-    }
-    DEG_OBJECT_ITER_END;
+      else {
+        duplis.try_add(ob_ref);
+      }
+      callback(ob_ref, engine, depsgraph);
+      if (ob_ref.is_dupli() == false) {
+        blender::draw::drw_batch_cache_generate_requested(ob_ref.object, *extraction.graph);
+      }
+      /* Batch generation for duplis happens after iter_callback. */
+    });
   });
 }
 
@@ -1757,46 +1772,38 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
       const int object_type_exclude_select = (v3d->object_type_exclude_viewport |
                                               v3d->object_type_exclude_select);
       bool filter_exclude = false;
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      if (v3d->flag2 & V3D_SHOW_VIEWER) {
-        deg_iter_settings.viewer_path = &v3d->viewer_path;
-      }
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
-        }
 
-        if (use_pose_exception && (ob->mode & OB_MODE_POSE)) {
-          if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
-            continue;
+      auto should_draw_object = [&](Object &ob) {
+        if (use_pose_exception && (ob.mode & OB_MODE_POSE)) {
+          if ((ob.base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
+            return false;
           }
         }
         else {
-          if ((ob->base_flag & BASE_SELECTABLE) == 0) {
-            continue;
+          if ((ob.base_flag & BASE_SELECTABLE) == 0) {
+            return false;
           }
         }
 
-        if ((object_type_exclude_select & (1 << ob->type)) == 0) {
+        if ((object_type_exclude_select & (1 << ob.type)) == 0) {
           if (object_filter_fn != nullptr) {
-            if (ob->base_flag & BASE_FROM_DUPLI) {
+            if (ob.base_flag & BASE_FROM_DUPLI) {
               /* pass (use previous filter_exclude value) */
             }
             else {
-              filter_exclude = (object_filter_fn(ob, object_filter_user_data) == false);
+              filter_exclude = (object_filter_fn(&ob, object_filter_user_data) == false);
             }
             if (filter_exclude) {
-              continue;
+              return false;
             }
           }
-
-          blender::draw::ObjectRef ob_ref(data_, ob);
-          drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
-      }
-      DEG_OBJECT_ITER_END;
+        return true;
+      };
+
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
+      });
     }
   });
 
@@ -1846,34 +1853,30 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   draw_ctx.enable_engines(use_gpencil);
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
-    DEGObjectIterSettings deg_iter_settings = {nullptr};
-    deg_iter_settings.depsgraph = draw_ctx.depsgraph;
-    deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-    if (v3d->flag2 & V3D_SHOW_VIEWER) {
-      deg_iter_settings.viewer_path = &v3d->viewer_path;
-    }
+    auto should_draw_object = [&](Object &ob) {
+      if (object_type_exclude_viewport & (1 << ob.type)) {
+        return false;
+      }
+      if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+        return false;
+      }
+      if (use_only_selected && !(ob.base_flag & BASE_SELECTED)) {
+        return false;
+      }
+      if ((ob.base_flag & BASE_SELECTABLE) == 0) {
+        return false;
+      }
+      return true;
+    };
+
     if (use_only_active_object) {
       blender::draw::ObjectRef ob_ref(draw_ctx.obact);
       drw_engines_cache_populate(ob_ref, duplis, extraction);
     }
     else {
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
-          continue;
-        }
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
-        }
-        if (use_only_selected && !(ob->base_flag & BASE_SELECTED)) {
-          continue;
-        }
-        if ((ob->base_flag & BASE_SELECTABLE) == 0) {
-          continue;
-        }
-        blender::draw::ObjectRef ob_ref(data_, ob);
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
-      }
-      DEG_OBJECT_ITER_END;
+      });
     }
   });
 
@@ -1909,6 +1912,8 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
     return;
   }
 
+  using namespace blender::draw;
+
   /* Make sure select engine gets the correct vertex size. */
   UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
@@ -1922,26 +1927,25 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
     }
 
     if (RETOPOLOGY_ENABLED(v3d) && !XRAY_ENABLED(v3d)) {
-      DEGObjectIterSettings deg_iter_settings = {nullptr};
-      deg_iter_settings.depsgraph = depsgraph;
-      deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-      DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-        if (ob->type != OB_MESH) {
+      auto should_draw_object = [&](Object &ob) {
+        if (ob.type != OB_MESH) {
           /* The iterator has evaluated meshes for all solid objects.
            * It also has non-mesh objects however, which are not supported here. */
-          continue;
+          return false;
         }
-        if (DRW_object_is_in_edit_mode(ob)) {
+        if (DRW_object_is_in_edit_mode(&ob)) {
           /* Only background (non-edit) objects are used for occlusion. */
-          continue;
+          return false;
         }
-        if (!BKE_object_is_visible_in_viewport(v3d, ob)) {
-          continue;
+        if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
+          return false;
         }
-        blender::draw::ObjectRef ob_ref(data_, ob);
+        return true;
+      };
+
+      foreach_obref_in_scene(draw_ctx, should_draw_object, [&](ObjectRef &ob_ref) {
         drw_engines_cache_populate(ob_ref, duplis, extraction);
-      }
-      DEG_OBJECT_ITER_END;
+      });
     }
   });
 
