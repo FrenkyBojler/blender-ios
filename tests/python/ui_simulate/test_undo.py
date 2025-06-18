@@ -291,22 +291,26 @@ def text_editor_edit_mode_mix():
 # -----------------------------------------------------------------------------
 # Node Editor
 
+
 def _compositor_startup_area(e):
     """
     Set up the compositor node editor
     """
-    yield e.shift.f3(2)                # Twice to get compositor node editor
+    yield e.shift.f3(2)                # Compositor
+    yield e.ctrl.alt.space()           # Full-screen.
+
 
 def compositor_make_group():
     e, t = _test_vars(window := _test_window())
     yield from _compositor_startup_area(e)
-    # Create a node tree and select all nodes.
+    # Create a node tree with multiple nodes and select all nodes.
     window.scene.use_nodes = True
-    t.assertGreater(window.scene.compositing_node_group.nodes, 1)
-    e.ctrl.g()
-    t.assertEqual(window.scene.compositing_node_group.nodes, 1)
-    e.ctrl.z()
-    t.assertGreater(window.scene.compositing_node_group.nodes, 1)
+    yield e.a()
+    t.assertGreater(len(window.scene.compositing_node_group.nodes), 1)
+    yield e.ctrl.g()
+    t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
+    yield e.ctrl.z()
+    t.assertGreater(len(window.scene.compositing_node_group.nodes), 1)
 
 
 # -----------------------------------------------------------------------------
