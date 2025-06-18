@@ -97,6 +97,11 @@ static void build_tooltip_value_and_type_oneline(uiTooltipData &tip_data,
       tip_data, fmt::format("{}: {}", TIP_("Type"), type), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
 }
 
+static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket & /*socket*/)
+{
+  build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
+}
+
 template<typename T>
 [[nodiscard]] static bool build_tooltip_value_data_block(uiTooltipData &tip_data,
                                                          const GPointer &value)
@@ -220,42 +225,44 @@ static void build_tooltip_value_float4x4(uiTooltipData &tip_data, const float4x4
                             UI_TIP_LC_VALUE);
 }
 
-[[nodiscard]] static bool build_tooltip_value_generic(uiTooltipData &tip_data,
-                                                      const bNodeSocket &socket,
-                                                      const GPointer &value)
+static void build_tooltip_value_generic(uiTooltipData &tip_data,
+                                        const bNodeSocket &socket,
+                                        const GPointer &value)
 
 {
   const CPPType &value_type = *value.type();
   if (build_tooltip_value_data_block<Object>(tip_data, value)) {
-    return true;
+    return;
   }
   if (build_tooltip_value_data_block<Material>(tip_data, value)) {
-    return true;
+    return;
   }
   if (build_tooltip_value_data_block<Tex>(tip_data, value)) {
-    return true;
+    return;
   }
   if (build_tooltip_value_data_block<Image>(tip_data, value)) {
-    return true;
+    return;
   }
   if (build_tooltip_value_data_block<Collection>(tip_data, value)) {
-    return true;
+    return;
   }
 
   if (socket.type == SOCK_MENU) {
     if (!value_type.is<int>()) {
-      return false;
+      build_tooltip_value_unknown(tip_data, socket);
+      return;
     }
     const int item_identifier = *value.get<int>();
     build_tooltip_value_enum(tip_data, socket, item_identifier);
-    return true;
+    return;
   }
 
   const CPPType &socket_base_cpp_type = *socket.typeinfo->base_cpp_type;
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   if (value_type != socket_base_cpp_type) {
     if (!conversions.is_convertible(value_type, socket_base_cpp_type)) {
-      return false;
+      build_tooltip_value_unknown(tip_data, socket);
+      return;
     }
   }
   BUFFER_FOR_CPP_TYPE_VALUE(socket_base_cpp_type, socket_value);
@@ -265,37 +272,36 @@ static void build_tooltip_value_float4x4(uiTooltipData &tip_data, const float4x4
 
   if (socket_base_cpp_type.is<int>()) {
     build_tooltip_value_int(tip_data, *static_cast<int *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<float>()) {
     build_tooltip_value_float(tip_data, *static_cast<float *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<float3>()) {
     build_tooltip_value_float3(tip_data, *static_cast<float3 *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<ColorGeometry4f>()) {
     build_tooltip_value_color(tip_data, *static_cast<ColorGeometry4f *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<math::Quaternion>()) {
     build_tooltip_value_quaternion(tip_data, *static_cast<math::Quaternion *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<bool>()) {
     build_tooltip_value_bool(tip_data, *static_cast<bool *>(socket_value));
-    return true;
+    return;
   }
   if (socket_base_cpp_type.is<float4x4>()) {
     build_tooltip_value_float4x4(tip_data, *static_cast<float4x4 *>(socket_value));
-    return true;
+    return;
   }
-
-  return false;
+  build_tooltip_value_unknown(tip_data, socket);
 }
 
-static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
+static void build_tooltip_value_string_log(uiTooltipData &tip_data,
                                            const geo_log::StringLog &value_log)
 {
   std::string value_str = value_log.value;
@@ -303,7 +309,6 @@ static bool build_tooltip_value_string_log(uiTooltipData &tip_data,
     value_str += "...";
   }
   build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("String"));
-  return true;
 }
 
 static const char *get_field_type_name(const CPPType &base_type)
@@ -333,7 +338,7 @@ static const char *get_field_type_name(const CPPType &base_type)
   return TIP_("Field");
 }
 
-static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
+static void build_tooltip_value_field_log(uiTooltipData &tip_data,
                                           const bNodeSocket &socket,
                                           const geo_log::FieldInfoLog &value_log)
 {
@@ -343,7 +348,7 @@ static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
   if (input_tooltips.is_empty()) {
     /* Should have been logged as constant value. */
     BLI_assert_unreachable();
-    return false;
+    return;
   }
 
   UI_tooltip_text_field_add(
@@ -362,7 +367,6 @@ static bool build_tooltip_value_field_log(uiTooltipData &tip_data,
                             {},
                             UI_TIP_STYLE_MONO,
                             UI_TIP_LC_VALUE);
-  return true;
 }
 
 static std::string count_to_string(const int count)
@@ -372,13 +376,13 @@ static std::string count_to_string(const int count)
   return std::string(str);
 }
 
-static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
+static void build_tooltip_value_geometry_log(uiTooltipData &tip_data,
                                              const geo_log::GeometryInfoLog &geometry_log)
 {
   Span<bke::GeometryComponent::Type> component_types = geometry_log.component_types;
   if (component_types.is_empty()) {
     build_tooltip_value_and_type_oneline(tip_data, TIP_("None"), TIP_("Geometry Set"));
-    return true;
+    return;
   }
   UI_tooltip_text_field_add(
       tip_data, TIP_("Geometry components:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
@@ -448,10 +452,9 @@ static bool build_tooltip_value_geometry_log(uiTooltipData &tip_data,
   add_space(tip_data);
   UI_tooltip_text_field_add(
       tip_data, TIP_("Type: Geometry Set"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
-  return true;
 }
 
-static bool build_tooltip_value_grid_log(uiTooltipData &tip_data,
+static void build_tooltip_value_grid_log(uiTooltipData &tip_data,
                                          const geo_log::GridInfoLog &grid_log)
 {
   std::string value_str;
@@ -462,10 +465,9 @@ static bool build_tooltip_value_grid_log(uiTooltipData &tip_data,
     value_str = TIP_("Grid");
   }
   build_tooltip_value_and_type_oneline(tip_data, value_str, TIP_("Grid"));
-  return true;
 }
 
-static bool build_tooltip_value_bundle_log(uiTooltipData &tip_data,
+static void build_tooltip_value_bundle_log(uiTooltipData &tip_data,
                                            const geo_log::BundleValueLog &bundle_log)
 {
   if (bundle_log.items.is_empty()) {
@@ -494,10 +496,9 @@ static bool build_tooltip_value_bundle_log(uiTooltipData &tip_data,
   add_space(tip_data);
   UI_tooltip_text_field_add(
       tip_data, TIP_("Type: Bundle"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
-  return true;
 }
 
-static bool build_tooltip_value_closure_log(uiTooltipData &tip_data,
+static void build_tooltip_value_closure_log(uiTooltipData &tip_data,
                                             const geo_log::ClosureValueLog &closure_log)
 {
   if (closure_log.inputs.is_empty() && closure_log.outputs.is_empty()) {
@@ -539,40 +540,33 @@ static bool build_tooltip_value_closure_log(uiTooltipData &tip_data,
   add_space(tip_data);
   UI_tooltip_text_field_add(
       tip_data, TIP_("Type: Closure"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
-  return true;
 }
 
-[[nodiscard]] static bool build_tooltip_value_geo_log(uiTooltipData &tip_data,
-                                                      const bNodeSocket &socket,
-                                                      geo_log::ValueLog &value_log)
+static void build_tooltip_value_geo_log(uiTooltipData &tip_data,
+                                        const bNodeSocket &socket,
+                                        geo_log::ValueLog &value_log)
 {
   if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log)) {
-    return build_tooltip_value_generic(tip_data, socket, generic_value_log->value);
+    build_tooltip_value_generic(tip_data, socket, generic_value_log->value);
   }
-  if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
-    return build_tooltip_value_string_log(tip_data, *string_value_log);
+  else if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
+    build_tooltip_value_string_log(tip_data, *string_value_log);
   }
-  if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log)) {
-    return build_tooltip_value_field_log(tip_data, socket, *field_value_log);
+  else if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log)) {
+    build_tooltip_value_field_log(tip_data, socket, *field_value_log);
   }
-  if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log)) {
-    return build_tooltip_value_geometry_log(tip_data, *geometry_log);
+  else if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log)) {
+    build_tooltip_value_geometry_log(tip_data, *geometry_log);
   }
-  if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
-    return build_tooltip_value_grid_log(tip_data, *grid_log);
+  else if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
+    build_tooltip_value_grid_log(tip_data, *grid_log);
   }
-  if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
-    return build_tooltip_value_bundle_log(tip_data, *bundle_log);
+  else if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
+    build_tooltip_value_bundle_log(tip_data, *bundle_log);
   }
-  if (const auto *closure_log = dynamic_cast<const geo_log::ClosureValueLog *>(&value_log)) {
-    return build_tooltip_value_closure_log(tip_data, *closure_log);
+  else if (const auto *closure_log = dynamic_cast<const geo_log::ClosureValueLog *>(&value_log)) {
+    build_tooltip_value_closure_log(tip_data, *closure_log);
   }
-  return true;
-}
-
-static void build_tooltip_value_unknown(uiTooltipData &tip_data, const bNodeSocket & /*socket*/)
-{
-  build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
 }
 
 static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
@@ -629,7 +623,8 @@ static bool build_tooltip_last_value_multi_input(uiTooltipData &tip_data,
   if (!value_log) {
     return false;
   }
-  return build_tooltip_value_geo_log(tip_data, socket, *value_log);
+  build_tooltip_value_geo_log(tip_data, socket, *value_log);
+  return true;
 }
 
 static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bNodeSocket &socket)
@@ -654,9 +649,7 @@ static void build_tooltip_value_socket_default(uiTooltipData &tip_data, const bN
   BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
   socket.typeinfo->get_base_cpp_value(socket.default_value, socket_value);
   BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
-  if (!build_tooltip_value_generic(tip_data, socket, {cpp_type, socket_value})) {
-    build_tooltip_value_and_type_oneline(tip_data, TIP_("Unknown"), TIP_("Unknown"));
-  }
+  build_tooltip_value_generic(tip_data, socket, {cpp_type, socket_value});
 }
 
 static bool is_socket_default_value_used(const bNodeSocket &socket)
