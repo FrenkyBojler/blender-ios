@@ -1272,8 +1272,9 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   /* Draw shadow on top-level panels with headers during drag or region overlap. */
   if (!is_subpanel && has_header && (region->overlap || is_dragging)) {
     /* Make shadow wider (at least 16px) while the panel is being dragged. */
-    const float shadow_width = is_dragging ? max_ii(16, UI_ThemeMenuShadowWidth()) :
-                                             UI_ThemeMenuShadowWidth();
+    const float shadow_width = is_dragging ?
+                                   max_ii(int(16.0f * UI_SCALE_FAC), UI_ThemeMenuShadowWidth()) :
+                                   UI_ThemeMenuShadowWidth();
     const int roundboxalign = is_open ? UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT : UI_CNR_ALL;
 
     rctf box_rect;
