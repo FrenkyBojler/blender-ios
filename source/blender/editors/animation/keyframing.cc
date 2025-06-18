@@ -895,7 +895,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   int success = 0;
 
   blender::Vector<PointerRNA> selection;
-  const bool found_selection = get_selection(C, &selection);
+  get_selection(C, &selection);
 
   if (selection.is_empty()) {
     BKE_reportf(op->reports, RPT_WARNING, "Nothing selected to key");
