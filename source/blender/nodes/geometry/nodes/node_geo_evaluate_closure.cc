@@ -9,6 +9,7 @@
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "BLO_read_write.hh"
 
@@ -90,6 +91,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
@@ -115,6 +118,25 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
                                                        const bNodeSocket &output_socket)
 {
   return evaluate_closure_node_internally_linked_input(output_socket);
+}
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  if (other_socket.type != SOCK_CLOSURE) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_IN) {
+    return;
+  }
+
+  params.add_item("Closure", [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("GeometryNodeEvaluateClosure");
+    params.connect_available_socket(node, "Closure");
+
+    SpaceNode &snode = *CTX_wm_space_node(&params.C);
+    ed::space_node::sync_sockets_evaluate_closure(snode, node, nullptr);
+  });
 }
 
 static void node_operators()
@@ -147,6 +169,7 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.internally_linked_input = node_internally_linked_input;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;

@@ -33,7 +33,10 @@ class ShapeKeyTreeView : public ui::AbstractTreeView {
   Object &object_;
 
  public:
-  ShapeKeyTreeView(Object &ob) : object_(ob){};
+  ShapeKeyTreeView(Object &ob) : object_(ob)
+  {
+    is_flat_ = true;
+  };
 
   void build_tree() override;
 };
@@ -245,7 +248,7 @@ void template_tree(uiLayout *layout, bContext *C)
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,

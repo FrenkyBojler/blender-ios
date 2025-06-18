@@ -2090,7 +2090,7 @@ void UI_block_end_ex(const bContext *C,
     }
 
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
-        depsgraph, (scene) ? scene->r.cfra : 0.0f);
+        depsgraph, (scene) ? BKE_scene_frame_get(scene) : 0.0f);
     ui_but_anim_flag(but.get(), &anim_eval_context);
     ui_but_override_flag(bmain, but.get());
     if (UI_but_is_decorator(but)) {
@@ -2283,6 +2283,12 @@ void UI_block_draw(const bContext *C, uiBlock *block)
     ui_but_to_pixelrect(&rect, region, block, but.get());
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
+      continue;
+    }
+
+    /* Don't draw buttons that are wider than available space. */
+    const int width = BLI_rcti_size_x(&rect);
+    if ((width > U.widget_unit * 2.5f / block->aspect) && width > region->winx) {
       continue;
     }
 
@@ -4280,7 +4286,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
     const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
     BLI_assert(found_layout);
     UNUSED_VARS_NDEBUG(found_layout);
-    ui_button_group_replace_but_ptr(uiLayoutGetBlock(but->layout), old_but_ptr.get(), but);
+    ui_button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
   }
 #ifdef WITH_PYTHON
   if (UI_editsource_enable_check()) {
@@ -4467,7 +4473,7 @@ void ui_def_but_icon_clear(uiBut *but)
 
 static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiPopupBlockHandle *handle = block->handle;
   uiBut *but = (uiBut *)but_p;
   const int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
