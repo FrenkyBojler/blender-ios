@@ -758,8 +758,10 @@ static void build_tooltip_last_value(uiTooltipData &tip_data,
       return;
     }
   }
-  add_space(tip_data, 2);
-  build_tooltip_value_unknown(tip_data, socket);
+  if (socket.owner_tree().type == NTREE_GEOMETRY) {
+    add_space(tip_data, 2);
+    build_tooltip_value_unknown(tip_data, socket);
+  }
 }
 
 static void build_tooltip_dangling_reroute(uiTooltipData &tip_data)
@@ -826,8 +828,8 @@ void build_socket_tooltip(uiTooltipData &tip_data,
   }
   else {
     build_tooltip_description(tip_data, socket);
+    build_tooltip_last_value(tip_data, C, socket);
     if (tree.type == NTREE_GEOMETRY) {
-      build_tooltip_last_value(tip_data, C, socket);
       build_tooltip_structure_type(tip_data, socket);
     }
   }
