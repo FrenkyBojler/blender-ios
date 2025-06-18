@@ -32,39 +32,80 @@
 
 namespace blender::bke::tests {
 
-/* This happens usually in BKE_pose_bone_done. Update here to avoid creating a full depsgraph. */
-static void update_pose_matrices(bPoseChannel &pchan)
-{
-  BKE_pchan_calc_mat(&pchan);
-  if (!(pchan.bone->flag & BONE_NO_DEFORM)) {
-    mat4_to_dquat(&pchan.runtime.deform_dual_quat, pchan.bone->arm_mat, pchan.chan_mat);
-  }
-}
+/**
+ * TODO
+ * - Interpolation:
+ *    * Linear
+ *    * Dual-Quaternion ("Preserve Volume", ARM_DEF_QUATERNION)
+ * - Bone weighting:
+ *    * disabled (no ARM_DEF_* flags)
+ *    * envelopes (ARM_DEF_ENVELOPE)
+ *    * vertex groups (ARM_DEF_VGROUP)
+ *    * single vertex group (defgrp_name parameter)
+ * - Outputs:
+ *    * Position-only
+ *    * "Full" (deform matrix, for crazyspace)
+ * - Target object types:
+ *    * mesh
+ *    * edit-mesh (bmesh)
+ *    * curves
+ *    * unsupported ID type (should pass through)
+ * - explicit me_target parameter (where/how is this case invoked?)
+ * - inverted vertex group (ARM_DEF_INVERT_VGROUP)
+ * - multi-modifier feature, roughly:
+ *    1. Some deform modifier before
+ *    2. Followed by 2 armature modifiers
+ *    3. test that `vert_coords_prev` has original data
+ *    4. mixed result based on vertex groups
+ * - relative armature/target object transform (non-identity "premat"/"postmat" matrices)
+ */
 
-class ArmatureDeformTest : public testing::Test {
+/* Type of data that is being deformed.
+ * This distinction is needed to handle some inconsistent behaviors. */
+enum class TargetDataType {
+  Mesh,
+  EditMesh,
+  Curves,
+  GreasePencil,
+};
+
+enum class InterpolationTest {
+  /* Linear interpolation. */
+  Linear,
+  /* Dual-quaternion method, aka. "Preserve Volume" (ARM_DEF_QUATERNION). */
+  DualQuaternion,
+};
+
+enum class WeightingTest {
+  /* Disabled (no deform). */
+  None,
+  /* Falloff from closest envelope point. */
+  Envelope,
+  /* Vertex group weight. */
+  VertexGroups,
+};
+
+enum class MaskingTest {
+  /* Deform all vertices. */
+  All,
+  /* Limit deformation to one vertex group. */
+  VertexGroup,
+};
+
+/* Defines the source of vertex groups and weights for mesh deformation. */
+enum class VertexWeightSource {
+  /* Read vertex groups and weights from the target object's mesh data. */
+  TargetObject,
+  /* Use a separate mesh for defining vertex weights. */
+  SeparateMesh,
+};
+
+using ArmatureDeformTestParams =
+    std::tuple<InterpolationTest, WeightingTest, MaskingTest, VertexWeightSource>;
+
+class ArmatureDeformTestBase {
  public:
   Main *bmain;
-
-  static void SetUpTestSuite()
-  {
-    CLG_init();
-    BKE_idtype_init();
-  }
-
-  static void TearDownTestSuite()
-  {
-    CLG_exit();
-  }
-
-  void SetUp() override
-  {
-    bmain = BKE_main_new();
-  }
-
-  void TearDown() override
-  {
-    BKE_main_free(bmain);
-  }
 
   /* Translation for bones.
    * Rotation is omitted here for simplicity, the goal is to test all the code paths rather than
@@ -77,6 +118,15 @@ class ArmatureDeformTest : public testing::Test {
   static float3 offset_bone2()
   {
     return float3(0, -2, 0);
+  }
+
+  /* This happens usually in BKE_pose_bone_done. Update here to avoid creating a full depsgraph. */
+  static void update_pose_matrices(bPoseChannel &pchan)
+  {
+    BKE_pchan_calc_mat(&pchan);
+    if (!(pchan.bone->flag & BONE_NO_DEFORM)) {
+      mat4_to_dquat(&pchan.runtime.deform_dual_quat, pchan.bone->arm_mat, pchan.chan_mat);
+    }
   }
 
   Object *create_test_armature_object() const
@@ -194,7 +244,7 @@ class ArmatureDeformTest : public testing::Test {
 
   /* Creates curves with a mix of vertices in "Bone1" and "Bone2" groups.
    * Curves datablock does not support vertex groups at this point, these are ignored. */
-  Object *create_test_curves() const
+  Object *create_test_curves_object() const
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_CURVES, "Test Curves Object");
     Curves *curves_id = BKE_curves_add(bmain, "Test Curves");
@@ -224,7 +274,7 @@ class ArmatureDeformTest : public testing::Test {
   }
 
   /* Creates grease pencil with a mix of vertices in "Bone1" and "Bone2" groups. */
-  Object *create_test_grease_pencil() const
+  Object *create_test_grease_pencil_object() const
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_GREASE_PENCIL, "Test Grease Pencil Object");
     GreasePencil *grease_pencil = BKE_grease_pencil_add(bmain, "Test Grease Pencil");
@@ -259,45 +309,10 @@ class ArmatureDeformTest : public testing::Test {
     return ob;
   }
 
-  enum class InterpolationTest {
-    /* Linear interpolation. */
-    Linear,
-    /* Dual-quaternion method, aka. "Preserve Volume" (ARM_DEF_QUATERNION). */
-    DualQuaternion,
-  };
-
-  enum class WeightingTest {
-    /* Disabled (no deform). */
-    None,
-    /* Falloff from closest envelope point. */
-    Envelope,
-    /* Vertex group weight. */
-    VertexGroups,
-  };
-
-  enum class MaskingTest {
-    /* Deform all vertices. */
-    All,
-    /* Limit deformation to one vertex group. */
-    VertexGroup,
-  };
-
-  /* Defines the source of vertex groups and weights for mesh deformation. */
-  enum class VertexWeightSource {
-    /* Read vertex groups and weights from the target object's mesh data. */
-    TargetObject,
-    /* Use a separate mesh for defining vertex weights. */
-    SeparateMesh,
-  };
-
-  static const Array<InterpolationTest> interpolation_options;
-  static const Array<WeightingTest> weighting_options;
-  static const Array<MaskingTest> masking_options;
-  static const Array<VertexWeightSource> source_options;
-
-  static Span<float3> expected_mesh_positions(const WeightingTest weighting,
-                                              const MaskingTest masking,
-                                              const bool vgroups_supported)
+  /* Select the expected positions result based on data type and parameters. */
+  static Span<float3> expected_positions(const TargetDataType target_type,
+                                         const WeightingTest weighting,
+                                         const MaskingTest masking)
   {
     /* Both bones weighted equally. */
     static Array<float3> data_envelope = {float3(1.5f, -2, -0.5f),
@@ -334,17 +349,21 @@ class ArmatureDeformTest : public testing::Test {
                                                 float3(1.5f, 0, 1.5f),
                                                 float3(3.5f, 0, 1.5f)};
 
-    const bool masked = (masking == MaskingTest::VertexGroup);
+    /* Curves data type does not support vertext groups. */
+    const bool vgroups_supported = ELEM(
+        target_type, TargetDataType::Mesh, TargetDataType::EditMesh, TargetDataType::GreasePencil);
+    /* Might be a bug: Mesh and GreasePencil allows masking even in envelope mode, but EditMesh
+     * does not! Curves does not have vgroups and therefore masking in the first place. */
+    const bool allow_masking_with_envelope = ELEM(
+        target_type, TargetDataType::Mesh, TargetDataType::GreasePencil);
+    const bool masked = (masking == MaskingTest::VertexGroup) &&
+                        (weighting == WeightingTest::VertexGroups || allow_masking_with_envelope);
+
     switch (weighting) {
       case WeightingTest::None:
         return vertex_positions();
       case WeightingTest::Envelope:
-        if (vgroups_supported) {
-          return data_envelope;
-        }
-        else {
-          return data_envelope;
-        }
+        return masked ? data_envelope_masked : data_envelope;
       case WeightingTest::VertexGroups:
         if (vgroups_supported) {
           return masked ? data_vgroups_masked : data_vgroups;
@@ -424,7 +443,8 @@ class ArmatureDeformTest : public testing::Test {
                                          defgrp_name,
                                          mesh_target);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), vert_positions.as_span());
+    EXPECT_EQ_SPAN(expected_positions(TargetDataType::Mesh, weighting, masking),
+                   vert_positions.as_span());
 
     if (mesh_target) {
       /* Not in bmain. */
@@ -461,7 +481,8 @@ class ArmatureDeformTest : public testing::Test {
                                              defgrp_name,
                                              edit_mesh);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), bm_verts_wrapper.as_span());
+    EXPECT_EQ_SPAN(expected_positions(TargetDataType::EditMesh, weighting, masking),
+                   bm_verts_wrapper.as_span());
 
     BKE_editmesh_free_data(edit_mesh);
     MEM_delete(edit_mesh);
@@ -474,7 +495,7 @@ class ArmatureDeformTest : public testing::Test {
                    const MaskingTest masking)
   {
     Object *ob_arm = this->create_test_armature_object();
-    Object *ob_target = this->create_test_curves();
+    Object *ob_target = this->create_test_curves_object();
     Curves *curves_id = static_cast<Curves *>(ob_target->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
@@ -491,7 +512,8 @@ class ArmatureDeformTest : public testing::Test {
                                            defgrp_name);
 
     /* Note: Curves objects don't support vertex groups. */
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, false), curves.positions());
+    EXPECT_EQ_SPAN(expected_positions(TargetDataType::Curves, weighting, masking),
+                   curves.positions());
 
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
@@ -502,7 +524,7 @@ class ArmatureDeformTest : public testing::Test {
                           const MaskingTest masking)
   {
     Object *ob_arm = this->create_test_armature_object();
-    Object *ob_target = this->create_test_grease_pencil();
+    Object *ob_target = this->create_test_grease_pencil_object();
     GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob_target->data);
 
     BLI_assert(!grease_pencil->drawings().is_empty());
@@ -523,61 +545,134 @@ class ArmatureDeformTest : public testing::Test {
                                            deform_flag,
                                            defgrp_name);
 
-    EXPECT_EQ_SPAN(expected_mesh_positions(weighting, masking, true), curves.positions());
+    EXPECT_EQ_SPAN(expected_positions(TargetDataType::GreasePencil, weighting, masking),
+                   curves.positions());
 
     BKE_id_delete(bmain, ob_arm);
     BKE_id_delete(bmain, ob_target);
   }
 };
 
-const Array<ArmatureDeformTest::InterpolationTest> ArmatureDeformTest::interpolation_options = {
-    InterpolationTest::Linear, InterpolationTest::DualQuaternion};
-const Array<ArmatureDeformTest::WeightingTest> ArmatureDeformTest::weighting_options = {
-    WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups};
-const Array<ArmatureDeformTest::MaskingTest> ArmatureDeformTest::masking_options = {
-    MaskingTest::All, MaskingTest::VertexGroup};
-const Array<ArmatureDeformTest::VertexWeightSource> ArmatureDeformTest::source_options = {
-    VertexWeightSource::TargetObject, VertexWeightSource::SeparateMesh};
+class ArmatureDeformTest : public ArmatureDeformTestBase, public testing::Test {
+ public:
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
 
-/**
- * TODO
- * - Interpolation:
- *    * Linear
- *    * Dual-Quaternion ("Preserve Volume", ARM_DEF_QUATERNION)
- * - Bone weighting:
- *    * disabled (no ARM_DEF_* flags)
- *    * envelopes (ARM_DEF_ENVELOPE)
- *    * vertex groups (ARM_DEF_VGROUP)
- *    * single vertex group (defgrp_name parameter)
- * - Outputs:
- *    * Position-only
- *    * "Full" (deform matrix, for crazyspace)
- * - Target object types:
- *    * mesh
- *    * edit-mesh (bmesh)
- *    * curves
- *    * unsupported ID type (should pass through)
- * - explicit me_target parameter (where/how is this case invoked?)
- * - inverted vertex group (ARM_DEF_INVERT_VGROUP)
- * - multi-modifier feature, roughly:
- *    1. Some deform modifier before
- *    2. Followed by 2 armature modifiers
- *    3. test that `vert_coords_prev` has original data
- *    4. mixed result based on vertex groups
- * - relative armature/target object transform (non-identity "premat"/"postmat" matrices)
- */
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
+};
 
 TEST_F(ArmatureDeformTest, MeshDeform)
 {
-  for (const InterpolationTest opt_itp : interpolation_options) {
-    for (const WeightingTest opt_wgt : weighting_options) {
-      for (const MaskingTest opt_msk : masking_options) {
-        for (const VertexWeightSource opt_src : source_options) {
-          mesh_test(opt_itp, opt_wgt, opt_msk, opt_src);
+  for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
+    for (WeightingTest weight :
+         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    {
+      for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
+        for (VertexWeightSource dvert_source :
+             {VertexWeightSource::TargetObject, VertexWeightSource::SeparateMesh})
+        {
+          mesh_test(ipol, weight, mask, dvert_source);
         }
       }
     }
   }
+}
+
+TEST_F(ArmatureDeformTest, EditMeshDeform)
+{
+  for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
+    for (WeightingTest weight :
+         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    {
+      for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
+        edit_mesh_test(ipol, weight, mask);
+      }
+    }
+  }
+}
+
+TEST_F(ArmatureDeformTest, CurvesDeform)
+{
+  for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
+    for (WeightingTest weight :
+         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    {
+      for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
+        curves_test(ipol, weight, mask);
+      }
+    }
+  }
+}
+
+TEST_F(ArmatureDeformTest, GreasePencilDeform)
+{
+  for (InterpolationTest ipol : {InterpolationTest::Linear, InterpolationTest::DualQuaternion}) {
+    for (WeightingTest weight :
+         {WeightingTest::None, WeightingTest::Envelope, WeightingTest::VertexGroups})
+    {
+      for (MaskingTest mask : {MaskingTest::All, MaskingTest::VertexGroup}) {
+        grease_pencil_test(ipol, weight, mask);
+      }
+    }
+  }
+}
+
+/* TODO Parameterized tests are not registered in `blender_test`.
+ * Possible reason: the cmake gtest_add_tests function may not be able to detect them reliably.
+ * https://cmake.org/cmake/help/latest/module/GoogleTest.html
+ * https://www.kitware.com/dynamic-google-test-discovery-in-cmake-3-10/
+ */
+#if 0
+class ArmatureDeformParamTest : public ArmatureDeformTestBase,
+                                public testing::TestWithParam<ArmatureDeformTestParams> {
+ public:
+  static void SetUpTestSuite()
+  {
+    CLG_init();
+    BKE_idtype_init();
+  }
+
+  static void TearDownTestSuite()
+  {
+    CLG_exit();
+  }
+
+  void SetUp() override
+  {
+    bmain = BKE_main_new();
+  }
+
+  void TearDown() override
+  {
+    BKE_main_free(bmain);
+  }
+};
+
+TEST_P(ArmatureDeformParamTest, MeshDeformParameterized)
+{
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+  VertexWeightSource dvert_source = std::get<3>(params);
+
+  mesh_test(interpolation, weighting, masking, dvert_source);
 
   // mesh_test(InterpolationTest::Linear,
   //           WeightingTest::None,
@@ -621,15 +716,15 @@ TEST_F(ArmatureDeformTest, MeshDeform)
   //           VertexWeightSource::SeparateMesh);
 }
 
-TEST_F(ArmatureDeformTest, EditMeshDeform)
+TEST_P(ArmatureDeformParamTest, EditMeshDeformParameterized)
 {
-  for (const InterpolationTest opt_itp : interpolation_options) {
-    for (const WeightingTest opt_wgt : weighting_options) {
-      for (const MaskingTest opt_msk : masking_options) {
-        edit_mesh_test(opt_itp, opt_wgt, opt_msk);
-      }
-    }
-  }
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+  // VertexWeightSource dvert_source = std::get<3>(params);
+
+  edit_mesh_test(interpolation, weighting, masking);
 
   // edit_mesh_test(InterpolationTest::Linear, WeightingTest::None);
   // edit_mesh_test(InterpolationTest::Linear, WeightingTest::Envelope);
@@ -641,15 +736,15 @@ TEST_F(ArmatureDeformTest, EditMeshDeform)
   // edit_mesh_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
-TEST_F(ArmatureDeformTest, CurveDeform)
+TEST_P(ArmatureDeformParamTest, CurvesDeformParameterized)
 {
-  for (const InterpolationTest opt_itp : interpolation_options) {
-    for (const WeightingTest opt_wgt : weighting_options) {
-      for (const MaskingTest opt_msk : masking_options) {
-        curves_test(opt_itp, opt_wgt, opt_msk);
-      }
-    }
-  }
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+  // VertexWeightSource dvert_source = std::get<3>(params);
+
+  curves_test(interpolation, weighting, masking);
 
   // curves_test(InterpolationTest::Linear, WeightingTest::None);
   // curves_test(InterpolationTest::Linear, WeightingTest::Envelope);
@@ -661,15 +756,15 @@ TEST_F(ArmatureDeformTest, CurveDeform)
   // curves_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
 
-TEST_F(ArmatureDeformTest, GreasePencilDeform)
+TEST_P(ArmatureDeformParamTest, GreasePencilDeformParameterized)
 {
-  for (const InterpolationTest opt_itp : interpolation_options) {
-    for (const WeightingTest opt_wgt : weighting_options) {
-      for (const MaskingTest opt_msk : masking_options) {
-        grease_pencil_test(opt_itp, opt_wgt, opt_msk);
-      }
-    }
-  }
+  const ArmatureDeformTestParams &params = this->GetParam();
+  InterpolationTest interpolation = std::get<0>(params);
+  WeightingTest weighting = std::get<1>(params);
+  MaskingTest masking = std::get<2>(params);
+  // VertexWeightSource dvert_source = std::get<3>(params);
+
+  grease_pencil_test(interpolation, weighting, masking);
 
   // grease_pencil_test(InterpolationTest::Linear, WeightingTest::None);
   // grease_pencil_test(InterpolationTest::Linear, WeightingTest::Envelope);
@@ -680,5 +775,55 @@ TEST_F(ArmatureDeformTest, GreasePencilDeform)
   // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::VertexGroups);
   // grease_pencil_test(InterpolationTest::DualQuaternion, WeightingTest::SingleVertexGroup);
 }
+
+INSTANTIATE_TEST_SUITE_P(AllArmatureDeformTests,
+                         ArmatureDeformParamTest,
+                         testing::Values(std::make_tuple(InterpolationTest::Linear,
+                                                         WeightingTest::None,
+                                                         MaskingTest::All,
+                                                         VertexWeightSource::TargetObject)),
+                         [](const testing::TestParamInfo<ArmatureDeformTestParams> &info) {
+                           InterpolationTest interpolation = std::get<0>(info.param);
+                           WeightingTest weighting = std::get<1>(info.param);
+                           MaskingTest masking = std::get<2>(info.param);
+                           VertexWeightSource dvert_source = std::get<3>(info.param);
+
+                           std::string name;
+                           switch (interpolation) {
+                             case InterpolationTest::Linear:
+                               name += "linear";
+                               break;
+                             case InterpolationTest::DualQuaternion:
+                               name += "dualquat";
+                               break;
+                           }
+                           switch (weighting) {
+                             case WeightingTest::None:
+                               name += "_disabled";
+                               break;
+                             case WeightingTest::Envelope:
+                               name += "_envelope";
+                               break;
+                             case WeightingTest::VertexGroups:
+                               name += "_vgroups";
+                               break;
+                           }
+                           switch (masking) {
+                             case MaskingTest::All:
+                               break;
+                             case MaskingTest::VertexGroup:
+                               name += "_masked";
+                               break;
+                           }
+                           switch (dvert_source) {
+                             case VertexWeightSource::TargetObject:
+                               break;
+                             case VertexWeightSource::SeparateMesh:
+                               name += "_dvertsource";
+                               break;
+                           }
+                           return name;
+                         });
+#endif
 
 }  // namespace blender::bke::tests
