@@ -5590,7 +5590,7 @@ void ui_draw_pie_center(uiBlock *block)
   if (block->pie_data.pages.size() > 1) {
     const float dot_radius = 3.0f;
     const float dot_margin = 1.0f;
-    const float dot_y = -(pie_radius_external + UI_SCALE_FAC * 8);
+    const float dot_y = -(pie_radius_external + UI_SCALE_FAC * 8.0f);
 
     float dot_x = -UI_SCALE_FAC * std::ceil((dot_radius * 2.0f + dot_margin) *
                                             float(block->pie_data.pages.size() - 1) / 2.0f);
@@ -5598,7 +5598,7 @@ void ui_draw_pie_center(uiBlock *block)
     for (int i : block->pie_data.pages.index_range()) {
       page_dot_color[3] = i == block->pie_data.active_page ? 175 : 60;
       immUniformColor4ubv(page_dot_color);
-      imm_draw_circle_fill_2d(pos, dot_x, dot_y, dot_radius, 50);
+      imm_draw_circle_fill_2d(pos, dot_x, dot_y, dot_radius * UI_SCALE_FAC, 12);
       dot_x += (2.0f * dot_radius + dot_margin) * UI_SCALE_FAC;
     }
   }
