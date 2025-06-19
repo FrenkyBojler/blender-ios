@@ -50,6 +50,7 @@ struct InsertKnotOpData {
   const int curve;
 
   const int8_t order;
+  const bool cyclic;
   const IndexRange curve_points;
   const Span<float3> positions;
   Array<float> knots;
@@ -70,11 +71,11 @@ struct InsertKnotOpData {
         curves(curves_id->geometry.wrap()),
         curve(curve),
         order(curves.nurbs_orders()[curve]),
+        cyclic(curves.cyclic()[curve]),
         curve_points(curves.points_by_curve()[curve]),
         positions(curves.positions().slice(curve_points)),
         repeat(repeat)
   {
-    const bool cyclic = curves.cyclic()[curve];
     const int knots_num = bke::curves::nurbs::knots_num(curve_points.size(), order, cyclic);
 
     const KnotsMode knots_mode = KnotsMode(curves.nurbs_knots_modes()[curve]);
@@ -128,8 +129,9 @@ static void modified_lattice_draw(const bContext * /*C*/, ARegion * /*region*/, 
   GPU_matrix_push();
   GPU_matrix_mul(ikcd.vc.obedit->object_to_world().ptr());
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  Span<float3> preview_positions = ikcd.preview_positions;
+  const uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  const Span<float3> preview_positions = ikcd.preview_positions;
   if (preview_positions.size() > 1) {
     float viewport[4];
     GPU_viewport_size_get_f(viewport);
@@ -177,14 +179,18 @@ static void update_preview_data(InsertKnotOpData &ikcd)
     return;
   }
 
-  const WeightMatrix point_weights = ed::curves::nurbs::calc_knot_insertion_weights(
-      ikcd.knots,
-      ikcd.curve_points.size(),
-      ikcd.order,
-      ikcd.knot_to_insert,
-      ikcd.knot_span,
-      knot_multiplicity,
-      repeat);
+  const int shift_points_by = ikcd.cyclic ?
+                                  std::max(ikcd.knot_span - int(ikcd.curve_points.size()), 0) :
+                                  0;
+  const WeightMatrix point_weights = ed::curves::nurbs::roll_matrix_rows(
+      ed::curves::nurbs::calc_knot_insertion_weights(ikcd.knots,
+                                                     ikcd.curve_points.size(),
+                                                     ikcd.order,
+                                                     ikcd.knot_to_insert,
+                                                     ikcd.knot_span,
+                                                     knot_multiplicity,
+                                                     repeat),
+      -shift_points_by);
   Array<float> weights_buffer;
   const Span<float> weights = prepare_curve_weights(
       ikcd.curves.nurbs_weights(), ikcd.curve_points, weights_buffer);

@@ -38,6 +38,8 @@ Span<float> prepare_curve_weights(const Span<float> all_weights,
 
 IndexMask selection_from_modified(const WeightMatrix &point_weights, IndexMaskMemory &memory);
 
+WeightMatrix roll_matrix_rows(const WeightMatrix &a, const int shift);
+
 void gather_modified_positions(const Span<float3> positions,
                                const Span<float> weights,
                                const WeightMatrix &point_weights,
