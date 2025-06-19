@@ -276,7 +276,7 @@ void ARMATURE_OT_click_extrude(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_click_extrude";
   ot->description = "Create a new bone going from the last selected joint to the mouse position";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = armature_click_extrude_invoke;
   ot->exec = armature_click_extrude_exec;
   ot->poll = ED_operator_editarmature;
@@ -1048,6 +1048,9 @@ static void copy_pchan(EditBone *src_bone, EditBone *dst_bone, Object *src_ob, O
   if (src_bone->prop) {
     dst_bone->prop = IDP_CopyProperty(src_bone->prop);
   }
+  if (src_bone->system_properties) {
+    dst_bone->system_properties = IDP_CopyProperty(src_bone->system_properties);
+  }
 
   /* Lets duplicate the list of constraints that the
    * current bone has.
@@ -1250,7 +1253,7 @@ void ARMATURE_OT_duplicate(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_duplicate";
   ot->description = "Make copies of the selected bones within the same armature";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_duplicate_selected_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1538,7 +1541,7 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_symmetrize";
   ot->description = "Enforce symmetry, make copies of the selection or use existing";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_symmetrize_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1758,7 +1761,7 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_extrude";
   ot->description = "Create new bones from the selected joints";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_extrude_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1843,7 +1846,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_bone_primitive_add";
   ot->description = "Add a new bone located at the 3D cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_bone_primitive_add_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1909,6 +1912,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 
       newbone->flag |= BONE_CONNECTED;
       newbone->prop = nullptr;
+      newbone->system_properties = nullptr;
 
       /* correct parent bones */
       LISTBASE_FOREACH (EditBone *, tbone, arm->edbo) {
@@ -1960,7 +1964,7 @@ void ARMATURE_OT_subdivide(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_subdivide";
   ot->description = "Break selected bones into chains of smaller bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_subdivide_exec;
   ot->poll = ED_operator_editarmature;
 

@@ -60,7 +60,7 @@ struct LaplacianSystem {
   int anchors_num;
   int repeat;
   /** Vertex Group name */
-  char anchor_grp_name[64];
+  char anchor_grp_name[/*MAX_VGROUP_NAME*/ 64];
   /** Original vertex coordinates. */
   float (*co)[3];
   /** Original vertex normal. */
@@ -801,7 +801,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout->separator();
 
   row = &layout->row(true);
-  uiLayoutSetEnabled(row, has_vertex_group);
+  row->enabled_set(has_vertex_group);
   row->op(
       "OBJECT_OT_laplaciandeform_bind", is_bind ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 

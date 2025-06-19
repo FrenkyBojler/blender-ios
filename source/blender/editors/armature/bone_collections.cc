@@ -132,7 +132,7 @@ void ARMATURE_OT_collection_add(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_add";
   ot->description = "Add a new bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_add_exec;
   ot->poll = bone_collection_add_poll;
 
@@ -160,7 +160,7 @@ void ARMATURE_OT_collection_remove(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_remove";
   ot->description = "Remove the active bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_remove_exec;
   ot->poll = active_bone_collection_poll;
 
@@ -200,7 +200,7 @@ void ARMATURE_OT_collection_move(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_move";
   ot->description = "Change position of active Bone Collection in list of Bone collections";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_move_exec;
   ot->poll = active_bone_collection_poll;
 
@@ -463,7 +463,7 @@ void ARMATURE_OT_collection_assign(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_assign";
   ot->description = "Add selected bones to the chosen bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_assign_exec;
   ot->poll = bone_collection_assign_poll;
 
@@ -562,7 +562,7 @@ void ARMATURE_OT_collection_create_and_assign(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_create_and_assign";
   ot->description = "Create a new bone collection and assign all selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_create_and_assign_exec;
   ot->poll = bone_collection_create_and_assign_poll;
 
@@ -626,7 +626,7 @@ void ARMATURE_OT_collection_unassign(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_unassign";
   ot->description = "Remove selected bones from the active bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_unassign_exec;
   ot->poll = bone_collection_assign_poll;
 
@@ -700,7 +700,7 @@ void ARMATURE_OT_collection_unassign_named(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_unassign_named";
   ot->description = "Unassign the named bone from this bone collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_unassign_named_exec;
   ot->poll = bone_collection_assign_poll;
 
@@ -829,7 +829,7 @@ void ARMATURE_OT_collection_select(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_select";
   ot->description = "Select bones in active Bone Collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_select_exec;
   ot->poll = armature_bone_select_poll;
 
@@ -860,7 +860,7 @@ void ARMATURE_OT_collection_deselect(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_collection_deselect";
   ot->description = "Deselect bones of active Bone Collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bone_collection_deselect_exec;
   ot->poll = armature_bone_select_poll;
 
@@ -1054,12 +1054,8 @@ static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
                                                    const bool is_move_operation)
 {
   if (is_move_operation) {
-    uiItemIntO(layout,
-               bcoll->name,
-               ICON_NONE,
-               "ARMATURE_OT_move_to_collection",
-               "collection_index",
-               bcoll_index);
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_move_to_collection", bcoll->name, ICON_NONE);
+    RNA_int_set(&op_ptr, "collection_index", bcoll_index);
     return;
   }
 
@@ -1067,11 +1063,12 @@ static void menu_add_item_for_move_assign_unassign(uiLayout *layout,
   const int icon = icon_for_bone_collection(contains_active_bone);
 
   if (contains_active_bone) {
-    uiItemStringO(
-        layout, bcoll->name, icon, "ARMATURE_OT_collection_unassign", "name", bcoll->name);
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_unassign", bcoll->name, icon);
+    RNA_string_set(&op_ptr, "name", bcoll->name);
   }
   else {
-    uiItemStringO(layout, bcoll->name, icon, "ARMATURE_OT_collection_assign", "name", bcoll->name);
+    PointerRNA op_ptr = layout->op("ARMATURE_OT_collection_assign", bcoll->name, icon);
+    RNA_string_set(&op_ptr, "name", bcoll->name);
   }
 }
 
@@ -1097,20 +1094,18 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
 
   /* The "Create a new collection" mode of this operator has its own menu, and should thus be
    * invoked. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
-  uiItemIntO(layout,
-             "New Bone Collection",
-             ICON_ADD,
-             is_move_operation ? "ARMATURE_OT_move_to_collection" :
-                                 "ARMATURE_OT_assign_to_collection",
-             "collection_index",
-             parent_bcoll_index);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  PointerRNA op_ptr = layout->op(
+      is_move_operation ? "ARMATURE_OT_move_to_collection" : "ARMATURE_OT_assign_to_collection",
+      CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "New Bone Collection"),
+      ICON_ADD);
+  RNA_int_set(&op_ptr, "collection_index", parent_bcoll_index);
 
   layout->separator();
 
   /* The remaining operators in this menu should be executed on click. Invoking
    * them would show this same menu again. */
-  uiLayoutSetOperatorContext(layout, WM_OP_EXEC_DEFAULT);
+  layout->operator_context_set(WM_OP_EXEC_DEFAULT);
 
   int child_index, child_count;
   if (parent_bcoll_index == -1) {
@@ -1138,7 +1133,7 @@ static void move_to_collection_menu_create(bContext *C, uiLayout *layout, void *
     /* Avoid assigning/moving to a linked bone collection. */
     if (!ANIM_armature_bonecoll_is_editable(arm, bcoll)) {
       uiLayout *sub = &layout->row(false);
-      uiLayoutSetEnabled(sub, false);
+      sub->enabled_set(false);
 
       menu_add_item_for_move_assign_unassign(sub, arm, bcoll, index, is_move_operation);
       continue;
@@ -1200,7 +1195,7 @@ void ARMATURE_OT_move_to_collection(wmOperatorType *ot)
   ot->description = "Move bones to a collection";
   ot->idname = "ARMATURE_OT_move_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = move_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;
@@ -1248,7 +1243,7 @@ void ARMATURE_OT_assign_to_collection(wmOperatorType *ot)
       "active bone is already assigned or not";
   ot->idname = "ARMATURE_OT_assign_to_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = assign_to_collection_exec;
   ot->invoke = move_to_collection_invoke;
   ot->poll = move_to_collection_poll;

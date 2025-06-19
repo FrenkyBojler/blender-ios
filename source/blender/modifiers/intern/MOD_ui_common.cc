@@ -114,7 +114,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
-  uiBlock *block = uiLayoutGetBlock(panel->layout);
+  uiBlock *block = panel->layout->block();
   UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
@@ -135,7 +135,7 @@ void modifier_vgroup_ui(uiLayout *layout,
   uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
     uiLayout *sub = &row->row(true);
-    uiLayoutSetActive(sub, has_vertex_group);
+    sub->active_set(has_vertex_group);
     uiLayoutSetPropDecorate(sub, false);
     sub->prop(ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
@@ -215,10 +215,10 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
-  uiLayoutSetContextPointer(layout, "modifier", &ptr);
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->context_ptr_set("modifier", &ptr);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
-  uiLayoutSetUnitsX(layout, 4.0f);
+  layout->ui_units_x_set(4.0f);
 
   /* Apply. */
   if (ob->type == OB_GREASE_PENCIL) {
@@ -226,14 +226,11 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply (Active Keyframe)"),
                ICON_CHECKMARK);
 
-    uiItemFullO(layout,
-                "OBJECT_OT_modifier_apply",
-                IFACE_("Apply (All Keyframes)"),
-                ICON_KEYFRAME,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &op_ptr);
+    op_ptr = layout->op("OBJECT_OT_modifier_apply",
+                        IFACE_("Apply (All Keyframes)"),
+                        ICON_KEYFRAME,
+                        WM_OP_INVOKE_DEFAULT,
+                        UI_ITEM_NONE);
     RNA_boolean_set(&op_ptr, "all_keyframes", true);
   }
   else {
@@ -244,19 +241,16 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
   /* Apply as shapekey. */
   if (BKE_modifier_is_same_topology(md) && !BKE_modifier_is_non_geometrical(md)) {
-    uiItemBooleanO(layout,
-                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply as Shape Key"),
-                   ICON_SHAPEKEY_DATA,
-                   "OBJECT_OT_modifier_apply_as_shapekey",
-                   "keep_modifier",
-                   false);
+    PointerRNA op_ptr = layout->op(
+        "OBJECT_OT_modifier_apply_as_shapekey",
+        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Apply as Shape Key"),
+        ICON_SHAPEKEY_DATA);
+    RNA_boolean_set(&op_ptr, "keep_modifier", false);
 
-    uiItemBooleanO(layout,
-                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Save as Shape Key"),
-                   ICON_NONE,
-                   "OBJECT_OT_modifier_apply_as_shapekey",
-                   "keep_modifier",
-                   true);
+    op_ptr = layout->op("OBJECT_OT_modifier_apply_as_shapekey",
+                        CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Save as Shape Key"),
+                        ICON_NONE);
+    RNA_boolean_set(&op_ptr, "keep_modifier", true);
     layout->separator();
   }
 
@@ -280,25 +274,19 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   layout->separator();
 
   /* Move to first. */
-  uiItemFullO(layout,
-              "OBJECT_OT_modifier_move_to_index",
-              IFACE_("Move to First"),
-              ICON_TRIA_UP,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
+                      IFACE_("Move to First"),
+                      ICON_TRIA_UP,
+                      WM_OP_INVOKE_DEFAULT,
+                      UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
 
   /* Move to last. */
-  uiItemFullO(layout,
-              "OBJECT_OT_modifier_move_to_index",
-              IFACE_("Move to Last"),
-              ICON_TRIA_DOWN,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              UI_ITEM_NONE,
-              &op_ptr);
+  op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
+                      IFACE_("Move to Last"),
+                      ICON_TRIA_DOWN,
+                      WM_OP_INVOKE_DEFAULT,
+                      UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
 
   layout->separator();
@@ -307,14 +295,11 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
   if (md->type == eModifierType_Nodes) {
     layout->separator();
-    uiItemFullO(layout,
-                "OBJECT_OT_geometry_nodes_move_to_nodes",
-                std::nullopt,
-                ICON_NONE,
-                nullptr,
-                WM_OP_INVOKE_DEFAULT,
-                UI_ITEM_NONE,
-                &op_ptr);
+    op_ptr = layout->op("OBJECT_OT_geometry_nodes_move_to_nodes",
+                        std::nullopt,
+                        ICON_NONE,
+                        WM_OP_INVOKE_DEFAULT,
+                        UI_ITEM_NONE);
     layout->prop(&ptr, "show_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
@@ -337,16 +322,12 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
 
   /* Modifier Icon. */
   sub = &layout->row(true);
-  uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+  sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
     uiLayoutSetRedAlert(sub, true);
   }
-  uiItemStringO(sub,
-                "",
-                RNA_struct_ui_icon(ptr->type),
-                "OBJECT_OT_modifier_set_active",
-                "modifier",
-                md->name);
+  PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
+  RNA_string_set(&op_ptr, "modifier", md->name);
 
   row = &layout->row(true);
 
@@ -362,7 +343,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     if (BKE_modifier_supports_cage(scene, md) && (index <= last_cage_index)) {
       sub = &row->row(true);
       if (index < cage_index || !BKE_modifier_couldbe_cage(scene, md)) {
-        uiLayoutSetActive(sub, false);
+        sub->active_set(false);
       }
       sub->prop(ptr, "show_on_cage", UI_ITEM_NONE, "", ICON_NONE);
       buttons_number++;
@@ -373,7 +354,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     if (md->type == eModifierType_Smooth) {
       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
       sub = &row->row(true);
-      uiBlock *block = uiLayoutGetBlock(sub);
+      uiBlock *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
       uiBut *but = uiDefIconButBitI(block,
                                     UI_BTYPE_TOGGLE,
@@ -397,7 +378,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     {
       /* Add button (appearing to be ON) and add tip why this can't be changed. */
       sub = &row->row(true);
-      uiBlock *block = uiLayoutGetBlock(sub);
+      uiBlock *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
       uiBut *but = uiDefIconButBitI(block,
                                     UI_BTYPE_TOGGLE,
@@ -426,7 +407,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   if (!ELEM(md->type, eModifierType_Collision, eModifierType_Surface)) {
     if (mti->flags & eModifierTypeFlag_SupportsEditmode) {
       sub = &row->row(true);
-      uiLayoutSetActive(sub, (md->mode & eModifierMode_Realtime));
+      sub->active_set((md->mode & eModifierMode_Realtime));
       sub->prop(ptr, "show_in_editmode", UI_ITEM_NONE, "", ICON_NONE);
       buttons_number++;
     }
@@ -441,20 +422,24 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   /* Delete button. */
   if (modifier_can_delete(md) && !modifier_is_simulation(md)) {
     sub = &row->row(false);
-    uiLayoutSetEmboss(sub, blender::ui::EmbossType::None);
+    sub->emboss_set(blender::ui::EmbossType::None);
     sub->op("OBJECT_OT_modifier_remove", "", ICON_X);
     buttons_number++;
   }
 
   /* Switch context buttons. */
   if (modifier_is_simulation(md) == 1) {
-    uiItemStringO(
-        row, "", ICON_PROPERTIES, "WM_OT_properties_context_change", "context", "PHYSICS");
+    PointerRNA op_ptr = row->op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+    if (!RNA_pointer_is_null(&op_ptr)) {
+      RNA_string_set(&op_ptr, "context", "PHYSICS");
+    }
     buttons_number++;
   }
   else if (modifier_is_simulation(md) == 2) {
-    uiItemStringO(
-        row, "", ICON_PROPERTIES, "WM_OT_properties_context_change", "context", "PARTICLES");
+    PointerRNA op_ptr = row->op("WM_OT_properties_context_change", "", ICON_PROPERTIES);
+    if (!RNA_pointer_is_null(&op_ptr)) {
+      RNA_string_set(&op_ptr, "context", "PARTICLES");
+    }
     buttons_number++;
   }
 
@@ -463,7 +448,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     name_row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
   }
 
   /* Extra padding for delete button. */

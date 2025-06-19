@@ -125,7 +125,7 @@ void VKTexture::clear(eGPUDataFormat format, const void *data)
   if (format == GPU_DATA_UINT_24_8) {
     float clear_depth = 0.0f;
     convert_host_to_device(
-        &clear_depth, data, 1, format, GPU_DEPTH24_STENCIL8, GPU_DEPTH24_STENCIL8);
+        &clear_depth, data, 1, format, GPU_DEPTH32F_STENCIL8, GPU_DEPTH32F_STENCIL8);
     clear_depth_stencil(GPU_DEPTH_BIT | GPU_STENCIL_BIT, clear_depth, 0u);
     return;
   }
@@ -398,12 +398,14 @@ uint VKTexture::gl_bindcode_get() const
 
 VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)
 {
+  const VKDevice &device = VKBackend::get().device;
   BLI_assert_msg(
       bool(gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_MEMORY_EXPORT),
       "Can only import external memory when usage flag contains GPU_TEXTURE_USAGE_MEMORY_EXPORT.");
   BLI_assert_msg(allocation_ != nullptr,
                  "Cannot export memory when the texture is not backed by any device memory.");
-  const VKDevice &device = VKBackend::get().device;
+  BLI_assert_msg(device.extensions_get().external_memory,
+                 "Requested to export memory, but isn't supported by the device");
   if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT) {
     VkMemoryGetFdInfoKHR vk_memory_get_fd_info = {VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,
                                                   nullptr,
@@ -433,17 +435,8 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
 
 bool VKTexture::init_internal()
 {
-  const VKDevice &device = VKBackend::get().device;
-  const VKWorkarounds &workarounds = device.workarounds_get();
   device_format_ = format_;
-  if (device_format_ == GPU_DEPTH_COMPONENT24 && workarounds.not_aligned_pixel_formats) {
-    device_format_ = GPU_DEPTH_COMPONENT32F;
-  }
-  if (device_format_ == GPU_DEPTH24_STENCIL8 && workarounds.not_aligned_pixel_formats) {
-    device_format_ = GPU_DEPTH32F_STENCIL8;
-  }
-  /* R16G16F16 formats are typically not supported (<1%) but R16G16B16A16 is
-   * typically supported (+90%). */
+  /* R16G16F16 formats are typically not supported (<1%). */
   if (device_format_ == GPU_RGB16F) {
     device_format_ = GPU_RGBA16F;
   }

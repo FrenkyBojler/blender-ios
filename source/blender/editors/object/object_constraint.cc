@@ -1759,7 +1759,7 @@ void CONSTRAINT_OT_copy_to_selected(wmOperatorType *ot)
   ot->idname = "CONSTRAINT_OT_copy_to_selected";
   ot->description = "Copy constraint to other selected objects/bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = constraint_copy_to_selected_exec;
   ot->invoke = constraint_copy_to_selected_invoke;
   ot->poll = constraint_copy_to_selected_poll;
@@ -2081,7 +2081,7 @@ void POSE_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "POSE_OT_constraints_copy";
   ot->description = "Copy constraints to other selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_constraint_copy_exec;
   ot->poll = ED_operator_posemode_exclusive;
 
@@ -2126,7 +2126,7 @@ void OBJECT_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_constraints_copy";
   ot->description = "Copy constraints to other selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_constraint_copy_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -2185,6 +2185,11 @@ static bool get_new_constraint_target(
     case CONSTRAINT_TYPE_SHRINKWRAP:
       only_mesh = true;
       only_ob = true;
+      add = false;
+      break;
+
+    /* Armature only. */
+    case CONSTRAINT_TYPE_ARMATURE:
       add = false;
       break;
   }
@@ -2335,6 +2340,18 @@ static wmOperatorStatus constraint_add_exec(
 
     /* get the target objects, adding them as need be */
     if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, true)) {
+
+      /* Armature constraints don't have a target by default, add one. */
+      if (type == CONSTRAINT_TYPE_ARMATURE) {
+        bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
+        bConstraintTarget *ct = MEM_callocN<bConstraintTarget>("Constraint Target");
+
+        ct->weight = 1.0f;
+        BLI_addtail(&acon->targets, ct);
+
+        constraint_dependency_tag_update(bmain, ob, con);
+      }
+
       /* Method of setting target depends on the type of target we've got - by default,
        * just set the first target (distinction here is only for multiple-targeted constraints).
        */
@@ -2451,7 +2468,7 @@ void OBJECT_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active object";
   ot->idname = "OBJECT_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2482,7 +2499,7 @@ void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
       "selected objects/bones";
   ot->idname = "OBJECT_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2503,7 +2520,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active bone";
   ot->idname = "POSE_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2524,7 +2541,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
       "Objects/Bones";
   ot->idname = "POSE_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2585,20 +2602,20 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      * - the only thing that matters is that we want a target...
      */
     if (tar_pchan) {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Bone"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Bone"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Object"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-    uiItemBooleanO(
-        layout, IFACE_("To New Empty Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
-    uiItemBooleanO(
-        layout, IFACE_("Without Targets"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 0);
+    PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To New Empty Object"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", true);
+    op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Targets"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */
@@ -2626,7 +2643,7 @@ void POSE_OT_ik_add(wmOperatorType *ot)
   ot->description = "Add IK Constraint to the active Bone";
   ot->idname = "POSE_OT_ik_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = pose_ik_add_invoke;
   ot->exec = pose_ik_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2690,7 +2707,7 @@ void POSE_OT_ik_clear(wmOperatorType *ot)
   ot->description = "Remove all IK Constraints from selected bones";
   ot->idname = "POSE_OT_ik_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_ik_clear_exec;
   ot->poll = ED_operator_object_active_local_editable_posemode_exclusive;
 

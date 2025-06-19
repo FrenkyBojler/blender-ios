@@ -1116,7 +1116,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  ObjectKey object_key(DEG_get_original(object_active));
+  ObjectKey object_key(ObjectRef(DEG_get_original(object_active)));
 
   if (inst_.lights.light_map_.contains(object_key) == false) {
     return;
@@ -1128,7 +1128,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state |
                    DRW_STATE_BLEND_CUSTOM;
 
   debug_draw_ps_.state_set(state);

@@ -735,7 +735,7 @@ static int ui_but_calc_float_precision(uiBut *but, double value)
 
   /* first check for various special cases:
    * * If button is radians, we want additional precision (see #39861).
-   * * If prec is not set, we fallback to a simple default */
+   * * If prec is not set, we fall back to a simple default */
   if (ui_but_is_unit_radians(but) && prec < 5) {
     prec = 5;
   }
@@ -1081,7 +1081,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
     oldbut_uptr = &oldblock->buttons[**but_old_idx];
   }
   else {
-    /* Fallback to block search. */
+    /* Fall back to block search. */
     *but_old_idx = ui_but_find_old_idx(oldblock, but, matched_old_buttons);
     oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons[**but_old_idx] : nullptr;
   }
@@ -2090,7 +2090,7 @@ void UI_block_end_ex(const bContext *C,
     }
 
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
-        depsgraph, (scene) ? scene->r.cfra : 0.0f);
+        depsgraph, (scene) ? BKE_scene_frame_get(scene) : 0.0f);
     ui_but_anim_flag(but.get(), &anim_eval_context);
     ui_but_override_flag(bmain, but.get());
     if (UI_but_is_decorator(but)) {
@@ -2283,6 +2283,12 @@ void UI_block_draw(const bContext *C, uiBlock *block)
     ui_but_to_pixelrect(&rect, region, block, but.get());
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
+      continue;
+    }
+
+    /* Don't draw buttons that are wider than available space. */
+    const int width = BLI_rcti_size_x(&rect);
+    if ((width > U.widget_unit * 2.5f / block->aspect) && width > region->winx) {
       continue;
     }
 
@@ -4280,7 +4286,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
     const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
     BLI_assert(found_layout);
     UNUSED_VARS_NDEBUG(found_layout);
-    ui_button_group_replace_but_ptr(uiLayoutGetBlock(but->layout), old_but_ptr.get(), but);
+    ui_button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
   }
 #ifdef WITH_PYTHON
   if (UI_editsource_enable_check()) {
@@ -4467,7 +4473,7 @@ void ui_def_but_icon_clear(uiBut *but)
 
 static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiPopupBlockHandle *handle = block->handle;
   uiBut *but = (uiBut *)but_p;
   const int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
@@ -4789,7 +4795,7 @@ static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
 static uiBut *ui_def_but_rna(uiBlock *block,
                              int type,
                              int retval,
-                             std::optional<StringRefNull> str,
+                             std::optional<StringRef> str,
                              int x,
                              int y,
                              short width,
@@ -4831,7 +4837,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
       if (!str) {
         str = item[i].name;
 #ifdef WITH_INTERNATIONAL
-        str = CTX_IFACE_(RNA_property_translation_context(prop), str->c_str());
+        str = CTX_IFACE_(RNA_property_translation_context(prop), *str);
 #endif
       }
 
@@ -4980,7 +4986,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 static uiBut *ui_def_but_rna_propname(uiBlock *block,
                                       int type,
                                       int retval,
-                                      std::optional<StringRefNull> str,
+                                      std::optional<StringRef> str,
                                       int x,
                                       int y,
                                       short width,
@@ -5458,7 +5464,7 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 const std::optional<StringRefNull> str,
+                 const std::optional<StringRef> str,
                  int x,
                  int y,
                  short width,
@@ -5478,7 +5484,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      const std::optional<StringRefNull> str,
+                      const std::optional<StringRef> str,
                       int x,
                       int y,
                       short width,
@@ -5857,6 +5863,35 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                           max,
                           tip);
 }
+uiBut *uiDefIconTextButS(uiBlock *block,
+                         int type,
+                         int retval,
+                         int icon,
+                         const StringRef str,
+                         int x,
+                         int y,
+                         short width,
+                         short height,
+                         short *poin,
+                         float min,
+                         float max,
+                         const std::optional<StringRef> tip)
+{
+  return uiDefIconTextBut(block,
+                          type | UI_BUT_POIN_SHORT,
+                          retval,
+                          icon,
+                          str,
+                          x,
+                          y,
+                          width,
+                          height,
+                          (void *)poin,
+                          min,
+                          max,
+                          tip);
+}
+
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -5883,7 +5918,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              const std::optional<blender::StringRefNull> str,
+                              const std::optional<blender::StringRef> str,
                               int x,
                               int y,
                               short width,
@@ -6049,10 +6084,15 @@ void UI_but_color_set(uiBut *but, const uchar color[4])
   copy_v4_v4_uchar(but->col, color);
 }
 
-void UI_but_placeholder_set(uiBut *but, const char *placeholder_text)
+void UI_but_placeholder_set(uiBut *but, const StringRef placeholder_text)
 {
   MEM_SAFE_FREE(but->placeholder);
-  but->placeholder = BLI_strdup_null(placeholder_text);
+  if (placeholder_text.is_empty()) {
+    but->placeholder = nullptr;
+  }
+  else {
+    but->placeholder = BLI_strdupn(placeholder_text.data(), placeholder_text.size());
+  }
 }
 
 const char *ui_but_placeholder_get(uiBut *but)

@@ -106,11 +106,6 @@
 
 thread_local DRWContext *DRWContext::g_context = nullptr;
 
-DRWContext &drw_get()
-{
-  return DRWContext::get_active();
-}
-
 DRWContext::DRWContext(Mode mode_,
                        Depsgraph *depsgraph,
                        const int2 size,
@@ -274,8 +269,8 @@ struct ExtractionGraph {
  private:
   static void delayed_extraction_free_callback(void *object)
   {
-    drw_batch_cache_generate_requested_evaluated_mesh_or_curve(reinterpret_cast<Object *>(object),
-                                                               *task_graph_ptr_);
+    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(
+        reinterpret_cast<Object *>(object), *task_graph_ptr_);
   }
 };
 
@@ -370,16 +365,19 @@ bool DRW_object_is_visible_psys_in_active_context(const Object *object, const Pa
   return true;
 }
 
-template<> Mesh &DRW_object_get_data_for_drawing(const Object &object)
+const Mesh *DRW_object_get_editmesh_cage_for_drawing(const Object &object)
 {
-  /* For drawing we want either the base mesh if GPU subdivision is enabled, or the
-   * tessellated mesh if GPU subdivision is disabled. */
+  /* Same as DRW_object_get_data_for_drawing, but for the cage mesh. */
   BLI_assert(object.type == OB_MESH);
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
-  if (BKE_subsurf_modifier_has_gpu_subdiv(&mesh)) {
-    return mesh;
+  const Mesh *cage_mesh = BKE_object_get_editmesh_eval_cage(&object);
+  if (cage_mesh == nullptr) {
+    return nullptr;
   }
-  return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
+
+  if (BKE_subsurf_modifier_has_gpu_subdiv(cage_mesh)) {
+    return cage_mesh;
+  }
+  return BKE_mesh_wrapper_ensure_subdivision(cage_mesh);
 }
 
 /** \} */
@@ -406,7 +404,13 @@ void DRWData::modules_init()
   DRW_pointcloud_init(this);
   DRW_curves_init(this);
   DRW_volume_init(this);
-  DRW_smoke_init(this);
+}
+
+void DRWData::modules_begin_sync()
+{
+  using namespace blender::draw;
+  DRW_curves_begin_sync(this);
+  DRW_smoke_begin_sync(this);
 }
 
 void DRWData::modules_exit()
@@ -492,6 +496,9 @@ void DRWContext::acquire_data()
       BLI_assert(this->is_image_render() || this->mode == DRWContext::CUSTOM);
     }
   }
+
+  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
+  this->data->modules_init();
 }
 
 void DRWContext::release_data()
@@ -576,13 +583,13 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
   if (ob_ref.is_dupli() == false) {
     return;
   }
-  if (last_key_ == ob_ref.dupli_object) {
+  if (last_key_ == ob_ref.dupli_object_) {
     /* Same data as previous iteration. No need to perform the check again. */
     return;
   }
 
-  last_key_.ob = ob_ref.dupli_object->ob;
-  last_key_.ob_data = ob_ref.dupli_object->ob_data;
+  last_key_.ob = ob_ref.dupli_object_->ob;
+  last_key_.ob_data = ob_ref.dupli_object_->ob_data;
 
   if (dupli_set_ == nullptr) {
     dupli_set_ = MEM_new<blender::Set<DupliKey>>("DupliCacheManager::dupli_set_");
@@ -596,7 +603,7 @@ void DupliCacheManager::try_add(blender::draw::ObjectRef &ob_ref)
      * object (e.g. Text evaluated as Mesh, Geometry node instance etc...).
      * In this case, key.ob is not going to have the same data type as ob_ref.object nor the same
      * data at all. */
-    drw_batch_cache_validate(ob_ref.object);
+    blender::draw::drw_batch_cache_validate(ob_ref.object);
   }
 }
 
@@ -634,7 +641,7 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
       ob = &tmp_object;
     }
 
-    drw_batch_cache_generate_requested(ob, *extraction.graph);
+    blender::draw::drw_batch_cache_generate_requested(ob, *extraction.graph);
   }
 
   /* TODO(fclem): Could eventually keep the set allocated. */
@@ -650,22 +657,13 @@ void DupliCacheManager::extract_all(ExtractionGraph &extraction)
 namespace blender::draw {
 
 ObjectRef::ObjectRef(DEGObjectIterData &iter_data, Object *ob)
+    : dupli_object_(iter_data.dupli_object_current),
+      dupli_parent_(iter_data.dupli_parent),
+      object(ob)
 {
-  this->dupli_parent = iter_data.dupli_parent;
-  this->dupli_object = iter_data.dupli_object_current;
-  this->object = ob;
-  /* Set by the first draw-call. */
-  this->handle = ResourceHandle(0);
 }
 
-ObjectRef::ObjectRef(Object *ob)
-{
-  this->dupli_parent = nullptr;
-  this->dupli_object = nullptr;
-  this->object = ob;
-  /* Set by the first draw-call. */
-  this->handle = ResourceHandle(0);
-}
+ObjectRef::ObjectRef(Object *ob) : object(ob) {}
 
 }  // namespace blender::draw
 
@@ -716,11 +714,15 @@ void DRW_cache_free_old_batches(Main *bmain)
 /** \name Rendering (DRW_engines)
  * \{ */
 
-static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, ExtractionGraph &extraction)
+static void drw_engines_cache_populate(blender::draw::ObjectRef &ref,
+                                       DupliCacheManager &dupli_cache,
+                                       ExtractionGraph &extraction)
 {
-  /* Validation for dupli objects happen elsewhere. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_validate(ref.object);
+    blender::draw::drw_batch_cache_validate(ref.object);
+  }
+  else {
+    dupli_cache.try_add(ref);
   }
 
   DRWContext &ctx = drw_get();
@@ -730,14 +732,15 @@ static void drw_engines_cache_populate(blender::draw::ObjectRef &ref, Extraction
   /* TODO: in the future it would be nice to generate once for all viewports.
    * But we need threaded DRW manager first. */
   if (ref.is_dupli() == false) {
-    drw_batch_cache_generate_requested(ref.object, *extraction.graph);
+    blender::draw::drw_batch_cache_generate_requested(ref.object, *extraction.graph);
   }
+  /* Batch generation for duplis happens after iter_callback. */
 }
 
 void DRWContext::sync(iter_callback_t iter_callback)
 {
   /* Enable modules and init for next sync. */
-  data->modules_init();
+  data->modules_begin_sync();
 
   DupliCacheManager dupli_handler;
   ExtractionGraph extraction;
@@ -1111,7 +1114,7 @@ static void drw_callbacks_pre_scene_2D(DRWContext &draw_ctx)
     DRW_submission_end();
   }
 
-  /* State is reset later at the begining of `draw_ctx.engines_draw_scene()`. */
+  /* State is reset later at the beginning of `draw_ctx.engines_draw_scene()`. */
 }
 
 static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
@@ -1220,8 +1223,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
           continue;
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        duplis.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
@@ -1257,7 +1259,7 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 
   draw_ctx.enable_engines();
   draw_ctx.engines_data_validate();
-  draw_ctx.engines_init_and_sync([&](DupliCacheManager & /*duplis*/, ExtractionGraph &extraction) {
+  draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     /* Only iterate over objects when overlay uses object data. */
     if (do_populate_loop) {
       DEGObjectIterSettings deg_iter_settings = {nullptr};
@@ -1265,7 +1267,7 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
       deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
       DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
         blender::draw::ObjectRef ob_ref(ob);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
@@ -1347,8 +1349,6 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   DRWContext draw_ctx(mode, depsgraph, render_viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = draw_background;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   drw_draw_render_loop_3d(draw_ctx, engine_type);
 
@@ -1428,8 +1428,6 @@ void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   /* Main rendering. */
   rctf view_rect;
@@ -1482,8 +1480,6 @@ void DRW_render_to_image(
   DRWContext draw_ctx(DRWContext::RENDER, depsgraph, {engine->resolution_x, engine->resolution_y});
   draw_ctx.acquire_data();
   draw_ctx.options.draw_background = scene->r.alphamode == R_ADDSKY;
-  /* Init modules ahead of time because the begin_sync happens before DRW_render_object_iter. */
-  draw_ctx.data->modules_init();
 
   /* Main rendering. */
   rctf view_rect;
@@ -1549,15 +1545,17 @@ void DRW_render_object_iter(
     DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
       if ((object_type_exclude_viewport & (1 << ob->type)) == 0) {
         blender::draw::ObjectRef ob_ref(data_, ob);
-        duplis.try_add(ob_ref);
-
         if (ob_ref.is_dupli() == false) {
-          drw_batch_cache_validate(ob);
+          blender::draw::drw_batch_cache_validate(ob);
+        }
+        else {
+          duplis.try_add(ob_ref);
         }
         callback(ob_ref, engine, depsgraph);
         if (ob_ref.is_dupli() == false) {
-          drw_batch_cache_generate_requested(ob, *extraction.graph);
+          blender::draw::drw_batch_cache_generate_requested(ob, *extraction.graph);
         }
+        /* Batch generation for duplis happens after iter_callback. */
       }
     }
     DEG_OBJECT_ITER_END;
@@ -1567,7 +1565,7 @@ void DRW_render_object_iter(
 void DRW_custom_pipeline_begin(DRWContext &draw_ctx, Depsgraph * /*depsgraph*/)
 {
   draw_ctx.acquire_data();
-  draw_ctx.data->modules_init();
+  draw_ctx.data->modules_begin_sync();
 }
 
 void DRW_custom_pipeline_end(DRWContext &draw_ctx)
@@ -1593,7 +1591,7 @@ void DRW_cache_restart()
   DRWContext &draw_ctx = drw_get();
   draw_ctx.data->modules_exit();
   draw_ctx.acquire_data();
-  draw_ctx.data->modules_init();
+  draw_ctx.data->modules_begin_sync();
 }
 
 void DRW_render_set_time(RenderEngine *engine, Depsgraph *depsgraph, int frame, float subframe)
@@ -1626,7 +1624,7 @@ static void draw_select_framebuffer_depth_only_setup(const int size[2])
   if (g_select_buffer.texture_depth == nullptr) {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     g_select_buffer.texture_depth = GPU_texture_create_2d(
-        "select_depth", size[0], size[1], 1, GPU_DEPTH_COMPONENT24, usage, nullptr);
+        "select_depth", size[0], size[1], 1, GPU_DEPTH_COMPONENT32F, usage, nullptr);
 
     GPU_framebuffer_texture_attach(
         g_select_buffer.framebuffer_depth_only, g_select_buffer.texture_depth, 0, 0);
@@ -1716,7 +1714,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
         ob_iter->runtime->select_id = DEG_get_original(ob_iter)->runtime->select_id;
 
         blender::draw::ObjectRef ob_ref(ob_iter);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
@@ -1764,8 +1762,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
           }
 
           blender::draw::ObjectRef ob_ref(data_, ob);
-          duplis.try_add(ob_ref);
-          drw_engines_cache_populate(ob_ref, extraction);
+          drw_engines_cache_populate(ob_ref, duplis, extraction);
         }
       }
       DEG_OBJECT_ITER_END;
@@ -1816,7 +1813,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   DRWContext draw_ctx(DRWContext::DEPTH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.enable_engines(use_gpencil);
-  draw_ctx.engines_init_and_sync([&](DupliCacheManager & /*duplis*/, ExtractionGraph &extraction) {
+  draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
     DEGObjectIterSettings deg_iter_settings = {nullptr};
     deg_iter_settings.depsgraph = draw_ctx.depsgraph;
@@ -1826,10 +1823,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
     }
     if (use_only_active_object) {
       blender::draw::ObjectRef ob_ref(draw_ctx.obact);
-      drw_engines_cache_populate(ob_ref, extraction);
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
     }
     else {
-      DupliCacheManager dupli_handler;
       DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
         if ((object_type_exclude_viewport & (1 << ob->type)) != 0) {
           continue;
@@ -1844,11 +1840,9 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
           continue;
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        dupli_handler.try_add(ob_ref);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       DEG_OBJECT_ITER_END;
-      dupli_handler.extract_all(extraction);
     }
   });
 
@@ -1890,10 +1884,10 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();
   draw_ctx.enable_engines();
-  draw_ctx.engines_init_and_sync([&](DupliCacheManager & /*duplis*/, ExtractionGraph &extraction) {
+  draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
     for (Object *obj_eval : sel_ctx->objects) {
       blender::draw::ObjectRef ob_ref(obj_eval);
-      drw_engines_cache_populate(ob_ref, extraction);
+      drw_engines_cache_populate(ob_ref, duplis, extraction);
     }
 
     if (RETOPOLOGY_ENABLED(v3d) && !XRAY_ENABLED(v3d)) {
@@ -1914,7 +1908,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
           continue;
         }
         blender::draw::ObjectRef ob_ref(data_, ob);
-        drw_engines_cache_populate(ob_ref, extraction);
+        drw_engines_cache_populate(ob_ref, duplis, extraction);
       }
       DEG_OBJECT_ITER_END;
     }
@@ -1979,11 +1973,7 @@ bool DRWContext::is_viewport_compositor_enabled() const
     return false;
   }
 
-  if (!this->scene->use_nodes) {
-    return false;
-  }
-
-  if (!this->scene->nodetree) {
+  if (!this->scene->compositing_node_group) {
     return false;
   }
 

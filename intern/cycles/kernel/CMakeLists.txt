@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-remove_extra_strict_flags()
-
 set(INC
   ..
 )
@@ -212,7 +210,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/ramp.h
   svm/ramp_util.h
   svm/sepcomb_color.h
-  svm/sepcomb_hsv.h
   svm/sepcomb_vector.h
   svm/sky.h
   svm/tex_coord.h
@@ -223,7 +220,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/vector_rotate.h
   svm/vector_transform.h
   svm/voronoi.h
-  svm/voxel.h
   svm/wave.h
   svm/white_noise.h
   svm/vertex_color.h
@@ -388,6 +384,7 @@ set(SRC_UTIL_HEADERS
   ../util/atomic.h
   ../util/color.h
   ../util/defines.h
+  ../util/guiding.h
   ../util/half.h
   ../util/hash.h
   ../util/math.h
@@ -1042,7 +1039,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
       string(PREPEND CYCLES_ONEAPI_SYCL_OPTIONS_spir64_gen "-device ${gen_devices_string} ")
     endif()
   else()
-      list(REMOVE_ITEM CYCLES_ONEAPI_SYCL_TARGETS spir64_gen)
+    list(REMOVE_ITEM CYCLES_ONEAPI_SYCL_TARGETS spir64_gen)
   endif()
 
   # Iterate over all targets and their options.

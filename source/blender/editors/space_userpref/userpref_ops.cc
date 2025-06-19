@@ -445,7 +445,7 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
       uiLayout *row = &layout->row(true, IFACE_("Authentication"));
       row->prop(op->ptr, "use_access_token", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       uiLayout *col = &layout->row(false);
-      uiLayoutSetActive(col, use_access_token);
+      col->active_set(use_access_token);
       /* Use "immediate" flag to refresh the icon. */
       col->prop(op->ptr, "access_token", UI_ITEM_R_IMMEDIATE, std::nullopt, token_icon);
 
@@ -461,7 +461,7 @@ static void preferences_extension_repo_add_ui(bContext * /*C*/, wmOperator *op)
 
   layout->prop(op->ptr, "use_custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   uiLayout *col = &layout->row(false);
-  uiLayoutSetActive(col, RNA_boolean_get(ptr, "use_custom_directory"));
+  col->active_set(RNA_boolean_get(ptr, "use_custom_directory"));
   col->prop(op->ptr, "custom_directory", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -826,7 +826,7 @@ static void PREFERENCES_OT_extension_url_drop(wmOperatorType *ot)
   ot->description = "Handle dropping an extension URL";
   ot->idname = "PREFERENCES_OT_extension_url_drop";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = preferences_extension_url_drop_invoke;
 
   RNA_def_string(ot->srna, "url", nullptr, 0, "URL", "Location of the extension to install");
@@ -917,7 +917,7 @@ static void PREFERENCES_OT_associate_blend(wmOperatorType *ot)
   ot->description = "Use this installation for .blend files and to display thumbnails";
   ot->idname = "PREFERENCES_OT_associate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = associate_blend_exec;
   ot->poll = associate_blend_poll;
 }
@@ -965,7 +965,7 @@ static void PREFERENCES_OT_unassociate_blend(wmOperatorType *ot)
   ot->description = "Remove this installation's associations with .blend files";
   ot->idname = "PREFERENCES_OT_unassociate_blend";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unassociate_blend_exec;
   ot->poll = associate_blend_poll;
 }

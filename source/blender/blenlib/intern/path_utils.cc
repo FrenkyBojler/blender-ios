@@ -133,6 +133,12 @@ void BLI_path_sequence_encode(char *path,
 {
   BLI_string_debug_size(path, path_maxncpy);
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * As this function directly works on a full file path (typically a FILE_MAX long char buffer),
+   * and does not perform any check on the filename part of the path, it can easily generate final
+   * paths containing a filename longer than the max supported length (FILE_MAXFILE).
+   */
   BLI_snprintf(path, path_maxncpy, "%s%.*d%s", head, numlen, std::max(0, pic), tail);
 }
 
@@ -1380,7 +1386,7 @@ const char *BLI_getenv(const char *env)
       if (res_utf8) {
         if (strlen(res_utf8) + 1 < sizeof(buffer)) {
           /* We are re-using the utf16 buffer here, since allocating a second static buffer to
-           * contain the UTF-8 version to return would be wasteful. */
+           * contain the UTF8 version to return would be wasteful. */
           memcpy(buffer, res_utf8, strlen(res_utf8) + 1);
           result = (const char *)buffer;
         }

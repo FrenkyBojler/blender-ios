@@ -69,10 +69,16 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *image_p)
+static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = static_cast<Image *>(image_p);
+
+  /* The scene isn't expected to be null, check since it's not a requirement
+   * for the value to be non-null for this function to work.
+   * It's OK if `has_active_render` is false. */
+  Scene *scene = CTX_data_scene(C);
+  bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
   int slot_id;
   LISTBASE_FOREACH_INDEX (RenderSlot *, slot, &image->renderslots, slot_id) {
@@ -83,18 +89,29 @@ static void ui_imageuser_slot_menu(bContext * /*C*/, uiLayout *layout, void *ima
     else {
       SNPRINTF(str, IFACE_("Slot %d"), slot_id + 1);
     }
-    uiDefButS(block,
-              UI_BTYPE_BUT_MENU,
-              B_NOP,
-              str,
-              0,
-              0,
-              UI_UNIT_X * 5,
-              UI_UNIT_X,
-              &image->render_slot,
-              float(slot_id),
-              0.0,
-              "");
+    /* Default to "blank" for nicer alignment. */
+    int icon = ICON_BLANK1;
+    if (slot_id == image->last_render_slot) {
+      if (has_active_render) {
+        icon = ICON_RENDER_RESULT;
+      }
+    }
+    else if (slot->render != nullptr) {
+      icon = ICON_DOT;
+    }
+    uiDefIconTextButS(block,
+                      UI_BTYPE_BUT_MENU,
+                      B_NOP,
+                      icon,
+                      str,
+                      0,
+                      0,
+                      UI_UNIT_X * 5,
+                      UI_UNIT_X,
+                      &image->render_slot,
+                      float(slot_id),
+                      0.0,
+                      "");
   }
 
   layout->separator();
@@ -157,7 +174,7 @@ static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   Scene *scene = iuser->scene;
@@ -224,7 +241,7 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rn
 static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   /* (rpass_index == -1) means composite result */
@@ -300,7 +317,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, uiLayout *layout, void *rnd
 static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   RenderResult *rr;
@@ -357,7 +374,7 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, uiLayout *layout, void *
 static void ui_imageuser_view_menu_multiview(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
 {
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
   int nr;
@@ -489,8 +506,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
     return false;
   }
 
-  /* NOTE: this looks reversed, but matches menu direction. */
-  if (direction == -1) {
+  if (direction == 1) {
     RenderPass *rp;
     int rp_index = iuser->pass + 1;
 
@@ -502,7 +518,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
       }
     }
   }
-  else if (direction == 1) {
+  else if (direction == -1) {
     RenderPass *rp;
     int rp_index = 0;
 
@@ -552,7 +568,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
                                        const short *render_slot)
 {
   ImageUI_Data rnd_pt_local, *rnd_pt = nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   RenderLayer *rl = nullptr;
   int wmenu1, wmenu2, wmenu3, wmenu4;
@@ -747,7 +763,7 @@ void uiTemplateImage(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   PointerRNA imaptr = RNA_property_pointer_get(ptr, prop);
   Image *ima = static_cast<Image *>(imaptr.data);
@@ -756,8 +772,8 @@ void uiTemplateImage(uiLayout *layout,
   Scene *scene = CTX_data_scene(C);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
-  uiLayoutSetContextPointer(layout, "edit_image", &imaptr);
-  uiLayoutSetContextPointer(layout, "edit_image_user", userptr);
+  layout->context_ptr_set("edit_image", &imaptr);
+  layout->context_ptr_set("edit_image_user", userptr);
 
   SpaceImage *space_image = CTX_wm_space_image(C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
@@ -816,7 +832,7 @@ void uiTemplateImage(uiLayout *layout,
   }
 
   layout = &layout->column(false);
-  uiLayoutSetEnabled(layout, !is_dirty);
+  layout->enabled_set(!is_dirty);
   uiLayoutSetPropDecorate(layout, false);
 
   /* Image source */
@@ -842,7 +858,7 @@ void uiTemplateImage(uiLayout *layout,
     }
 
     row = &row->row(true);
-    uiLayoutSetEnabled(row, is_packed == false);
+    row->enabled_set(is_packed == false);
 
     prop = RNA_struct_find_property(&imaptr, "filepath");
     uiDefAutoButR(block, &imaptr, prop, -1, "", ICON_NONE, 0, 0, 200, UI_UNIT_Y);
@@ -935,7 +951,7 @@ void uiTemplateImage(uiLayout *layout,
           sub->prop(&imaptr, "alpha_mode", UI_ITEM_NONE, IFACE_("Alpha"), ICON_NONE);
 
           bool is_data = IMB_colormanagement_space_name_is_data(ima->colorspace_settings.name);
-          uiLayoutSetActive(sub, !is_data);
+          sub->active_set(!is_data);
         }
 
         if (ima && iuser) {
@@ -1182,7 +1198,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
   uiLayout *col = &layout->column(true);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (ibuf == nullptr) {
     col->label(RPT_("Can't Load Image"), ICON_NONE);

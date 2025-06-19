@@ -254,7 +254,7 @@ static void gradient_draw_line(bContext * /*C*/,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     ARegion *region = pop->vc.region;
 
@@ -543,7 +543,7 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
   ot->idname = "PAINT_OT_image_paint";
   ot->description = "Paint a stroke into the image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paint_invoke;
   ot->modal = paint_modal;
   ot->exec = paint_exec;

@@ -767,6 +767,15 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
       pchan->prop = IDP_CopyProperty(chan->prop);
     }
   }
+  if (chan->system_properties) {
+    /* Same logic as above for system IDProperties, for now. */
+    if (pchan->system_properties) {
+      IDP_SyncGroupValues(pchan->system_properties, chan->system_properties);
+    }
+    else {
+      pchan->system_properties = IDP_CopyProperty(chan->system_properties);
+    }
+  }
 
   return pchan;
 }
@@ -825,7 +834,7 @@ void POSE_OT_copy(wmOperatorType *ot)
   ot->idname = "POSE_OT_copy";
   ot->description = "Copy the current pose of the selected bones to the internal clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_copy_exec;
   ot->poll = ED_operator_posemode;
 
@@ -929,7 +938,7 @@ void POSE_OT_paste(wmOperatorType *ot)
   ot->idname = "POSE_OT_paste";
   ot->description = "Paste the stored pose on to the current pose";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_paste_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1261,7 +1270,7 @@ void POSE_OT_scale_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_scale_clear";
   ot->description = "Reset scaling of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_scale_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1288,7 +1297,7 @@ void POSE_OT_rot_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_rot_clear";
   ot->description = "Reset rotations of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_rot_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1315,7 +1324,7 @@ void POSE_OT_loc_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_loc_clear";
   ot->description = "Reset locations of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_loc_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1343,7 +1352,7 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
   ot->description =
       "Reset location, rotation, and scaling of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_transforms_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1396,6 +1405,9 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &dummyPose->chanbase) {
         if (pchan->prop) {
           IDP_FreeProperty(pchan->prop);
+        }
+        if (pchan->system_properties) {
+          IDP_FreeProperty(pchan->system_properties);
         }
       }
 
