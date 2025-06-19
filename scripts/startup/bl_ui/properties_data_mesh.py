@@ -687,13 +687,17 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 
 
 class DATA_PT_reorder_vertices_spatial(Panel):
-    bl_label = "Reorder Vertices"
+    bl_label = "Reorder Mesh Spatially"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
+    bl_context = "data"
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("mesh.reorder_vertices_spatial", text="Reorder Vertices Spatially", icon='SCULPTMODE_HLT')
+        layout.operator(
+            "mesh.reorder_vertices_spatial",
+            text="Reorder Mesh Faces & Vertices Spatially",
+            icon='SCULPTMODE_HLT')
 
 
 classes = (
