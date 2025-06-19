@@ -1410,10 +1410,59 @@ static void bm_to_mesh_loops(const BMesh &bm, const Span<const BMLoop *> bm_loop
 
 }  // namespace blender
 
-void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
+static void bm_to_mesh_update(BMesh *bm)
 {
   using namespace blender;
-  const int old_verts_num = mesh->verts_num;
+  if (bm->mesh == nullptr) {
+    bm->mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+    bm->update_all = true;
+  }
+  Mesh *mesh = bm->mesh;
+
+  assert_bmesh_has_no_mesh_only_attributes(*bm);
+  bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
+
+  if (!bm->update_all) {
+    if (bm->update_selection) {
+      BM_mesh_elem_table_ensure(bm, BM_VERT | BM_EDGE | BM_FACE);
+
+      bke::SpanAttributeWriter<bool> select_vert = attrs.lookup_or_add_for_write_only_span<bool>(
+          ".select_vert", AttrDomain::Point);
+      bke::SpanAttributeWriter<bool> select_edge = attrs.lookup_or_add_for_write_only_span<bool>(
+          ".select_edge", AttrDomain::Edge);
+      bke::SpanAttributeWriter<bool> select_poly = attrs.lookup_or_add_for_write_only_span<bool>(
+          ".select_poly", AttrDomain::Face);
+      threading::parallel_invoke(
+          [&]() {
+            threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
+              for (const int vert_i : range) {
+                select_vert.span[vert_i] = BM_elem_flag_test(bm->vtable[vert_i], BM_ELEM_SELECT);
+              }
+            });
+          },
+          [&]() {
+            threading::parallel_for(IndexRange(bm->totedge), 1024, [&](const IndexRange range) {
+              for (const int edge_i : range) {
+                select_edge.span[edge_i] = BM_elem_flag_test(bm->etable[edge_i], BM_ELEM_SELECT);
+              }
+            });
+          },
+          [&]() {
+            threading::parallel_for(IndexRange(bm->totface), 1024, [&](const IndexRange range) {
+              for (const int face_i : range) {
+                select_poly.span[face_i] = BM_elem_flag_test(bm->ftable[face_i], BM_ELEM_SELECT);
+              }
+            });
+          });
+      select_vert.finish();
+      select_edge.finish();
+      select_poly.finish();
+      bm->update_selection = false;
+    }
+    return;
+  }
+
+  // const int old_verts_num = mesh->verts_num;
 
   BKE_mesh_clear_geometry(mesh);
 
@@ -1468,8 +1517,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   bm->elem_index_dirty &= ~(BM_VERT | BM_EDGE | BM_FACE | BM_LOOP);
 
   {
-    CustomData_MeshMasks mask = CD_MASK_MESH;
-    CustomData_MeshMasks_update(&mask, &params->cd_mask_extra);
+    CustomData_MeshMasks mask = CD_MASK_EVERYTHING;
     CustomData_init_layout_from(
         &bm->vdata, &mesh->vert_data, mask.vmask, CD_CONSTRUCT, mesh->verts_num);
     CustomData_init_layout_from(
@@ -1481,8 +1529,6 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   }
 
   /* Add optional mesh attributes before parallel iteration. */
-  assert_bmesh_has_no_mesh_only_attributes(*bm);
-  bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> select_vert;
   bke::SpanAttributeWriter<bool> hide_vert;
   bke::SpanAttributeWriter<bool> select_edge;
@@ -1530,10 +1576,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
       (mesh->faces_num + mesh->edges_num) > 1024,
       [&]() {
         bm_to_mesh_verts(*bm, vert_table, *mesh, select_vert.span, hide_vert.span);
-        if (mesh->key) {
-          bm_to_mesh_shape(
-              bm, mesh->key, mesh->vert_positions_for_write(), params->active_shapekey_to_mvert);
-        }
+        // if (mesh->key) {
+        //   bm_to_mesh_shape(
+        //       bm, mesh->key, mesh->vert_positions_for_write(),
+        //       params->active_shapekey_to_mvert);
+        // }
       },
       [&]() {
         bm_to_mesh_edges(*bm,
@@ -1566,9 +1613,9 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
       },
       [&]() {
         /* Patch hook indices and vertex parents. */
-        if (params->calc_object_remap && (old_verts_num > 0)) {
-          bmesh_to_mesh_calc_object_remap(*bmain, *mesh, *bm, old_verts_num);
-        }
+        // if (params->calc_object_remap && (old_verts_num > 0)) {
+        //   bmesh_to_mesh_calc_object_remap(*bmain, *mesh, *bm, old_verts_num);
+        // }
       },
       [&]() {
         mesh->totselect = BLI_listbase_count(&(bm->selected));
@@ -1595,20 +1642,20 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
       [&]() {
         /* Run this even when shape keys aren't used since it may be used for hooks or vertex
          * parents. */
-        if (params->update_shapekey_indices) {
-          /* We have written a new shape key, if this mesh is _not_ going to be freed,
-           * update the shape key indices to match the newly updated. */
-          const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata,
-                                                                     CD_SHAPE_KEYINDEX);
-          if (cd_shape_keyindex_offset != -1) {
-            BMIter iter;
-            BMVert *vert;
-            int i;
-            BM_ITER_MESH_INDEX (vert, &iter, bm, BM_VERTS_OF_MESH, i) {
-              BM_ELEM_CD_SET_INT(vert, cd_shape_keyindex_offset, i);
-            }
-          }
-        }
+        // if (params->update_shapekey_indices) {
+        //   /* We have written a new shape key, if this mesh is _not_ going to be freed,
+        //    * update the shape key indices to match the newly updated. */
+        //   const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata,
+        //                                                              CD_SHAPE_KEYINDEX);
+        //   if (cd_shape_keyindex_offset != -1) {
+        //     BMIter iter;
+        //     BMVert *vert;
+        //     int i;
+        //     BM_ITER_MESH_INDEX (vert, &iter, bm, BM_VERTS_OF_MESH, i) {
+        //       BM_ELEM_CD_SET_INT(vert, cd_shape_keyindex_offset, i);
+        //     }
+        //   }
+        // }
       });
 
   select_vert.finish();
@@ -1621,6 +1668,31 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   hide_poly.finish();
   sharp_face.finish();
   material_index.finish();
+
+  bm->update_all = false;
+  bm->update_selection = false;
+}
+
+void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
+{
+  bm_to_mesh_update(bm);
+
+  BKE_mesh_clear_geometry(mesh);
+  mesh->verts_num = bm->mesh->verts_num;
+  mesh->edges_num = bm->mesh->edges_num;
+  mesh->corners_num = bm->mesh->corners_num;
+  mesh->faces_num = bm->mesh->faces_num;
+
+  CustomData_init_from(&bm->mesh->vert_data, &mesh->vert_data, CD_MASK_ALL, mesh->verts_num);
+  CustomData_init_from(&bm->mesh->edge_data, &mesh->edge_data, CD_MASK_ALL, mesh->edges_num);
+  CustomData_init_from(&bm->mesh->corner_data, &mesh->corner_data, CD_MASK_ALL, mesh->corners_num);
+  CustomData_init_from(&bm->mesh->face_data, &mesh->face_data, CD_MASK_ALL, mesh->faces_num);
+  mesh->attribute_storage.wrap() = bm->mesh->attribute_storage.wrap();
+  mesh->face_offset_indices = bm->mesh->face_offset_indices;
+  if (mesh->runtime->face_offsets_sharing_info) {
+    mesh->runtime->face_offsets_sharing_info = bm->mesh->runtime->face_offsets_sharing_info;
+    mesh->runtime->face_offsets_sharing_info->add_user();
+  }
 }
 
 void BM_mesh_bm_to_me_compact(BMesh &bm,

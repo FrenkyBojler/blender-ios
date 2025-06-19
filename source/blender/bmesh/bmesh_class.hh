@@ -26,6 +26,7 @@ struct BMFace;
 struct BMLoop;
 struct BMVert;
 struct BMesh;
+struct Mesh;
 
 struct MLoopNorSpaceArray;
 
@@ -404,6 +405,13 @@ struct BMesh {
    * Doesn't hold a #PyObject reference, cleared when the last object is de-referenced.
    */
   void *py_handle;
+
+  /**
+   * BMesh data stored as mesh.
+   */
+  Mesh *mesh;
+  bool update_selection;
+  bool update_all;
 };
 
 /** #BMHeader.htype (char) */

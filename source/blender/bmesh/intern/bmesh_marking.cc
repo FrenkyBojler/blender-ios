@@ -533,6 +533,7 @@ void BM_vert_select_set(BMesh *bm, BMVert *v, const bool select)
       BM_elem_flag_disable(v, BM_ELEM_SELECT);
     }
   }
+  bm->update_selection = true;
 }
 
 void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
@@ -573,6 +574,8 @@ void BM_edge_select_set(BMesh *bm, BMEdge *e, const bool select)
       BM_vert_select_set(bm, e->v2, false);
     }
   }
+
+  bm->update_selection = true;
 }
 
 void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
@@ -648,6 +651,8 @@ void BM_face_select_set(BMesh *bm, BMFace *f, const bool select)
       } while ((l_iter = l_iter->next) != l_first);
     }
   }
+
+  bm->update_selection = true;
 }
 
 /* -------------------------------------------------------------------- */
@@ -1253,6 +1258,7 @@ void BM_mesh_elem_hflag_disable_test(BMesh *bm,
 
   if (hflag & BM_ELEM_SELECT) {
     BM_select_history_clear(bm);
+    bm->update_selection = true;
   }
 
   if ((htype == (BM_VERT | BM_EDGE | BM_FACE)) && (hflag == BM_ELEM_SELECT) &&

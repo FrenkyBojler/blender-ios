@@ -184,6 +184,7 @@ void BMO_op_exec(BMesh *bm, BMOperator *op)
 
 void BMO_op_finish(BMesh *bm, BMOperator *op)
 {
+  bm->update_all = true;
   bmo_op_slots_free(bmo_opdefines[op->type]->slot_types_in, op->slots_in);
   bmo_op_slots_free(bmo_opdefines[op->type]->slot_types_out, op->slots_out);
 
