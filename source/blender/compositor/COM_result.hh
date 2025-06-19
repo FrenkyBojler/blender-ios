@@ -5,8 +5,6 @@
 #pragma once
 
 #include <cstdint>
-#include <type_traits>
-#include <utility>
 #include <variant>
 
 #include "BLI_assert.h"
@@ -19,8 +17,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_memory_utils.hh"
-#include "BLI_utildefines.h"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -395,7 +391,6 @@ class Result {
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
-  // TODO: implement
   float4 sample(const float2 &coordinates,
                 const Interpolation &interpolation,
                 const BorderCondition &extend_mode_x,
