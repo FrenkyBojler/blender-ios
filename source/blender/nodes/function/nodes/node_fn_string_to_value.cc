@@ -3,9 +3,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "node_function_util.hh"
+
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
+
 #include "UI_interface.hh"
+
+#include "fast_float.h"
+
+#include <charconv>
 
 namespace blender::nodes::node_fn_string_to_value_cc {
 
@@ -24,22 +30,16 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
   static auto str_to_float_fn = mf::build::SI1_SO<std::string, float>(
     "String to Value", [](const std::string &a) {
-      try {
-        return std::stof(a);
-      }
-      catch (...) {
-        return 0.0f;
-      }
+      float value = 0.0f;
+      fast_float::from_chars(a.data(), a.data() + a.size(), value);
+      return value;
     });
 
   static auto str_to_int_fn = mf::build::SI1_SO<std::string, int>(
     "String to Value", [](const std::string &a) {
-      try {
-        return std::stoi(a);
-      }
-      catch (...) {
-        return 0;
-      }
+      int value = 0;
+      std::from_chars(a.data(), a.data() + a.size(), value);
+      return value;
     });
 
   switch (eNodeSocketDatatype(bnode.custom1)) {
