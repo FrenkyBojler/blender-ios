@@ -49,10 +49,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
   int64_t max_size = 0;
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
-    if (input_variant.is_single()) {
-      max_size = std::max<int64_t>(max_size, 1);
-    }
-    else if (input_variant.is_list()) {
+    if (input_variant.is_list()) {
       ListPtr list = input_variant.get<ListPtr>();
       max_size = std::max(max_size, list->size());
     }
@@ -70,16 +67,17 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
     SocketValueVariant &input_variant = *input_values[i];
     if (input_variant.is_single()) {
       const void *value = input_variant.get_single_ptr_raw();
-      params.add_readonly_single_input(GPointer{cpp_type, value});
+      params.add_readonly_single_input(GPointer(cpp_type, value));
     }
     else if (input_variant.is_list()) {
       repeated_lists[i] = create_repeated_list(input_variant.get<ListPtr>(), max_size);
       const List &list = *repeated_lists[i];
+      BLI_assert(cpp_type == list.cpp_type());
       if (const auto *array_data = std::get_if<nodes::ArrayData>(&list.data())) {
-        params.add_readonly_single_input(GSpan(list.cpp_type(), array_data->data, list.size()));
+        params.add_readonly_single_input(GSpan(cpp_type, array_data->data, list.size()));
       }
       else if (const auto *single_data = std::get_if<nodes::SingleData>(&list.data())) {
-        params.add_readonly_single_input(GPointer(list.cpp_type(), single_data->value));
+        params.add_readonly_single_input(GPointer(cpp_type, single_data->value));
       }
     }
   }

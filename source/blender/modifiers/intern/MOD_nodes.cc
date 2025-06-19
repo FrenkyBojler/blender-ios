@@ -922,10 +922,9 @@ static void check_property_socket_sync(const Object *ob,
     if (i == 0 && type == SOCK_GEOMETRY) {
       continue;
     }
-    if (input_structure_types[i] == nodes::StructureType::Grid) {
+    if (ELEM(input_structure_types[i], nodes::StructureType::Grid, nodes::StructureType::List)) {
       continue;
     }
-    // TODO: LISTS
 
     IDProperty *property = properties.lookup_key_default_as(socket->identifier, nullptr);
     if (property == nullptr) {
