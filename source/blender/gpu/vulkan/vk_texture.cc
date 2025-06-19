@@ -435,11 +435,8 @@ VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handl
 
 bool VKTexture::init_internal()
 {
-  const VKDevice &device = VKBackend::get().device;
-  const VKWorkarounds &workarounds = device.workarounds_get();
   device_format_ = format_;
-  /* R16G16F16 formats are typically not supported (<1%) but R16G16B16A16 is
-   * typically supported (+90%). */
+  /* R16G16F16 formats are typically not supported (<1%). */
   if (device_format_ == GPU_RGB16F) {
     device_format_ = GPU_RGBA16F;
   }
