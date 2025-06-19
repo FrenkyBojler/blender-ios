@@ -5304,45 +5304,54 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   /* Volume grid topology debug overlay. */
 
   prop = RNA_def_property(srna, "grid_topology", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Grid Topology", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_root_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_ROOT_NODE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_ROOT_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Enabled Grid Roots", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_disabled_root_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_ROOT_NODE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_ROOT_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Disabled Grid Roots", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_internal_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_INTERNAL_NODE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_INTERNAL_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Enabled Grid Intenrla Nodes", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_disabled_internal_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_INTERNAL_NODE);
+  RNA_def_property_boolean_sdna(prop,
+                                nullptr,
+                                "overlay.grid_topology_flag",
+                                V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_INTERNAL_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Disabled Grid Intenrla Nodes", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_leaf_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_LEAF_NODE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_LEAF_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Enabled Grid Leafs", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_topology_disabled_leaf_nodes", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_LEAF_NODE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "overlay.grid_topology_flag", V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_LEAF_NODE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_ui_text(prop, "Grid Topology", "");
+  RNA_def_property_ui_text(prop, "Disabled Grid Leafs", "");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   prop = RNA_def_property(srna, "grid_name", PROP_STRING, PROP_NONE);

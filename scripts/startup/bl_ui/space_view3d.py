@@ -9022,6 +9022,14 @@ class VIEW3D_PT_viewport_debug(Panel):
         layout.prop(overlay, "grid_topology")
         if overlay.grid_topology:
             layout.prop(overlay, "grid_name")
+            layout.prop(overlay, "grid_topology_root_nodes")
+            layout.prop(overlay, "grid_topology_disabled_root_nodes")
+
+            layout.prop(overlay, "grid_topology_internal_nodes")
+            layout.prop(overlay, "grid_topology_disabled_internal_nodes")
+
+            layout.prop(overlay, "grid_topology_leaf_nodes")
+            layout.prop(overlay, "grid_topology_disabled_leaf_nodes")
 
 
 class View3DAssetShelf(BrushAssetShelf):
