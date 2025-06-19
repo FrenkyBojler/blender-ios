@@ -42,13 +42,23 @@ class VolumeTopologyGrid : Overlay {
    //   return;
    // }
 
-    const std::optional<StringRef> grid_name = state.grid_to_show();
-    if (!grid_name.has_value()) {
+    if (!state.show_grid_overlay()) {
       enabled_ = false;
       return;
     }
 
-    if (grid_name->is_empty()) {
+    const StringRef grid_name = state.grid_to_show();
+    if (grid_name.is_empty()) {
+      enabled_ = false;
+      return;
+    }
+
+    if (!(state.show_grid_root_nodes() ||
+          state.show_grid_disabled_root_nodes() ||
+          state.show_grid_internal_nodes() ||
+          state.show_grid_disabled_internal_nodes() ||
+          state.show_grid_leaf_nodes() ||
+          state.show_grid_disabled_leaf_nodes())) {
       enabled_ = false;
       return;
     }
@@ -93,8 +103,8 @@ class VolumeTopologyGrid : Overlay {
       return;
     }
 
-    const std::optional<StringRef> grid_name = state.grid_to_show();
-    const bke::VolumeGridData *grid_to_view = BKE_volume_grid_find(volume, *grid_name);
+    const StringRef grid_name = state.grid_to_show();
+    const bke::VolumeGridData *grid_to_view = BKE_volume_grid_find(volume, grid_name);
     if (grid_to_view == nullptr) {
       return;
     }
@@ -108,21 +118,53 @@ class VolumeTopologyGrid : Overlay {
     const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
     BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
       using GridT = typename decltype(type_tag)::type;
+      using TreeT = typename GridT::TreeType;
+      using RootT = typename TreeT::RootNodeType;
+      using InnerT = typename RootT::ChildNodeType;
+      using LeafT = typename InnerT::LeafNodeType;
       using ValueType = typename GridT::ValueType;
       const GridT &grid = static_cast<const GridT &>(grid_base);
-      for (typename GridT::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
-        const openvdb::CoordBBox voxel = iter.getBoundingBox();
-        const openvdb::Vec3d delta = voxel.dim().asVec3d() / 2.0f;
-        const openvdb::Vec3d centre = voxel.getCenter() + openvdb::Vec3d(0.5f);
 
-        const float depth_factor = iter.getLevel() / grid.tree().treeDepth();
+      if (state.show_grid_root_nodes()) {
+        for (typename RootT::ChildOffCIter iter = grid.tree().cbeginRootTiles(); iter; ++iter) {
+          constexpr int64_t root_tile_size = RootT::ChildNodeType::DIM;
+          const openvdb::Vec3d centre = iter.getCoord() + openvdb::Vec3d(0.5f);
 
-        float4 color(0.5f);
-        hsv_to_rgb(depth_factor, 0.9f, 0.9f, &color.x, &color.y, &color.z);
-
-        const float4x4 voxel_transform = transform * math::from_loc_scale<float4x4>(float3(centre.x(), centre.y(), centre.z()), float3(delta.x(), delta.y(), delta.z()));
-        voxel_buf_.append({voxel_transform, color, 1.0f}, sel_id);
+          const float4x4 voxel_transform = transform * math::from_loc_scale<float4x4>(float3(centre.x(), centre.y(), centre.z()), float3(root_tile_size));
+          const float4 color(0.9, 0.46, 0.81, 0.5f);
+          voxel_buf_.append({voxel_transform, color, 1.0f}, sel_id);
+        }
       }
+
+      // for (typename GridT::ValueOnCIter iter = grid.tree().root().cbeginChildOn(); iter; ++iter) {
+      //   const openvdb::CoordBBox voxel = iter.getBoundingBox();
+      //   const openvdb::Vec3d delta = voxel.dim().asVec3d() / 2.0f;
+      //   const openvdb::Vec3d centre = voxel.getCenter() + openvdb::Vec3d(0.5f);
+      // 
+      //   const float depth_factor = iter.getLevel() / grid.tree().treeDepth();
+      // 
+      //   float4 color(0.5f);
+      //   hsv_to_rgb(depth_factor, 0.9f, 0.9f, &color.x, &color.y, &color.z);
+      // 
+      //   const float4x4 voxel_transform = transform * math::from_loc_scale<float4x4>(float3(centre.x(), centre.y(), centre.z()), float3(delta.x(), delta.y(), delta.z()));
+      //   voxel_buf_.append({voxel_transform, color, 1.0f}, sel_id);
+      // }
+      // 
+      // 
+      // 
+      // for (typename GridT::ValueOnCIter iter = grid.cbeginValueOn(); iter; ++iter) {
+      //   const openvdb::CoordBBox voxel = iter.getBoundingBox();
+      //   const openvdb::Vec3d delta = voxel.dim().asVec3d() / 2.0f;
+      //   const openvdb::Vec3d centre = voxel.getCenter() + openvdb::Vec3d(0.5f);
+      // 
+      //   const float depth_factor = iter.getLevel() / grid.tree().treeDepth();
+      // 
+      //   float4 color(0.5f);
+      //   hsv_to_rgb(depth_factor, 0.9f, 0.9f, &color.x, &color.y, &color.z);
+      // 
+      //   const float4x4 voxel_transform = transform * math::from_loc_scale<float4x4>(float3(centre.x(), centre.y(), centre.z()), float3(delta.x(), delta.y(), delta.z()));
+      //   voxel_buf_.append({voxel_transform, color, 1.0f}, sel_id);
+      // }
     });
   }
 

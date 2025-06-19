@@ -692,6 +692,17 @@ enum {
   V3D_OVERLAY_WPAINT_CONTOURS = (1 << 0),
 };
 
+/** #View3DOverlay.grid_topology_flag */
+enum {
+  V3D_OVERLAY_GRID_TOPOLOGY = (1 << 0),
+  V3D_OVERLAY_GRID_TOPOLOGY_ROOT_NODE = (1 << 1),
+  V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_ROOT_NODE = (1 << 2),
+  V3D_OVERLAY_GRID_TOPOLOGY_INTERNAL_NODE = (1 << 3),
+  V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_INTERNAL_NODE = (1 << 4),
+  V3D_OVERLAY_GRID_TOPOLOGY_LEAF_NODE = (1 << 5),
+  V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_LEAF_NODE = (1 << 6),
+};
+
 /** #View3D.around */
 enum {
   /* center of the bounding box */

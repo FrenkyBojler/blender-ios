@@ -276,12 +276,49 @@ struct State {
   {
     return (this->overlay.flag & V3D_OVERLAY_SHOW_LIGHT_COLORS);
   }
-  std::optional<StringRef> grid_to_show() const
+  
+  bool show_grid_overlay() const
   {
-    if (this->overlay.grid_topology_flag == 0) {
-      return std::nullopt;
-    }
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY;
+  }
+  
+  StringRef grid_to_show() const
+  {
+    BLI_assert(this->show_grid_overlay());
     return this->overlay.grid_name;
+  }
+  
+  bool show_grid_root_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_ROOT_NODE;
+  }
+  bool show_grid_disabled_root_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_ROOT_NODE;
+  }
+  
+  bool show_grid_internal_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_INTERNAL_NODE;
+  }
+  bool show_grid_disabled_internal_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_INTERNAL_NODE;
+  }
+  
+  bool show_grid_leaf_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_LEAF_NODE;
+  }
+  bool show_grid_disabled_leaf_nodes() const
+  {
+    BLI_assert(this->show_grid_overlay());
+    return this->overlay.grid_topology_flag & V3D_OVERLAY_GRID_TOPOLOGY_DISABLED_LEAF_NODE;
   }
 };
 
