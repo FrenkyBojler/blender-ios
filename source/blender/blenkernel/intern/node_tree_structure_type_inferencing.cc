@@ -404,7 +404,8 @@ static void propagate_right_to_left(const bNodeTree &tree,
             break;
           }
           case DataRequirement::Field:
-          case DataRequirement::Grid: {
+          case DataRequirement::Grid:
+          case DataRequirement::List: {
             /* When a data requirement could be provided by multiple node inputs (i.e. only a
              * single node input involved in a math operation has to be a volume grid for the
              * output to be a grid), it's better to not propagate the data requirement than
