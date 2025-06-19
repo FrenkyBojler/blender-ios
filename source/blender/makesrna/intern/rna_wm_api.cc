@@ -61,7 +61,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #ifdef RNA_RUNTIME
 
-#  include "AS_asset_library_loading_status.hh"
+#  include "AS_remote_library.hh"
 
 #  include "DNA_userdef_types.h"
 
@@ -785,15 +785,15 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
 
 static void rna_asset_library_loading_status_is_loading(const char *url, float timeout)
 {
-  blender::asset_system::asset_library_status_ensure_loading(url, timeout);
+  blender::asset_system::remote_library_status_ensure_loading(url, timeout);
 }
 static void rna_asset_library_loading_status_finished_loading(const char *url)
 {
-  blender::asset_system::asset_library_status_set_finished(url);
+  blender::asset_system::remote_library_status_set_finished(url);
 }
 static void rna_asset_library_loading_status_failure_loading(const char *url, const char *message)
 {
-  blender::asset_system::asset_library_status_set_failure(
+  blender::asset_system::remote_library_status_set_failure(
       url, message ? std::optional<blender::StringRef>{message} : std::nullopt);
 }
 

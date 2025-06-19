@@ -18,7 +18,6 @@ set(SRC
   intern/asset_catalog_path.cc
   intern/asset_catalog_tree.cc
   intern/asset_library.cc
-  intern/asset_library_loading_status.cc
   intern/asset_library_service.cc
   intern/asset_representation.cc
   intern/library_types/all_library.cc
@@ -28,14 +27,15 @@ set(SRC
   intern/library_types/remote_library.cc
   intern/library_types/runtime_library.cc
   intern/utils.cc
+  intern/remote_library.cc
 
   AS_asset_catalog.hh
   AS_asset_catalog_path.hh
   AS_asset_catalog_tree.hh
   AS_asset_library.hh
-  AS_asset_library_loading_status.hh
   AS_asset_representation.hh
   AS_essentials_library.hh
+  AS_remote_library.hh
   intern/asset_catalog_collection.hh
   intern/asset_catalog_definition_file.hh
   intern/asset_library_service.hh
