@@ -202,12 +202,18 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
     return std::nullopt;
   }
 
+  VariableMap variables;
+
+  /* Variables that all template-supporting paths get. */
+  BKE_add_template_variables_general(variables, ptr->owner_id);
+
+  /* Path-type-specific variables. */
   switch (RNA_property_path_template_type(prop)) {
     case PROP_VARIABLES_NONE: {
       BLI_assert_msg(
           false,
           "Should never have `PROP_VARIABLES_NONE` for a path that supports path templates.");
-      return VariableMap();
+      return variables;
     }
 
     /* Scene render output path, the compositor's File Output node's paths, etc. */
@@ -220,31 +226,23 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      VariableMap variables = BKE_build_template_variables_for_render_path(ptr->owner_id, scene);
-
-      if (std::optional<AncestorPointerRNA> node_rna_ptr =
-              RNA_struct_find_self_or_ancestor_that_is_a(ptr, &RNA_Node))
-      {
-        const bNode *bnode = reinterpret_cast<const bNode *>(node_rna_ptr->data);
-        BKE_add_template_variables_for_node(variables, *bnode);
-      }
-
-      return variables;
+      BKE_add_template_variables_for_render_path(variables, scene);
     }
   }
 
-  /* All paths that support path templates should be handled above, and any that
-   * aren't should already be rejected by the test at the top of the function. */
-  BLI_assert_unreachable();
+  /* Variables specific to paths in nodes. */
+  if (std::optional<AncestorPointerRNA> node_rna_ptr = RNA_struct_find_self_or_ancestor_that_is_a(
+          ptr, &RNA_Node))
+  {
+    const bNode *bnode = reinterpret_cast<const bNode *>(node_rna_ptr->data);
+    BKE_add_template_variables_for_node(variables, *bnode);
+  }
 
-  return std::nullopt;
+  return variables;
 }
 
-VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id,
-                                                         const Scene *scene)
+void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
 {
-  VariableMap variables;
-
   /* Global blend filepath variables. */
   {
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
@@ -266,7 +264,10 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
     variables.add_path_up_to_file(
         "blend_dir_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
+}
 
+void BKE_add_template_variables_for_render_path(VariableMap &variables, const Scene *scene)
+{
   if (scene) {
     /* Resolution variables. */
     int res_x, res_y;
@@ -293,8 +294,6 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
       variables.add_string("camera_name", scene->camera->id.name + 2);
     }
   }
-
-  return variables;
 }
 
 void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,

@@ -209,6 +209,9 @@ bool operator==(const Error &left, const Error &right);
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 
+void BKE_add_template_variables_general(blender::bke::path_templates::VariableMap &variables,
+                                        const ID *path_owner_id);
+
 /**
  * Build a template variable map for render output paths.
  *
@@ -232,8 +235,8 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  *
  * \see BLI_path_abs()
  */
-blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
-    const ID *path_owner_id, const Scene *scene);
+void BKE_add_template_variables_for_render_path(
+    blender::bke::path_templates::VariableMap &variables, const Scene *scene);
 
 void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
                                          const bNode &bnode);

@@ -118,9 +118,12 @@ static void rna_SceneRender_get_frame_path(ID *id,
     MOV_filepath_from_settings(filepath, scene, rd, preview != 0, suffix, reports);
   }
   else {
+    blender::bke::path_templates::VariableMap template_variables;
+    {
+      BKE_add_template_variables_general(template_variables, &scene->id);
+      BKE_add_template_variables_for_render_path(template_variables, scene);
+    }
     const char *relbase = BKE_main_blendfile_path(bmain);
-    const blender::bke::path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&scene->id, scene);
 
     const blender::Vector<blender::bke::path_templates::Error> errors =
         BKE_image_path_from_imformat(filepath,
