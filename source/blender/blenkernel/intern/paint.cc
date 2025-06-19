@@ -135,6 +135,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
    *       fairly delicate. */
   BKE_lib_id_swap(nullptr, id_new, id_old, false, 0);
   std::swap(id_new->properties, id_old->properties);
+  std::swap(id_new->system_properties, id_old->system_properties);
 }
 
 IDTypeInfo IDType_ID_PAL = {
@@ -2115,15 +2116,12 @@ void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
 /**
  * Write out the sculpt dynamic-topology #BMesh to the #Mesh.
  */
-static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
+static void sculptsession_bm_to_me_update_data_only(Object *ob)
 {
   SculptSession &ss = *ob->sculpt;
 
   if (ss.bm) {
     if (ob->data) {
-      if (reorder) {
-        BM_log_mesh_elems_reorder(ss.bm, ss.bm_log);
-      }
       BMeshToMeshParams params{};
       params.calc_object_remap = false;
       BM_mesh_bm_to_me(nullptr, ss.bm, static_cast<Mesh *>(ob->data), &params);
@@ -2131,10 +2129,10 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
   }
 }
 
-void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
+void BKE_sculptsession_bm_to_me(Object *ob)
 {
   if (ob && ob->sculpt) {
-    sculptsession_bm_to_me_update_data_only(ob, reorder);
+    sculptsession_bm_to_me_update_data_only(ob);
 
     /* Ensure the objects evaluated mesh doesn't hold onto arrays
      * now realloc'd in the mesh #34473. */
@@ -2178,7 +2176,7 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
        */
       BKE_object_free_derived_caches(object);
 
-      sculptsession_bm_to_me_update_data_only(object, false);
+      sculptsession_bm_to_me_update_data_only(object);
 
       /* In contrast with sculptsession_bm_to_me no need in
        * DAG tag update here - derived mesh was freed and
@@ -2194,7 +2192,7 @@ void BKE_sculptsession_free(Object *ob)
     SculptSession *ss = ob->sculpt;
 
     if (ss->bm) {
-      BKE_sculptsession_bm_to_me(ob, true);
+      BKE_sculptsession_bm_to_me(ob);
       BM_mesh_free(ss->bm);
     }
 
