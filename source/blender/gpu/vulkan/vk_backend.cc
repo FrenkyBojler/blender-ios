@@ -180,11 +180,13 @@ bool VKBackend::is_supported()
   allowed_layers << "VK_LAYER_KHRONOS_*";
   allowed_layers << ",VK_LAYER_AMD_*";
   allowed_layers << ",VK_LAYER_INTEL_*";
-  allowed_layers << ",VK_LAYER_NV_*";
+  /* Test: Don't allow VK_LAYER_NV_Optimus */
+  // allowed_layers << ",VK_LAYER_NV_*";
   allowed_layers << ",VK_LAYER_MESA_*";
   if (bool(G.debug & G_DEBUG_GPU)) {
     allowed_layers << ",VK_LAYER_LUNARG_*";
     allowed_layers << ",VK_LAYER_RENDERDOC_*";
+    BLI_setenv("VK_LOADER_DEBUG", "all");
   }
   BLI_setenv("VK_LOADER_LAYERS_DISABLE", "~implicit~");
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
