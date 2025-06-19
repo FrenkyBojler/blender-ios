@@ -483,7 +483,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   bNodeSocket *sock = arg->sock;
   uiLayout *layout = arg->layout;
   uiLayout *column = nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   NodeLinkArg *argN;
   int first = 1;
@@ -608,7 +608,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but = (uiBut *)but_p;
   uiLayout *split, *column;
   NodeLinkArg *arg = (NodeLinkArg *)but->func_argN;
@@ -674,7 +674,7 @@ void uiTemplateNodeLink(
 {
   using namespace blender::ed::space_node;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   NodeLinkArg *arg;
   uiBut *but;
   float socket_col[4];
@@ -739,17 +739,23 @@ static void ui_node_draw_recursive(uiLayout &layout,
   const nodes::SocketDeclaration *panel_toggle_decl = panel_decl.panel_input_decl();
   const std::string panel_id = fmt::format(
       "{}_{}_{}", ntree.id.name, node.identifier, panel_decl.identifier);
+  const StringRef panel_translation_context = panel_decl.translation_context.has_value() ?
+                                                  *panel_decl.translation_context :
+                                                  "";
   PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
     uiLayoutSetPropSep(panel_layout.header, false);
     uiLayoutSetPropDecorate(panel_layout.header, false);
     PointerRNA toggle_ptr = RNA_pointer_create_discrete(
         &ntree.id, &RNA_NodeSocket, &node.socket_by_decl(*panel_toggle_decl));
-    panel_layout.header->prop(
-        &toggle_ptr, "default_value", UI_ITEM_NONE, IFACE_(panel_decl.name), ICON_NONE);
+    panel_layout.header->prop(&toggle_ptr,
+                              "default_value",
+                              UI_ITEM_NONE,
+                              CTX_IFACE_(panel_translation_context, panel_decl.name),
+                              ICON_NONE);
   }
   else {
-    panel_layout.header->label(IFACE_(panel_decl.name), ICON_NONE);
+    panel_layout.header->label(CTX_IFACE_(panel_translation_context, panel_decl.name), ICON_NONE);
   }
 
   if (!panel_layout.body) {
@@ -823,7 +829,7 @@ static void ui_node_draw_input(uiLayout &layout,
                                int depth,
                                const char *panel_label)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   uiLayout *row = nullptr;
   bool dependency_loop;
 
@@ -869,7 +875,7 @@ static void ui_node_draw_input(uiLayout &layout,
     }
 
     sub = &sub->row(true);
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
+    sub->alignment_set(blender::ui::LayoutAlign::Right);
     sub->label(node_socket_get_label(&input, panel_label), ICON_NONE);
   }
 

@@ -384,15 +384,11 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
   Set<std::reference_wrapper<const SpreadsheetColumnID>> handled_columns;
   Vector<SpreadsheetColumn *, 32> new_columns;
   for (SpreadsheetColumn *column : Span{table.columns, table.num_columns}) {
-    const bool still_exists = data_source.get_column_values(*column->id) != nullptr;
-    if (still_exists) {
-      if (handled_columns.add(*column->id)) {
-        new_columns.append(column);
-        continue;
-      }
+    if (handled_columns.add(*column->id)) {
+      const bool has_data = data_source.get_column_values(*column->id) != nullptr;
+      SET_FLAG_FROM_TEST(column->flag, !has_data, SPREADSHEET_COLUMN_FLAG_UNAVAILABLE);
+      new_columns.append(column);
     }
-    /* Free columns that don't exist anymore or are duplicates for some reason. */
-    spreadsheet_column_free(column);
   }
 
   data_source.foreach_default_column_ids(
@@ -404,6 +400,7 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
         if (!values) {
           return;
         }
+        table.column_use_clock++;
         SpreadsheetColumn *column = spreadsheet_column_new(spreadsheet_column_id_copy(&column_id));
         if (is_extra) {
           new_columns.insert(0, column);
@@ -419,11 +416,22 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
     return;
   }
 
+  /* Update last used times of the columns to support garbage collection. */
+  for (SpreadsheetColumn *column : new_columns) {
+    const bool clock_was_reset = table.column_use_clock < column->last_used;
+    if (clock_was_reset || column->is_available()) {
+      column->last_used = table.column_use_clock;
+    }
+  }
+
   /* Update the stored column pointers. */
   MEM_SAFE_FREE(table.columns);
   table.columns = MEM_calloc_arrayN<SpreadsheetColumn *>(new_columns.size(), __func__);
   table.num_columns = new_columns.size();
   std::copy_n(new_columns.begin(), new_columns.size(), table.columns);
+
+  /* Remove columns that have not been used for a while when there are too many. */
+  spreadsheet_table_remove_unused_columns(table);
 }
 
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
@@ -442,6 +450,10 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     spreadsheet_table_remove_unused(*sspreadsheet);
     table = spreadsheet_table_new(spreadsheet_table_id_copy(*active_table_id));
     spreadsheet_table_add(*sspreadsheet, table);
+  }
+  if (table) {
+    /* Move to the front of the tables list to make it cheaper to find the table in future. */
+    spreadsheet_table_move_to_front(*sspreadsheet, *table);
   }
 
   /* Update the last used time on the table. */
@@ -468,11 +480,13 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 
   for (SpreadsheetColumn *column : Span{table->columns, table->num_columns}) {
     std::unique_ptr<ColumnValues> values_ptr = data_source->get_column_values(*column->id);
-    /* Should have been removed before if it does not exist anymore. */
-    BLI_assert(values_ptr);
+    if (!values_ptr) {
+      continue;
+    }
     const ColumnValues *values = scope.add(std::move(values_ptr));
+    const eSpreadsheetColumnValueType column_type = values->type();
 
-    if (column->width <= 0.0f) {
+    if (column->width <= 0.0f || column_type != column->data_type) {
       column->width = values->fit_column_width_px(100) / SPREADSHEET_WIDTH_UNIT;
     }
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
@@ -482,7 +496,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     x += width_in_pixels;
     column->runtime->right_x = x;
 
-    spreadsheet_column_assign_runtime_data(column, values->type(), values->name());
+    spreadsheet_column_assign_runtime_data(column, column_type, values->name());
   }
 
   spreadsheet_layout.row_indices = spreadsheet_filter_rows(
@@ -645,7 +659,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
                                      0,
                                      style);
   uiItemSpacer(layout);
-  uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
+  layout->alignment_set(blender::ui::LayoutAlign::Right);
   layout->label(stats_str, ICON_NONE);
   UI_block_layout_resolve(block, nullptr, nullptr);
   UI_block_align_end(block);
