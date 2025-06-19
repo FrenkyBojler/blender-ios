@@ -515,7 +515,7 @@ static wmOperatorStatus object_hide_collection_invoke(bContext *C,
 
 static bool object_hide_collection_poll(bContext *C)
 {
-  if (SpaceOutliner *space_outliner = CTX_wm_space_outliner(C)) {
+  if (const SpaceOutliner *space_outliner = CTX_wm_space_outliner(C)) {
     return space_outliner->outlinevis == SO_VIEW_LAYER;
   }
 
