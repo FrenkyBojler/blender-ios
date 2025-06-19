@@ -37,7 +37,7 @@ float4 get_homogenous_space_grid_point(
     ls_P.xy -= camera_P.xy;
   }
   else {
-    float snap_to = next_divider * unit_scale * 2.0;
+    float snap_to = float(next_divider) * unit_scale;
     ls_P.xy -= fract(camera_P.xy / snap_to) * snap_to;
   }
   ls_P.z -= camera_P.z;
@@ -64,13 +64,29 @@ void main()
 {
   int x = int(uint(gl_VertexID) >> 16u) - 0x7FFF;
   int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
+  int2 grid_coord = int2(x, y);
   /* The largest grid level can overlap with the axes display.
    * Discard vertices that can overlap. */
-  const bool is_over_axis = any(equal(int2(x, y), origin_offset));
+  const bool is_over_axis = any(equal(grid_coord, origin_offset));
   if (is_over_axis) {
+    /* Discard vertex. */
+    // gl_Position = float4(NAN_FLT);
+    // return;
+  }
+
+  const bool crave_hole = all(greaterThan(grid_coord, hole_start)) &&
+                          all(lessThan(grid_coord, hole_end));
+  if (crave_hole) {
     /* Discard vertex. */
     gl_Position = float4(NAN_FLT);
     return;
+  }
+
+  const bool is_higher_level = any(equal(abs(grid_coord) % next_divider, int2(0)));
+  if (is_higher_level) {
+    /* Discard vertex. */
+    // gl_Position = float4(NAN_FLT);
+    // return;
   }
 
   float dist_to_cam, z_to_cam, view_angle;
@@ -97,13 +113,14 @@ void main()
     float mix_highlight = smoothstep(20.0, 300.0, size);
     finalColor = mix(uniform_buf.colors.grid, uniform_buf.colors.grid_emphasis, mix_highlight);
     finalColor.a *= mix_fade;
+    // finalColor = uniform_buf.colors.grid;
   }
 
   /* Angle fading. */
-  finalColor.a *= 1.0 - square(square(1.0 - abs(view_angle)));
+  // finalColor.a *= 1.0 - square(square(1.0 - abs(view_angle)));
 
   /* Distance fading. */
-  finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
+  // finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
 
   // if (origin_offset.x == x) {
   //   finalColor.r = 1.0f;

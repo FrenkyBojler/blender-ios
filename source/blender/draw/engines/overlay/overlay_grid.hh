@@ -338,19 +338,27 @@ class GridMesh : Overlay {
  private:
   PassSimple grid_ps_ = {"grid_ps_"};
 
-  std::array<int, SI_GRID_STEPS_LEN> level_subdiv_ = {};
-
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from indices. */
   std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
 
   std::array<gpu::Batch *, 2> axes_ = {};
 
+  struct GridLevel {
+    int subdiv_level;
+    /* Number of cell on one axis. Must be even. */
+    int resolution;
+    /* Offset to the origin in grid increment. */
+    int2 origin_offset;
+    /* Coordinate for the hole used for the higher subdivision level in grid increment. */
+    int2 hole_start;
+    int2 hole_end;
+  };
+  std::array<GridLevel, SI_GRID_STEPS_LEN> levels_ = {};
+
   std::array<float, SI_GRID_STEPS_LEN> grid_steps_;
 
   float far_clip_ = 0.0f;
-  /* Offset to the origin in maximum grid increment. */
-  int2 origin_offset_ = int2(INT_MAX);
 
  public:
   ~GridMesh()
@@ -383,33 +391,18 @@ class GridMesh : Overlay {
     return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
   }
 
-  gpu::Batch *generate_batch(int next_subdivision)
+  gpu::Batch *generate_batch(int resolution)
   {
-    /* Chosen as for a maximum of 8px grid in 4K. */
-    /* TODO: Reduce to the amount that can be seen on screen. */
-    const int res = 512;
     GPUIndexBufBuilder builder;
-    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(res + 1) * 2, 0xFFFFFFFEu);
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(resolution) * 2, 0xFFFFFFFEu);
     auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
 
-    for (int i : IndexRange(res + 1)) {
-      for (int j : IndexRange(res + 1)) {
-        int x = i - res / 2;
-        int y = j - res / 2;
-        /* To avoid the grid to overlap the axes, we only issue edges over even row/column.
-         * This allows to discard the edges overlapping the axes without removing the perpendicular
-         * lines crossing the overlapped axis. This is only necessary for the coarser subdivision
-         * level. However we still do it in the general case as it divides the number of vertices
-         * by 4. */
-        bool x_odd = (x & 1) == 1;
-        bool y_odd = (y & 1) == 1;
-        /* TODO(fclem): Use circular mask for perspective to cull corners. */
-        if (x_odd && i != res && ((next_subdivision > 1) ? (y % next_subdivision) != 0 : true)) {
-          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 2, y));
-        }
-        if (y_odd && j != res && ((next_subdivision > 1) ? (x % next_subdivision) != 0 : true)) {
-          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 2));
-        }
+    for (int i : IndexRange(resolution)) {
+      for (int j : IndexRange(resolution)) {
+        int x = i - resolution / 2;
+        int y = j - resolution / 2;
+        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
+        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
       }
     }
     gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
@@ -446,7 +439,7 @@ class GridMesh : Overlay {
       }
       /* TODO(fclem): Set unit to camera far plane. */
       grid_ps_.push_constant("unit_scale", 100.0f);
-      grid_ps_.push_constant("next_divider", 1.0f); /* UNUSED. */
+      grid_ps_.push_constant("next_divider", int(1)); /* UNUSED. */
       grid_ps_.push_constant("origin_offset", int2(INT_MAX));
 
       if (show_axis_x) {
@@ -485,6 +478,21 @@ class GridMesh : Overlay {
          * write from transparent pixel in smaller grid level. */
         int i = (SI_GRID_STEPS_LEN - 1) - i_acc;
 
+        int subdiv_level = (i_acc == 0) ? 1 : int(roundf(grid_steps_[i + 1] / grid_steps_[i]));
+        std::cout << "grid_steps_[i] " << grid_steps_[i] << " " << subdiv_level << std::endl;
+
+        if (assign_if_different(levels_[i].subdiv_level, subdiv_level)) {
+          GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
+        }
+
+        if (level_grids_[i] == nullptr) {
+          /* Chosen as for a maximum of 8px grid in 4K. */
+          /* TODO: Reduce to the amount that can be seen on screen. */
+          const int res = ceil_to_multiple_u(256, subdiv_level) * 2;
+          levels_[i].resolution = res;
+          level_grids_[i] = generate_batch(res);
+        }
+
         if (i_acc > 0) {
           /* Check if next step is the same. */
           if (grid_steps_[i] == grid_steps_[i + 1]) {
@@ -492,26 +500,14 @@ class GridMesh : Overlay {
             continue;
           }
         }
-        std::cout << "grid_steps_[i]" << grid_steps_[i] << std::endl;
 
-        int level_subdiv = (i_acc == 0) ? 1 : int(roundf(grid_steps_[i + 1] / grid_steps_[i]));
-
-        if (assign_if_different(level_subdiv_[i], level_subdiv)) {
-          GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
-        }
-        if (level_grids_[i] == nullptr) {
-          level_grids_[i] = generate_batch(level_subdiv);
-        }
         grid_ps_.push_constant("axis", 0);
-        if (i_acc == 0) {
-          /* Reject edges overlapping with axes. */
-          grid_ps_.push_constant("origin_offset", &origin_offset_);
-        }
-        else {
-          grid_ps_.push_constant("origin_offset", int2(INT_MAX));
-        }
-        grid_ps_.push_constant("unit_scale", grid_steps_[i]);
-        grid_ps_.push_constant("next_divider", float(level_subdiv));
+        grid_ps_.push_constant("unit_scale", &grid_steps_[i]);
+        grid_ps_.push_constant("origin_offset", &levels_[i].origin_offset);
+        grid_ps_.push_constant("next_divider", levels_[i].subdiv_level);
+        /* Carve a hole in the grid for the next level. */
+        grid_ps_.push_constant("hole_start", &levels_[i].hole_start);
+        grid_ps_.push_constant("hole_end", &levels_[i].hole_end);
         grid_ps_.draw(level_grids_[i]);
       }
     }
@@ -525,9 +521,35 @@ class GridMesh : Overlay {
 
     far_clip_ = abs(view.far_clip());
 
-    float snap_to = grid_steps_[SI_GRID_STEPS_LEN - 1] * 2.0f;
-    origin_offset_ = -int2(floor(view.location().xy() / snap_to));
+    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
+      float snap_to = levels_[i].subdiv_level * grid_steps_[i];
+      levels_[i].origin_offset = -int2(floor(view.location().xy() / snap_to));
+    }
 
+    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
+      if (i > 0) {
+        float snap_prev = levels_[i - 1].subdiv_level * grid_steps_[i - 1];
+        int2 offset_prev = int2(floor(view.location().xy() / snap_prev));
+
+        float snap_curr = levels_[i].subdiv_level * grid_steps_[i];
+        int2 offset_curr = int2(floor(view.location().xy() / snap_curr));
+
+        // std::cout << "snap_prev" << snap_prev << std::endl;
+        // std::cout << "snap_curr" << snap_curr << std::endl;
+        // std::cout << "offset_prev" << offset_prev << std::endl;
+        // std::cout << "offset_curr" << offset_curr << std::endl;
+
+        int2 shift = (offset_prev - offset_curr * levels_[i].subdiv_level);
+        // std::cout << "shift" << shift << std::endl;
+        int hole_size = (levels_[i - 1].resolution / 2) / levels_[i - 1].subdiv_level;
+        levels_[i].hole_start = int2(-hole_size) + shift;
+        levels_[i].hole_end = int2(hole_size) + shift;
+      }
+      else {
+        levels_[i].hole_start = int2(INT_MAX);
+        levels_[i].hole_end = int2(-INT_MAX);
+      }
+    }
     GPU_framebuffer_bind(framebuffer);
     manager.submit(grid_ps_, view);
   }
