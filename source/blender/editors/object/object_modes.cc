@@ -18,9 +18,9 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
@@ -130,11 +130,6 @@ bool mode_compat_test(const Object *ob, eObjectMode mode)
         return true;
       }
       break;
-    case OB_GPENCIL_LEGACY:
-      if (mode & (OB_MODE_EDIT_GPENCIL_LEGACY | OB_MODE_ALL_PAINT_GPENCIL)) {
-        return true;
-      }
-      break;
     case OB_CURVES:
       if (mode & (OB_MODE_EDIT | OB_MODE_SCULPT_CURVES)) {
         return true;
@@ -192,10 +187,6 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   if (ob == nullptr) {
     return (mode == OB_MODE_OBJECT);
-  }
-
-  if ((ob->type == OB_GPENCIL_LEGACY) && (mode == OB_MODE_EDIT)) {
-    mode = OB_MODE_EDIT_GPENCIL_LEGACY;
   }
 
   if (ob->mode == mode) {
@@ -361,7 +352,13 @@ void posemode_set_for_weight_paint(bContext *C, Main *bmain, Object *ob, const b
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
   for (; md; md = md->next) {
     if (md->type == eModifierType_Armature) {
-      ArmatureModifierData *amd = (ArmatureModifierData *)md;
+      ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+      Object *ob_arm = amd->object;
+      ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
+    }
+    else if (md->type == eModifierType_GreasePencilArmature) {
+      GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+          md);
       Object *ob_arm = amd->object;
       ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
     }
@@ -411,11 +408,50 @@ static void object_transfer_mode_reposition_view_pivot(ARegion *region,
   ups->last_stroke_valid = true;
 }
 
+constexpr float mode_transfer_flash_length = 0.55f;
+
+static auto &mode_transfer_overlay_start_times()
+{
+  static Map<std::string, double> map;
+  return map;
+}
+
+static float alpha_from_time_get(const float anim_time)
+{
+  if (anim_time < 0.0f) {
+    return 0.0f;
+  }
+  return (1.0f - (anim_time / mode_transfer_flash_length));
+}
+
+Map<std::string, float, 1> mode_transfer_overlay_current_state()
+{
+  const double now = BLI_time_now_seconds();
+
+  /* Protect against possible concurrent access from multiple renderers or viewports. */
+  static Mutex mutex;
+  std::scoped_lock lock(mutex);
+
+  /* Remove finished animations form the global map. */
+  Map<std::string, double> &start_times = mode_transfer_overlay_start_times();
+  start_times.remove_if(
+      [&](const auto &item) { return (now - item.value) > mode_transfer_flash_length; });
+
+  Map<std::string, float, 1> factors;
+  for (const auto &item : start_times.items()) {
+    const float alpha = alpha_from_time_get(now - item.value);
+    if (alpha > 0.0f) {
+      factors.add_new(item.key, alpha);
+    }
+  }
+  return factors;
+}
+
 static void object_overlay_mode_transfer_animation_start(bContext *C, Object *ob_dst)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object *ob_dst_eval = DEG_get_evaluated_object(depsgraph, ob_dst);
-  ob_dst_eval->runtime->overlay_mode_transfer_start_time = BLI_time_now_seconds();
+  Object *ob_dst_eval = DEG_get_evaluated(depsgraph, ob_dst);
+  mode_transfer_overlay_start_times().add_as(ob_dst_eval->id.name, BLI_time_now_seconds());
 }
 
 static bool object_transfer_mode_to_base(bContext *C,
@@ -442,6 +478,11 @@ static bool object_transfer_mode_to_base(bContext *C,
     BKE_view_layer_base_deselect_all(scene, view_layer);
     BKE_view_layer_base_select_and_set_active(view_layer, base_dst);
 
+    /* Not entirely clear why, but this extra undo step (the two calls to #mode_set_ex should
+     * already create their own) is required. Otherwise some mode switching does not work as
+     * expected on undo/redo (see #130420 with Sculpt mode). */
+    ED_undo_push(C, "Change Active");
+
     mode_set_ex(C, mode_dst, true, op->reports);
 
     if (RNA_boolean_get(op->ptr, "use_flash_on_transfer")) {
@@ -454,7 +495,9 @@ static bool object_transfer_mode_to_base(bContext *C,
   return mode_transferred;
 }
 
-static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent *event)
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
@@ -468,6 +511,11 @@ static int object_transfer_mode_invoke(bContext *C, wmOperator *op, const wmEven
   }
 
   Object *ob_dst = base_dst->object;
+
+  if (ob_src == ob_dst) {
+    return OPERATOR_CANCELLED;
+  }
+
   BLI_assert(ob_dst->id.orig_id == nullptr);
   if (!ID_IS_EDITABLE(ob_dst) || !ID_IS_EDITABLE(ob_src)) {
     BKE_reportf(op->reports,
@@ -521,7 +569,7 @@ void OBJECT_OT_transfer_mode(wmOperatorType *ot)
       "Switches the active object and assigns the same mode to a new one under the mouse cursor, "
       "leaving the active mode in the current one";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = object_transfer_mode_invoke;
   ot->poll = object_transfer_mode_poll;
 

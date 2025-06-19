@@ -60,12 +60,7 @@ class gltf2_KHR_materials_variants_variant(bpy.types.PropertyGroup):
 
 class SCENE_UL_gltf2_variants(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(item, "name", text="", emboss=False)
-
-        elif self.layout_type in {'GRID'}:
-            layout.alignment = 'CENTER'
+        layout.prop(item, "name", text="", emboss=False)
 
 
 class SCENE_PT_gltf2_variants(bpy.types.Panel):
@@ -212,18 +207,27 @@ class SCENE_OT_gltf2_assign_to_variant(bpy.types.Operator):
         for mat_slot_idx, s in enumerate(obj.material_slots):
             # Check if there is already data for this slot
             found = False
+            variant_found = False
             for i in obj.data.gltf2_variant_mesh_data:
                 if i.material_slot_index == mat_slot_idx and i.material == s.material:
                     found = True
                     variant_primitive = i
+                elif i.material_slot_index == mat_slot_idx and bpy.data.scenes[0].gltf2_active_variant in [
+                        v.variant.variant_idx for v in i.variants]:
+                    # User changed the material, so store the new one (replace instead of add)
+                    found = True
+                    variant_found = True
+                    variant_primitive = i
+                    i.material = s.material
 
             if found is False:
                 variant_primitive = obj.data.gltf2_variant_mesh_data.add()
                 variant_primitive.material_slot_index = mat_slot_idx
                 variant_primitive.material = s.material
 
-            vari = variant_primitive.variants.add()
-            vari.variant.variant_idx = bpy.data.scenes[0].gltf2_active_variant
+            if variant_found is False:
+                vari = variant_primitive.variants.add()
+                vari.variant.variant_idx = bpy.data.scenes[0].gltf2_active_variant
 
         return {'FINISHED'}
 
@@ -311,12 +315,8 @@ class MESH_UL_gltf2_mesh_variants(bpy.types.UIList):
 
         vari = item.variant
         layout.context_pointer_set("id", vari)
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.prop(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants[vari.variant_idx],
-                        "name", text="", emboss=False)
-        elif self.layout_type in {'GRID'}:
-            layout.alignment = 'CENTER'
+        layout.prop(bpy.data.scenes[0].gltf2_KHR_materials_variants_variants[vari.variant_idx],
+                    "name", text="", emboss=False)
 
 
 class MESH_PT_gltf2_mesh_variants(bpy.types.Panel):
@@ -327,6 +327,8 @@ class MESH_PT_gltf2_mesh_variants(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
+        if not bpy.context.object:
+            return False
         return bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is True \
             and len(bpy.context.object.material_slots) > 0
 
@@ -380,6 +382,8 @@ class SCENE_OT_gltf2_variant_slot_add(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
+        if not bpy.context.object:
+            return False
         return len(bpy.context.object.material_slots) > 0
 
     def execute(self, context):
@@ -412,6 +416,8 @@ class SCENE_OT_gltf2_material_to_variant(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
+        if not bpy.context.object:
+            return False
         return len(bpy.context.object.material_slots) > 0 and context.object.data.gltf2_variant_pointer != ""
 
     def execute(self, context):
@@ -452,6 +458,8 @@ class SCENE_OT_gltf2_remove_material_variant(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
+        if not bpy.context.object:
+            return False
         return len(bpy.context.object.material_slots) > 0 and len(bpy.context.object.data.gltf2_variant_mesh_data) > 0
 
     def execute(self, context):
@@ -485,16 +493,11 @@ class gltf2_animation_NLATrackNames(bpy.types.PropertyGroup):
 
 class SCENE_UL_gltf2_animation_track(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row()
-            icon = 'SOLO_ON' if index == bpy.data.scenes[0].gltf2_animation_applied else 'SOLO_OFF'
-            row.prop(item, "name", text="", emboss=False)
-            op = row.operator("scene.gltf2_animation_apply", text='', icon=icon)
-            op.index = index
-
-        elif self.layout_type in {'GRID'}:
-            layout.alignment = 'CENTER'
+        row = layout.row()
+        icon = 'SOLO_ON' if index == bpy.data.scenes[0].gltf2_animation_applied else 'SOLO_OFF'
+        row.prop(item, "name", text="", emboss=False)
+        op = row.operator("scene.gltf2_animation_apply", text='', icon=icon)
+        op.index = index
 
 
 class SCENE_OT_gltf2_animation_apply(bpy.types.Operator):
@@ -516,6 +519,8 @@ class SCENE_OT_gltf2_animation_apply(bpy.types.Operator):
         # remove all actions from objects
         for obj in bpy.context.scene.objects:
             if obj.animation_data:
+                if obj.animation_data.action is not None:
+                    obj.animation_data.action_slot = None
                 obj.animation_data.action = None
                 obj.matrix_world = obj.gltf2_animation_rest
 
@@ -524,6 +529,8 @@ class SCENE_OT_gltf2_animation_apply(bpy.types.Operator):
                     obj.animation_data.action = track.strips[0].action
 
             if obj.type == "MESH" and obj.data and obj.data.shape_keys and obj.data.shape_keys.animation_data:
+                if obj.data.shape_keys.animation_data.action is not None:
+                    obj.data.shape_keys.animation_data.action_slot = None
                 obj.data.shape_keys.animation_data.action = None
                 for idx, data in enumerate(obj.gltf2_animation_weight_rest):
                     obj.data.shape_keys.key_blocks[idx + 1].value = data.val
@@ -531,21 +538,28 @@ class SCENE_OT_gltf2_animation_apply(bpy.types.Operator):
                 for track in [track for track in obj.data.shape_keys.animation_data.nla_tracks if track.name ==
                               track_name and len(track.strips) > 0 and track.strips[0].action is not None]:
                     obj.data.shape_keys.animation_data.action = track.strips[0].action
+                    obj.data.shape_keys.animation_data.action_slot = track.strips[0].action_slot
 
             if obj.type in ["LIGHT", "CAMERA"] and obj.data and obj.data.animation_data:
+                if obj.data.animation_data.action is not None:
+                    obj.data.animation_data.action_slot = None
                 obj.data.animation_data.action = None
                 for track in [track for track in obj.data.animation_data.nla_tracks if track.name ==
                               track_name and len(track.strips) > 0 and track.strips[0].action is not None]:
                     obj.data.animation_data.action = track.strips[0].action
+                    obj.data.animation_data.action_slot = track.strips[0].action_slot
 
         for mat in bpy.data.materials:
             if not mat.node_tree:
                 continue
             if mat.node_tree.animation_data:
+                if mat.node_tree.animation_data.action is not None:
+                    mat.node_tree.animation_data.action_slot = None
                 mat.node_tree.animation_data.action = None
                 for track in [track for track in mat.node_tree.animation_data.nla_tracks if track.name ==
                               track_name and len(track.strips) > 0 and track.strips[0].action is not None]:
                     mat.node_tree.animation_data.action = track.strips[0].action
+                    mat.node_tree.animation_data.action_slot = track.strips[0].action_slot
 
         bpy.data.scenes[0].gltf2_animation_applied = self.index
         return {'FINISHED'}
@@ -594,6 +608,11 @@ class SCENE_OT_gltf2_action_filter_refresh(bpy.types.Operator):
         return True
 
     def execute(self, context):
+        # Remove no more existing actions
+        for idx, i in enumerate(bpy.data.scenes[0].gltf_action_filter):
+            if i.action is None:
+                bpy.data.scenes[0].gltf_action_filter.remove(idx)
+
         for action in bpy.data.actions:
             if id(action) in [id(i.action) for i in bpy.data.scenes[0].gltf_action_filter]:
                 continue
@@ -609,13 +628,8 @@ class SCENE_UL_gltf2_filter_action(bpy.types.UIList):
 
         action = item.action
         layout.context_pointer_set("id", action)
-
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.split().prop(item.action, "name", text="", emboss=False)
-            layout.split().prop(item, "keep", text="", emboss=True)
-
-        elif self.layout_type in {'GRID'}:
-            layout.alignment = 'CENTER'
+        layout.split().prop(item.action, "name", text="", emboss=False)
+        layout.split().prop(item, "keep", text="", emboss=True)
 
 
 def export_panel_animation_action_filter(layout, operator):
@@ -630,6 +644,13 @@ def export_panel_animation_action_filter(layout, operator):
         body.active = operator.export_animations and operator.export_action_filter
 
         row = body.row()
+
+        # Collection Export does not handle correctly property declaration
+        # So use this tweak to avoid spaming the console, waiting for a better solution
+        is_file_browser = bpy.context.space_data.type == 'FILE_BROWSER'
+        if not is_file_browser and not hasattr(bpy.data.scenes[0], "gltf_action_filter"):
+            row.label(text="Please disable/enable 'action filter' to refresh the list")
+            return
 
         if len(bpy.data.actions) > 0:
             row.template_list(

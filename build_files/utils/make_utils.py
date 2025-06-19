@@ -7,13 +7,32 @@
 Utility functions for make update and make tests
 
 WARNING:
-Python 3.9 is used on the built-bot.
+- Python 3.6 is used on the Linux VM (Rocky8) to run "make update" to checkout LFS.
+- Python 3.9 is used on the built-bot.
+
 Take care *not* to use features from the Python version used by Blender!
 
 NOTE:
-Some type annotations are quoted to avoid errors in Python 3.9.
+Some type annotations are quoted to avoid errors in older Python versions.
 These can be unquoted eventually.
 """
+
+__all__ = (
+    "call",
+    "check_output",
+    "command_missing",
+    "git_branch",
+    "git_branch_exists",
+    "git_enable_submodule",
+    "git_get_remote_url",
+    "git_is_remote_repository",
+    "git_remote_exist",
+    "git_set_config",
+    "git_update_submodule",
+    "is_git_submodule_enabled",
+    "parse_blender_version",
+    "remove_directory",
+)
 
 import re
 import os
@@ -23,9 +42,23 @@ import subprocess
 import sys
 from pathlib import Path
 
-from collections.abc import (
-    Sequence,
+from types import (
+    TracebackType,
 )
+from typing import (
+    Any,
+)
+
+if sys.version_info >= (3, 9):
+    from collections.abc import (
+        Callable,
+        Sequence,
+    )
+else:
+    from typing import (
+        Callable,
+        Sequence,
+    )
 
 
 def call(
@@ -117,6 +150,20 @@ def git_is_remote_repository(git_command: str, repo: str) -> bool:
     return exit_code == 0
 
 
+def git_get_remotes(git_command: str) -> Sequence[str]:
+    """Get a list of git remotes"""
+    # Additional check if the remote exists, for safety in case the output of this command
+    # changes in the future.
+    remotes = check_output([git_command, "remote"]).split()
+    return [remote for remote in remotes if git_remote_exist(git_command, remote)]
+
+
+def git_add_remote(git_command: str, name: str, url: str, push_url: str) -> None:
+    """Add a git remote"""
+    call((git_command, "remote", "add", name, url), silent=True)
+    call((git_command, "remote", "set-url", "--push", name, push_url), silent=True)
+
+
 def git_branch(git_command: str) -> str:
     """Get current branch name."""
 
@@ -162,13 +209,18 @@ def is_git_submodule_enabled(git_command: str, submodule_dir: Path) -> bool:
     if not path:
         return False
 
-    # When the "update" strategy is not provided explicitly in the the local configuration
+    # When the "update" strategy is not provided explicitly in the local configuration
     # `git config` returns a non-zero exit code. For those assume the default "checkout"
     # strategy.
     update = check_output(
         (git_command, "config", "--local", _git_submodule_config_key(submodule_dir, "update")),
         exit_on_error=False)
-
+    if update == "":
+        # The repository is not in our local configuration.
+        # Check the default `.gitmodules` setting.
+        update = check_output(
+            (git_command, "config", "--file", str(gitmodules), _git_submodule_config_key(submodule_dir, "update")),
+            exit_on_error=False)
     return update.lower() != "none"
 
 
@@ -209,7 +261,7 @@ def git_update_submodule(git_command: str, submodule_dir: Path) -> bool:
     #
     #   https://github.com/git/git/commit/7a132c628e57b9bceeb88832ea051395c0637b16
     #
-    # Doing "git lfs pull" after checkout with GIT_LFS_SKIP_SMUDGE=true seems to be the
+    # Doing `git lfs pull` after checkout with `GIT_LFS_SKIP_SMUDGE=true` seems to be the
     # valid process. For example, https://www.mankier.com/7/git-lfs-faq
 
     env = {"GIT_LFS_SKIP_SMUDGE": "1"}
@@ -285,9 +337,13 @@ def remove_directory(directory: Path) -> None:
     Takes care of clearing read-only attributes which might prevent deletion on
     Windows.
     """
-
-    def remove_readonly(func, path, _):
-        "Clear the readonly bit and reattempt the removal"
+    # NOTE: unquote typing once Python 3.6x is dropped.
+    def remove_readonly(
+            func: Callable[..., Any],
+            path: str,
+            _: "tuple[type[BaseException], BaseException, TracebackType]",
+    ) -> None:
+        "Clear the read-only bit and reattempt the removal."
         os.chmod(path, stat.S_IWRITE)
         func(path)
 

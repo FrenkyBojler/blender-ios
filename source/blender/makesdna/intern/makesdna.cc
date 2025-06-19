@@ -39,8 +39,8 @@
 #include "BLI_ghash.h"
 #include "BLI_memarena.h"
 #include "BLI_string.h"
-#include "BLI_sys_types.h" /* for intptr_t support */
-#include "BLI_system.h"    /* for 'BLI_system_backtrace' stub. */
+#include "BLI_sys_types.h" /* For `intptr_t` support. */
+#include "BLI_system.h"    /* For #BLI_system_backtrace stub. */
 #include "BLI_utildefines.h"
 
 #include "DNA_sdna_types.h"
@@ -50,7 +50,7 @@
 #define SDNA_MAX_FILENAME_LENGTH 255
 
 /* The include file below is automatically generated from the `SRC_DNA_INC`
- * variable in 'source/blender/CMakeLists.txt'. */
+ * variable in `source/blender/CMakeLists.txt`. */
 static const char *includefiles[] = {
 #include "dna_includes_as_strings.h"
     /* Empty string to indicate end of include files. */
@@ -151,6 +151,12 @@ static int add_member(const char *member_name);
  * NOTE: there is no lookup performed here, a new struct definition is always added.
  */
 static short *add_struct(int type_index);
+
+/**
+ * Remove comments from this buffer. Assumes that the buffer refers to
+ * ASCII-code text.
+ */
+static int preprocess_include(char *maindata, const int maindata_len);
 
 /**
  * Scan this file for serializable types.
@@ -989,10 +995,8 @@ void print_struct_sizes()
   printf("*** End of list\n");
 }
 
-static int make_structDNA(const char *base_directory,
-                          FILE *file,
-                          FILE *file_offsets,
-                          FILE *file_verify)
+static int make_structDNA(
+    const char *base_directory, FILE *file, FILE *file_offsets, FILE *file_verify, FILE *file_ids)
 {
   if (debugSDNA > 0) {
     fflush(stdout);
@@ -1002,23 +1006,18 @@ static int make_structDNA(const char *base_directory,
   mem_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
   /* the longest known struct is 50k, so we assume 100k is sufficient! */
-  structdata = static_cast<short *>(MEM_callocN(max_data_size, "structdata"));
+  structdata = MEM_calloc_arrayN<short>(max_data_size, "structdata");
 
   /* a maximum of 5000 variables, must be sufficient? */
-  members = static_cast<char **>(MEM_callocN(sizeof(char *) * max_array_len, "names"));
-  types = static_cast<char **>(MEM_callocN(sizeof(char *) * max_array_len, "types"));
-  types_size_native = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_native"));
-  types_size_32 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_32"));
-  types_size_64 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_64"));
-  types_align_32 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_32"));
-  types_align_64 = static_cast<short *>(
-      MEM_callocN(sizeof(short) * max_array_len, "types_size_64"));
+  members = MEM_calloc_arrayN<char *>(max_array_len, "names");
+  types = MEM_calloc_arrayN<char *>(max_array_len, "types");
+  types_size_native = MEM_calloc_arrayN<short>(max_array_len, "types_size_native");
+  types_size_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_size_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
+  types_align_32 = MEM_calloc_arrayN<short>(max_array_len, "types_size_32");
+  types_align_64 = MEM_calloc_arrayN<short>(max_array_len, "types_size_64");
 
-  structs = static_cast<short **>(MEM_callocN(sizeof(short *) * max_array_len, "structs"));
+  structs = MEM_calloc_arrayN<short *>(max_array_len, "structs");
 
   /* Build versioning data */
   DNA_alias_maps(DNA_RENAME_ALIAS_FROM_STATIC,
@@ -1220,6 +1219,26 @@ static int make_structDNA(const char *base_directory,
     fprintf(file_offsets, "};\n\n");
   }
 
+  {
+    fprintf(file_ids, "\n\nnamespace blender::dna {\n\n");
+    fprintf(file_ids, "template<typename T> int sdna_struct_id_get();\n\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max();\n");
+    fprintf(file_ids, "int sdna_struct_id_get_max() { return %d; }\n", structs_num - 1);
+    fprintf(file_ids, "\n}\n");
+
+    /* Starting at 1, because 0 is "raw data". */
+    for (int i = 1; i < structs_num; i++) {
+      const short *structpoin = structs[i];
+      const int struct_type_index = structpoin[0];
+      const char *name = version_struct_alias_from_static(types[struct_type_index]);
+      fprintf(file_ids, "struct %s;\n", name);
+      fprintf(file_ids,
+              "template<> int blender::dna::sdna_struct_id_get<%s>() { return %d; }\n",
+              name,
+              i);
+    }
+  }
+
   /* Check versioning errors which could cause duplicate names,
    * do last because names are stripped. */
   {
@@ -1294,14 +1313,15 @@ int main(int argc, char **argv)
 {
   int return_status = 0;
 
-  if (!ELEM(argc, 4, 5)) {
-    printf("Usage: %s dna.c dna_struct_offsets.h [base directory]\n", argv[0]);
+  if (!ELEM(argc, 5, 6)) {
+    printf("Usage: %s dna.c dna_struct_offsets.h dna_struct_ids.cc [base directory]\n", argv[0]);
     return_status = 1;
   }
   else {
     FILE *file_dna = fopen(argv[1], "w");
     FILE *file_dna_offsets = fopen(argv[2], "w");
     FILE *file_dna_verify = fopen(argv[3], "w");
+    FILE *file_dna_ids = fopen(argv[4], "w");
     if (!file_dna) {
       printf("Unable to open file: %s\n", argv[1]);
       return_status = 1;
@@ -1314,11 +1334,15 @@ int main(int argc, char **argv)
       printf("Unable to open file: %s\n", argv[3]);
       return_status = 1;
     }
+    else if (!file_dna_ids) {
+      printf("Unable to open file: %s\n", argv[4]);
+      return_status = 1;
+    }
     else {
       const char *base_directory;
 
-      if (argc == 5) {
-        base_directory = argv[4];
+      if (argc == 6) {
+        base_directory = argv[5];
       }
       else {
         base_directory = BASE_HEADER;
@@ -1336,7 +1360,9 @@ int main(int argc, char **argv)
       fprintf(file_dna, "const unsigned char" FORCE_ALIGN_4 "DNAstr[] = {\n");
 #undef FORCE_ALIGN_4
 
-      if (make_structDNA(base_directory, file_dna, file_dna_offsets, file_dna_verify)) {
+      if (make_structDNA(
+              base_directory, file_dna, file_dna_offsets, file_dna_verify, file_dna_ids))
+      {
         /* error */
         fclose(file_dna);
         file_dna = nullptr;
@@ -1358,6 +1384,9 @@ int main(int argc, char **argv)
     }
     if (file_dna_verify) {
       fclose(file_dna_verify);
+    }
+    if (file_dna_ids) {
+      fclose(file_dna_ids);
     }
   }
 

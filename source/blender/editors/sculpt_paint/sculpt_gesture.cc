@@ -16,12 +16,12 @@
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rect.h"
-#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_paint.hh"
@@ -187,7 +187,8 @@ static void line_plane_from_tri(float *r_plane,
 {
   float3 normal;
   normal_tri_v3(normal, p1, p2, p3);
-  normal = math::transform_direction(gesture_data.vc.obact->world_to_object(), normal);
+  normal = math::normalize(
+      math::transform_direction(gesture_data.vc.obact->world_to_object(), normal));
   if (flip) {
     normal *= -1.0f;
   }
@@ -323,18 +324,15 @@ static void flip_for_symmetry_pass(GestureData &gesture_data, const ePaintSymmet
 static void update_affected_nodes_by_line_plane(GestureData &gesture_data)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*gesture_data.vc.obact);
-  float clip_planes[3][4];
+  std::array<float4, 3> clip_planes;
   copy_v4_v4(clip_planes[0], gesture_data.line.plane);
   copy_v4_v4(clip_planes[1], gesture_data.line.side_plane[0]);
   copy_v4_v4(clip_planes[2], gesture_data.line.side_plane[1]);
 
-  PBVHFrustumPlanes frustum{};
-  frustum.planes = clip_planes;
-  frustum.num_planes = gesture_data.line.use_side_planes ? 3 : 1;
-
   gesture_data.node_mask = bke::pbvh::search_nodes(
       pbvh, gesture_data.node_mask_memory, [&](const bke::pbvh::Node &node) {
-        return BKE_pbvh_node_frustum_contain_AABB(&node, &frustum);
+        return bke::pbvh::node_frustum_contain_aabb(
+            node, Span(clip_planes).take_front(gesture_data.line.use_side_planes ? 3 : 1));
       });
 }
 
@@ -345,15 +343,13 @@ static void update_affected_nodes_by_clip_planes(GestureData &gesture_data)
   copy_m4_m4(clip_planes, gesture_data.clip_planes);
   negate_m4(clip_planes);
 
-  PBVHFrustumPlanes frustum{};
-  frustum.planes = clip_planes;
-  frustum.num_planes = 4;
+  Span planes(reinterpret_cast<float4 *>(clip_planes), 4);
 
   gesture_data.node_mask = bke::pbvh::search_nodes(
       pbvh, gesture_data.node_mask_memory, [&](const bke::pbvh::Node &node) {
         switch (gesture_data.selection_type) {
           case SelectionType::Inside:
-            return BKE_pbvh_node_frustum_contain_AABB(&node, &frustum);
+            return bke::pbvh::node_frustum_contain_aabb(node, planes);
           case SelectionType::Outside:
             /* Certain degenerate cases of a lasso shape can cause the resulting
              * frustum planes to enclose a node's AABB, therefore we must submit it
@@ -361,7 +357,7 @@ static void update_affected_nodes_by_clip_planes(GestureData &gesture_data)
             if (gesture_data.shape_type == ShapeType::Lasso) {
               return true;
             }
-            return BKE_pbvh_node_frustum_exclude_AABB(&node, &frustum);
+            return bke::pbvh::node_frustum_exclude_aabb(node, planes);
         }
         BLI_assert_unreachable();
         return false;
@@ -459,7 +455,7 @@ void apply(bContext &C, GestureData &gesture_data, wmOperator &op)
   operation->begin(C, op, gesture_data);
 
   for (int symmpass = 0; symmpass <= gesture_data.symm; symmpass++) {
-    if (SCULPT_is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
+    if (is_symmetry_iteration_valid(symmpass, gesture_data.symm)) {
       flip_for_symmetry_pass(gesture_data, ePaintSymmetryFlags(symmpass));
       update_affected_nodes(gesture_data);
 

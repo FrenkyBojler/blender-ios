@@ -16,14 +16,13 @@
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
-#include "BKE_main.hh"
-#include "BKE_mesh_runtime.hh"
 
 #include "BLO_userdef_default.h"
 
@@ -62,8 +61,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 {
   ThemeSpace *ts = nullptr;
   static uchar error[4] = {240, 0, 240, 255};
-  static uchar alert[4] = {240, 60, 60, 255};
   static uchar back[4] = {0, 0, 0, 255};
+  static uchar none[4] = {0, 0, 0, 0};
+  static uchar white[4] = {255, 255, 255, 255};
+  static uchar black[4] = {0, 0, 0, 255};
   static uchar setting = 0;
   const uchar *cp = error;
 
@@ -77,9 +78,27 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
     if (colorid < TH_THEMEUI) {
 
       switch (colorid) {
-
+        case TH_NONE:
+          cp = none;
+          break;
+        case TH_BLACK:
+          cp = black;
+          break;
+        case TH_WHITE:
+          cp = white;
+          break;
         case TH_REDALERT:
-          cp = alert;
+        case TH_ERROR:
+          cp = btheme->tui.wcol_state.error;
+          break;
+        case TH_WARNING:
+          cp = btheme->tui.wcol_state.warning;
+          break;
+        case TH_INFO:
+          cp = btheme->tui.wcol_state.info;
+          break;
+        case TH_SUCCESS:
+          cp = btheme->tui.wcol_state.success;
           break;
       }
     }
@@ -157,16 +176,13 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header;
           }
           else if (g_theme_state.regionid == RGN_TYPE_NAV_BAR) {
-            cp = ts->navigation_bar;
-          }
-          else if (g_theme_state.regionid == RGN_TYPE_EXECUTE) {
-            cp = ts->execution_buts;
+            cp = ts->tab_back;
           }
           else if (g_theme_state.regionid == RGN_TYPE_ASSET_SHELF) {
-            cp = ts->asset_shelf.back;
+            cp = btheme->asset_shelf.back;
           }
           else if (g_theme_state.regionid == RGN_TYPE_ASSET_SHELF_HEADER) {
-            cp = ts->asset_shelf.header_back;
+            cp = btheme->asset_shelf.header_back;
           }
           else {
             cp = ts->button;
@@ -253,13 +269,16 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
 
         case TH_PANEL_HEADER:
-          cp = ts->panelcolors.header;
+          cp = btheme->tui.panel_header;
           break;
         case TH_PANEL_BACK:
-          cp = ts->panelcolors.back;
+          cp = btheme->tui.panel_back;
           break;
         case TH_PANEL_SUB_BACK:
-          cp = ts->panelcolors.sub_back;
+          cp = btheme->tui.panel_sub_back;
+          break;
+        case TH_PANEL_OUTLINE:
+          cp = btheme->tui.panel_outline;
           break;
 
         case TH_BUTBACK:
@@ -272,17 +291,27 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = ts->button_text_hi;
           break;
 
+        case TH_TAB_TEXT:
+          cp = btheme->tui.wcol_tab.text;
+          break;
+        case TH_TAB_TEXT_HI:
+          cp = btheme->tui.wcol_tab.text_sel;
+          break;
         case TH_TAB_ACTIVE:
-          cp = ts->tab_active;
+          cp = btheme->tui.wcol_tab.inner_sel;
           break;
         case TH_TAB_INACTIVE:
-          cp = ts->tab_inactive;
-          break;
-        case TH_TAB_BACK:
-          cp = ts->tab_back;
+          cp = btheme->tui.wcol_tab.inner;
           break;
         case TH_TAB_OUTLINE:
-          cp = ts->tab_outline;
+          cp = btheme->tui.wcol_tab.outline;
+          break;
+        case TH_TAB_OUTLINE_ACTIVE:
+          cp = btheme->tui.wcol_tab.outline_sel;
+          break;
+        case TH_TAB_BACK:
+          /* Tab background is set per editor. */
+          cp = ts->tab_back;
           break;
 
         case TH_SHADE1:
@@ -675,6 +704,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT:
           cp = ts->node_zone_foreach_geometry_element;
           break;
+        case TH_NODE_ZONE_CLOSURE:
+          cp = ts->node_zone_closure;
+          break;
         case TH_SIMULATED_FRAMES:
           cp = ts->simulated_frames;
           break;
@@ -720,6 +752,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_SEQ_SELECTED:
           cp = ts->selected_strip;
+          break;
+        case TH_SEQ_TEXT_CURSOR:
+          cp = ts->text_strip_cursor;
+          break;
+        case TH_SEQ_SELECTED_TEXT:
+          cp = ts->selected_text;
           break;
 
         case TH_CONSOLE_OUTPUT:
@@ -1030,20 +1068,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_INFO_SELECTED_TEXT:
           cp = ts->info_selected_text;
           break;
-        case TH_INFO_ERROR:
-          cp = ts->info_error;
-          break;
         case TH_INFO_ERROR_TEXT:
           cp = ts->info_error_text;
           break;
-        case TH_INFO_WARNING:
-          cp = ts->info_warning;
-          break;
         case TH_INFO_WARNING_TEXT:
           cp = ts->info_warning_text;
-          break;
-        case TH_INFO_INFO:
-          cp = ts->info_info;
           break;
         case TH_INFO_INFO_TEXT:
           cp = ts->info_info_text;
@@ -1082,7 +1111,7 @@ void UI_theme_init_default()
   bTheme *btheme = static_cast<bTheme *>(
       BLI_findstring(&U.themes, U_theme_default.name, offsetof(bTheme, name)));
   if (btheme == nullptr) {
-    btheme = MEM_cnew<bTheme>(__func__);
+    btheme = MEM_callocN<bTheme>(__func__);
     STRNCPY(btheme->name, U_theme_default.name);
     BLI_addhead(&U.themes, btheme);
   }

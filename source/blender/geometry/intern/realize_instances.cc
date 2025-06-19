@@ -5,19 +5,20 @@
 #include "GEO_join_geometries.hh"
 #include "GEO_realize_instances.hh"
 
-#include "DNA_collection_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_array_utils.hh"
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_noise.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
@@ -25,8 +26,7 @@
 namespace blender::geometry {
 
 using blender::bke::AttrDomain;
-using blender::bke::AttributeKind;
-using blender::bke::AttributeMetaData;
+using blender::bke::AttributeDomainAndType;
 using blender::bke::GSpanAttributeWriter;
 using blender::bke::InstanceReference;
 using blender::bke::Instances;
@@ -38,7 +38,7 @@ using blender::bke::SpanAttributeWriter;
  */
 struct OrderedAttributes {
   VectorSet<StringRef> ids;
-  Vector<AttributeKind> kinds;
+  Vector<AttributeDomainAndType> kinds;
 
   int size() const
   {
@@ -108,6 +108,8 @@ struct MeshRealizeInfo {
   /** Vertex ids stored on the mesh. If there are no ids, this #Span is empty. */
   Span<int> stored_vertex_ids;
   VArray<int> material_indices;
+  /** Custom normals are rotated based on each instance's transformation. */
+  GVArraySpan custom_normal;
 };
 
 struct RealizeMeshTask {
@@ -164,6 +166,7 @@ struct RealizeCurveInfo {
 struct CurvesElementStartIndices {
   int point = 0;
   int curve = 0;
+  int custom_knot = 0;
 };
 
 struct RealizeCurveTask {
@@ -209,6 +212,81 @@ struct AllPointCloudsInfo {
   bool create_radius_attribute = false;
 };
 
+static bke::AttrDomain normal_domain_to_domain(bke::MeshNormalDomain domain)
+{
+  switch (domain) {
+    case bke::MeshNormalDomain::Point:
+      return bke::AttrDomain::Point;
+    case bke::MeshNormalDomain::Face:
+      return bke::AttrDomain::Face;
+    case bke::MeshNormalDomain::Corner:
+      return bke::AttrDomain::Corner;
+  }
+  BLI_assert_unreachable();
+  return bke::AttrDomain::Point;
+}
+
+constexpr bke::AttributeMetaData CORNER_FAN_META_DATA{bke::AttrDomain::Corner, CD_PROP_INT16_2D};
+
+/** Tracks the storage format for the resulting mesh based on the combination of input meshes. */
+struct MeshNormalInfo {
+  enum class Output : int8_t { None, CornerFan, Free };
+  Output result_type = Output::None;
+  std::optional<bke::AttrDomain> result_domain;
+
+  void add_no_custom_normals(const bke::MeshNormalDomain domain)
+  {
+    if (result_type == Output::None) {
+      return;
+    }
+    this->add_free_normals(normal_domain_to_domain(domain));
+  }
+
+  void add_corner_fan_normals()
+  {
+    this->result_domain = bke::AttrDomain::Corner;
+    if (this->result_type == Output::None) {
+      this->result_type = Output::CornerFan;
+    }
+  }
+
+  void add_free_normals(const bke::AttrDomain domain)
+  {
+    if (this->result_domain) {
+      /* Any combination of point/face domains puts the result normals on the corner domain. */
+      if (this->result_domain != domain) {
+        this->result_domain = bke::AttrDomain::Corner;
+      }
+    }
+    else {
+      this->result_domain = domain;
+    }
+    this->result_type = Output::Free;
+  }
+
+  void add_mesh(const Mesh &mesh)
+  {
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    const std::optional<bke::AttributeMetaData> custom_normal = attributes.lookup_meta_data(
+        "custom_normal");
+    if (!custom_normal) {
+      this->add_no_custom_normals(mesh.normals_domain());
+      return;
+    }
+    if (custom_normal->data_type == CD_PROP_FLOAT3) {
+      if (custom_normal->domain == bke::AttrDomain::Edge) {
+        /* Skip invalid storage on the edge domain. */
+        this->add_no_custom_normals(mesh.normals_domain());
+        return;
+      }
+      this->add_free_normals(custom_normal->domain);
+    }
+    else if (*custom_normal == CORNER_FAN_META_DATA) {
+      this->add_corner_fan_normals();
+    }
+  }
+};
+
 struct AllMeshesInfo {
   /** Ordering of all attributes that are propagated to the output mesh generically. */
   OrderedAttributes attributes;
@@ -220,6 +298,7 @@ struct AllMeshesInfo {
   VectorSet<Material *> materials;
   bool create_id_attribute = false;
   bool create_material_index_attribute = false;
+  MeshNormalInfo custom_normal_info;
 
   /** True if we know that there are no loose edges in any of the input meshes. */
   bool no_loose_edges_hint = false;
@@ -237,8 +316,6 @@ struct AllCurvesInfo {
   bool create_id_attribute = false;
   bool create_handle_postion_attributes = false;
   bool create_radius_attribute = false;
-  bool create_resolution_attribute = false;
-  bool create_nurbs_weight_attribute = false;
   bool create_custom_normal_attribute = false;
 };
 
@@ -705,6 +782,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
                                                   base_instance_context.id});
           gather_info.r_offsets.curves_offsets.point += curves->geometry.point_num;
           gather_info.r_offsets.curves_offsets.curve += curves->geometry.curve_num;
+          gather_info.r_offsets.curves_offsets.custom_knot += curves->geometry.custom_knot_num;
         }
         break;
       }
@@ -868,7 +946,7 @@ static void gather_attribute_propagation_components_with_custom_depths(
   }
 }
 
-static Map<StringRef, AttributeKind> gather_attributes_to_propagate(
+static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
     const bke::GeometrySet &geometry,
     const bke::GeometryComponent::Type component_type,
     const RealizeInstancesOptions &options,
@@ -898,7 +976,7 @@ static Map<StringRef, AttributeKind> gather_attributes_to_propagate(
   }
 
   /* Actually gather the attributes to propagate from the found components. */
-  Map<StringRef, AttributeKind> attributes_to_propagate;
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate;
   for (const bke::GeometryComponentPtr &component : components) {
     const bke::AttributeAccessor attributes = *component->attributes();
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -920,14 +998,20 @@ static Map<StringRef, AttributeKind> gather_attributes_to_propagate(
       if (component_type != bke::GeometryComponent::Type::Instance &&
           dst_domain == AttrDomain::Instance)
       {
-        /* Instance attributes are realized on the point domain currently. */
-        dst_domain = AttrDomain::Point;
+        if (component_type == bke::GeometryComponent::Type::GreasePencil) {
+          /* For Grease Pencil, we want to propagate the instance attributes to the layers. */
+          dst_domain = AttrDomain::Layer;
+        }
+        else {
+          /* Other instance attributes are realized on the point domain currently. */
+          dst_domain = AttrDomain::Point;
+        }
       }
-      auto add = [&](AttributeKind *kind) {
+      auto add = [&](AttributeDomainAndType *kind) {
         kind->domain = dst_domain;
         kind->data_type = iter.data_type;
       };
-      auto modify = [&](AttributeKind *kind) {
+      auto modify = [&](AttributeDomainAndType *kind) {
         kind->domain = bke::attribute_domain_highest_priority({kind->domain, dst_domain});
         kind->data_type = bke::attribute_data_type_highest_complexity(
             {kind->data_type, iter.data_type});
@@ -950,9 +1034,11 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_option)
 {
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Instance, options, varied_depth_option);
   attributes_to_propagate.pop_try("id");
+  attributes_to_propagate.pop_try("instance_transform");
+  attributes_to_propagate.pop_try(".reference_index");
   OrderedAttributes ordered_attributes;
   for (const auto item : attributes_to_propagate.items()) {
     ordered_attributes.ids.add_new(item.key);
@@ -963,9 +1049,9 @@ static OrderedAttributes gather_generic_instance_attributes_to_propagate(
 
 static void execute_instances_tasks(
     const Span<bke::GeometryComponentPtr> src_components,
-    Span<blender::float4x4> src_base_transforms,
-    OrderedAttributes all_instances_attributes,
-    Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
+    const Span<blender::float4x4> src_base_transforms,
+    const OrderedAttributes &all_instances_attributes,
+    const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
   BLI_assert(src_components.size() == src_base_transforms.size() &&
@@ -1067,7 +1153,7 @@ static OrderedAttributes gather_generic_pointcloud_attributes_to_propagate(
     bool &r_create_radii,
     bool &r_create_id)
 {
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::PointCloud, options, varied_depth_option);
   attributes_to_propagate.remove("position");
   r_create_id = attributes_to_propagate.pop_try("id").has_value();
@@ -1296,12 +1382,13 @@ static OrderedAttributes gather_generic_mesh_attributes_to_propagate(
     bool &r_create_id,
     bool &r_create_material_index)
 {
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Mesh, options, varied_depth_option);
   attributes_to_propagate.remove("position");
   attributes_to_propagate.remove(".edge_verts");
   attributes_to_propagate.remove(".corner_vert");
   attributes_to_propagate.remove(".corner_edge");
+  attributes_to_propagate.remove("custom_normal");
   r_create_id = attributes_to_propagate.pop_try("id").has_value();
   r_create_material_index = attributes_to_propagate.pop_try("material_index").has_value();
   OrderedAttributes ordered_attributes;
@@ -1352,6 +1439,11 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       }
     }
   }
+
+  for (const Mesh *mesh : info.order) {
+    info.custom_normal_info.add_mesh(*mesh);
+  }
+
   info.create_material_index_attribute |= info.materials.size() > 1;
   info.realize_info.reinitialize(info.order.size());
   for (const int mesh_index : info.realize_info.index_range()) {
@@ -1397,6 +1489,35 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
     }
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
         "material_index", bke::AttrDomain::Face, 0);
+
+    switch (info.custom_normal_info.result_type) {
+      case MeshNormalInfo::Output::None: {
+        break;
+      }
+      case MeshNormalInfo::Output::CornerFan: {
+        if (attributes.lookup_meta_data("custom_normal") == CORNER_FAN_META_DATA) {
+          mesh_info.custom_normal = *attributes.lookup<short2>("custom_normal",
+                                                               bke::AttrDomain::Corner);
+        }
+        break;
+      }
+      case MeshNormalInfo::Output::Free: {
+        switch (*info.custom_normal_info.result_domain) {
+          case bke::AttrDomain::Point:
+            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->vert_normals());
+            break;
+          case bke::AttrDomain::Face:
+            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->face_normals());
+            break;
+          case bke::AttrDomain::Corner:
+            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->corner_normals());
+            break;
+          default:
+            BLI_assert_unreachable();
+        }
+        break;
+      }
+    }
   }
 
   info.no_loose_edges_hint = std::all_of(
@@ -1425,7 +1546,8 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       MutableSpan<int> all_dst_corner_verts,
                                       MutableSpan<int> all_dst_corner_edges,
                                       MutableSpan<int> all_dst_vertex_ids,
-                                      MutableSpan<int> all_dst_material_indices)
+                                      MutableSpan<int> all_dst_material_indices,
+                                      GSpanAttributeWriter &all_dst_custom_normals)
 {
   const MeshRealizeInfo &mesh_info = *task.mesh_info;
   const Mesh &mesh = *mesh_info.mesh;
@@ -1505,26 +1627,78 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                       all_dst_vertex_ids.slice(task.start_indices.vertex, mesh.verts_num));
   }
 
-  copy_generic_attributes_to_result(
-      mesh_info.attributes,
-      task.attribute_fallbacks,
-      ordered_attributes,
-      [&](const bke::AttrDomain domain) {
-        switch (domain) {
-          case bke::AttrDomain::Point:
-            return dst_vert_range;
-          case bke::AttrDomain::Edge:
-            return dst_edge_range;
-          case bke::AttrDomain::Face:
-            return dst_face_range;
-          case bke::AttrDomain::Corner:
-            return dst_loop_range;
-          default:
-            BLI_assert_unreachable();
-            return IndexRange();
-        }
-      },
-      dst_attribute_writers);
+  const auto domain_to_range = [&](const bke::AttrDomain domain) {
+    switch (domain) {
+      case bke::AttrDomain::Point:
+        return dst_vert_range;
+      case bke::AttrDomain::Edge:
+        return dst_edge_range;
+      case bke::AttrDomain::Face:
+        return dst_face_range;
+      case bke::AttrDomain::Corner:
+        return dst_loop_range;
+      default:
+        BLI_assert_unreachable();
+        return IndexRange();
+    }
+  };
+
+  if (all_dst_custom_normals) {
+    if (all_dst_custom_normals.span.type().is<short2>()) {
+      if (mesh_info.custom_normal.is_empty()) {
+        all_dst_custom_normals.span.typed<short2>().slice(dst_loop_range).fill(short2(0));
+      }
+      else {
+        all_dst_custom_normals.span.typed<short2>()
+            .slice(dst_loop_range)
+            .copy_from(mesh_info.custom_normal.typed<short2>());
+      }
+    }
+    else {
+      const IndexRange dst_range = domain_to_range(all_dst_custom_normals.domain);
+      copy_transformed_normals(mesh_info.custom_normal.typed<float3>(),
+                               task.transform,
+                               all_dst_custom_normals.span.typed<float3>().slice(dst_range));
+    }
+  }
+
+  copy_generic_attributes_to_result(mesh_info.attributes,
+                                    task.attribute_fallbacks,
+                                    ordered_attributes,
+                                    domain_to_range,
+                                    dst_attribute_writers);
+}
+
+static void copy_vertex_group_names(Mesh &dst_mesh,
+                                    const OrderedAttributes &ordered_attributes,
+                                    const Span<const Mesh *> src_meshes)
+{
+  Set<StringRef> existing_names;
+  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_mesh.vertex_group_names) {
+    existing_names.add(defgroup->name);
+  }
+  for (const Mesh *mesh : src_meshes) {
+    LISTBASE_FOREACH (const bDeformGroup *, src, &mesh->vertex_group_names) {
+      const StringRef src_name = src->name;
+      const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
+      if (attribute_index == -1) {
+        /* The attribute is not propagated to the result (possibly because the mesh isn't included
+         * in the realized output because of the #VariedDepthOptions input). */
+        continue;
+      }
+      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
+      if (kind.domain != bke::AttrDomain::Point || kind.data_type != CD_PROP_FLOAT) {
+        /* Prefer using the highest priority domain and type from all input meshes. */
+        continue;
+      }
+      if (existing_names.contains(src_name)) {
+        continue;
+      }
+      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+      src_name.copy_utf8_truncated(dst->name);
+      BLI_addtail(&dst_mesh.vertex_group_names, dst);
+    }
+  }
 }
 
 static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
@@ -1542,8 +1716,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     const RealizeMeshTask &task = tasks.first();
     Mesh *new_mesh = BKE_mesh_copy_for_eval(*task.mesh_info->mesh);
     if (!skip_transform(task.transform)) {
-      transform_positions(task.transform, new_mesh->vert_positions_for_write());
-      new_mesh->tag_positions_changed();
+      bke::mesh_transform(*new_mesh, task.transform, false);
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_mesh->attributes_for_write());
@@ -1571,9 +1744,12 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   const RealizeMeshTask &first_task = tasks.first();
   const Mesh &first_mesh = *first_task.mesh_info->mesh;
   BKE_mesh_copy_parameters_for_eval(dst_mesh, &first_mesh);
-  /* The above line also copies vertex group names. We don't want that here because the new
-   * attributes are added explicitly below. */
-  BLI_freelistN(&dst_mesh->vertex_group_names);
+
+  BLI_assert(BLI_listbase_count(&dst_mesh->vertex_group_names) ==
+             BLI_listbase_count(&first_mesh.vertex_group_names));
+  copy_vertex_group_names(
+      *dst_mesh, ordered_attributes, all_meshes_info.order.as_span().drop_front(1));
+  dst_mesh->vertex_group_active_index = first_mesh.vertex_group_active_index;
 
   /* Add materials. */
   for (const int i : IndexRange(ordered_materials.size())) {
@@ -1592,6 +1768,24 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   if (all_meshes_info.create_material_index_attribute) {
     material_indices = dst_attributes.lookup_or_add_for_write_only_span<int>(
         "material_index", bke::AttrDomain::Face);
+  }
+
+  GSpanAttributeWriter custom_normals;
+  switch (all_meshes_info.custom_normal_info.result_type) {
+    case MeshNormalInfo::Output::None: {
+      break;
+    }
+    case MeshNormalInfo::Output::CornerFan: {
+      custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
+          "custom_normal", bke::AttrDomain::Corner, CD_PROP_INT16_2D);
+      break;
+    }
+    case MeshNormalInfo::Output::Free: {
+      const bke::AttrDomain domain = *all_meshes_info.custom_normal_info.result_domain;
+      custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
+          "custom_normal", domain, CD_PROP_FLOAT3);
+      break;
+    }
   }
 
   /* Prepare generic output attributes. */
@@ -1633,7 +1827,8 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 dst_corner_verts,
                                 dst_corner_edges,
                                 vertex_ids.span,
-                                material_indices.span);
+                                material_indices.span,
+                                custom_normals);
     }
   });
 
@@ -1643,6 +1838,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
   vertex_ids.finish();
   material_indices.finish();
+  custom_normals.finish();
 
   if (all_meshes_info.no_loose_edges_hint) {
     dst_mesh->tag_loose_edges_none();
@@ -1667,12 +1863,10 @@ static OrderedAttributes gather_generic_curve_attributes_to_propagate(
     const VariedDepthOptions &varied_depth_option,
     bool &r_create_id)
 {
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::Curve, options, varied_depth_option);
   attributes_to_propagate.remove("position");
   attributes_to_propagate.remove("radius");
-  attributes_to_propagate.remove("nurbs_weight");
-  attributes_to_propagate.remove("resolution");
   attributes_to_propagate.remove("handle_right");
   attributes_to_propagate.remove("handle_left");
   attributes_to_propagate.remove("custom_normal");
@@ -1740,15 +1934,6 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
           attributes.lookup<float>("radius", bke::AttrDomain::Point).varray.get_internal_span();
       info.create_radius_attribute = true;
     }
-    if (attributes.contains("nurbs_weight")) {
-      curve_info.nurbs_weight = attributes.lookup<float>("nurbs_weight", bke::AttrDomain::Point)
-                                    .varray.get_internal_span();
-      info.create_nurbs_weight_attribute = true;
-    }
-    curve_info.resolution = curves.resolution();
-    if (attributes.contains("resolution")) {
-      info.create_resolution_attribute = true;
-    }
     if (attributes.contains("handle_right")) {
       curve_info.handle_left = attributes.lookup<float3>("handle_left", bke::AttrDomain::Point)
                                    .varray.get_internal_span();
@@ -1765,6 +1950,23 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
   return info;
 }
 
+static void initialize_curves_builtin_attribute_defaults(const AllCurvesInfo &all_curves_info,
+                                                         InstanceContext &attribute_fallbacks)
+{
+  if (all_curves_info.order.is_empty()) {
+    return;
+  }
+  const Curves *first = all_curves_info.order[0];
+  const bke::CurvesGeometry &first_curves = first->geometry.wrap();
+  for (const int attribute_i : attribute_fallbacks.curves.array.index_range()) {
+    const StringRef attribute_id = all_curves_info.attributes.ids[attribute_i];
+    if (first_curves.attributes().is_builtin(attribute_id)) {
+      attribute_fallbacks.curves.array[attribute_i] =
+          first_curves.attributes().get_builtin_default(attribute_id).get();
+    }
+  }
+}
+
 static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        const AllCurvesInfo &all_curves_info,
                                        const RealizeCurveTask &task,
@@ -1775,8 +1977,6 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
                                        MutableSpan<float3> all_handle_left,
                                        MutableSpan<float3> all_handle_right,
                                        MutableSpan<float> all_radii,
-                                       MutableSpan<float> all_nurbs_weights,
-                                       MutableSpan<int> all_resolutions,
                                        MutableSpan<float3> all_custom_normals)
 {
   const RealizeCurveInfo &curves_info = *task.curve_info;
@@ -1785,6 +1985,8 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
 
   const IndexRange dst_point_range{task.start_indices.point, curves.points_num()};
   const IndexRange dst_curve_range{task.start_indices.curve, curves.curves_num()};
+  const IndexRange dst_custom_knot_range{task.start_indices.custom_knot,
+                                         curves.nurbs_custom_knots_by_curve().total_size()};
 
   copy_transformed_positions(
       curves.positions(), task.transform, dst_curves.positions_for_write().slice(dst_point_range));
@@ -1807,24 +2009,13 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
     }
   }
 
-  auto copy_point_span_with_default =
-      [&](const Span<float> src, MutableSpan<float> all_dst, const float value) {
-        if (src.is_empty()) {
-          all_dst.slice(dst_point_range).fill(value);
-        }
-        else {
-          all_dst.slice(dst_point_range).copy_from(src);
-        }
-      };
   if (all_curves_info.create_radius_attribute) {
-    copy_point_span_with_default(curves_info.radius, all_radii, 1.0f);
-  }
-  if (all_curves_info.create_nurbs_weight_attribute) {
-    copy_point_span_with_default(curves_info.nurbs_weight, all_nurbs_weights, 1.0f);
-  }
-
-  if (all_curves_info.create_resolution_attribute) {
-    curves_info.resolution.materialize(all_resolutions.slice(dst_curve_range));
+    if (curves_info.radius.is_empty()) {
+      all_radii.slice(dst_point_range).fill(1.0f);
+    }
+    else {
+      all_radii.slice(dst_point_range).copy_from(curves_info.radius);
+    }
   }
 
   if (all_curves_info.create_custom_normal_attribute) {
@@ -1845,6 +2036,10 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       dst_offsets[i] = task.start_indices.point + src_offsets[i];
     }
   });
+
+  dst_curves.nurbs_custom_knots_for_write()
+      .slice(dst_custom_knot_range)
+      .copy_from(curves.nurbs_custom_knots());
 
   if (!all_dst_ids.is_empty()) {
     create_result_ids(
@@ -1896,10 +2091,15 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   const Curves &last_curves = *last_task.curve_info->curves;
   const int points_num = last_task.start_indices.point + last_curves.geometry.point_num;
   const int curves_num = last_task.start_indices.curve + last_curves.geometry.curve_num;
+  const int custom_knot_num = last_task.start_indices.custom_knot +
+                              last_curves.geometry.custom_knot_num;
 
   /* Allocate new curves data-block. */
   Curves *dst_curves_id = bke::curves_new_nomain(points_num, curves_num);
   bke::CurvesGeometry &dst_curves = dst_curves_id->geometry.wrap();
+  if (custom_knot_num) {
+    dst_curves.nurbs_custom_knots_resize(custom_knot_num);
+  }
   dst_curves.offsets_for_write().last() = points_num;
   r_realized_geometry.replace_curves(dst_curves_id);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
@@ -1941,16 +2141,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
                                                                      bke::AttrDomain::Point);
   }
-  SpanAttributeWriter<float> nurbs_weight;
-  if (all_curves_info.create_nurbs_weight_attribute) {
-    nurbs_weight = dst_attributes.lookup_or_add_for_write_only_span<float>("nurbs_weight",
-                                                                           bke::AttrDomain::Point);
-  }
-  SpanAttributeWriter<int> resolution;
-  if (all_curves_info.create_resolution_attribute) {
-    resolution = dst_attributes.lookup_or_add_for_write_only_span<int>("resolution",
-                                                                       bke::AttrDomain::Curve);
-  }
   SpanAttributeWriter<float3> custom_normal;
   if (all_curves_info.create_custom_normal_attribute) {
     custom_normal = dst_attributes.lookup_or_add_for_write_only_span<float3>(
@@ -1971,8 +2161,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                  handle_left.span,
                                  handle_right.span,
                                  radius.span,
-                                 nurbs_weight.span,
-                                 resolution.span,
                                  custom_normal.span);
     }
   });
@@ -1992,8 +2180,6 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   }
   point_ids.finish();
   radius.finish();
-  resolution.finish();
-  nurbs_weight.finish();
   handle_left.finish();
   handle_right.finish();
   custom_normal.finish();
@@ -2010,7 +2196,7 @@ static OrderedAttributes gather_generic_grease_pencil_attributes_to_propagate(
     const RealizeInstancesOptions &options,
     const VariedDepthOptions &varied_depth_options)
 {
-  Map<StringRef, AttributeKind> attributes_to_propagate = gather_attributes_to_propagate(
+  Map<StringRef, AttributeDomainAndType> attributes_to_propagate = gather_attributes_to_propagate(
       in_geometry_set, bke::GeometryComponent::Type::GreasePencil, options, varied_depth_options);
   OrderedAttributes ordered_attributes;
   for (auto &&item : attributes_to_propagate.items()) {
@@ -2163,6 +2349,8 @@ static void execute_realize_grease_pencil_tasks(
 
   /* Allocate new grease pencil. */
   GreasePencil *dst_grease_pencil = BKE_grease_pencil_new_nomain();
+  BKE_grease_pencil_copy_parameters(*tasks.first().grease_pencil_info->grease_pencil,
+                                    *dst_grease_pencil);
   r_realized_geometry.replace_grease_pencil(dst_grease_pencil);
 
   /* Allocate all layers. */
@@ -2170,8 +2358,9 @@ static void execute_realize_grease_pencil_tasks(
 
   /* Transfer material pointers. The material indices are updated for each task separately. */
   if (!all_grease_pencils_info.materials.is_empty()) {
+    MEM_SAFE_FREE(dst_grease_pencil->material_array);
     dst_grease_pencil->material_array_num = all_grease_pencils_info.materials.size();
-    dst_grease_pencil->material_array = MEM_cnew_array<Material *>(
+    dst_grease_pencil->material_array = MEM_calloc_arrayN<Material *>(
         dst_grease_pencil->material_array_num, __func__);
     uninitialized_copy_n(all_grease_pencils_info.materials.data(),
                          dst_grease_pencil->material_array_num,
@@ -2343,6 +2532,8 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   const float4x4 transform = float4x4::identity();
   InstanceContext attribute_fallbacks(gather_info);
 
+  initialize_curves_builtin_attribute_defaults(all_curves_info, attribute_fallbacks);
+
   gather_realize_tasks_recursive(
       gather_info, 0, VariedDepthOptions::MAX_DEPTH, geometry_set, transform, attribute_fallbacks);
 
@@ -2354,7 +2545,7 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
                           new_geometry_set);
 
   const int64_t total_points_num = get_final_points_num(gather_info.r_tasks);
-  /* This doesn't have to be exact at all, it's just a rough estimate ot make decisions about
+  /* This doesn't have to be exact at all, it's just a rough estimate to make decisions about
    * multi-threading (overhead). */
   const int64_t approximate_used_bytes_num = total_points_num * 32;
   threading::memory_bandwidth_bound_task(approximate_used_bytes_num, [&]() {

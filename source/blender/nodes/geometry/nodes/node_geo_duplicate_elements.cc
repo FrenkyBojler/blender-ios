@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_map.hh"
 #include "BLI_noise.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
@@ -21,6 +20,8 @@
 #include "node_geometry_util.hh"
 
 #include "NOD_rna_define.hh"
+
+#include "FN_multi_function_builder.hh"
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -46,14 +47,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDuplicateElements *data = MEM_cnew<NodeGeometryDuplicateElements>(__func__);
+  NodeGeometryDuplicateElements *data = MEM_callocN<NodeGeometryDuplicateElements>(__func__);
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct IndexAttributes {
@@ -731,7 +732,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
     const IndexAttributes &attribute_outputs,
     const AttributeFilter &attribute_filter)
 {
-  if (src_curves.points_num() == 0) {
+  if (src_curves.is_empty()) {
     return {};
   }
 
@@ -1115,16 +1116,16 @@ static void duplicate_instances(GeometrySet &geometry_set,
   std::unique_ptr<bke::Instances> dst_instances = std::make_unique<bke::Instances>();
 
   dst_instances->resize(duplicates.total_size());
-  for (const int i_selection : selection.index_range()) {
-    const IndexRange range = duplicates[i_selection];
+  selection.foreach_index([&](const int i_src, const int i_dst) {
+    const IndexRange range = duplicates[i_dst];
     if (range.is_empty()) {
-      continue;
+      return;
     }
-    const int old_handle = src_instances.reference_handles()[i_selection];
+    const int old_handle = src_instances.reference_handles()[i_src];
     const bke::InstanceReference reference = src_instances.references()[old_handle];
     const int new_handle = dst_instances->add_reference(reference);
     dst_instances->reference_handles_for_write().slice(range).fill(new_handle);
-  }
+  });
 
   bke::gather_attributes_to_groups(
       src_instances.attributes(),
@@ -1243,10 +1244,12 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_DUPLICATE_ELEMENTS, "Duplicate Elements", NODE_CLASS_GEOMETRY);
-
-  blender::bke::node_type_storage(&ntype,
+  geo_node_type_base(&ntype, "GeometryNodeDuplicateElements", GEO_NODE_DUPLICATE_ELEMENTS);
+  ntype.ui_name = "Duplicate Elements";
+  ntype.ui_description = "Generate an arbitrary number copies of each selected input element";
+  ntype.enum_name_legacy = "DUPLICATE_ELEMENTS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryDuplicateElements",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
@@ -1255,7 +1258,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

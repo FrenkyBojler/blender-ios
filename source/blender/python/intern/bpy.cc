@@ -36,6 +36,7 @@
 #include "bpy_app.hh"
 #include "bpy_cli_command.hh"
 #include "bpy_driver.hh"
+#include "bpy_geometry_set.hh"
 #include "bpy_library.hh"
 #include "bpy_operator.hh"
 #include "bpy_props.hh"
@@ -69,7 +70,7 @@ PyDoc_STRVAR(
     "   Return 2 paths to blender scripts directories.\n"
     "\n"
     "   :return: (system, user) strings will be empty when not found.\n"
-    "   :rtype: tuple of strings\n");
+    "   :rtype: tuple[str, str]\n");
 static PyObject *bpy_script_paths(PyObject * /*self*/)
 {
   PyObject *ret = PyTuple_New(2);
@@ -105,13 +106,13 @@ PyDoc_STRVAR(
     "   Returns a list of paths to external files referenced by the loaded .blend file.\n"
     "\n"
     "   :arg absolute: When true the paths returned are made absolute.\n"
-    "   :type absolute: boolean\n"
+    "   :type absolute: bool\n"
     "   :arg packed: When true skip file paths for packed data.\n"
-    "   :type packed: boolean\n"
+    "   :type packed: bool\n"
     "   :arg local: When true skip linked library paths.\n"
-    "   :type local: boolean\n"
+    "   :type local: bool\n"
     "   :return: path list.\n"
-    "   :rtype: list of strings\n");
+    "   :rtype: list[str]\n");
 static PyObject *bpy_blend_paths(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   eBPathForeachFlag flag = eBPathForeachFlag(0);
@@ -176,11 +177,11 @@ PyDoc_STRVAR(
     "   mirroring bone names.\n"
     "\n"
     "   :arg name: Bone name to flip.\n"
-    "   :type name: string\n"
+    "   :type name: str\n"
     "   :arg strip_digits: Whether to remove ``.###`` suffix.\n"
     "   :type strip_digits: bool\n"
     "   :return: The flipped name.\n"
-    "   :rtype: string\n");
+    "   :rtype: str\n");
 static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   const char *name_src = nullptr;
@@ -267,9 +268,9 @@ PyDoc_STRVAR(
     "   Return a system resource path.\n"
     "\n"
     "   :arg type: string in ['DATAFILES', 'SCRIPTS', 'EXTENSIONS', 'PYTHON'].\n"
-    "   :type type: string\n"
+    "   :type type: str\n"
     "   :arg path: Optional subdirectory.\n"
-    "   :type path: string or bytes\n");
+    "   :type path: str | bytes\n");
 static PyObject *bpy_system_resource(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   const PyC_StringEnumItems type_items[] = {
@@ -318,13 +319,13 @@ PyDoc_STRVAR(
     "   Return the base path for storing system files.\n"
     "\n"
     "   :arg type: string in ['USER', 'LOCAL', 'SYSTEM'].\n"
-    "   :type type: string\n"
+    "   :type type: str\n"
     "   :arg major: major version, defaults to current.\n"
     "   :type major: int\n"
     "   :arg minor: minor version, defaults to current.\n"
-    "   :type minor: string\n"
+    "   :type minor: str\n"
     "   :return: the resource path (not necessarily existing).\n"
-    "   :rtype: string\n");
+    "   :rtype: str\n");
 static PyObject *bpy_resource_path(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   const PyC_StringEnumItems type_items[] = {
@@ -371,7 +372,7 @@ PyDoc_STRVAR(
     "   :arg code: The code to test.\n"
     "   :type code: code\n"
     "   :arg namespace: The namespace of values which are allowed.\n"
-    "   :type namespace: dict\n"
+    "   :type namespace: dict[str, Any]\n"
     "   :arg verbose: Print the reason for considering insecure to the ``stderr``.\n"
     "   :type verbose: bool\n"
     "   :return: True when the script is considered trusted.\n"
@@ -415,9 +416,9 @@ PyDoc_STRVAR(
     "   Simple string escaping function used for animation paths.\n"
     "\n"
     "   :arg string: text\n"
-    "   :type string: string\n"
+    "   :type string: str\n"
     "   :return: The escaped string.\n"
-    "   :rtype: string\n");
+    "   :rtype: str\n");
 static PyObject *bpy_escape_identifier(PyObject * /*self*/, PyObject *value)
 {
   Py_ssize_t value_str_len;
@@ -452,12 +453,12 @@ PyDoc_STRVAR(
     ".. function:: unescape_identifier(string)\n"
     "\n"
     "   Simple string un-escape function used for animation paths.\n"
-    "   This performs the reverse of `escape_identifier`.\n"
+    "   This performs the reverse of :func:`escape_identifier`.\n"
     "\n"
     "   :arg string: text\n"
-    "   :type string: string\n"
+    "   :type string: str\n"
     "   :return: The un-escaped string.\n"
-    "   :rtype: string\n");
+    "   :rtype: str\n");
 static PyObject *bpy_unescape_identifier(PyObject * /*self*/, PyObject *value)
 {
   Py_ssize_t value_str_len;
@@ -505,7 +506,7 @@ PyDoc_STRVAR(
     ".. function:: context_members()\n"
     "\n"
     "   :return: A dict where the key is the context and the value is a tuple of it's members.\n"
-    "   :rtype: dict\n");
+    "   :rtype: dict[str, tuple[str]]\n");
 static PyObject *bpy_context_members(PyObject * /*self*/)
 {
 
@@ -552,9 +553,8 @@ PyDoc_STRVAR(
     bpy_rna_enum_items_static_doc,
     ".. function:: rna_enum_items_static()\n"
     "\n"
-    "   :return: A dict where the key the name of the enum, the value is a tuple of "
-    ":class:`bpy.types.EnumPropertyItem`.\n"
-    "   :rtype: dict of \n");
+    "   :return: A dict where the key the name of the enum, the value is a tuple of enum items.\n"
+    "   :rtype: dict[str, tuple[:class:`bpy.types.EnumPropertyItem`]]\n");
 static PyObject *bpy_rna_enum_items_static(PyObject * /*self*/)
 {
 #define DEF_ENUM(id) {STRINGIFY(id), id},
@@ -571,7 +571,7 @@ static PyObject *bpy_rna_enum_items_static(PyObject * /*self*/)
     const int items_count = RNA_enum_items_count(items);
     PyObject *value = PyTuple_New(items_count);
     for (int item_index = 0; item_index < items_count; item_index++) {
-      PointerRNA ptr = RNA_pointer_create(
+      PointerRNA ptr = RNA_pointer_create_discrete(
           nullptr, &RNA_EnumPropertyItem, (void *)&items[item_index]);
       PyTuple_SET_ITEM(value, item_index, pyrna_struct_CreatePyObject(&ptr));
     }
@@ -588,7 +588,7 @@ PyDoc_STRVAR(
     ".. function:: _ghost_backend()\n"
     "\n"
     "   :return: An identifier for the GHOST back-end.\n"
-    "   :rtype: string\n");
+    "   :rtype: str\n");
 static PyObject *bpy_ghost_backend(PyObject * /*self*/)
 {
   return PyUnicode_FromString(WM_ghost_backend());
@@ -607,13 +607,17 @@ PyDoc_STRVAR(
     ".. function:: _wm_capabilities()\n"
     "\n"
     "   :return: A dictionary of capabilities (string keys, boolean values).\n"
-    "   :rtype: dict\n");
+    "   :rtype: dict[str, bool]\n");
 static PyObject *bpy_wm_capabilities(PyObject *self)
 {
   PyObject *py_id_capabilities = PyUnicode_FromString("_wm_capabilities_");
   PyObject *result = nullptr;
   switch (PyObject_GetOptionalAttr(self, py_id_capabilities, &result)) {
     case 1: {
+      BLI_assert(result != nullptr);
+      break;
+    }
+    case 0: {
       result = PyDict_New();
 
       const eWM_CapabilitiesFlag flag = WM_capabilities_flag();
@@ -629,14 +633,12 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
       SetFlagItem(DESKTOP_SAMPLE);
       SetFlagItem(INPUT_IME);
       SetFlagItem(TRACKPAD_PHYSICAL_DIRECTION);
+      SetFlagItem(KEYBOARD_HYPER_KEY);
 
 #undef SetFlagItem
       PyObject_SetAttr(self, py_id_capabilities, result);
       break;
     }
-    case 0:
-      BLI_assert(result != nullptr);
-      break;
     default:
       /* Unlikely, but there may be an error, forward it. */
       BLI_assert(result == nullptr);
@@ -647,9 +649,14 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
   return result;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_methods[] = {
@@ -690,15 +697,17 @@ static PyMethodDef bpy_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyObject *bpy_import_test(const char *modname)
 {
   PyObject *mod = PyImport_ImportModuleLevel(modname, nullptr, nullptr, nullptr, 0);
-
-  GPU_bgl_end();
 
   if (mod) {
     Py_DECREF(mod);
@@ -743,6 +752,7 @@ void BPy_init_modules(bContext *C)
 
   /* needs to be first so bpy_types can run */
   PyObject *bpy_types = BPY_rna_types();
+  PyModule_AddObject(bpy_types, "GeometrySet", BPyInit_geometry_set_type());
   PyModule_AddObject(mod, "types", bpy_types);
 
   /* needs to be first so bpy_types can run */
@@ -758,14 +768,13 @@ void BPy_init_modules(bContext *C)
   BPY_rna_types_finalize_external_types(bpy_types);
 
   PyModule_AddObject(mod, "props", BPY_rna_props());
-  /* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
   PyModule_AddObject(mod, "ops", BPY_operator_module());
   PyModule_AddObject(mod, "app", BPY_app_struct());
   PyModule_AddObject(mod, "_utils_units", BPY_utils_units());
   PyModule_AddObject(mod, "_utils_previews", BPY_utils_previews_module());
   PyModule_AddObject(mod, "msgbus", BPY_msgbus_module());
 
-  PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
   bpy_context_module = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ctx_ptr);
   PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
 

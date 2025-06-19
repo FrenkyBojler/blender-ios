@@ -9,7 +9,7 @@ from bl_ui.properties_animviz import (
 import bpy
 from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
-from .space_properties import PropertiesAnimationMixin
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class ObjectButtonsPanel:
@@ -126,6 +126,12 @@ class OBJECT_PT_relations(ObjectButtonsPanel, Panel):
         parent = ob.parent
         if parent and ob.parent_type == 'BONE' and parent.type == 'ARMATURE':
             sub.prop_search(ob, "parent_bone", parent.data, "bones")
+        elif ob.parent_type == 'VERTEX':
+            col.prop(ob, "parent_vertices", text="Parent Vertex", index=0)
+            sub.prop(ob, "use_parent_final_indices")
+        elif ob.parent_type == 'VERTEX_3':
+            col.prop(ob, "parent_vertices", text="Parent Vertices")
+            sub.prop(ob, "use_parent_final_indices")
         sub.active = (parent is not None)
         sub.prop(ob, "use_camera_lock_parent")
 
@@ -200,7 +206,7 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         is_wire = (obj_type in {'CAMERA', 'EMPTY'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_display_type == 'IMAGE')
         is_dupli = (obj.instance_type != 'NONE')
-        is_gpencil = (obj_type == 'GPENCIL')
+        is_gpencil = (obj_type == 'GREASEPENCIL')
 
         col = layout.column(heading="Show")
         col.prop(obj, "show_name", text="Name")
@@ -371,7 +377,11 @@ class OBJECT_PT_motion_paths_display(MotionPathButtonsPanel_display, Panel):
 class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
     bl_label = "Visibility"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -390,7 +400,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
         col.prop(ob, "hide_viewport", text="Viewports", toggle=False, invert_checkbox=True)
         col.prop(ob, "hide_render", text="Renders", toggle=False, invert_checkbox=True)
 
-        if context.engine == 'BLENDER_EEVEE_NEXT':
+        if context.engine == 'BLENDER_EEVEE':
             if ob.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'CURVES', 'POINTCLOUD', 'VOLUME'}:
                 layout.separator()
                 col = layout.column(heading="Ray Visibility")
@@ -412,7 +422,7 @@ class OBJECT_PT_visibility(ObjectButtonsPanel, Panel):
                 col.prop(ob, "hide_probe_sphere", text="Sphere", toggle=False, invert_checkbox=True)
                 col.prop(ob, "hide_probe_plane", text="Plane", toggle=False, invert_checkbox=True)
 
-        if ob.type in {'GPENCIL', 'GREASEPENCIL'}:
+        if ob.type == 'GREASEPENCIL':
             col = layout.column(heading="Grease Pencil")
             col.prop(ob, "use_grease_pencil_lights", toggle=False)
 
@@ -433,7 +443,8 @@ def has_geometry_visibility(ob):
             'VOLUME',
             'POINTCLOUD',
             'CURVES',
-        }) or (ob.instance_type == 'COLLECTION' and ob.instance_collection))
+        }) or (ob.instance_type == 'COLLECTION' and ob.instance_collection)
+    )
 
 
 class OBJECT_PT_shading(ObjectButtonsPanel, Panel):
@@ -441,7 +452,10 @@ class OBJECT_PT_shading(ObjectButtonsPanel, Panel):
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
 
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+    }
 
     @classmethod
     def poll(cls, context):
@@ -480,7 +494,8 @@ class OBJECT_PT_light_linking(ObjectButtonsPanel, Panel):
         col.template_ID(
             light_linking,
             "receiver_collection",
-            new="object.light_linking_receiver_collection_new")
+            new="object.light_linking_receiver_collection_new",
+        )
 
         if not light_linking.receiver_collection:
             return
@@ -525,7 +540,8 @@ class OBJECT_PT_shadow_linking(ObjectButtonsPanel, Panel):
         col.template_ID(
             light_linking,
             "blocker_collection",
-            new="object.light_linking_blocker_collection_new")
+            new="object.light_linking_blocker_collection_new",
+        )
 
         if not light_linking.blocker_collection:
             return
@@ -543,12 +559,44 @@ class OBJECT_PT_shadow_linking(ObjectButtonsPanel, Panel):
         sub.menu("OBJECT_MT_shadow_linking_context_menu", icon='DOWNARROW_HLT', text="")
 
 
+class OBJECT_PT_shadow_terminator(ObjectButtonsPanel, Panel):
+    bl_label = "Shadow Terminator"
+    bl_parent_id = "OBJECT_PT_shading"
+    bl_context = "object"
+    COMPAT_ENGINES = {
+        'BLENDER_EEVEE',
+        'CYCLES',
+    }
+
+    @classmethod
+    def poll(cls, context):
+        return (context.object) and (context.engine in cls.COMPAT_ENGINES) and (context.object.type != 'LIGHT')
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=True)
+
+        ob = context.object
+        if context.engine == 'BLENDER_EEVEE':
+            flow.prop(ob, "shadow_terminator_normal_offset", text="Normal Offset")
+
+        flow.prop(ob, "shadow_terminator_geometry_offset", text="Geometry Offset")
+
+        if context.engine != 'BLENDER_EEVEE':
+            flow.prop(ob, "shadow_terminator_shading_offset", text="Shading Offset")
+
+
 class OBJECT_PT_animation(ObjectButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
     _animated_id_context_property = "object"
 
 
 class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_WORKBENCH',
+    }
     _context_path = "object"
     _property_type = bpy.types.Object
 
@@ -570,6 +618,7 @@ classes = (
     OBJECT_PT_light_linking,
     OBJECT_MT_shadow_linking_context_menu,
     OBJECT_PT_shadow_linking,
+    OBJECT_PT_shadow_terminator,
     OBJECT_PT_visibility,
     OBJECT_PT_lineart,
     OBJECT_PT_animation,

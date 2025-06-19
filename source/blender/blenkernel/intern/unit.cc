@@ -1734,15 +1734,15 @@ struct PreferredUnits {
   int temperature;
 };
 
-static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings *settings)
+static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings &settings)
 {
   PreferredUnits units = {0};
-  units.system = settings->system;
-  units.rotation = settings->system_rotation;
-  units.length = settings->length_unit;
-  units.mass = settings->mass_unit;
-  units.time = settings->time_unit;
-  units.temperature = settings->temperature_unit;
+  units.system = settings.system;
+  units.rotation = settings.system_rotation;
+  units.length = settings.length_unit;
+  units.mass = settings.mass_unit;
+  units.time = settings.time_unit;
+  units.temperature = settings.temperature_unit;
   return units;
 }
 
@@ -1851,7 +1851,7 @@ static size_t unit_as_string_main(char *str,
 
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(str, str_maxncpy, value, prec, usys, main_unit);
-    /* Failed when length is negative, fallback to no split. */
+    /* Failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }
@@ -1878,12 +1878,50 @@ size_t BKE_unit_value_as_string(char *str,
                                 double value,
                                 int prec,
                                 int type,
-                                const UnitSettings *settings,
+                                const UnitSettings &settings,
                                 bool pad)
 {
-  bool do_split = (settings->flag & USER_UNIT_OPT_SPLIT) != 0;
+  bool do_split = (settings.flag & USER_UNIT_OPT_SPLIT) != 0;
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   return unit_as_string_main(str, str_maxncpy, value, prec, type, do_split, pad, units);
+}
+
+size_t BKE_unit_value_as_string_scaled(char *str,
+                                       int str_maxncpy,
+                                       double value,
+                                       int prec,
+                                       int type,
+                                       const UnitSettings &settings,
+                                       bool pad)
+{
+  return BKE_unit_value_as_string(
+      str, str_maxncpy, BKE_unit_value_scale(settings, type, value), prec, type, settings, pad);
+}
+
+double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, double value)
+{
+  if (settings.system == USER_UNIT_NONE) {
+    /* Never apply scale_length when not using a unit setting! */
+    return value;
+  }
+
+  switch (unit_type) {
+    case B_UNIT_LENGTH:
+    case B_UNIT_VELOCITY:
+    case B_UNIT_ACCELERATION:
+      return value * double(settings.scale_length);
+    case B_UNIT_AREA:
+    case B_UNIT_POWER:
+      return value * pow(settings.scale_length, 2);
+    case B_UNIT_VOLUME:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_MASS:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
+    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
+    default:
+      return value;
+  }
 }
 
 BLI_INLINE bool isalpha_or_utf8(const int ch)
@@ -1911,7 +1949,7 @@ static const char *unit_find_str(const char *str, const char *substr, bool case_
       /* Previous char cannot be a letter. */
       if (str_found == str ||
           /* Weak unicode support!, so "µm" won't match up be replaced by "m"
-           * since non ascii utf8 values will NEVER return true */
+           * since non ASCII UTF8 values will NEVER return true. */
           isalpha_or_utf8(*BLI_str_find_prev_char_utf8(str_found, str)) == 0)
       {
         /* Next char cannot be alpha-numeric. */
@@ -2042,7 +2080,7 @@ static char *find_next_op(const char *str, char *remaining_str, int remaining_st
       return remaining_str + i;
     }
   }
-  BLI_assert_msg(0, "String should be nullptr terminated");
+  BLI_assert_msg(0, "String should be null terminated");
   return remaining_str + i;
 }
 
@@ -2185,9 +2223,7 @@ static int unit_scale_str(char *str,
   int len_num = BLI_snprintf_rlen(
       str_tmp, TEMP_STR_SIZE, "*%.9g" SEP_STR, unit->scalar / scale_pref);
 
-  if (len_num > str_maxncpy) {
-    len_num = str_maxncpy;
-  }
+  len_num = std::min(len_num, str_maxncpy);
 
   if (found_ofs + len_num + len_move > str_maxncpy) {
     /* Can't move the whole string, move just as much as will fit. */
@@ -2300,7 +2336,7 @@ bool BKE_unit_string_contains_unit(const char *str, int type)
   return false;
 }
 
-double BKE_unit_apply_preferred_unit(const UnitSettings *settings, int type, double value)
+double BKE_unit_apply_preferred_unit(const UnitSettings &settings, int type, double value)
 {
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   const bUnitDef *unit = get_preferred_display_unit_if_used(type, units);

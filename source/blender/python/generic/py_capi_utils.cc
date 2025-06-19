@@ -7,10 +7,6 @@
  *
  * Extend upon CPython's API, filling in some gaps, these functions use PyC_
  * prefix to distinguish them apart from CPython.
- *
- * \note
- * This module should only depend on CPython, however it currently uses
- * BLI_string_utf8() for unicode conversion.
  */
 
 /* Future-proof, See https://docs.python.org/3/c-api/arg.html#strings-and-buffers */
@@ -29,17 +25,13 @@
 #  include "MEM_guardedalloc.h"
 
 #  include "BLI_string.h"
-
-/* Only for #BLI_strncpy_wchar_from_utf8,
- * should replace with Python functions but too late in release now. */
-#  include "BLI_string_utf8.h"
 #endif
 
 #ifdef _WIN32
 #  include "BLI_math_base.h" /* isfinite() */
 #endif
 
-#if PY_VERSION_HEX <= 0x030c0000 /* <=3.12 */
+#if PY_VERSION_HEX < 0x030d0000 /* <3.13 */
 #  define PyLong_AsInt _PyLong_AsInt
 #  define PyUnicode_CompareWithASCIIString _PyUnicode_EqualToASCIIString
 #endif
@@ -1622,8 +1614,8 @@ bool PyC_RunString_AsStringAndSize(const char *imports[],
       ok = false;
     }
     else {
-      char *val_alloc = static_cast<char *>(MEM_mallocN(val_len + 1, __func__));
-      memcpy(val_alloc, val, val_len + 1);
+      char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+      memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(*val_alloc));
       *r_value = val_alloc;
       *r_value_size = val_len;
       ok = true;
@@ -1666,8 +1658,8 @@ bool PyC_RunString_AsStringAndSizeOrNone(const char *imports[],
         ok = false;
       }
       else {
-        char *val_alloc = static_cast<char *>(MEM_mallocN(val_len + 1, __func__));
-        memcpy(val_alloc, val, val_len + 1);
+        char *val_alloc = MEM_malloc_arrayN<char>(size_t(val_len) + 1, __func__);
+        memcpy(val_alloc, val, (size_t(val_len) + 1) * sizeof(val_alloc));
         *r_value = val_alloc;
         *r_value_size = val_len;
         ok = true;
@@ -1696,6 +1688,46 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
 #endif /* #ifndef MATH_STANDALONE */
 
 /* -------------------------------------------------------------------- */
+/** \name Std Files Flush
+ *
+ * \{ */
+
+void PyC_StdFilesFlush()
+{
+  /* This is ported from CPython's internal #flush_std_files (2025-03-31). The code is a bit
+   * different because the original code uses some internal APIs.
+   *
+   * This is approximately equivalent to:
+   * \code{.py}
+   * try:
+   *     sys.stdout.flush()
+   *     sys.stderr.flush()
+   * except Exception:
+   *     pass
+   * \endcode
+   */
+  PyObject *py_flush = PyUnicode_FromString("flush");
+  BLI_assert(py_flush);
+  for (const char *name : {"stdout", "stderr"}) {
+    PyObject *py_file = PySys_GetObject(name);
+    if (!py_file) {
+      PyErr_Clear();
+      continue;
+    }
+    PyObject *py_flush_retval = PyObject_CallMethodNoArgs(py_file, py_flush);
+    if (py_flush_retval) {
+      Py_DECREF(py_flush_retval);
+    }
+    else {
+      PyErr_Clear();
+    }
+  }
+  Py_DECREF(py_flush);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Int Conversion
  *
  * \note Python doesn't provide overflow checks for specific bit-widths.
@@ -1703,9 +1735,10 @@ bool PyC_RunString_AsStringOrNone(const char *imports[],
  * \{ */
 
 /* Compiler optimizes out redundant checks. */
-#ifdef __GNUC__
-#  pragma warning(push)
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wtype-limits"
+
 #endif
 
 /* #PyLong_AsUnsignedLong, unlike #PyLong_AsLong, does not fall back to calling #PyNumber_Index
@@ -1840,8 +1873,8 @@ uint64_t PyC_Long_AsU64(PyObject *value)
   return to_return;
 }
 
-#ifdef __GNUC__
-#  pragma warning(pop)
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
 #endif
 
 /** \} */

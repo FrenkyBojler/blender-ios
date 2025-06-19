@@ -269,7 +269,7 @@ def enum_openimagedenoise_denoiser(self, context):
 
 
 def enum_optix_denoiser(self, context):
-    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_device_list('OPTIX')):
         return [('OPTIX', "OptiX", n_(
             "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
@@ -361,6 +361,12 @@ def update_render_passes(self, context):
 def update_render_engine(self, context):
     scene = context.scene
     scene.update_render_engine()
+
+
+def update_world(self, context):
+    # Force a depsgraph update, because add-on properties don't.
+    # (at least not from the UI, see #138071)
+    context.scene.world.update_tag()
 
 
 def update_pause(self, context):
@@ -488,11 +494,24 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default=1024,
     )
 
+    use_sample_subset: BoolProperty(
+        name="Use Sample Subset",
+        description="Render a subset of the specified max samples. Typically used for distributed rendering across multiple devices",
+        default=False,
+    )
+
     sample_offset: IntProperty(
-        name="Sample Offset",
-        description="Number of samples to skip when starting render",
+        name="Sample Subset Offset",
+        description="0-based index of sample to start rendering from",
         min=0, max=(1 << 24),
         default=0,
+    )
+
+    sample_subset_length: IntProperty(
+        name="Sample Subset Length",
+        description="The number of samples to render in this subset",
+        min=1, max=(1 << 24),
+        default=2048,
     )
 
     time_limit: FloatProperty(
@@ -831,7 +850,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     film_exposure: FloatProperty(
         name="Exposure",
         description="Image brightness scale",
-        min=0.0, max=10.0,
+        min=0.0, soft_max=2**10, max=2**32,
         default=1.0,
     )
     film_transparent_glass: BoolProperty(
@@ -1056,11 +1075,26 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default='EMBREE',
     )
 
-    debug_use_cuda_adaptive_compile: BoolProperty(name="Adaptive Compile", default=False)
+    adaptive_compile_description = "Compile the Cycles GPU kernel with only the feature set required for the current scene"
+
+    debug_use_cuda_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
 
     debug_use_optix_debug: BoolProperty(
         name="OptiX Module Debug",
         description="Load OptiX module in debug mode: lower logging verbosity level, enable validations, and lower optimization level",
+        default=False)
+
+    debug_use_hip_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
+        default=False)
+
+    debug_use_metal_adaptive_compile: BoolProperty(
+        name="Adaptive Compile",
+        description=adaptive_compile_description,
         default=False)
 
     @classmethod
@@ -1074,6 +1108,21 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
     @classmethod
     def unregister(cls):
         del bpy.types.Scene.cycles
+
+
+class CyclesCustomCameraSettings(bpy.types.PropertyGroup):
+
+    @classmethod
+    def register(cls):
+        bpy.types.Camera.cycles_custom = PointerProperty(
+            name="Cycles Custom Camera Settings",
+            description="Parameters for custom (OSL-based) cameras",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Camera.cycles_custom
 
 
 class CyclesMaterialSettings(bpy.types.PropertyGroup):
@@ -1242,33 +1291,39 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
 
     camera: BoolProperty(
         name="Camera",
-        description="Object visibility for camera rays",
+        description="World visibility for camera rays",
         default=True,
+        update=update_world,
     )
     diffuse: BoolProperty(
         name="Diffuse",
-        description="Object visibility for diffuse reflection rays",
+        description="World visibility for diffuse reflection rays",
         default=True,
+        update=update_world,
     )
     glossy: BoolProperty(
         name="Glossy",
-        description="Object visibility for glossy reflection rays",
+        description="World visibility for glossy reflection rays",
         default=True,
+        update=update_world,
     )
     transmission: BoolProperty(
         name="Transmission",
-        description="Object visibility for transmission rays",
+        description="World visibility for transmission rays",
         default=True,
+        update=update_world,
     )
     shadow: BoolProperty(
         name="Shadow",
-        description="Object visibility for shadow rays",
+        description="World visibility for shadow rays",
         default=True,
+        update=update_world,
     )
     scatter: BoolProperty(
         name="Volume Scatter",
-        description="Object visibility for volume scatter rays",
+        description="World visibility for volume scatter rays",
         default=True,
+        update=update_world,
     )
 
     @classmethod
@@ -1555,9 +1610,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     )
 
     use_hiprt: BoolProperty(
-        name="HIP RT (Experimental)",
-        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above, with shader fallback on older cards. "
-                    "This feature is experimental and some scenes may render incorrectly",
+        name="HIP RT",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
         default=False,
     )
 
@@ -1614,16 +1668,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 # Update name in case it changed
                 entry.name = device[0]
 
-    # Gets all devices types for a compute device type.
-    def get_devices_for_type(self, compute_device_type):
+    # Gets all devices types to display in the preferences for a compute device type.
+    # This includes the CPU device.
+    def get_devices_for_type(self, compute_device_type, device_list=None):
         # Layout of the device tuples: (Name, Type, Persistent ID)
-        device_list = self.get_device_list(compute_device_type)
+        if device_list is None:
+            device_list = self.get_device_list(compute_device_type)
 
         # Sort entries into lists
         devices = []
         cpu_devices = []
         for device in device_list:
             entry = self.find_existing_device_entry(device)
+            entry.optimized = device[7]
             if entry.type == compute_device_type:
                 devices.append(entry)
             elif entry.type == 'CPU':
@@ -1714,8 +1771,19 @@ class CyclesPreferences(bpy.types.AddonPreferences):
 
         return False
 
-    def _draw_devices(self, layout, device_type, devices):
+    @staticmethod
+    def _format_device_name(name):
+        import unicodedata
+        return name.replace('(TM)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN')) \
+                   .replace('(R)', unicodedata.lookup('REGISTERED SIGN')) \
+                   .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN'))
+
+    def _draw_devices(self, layout, device_type, device_list):
         box = layout.box()
+
+        # Get preference devices, including CPU.
+        devices = self.get_devices_for_type(device_type, device_list)
 
         found_device = False
         for device in devices:
@@ -1741,17 +1809,20 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    driver_version = "21.Q4"
+                    adrenalin_driver_version = "24.6.1"
+                    pro_driver_version = "24.Q2"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD Radeon Pro %s driver or newer") % driver_version,
-                              icon='BLANK1', translate=False)
+                    col.label(text=rpt_("and AMD Adrenalin driver %s or newer") %
+                              adrenalin_driver_version, icon='BLANK1', translate=False)
+                    col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
+                              pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "22.10"
+                    driver_version = "23.40"
                     col.label(
-                        text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
+                        text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
                     col.label(text=rpt_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
@@ -1759,12 +1830,12 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.5730"
+                    driver_version = "XX.X.101.6557"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
-                    driver_version = "XX.XX.29735.20"
+                    driver_version = "XX.XX.31740.15"
                     col.label(
                         text=rpt_("Requires Intel GPU with Xe-HPG architecture and"),
                         icon='BLANK1',
@@ -1782,15 +1853,10 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             return
 
         for device in devices:
-            import unicodedata
-            box.prop(
-                device, "use", text=device.name
-                .replace('(TM)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(tm)', unicodedata.lookup('TRADE MARK SIGN'))
-                .replace('(R)', unicodedata.lookup('REGISTERED SIGN'))
-                .replace('(C)', unicodedata.lookup('COPYRIGHT SIGN')),
-                translate=False
-            )
+            name = self._format_device_name(device.name)
+            if not device.optimized:
+                name += rpt_(" (Unoptimized Performance)")
+            box.prop(device, "use", text=name, translate=False)
 
     def draw_impl(self, layout, context):
         row = layout.row()
@@ -1800,20 +1866,30 @@ class CyclesPreferences(bpy.types.AddonPreferences):
         if compute_device_type == 'NONE':
             return
         row = layout.row()
-        devices = self.get_devices_for_type(compute_device_type)
+        devices = self.get_device_list(compute_device_type)
         self._draw_devices(row, compute_device_type, devices)
 
         import _cycles
-        has_peer_memory = 0
-        has_rt_api_support = {'METAL': False, 'HIP': False, 'ONEAPI': False}
-        for device in self.get_device_list(compute_device_type):
-            if device[3] and self.find_existing_device_entry(device).use:
-                has_peer_memory += 1
-            if device[4] and self.find_existing_device_entry(device).use:
-                device_type = device[1]
-                has_rt_api_support[device_type] = True
+        has_peer_memory = False
+        has_enabled_hardware_rt = False
+        has_disabled_hardware_rt = False
+        for device in devices:
+            if not self.find_existing_device_entry(device).use:
+                continue
+            if device[1] != compute_device_type:
+                continue
 
-        if has_peer_memory > 1:
+            if device[3]:
+                has_peer_memory = True
+            if device[4]:
+                has_enabled_hardware_rt = True
+            else:
+                has_disabled_hardware_rt = True
+
+        # Any device without RT support will disable it for all.
+        has_hardware_rt = has_enabled_hardware_rt and not has_disabled_hardware_rt
+
+        if has_peer_memory:
             row = layout.row()
             row.use_property_split = True
             row.prop(self, "peer_memory")
@@ -1826,18 +1902,26 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                 col = layout.column()
                 col.use_property_split = True
                 col.prop(self, "kernel_optimization_level")
-                if has_rt_api_support['METAL']:
-                    col.prop(self, "metalrt")
+                row = col.row()
+                row.active = has_hardware_rt
+                row.prop(self, "metalrt")
 
         if compute_device_type == 'HIP':
-            import platform
-            row = layout.row()
-            row.active = has_rt_api_support['HIP']
+            col = layout.column()
+            row = col.row()
+            row.active = has_hardware_rt
             row.prop(self, "use_hiprt")
+
+            row_status = col.split(factor=0.7)
+            row_status.label(text="HIP has known stability issues", icon='ERROR')
+            row_status.operator(
+                "wm.url_open",
+                text='#140278',
+                icon='URL').url = "https://projects.blender.org/blender/blender/issues/140278"
 
         elif compute_device_type == 'ONEAPI' and _cycles.with_embree_gpu:
             row = layout.row()
-            row.active = has_rt_api_support['ONEAPI']
+            row.active = has_hardware_rt
             row.prop(self, "use_oneapirt")
 
     def draw(self, context):
@@ -1859,6 +1943,7 @@ class CyclesView3DShadingSettings(bpy.types.PropertyGroup):
 
 def register():
     bpy.utils.register_class(CyclesRenderSettings)
+    bpy.utils.register_class(CyclesCustomCameraSettings)
     bpy.utils.register_class(CyclesMaterialSettings)
     bpy.utils.register_class(CyclesLightSettings)
     bpy.utils.register_class(CyclesWorldSettings)
@@ -1879,6 +1964,7 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(CyclesRenderSettings)
+    bpy.utils.unregister_class(CyclesCustomCameraSettings)
     bpy.utils.unregister_class(CyclesMaterialSettings)
     bpy.utils.unregister_class(CyclesLightSettings)
     bpy.utils.unregister_class(CyclesWorldSettings)

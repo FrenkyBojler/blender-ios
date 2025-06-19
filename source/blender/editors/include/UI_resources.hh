@@ -8,8 +8,7 @@
 
 #pragma once
 
-#include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
+#include "BLI_assert.h"
 
 struct bTheme;
 
@@ -40,7 +39,14 @@ BLI_STATIC_ASSERT(sizeof(BIFIconID_Static) <= sizeof(BIFIconID),
 #define TH_UNDEFINED -1
 
 enum ThemeColorID {
+  TH_NONE,
+  TH_BLACK,
+  TH_WHITE,
   TH_REDALERT,
+  TH_ERROR,
+  TH_WARNING,
+  TH_INFO,
+  TH_SUCCESS,
 
   TH_THEMEUI,
   /* Common colors among spaces. */
@@ -51,10 +57,15 @@ enum ThemeColorID {
   TH_TEXT,
   TH_TEXT_HI,
   TH_TITLE,
+
+  /* Tabs. */
+  TH_TAB_TEXT,
+  TH_TAB_TEXT_HI,
   TH_TAB_ACTIVE,
   TH_TAB_INACTIVE,
   TH_TAB_BACK,
   TH_TAB_OUTLINE,
+  TH_TAB_OUTLINE_ACTIVE,
 
   TH_HEADER,
   TH_HEADER_TEXT,
@@ -64,6 +75,7 @@ enum ThemeColorID {
   TH_PANEL_HEADER,
   TH_PANEL_BACK,
   TH_PANEL_SUB_BACK,
+  TH_PANEL_OUTLINE,
 
   TH_BUTBACK,
   TH_BUTBACK_TEXT,
@@ -196,6 +208,7 @@ enum ThemeColorID {
   TH_NODE_ZONE_SIMULATION,
   TH_NODE_ZONE_REPEAT,
   TH_NODE_ZONE_FOREACH_GEOMETRY_ELEMENT,
+  TH_NODE_ZONE_CLOSURE,
   TH_SIMULATED_FRAMES,
 
   TH_CONSOLE_OUTPUT,
@@ -219,6 +232,8 @@ enum ThemeColorID {
   TH_SEQ_COLOR,
   TH_SEQ_ACTIVE,
   TH_SEQ_SELECTED,
+  TH_SEQ_TEXT_CURSOR,
+  TH_SEQ_SELECTED_TEXT,
 
   TH_EDGE_SHARP,
   TH_EDITMESH_ACTIVE,
@@ -340,11 +355,8 @@ enum ThemeColorID {
 
   TH_INFO_SELECTED,
   TH_INFO_SELECTED_TEXT,
-  TH_INFO_ERROR,
   TH_INFO_ERROR_TEXT,
-  TH_INFO_WARNING,
   TH_INFO_WARNING_TEXT,
-  TH_INFO_INFO,
   TH_INFO_INFO_TEXT,
   TH_INFO_DEBUG,
   TH_INFO_DEBUG_TEXT,

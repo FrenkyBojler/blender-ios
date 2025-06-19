@@ -24,6 +24,7 @@ set(LIB
 # See: `make icons_geom` and the script `./release/datafiles/blender_icons_geom_update.py`.
 set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   # BEGIN ICON_GEOM_NAMES
+  brush.generic
   brush.gpencil_draw.erase
   brush.gpencil_draw.fill
   brush.paint_texture.clone
@@ -233,6 +234,8 @@ if(WITH_BLENDER)
       cancel
       cancel_large
       center_only
+      char_notdef
+      char_replacement
       checkbox_dehlt
       checkbox_hlt
       checkmark
@@ -385,6 +388,9 @@ if(WITH_BLENDER)
       fund
       geometry_nodes
       geometry_set
+      gesture_pan
+      gesture_rotate
+      gesture_zoom
       ghost_disabled
       ghost_enabled
       gizmo
@@ -400,6 +406,7 @@ if(WITH_BLENDER)
       greasepencil_layer_group
       grid
       grip
+      grip_v
       group
       group_bone
       group_uvs
@@ -457,7 +464,7 @@ if(WITH_BLENDER)
       keyframe
       keyframe_hlt
       keyingset
-	    key_backspace
+      key_backspace
       key_backspace_filled
       key_command
       key_command_filled
@@ -638,6 +645,7 @@ if(WITH_BLENDER)
       normals_face
       normals_vertex
       normals_vertex_face
+      not_found
       object_data
       object_datamode
       object_hidden
@@ -726,6 +734,7 @@ if(WITH_BLENDER)
       preferences
       preset
       preset_new
+      preview_loading
       preview_range
       prev_keyframe
       properties
@@ -957,7 +966,6 @@ if(WITH_BLENDER)
     # Blend files.
     data_to_c_simple(../../../../release/datafiles/preview.blend SRC)
     data_to_c_simple(../../../../release/datafiles/preview_grease_pencil.blend SRC)
-    data_to_c_simple(../../../../release/datafiles/preview_grease_pencil_legacy.blend SRC)
 
     # Images.
     data_to_c_simple(../../../../release/datafiles/splash.png SRC)

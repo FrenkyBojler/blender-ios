@@ -28,25 +28,6 @@ endif()
 # USD headers use deprecated TBB headers, silence warning.
 add_definitions(-DTBB_SUPPRESS_DEPRECATED_MESSAGES=1)
 
-# Check if USD has the imaging headers available, if they are
-# add a USD_HAS_IMAGING define so code can dynamically detect this.
-# Cleanup of this variable is done at the end of the file since
-# test code further down uses it to add imaging tests.
-find_file(
-  USD_IMAGING_HEADERS
-  NAMES
-    capsuleAdapter.h
-  PATHS
-    ${USD_INCLUDE_DIRS}
-  PATH_SUFFIXES
-    pxr/usdImaging/usdImaging/
-  NO_DEFAULT_PATH
-)
-
-if(USD_IMAGING_HEADERS)
-  add_definitions(-DUSD_HAS_IMAGING)
-endif()
-
 if(WIN32)
   # Some USD library headers trigger the "unreferenced formal parameter"
   # warning alert.
@@ -63,16 +44,9 @@ endif()
 set(INC
   .
   ../common
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
-  ../../bmesh
   ../../editors/include
-  ../../imbuf
   ../../makesrna
-  ../../nodes
   ../../python/intern
-  ../../windowmanager
   ../../../../intern/utfconv
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -95,6 +69,7 @@ set(SRC
   intern/usd_capi_import.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_hook.cc
+  intern/usd_instancing_utils.cc
   intern/usd_light_convert.cc
   intern/usd_mesh_utils.cc
   intern/usd_utils.cc
@@ -108,12 +83,15 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_pointinstancer.cc
   intern/usd_writer_points.cc
+  intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
   intern/usd_reader_curve.cc
+  intern/usd_reader_domelight.cc
   intern/usd_reader_geom.cc
   intern/usd_reader_instance.cc
   intern/usd_reader_light.cc
@@ -143,6 +121,7 @@ set(SRC
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh
   intern/usd_hook.hh
+  intern/usd_instancing_utils.hh
   intern/usd_light_convert.hh
   intern/usd_mesh_utils.hh
   intern/usd_utils.hh
@@ -156,12 +135,15 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_pointinstancer.hh
   intern/usd_writer_points.hh
+  intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
   intern/usd_writer_volume.hh
 
   intern/usd_reader_camera.hh
   intern/usd_reader_curve.hh
+  intern/usd_reader_domelight.hh
   intern/usd_reader_geom.hh
   intern/usd_reader_instance.hh
   intern/usd_reader_light.hh
@@ -214,20 +196,24 @@ if(WITH_HYDRA)
 endif()
 
 set(LIB
-  bf_blenkernel
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
+  PRIVATE bf::bmesh
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   PRIVATE bf::animrig
-  bf_imbuf
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_io_common
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::nodes
+  PRIVATE bf::windowmanager
 )
 
 list(APPEND LIB
-  ${BOOST_LIBRARIES}
   ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
   ${USD_LIBRARIES}
@@ -263,15 +249,11 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    tests/usd_curves_test.cc
     tests/usd_export_test.cc
     tests/usd_stage_creation_test.cc
     tests/usd_usdz_export_test.cc
     intern/usd_writer_material.hh
   )
-  if(USD_IMAGING_HEADERS)
-    list(APPEND TEST_SRC tests/usd_imaging_test.cc)
-  endif()
 
   include_directories(intern)
 
@@ -282,7 +264,3 @@ if(WITH_GTESTS)
   )
   blender_add_test_suite_lib(io_usd "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
 endif()
-
-# In CMAKE version 3.21 and up, we can instead use the `NO_CACHE` option for
-# `find_file` so we don't need to clear it from the cache here.
-unset(USD_IMAGING_HEADERS CACHE)

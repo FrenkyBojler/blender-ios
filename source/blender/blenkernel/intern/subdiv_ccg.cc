@@ -25,7 +25,7 @@
 #include "BKE_subdiv_eval.hh"
 
 #ifdef WITH_OPENSUBDIV
-#  include "opensubdiv_topology_refiner_capi.hh"
+#  include "opensubdiv_topology_refiner.hh"
 #endif
 
 using blender::Array;
@@ -261,8 +261,8 @@ static SubdivCCGCoord *subdiv_ccg_adjacent_edge_add_face(SubdivCCG &subdiv_ccg,
   adjacent_edge.boundary_coords = static_cast<SubdivCCGCoord **>(
       MEM_reallocN(adjacent_edge.boundary_coords,
                    adjacent_edge.num_adjacent_faces * sizeof(*adjacent_edge.boundary_coords)));
-  adjacent_edge.boundary_coords[adjacent_face_index] = static_cast<SubdivCCGCoord *>(
-      MEM_malloc_arrayN(grid_size * 2, sizeof(SubdivCCGCoord), "ccg adjacent boundary"));
+  adjacent_edge.boundary_coords[adjacent_face_index] = MEM_malloc_arrayN<SubdivCCGCoord>(
+      grid_size * 2, "ccg adjacent boundary");
   return adjacent_edge.boundary_coords[adjacent_face_index];
 }
 
@@ -443,7 +443,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   if (!subdiv_ccg) {
     return nullptr;
   }
-  Mesh *result = BKE_mesh_new_nomain_from_template(&coarse_mesh, 0, 0, 0, 0);
+  Mesh *result = BKE_mesh_copy_for_eval(coarse_mesh);
   result->runtime->subdiv_ccg = std::move(subdiv_ccg);
   return result;
 }
@@ -1542,16 +1542,16 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
   if (is_corner_grid_coord(subdiv_ccg, coord)) {
     if (coord.x == 0 && coord.y == 0) {
       /* Grid corner in the center of a face. */
-      return SUBDIV_CCG_ADJACENT_NONE;
+      return SubdivCCGAdjacencyType::None;
     }
     if (coord.x == grid_size_1 && coord.y == grid_size_1) {
       /* Grid corner adjacent to a coarse mesh vertex. */
       r_v1 = r_v2 = corner_verts[coord.grid_index];
-      return SUBDIV_CCG_ADJACENT_VERTEX;
+      return SubdivCCGAdjacencyType::Vertex;
     }
     /* Grid corner adjacent to the middle of a coarse mesh edge. */
     adjacent_vertices_index_from_adjacent_edge(subdiv_ccg, coord, corner_verts, faces, r_v1, r_v2);
-    return SUBDIV_CCG_ADJACENT_EDGE;
+    return SubdivCCGAdjacencyType::Edge;
   }
 
   if (is_boundary_grid_coord(subdiv_ccg, coord)) {
@@ -1559,10 +1559,10 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
       /* Grid boundary adjacent to a coarse mesh edge. */
       adjacent_vertices_index_from_adjacent_edge(
           subdiv_ccg, coord, corner_verts, faces, r_v1, r_v2);
-      return SUBDIV_CCG_ADJACENT_EDGE;
+      return SubdivCCGAdjacencyType::Edge;
     }
   }
-  return SUBDIV_CCG_ADJACENT_NONE;
+  return SubdivCCGAdjacencyType::None;
 }
 
 bool BKE_subdiv_ccg_coord_is_mesh_boundary(const OffsetIndices<int> faces,
@@ -1575,11 +1575,11 @@ bool BKE_subdiv_ccg_coord_is_mesh_boundary(const OffsetIndices<int> faces,
   const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
       subdiv_ccg, coord, corner_verts, faces, v1, v2);
   switch (adjacency) {
-    case SUBDIV_CCG_ADJACENT_VERTEX:
+    case SubdivCCGAdjacencyType::Vertex:
       return boundary_verts[v1];
-    case SUBDIV_CCG_ADJACENT_EDGE:
+    case SubdivCCGAdjacencyType::Edge:
       return boundary_verts[v1] && boundary_verts[v2];
-    case SUBDIV_CCG_ADJACENT_NONE:
+    case SubdivCCGAdjacencyType::None:
       return false;
   }
   BLI_assert_unreachable();
@@ -1634,7 +1634,7 @@ static void subdiv_ccg_coord_to_ptex_coord(const SubdivCCG &subdiv_ccg,
 
 void BKE_subdiv_ccg_eval_limit_point(const SubdivCCG &subdiv_ccg,
                                      const SubdivCCGCoord &coord,
-                                     float r_point[3])
+                                     float3 &r_point)
 {
   Subdiv *subdiv = subdiv_ccg.subdiv;
   int ptex_face_index;

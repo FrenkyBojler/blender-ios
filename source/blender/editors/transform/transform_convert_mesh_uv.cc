@@ -12,6 +12,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -27,7 +28,7 @@
 #include "transform.hh"
 #include "transform_convert.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name UVs Transform Creation
@@ -94,7 +95,7 @@ static void uv_set_connectivity_distance(const ToolSettings *ts,
   BLI_LINKSTACK_INIT(queue);
   BLI_LINKSTACK_INIT(queue_next);
 
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   BMIter fiter, liter;
   BMVert *f;
@@ -266,7 +267,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
       int co_num;
     } *island_center = nullptr;
     int count = 0, countsel = 0;
-    const BMUVOffsets offsets = BM_uv_map_get_offsets(em->bm);
+    const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     if (!ED_space_image_show_uvedit(sima, tc->obedit)) {
       continue;
@@ -280,8 +281,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
         continue;
       }
 
-      island_center = static_cast<IslandCenter *>(
-          MEM_callocN(sizeof(*island_center) * elementmap->total_islands, __func__));
+      island_center = MEM_calloc_arrayN<IslandCenter>(elementmap->total_islands, __func__);
     }
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -334,12 +334,10 @@ static void createTransUVs(bContext *C, TransInfo *t)
     }
 
     tc->data_len = (is_prop_edit) ? count : countsel;
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(UV Editing)"));
+    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(UV Editing)");
     /* For each 2d uv coord a 3d vector is allocated, so that they can be
      * treated just as if they were 3d verts. */
-    tc->data_2d = static_cast<TransData2D *>(
-        MEM_callocN(tc->data_len * sizeof(TransData2D), "TransObData2D(UV Editing)"));
+    tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransObData2D(UV Editing)");
 
     if (sima->flag & SI_CLIP_UV) {
       t->flag |= T_CLIP_UV;
@@ -349,8 +347,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
     td2d = tc->data_2d;
 
     if (is_prop_connected) {
-      prop_dists = static_cast<float *>(
-          MEM_callocN(em->bm->totloop * sizeof(float), "TransObPropDists(UV Editing)"));
+      prop_dists = MEM_calloc_arrayN<float>(em->bm->totloop, "TransObPropDists(UV Editing)");
 
       uv_set_connectivity_distance(t->settings, em->bm, prop_dists, t->aspect);
     }
@@ -505,8 +502,9 @@ struct UVGroups {
 
     /* Now, count and set the index for the corners being transformed. */
     this->sd_len = 0;
-    TransData *td = tc->data;
-    for (int i = 0; i < tc->data_len; i++, td++) {
+    BLI_assert(tc->sorted_index_map);
+    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+      TransData *td = &tc->data[i];
       if (!(td->flag & TD_SELECTED)) {
         /* The selected ones are sorted at the beginning. */
         break;
@@ -522,7 +520,7 @@ struct UVGroups {
     groups_offs_buffer_.reserve(this->sd_len);
     groups_offs_indices_.reserve((this->sd_len / 4) + 2);
 
-    td = tc->data;
+    TransData *td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       BMLoop *l_orig = static_cast<BMLoop *>(td->extra);
       if (BM_elem_index_get(l_orig) == -1) {
@@ -530,7 +528,7 @@ struct UVGroups {
         continue;
       }
 
-      const float2 &uv_orig = BM_ELEM_CD_GET_FLOAT_P(l_orig, offsets.uv);
+      const float2 uv_orig = BM_ELEM_CD_GET_FLOAT_P(l_orig, offsets.uv);
       groups_offs_indices_.append(groups_offs_buffer_.size());
 
       BMIter liter;
@@ -568,7 +566,7 @@ struct UVGroups {
   Array<TransDataVertSlideVert> sd_array_create_and_init(TransDataContainer *tc)
   {
     Array<TransDataVertSlideVert> r_sv(this->sd_len);
-    TransDataVertSlideVert *sv = &r_sv[0];
+    TransDataVertSlideVert *sv = r_sv.data();
     for (const int group_index : this->groups().index_range()) {
       for (int td_index : this->td_indices_get(group_index)) {
         TransData *td = &tc->data[td_index];
@@ -583,7 +581,7 @@ struct UVGroups {
   Array<TransDataEdgeSlideVert> sd_array_create_and_init_edge(TransDataContainer *tc)
   {
     Array<TransDataEdgeSlideVert> r_sv(this->sd_len);
-    TransDataEdgeSlideVert *sv = &r_sv[0];
+    TransDataEdgeSlideVert *sv = r_sv.data();
     for (const int group_index : this->groups().index_range()) {
       for (int td_index : this->td_indices_get(group_index)) {
         TransData *td = &tc->data[td_index];
@@ -644,7 +642,7 @@ Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
 
   BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
   BMesh *bm = em->bm;
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   UVGroups *uv_groups = mesh_uv_groups_get(tc, bm, offsets);
 
@@ -660,7 +658,7 @@ Array<TransDataVertSlideVert> transform_mesh_uv_vert_slide_data_create(
       BMLoop *l = static_cast<BMLoop *>(td->extra);
 
       for (BMLoop *l_dst : {l->prev, l->next}) {
-        const float2 &uv_dest = BM_ELEM_CD_GET_FLOAT_P(l_dst, offsets.uv);
+        const float2 uv_dest = BM_ELEM_CD_GET_FLOAT_P(l_dst, offsets.uv);
         Span<float3> uvs_added = r_loc_dst_buffer.as_span().drop_front(size_prev);
 
         bool skip = std::any_of(
@@ -737,14 +735,14 @@ static bool mesh_uv_group_is_inner(const TransDataContainer *tc,
     return false;
   }
 
-  const float2 &uv_a_prev = BM_ELEM_CD_GET_FLOAT_P(l_a_prev, offsets.uv);
-  const float2 &uv_b_prev = BM_ELEM_CD_GET_FLOAT_P(l_b_prev, offsets.uv);
+  const float2 uv_a_prev = BM_ELEM_CD_GET_FLOAT_P(l_a_prev, offsets.uv);
+  const float2 uv_b_prev = BM_ELEM_CD_GET_FLOAT_P(l_b_prev, offsets.uv);
   if (!compare_v2v2(uv_a_prev, uv_b_prev, FLT_EPSILON)) {
     return false;
   }
 
-  const float2 &uv_a_next = BM_ELEM_CD_GET_FLOAT_P(l_a_next, offsets.uv);
-  const float2 &uv_b_next = BM_ELEM_CD_GET_FLOAT_P(l_b_next, offsets.uv);
+  const float2 uv_a_next = BM_ELEM_CD_GET_FLOAT_P(l_a_next, offsets.uv);
+  const float2 uv_b_next = BM_ELEM_CD_GET_FLOAT_P(l_b_next, offsets.uv);
   if (!compare_v2v2(uv_a_next, uv_b_next, FLT_EPSILON)) {
     return false;
   }
@@ -771,8 +769,8 @@ static bool bm_loop_uv_calc_opposite_co(const BMLoop *l_tmp,
 
   l_iter = l_first;
   do {
-    const float2 &uv_iter = BM_ELEM_CD_GET_FLOAT_P(l_iter, offsets.uv);
-    const float2 &uv_iter_next = BM_ELEM_CD_GET_FLOAT_P(l_iter->next, offsets.uv);
+    const float2 uv_iter = BM_ELEM_CD_GET_FLOAT_P(l_iter, offsets.uv);
+    const float2 uv_iter_next = BM_ELEM_CD_GET_FLOAT_P(l_iter->next, offsets.uv);
     float lambda;
     if (isect_ray_seg_v2(uv_tmp, ray_direction, uv_iter, uv_iter_next, &lambda, nullptr) ||
         isect_ray_seg_v2(uv_tmp, -ray_direction, uv_iter, uv_iter_next, &lambda, nullptr))
@@ -807,8 +805,8 @@ static float2 isect_face_dst(const BMLoop *l,
   }
 
   BMLoop *l_prev = l->prev;
-  const float2 &uv_prev = BM_ELEM_CD_GET_FLOAT_P(l_prev, offsets.uv);
-  const float2 &uv_next = BM_ELEM_CD_GET_FLOAT_P(l_next, offsets.uv);
+  const float2 uv_prev = BM_ELEM_CD_GET_FLOAT_P(l_prev, offsets.uv);
+  const float2 uv_next = BM_ELEM_CD_GET_FLOAT_P(l_next, offsets.uv);
 
   float2 ray_dir = (uv - uv_prev) + (uv_next - uv);
   ray_dir = math::orthogonal(ray_dir * aspect);
@@ -830,7 +828,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
   Array<TransDataEdgeSlideVert> r_sv;
   BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
   BMesh *bm = em->bm;
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   const bool check_edge = ED_uvedit_select_mode_get(t->scene) == UV_SELECT_EDGE;
 
@@ -842,8 +840,9 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     /* First we just need to "clean up" the neighboring loops.
      * This way we can identify where a group of sliding edges starts and where it ends. */
-    TransData *td = tc->data;
-    for (int i = 0; i < tc->data_len; i++, td++) {
+    BLI_assert(tc->sorted_index_map);
+    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+      TransData *td = &tc->data[i];
       if (!(td->flag & TD_SELECTED)) {
         /* The selected ones are sorted at the beginning. */
         break;
@@ -1037,7 +1036,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
         for (int td_index_curr : uv_groups->td_indices_get(curr.i)) {
           BMLoop *l_curr = static_cast<BMLoop *>(tc->data[td_index_curr].extra);
-          const float2 &src = BM_ELEM_CD_GET_FLOAT_P(l_curr, offsets.uv);
+          const float2 src = BM_ELEM_CD_GET_FLOAT_P(l_curr, offsets.uv);
 
           for (int td_index_next : td_indices_next) {
             BMLoop *l_next = static_cast<BMLoop *>(tc->data[td_index_next].extra);
@@ -1057,7 +1056,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
               l2_dst = l_next->prev;
             }
 
-            const float2 &dst = BM_ELEM_CD_GET_FLOAT_P(l1_dst, offsets.uv);
+            const float2 dst = BM_ELEM_CD_GET_FLOAT_P(l1_dst, offsets.uv);
 
             /* Sometimes the sliding direction may fork (`isect_curr_dirs` is `true`).
              * In this case, the resulting direction is the intersection of the destinations. */
@@ -1081,12 +1080,12 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
             next.fdata[best_dir].f = l_curr->f;
             if (BM_elem_index_get(l2_dst) != -1 || next.vert_is_inner) {
               /* Case where the vertex slides over the face. */
-              const float2 &src_next = BM_ELEM_CD_GET_FLOAT_P(l_next, offsets.uv);
+              const float2 src_next = BM_ELEM_CD_GET_FLOAT_P(l_next, offsets.uv);
               next.fdata[best_dir].dst = isect_face_dst(l_next, src_next, t->aspect, offsets);
             }
             else {
               /* Case where the vertex slides over an edge. */
-              const float2 &dst_next = BM_ELEM_CD_GET_FLOAT_P(l2_dst, offsets.uv);
+              const float2 dst_next = BM_ELEM_CD_GET_FLOAT_P(l2_dst, offsets.uv);
               next.fdata[best_dir].dst = dst_next;
             }
 
@@ -1119,7 +1118,7 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
         else {
           sv_first = &sv;
           float2 iloc = sv.td->iloc;
-          const float2 &aspect = t->aspect;
+          const float2 aspect = t->aspect;
           if (curr.fdata[0].f) {
             float2 dst = curr.fdata[0].dst * aspect;
             sv.dir_side[0] = float3(dst - iloc, 0.0f);
@@ -1159,3 +1158,5 @@ TransConvertTypeInfo TransConvertType_MeshUV = {
     /*recalc_data*/ recalcData_uv,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform
