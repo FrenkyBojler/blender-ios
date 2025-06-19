@@ -581,6 +581,13 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_node_structure_type_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_structure_type_inference.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
+
+  add_blender_test(
     bl_node_group_compat
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_group_compat.py
     --
@@ -743,7 +750,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
     set(_gpu_render_tests_arguments)
 
-    # Eevee Next
+    # EEVEE
     if(WITH_OPENGL_BACKEND)
       foreach(render_test ${gpu_render_tests})
         add_render_test(
@@ -1324,27 +1331,6 @@ if(WITH_UI_TESTS)
   unset(_ui_tests)
 endif()
 
-
-# ------------------------------------------------------------------------------
-# COLLADA Tests
-# ------------------------------------------------------------------------------
-
-if(TEST_SRC_DIR_EXISTS)
-  function(collada_test module test_name blend_file)
-    add_blender_test(
-      bf_io_collada_${module}_${test_name}
-      ${TEST_SRC_DIR}/collada/${module}/${blend_file}
-      --python ${CMAKE_CURRENT_LIST_DIR}/${module}/test_${module}_${test_name}.py --
-      --testdir ${TEST_SRC_DIR}/collada/${module}
-    )
-  endfunction()
-
-  # Tests are disabled because they only work on Windows
-  # Tests will be redone completely to work reliable
-  #
-  # collada_test(mesh simple mesh_simple.blend)
-  # collada_test(animation simple suzannes_parent_inverse.blend)
-endif()
 
 # ------------------------------------------------------------------------------
 # VIEW LAYER Tests

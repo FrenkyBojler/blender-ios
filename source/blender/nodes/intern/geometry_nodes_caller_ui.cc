@@ -230,12 +230,12 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 
   uiLayout *split = &layout->split(0.4f, false);
   uiLayout *name_row = &split->row(false);
-  uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
+  name_row->alignment_set(blender::ui::LayoutAlign::Right);
 
   name_row->label(socket.name ? IFACE_(socket.name) : "", ICON_NONE);
   uiLayout *prop_row = &split->row(true);
 
-  uiBlock *block = uiLayoutGetBlock(prop_row);
+  uiBlock *block = prop_row->block();
   uiBut *but = uiDefIconTextButR(block,
                                  UI_BTYPE_SEARCH_MENU,
                                  0,
@@ -355,7 +355,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but = uiDefIconTextButR(block,
                                  UI_BTYPE_SEARCH_MENU,
                                  0,
@@ -418,7 +418,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   uiLayout *split = &layout->split(0.4f, false);
   uiLayout *name_row = &split->row(false);
-  uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
+  name_row->alignment_set(blender::ui::LayoutAlign::Right);
 
   uiLayout *prop_row = nullptr;
 
@@ -434,7 +434,7 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   if (type == SOCK_BOOLEAN) {
     uiLayoutSetPropSep(prop_row, false);
-    uiLayoutSetAlignment(prop_row, UI_LAYOUT_ALIGN_EXPAND);
+    prop_row->alignment_set(blender::ui::LayoutAlign::Expand);
   }
 
   if (attribute_name) {
@@ -490,7 +490,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   uiLayout *row = &layout->row(true);
   uiLayoutSetPropDecorate(row, true);
-  uiLayoutSetActive(row, ctx.input_is_active(socket));
+  row->active_set(ctx.input_is_active(socket));
 
   const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
 
@@ -677,7 +677,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
           panel_layout.header->label(IFACE_(sub_interface_panel.name), ICON_NONE);
         }
         if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
-          uiLayoutSetActive(panel_layout.header, false);
+          panel_layout.header->active_set(false);
         }
         uiLayoutSetTooltipFunc(
             panel_layout.header,
@@ -778,7 +778,7 @@ static void draw_property_for_output_socket(DrawGroupInputsContext &ctx,
 
   uiLayout *split = &layout->split(0.4f, false);
   uiLayout *name_row = &split->row(false);
-  uiLayoutSetAlignment(name_row, UI_LAYOUT_ALIGN_RIGHT);
+  name_row->alignment_set(blender::ui::LayoutAlign::Right);
   name_row->label(socket.name ? socket.name : "", ICON_NONE);
 
   uiLayout *row = &split->row(true);
@@ -868,8 +868,8 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
     }
 
     uiLayout *row = &split->row(false);
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
-    uiLayoutSetActive(row, false);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
+    row->active_set(false);
     row->label(ss.str(), ICON_NONE);
 
     row = &split->row(false);

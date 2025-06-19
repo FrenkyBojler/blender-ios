@@ -1961,7 +1961,7 @@ void MESH_OT_edge_split(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* properties */
-  static const EnumPropertyItem merge_type_items[] = {
+  static const EnumPropertyItem split_type_items[] = {
       {BM_EDGE, "EDGE", 0, "Faces by Edges", "Split faces along selected edges"},
       {BM_VERT,
        "VERT",
@@ -1972,7 +1972,7 @@ void MESH_OT_edge_split(wmOperatorType *ot)
   };
 
   ot->prop = RNA_def_enum(
-      ot->srna, "type", merge_type_items, BM_EDGE, "Type", "Method to use for splitting");
+      ot->srna, "type", split_type_items, BM_EDGE, "Type", "Method to use for splitting");
 }
 
 /** \} */
@@ -5736,14 +5736,14 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
 
   layout->prop(op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col = &layout->column(false);
-  uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_vertex_group"));
+  col->active_set(RNA_boolean_get(op->ptr, "use_vertex_group"));
   col->prop(op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(true, IFACE_("Symmetry"));
   row->prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
   sub = &row->row(true);
-  uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "use_symmetry"));
+  sub->active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
   sub->prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 

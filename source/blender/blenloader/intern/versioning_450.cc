@@ -16,6 +16,7 @@
 #include "DNA_light_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_force_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
@@ -190,27 +191,27 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
     switch (node->type_legacy) {
-      case CMP_NODE_VALUE:
+      case CMP_NODE_VALUE_DEPRECATED:
         node->type_legacy = SH_NODE_VALUE;
         STRNCPY(node->idname, "ShaderNodeValue");
         break;
-      case CMP_NODE_MATH:
+      case CMP_NODE_MATH_DEPRECATED:
         node->type_legacy = SH_NODE_MATH;
         STRNCPY(node->idname, "ShaderNodeMath");
         break;
-      case CMP_NODE_COMBINE_XYZ:
+      case CMP_NODE_COMBINE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_COMBXYZ;
         STRNCPY(node->idname, "ShaderNodeCombineXYZ");
         break;
-      case CMP_NODE_SEPARATE_XYZ:
+      case CMP_NODE_SEPARATE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_SEPXYZ;
         STRNCPY(node->idname, "ShaderNodeSeparateXYZ");
         break;
-      case CMP_NODE_CURVE_VEC:
+      case CMP_NODE_CURVE_VEC_DEPRECATED:
         node->type_legacy = SH_NODE_CURVE_VEC;
         STRNCPY(node->idname, "ShaderNodeVectorCurve");
         break;
-      case CMP_NODE_VALTORGB: {
+      case CMP_NODE_VALTORGB_DEPRECATED: {
         node->type_legacy = SH_NODE_VALTORGB;
         STRNCPY(node->idname, "ShaderNodeValToRGB");
 
@@ -222,7 +223,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 
         break;
       }
-      case CMP_NODE_MAP_RANGE: {
+      case CMP_NODE_MAP_RANGE_DEPRECATED: {
         node->type_legacy = SH_NODE_MAP_RANGE;
         STRNCPY(node->idname, "ShaderNodeMapRange");
 
@@ -241,7 +242,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 
         break;
       }
-      case CMP_NODE_MIX_RGB: {
+      case CMP_NODE_MIX_RGB_DEPRECATED: {
         node->type_legacy = SH_NODE_MIX;
         STRNCPY(node->idname, "ShaderNodeMix");
 
@@ -420,6 +421,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
       blender::bke::node_remove_link(node_tree, *link);
     }
 
+    MEM_freeN(&texture_mapping);
+    node->storage = nullptr;
+
     blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
     version_socket_update_is_used(node_tree);
@@ -527,6 +531,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
     blender::bke::node_remove_link(node_tree, *link);
   }
 
+  MEM_freeN(&texture_mapping);
+  node->storage = nullptr;
+
   blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
   version_socket_update_is_used(node_tree);
@@ -567,7 +574,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
 
         break;
       }
-      case CMP_NODE_MAP_VALUE: {
+      case CMP_NODE_MAP_VALUE_DEPRECATED: {
         do_version_map_value_node(node_tree, node);
         break;
       }
@@ -5181,55 +5188,6 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
    */
 }
 
-static CustomDataLayer *find_old_seam_layer(CustomData &custom_data, const blender::StringRef name)
-{
-  for (CustomDataLayer &layer : blender::MutableSpan(custom_data.layers, custom_data.totlayer)) {
-    if (layer.name == name) {
-      return &layer;
-    }
-  }
-  return nullptr;
-}
-
-static void rename_mesh_uv_seam_attribute(Mesh &mesh)
-{
-  using namespace blender;
-  CustomDataLayer *old_seam_layer = find_old_seam_layer(mesh.edge_data, ".uv_seam");
-  if (!old_seam_layer) {
-    return;
-  }
-  Set<StringRef> names;
-  for (const CustomDataLayer &layer : Span(mesh.vert_data.layers, mesh.vert_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.edge_data.layers, mesh.edge_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.face_data.layers, mesh.face_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  for (const CustomDataLayer &layer : Span(mesh.corner_data.layers, mesh.corner_data.totlayer)) {
-    if (layer.type & CD_MASK_PROP_ALL) {
-      names.add(layer.name);
-    }
-  }
-  LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &mesh.vertex_group_names) {
-    names.add(vertex_group->name);
-  }
-
-  /* If the new UV name is already taken, still rename the attribute so it becomes visible in the
-   * list. Then the user can deal with the name conflict themselves. */
-  const std::string new_name = BLI_uniquename_cb(
-      [&](const StringRef name) { return names.contains(name); }, '.', "uv_seam");
-  STRNCPY(old_seam_layer->name, new_name.c_str());
-}
-
 static void do_version_node_curve_to_mesh_scale_input(bNodeTree *tree)
 {
   using namespace blender;
@@ -5597,7 +5555,7 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
           if (node->type_legacy == CMP_NODE_CORNERPIN) {
-            node->custom1 = CMP_NODE_CORNER_PIN_INTERPOLATION_ANISOTROPIC;
+            node->custom1 = CMP_NODE_INTERPOLATION_ANISOTROPIC;
           }
         }
       }
@@ -6430,15 +6388,6 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
-  }
-
-  /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
-   * legacy format which always needs to be converted to the new format on file load. To be moved
-   * to a subversion check in 5.0. */
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    blender::bke::mesh_sculpt_mask_to_generic(*mesh);
-    blender::bke::mesh_custom_normals_to_generic(*mesh);
-    rename_mesh_uv_seam_attribute(*mesh);
   }
 
   /**
