@@ -8455,7 +8455,7 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
         if brush.gpencil_tool == 'ERASE':
             layout.prop(brush, "size", slider=True)
         if brush.gpencil_tool not in {'ERASE', 'FILL', 'CUTTER'}:
-            layout.prop(gp_settings, "pen_strength")
+            layout.prop(brush, "strength")
 
         layer = context.object.data.layers.active
 
