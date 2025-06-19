@@ -92,6 +92,12 @@ def RKS_POLL_selected_bones_or_objects(ksi, context):
 
 # All selected objects or pose bones, depending on which we've got.
 def RKS_ITER_selected_item(ksi, context, ks):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        if context.selected_strips:
+            for strip in context.selected_strips:
+                ksi.generate(context, ks, strip)
+        return
+
     ob = context.active_object
     if ob and ob.mode == 'POSE':
         for bone in context.selected_pose_bones:
@@ -99,9 +105,6 @@ def RKS_ITER_selected_item(ksi, context, ks):
     elif context.selected_objects:
         for ob in context.selected_objects:
             ksi.generate(context, ks, ob)
-    elif context.selected_strips:
-        for strip in context.selected_strips:
-            ksi.generate(context, ks, strip)
 
 
 # All selected objects only.
