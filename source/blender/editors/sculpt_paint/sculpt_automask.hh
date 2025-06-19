@@ -139,26 +139,6 @@ inline void calc_vert_factors(const Depsgraph &depsgraph,
     calc_vert_factors(depsgraph, object, *cache, node, verts, factors);
   }
 }
-void calc_vert_factors_contiguous(const Depsgraph &depsgraph,
-                                  const Object &object,
-                                  const Cache &automasking,
-                                  int start_offset,
-                                  int num_verts,
-                                  const bke::pbvh::MeshNode &node,
-                                  MutableSpan<float> factors);
-inline void calc_vert_factors_contiguous(const Depsgraph &depsgraph,
-                                         const Object &object,
-                                         const Cache *cache,
-                                         int start_offset,
-                                         int num_verts,
-                                         const bke::pbvh::MeshNode &node,
-                                         MutableSpan<float> factors)
-{
-  if (cache) {
-    calc_vert_factors_contiguous(
-        depsgraph, object, *cache, start_offset, num_verts, node, factors);
-  }
-}
 void calc_grids_factors(const Depsgraph &depsgraph,
                         const Object &object,
                         const Cache &automasking,

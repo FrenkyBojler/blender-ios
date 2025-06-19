@@ -17,6 +17,7 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
@@ -346,14 +347,20 @@ void raycast(Tree &pbvh,
              const float3 &ray_normal,
              bool original);
 
-Bounds<float3> calc_face_bounds(const Span<float3> vert_positions, const Span<int> face_verts);
+inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
+                                       const Span<int> face_verts)
+{
+  Bounds<float3> bounds{vert_positions[face_verts.first()]};
+  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
+    math::min_max(vert_positions[vert], bounds.min, bounds.max);
+  }
+  return bounds;
+}
 
 int partition_along_axis(const Span<float3> face_centers,
                          MutableSpan<int> faces,
                          const int axis,
                          const float middle);
-
-// Bounds<float3> negative_bounds();
 
 int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces);
 

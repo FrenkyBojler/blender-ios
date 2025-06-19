@@ -20,8 +20,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
+
 #include "DNA_object_types.h"
-#include <iostream>
 
 #include "BKE_attribute.hh"
 #include "BKE_ccg.hh"
@@ -220,15 +220,6 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              nodes);
 }
 
-Bounds<float3> calc_face_bounds(const Span<float3> vert_positions, const Span<int> face_verts)
-{
-  Bounds<float3> bounds{vert_positions[face_verts.first()]};
-  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
-    math::min_max(vert_positions[vert], bounds.min, bounds.max);
-  }
-  return bounds;
-}
-
 Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 {
 #ifdef DEBUG_BUILD_TIME
@@ -324,7 +315,6 @@ Tree Tree::from_mesh(const Mesh &mesh)
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
   if (mesh.runtime->spatial_groups) {
-    std::cout << "Fast Method" << std::endl;
     return from_spatially_organized_mesh(mesh);
   }
   Tree pbvh(Type::Mesh);
@@ -501,9 +491,8 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     return pbvh;
   }
 
-  /* We use a lower value here compared to regular mesh sculpting because the number of elements
-   * is on average 4x as many due to the prim_indices_ being associated with face corners, not
-   * faces.
+  /* We use a lower value here compared to regular mesh sculpting because the number of elements is
+   * on average 4x as many due to the prim_indices_ being associated with face corners, not faces.
    */
   constexpr int base_limit = 800;
   const int leaf_limit = std::max(base_limit / key.grid_area, 1);
@@ -554,8 +543,7 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     }
   }
 
-  /* Change the nodes to reference the BVH prim_indices array instead of the local face indices.
-   */
+  /* Change the nodes to reference the BVH prim_indices array instead of the local face indices. */
   Array<int> node_grids_num(nodes.size() + 1);
   threading::parallel_for(nodes.index_range(), 16, [&](const IndexRange range) {
     for (const int i : range) {
@@ -610,11 +598,6 @@ int Tree::nodes_num() const
   return std::visit([](const auto &nodes) { return nodes.size(); }, this->nodes_);
 }
 
-template<> MutableSpan<MeshNode> Tree::nodes()
-{
-  return std::get<Vector<MeshNode>>(this->nodes_);
-}
-
 template<> Span<MeshNode> Tree::nodes() const
 {
   return std::get<Vector<MeshNode>>(this->nodes_);
@@ -627,10 +610,10 @@ template<> Span<BMeshNode> Tree::nodes() const
 {
   return std::get<Vector<BMeshNode>>(this->nodes_);
 }
-// template<> MutableSpan<MeshNode> Tree::nodes()
-// {
-//   return std::get<Vector<MeshNode>>(this->nodes_);
-// }
+template<> MutableSpan<MeshNode> Tree::nodes()
+{
+  return std::get<Vector<MeshNode>>(this->nodes_);
+}
 template<> MutableSpan<GridsNode> Tree::nodes()
 {
   return std::get<Vector<GridsNode>>(this->nodes_);
@@ -1132,6 +1115,7 @@ static void update_normals_mesh(Object &object_orig,
     });
   }
 }
+
 void Tree::update_normals(Object &object_orig, Object &object_eval)
 {
   IndexMaskMemory memory;
@@ -1185,6 +1169,7 @@ void update_node_bounds_mesh(const Span<float3> positions, MeshNode &node)
   }
   node.bounds_ = bounds;
 }
+
 void update_node_bounds_grids(const int grid_area, const Span<float3> positions, GridsNode &node)
 {
   Bounds<float3> bounds = negative_bounds();
@@ -1893,10 +1878,6 @@ bool node_raycast_mesh(const MeshNode &node,
                        int &r_active_face_index,
                        float3 &r_face_normal)
 {
-  // std::cout << "from node_raycast_mesh" << std::endl;
-  // for (const auto &v : corner_verts) {
-  //   std::cout << v << std::endl;
-  // }
   const Span<int> face_indices = node.faces();
 
   bool hit = false;

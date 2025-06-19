@@ -6,10 +6,9 @@
  * \ingroup bke
  */
 
-#include "BKE_attribute_math.hh"
-#include "MEM_guardedalloc.h"
-#include <iostream>
 #include <optional>
+
+#include "MEM_guardedalloc.h"
 
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
@@ -21,10 +20,8 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
-#include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
-#include "BLI_generic_virtual_array.hh"
 #include "BLI_hash.h"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_index_range.hh"
@@ -32,7 +29,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_resource_scope.hh"
 #include "BLI_set.hh"
@@ -50,6 +46,7 @@
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_legacy_convert.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_attribute_storage_blend_write.hh"
 #include "BKE_bake_data_block_id.hh"
@@ -71,7 +68,6 @@
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
-#include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 
 #include "DEG_depsgraph.hh"
@@ -629,15 +625,15 @@ static Bounds<float3> negative_bounds()
   return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }
 
-void partition_faces_recursively(const Span<float3> face_centers,
-                                 MutableSpan<int> face_indices,
-                                 Vector<int> &children_offsets,
-                                 Vector<int> &parent_offsets,
-                                 Vector<Array<int>> &face_data,
-                                 int node_index,
-                                 int depth,
-                                 const std::optional<Bounds<float3>> &bounds_precalc,
-                                 const Span<int> material_indices)
+static void partition_faces_recursively(const Span<float3> face_centers,
+                                        MutableSpan<int> face_indices,
+                                        Vector<int> &children_offsets,
+                                        Vector<int> &parent_offsets,
+                                        Vector<Array<int>> &face_data,
+                                        int node_index,
+                                        int depth,
+                                        const std::optional<Bounds<float3>> &bounds_precalc,
+                                        const Span<int> material_indices)
 {
   const int target_group_size = 2500;
 
@@ -711,10 +707,10 @@ struct LeafGroupsResult {
   Vector<int> unique_counts;
 };
 
-LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
-                                       const OffsetIndices<int> faces,
-                                       const Span<int> corner_verts,
-                                       const Vector<Array<int>> &leaf_groups)
+static LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
+                                              const OffsetIndices<int> faces,
+                                              const Span<int> corner_verts,
+                                              const Vector<Array<int>> &leaf_groups)
 {
   Vector<Array<int>> vert_groups;
   vert_groups.resize(leaf_groups.size());
@@ -790,7 +786,7 @@ struct SpatialFaceGroupsResult {
   Vector<int> children_offsets;
 };
 
-SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
+static SpatialFaceGroupsResult compute_spatial_groups(Mesh &mesh)
 {
   Vector<Array<int>> face_groups;
   Vector<Array<int>> vert_groups;

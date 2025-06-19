@@ -115,7 +115,7 @@ class VIEW3D_PT_tools_object_options(View3DPanel, Panel):
     bl_label = "Options"
 
     def draw(self, context):
-        layout = self.layout
+        # layout = self.layout
         pass
 
 
@@ -1072,6 +1072,15 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        tool_settings = context.tool_settings
+        sculpt = tool_settings.sculpt
+
+        col = layout.column(heading="Display", align=True)
+        col.prop(sculpt, "show_low_resolution")
+        col.prop(sculpt, "use_sculpt_delay_updates")
+        col.prop(sculpt, "use_deform_only")
 
 
 class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):

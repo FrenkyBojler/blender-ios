@@ -111,8 +111,7 @@ class PositionDeformData {
 
  public:
   PositionDeformData(const Depsgraph &depsgraph, Object &object_orig);
-  void deform(MutableSpan<float3> translations, int start_offset, int num_verts) const;
-  void deform(MutableSpan<float3> translations, const Span<int> verts) const;
+  void deform(MutableSpan<float3> translations, Span<int> verts) const;
 };
 
 enum class UpdateType {
@@ -835,12 +834,25 @@ inline bool brush_type_is_paint(const int tool)
   return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
 }
 
+inline bool brush_type_is_mask(const int tool)
+{
+  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
+}
+
+BLI_INLINE bool brush_type_is_attribute_only(const int tool)
+{
+  return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
+         ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
+}
+
 inline bool brush_uses_vector_displacement(const Brush &brush)
 {
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW &&
          brush.flag2 & BRUSH_USE_COLOR_AS_DISPLACEMENT &&
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
+
+void ensure_valid_pivot(const Object &ob, Scene &scene);
 
 /** Retrieve or calculate the object space radius depending on brush settings. */
 float object_space_radius_get(const ViewContext &vc,
@@ -958,56 +970,3 @@ void SCULPT_OT_dynamic_topology_toggle(wmOperatorType *ot);
 }  // namespace blender::ed::sculpt_paint::dyntopo
 
 /** \} */
-
-/* sculpt_brush_types.cc */
-
-/* -------------------------------------------------------------------- */
-/** \name Brushes
- * \{ */
-
-namespace blender::ed::sculpt_paint {
-
-void multiplane_scrape_preview_draw(uint gpuattr,
-                                    const Brush &brush,
-                                    const SculptSession &ss,
-                                    const float outline_col[3],
-                                    float outline_alpha);
-
-}
-/**
- * \brief Get the image canvas for painting on the given object.
- *
- * \return #true if an image is found. The #r_image and #r_image_user fields are filled with
- * the image and image user. Returns false when the image isn't found. In the later case the
- * r_image and r_image_user are set to NULL.
- */
-
-namespace blender::ed::sculpt_paint {
-
-// float clay_thumb_get_stabilized_pressure(const blender::ed::sculpt_paint::StrokeCache &cache);
-
-// void SCULPT_OT_reorder_vertices_spatial(wmOperatorType *ot);
-
-inline bool brush_type_is_mask(const int tool)
-{
-  return ELEM(tool, SCULPT_BRUSH_TYPE_MASK);
-}
-
-BLI_INLINE bool brush_type_is_attribute_only(const int tool)
-{
-  return brush_type_is_paint(tool) || brush_type_is_mask(tool) ||
-         ELEM(tool, SCULPT_BRUSH_TYPE_DRAW_FACE_SETS);
-}
-
-}  // namespace blender::ed::sculpt_paint
-
-namespace blender::ed::sculpt_paint {
-void ensure_valid_pivot(const Object &ob, Scene &scene);
-}
-
-namespace blender::ed::sculpt_paint {
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         float3 location);
-}

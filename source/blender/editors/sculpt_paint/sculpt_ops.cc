@@ -1549,7 +1549,6 @@ static void SCULPT_OT_mask_from_boundary(wmOperatorType *ot)
 
 void operatortypes_sculpt()
 {
-  // WM_operatortype_append(SCULPT_OT_reorder_vertices_spatial);
   WM_operatortype_append(SCULPT_OT_brush_stroke);
   WM_operatortype_append(SCULPT_OT_sculptmode_toggle);
   WM_operatortype_append(SCULPT_OT_set_persistent_base);

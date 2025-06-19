@@ -4,12 +4,15 @@
 
 #include "editors/sculpt_paint/brushes/brushes.hh"
 
+#include "DNA_brush_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
+#include "DNA_scene_types.h"
+
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector.hh"
@@ -44,6 +47,7 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data)
 {
   const SculptSession &ss = *object.sculpt;
+
   const Span<int> verts = node.verts();
 
   calc_factors_common_mesh_indexed(depsgraph,
