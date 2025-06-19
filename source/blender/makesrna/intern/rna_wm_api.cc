@@ -61,6 +61,8 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "AS_asset_library_loading_status.hh"
+
 #  include "DNA_userdef_types.h"
 
 #  include "BLI_string.h"
@@ -781,21 +783,17 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
-static void rna_asset_library_loading_status_is_loading(wmWindowManager *wm,
-                                                        const char *url,
-                                                        float timeout)
+static void rna_asset_library_loading_status_is_loading(const char *url, float timeout)
 {
-  wm->runtime->asset_library_status_ensure_loading(url, timeout);
+  blender::asset_system::asset_library_status_ensure_loading(url, timeout);
 }
-static void rna_asset_library_loading_status_finished_loading(wmWindowManager *wm, const char *url)
+static void rna_asset_library_loading_status_finished_loading(const char *url)
 {
-  wm->runtime->asset_library_status_set_finished(url);
+  blender::asset_system::asset_library_status_set_finished(url);
 }
-static void rna_asset_library_loading_status_failure_loading(wmWindowManager *wm,
-                                                             const char *url,
-                                                             const char *message)
+static void rna_asset_library_loading_status_failure_loading(const char *url, const char *message)
 {
-  wm->runtime->asset_library_status_set_failure(
+  blender::asset_system::asset_library_status_set_failure(
       url, message ? std::optional<blender::StringRef>{message} : std::nullopt);
 }
 
@@ -1508,6 +1506,8 @@ void RNA_api_keyconfigs(StructRNA *srna)
       "Operator properties are kept to allow the operators to be registered again in the future");
 }
 
+/* Exposes the #blender::asset_system::asset_library_status_xxx() functions in the WM API, for the
+ * lack of a better place. */
 void RNA_api_asset_library_loading_status(StructRNA *srna)
 {
   FunctionRNA *func;
@@ -1515,6 +1515,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
 
   func = RNA_def_function(
       srna, "asset_library_status_is_loading", "rna_asset_library_loading_status_is_loading");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -1534,6 +1535,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   func = RNA_def_function(srna,
                           "asset_library_status_finished_loading",
                           "rna_asset_library_loading_status_finished_loading");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
@@ -1541,6 +1543,7 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   func = RNA_def_function(srna,
                           "asset_library_status_failed_loading",
                           "rna_asset_library_loading_status_failure_loading");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);

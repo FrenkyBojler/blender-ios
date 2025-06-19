@@ -25,6 +25,7 @@
 #endif
 
 #include "AS_asset_library.hh"
+#include "AS_asset_library_loading_status.hh"
 #include "AS_asset_representation.hh"
 
 #include "MEM_guardedalloc.h"
@@ -4199,11 +4200,11 @@ static void filelist_remote_asset_library_update_loading_flag(FileListReadJob *j
   }
 
   /* On timeout the loading status will be set to cancelled. */
-  job_params->wm->runtime->asset_library_status_handle_timeout(library->remote_url);
+  asset_system::asset_library_status_handle_timeout(library->remote_url);
 
-  job_params->is_asset_library_loading_extern = job_params->wm->runtime->asset_library_status_get(
+  job_params->is_asset_library_loading_extern = asset_system::asset_library_status_get(
                                                     library->remote_url) ==
-                                                bke::AssetLibraryLoadingStatus::Loading;
+                                                asset_system::AssetLibraryLoadingStatus::Loading;
 }
 
 static void filelist_start_read_remote_asset_library(FileListReadJob *job_params)
