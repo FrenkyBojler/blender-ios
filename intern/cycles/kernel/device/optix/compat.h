@@ -6,7 +6,6 @@
 #pragma once
 
 #define OPTIX_DONT_INCLUDE_CUDA
-#include <optix.h>
 
 #define __KERNEL_GPU__
 #define __KERNEL_CUDA__ /* OptiX kernels are implicitly CUDA kernels too */
@@ -107,3 +106,4 @@ ccl_device_forceinline float __half2float(const half h)
 
 #include "util/half.h"
 #include "util/types.h"
+#include <optix.h>
