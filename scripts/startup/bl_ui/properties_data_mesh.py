@@ -421,7 +421,7 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
 
         col.operator("mesh.customdata_mask_clear", icon='X')
         col.operator("mesh.customdata_skin_clear", icon='X')
-
+        col.operator("mesh.reorder_vertices_spatial")
         if me.has_custom_normals:
             col.operator("mesh.customdata_custom_splitnormals_clear", icon='X')
         else:
@@ -686,20 +686,6 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
         draw_attribute_warnings(context, layout, mesh.color_attributes)
 
 
-class DATA_PT_reorder_vertices_spatial(Panel):
-    bl_label = "Reorder Mesh Spatially"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "data"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.operator(
-            "mesh.reorder_vertices_spatial",
-            text="Reorder Mesh Faces & Vertices Spatially",
-            icon='SCULPTMODE_HLT')
-
-
 classes = (
     MESH_MT_vertex_group_context_menu,
     MESH_MT_shape_key_context_menu,
@@ -721,7 +707,6 @@ classes = (
     DATA_PT_custom_props_mesh,
     MESH_UL_color_attributes,
     MESH_UL_color_attributes_selector,
-    DATA_PT_reorder_vertices_spatial,
 )
 
 if __name__ == "__main__":  # only for live edit.

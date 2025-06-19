@@ -130,19 +130,21 @@ struct TrianglesCache {
 };
 
 struct MeshGroup {
-  /**Range of unique vertices in reordered mesh */
+  /** Range of unique vertices in reordered mesh. */
   IndexRange unique_verts;
-  /**Range of all faces in reordered mesh */
+  /** Range of all faces in reordered mesh. */
   IndexRange faces;
   /**
    * Indices of vertices that are shared with other groups in reordered mesh.
    * This is empty if all vertices in the group are unique.
    */
   Array<int> shared_verts;
-  /** Parent node index (-1 for root) */
+  /** Parent node index (-1 for root). */
   int parent;
-  /** Children node indices (empty for leaf nodes). */
-  Array<int> children;
+  /** Children node offset (empty for leaf nodes). */
+  int children_offset;
+  /** Number of corners in each group, calculated from number of faces. */
+  int corners_count;
 };
 
 struct MeshRuntime {
@@ -213,8 +215,9 @@ struct MeshRuntime {
   CustomData_MeshMasks cd_mask_extra = {};
 
   /**
-   * Pre Computed offsets for the BVH nodes, used to quickly access the node data for the BVH.
-   * Used to avoid recomputing the offsets every time the BVH is built.
+   * Pre-computed groups of vertices and faces for a mesh's BVH (Bounding Volume Hierarchy) nodes,
+   * used to quickly access the node data for the BVH. Used to avoid recomputing the offsets every
+   * time the BVH is built.
    */
   std::unique_ptr<Array<MeshGroup>> spatial_groups;
 

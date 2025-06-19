@@ -1547,19 +1547,12 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
 }
 static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
-
-  if (!ob || ob->type != OB_MESH) {
-    BKE_report(op->reports, RPT_ERROR, "No active mesh object");
-    return OPERATOR_CANCELLED;
-  }
+  Object *ob = blender::ed::object::context_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
-  /* Apply spatial reordering */
   blender::bke::mesh_apply_spatial_organization(*mesh);
 
-  /* Tag for update */
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -1570,7 +1563,7 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
 
 static bool mesh_reorder_vertices_spatial_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(C);
   if (!ob || ob->type != OB_MESH) {
     return false;
   }
@@ -1580,16 +1573,14 @@ static bool mesh_reorder_vertices_spatial_poll(bContext *C)
 
 void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot)
 {
-  /* identifiers */
-  ot->name = "Reorder Vertices Spatially";
+  ot->name = "Reorder Mesh Spatially";
   ot->idname = "MESH_OT_reorder_vertices_spatial";
   ot->description =
-      "Reorder mesh vertices based on their spatial position for better sculpting performance";
+      "Reorder mesh faces and vertices based on their spatial position for better BVH building "
+      "and sculpting performance ";
 
-  /* api callbacks */
   ot->exec = mesh_reorder_vertices_spatial_exec;
   ot->poll = mesh_reorder_vertices_spatial_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

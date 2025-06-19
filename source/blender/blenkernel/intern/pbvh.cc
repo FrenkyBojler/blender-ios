@@ -228,7 +228,6 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 
   Tree pbvh(Type::Mesh);
   const Span<float3> vert_positions = mesh.vert_positions();
-  const OffsetIndices<int> faces = mesh.faces();
 
   const Array<MeshGroup> &spatial_groups = *mesh.runtime->spatial_groups;
 
@@ -247,8 +246,8 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
       MeshNode &pbvh_node = nodes[node_idx];
       pbvh_node.parent_ = spatial_groups[node_idx].parent;
 
-      if (!spatial_groups[node_idx].children.is_empty()) {
-        pbvh_node.children_offset_ = spatial_groups[node_idx].children[0];  // First child index
+      if (spatial_groups[node_idx].children_offset != 0) {
+        pbvh_node.children_offset_ = spatial_groups[node_idx].children_offset;
       }
       else {
         pbvh_node.children_offset_ = 0;
@@ -260,12 +259,7 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
         if (face_count > 0) {
           pbvh_node.face_indices_ = Span<int>(&pbvh.prim_indices_[face_range.start()], face_count);
 
-          int corners_count = 0;
-          for (const int face_index : pbvh_node.face_indices_) {
-            const IndexRange face = faces[face_index];
-            corners_count += face.size();
-          }
-          pbvh_node.corners_num_ = corners_count;
+          pbvh_node.corners_num_ = spatial_groups[node_idx].corners_count;
 
           pbvh_node.unique_verts_num_ = spatial_groups[node_idx].unique_verts.size();
 

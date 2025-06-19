@@ -256,8 +256,6 @@ class Tree {
    */
   BitVector<> visibility_dirty_;
 
-  static Tree from_spatially_organized_mesh(const Mesh &mesh);
-
  public:
   std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
 
@@ -332,6 +330,8 @@ class Tree {
 
  private:
   explicit Tree(Type type);
+  /** Build a BVH tree from pre-computed MeshGroup data. */
+  static Tree from_spatially_organized_mesh(const Mesh &mesh);
 };
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user);
