@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import blendfile_header
+import blend_render_info
 import bpy
 import pathlib
 import sys
@@ -43,6 +44,8 @@ class BlendFileHeaderTest(unittest.TestCase):
             self.assertEqual(block.SDNAnr, 0)
             self.assertEqual(block.nr, 1)
 
+        self.assertEqual(blend_render_info.read_blend_rend_chunk(path), [(1, 250, "Scene")])
+
     def test_large_bhead_8(self):
         path = self.testdir / "LargeBHead8.blend"
         with open(path, "rb") as f:
@@ -63,6 +66,8 @@ class BlendFileHeaderTest(unittest.TestCase):
             self.assertEqual(block.old, 140737488337232)
             self.assertEqual(block.SDNAnr, 0)
             self.assertEqual(block.nr, 1)
+
+        self.assertEqual(blend_render_info.read_blend_rend_chunk(path), [(1, 250, "Scene")])
 
     def test_bhead_4(self):
         path = self.testdir / "BHead4.blend"
@@ -85,6 +90,8 @@ class BlendFileHeaderTest(unittest.TestCase):
             self.assertEqual(block.SDNAnr, 0)
             self.assertEqual(block.nr, 1)
 
+        self.assertEqual(blend_render_info.read_blend_rend_chunk(path), [(1, 250, "Space types")])
+
     def test_bhead_4_big_endian(self):
         path = self.testdir / "BHead4_big_endian.blend"
         with gzip.open(path, "rb") as f:
@@ -106,10 +113,18 @@ class BlendFileHeaderTest(unittest.TestCase):
             self.assertEqual(block.SDNAnr, 0)
             self.assertEqual(block.nr, 1)
 
+        self.assertEqual(blend_render_info.read_blend_rend_chunk(path), [(1, 150, "1")])
+
     def test_current(self):
         directory = tempfile.mkdtemp()
         path = pathlib.Path(directory) / "test.blend"
+
         bpy.ops.wm.read_factory_settings(use_empty=True)
+
+        scene = bpy.data.scenes[0]
+        scene.name = "Test Scene"
+        scene.frame_start = 10
+        scene.frame_end = 20
         bpy.ops.wm.save_as_mainfile(filepath=str(path), compress=False, copy=True)
 
         version = bpy.app.version
@@ -129,6 +144,8 @@ class BlendFileHeaderTest(unittest.TestCase):
             buffer = f.read(header_struct.struct.size)
             block = header_struct.parse(buffer)
             self.assertEqual(block.code, b"REND")
+
+        self.assertEqual(blend_render_info.read_blend_rend_chunk(path), [(10, 20, "Test Scene")])
 
 
 def main():
