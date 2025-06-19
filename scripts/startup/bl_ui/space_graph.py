@@ -20,18 +20,21 @@ class GRAPH_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
 
 def drivers_editor_footer(layout, context):
     act_fcurve = context.active_editable_fcurve
-    act_driver = act_fcurve.driver if act_fcurve else None
+    if not act_fcurve:
+        return
+
+    act_driver = act_fcurve.driver
+    if not act_driver:
+        return
 
     layout.separator_spacer()
+    layout.label(text="Driver: {!s} ({!s})".format(act_fcurve.id_data.name, act_fcurve.data_path))
 
-    if act_fcurve:
-        layout.label(text="Driver: %s (%s)" % (act_fcurve.id_data.name, act_fcurve.data_path))
-
-    if act_driver and act_driver.variables:
+    if act_driver.variables:
         layout.separator(type='LINE')
         layout.label(text="Variables: %i" % len(act_driver.variables))
 
-    if act_driver and act_driver.type == 'SCRIPTED' and act_driver.expression:
+    if act_driver.type == 'SCRIPTED' and act_driver.expression:
         layout.separator(type='LINE')
         layout.label(text="Expression: %s" % act_driver.expression)
 
