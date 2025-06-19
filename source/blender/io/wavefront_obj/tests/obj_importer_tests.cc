@@ -32,15 +32,15 @@ TEST(obj_import, BufferRefillTest)
   const size_t read_buffer_size = 650;
   OBJParser obj_parser{params, read_buffer_size};
 
-  Vector<std::unique_ptr<Geometry>> all_geometries;
-  GlobalVertices global_vertices;
-  obj_parser.parse(all_geometries, global_vertices);
+  {
+    OBJParser::Content result = obj_parser.parse();
 
-  EXPECT_EQ(1, all_geometries.size());
-  EXPECT_EQ(GEOM_CURVE, all_geometries[0]->geom_type_);
-  EXPECT_EQ(28, global_vertices.vertices.size());
-  EXPECT_EQ(31, all_geometries[0]->nurbs_element_.curv_indices.size());
-  EXPECT_EQ(35, all_geometries[0]->nurbs_element_.parm.size());
+    EXPECT_EQ(1, result.all_geometries.size());
+    EXPECT_EQ(GEOM_CURVE, result.all_geometries[0]->geom_type_);
+    EXPECT_EQ(28, result.global_vertices.vertices.size());
+    EXPECT_EQ(31, result.all_geometries[0]->nurbs_element_.curv_indices.size());
+    EXPECT_EQ(35, result.all_geometries[0]->nurbs_element_.parm.size());
+  }
 
   CLG_exit();
 }

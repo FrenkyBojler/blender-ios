@@ -70,6 +70,36 @@ static Geometry *create_geometry(Geometry *const prev_geometry,
   return new_geometry();
 }
 
+static void mtl_add_library(StringRef path, OBJParser::Content &result)
+{
+  /* Remove any quotes from start and end (#67266, #97794). */
+  if (path.size() > 2 && path.startswith("\"") && path.endswith("\"")) {
+    path = path.drop_prefix(1).drop_suffix(1);
+  }
+
+  if (!result.mtl_libraries.contains(path)) {
+    result.mtl_libraries.append(path);
+  }
+}
+
+static void mtl_add_default_library(const OBJImportParams &import_params,
+                                    OBJParser::Content &result)
+{
+  /* Add any existing `.mtl` file that's with the same base name as the `.obj` file
+   * into candidate `.mtl` files to search through. This is not technically following the
+   * spec, but the old python importer was doing it, and there are user files out there
+   * that contain "mtllib bar.mtl" for a foo.obj, and depend on finding materials
+   * from foo.mtl (see #97757). */
+  char mtl_file_path[FILE_MAX];
+  STRNCPY(mtl_file_path, import_params.filepath);
+  BLI_path_extension_replace(mtl_file_path, sizeof(mtl_file_path), ".mtl");
+  if (BLI_exists(mtl_file_path)) {
+    char mtl_file_base[FILE_MAX];
+    BLI_path_split_file_part(mtl_file_path, mtl_file_base, sizeof(mtl_file_base));
+    mtl_add_library(mtl_file_base, result);
+  }
+}
+
 static void geom_add_vertex(const char *p, const char *end, GlobalVertices &r_global_vertices)
 {
   r_global_vertices.flush_mrgb_block();
@@ -480,15 +510,15 @@ static void use_all_vertices_if_no_faces(Geometry *geom,
   }
 }
 
-size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
-                                      Vector<std::unique_ptr<Geometry>> &r_all_geometries,
-                                      GlobalVertices &r_global_vertices,
-                                      Geometry *&curr_geom,
-                                      bool &state_shaded_smooth,
-                                      string &state_group_name,
-                                      int &state_group_index,
-                                      string &state_material_name,
-                                      int &state_material_index)
+static size_t parse_string_buffer(const OBJImportParams &params,
+                                  StringRef &buffer_str,
+                                  OBJParser::Content &result,
+                                  Geometry *&curr_geom,
+                                  bool &state_shaded_smooth,
+                                  string &state_group_name,
+                                  int &state_group_index,
+                                  string &state_material_name,
+                                  int &state_material_index)
 {
   size_t read_lines_num = 0;
   while (!buffer_str.is_empty()) {
@@ -502,13 +532,13 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
     /* Most common things that start with 'v': vertices, normals, UVs. */
     if (*p == 'v') {
       if (parse_keyword(p, end, "v")) {
-        geom_add_vertex(p, end, r_global_vertices);
+        geom_add_vertex(p, end, result.global_vertices);
       }
       else if (parse_keyword(p, end, "vn")) {
-        geom_add_vertex_normal(p, end, r_global_vertices);
+        geom_add_vertex_normal(p, end, result.global_vertices);
       }
       else if (parse_keyword(p, end, "vt")) {
-        geom_add_uv_vertex(p, end, r_global_vertices);
+        geom_add_uv_vertex(p, end, result.global_vertices);
       }
     }
     /* Faces. */
@@ -526,37 +556,37 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
       geom_add_polygon(curr_geom,
                        p,
                        end,
-                       r_global_vertices,
+                       result.global_vertices,
                        state_material_index,
                        state_group_index,
                        state_shaded_smooth);
     }
     /* Faces. */
     else if (parse_keyword(p, end, "l")) {
-      geom_add_polyline(curr_geom, p, end, r_global_vertices);
+      geom_add_polyline(curr_geom, p, end, result.global_vertices);
     }
     /* Objects. */
     else if (parse_keyword(p, end, "o")) {
-      if (import_params_.use_split_objects) {
+      if (params.use_split_objects) {
         geom_new_object(p,
                         end,
                         state_shaded_smooth,
                         state_group_name,
                         state_material_index,
                         curr_geom,
-                        r_all_geometries);
+                        result.all_geometries);
       }
     }
     /* Groups. */
     else if (parse_keyword(p, end, "g")) {
-      if (import_params_.use_split_groups) {
+      if (params.use_split_groups) {
         geom_new_object(p,
                         end,
                         state_shaded_smooth,
                         state_group_name,
                         state_material_index,
                         curr_geom,
-                        r_all_geometries);
+                        result.all_geometries);
       }
       else {
         geom_update_group(StringRef(p, end).trim(), state_group_name);
@@ -582,10 +612,10 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
       }
     }
     else if (parse_keyword(p, end, "mtllib")) {
-      add_mtl_library(StringRef(p, end).trim());
+      mtl_add_library(StringRef(p, end).trim(), result);
     }
     else if (parse_keyword(p, end, "#MRGB")) {
-      geom_add_mrgb_colors(p, end, r_global_vertices);
+      geom_add_mrgb_colors(p, end, result.global_vertices);
     }
     /* Comments. */
     else if (*p == '#') {
@@ -593,13 +623,13 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
     }
     /* Curve related things. */
     else if (parse_keyword(p, end, "cstype")) {
-      curr_geom = geom_set_curve_type(curr_geom, p, end, state_group_name, r_all_geometries);
+      curr_geom = geom_set_curve_type(curr_geom, p, end, state_group_name, result.all_geometries);
     }
     else if (parse_keyword(p, end, "deg")) {
       geom_set_curve_degree(curr_geom, p, end);
     }
     else if (parse_keyword(p, end, "curv")) {
-      geom_add_curve_vertex_indices(curr_geom, p, end, r_global_vertices);
+      geom_add_curve_vertex_indices(curr_geom, p, end, result.global_vertices);
     }
     else if (parse_keyword(p, end, "parm")) {
       geom_add_curve_parameters(curr_geom, p, end);
@@ -614,11 +644,11 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
   return read_lines_num;
 }
 
-void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
-                      GlobalVertices &r_global_vertices)
+OBJParser::Content OBJParser::parse()
 {
+  Content result;
   if (!obj_file_) {
-    return;
+    return result;
   }
 
   /* Use the filename as the default name given to the initial object. */
@@ -626,7 +656,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
   STRNCPY(ob_name, BLI_path_basename(import_params_.filepath));
   BLI_path_extension_strip(ob_name);
 
-  Geometry *curr_geom = create_geometry(nullptr, GEOM_MESH, ob_name, r_all_geometries);
+  Geometry *curr_geom = create_geometry(nullptr, GEOM_MESH, ob_name, result.all_geometries);
 
   /* State variables: once set, they remain the same for the remaining
    * elements in the object. */
@@ -688,15 +718,15 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
     /* Parse the buffer (until last newline) that we have so far,
      * line by line. */
     StringRef buffer_str{buffer.data(), int64_t(last_nl)};
-    line_number += OBJParser::parse_string_buffer(buffer_str,
-                                                  r_all_geometries,
-                                                  r_global_vertices,
-                                                  curr_geom,
-                                                  state_shaded_smooth,
-                                                  state_group_name,
-                                                  state_group_index,
-                                                  state_material_name,
-                                                  state_material_index);
+    line_number += parse_string_buffer(import_params_,
+                                       buffer_str,
+                                       result,
+                                       curr_geom,
+                                       state_shaded_smooth,
+                                       state_group_name,
+                                       state_group_index,
+                                       state_material_name,
+                                       state_material_index);
 
     /* We might have a line that was cut in the middle by the previous buffer;
      * copy it over for next chunk reading. */
@@ -705,9 +735,11 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
     buffer_offset = left_size;
   }
 
-  r_global_vertices.flush_mrgb_block();
-  use_all_vertices_if_no_faces(curr_geom, r_all_geometries, r_global_vertices);
-  add_default_mtl_library();
+  result.global_vertices.flush_mrgb_block();
+  use_all_vertices_if_no_faces(curr_geom, result.all_geometries, result.global_vertices);
+  mtl_add_default_library(import_params_, result);
+
+  return result;
 }
 
 static MTLTexMapType mtl_line_start_to_texture_type(const char *&p, const char *end)
@@ -832,40 +864,6 @@ static void parse_texture_map(const char *p,
 
   /* What remains is the image path. */
   tex_map.image_path = StringRef(p, end).trim();
-}
-
-Span<string> OBJParser::mtl_libraries() const
-{
-  return mtl_libraries_;
-}
-
-void OBJParser::add_mtl_library(StringRef path)
-{
-  /* Remove any quotes from start and end (#67266, #97794). */
-  if (path.size() > 2 && path.startswith("\"") && path.endswith("\"")) {
-    path = path.drop_prefix(1).drop_suffix(1);
-  }
-
-  if (!mtl_libraries_.contains(path)) {
-    mtl_libraries_.append(path);
-  }
-}
-
-void OBJParser::add_default_mtl_library()
-{
-  /* Add any existing `.mtl` file that's with the same base name as the `.obj` file
-   * into candidate `.mtl` files to search through. This is not technically following the
-   * spec, but the old python importer was doing it, and there are user files out there
-   * that contain "mtllib bar.mtl" for a foo.obj, and depend on finding materials
-   * from foo.mtl (see #97757). */
-  char mtl_file_path[FILE_MAX];
-  STRNCPY(mtl_file_path, import_params_.filepath);
-  BLI_path_extension_replace(mtl_file_path, sizeof(mtl_file_path), ".mtl");
-  if (BLI_exists(mtl_file_path)) {
-    char mtl_file_base[FILE_MAX];
-    BLI_path_split_file_part(mtl_file_path, mtl_file_base, sizeof(mtl_file_base));
-    add_mtl_library(mtl_file_base);
-  }
 }
 
 MTLParser::MTLParser(StringRefNull mtl_library, StringRefNull obj_filepath)

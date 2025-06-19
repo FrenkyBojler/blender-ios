@@ -171,15 +171,12 @@ void importer_geometry(const OBJImportParams &import_params,
                        Vector<bke::GeometrySet> &geometries,
                        size_t read_buffer_size)
 {
-  /* List of geometries to be parsed from OBJ file. */
-  Vector<std::unique_ptr<Geometry>> all_geometries;
-  /* Container for vertex and UV vertex coordinates. */
-  GlobalVertices global_vertices;
-
   OBJParser obj_parser{import_params, read_buffer_size};
-  obj_parser.parse(all_geometries, global_vertices);
-
-  geometry_to_blender_geometry_set(import_params, all_geometries, global_vertices, geometries);
+  {
+    OBJParser::Content result = obj_parser.parse();
+    geometry_to_blender_geometry_set(
+        import_params, result.all_geometries, result.global_vertices, geometries);
+  }
 }
 
 void importer_main(bContext *C, const OBJImportParams &import_params)
@@ -196,35 +193,33 @@ void importer_main(Main *bmain,
                    const OBJImportParams &import_params,
                    size_t read_buffer_size)
 {
-  /* List of geometries to be parsed from OBJ file. */
-  Vector<std::unique_ptr<Geometry>> all_geometries;
-  /* Container for vertex and UV vertex coordinates. */
-  GlobalVertices global_vertices;
+  if (import_params.clear_selection) {
+    BKE_view_layer_base_deselect_all(scene, view_layer);
+  }
+
   /* List of MTLMaterial instances to be parsed from MTL file. */
   Map<std::string, std::unique_ptr<MTLMaterial>> materials;
   Map<std::string, Material *> created_materials;
 
   OBJParser obj_parser{import_params, read_buffer_size};
-  obj_parser.parse(all_geometries, global_vertices);
+  {
+    OBJParser::Content result = obj_parser.parse();
 
-  /* Parse all referenced MTL files */
-  for (StringRefNull mtl_library : obj_parser.mtl_libraries()) {
-    MTLParser mtl_parser{mtl_library, import_params.filepath};
-    mtl_parser.parse_and_store(materials);
+    /* Parse all referenced MTL files */
+    for (StringRefNull mtl_library : result.mtl_libraries) {
+      MTLParser mtl_parser{mtl_library, import_params.filepath};
+      mtl_parser.parse_and_store(materials);
+    }
+
+    /* Create Blender objects from the parsed geometries */
+    geometry_to_blender_objects(bmain,
+                                scene,
+                                view_layer,
+                                import_params,
+                                result.all_geometries,
+                                result.global_vertices,
+                                materials,
+                                created_materials);
   }
-
-  if (import_params.clear_selection) {
-    BKE_view_layer_base_deselect_all(scene, view_layer);
-  }
-
-  /* Create Blender objects from the parsed geometries */
-  geometry_to_blender_objects(bmain,
-                              scene,
-                              view_layer,
-                              import_params,
-                              all_geometries,
-                              global_vertices,
-                              materials,
-                              created_materials);
 }
 }  // namespace blender::io::obj
