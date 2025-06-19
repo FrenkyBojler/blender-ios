@@ -38,11 +38,7 @@ def playback_controls(layout, context):
 
     row = layout.row(align=True)
     row.operator("screen.frame_jump", text="", icon='REW').end = False
-
-    if is_graph_editor:
-        row.operator("graph.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
-    else:
-        row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
+    row.operator("screen.keyframe_jump", text="", icon='PREV_KEYFRAME').next = False
 
     if not screen.is_animation_playing:
         # if using JACK and A/V sync:
