@@ -41,6 +41,7 @@ set(SRC
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -56,8 +57,8 @@ set(SRC
   intern/attribute.cc
   intern/attribute_access.cc
   intern/attribute_legacy_convert.cc
-  intern/attribute_storage.cc
   intern/attribute_math.cc
+  intern/attribute_storage.cc
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
@@ -238,6 +239,7 @@ set(SRC
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
+  intern/node_tree_structure_type_inferencing.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
@@ -312,6 +314,7 @@ set(SRC
   intern/viewer_path.cc
   intern/volume.cc
   intern/volume_grid.cc
+  intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
@@ -530,6 +533,7 @@ set(SRC
   BKE_volume.hh
   BKE_volume_enums.hh
   BKE_volume_grid.hh
+  BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
   BKE_volume_grid_type_traits.hh
@@ -808,6 +812,10 @@ if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
 
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
+endif()
+
 # # Warnings as errors, this is too strict!
 # if(MSVC)
 #    string(APPEND CMAKE_C_FLAGS " /WX")
@@ -823,10 +831,11 @@ add_dependencies(bf_blenkernel bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/action_test.cc
-    intern/attribute_storage_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc
+    intern/attribute_storage_test.cc
     intern/bpath_test.cc
+    intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
     intern/fcurve_test.cc

@@ -272,9 +272,7 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
 
   blender::Vector<CustomDataLayer, 16> layers_data_layers;
   blender::bke::AttributeStorage::BlendWriteData attribute_data{scope};
-  attribute_storage_blend_write_prepare(grease_pencil->attribute_storage.wrap(),
-                                        {{AttrDomain::Layer, &layers_data_layers}},
-                                        attribute_data);
+  attribute_storage_blend_write_prepare(grease_pencil->attribute_storage.wrap(), attribute_data);
   CustomData_blend_write_prepare(grease_pencil->layers_data,
                                  AttrDomain::Layer,
                                  grease_pencil->layers().size(),
@@ -2393,6 +2391,25 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
  *  \note Used for "move only origins" in object_data_transform.cc.
  * \{ */
 
+bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, const CurveType type)
+{
+  using namespace blender;
+
+  for (const GreasePencilDrawingBase *base : grease_pencil.drawings()) {
+    if (base->type != GP_DRAWING) {
+      continue;
+    }
+    const bke::greasepencil::Drawing &drawing =
+        reinterpret_cast<const GreasePencilDrawing *>(base)->wrap();
+    const bke::CurvesGeometry &curves = drawing.strokes();
+    if (curves.has_curve_with_type(type)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil)
 {
   using namespace blender;
@@ -2440,10 +2457,26 @@ void BKE_grease_pencil_point_coords_get(const GreasePencil &grease_pencil,
           const Span<float3> positions = curves.positions();
           const VArray<float> radii = drawing.radii();
 
-          for (const int i : curves.points_range()) {
-            all_positions[index] = math::transform_point(layer_to_object, positions[i]);
-            all_radii[index] = radii[i];
-            index++;
+          if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+            for (const int i : curves.points_range()) {
+              all_positions[index] = math::transform_point(layer_to_object, positions[i]);
+              all_radii[index] = radii[i];
+              index++;
+            }
+          }
+          else {
+            const Span<float3> handle_positions_left = curves.handle_positions_left();
+            const Span<float3> handle_positions_right = curves.handle_positions_right();
+            for (const int i : curves.points_range()) {
+              const int index_pos = index * 3;
+              all_positions[index_pos] = math::transform_point(layer_to_object,
+                                                               handle_positions_left[i]);
+              all_positions[index_pos + 1] = math::transform_point(layer_to_object, positions[i]);
+              all_positions[index_pos + 2] = math::transform_point(layer_to_object,
+                                                                   handle_positions_right[i]);
+              all_radii[index] = radii[i];
+              index++;
+            }
           }
         });
   }
@@ -2471,10 +2504,26 @@ void BKE_grease_pencil_point_coords_apply(GreasePencil &grease_pencil,
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
 
-      for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer, all_positions[index]);
-        radii[i] = all_radii[index];
-        index++;
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        for (const int i : curves.points_range()) {
+          positions[i] = math::transform_point(object_to_layer, all_positions[index]);
+          radii[i] = all_radii[index];
+          index++;
+        }
+      }
+      else {
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+        for (const int i : curves.points_range()) {
+          const int index_pos = index * 3;
+          handle_positions_left[i] = math::transform_point(object_to_layer,
+                                                           all_positions[index_pos]);
+          positions[i] = math::transform_point(object_to_layer, all_positions[index_pos + 1]);
+          handle_positions_right[i] = math::transform_point(object_to_layer,
+                                                            all_positions[index_pos + 2]);
+          radii[i] = all_radii[index];
+          index++;
+        }
       }
 
       curves.tag_radii_changed();
@@ -2507,10 +2556,27 @@ void BKE_grease_pencil_point_coords_apply_with_mat4(GreasePencil &grease_pencil,
       MutableSpan<float3> positions = curves.positions_for_write();
       MutableSpan<float> radii = drawing.radii_for_write();
 
-      for (const int i : curves.points_range()) {
-        positions[i] = math::transform_point(object_to_layer * mat, all_positions[index]);
-        radii[i] = all_radii[index] * scalef;
-        index++;
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        for (const int i : curves.points_range()) {
+          positions[i] = math::transform_point(object_to_layer * mat, all_positions[index]);
+          radii[i] = all_radii[index] * scalef;
+          index++;
+        }
+      }
+      else {
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+        for (const int i : curves.points_range()) {
+          const int index_pos = index * 3;
+          handle_positions_left[i] = math::transform_point(object_to_layer * mat,
+                                                           all_positions[index_pos]);
+          positions[i] = math::transform_point(object_to_layer * mat,
+                                               all_positions[index_pos + 1]);
+          handle_positions_right[i] = math::transform_point(object_to_layer * mat,
+                                                            all_positions[index_pos + 2]);
+          radii[i] = all_radii[index] * scalef;
+          index++;
+        }
       }
 
       curves.tag_radii_changed();
@@ -4251,13 +4317,14 @@ static void write_drawing_array(GreasePencil &grease_pencil,
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing_array[i];
     switch (GreasePencilDrawingType(drawing_base->type)) {
       case GP_DRAWING: {
-        GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-        bke::CurvesGeometry &curves = drawing->wrap().strokes_for_write();
+        GreasePencilDrawing drawing_copy = *reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+        bke::CurvesGeometry &curves = drawing_copy.geometry.wrap();
 
         bke::CurvesGeometry::BlendWriteData write_data(scope);
         curves.blend_write_prepare(write_data);
+        drawing_copy.runtime = nullptr;
 
-        BLO_write_struct(writer, GreasePencilDrawing, drawing);
+        BLO_write_struct_at_address(writer, GreasePencilDrawing, drawing_base, &drawing_copy);
         curves.blend_write(*writer, grease_pencil.id, write_data);
         break;
       }

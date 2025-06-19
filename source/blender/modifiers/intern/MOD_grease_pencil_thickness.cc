@@ -187,10 +187,10 @@ static void panel_draw(const bContext *C, Panel *panel)
   else {
     const bool is_weighted = !RNA_boolean_get(ptr, "use_weight_factor");
     uiLayout *row = &layout->row(true);
-    uiLayoutSetActive(row, is_weighted);
+    row->active_set(is_weighted);
     row->prop(ptr, "thickness_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     uiLayout *sub = &row->row(true);
-    uiLayoutSetActive(sub, true);
+    sub->active_set(true);
     row->prop(ptr, "use_weight_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
   }
 
@@ -203,7 +203,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

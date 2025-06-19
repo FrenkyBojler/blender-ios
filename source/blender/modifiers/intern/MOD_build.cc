@@ -260,7 +260,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   layout->prop(ptr, "frame_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
@@ -280,7 +280,7 @@ static void random_panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_random_order"));
+  layout->active_set(RNA_boolean_get(ptr, "use_random_order"));
   layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 

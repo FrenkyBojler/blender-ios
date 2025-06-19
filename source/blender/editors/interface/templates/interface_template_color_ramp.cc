@@ -84,7 +84,7 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                      style);
   UI_block_layout_set_current(block, layout);
   {
-    uiLayoutSetContextPointer(layout, "color_ramp", &coba_ptr);
+    layout->context_ptr_set("color_ramp", &coba_ptr);
   }
 
   /* We could move these to operators,
@@ -150,11 +150,11 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     });
   }
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout, IFACE_("Eyedropper"), ICON_EYEDROPPER, "UI_OT_eyedropper_colorramp");
+  layout->op("UI_OT_eyedropper_colorramp", IFACE_("Eyedropper"), ICON_EYEDROPPER);
 
-  uiItemS(layout);
+  layout->separator();
 
   {
     uiBut *but = uiDefIconTextBut(block,

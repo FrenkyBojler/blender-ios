@@ -143,7 +143,7 @@ static void graph_panel_cursor(const bContext *C, Panel *panel)
 
   /* 2D-Cursor */
   col = &layout->column(false);
-  uiLayoutSetActive(col, RNA_boolean_get(&spaceptr, "show_cursor"));
+  col->active_set(RNA_boolean_get(&spaceptr, "show_cursor"));
 
   sub = &col->column(true);
   if (sipo->mode == SIPO_MODE_DRIVERS) {
@@ -156,8 +156,8 @@ static void graph_panel_cursor(const bContext *C, Panel *panel)
   sub->prop(&spaceptr, "cursor_position_y", UI_ITEM_NONE, IFACE_("Y"), ICON_NONE);
 
   sub = &col->column(true);
-  uiItemO(sub, IFACE_("Cursor to Selection"), ICON_NONE, "GRAPH_OT_frame_jump");
-  uiItemO(sub, IFACE_("Cursor Value to Selection"), ICON_NONE, "GRAPH_OT_snap_cursor_value");
+  sub->op("GRAPH_OT_frame_jump", IFACE_("Cursor to Selection"), ICON_NONE);
+  sub->op("GRAPH_OT_snap_cursor_value", IFACE_("Cursor Value to Selection"), ICON_NONE);
 }
 
 /** \} */
@@ -222,7 +222,7 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
 
   /* RNA-Path Editing - only really should be enabled when things aren't working */
   col = &layout->column(false);
-  uiLayoutSetEnabled(col, (fcu->flag & FCURVE_DISABLED) != 0);
+  col->enabled_set((fcu->flag & FCURVE_DISABLED) != 0);
   col->prop(&fcu_ptr, "data_path", UI_ITEM_NONE, "", ICON_RNA);
   col->prop(&fcu_ptr, "array_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -363,7 +363,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     return;
   }
 
-  block = uiLayoutGetBlock(layout);
+  block = layout->block();
   // UI_block_func_handle_set(block, do_graph_region_buttons, nullptr);
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
@@ -929,7 +929,7 @@ static void graph_draw_driven_property_enabled_btn(uiLayout *layout,
 {
   PointerRNA fcurve_ptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiDefButR(block,
             UI_BTYPE_CHECKBOX_N,
             0,
@@ -975,7 +975,7 @@ static void graph_draw_driven_property_panel(uiLayout *layout, ID *id, FCurve *f
 
   /* panel layout... */
   row = &layout->row(true);
-  uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
+  row->alignment_set(blender::ui::LayoutAlign::Left);
 
   /* -> user friendly 'name' for datablock that owns F-Curve */
   /* XXX: Actually, we may need the datablock icons only...
@@ -1000,14 +1000,14 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   uiBut *but;
 
   /* set event handler for panel */
-  block = uiLayoutGetBlock(layout);
+  block = layout->block();
   UI_block_func_handle_set(block, do_graph_region_driver_buttons, id);
 
   /* driver-level settings - type, expressions, and errors */
   PointerRNA driver_ptr = RNA_pointer_create_discrete(id, &RNA_Driver, driver);
 
   col = &layout->column(true);
-  block = uiLayoutGetBlock(col);
+  block = col->block();
   col->prop(&driver_ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   {
@@ -1020,8 +1020,8 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
     row->label(valBuf, ICON_NONE);
   }
 
-  uiItemS(layout);
-  uiItemS(layout);
+  layout->separator();
+  layout->separator();
 
   /* show expression box if doing scripted drivers,
    * and/or error messages when invalid drivers exist */
@@ -1032,7 +1032,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
     /* expression */
     /* TODO: "Show syntax hints" button */
     col = &layout->column(true);
-    block = uiLayoutGetBlock(col);
+    block = col->block();
 
     col->label(IFACE_("Expression:"), ICON_NONE);
     col->prop(&driver_ptr, "expression", UI_ITEM_NONE, "", ICON_NONE);
@@ -1040,7 +1040,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
 
     /* errors? */
     col = &layout->column(true);
-    block = uiLayoutGetBlock(col);
+    block = col->block();
 
     if (driver->flag & DRIVER_FLAG_PYTHON_BLOCKED) {
       /* TODO: Add button to enable? */
@@ -1070,7 +1070,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   else {
     /* errors? */
     col = &layout->column(true);
-    block = uiLayoutGetBlock(col);
+    block = col->block();
 
     if (driver->flag & DRIVER_FLAG_INVALID) {
       col->label(RPT_("ERROR: Invalid target channel(s)"), ICON_ERROR);
@@ -1092,14 +1092,14 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
     }
   }
 
-  uiItemS(layout);
+  layout->separator();
 
   /* add/copy/paste driver variables */
   row_outer = &layout->row(false);
 
   /* add driver variable - add blank */
   row = &row_outer->row(true);
-  block = uiLayoutGetBlock(row);
+  block = row->block();
   but = uiDefIconTextBut(
       block,
       UI_BTYPE_BUT,
@@ -1119,15 +1119,15 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   if (is_popover) {
     /* add driver variable - add using eyedropper */
     /* XXX: will this operator work like this? */
-    uiItemO(row, "", ICON_EYEDROPPER, "UI_OT_eyedropper_driver");
+    row->op("UI_OT_eyedropper_driver", "", ICON_EYEDROPPER);
   }
 
   /* copy/paste (as sub-row) */
   row = &row_outer->row(true);
-  block = uiLayoutGetBlock(row);
+  block = row->block();
 
-  uiItemO(row, "", ICON_COPYDOWN, "GRAPH_OT_driver_variables_copy");
-  uiItemO(row, "", ICON_PASTEDOWN, "GRAPH_OT_driver_variables_paste");
+  row->op("GRAPH_OT_driver_variables_copy", "", ICON_COPYDOWN);
+  row->op("GRAPH_OT_driver_variables_paste", "", ICON_PASTEDOWN);
 
   /* loop over targets, drawing them */
   LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
@@ -1142,7 +1142,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
     PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverVariable, dvar);
 
     row = &box->row(false);
-    block = uiLayoutGetBlock(row);
+    block = row->block();
 
     /* 1.1) variable type and name */
     subrow = &row->row(true);
@@ -1153,7 +1153,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
      * otherwise we get ugly layout with text included too... */
     sub = &subrow->row(true);
 
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+    sub->alignment_set(blender::ui::LayoutAlign::Left);
 
     sub->prop(&dvar_ptr, "type", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
@@ -1163,7 +1163,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
      * which now pushes everything too far right */
     sub = &subrow->row(true);
 
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
+    sub->alignment_set(blender::ui::LayoutAlign::Expand);
 
     sub->prop(&dvar_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 
@@ -1255,13 +1255,13 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   /* Quiet warning about old value being unused before re-assigned. */
   UNUSED_VARS(block);
 
-  uiItemS(layout);
-  uiItemS(layout);
+  layout->separator();
+  layout->separator();
 
   /* XXX: This should become redundant. But sometimes the flushing fails,
    * so keep this around for a while longer as a "last resort" */
   row = &layout->row(true);
-  block = uiLayoutGetBlock(row);
+  block = row->block();
   but = uiDefIconTextBut(
       block,
       UI_BTYPE_BUT,
@@ -1347,22 +1347,22 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
      * this panel is getting spawned from, so that things like the "Open Drivers Editor"
      * button will work.
      */
-    uiLayoutSetContextFromBut(layout, but);
+    layout->context_set_from_but(but);
 
     /* Populate Panel - With a combination of the contents of the Driven and Driver panels */
     if (fcu && fcu->driver) {
       ID *id = ptr.owner_id;
 
       PointerRNA ptr_fcurve = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
-      uiLayoutSetContextPointer(layout, "active_editable_fcurve", &ptr_fcurve);
+      layout->context_ptr_set("active_editable_fcurve", &ptr_fcurve);
 
       /* Driven Property Settings */
       layout->label(IFACE_("Driven Property:"), ICON_NONE);
       graph_draw_driven_property_panel(panel->layout, id, fcu);
       /* TODO: All vs Single */
 
-      uiItemS(layout);
-      uiItemS(layout);
+      layout->separator();
+      layout->separator();
 
       /* Drivers Settings */
       graph_draw_driven_property_enabled_btn(panel->layout, id, fcu, IFACE_("Driver:"));
@@ -1371,7 +1371,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
   }
 
   /* Show drivers editor is always visible */
-  uiItemO(layout, IFACE_("Show in Drivers Editor"), ICON_DRIVER, "SCREEN_OT_drivers_editor_show");
+  layout->op("SCREEN_OT_drivers_editor_show", IFACE_("Show in Drivers Editor"), ICON_DRIVER);
 }
 
 /** \} */
@@ -1415,7 +1415,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
     return;
   }
 
-  block = uiLayoutGetBlock(panel->layout);
+  block = panel->layout->block();
   UI_block_func_handle_set(block, do_graph_region_modifier_buttons, nullptr);
 
   /* 'add modifier' button at top of panel */
@@ -1429,8 +1429,8 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
 
     /* copy/paste (as sub-row) */
     row = &row->row(true);
-    uiItemO(row, "", ICON_COPYDOWN, "GRAPH_OT_fmodifier_copy");
-    uiItemO(row, "", ICON_PASTEDOWN, "GRAPH_OT_fmodifier_paste");
+    row->op("GRAPH_OT_fmodifier_copy", "", ICON_COPYDOWN);
+    row->op("GRAPH_OT_fmodifier_paste", "", ICON_PASTEDOWN);
   }
 
   ANIM_fmodifier_panels(C, ale->fcurve_owner_id, &fcu->modifiers, graph_fmodifier_panel_id);

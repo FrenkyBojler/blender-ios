@@ -6,8 +6,10 @@
 #include "UI_resources.hh"
 
 #include "NOD_geo_closure.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "BLO_read_write.hh"
 
@@ -29,14 +31,18 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
           item);
-      b.add_input(socket_type, item.name, identifier);
+      b.add_input(socket_type, item.name, identifier)
+          .structure_type(StructureType(item.structure_type));
     }
     for (const int i : IndexRange(storage.output_items.items_num)) {
       const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier =
           EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      b.add_output(socket_type, item.name, identifier).propagate_all().reference_pass_all();
+      b.add_output(socket_type, item.name, identifier)
+          .propagate_all()
+          .reference_pass_all()
+          .structure_type(StructureType(item.structure_type));
     }
   }
 
@@ -82,12 +88,18 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
 
+  uiLayoutSetPropSep(layout, true);
+  uiLayoutSetPropDecorate(layout, false);
+
+  layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+
   if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
   if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
@@ -96,6 +108,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
@@ -107,10 +120,41 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
   return evaluate_closure_node_internally_linked_input(output_socket);
 }
 
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const bNodeSocket &other_socket = params.other_socket();
+  if (other_socket.type != SOCK_CLOSURE) {
+    return;
+  }
+  if (other_socket.in_out == SOCK_IN) {
+    return;
+  }
+
+  params.add_item("Closure", [](LinkSearchOpParams &params) {
+    bNode &node = params.add_node("GeometryNodeEvaluateClosure");
+    params.connect_available_socket(node, "Closure");
+
+    SpaceNode &snode = *CTX_wm_space_node(&params.C);
+    ed::space_node::sync_sockets_evaluate_closure(snode, node, nullptr);
+  });
+}
+
 static void node_operators()
 {
   socket_items::ops::make_common_operators<EvaluateClosureInputItemsAccessor>();
   socket_items::ops::make_common_operators<EvaluateClosureOutputItemsAccessor>();
+}
+
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<EvaluateClosureInputItemsAccessor>(&writer, node);
+  socket_items::blend_write<EvaluateClosureOutputItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<EvaluateClosureInputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<EvaluateClosureOutputItemsAccessor>(&reader, node);
 }
 
 static void node_register()
@@ -125,7 +169,10 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.internally_linked_input = node_internally_linked_input;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_type_storage(
       ntype, "NodeGeometryEvaluateClosure", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
@@ -138,7 +185,6 @@ namespace blender::nodes {
 
 StructRNA *EvaluateClosureInputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureInputItem;
-int EvaluateClosureInputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
@@ -152,7 +198,6 @@ void EvaluateClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *re
 
 StructRNA *EvaluateClosureOutputItemsAccessor::item_srna =
     &RNA_NodeGeometryEvaluateClosureOutputItem;
-int EvaluateClosureOutputItemsAccessor::node_type = GEO_NODE_EVALUATE_CLOSURE;
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {

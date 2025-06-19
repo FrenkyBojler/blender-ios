@@ -515,22 +515,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   uiLayoutSetPropSep(layout, true);
 
   col = &layout->column(true);
-  uiLayoutSetEnabled(col, !is_bound);
+  col->enabled_set(!is_bound);
   col->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   col = &layout->column(false);
-  uiLayoutSetEnabled(col, !is_bound);
+  col->enabled_set(!is_bound);
   col->prop(ptr, "precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_dynamic_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemO(layout,
-          is_bound ? IFACE_("Unbind") : IFACE_("Bind"),
-          ICON_NONE,
-          "OBJECT_OT_meshdeform_bind");
+  layout->op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

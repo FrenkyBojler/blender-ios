@@ -1725,7 +1725,8 @@ static void annotation_draw_eraser(bContext * /*C*/,
 
   if (p->paintmode == GP_PAINTMODE_ERASER) {
     GPUVertFormat *format = immVertexFormat();
-    const uint shdr_pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    const uint shdr_pos = GPU_vertformat_attr_add(
+        format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     GPU_line_smooth(true);
@@ -1795,7 +1796,7 @@ static void annotation_draw_stabilizer(bContext *C,
   const tGPspoint *pt = &points[totpoints - 1];
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -2762,7 +2763,7 @@ void GPENCIL_OT_annotate(wmOperatorType *ot)
   ot->idname = "GPENCIL_OT_annotate";
   ot->description = "Make annotations on the active data";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = annotation_draw_exec;
   ot->invoke = annotation_draw_invoke;
   ot->modal = annotation_draw_modal;

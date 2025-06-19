@@ -8,19 +8,19 @@
 
 #pragma once
 
-#include <mutex>
-
 #include "xxhash.h"
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_utility_mixins.hh"
 
 #include "gpu_state_private.hh"
 
 #include "vk_common.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
+class VKDevice;
+class VKDiscardPool;
 
 /**
  * Struct containing key information to identify a compute pipeline.
@@ -216,8 +216,6 @@ struct VKGraphicsInfo {
   }
 };
 
-class VKDevice;
-
 /**
  * Pipelines are lazy initialized and same pipelines should share their handle.
  *
@@ -289,7 +287,7 @@ class VKPipelinePool : public NonCopyable {
   VkPipelineCache vk_pipeline_cache_static_;
   VkPipelineCache vk_pipeline_cache_non_static_;
 
-  std::mutex mutex_;
+  Mutex mutex_;
 
  public:
   VKPipelinePool();
@@ -317,9 +315,9 @@ class VKPipelinePool : public NonCopyable {
                                              VkPipeline vk_pipeline_base);
 
   /**
-   * Remove all shader pipelines that uses the given shader_module.
+   * Discard all pipelines that uses the given pipeline_layout.
    */
-  void remove(Span<VkShaderModule> vk_shader_modules);
+  void discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pipeline_layout);
 
   /**
    * Destroy all created pipelines.
@@ -367,6 +365,4 @@ class VKPipelinePool : public NonCopyable {
   void specialization_info_reset();
 };
 
-}  // namespace gpu
-
-}  // namespace blender
+}  // namespace blender::gpu
