@@ -8925,6 +8925,13 @@ void RNA_def_scene(BlenderRNA *brna)
       "Number of frames to skip forward while rendering/playing back each frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
 
+  prop = RNA_def_property(srna, "frame_delta", PROP_INT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_int_sdna(prop, nullptr, "r.frame_delta");
+  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_ui_text(prop, "Frame Delta", "Number of frames to jump forward or backward");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
+
   prop = RNA_def_property(srna, "frame_current_final", PROP_FLOAT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
   RNA_def_property_range(prop, MINAFRAME, MAXFRAME);

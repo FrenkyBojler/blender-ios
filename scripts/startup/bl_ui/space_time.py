@@ -63,6 +63,12 @@ def playback_controls(layout, context):
 
     row.operator("screen.frame_jump", text="", icon='FF').end = True
 
+    # Frame jump delta.
+    row = layout.row(align=True)
+    row.operator("screen.frame_jump_delta", text="", icon='BACK').backward = True
+    row.prop(scene, "frame_delta", text="")
+    row.operator("screen.frame_jump_delta", text="", icon='FORWARD').backward = False
+
     layout.separator_spacer()
 
     row = layout.row()

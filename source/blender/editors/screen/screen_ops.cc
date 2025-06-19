@@ -3329,6 +3329,51 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Frame Jump Delta Operator
+ * \{ */
+
+/* function to be called outside UI context, or for redo */
+static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
+{
+  Scene *scene = CTX_data_scene(C);
+  const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  if (backward) {
+    scene->r.cfra -= scene->r.frame_delta;
+  }
+  else {
+    scene->r.cfra += scene->r.frame_delta;
+  }
+
+  ED_areas_do_frame_follow(C, true);
+
+  DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_frame_jump_delta(wmOperatorType *ot)
+{
+  ot->name = "Jump Frames by Delta";
+  ot->description = "Jump forward/backward by a given number of frames";
+  ot->idname = "SCREEN_OT_frame_jump_delta";
+
+  ot->exec = frame_jump_delta_exec;
+
+  ot->poll = operator_screenactive_norender;
+  ot->flag = OPTYPE_UNDO_GROUPED;
+  ot->undo_group = "Frame Change";
+
+  /* rna */
+  RNA_def_boolean(
+      ot->srna, "backward", false, "Backwards", "Jump backwards in time");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Jump to Key-Frame Operator
  * \{ */
 
@@ -6746,6 +6791,7 @@ void ED_operatortypes_screen()
   /* Frame changes. */
   WM_operatortype_append(SCREEN_OT_frame_offset);
   WM_operatortype_append(SCREEN_OT_frame_jump);
+  WM_operatortype_append(SCREEN_OT_frame_jump_delta);
   WM_operatortype_append(SCREEN_OT_keyframe_jump);
   WM_operatortype_append(SCREEN_OT_marker_jump);
 

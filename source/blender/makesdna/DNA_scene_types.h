@@ -872,7 +872,8 @@ typedef struct RenderData {
   int compositor_denoise_preview_quality; /* eCompositorDenoiseQaulity */
   int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 
-  char _pad6[4];
+  /** Frames to jump manually. */
+  int frame_delta;
 } RenderData;
 
 /** #RenderData::quality_flag */
