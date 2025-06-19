@@ -38,12 +38,18 @@ static const std::string position_attr = "position";
 static const std::string rotation_attr = "rotation";
 static const std::string velocity_attr = "velocity";
 static const std::string angular_velocity_attr = "angular_velocity";
-static const std::string position_cache_attr = ".old_position";
-static const std::string rotation_cache_attr = ".old_rotation";
 static const std::string mass_attr = "mass";
 static const std::string inv_mass_attr = "inv_mass";
 static const std::string inertia_attr = "inertia";
 static const std::string inv_inertia_attr = "inv_inertia";
+static const std::string radius_attr = "radius";
+static const std::string segment_length_attr = "segment_length";
+
+/* XXX These should be anonymous attributes. */
+static const std::string position_cache_attr = ".old_position";
+static const std::string rotation_cache_attr = ".old_rotation";
+static const std::string cross_section_attr = ".cross_section";
+static const std::string area_moment_attr = ".area_moment";
 
 enum class VectorSpace {
   /* Object space. */
@@ -58,6 +64,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Float>("Density").default_value(1000.0f).field_on_all();
   b.add_input<decl::Vector>("Gravity").default_value(float3(0, 0, -9.81f)).hide_value();
   b.add_input<decl::Vector>("Force").field_on_all().hide_value();
   b.add_input<decl::Vector>("Torque").field_on_all().hide_value();
@@ -85,10 +92,159 @@ static bool store_hair_rest_shape(GeometryComponent &hair_component)
                                              {position_field, normal_field});
 }
 
-/* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
-static void init_hair_physics(GeometryComponent &hair_component, const Field<bool> selection_field)
+/* Shift point indices along the curve.
+ * Indices at the start or end are clamped to the curve range. */
+class ShiftedIndexOnCurveInput final : public bke::CurvesFieldInput {
+ private:
+  int offset_;
+
+ public:
+  ShiftedIndexOnCurveInput(const int offset)
+      : bke::CurvesFieldInput(CPPType::get<int>(), "Shifted Index on Curve"), offset_(offset)
+  {
+  }
+
+  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+                                 AttrDomain domain,
+                                 const IndexMask &mask) const final
+  {
+    if (domain != AttrDomain::Point) {
+      return {};
+    }
+
+    Array<int> output(mask.min_array_size());
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
+      for (const int i : curves_range) {
+        const IndexRange points = points_by_curve[i];
+        const int start = std::max(-offset_, 0);
+        const int end = std::max(offset_, 0);
+
+        for (const int point_i : points.take_front(start)) {
+          output[point_i] = points.first();
+        }
+        for (const int point_i : points.take_back(end)) {
+          output[point_i] = points.last();
+        }
+        for (const int point_i : points.drop_front(start).drop_back(end)) {
+          output[point_i] = point_i + offset_;
+        }
+      }
+    });
+    return VArray<int>::ForContainer(std::move(output));
+  }
+
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
+  {
+    return AttrDomain::Point;
+  }
+};
+
+static GField get_shifted_curve_input(const GField &value_field, const int offset)
 {
-  UNUSED_VARS(hair_component, selection_field);
+  Field<int> index_field{std::make_shared<ShiftedIndexOnCurveInput>(offset)};
+  return GField{std::make_shared<bke::EvaluateAtIndexInput>(
+      std::move(index_field), value_field, AttrDomain::Point)};
+}
+
+/* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
+static bool init_hair_physics(GeometryComponent &component,
+                              const Field<bool> &selection_field,
+                              const Field<float> &density_field)
+{
+  static const auto cross_section_fn = fn::multi_function::build::SI1_SO<float, float>(
+      "Rod Cross Section", [](const float radius) -> float { return M_PI * radius * radius; });
+  static const auto area_moment_fn = fn::multi_function::build::SI1_SO<float, float3>(
+      "Second Moment of Area", [](const float radius) -> float3 {
+        const float radius_sq = radius * radius;
+        return radius_sq * radius_sq * M_PI * float3(0.25f, 0.25f, 0.5f);
+      });
+  const Field<float> radius_field{bke::AttributeFieldInput::Create<float>(radius_attr)};
+  const Field<float> cross_section_field = Field<float>(
+      fn::FieldOperation::Create(cross_section_fn, {radius_field}));
+  const Field<float3> area_moment_field = Field<float3>(
+      fn::FieldOperation::Create(area_moment_fn, {radius_field}));
+  if (!bke::try_capture_fields_on_geometry(component,
+                                           {cross_section_attr, area_moment_attr},
+                                           bke::AttrDomain::Point,
+                                           selection_field,
+                                           {cross_section_field, area_moment_field}))
+  {
+    return false;
+  }
+
+  static const auto segment_length_fn = fn::multi_function::build::SI2_SO<float3, float3, float>(
+      "Segment Length",
+      [](const float3 &p1, const float3 &p2) -> float { return math::distance(p1, p2); });
+  const Field<float3> position_field{bke::AttributeFieldInput::Create<float3>(position_attr)};
+  const Field<float3> next_position_field = get_shifted_curve_input(position_field, 1);
+  const Field<float> segment_length_field = Field<float>(
+      fn::FieldOperation::Create(segment_length_fn, {position_field, next_position_field}));
+  if (!bke::try_capture_field_on_geometry(component,
+                                          segment_length_attr,
+                                          bke::AttrDomain::Point,
+                                          selection_field,
+                                          segment_length_field))
+  {
+    return false;
+  }
+
+  /* Average segment length from both sides of a point to determine average volume. */
+  static const auto mean_segment_length_fn =
+      fn::multi_function::build::SI2_SO<float, float, float>(
+          "Mean Segment Length", [](const float length1, const float length2) -> float {
+            return 0.5f * (length1 + length2);
+          });
+  const Field<float> prev_segment_length_field = get_shifted_curve_input(segment_length_field, -1);
+  const Field<float> mean_segment_length_field = Field<float>(fn::FieldOperation::Create(
+      mean_segment_length_fn, {segment_length_field, prev_segment_length_field}));
+
+  static const auto point_mass_fn = fn::multi_function::build::SI3_SO<float, float, float, float>(
+      "Point Mass",
+      [](const float length, const float cross_section, const float density) -> float {
+        return length * cross_section * density;
+      });
+  static const auto segment_inertia_fn =
+      fn::multi_function::build::SI3_SO<float, float3, float, float3>(
+          "Segment Moment of Inertia",
+          [](const float length, const float3 &area_moment, const float density) -> float3 {
+            return length * area_moment * density;
+          });
+  const Field<float> point_mass_field = Field<float>(
+      fn::FieldOperation::Create(point_mass_fn,
+                                 {mean_segment_length_field,
+                                  AttributeFieldInput::Create<float>(cross_section_attr),
+                                  density_field}));
+  const Field<float3> segment_inertia_field = Field<float3>(
+      fn::FieldOperation::Create(segment_inertia_fn,
+                                 {mean_segment_length_field,
+                                  AttributeFieldInput::Create<float3>(area_moment_attr),
+                                  density_field}));
+
+  static const auto inv_point_mass_fn = fn::multi_function::build::SI1_SO<float, float>(
+      "Inverse Point Mass", [](const float mass) -> float { return math::safe_rcp(mass); });
+  static const auto inv_segment_inertia_fn = fn::multi_function::build::SI1_SO<float3, float3>(
+      "Inverse Segment Moment of Inertia",
+      [](const float3 &inertia) -> float3 { return math::safe_rcp(inertia); });
+  const Field<float> inv_point_mass_field = Field<float>(
+      fn::FieldOperation::Create(inv_point_mass_fn, {point_mass_field}));
+  const Field<float3> inv_segment_inertia_field = Field<float3>(
+      fn::FieldOperation::Create(inv_segment_inertia_fn, {segment_inertia_field}));
+
+  if (!bke::try_capture_fields_on_geometry(
+          component,
+          {mass_attr, inertia_attr, inv_mass_attr, inv_inertia_attr},
+          bke::AttrDomain::Point,
+          selection_field,
+          {point_mass_field,
+           segment_inertia_field,
+           inv_point_mass_field,
+           inv_segment_inertia_field}))
+  {
+    return false;
+  }
+
+  return true;
 }
 
 /* Create internal stretch/shear and bending constraints. */
@@ -626,6 +782,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   //                                            0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  Field<float> density_field = params.extract_input<Field<float>>("Density");
   float3 gravity = params.extract_input<float3>("Gravity");
   Field<float3> force_field = params.extract_input<Field<float3>>("Force");
   Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
@@ -641,7 +798,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!store_hair_rest_shape(hair_curves)) {
       params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
     }
-    init_hair_physics(hair_curves, selection_field);
+    init_hair_physics(hair_curves, selection_field, density_field);
 
     BundlePtr constraint_bundle = Bundle::create();
     generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field);
@@ -655,6 +812,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   cosserat_rod_dynamics_integration(
       hair_curves, selection_field, delta_time, 1.0f, 1.0f, gravity, force_field, torque_field);
+
+  /* Remove temporary captured attributes. */
+  hair_curves.attributes_for_write()->remove(position_cache_attr);
+  hair_curves.attributes_for_write()->remove(rotation_cache_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
 }
