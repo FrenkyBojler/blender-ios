@@ -1583,6 +1583,17 @@ static wmOperatorStatus area_close_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  float inner_from[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+  float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  screen_animate_area_highlight(CTX_wm_window(C),
+                                CTX_wm_screen(C),
+                                &area->totrct,
+                                inner_from,
+                                inner_to,
+                                nullptr,
+                                nullptr,
+                                AREA_CLOSE_FADEOUT);
+
   if (!screen_area_close(C, op->reports, screen, area)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to close area");
     return OPERATOR_CANCELLED;
@@ -2597,6 +2608,18 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
 
     case LEFTMOUSE:
       if (sd->previewmode) {
+        float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+        float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+        float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+        screen_animate_area_highlight(CTX_wm_window(C),
+                                      CTX_wm_screen(C),
+                                      &sd->sarea->totrct,
+                                      inner_from,
+                                      inner_to,
+                                      outline_from,
+                                      outline_to,
+                                      AREA_SPLIT_FADEOUT);
         area_split_apply(C, op);
         area_split_exit(C, op);
         return OPERATOR_FINISHED;
@@ -3819,9 +3842,25 @@ static bool area_join_apply(bContext *C, wmOperator *op)
 
   bScreen *screen = CTX_wm_screen(C);
 
+  rcti combined = jd->sa1->totrct;
+  BLI_rcti_union(&combined, &jd->sa2->totrct);
+  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  screen_animate_area_highlight(CTX_wm_window(C),
+                                screen,
+                                &combined,
+                                inner_from,
+                                inner_to,
+                                outline_from,
+                                outline_to,
+                                AREA_JOIN_FADEOUT);
+
   if (!screen_area_join(C, op->reports, screen, jd->sa1, jd->sa2)) {
     return false;
   }
+
   if (CTX_wm_area(C) == jd->sa2) {
     CTX_wm_area_set(C, nullptr);
     CTX_wm_region_set(C, nullptr);
@@ -3980,9 +4019,32 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       jd->close_win = true;
     }
     else {
+      float inner_from[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+      float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+      screen_animate_area_highlight(CTX_wm_window(C),
+                                    CTX_wm_screen(C),
+                                    &jd->sa1->totrct,
+                                    inner_from,
+                                    inner_to,
+                                    nullptr,
+                                    nullptr,
+                                    AREA_CLOSE_FADEOUT);
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
     }
   }
+
+  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  screen_animate_area_highlight(CTX_wm_window(C),
+                                CTX_wm_screen(C),
+                                &jd->sa2->totrct,
+                                inner_from,
+                                inner_to,
+                                outline_from,
+                                outline_to,
+                                AREA_DOCK_FADEOUT);
 
   if (jd && jd->sa2 == CTX_wm_area(C)) {
     CTX_wm_area_set(C, nullptr);
@@ -4397,6 +4459,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
             /* We have to clear handlers or we get an error in wm_gizmomap_modal_get. */
             WM_event_modal_handler_region_replace(jd->win1, CTX_wm_region(C), nullptr);
             area_dupli_open(C, jd->sa1, blender::int2(event->xy[0], event->xy[1] - jd->sa1->winy));
+
             if (!screen_area_close(C, op->reports, WM_window_get_active_screen(jd->win1), jd->sa1))
             {
               if (BLI_listbase_is_single(&WM_window_get_active_screen(jd->win1)->areabase) &&
@@ -4412,6 +4475,20 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         else if (jd->sa1 && jd->sa1 == jd->sa2) {
           /* Same area so split. */
           if (area_split_allowed(jd->sa1, jd->split_dir) && jd->split_fac > 0.0001) {
+
+            float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+            float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+            float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+            float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+            screen_animate_area_highlight(jd->win1,
+                                          CTX_wm_screen(C),
+                                          &jd->sa1->totrct,
+                                          inner_from,
+                                          inner_to,
+                                          outline_from,
+                                          outline_to,
+                                          AREA_SPLIT_FADEOUT);
+
             jd->sa2 = area_split(jd->win2,
                                  WM_window_get_active_screen(jd->win1),
                                  jd->sa1,
