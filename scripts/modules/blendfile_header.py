@@ -78,6 +78,9 @@ class BlendFileHeader:
     pointer_size: int
     # Endianness of values stored in the file.
     is_little_endian: bool
+    # Blender version the file has been written with.
+    # The last two digits are the minor version. So 280 is 2.80.
+    version: int
 
     def __init__(self, file: typing.IO[bytes]) -> None:
         file.seek(0, os.SEEK_SET)
