@@ -127,6 +127,7 @@ static bool apply_external_impulse(GeometryComponent &component,
                                    const Field<bool> &selection_field,
                                    const Field<float3> &impulse)
 {
+  return true;
 }
 
 static bool apply_external_force(GeometryComponent &component,
@@ -134,6 +135,7 @@ static bool apply_external_force(GeometryComponent &component,
                                  const float delta_time,
                                  const Field<float3> &force)
 {
+  return true;
 }
 
 static bool integrate_positions(GeometryComponent &component,
@@ -141,16 +143,16 @@ static bool integrate_positions(GeometryComponent &component,
                                 const float delta_time,
                                 const float linear_factor)
 {
-  static const auto integrate_positions_fn = fn::multi_function::build::SI1_SO<float, float3>(
+  const auto integrate_positions_fn = fn::multi_function::build::SI2_SO<float3, float3, float3>(
       "Integrate Positions", [=](const float3 &position, const float3 &velocity) -> float3 {
         return position + linear_factor * delta_time * velocity;
       });
-  static const GField field = Field<float3>(
+  const GField field = Field<float3>(
       fn::FieldOperation::Create(integrate_positions_fn,
                                  {bke::AttributeFieldInput::Create<float3>(position_attr),
                                   bke::AttributeFieldInput::Create<float3>(velocity_attr)}));
 
-  bke::try_capture_field_on_geometry(
+  return bke::try_capture_field_on_geometry(
       component, position_attr, bke::AttrDomain::Point, selection_field, field);
 }
 
@@ -159,17 +161,23 @@ static bool integrate_rotations(GeometryComponent &component,
                                 const float delta_time,
                                 const float angular_factor)
 {
-  static const auto integrate_rotations_fn =
-      fn::multi_function::build::SI1_SO<float, math::Quaternion>(
+  const auto integrate_rotations_fn =
+      fn::multi_function::build::SI2_SO<math::Quaternion, float3, math::Quaternion>(
           "Integrate Rotations",
-          [=](const math::Quaternion &rotation, const float3 &angular_velocity)
-              -> math::Quaternion { return position + linear_factor * delta_time * velocity; });
-  static const GField field = Field<float3>(fn::FieldOperation::Create(
+          [=](const math::Quaternion &rotation,
+              const float3 &angular_velocity) -> math::Quaternion {
+            math::Quaternion direction = math::Quaternion(0, angular_velocity) * rotation;
+            const float factor = angular_factor * delta_time * 0.5f;
+            return math::normalize(
+                math::Quaternion(rotation.w + factor * direction.w,
+                                 rotation.imaginary_part() + factor * direction.imaginary_part()));
+          });
+  const GField field = Field<float3>(fn::FieldOperation::Create(
       integrate_rotations_fn,
       {bke::AttributeFieldInput::Create<float3>(rotation_attr),
        bke::AttributeFieldInput::Create<float3>(angular_velocity_attr)}));
 
-  bke::try_capture_field_on_geometry(
+  return bke::try_capture_field_on_geometry(
       component, rotation_attr, bke::AttrDomain::Point, selection_field, field);
 }
 
