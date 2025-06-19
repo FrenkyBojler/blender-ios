@@ -108,9 +108,8 @@ class ConditionalDownloader:
     def _download_to_file(self, http_req_descr: RequestDescription, local_path: Path) -> None:
         """Same as download_to_file(), but without the exception handling."""
 
-        self._reporter.download_starts(http_req_descr)
-
         http_meta = self._metadata_if_valid(http_req_descr, local_path)
+        self._reporter.download_starts(http_req_descr)
 
         # Download to a temporary file first.
         temp_path = local_path.with_suffix(local_path.suffix + "~")
@@ -206,6 +205,7 @@ class ConditionalDownloader:
         # Requests' automatic decompression, use the raw byte stream, and
         # decompress ourselves.
         content_encoding: str = stream.headers.get("Content-Encoding") or ""
+        decoder: zlib._Decompress | None
         match content_encoding:
             case "gzip":
                 wbits = 16 + zlib.MAX_WBITS
@@ -470,6 +470,10 @@ class BackgroundDownloader:
     def is_shutdown_complete(self) -> bool:
         return self._shutdown_complete_event.is_set()
 
+    @property
+    def is_subprocess_alive(self) -> bool:
+        return bool(self._downloader_process and self._downloader_process.is_alive())
+
     def shutdown(self) -> None:
         """Cancel any pending downloads and shut down the background process.
 
@@ -512,8 +516,8 @@ class BackgroundDownloader:
         The reports will be sent to all registered reporters, in the same
         process that calls this method.
         """
-        if not (self._downloader_process and self._downloader_process.is_alive()):
-            raise RuntimeError("start the download process first")
+        if not self.is_subprocess_alive:
+            raise BackgroundProcessNotRunningError()
         self._handle_incoming_messages()
 
     def _handle_incoming_messages(self) -> None:
@@ -1047,7 +1051,7 @@ class HTTPRequestDownloadError(RuntimeError):
 
     http_req_desc: RequestDescription
 
-    def __init__(self, http_req_desc: RequestDescription, *args) -> None:
+    def __init__(self, http_req_desc: RequestDescription, *args: object) -> None:
         # NOTE: passing http_req_desc here is necessary for these exceptions to be pickleable.
         # See https://stackoverflow.com/a/28335286/875379 for an explanation.
         super().__init__(http_req_desc, *args)
@@ -1109,6 +1113,14 @@ class DownloadCancelled(HTTPRequestDownloadError):
     def __init__(self, http_req_desc: RequestDescription) -> None:
         # This __init__ method is necessary to be able to (un)pickle instances.
         super().__init__(http_req_desc)
+
+
+class BackgroundProcessNotRunningError(Exception):
+    """The BackgroundDownloader process is not (yet) running.
+
+    Raised when BackgroundDownloader.update() is called, but the background
+    process is not yet running or has died unexpectedly.
+    """
 
 
 def http_session() -> requests.Session:

@@ -8,15 +8,20 @@ import enum
 import logging
 import urllib.parse
 from pathlib import Path
-from typing import Callable, TypeAlias
+from typing import Callable, TypeAlias, TypeVar, Type
 
 import bpy
+import pydantic
 
 from _bpy_internal.http import downloader as http_dl
 from _bpy_internal.assets.remote_library_index import blender_asset_library_openapi as api_models
 from _bpy_internal.assets.remote_library_index import index_common
+from _bpy_internal.assets.remote_library_index import http_metadata
+from _bpy_internal.assets.remote_library_index import asset_catalogs
 
 logger = logging.getLogger(__name__)
+
+PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
 
 class DownloadStatus(enum.Enum):
@@ -52,6 +57,15 @@ class RemoteAssetListingDownloader:
     Blender process and the background download process.
     """
 
+    _referenced_local_files: list[Path]
+    """Paths of actually-referenced index page files.
+
+    This makes it possible to delete once-downloaded index pages that now no
+    longer exist.
+    """
+
+    _library_meta: api_models.AssetLibraryMeta | None
+
     def __init__(
         self,
         remote_url: str,
@@ -86,14 +100,18 @@ class RemoteAssetListingDownloader:
         self._on_update_callback = on_update_callback
 
         self._num_asset_pages_pending = 0
+        self._referenced_local_files = []
+        self._library_meta = None
+
         self.status = DownloadStatus.LOADING
         self.error_message = ""
 
         # Work around a limitation of Blender, see bug report #139720 for details.
-        self.on_timer_event = self.on_timer_event
+        self.on_timer_event = self.on_timer_event  # type: ignore[method-assign]
 
-        self._http_metadata_provider = http_dl.MetadataProviderFilesystem(
-            cache_location=self._local_path / "_local-meta-cache")
+        self._http_metadata_provider = http_metadata.ExtraFileMetadataProvider(
+            http_dl.MetadataProviderFilesystem(
+                cache_location=self._local_path / "_local-meta-cache"))
 
         # Create the background downloader object now, so that it
         # (hypothetically in some future) can be adjusted before the actual
@@ -129,17 +147,15 @@ class RemoteAssetListingDownloader:
         # Kickstart the download process by downloading the remote asset meta file:
         self._queue_download(
             index_common.ASSET_TOP_METADATA_FILENAME,
-            index_common.ASSET_TOP_METADATA_FILENAME,
+            http_metadata.safe_to_unsafe_filename(index_common.ASSET_TOP_METADATA_FILENAME),
             self.parse_asset_lib_metadata,
         )
 
     def parse_asset_lib_metadata(self,
                                  http_req_descr: http_dl.RequestDescription,
-                                 local_file: Path,
+                                 unsafe_local_file: Path,
                                  ) -> None:
-        logger.info("Parsing %s", local_file)
-        json_data = local_file.read_bytes()
-        metadata = api_models.AssetLibraryMeta.model_validate_json(json_data)
+        metadata, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryMeta)
 
         # Show what we downloaded.
         logger.info("    API versions      : %s", metadata.api_versions)
@@ -170,55 +186,71 @@ class RemoteAssetListingDownloader:
             self._bg_downloader.shutdown()
             return
 
+        # The file passed validation, so can be marked safe.
+        if used_unsafe_file:
+            self._rename_to_safe(unsafe_local_file)
+
+        self._library_meta = metadata
+
         # Download the asset index.
         main_index_filepath = index_common.api_versioned(index_common.ASSET_INDEX_JSON_FILENAME)
         self._queue_download(
             main_index_url,
-            main_index_filepath,
+            http_metadata.safe_to_unsafe_filename(main_index_filepath),
             self.parse_asset_lib_index,
         )
 
     def parse_asset_lib_index(self,
                               http_req_descr: http_dl.RequestDescription,
-                              local_file: Path,
+                              unsafe_local_file: Path,
                               ) -> None:
-        json_data = local_file.read_bytes()
-        asset_index = api_models.AssetLibraryIndexV1.model_validate_json(json_data)
+        asset_index, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexV1)
 
         page_urls = asset_index.page_urls or []
-
         logger.info("    Schema version    : %s", asset_index.schema_version)
         logger.info("    Asset count       : %d", asset_index.asset_count)
         logger.info("    Pages             : %d", len(page_urls))
 
+        # The file passed validation, so can be marked safe.
+        if used_unsafe_file:
+            self._rename_to_safe(unsafe_local_file)
+
+        # Write the catalogs file. Even when there are no catalogs, this should
+        # be done, because catalogs might have existed previously.
+        assert self._library_meta, "By now the asset library metadata should be known"
+        catalogs_file = self._local_path / "blender_assets.cats.txt"
+        logger.info("Writing catalogs to %s", catalogs_file)
+        asset_catalogs.write(asset_index.catalogs or [], catalogs_file, self._library_meta)
+
         # Download the asset pages.
         self._num_asset_pages_pending = len(page_urls)
-        referenced_local_files: list[Path] = []
         for page_index, page_url in enumerate(page_urls):
             # These URLs may be absolute or they may be relative. In any case,
             # do not assume that they can be used direclty as local filesystem path.
             local_path = index_common.api_versioned(f"assets-{page_index:05}.json")
-            download_to = self._queue_download(page_url, local_path, self.on_asset_page_downloaded)
+            download_to = self._queue_download(
+                page_url,
+                http_metadata.safe_to_unsafe_filename(local_path),
+                self.on_asset_page_downloaded)
 
-            referenced_local_files.append(download_to)
-
-        # Remove any dangling pages of assets (downloaded before, no longer referenced).
-        asset_page_dir = self._local_path / index_common.API_VERSIONED_SUBDIR
-        # TODO: when upgrading to Python 3.12+, add `case_sensitive=False` to the glob() call.
-        for asset_page_file in asset_page_dir.glob("assets-*.json"):
-            abs_path = asset_page_dir / asset_page_file
-            if abs_path in referenced_local_files:
-                continue
-            abs_path.unlink()
+            self._referenced_local_files.append(http_metadata.unsafe_to_safe_filename(download_to))
 
     def on_asset_page_downloaded(self,
                                  http_req_descr: http_dl.RequestDescription,
-                                 local_file: Path,
+                                 unsafe_local_file: Path,
                                  ) -> None:
+        _, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexPageV1)
+
+        # The file passed validation, so can be marked safe.
+        if used_unsafe_file:
+            local_file = self._rename_to_safe(unsafe_local_file)
+        else:
+            local_file = http_metadata.unsafe_to_safe_filename(unsafe_local_file)
+
         self._num_asset_pages_pending -= 1
         assert self._num_asset_pages_pending >= 0
 
-        logger.info("Asset index page downloaded: %s", local_file)
+        logger.debug("Asset index page downloaded: %s", local_file)
 
         if self._num_asset_pages_pending > 0:
             # Wait until all files have downloaded.
@@ -228,8 +260,64 @@ class RemoteAssetListingDownloader:
                     self._num_asset_pages_pending))
             return
 
+        # Remove any dangling pages of assets (downloaded before, no longer referenced).
+        asset_page_dir = self._local_path / index_common.API_VERSIONED_SUBDIR
+        # TODO: when upgrading to Python 3.12+, add `case_sensitive=False` to the glob() call.
+        for asset_page_file in asset_page_dir.glob("assets-*.json"):
+            abs_path = asset_page_dir / asset_page_file
+            if abs_path in self._referenced_local_files:
+                continue
+            abs_path.unlink()
+
         self.report({'INFO'}, "Asset library index downloaded")
         self.shutdown(DownloadStatus.FINISHED_SUCCESSFULLY)
+
+    def _parse_api_model(self, unsafe_local_file: Path, api_model: Type[PydanticModel]) -> tuple[PydanticModel, bool]:
+        """Use a Pydantic model to parse & validate a JSON file.
+
+        :param unsafe_local_file: Path to load, parse, and validate. If this
+            file does not exist, the 'safe' version of the filepath is tried. If
+            that doesn't exist either, a FileNotFoundError is raised.
+        :param api_model: the Pydantic class itself, to use for parsing & validating.
+
+        :returns: the parsed+validated data, and a boolean that indicates
+            whether the input file was used directly (True), or its 'safe'
+            version (False).
+        """
+        if unsafe_local_file.exists():
+            path_to_load = unsafe_local_file
+            used_unsafe_file = True
+        else:
+            safe_local_file = http_metadata.unsafe_to_safe_filename(unsafe_local_file)
+            if safe_local_file == unsafe_local_file:
+                # There is no 'safe' version of this path.
+                raise FileNotFoundError(unsafe_local_file)
+            if not safe_local_file.exists():
+                raise ValueError("Both {!s} and {!s} do not exist, what was downloaded?".format(
+                    unsafe_local_file, safe_local_file))
+            path_to_load = safe_local_file
+            used_unsafe_file = False
+
+        logger.info("Parsing %s", path_to_load)
+        json_data = path_to_load.read_bytes()
+        parsed_data = api_model.model_validate_json(json_data)
+
+        # The file has been parsed & validated, so 'touch' it to let other
+        # Blender processes know when this was last downloaded/validated.
+        path_to_load.touch()
+
+        return parsed_data, used_unsafe_file
+
+    def _rename_to_safe(self, unsafe_filepath: Path) -> Path:
+        safe_filepath = http_metadata.unsafe_to_safe_filename(unsafe_filepath)
+
+        if safe_filepath == unsafe_filepath:
+            raise ValueError("filepath cannot be transformed to 'safe' filepath: {!s}".format(unsafe_filepath))
+
+        # AFAIK on Windows you cannot atomically overwrite a file by renaming.
+        safe_filepath.unlink(missing_ok=True)
+        unsafe_filepath.rename(safe_filepath)
+        return safe_filepath
 
     def _on_callback_error(
             self,
@@ -285,17 +373,15 @@ class RemoteAssetListingDownloader:
             # Regardless of whether the shutdown had some issues, the timer has
             # been unregistered, so there will be no more message handling, and
             # so for all intents and purposes, the downloader is done.
-            self._call_on_done_callback()
-
-    def _call_on_done_callback(self) -> None:
-        """Call the on-done callback function, if there is one."""
-        if not self._on_done_callback:
-            return
-        self._on_done_callback(self)
+            self._on_done_callback(self)
 
     def on_timer_event(self) -> float:
         try:
             self._bg_downloader.update()
+        except http_dl.BackgroundProcessNotRunningError:
+            logger.error("Background downloader subprocess died, aborting.")
+            self.shutdown()
+            return 0  # Deactivate the timer.
         except Exception:
             logger.exception(
                 "Unexpected error downloading remote asset library ilisting from %s to %s",
@@ -317,7 +403,7 @@ class RemoteAssetListingDownloader:
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        logger.info("Download unnecessary, file already downloaded: %s", http_req_descr.url)
+        logger.debug("Download unnecessary, file already downloaded: %s", http_req_descr.url)
 
     def download_error(
         self,
