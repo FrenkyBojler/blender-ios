@@ -1,1 +1,2 @@
 Referenced by issue #140635, Crash on undo since AttributeStorage changes
+Referenced by commit 0e737b23c553f23d9a749dab3b58d9b340edf2c9, Revert "Attributes: Remove AttributeStorage legacy compatibility option"
