@@ -22,18 +22,17 @@ TEST(obj_import, BufferRefillTest)
 {
   CLG_init();
 
-  OBJImportParams params;
+  OBJImportParams import_params;
   /* nurbs_cyclic.obj file has quite long lines, good to test read buffer refill. */
   std::string obj_path = blender::tests::flags_test_asset_dir() +
                          SEP_STR "io_tests" SEP_STR "obj" SEP_STR + "nurbs_cyclic.obj";
-  STRNCPY(params.filepath, obj_path.c_str());
+  STRNCPY(import_params.filepath, obj_path.c_str());
 
   /* Use a small read buffer size to test buffer refilling behavior. */
   const size_t read_buffer_size = 650;
-  OBJParser obj_parser{params, read_buffer_size};
 
   {
-    OBJParser::Content result = obj_parser.parse();
+    OBJParser::Content result = OBJParser(import_params, read_buffer_size).parse();
 
     EXPECT_EQ(1, result.all_geometries.size());
     EXPECT_EQ(GEOM_CURVE, result.all_geometries[0]->geom_type_);

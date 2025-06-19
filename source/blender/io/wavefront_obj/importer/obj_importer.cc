@@ -171,9 +171,8 @@ void importer_geometry(const OBJImportParams &import_params,
                        Vector<bke::GeometrySet> &geometries,
                        size_t read_buffer_size)
 {
-  OBJParser obj_parser{import_params, read_buffer_size};
   {
-    OBJParser::Content result = obj_parser.parse();
+    OBJParser::Content result = OBJParser(import_params, read_buffer_size).parse();
     geometry_to_blender_geometry_set(
         import_params, result.all_geometries, result.global_vertices, geometries);
   }
@@ -198,9 +197,8 @@ void importer_main(Main *bmain,
   Map<std::string, std::unique_ptr<MTLMaterial>> materials;
   Map<std::string, Material *> created_materials;
 
-  OBJParser obj_parser{import_params, read_buffer_size};
   {
-    OBJParser::Content result = obj_parser.parse();
+    OBJParser::Content result = OBJParser(import_params, read_buffer_size).parse();
 
     /* Parse all referenced MTL files */
     for (StringRefNull mtl_library : result.mtl_libraries) {
