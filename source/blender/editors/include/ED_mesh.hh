@@ -75,7 +75,6 @@ private:
   void set_float_prop_on_mirror_edges(BMEdge *edge, const char *name, float value) const;
   void set_float_prop_on_mirror_elements(BMVert *vert, const char *name, float value) const;
 
-
   BMEditMesh *em;
   Mesh *mesh;
   bool use_topology_mirror;
@@ -83,8 +82,6 @@ private:
   blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
   blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
   blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
-
-
   
 };
 
