@@ -80,6 +80,38 @@ World::~World()
   return (inst_.scene->world != nullptr) ? inst_.scene->world : default_world_get();
 }
 
+::World *World::final_world_get(const bool resync)
+{
+  if (use_world && (!resync)) {
+    return use_world;
+  }
+  if (inst_.use_studio_light()) {
+    use_world = lookdev_world_.world_get();
+  }
+  else if ((inst_.view_layer->layflag & SCE_LAY_SKY) == 0) {
+    use_world = default_world_get();
+  }
+  else if (has_volume_absorption_) {
+    use_world = default_world_get();
+  }
+  else {
+    use_world = scene_world_get();
+  }
+
+  if (inst_.view_layer->world_override) {
+    ::World *world_override = DEG_get_evaluated(inst_.depsgraph, inst_.view_layer->world_override);
+    if (world_override) {
+      use_world = world_override;
+    }
+  }
+
+  if (UNLIKELY(use_world == nullptr)) {
+    use_world = default_world_get();
+  }
+
+  return use_world;
+}
+
 float World::sun_threshold()
 {
   /* No sun extraction during baking. */
@@ -108,47 +140,33 @@ void World::sync()
 
   bool wait_ready = true;  // TODO !inst_.is_image_render;
 
+  use_world = final_world_get(true);
+
   /* Sync volume first since its result can override the surface world. */
   sync_volume(wo_handle, wait_ready);
 
-  ::World *bl_world;
   if (inst_.use_studio_light()) {
     has_update |= lookdev_world_.sync(LookdevParameters(inst_.v3d));
-    bl_world = lookdev_world_.world_get();
-  }
-  else if ((inst_.view_layer->layflag & SCE_LAY_SKY) == 0) {
-    bl_world = default_world_get();
-  }
-  else if (has_volume_absorption_) {
-    bl_world = default_world_get();
-  }
-  else {
-    bl_world = scene_world_get();
   }
 
-  ::World *world_override = DEG_get_evaluated(inst_.depsgraph, inst_.view_layer->world_override);
-  if (world_override) {
-    bl_world = world_override;
-  }
-
-  bNodeTree *ntree = (bl_world->nodetree && bl_world->use_nodes) ?
-                         bl_world->nodetree :
-                         default_tree.nodetree_get(bl_world);
+  bNodeTree *ntree = (use_world->nodetree && use_world->use_nodes) ?
+                         use_world->nodetree :
+                         default_tree.nodetree_get(use_world);
 
   {
     if (has_volume_absorption_) {
       /* Replace world by black world. */
-      bl_world = default_world_get();
+      use_world = default_world_get();
     }
   }
 
   /* We have to manually test here because we have overrides. */
-  ::World *orig_world = DEG_get_original(bl_world);
+  ::World *orig_world = DEG_get_original(use_world);
   if (assign_if_different(prev_original_world, orig_world)) {
     has_update = true;
   }
 
-  inst_.light_probes.sync_world(bl_world, has_update);
+  inst_.light_probes.sync_world(use_world, has_update);
 
   if (inst_.is_viewport() && has_update) {
     /* Catch lookdev viewport properties updates. */
@@ -156,7 +174,7 @@ void World::sync()
   }
 
   GPUMaterial *gpumat = inst_.shaders.world_shader_get(
-      bl_world, ntree, MAT_PIPE_DEFERRED, !wait_ready);
+      use_world, ntree, MAT_PIPE_DEFERRED, !wait_ready);
   if (GPU_material_status(gpumat) == GPU_MAT_QUEUED) {
     is_ready_ = false;
     return;
@@ -176,12 +194,7 @@ void World::sync()
 void World::sync_volume(const WorldHandle &world_handle, bool wait_ready)
 {
   /* Studio lights have no volume shader. */
-  ::World *world = inst_.use_studio_light() ? nullptr : inst_.scene->world;
-
-  ::World *world_override = DEG_get_evaluated(inst_.depsgraph, inst_.view_layer->world_override);
-  if (world_override) {
-    world = world_override;
-  }
+  ::World *world = inst_.use_studio_light() ? nullptr : final_world_get();
 
   GPUMaterial *gpumat = nullptr;
 

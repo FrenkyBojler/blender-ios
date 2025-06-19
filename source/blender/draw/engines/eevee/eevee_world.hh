@@ -64,6 +64,8 @@ class World {
 
   DefaultWorldNodeTree default_tree;
 
+  ::World *use_world = nullptr;
+
   /* Used to detect if world change. */
   ::World *prev_original_world = nullptr;
 
@@ -112,32 +114,32 @@ class World {
 
   float sun_angle()
   {
-    return scene_world_get()->sun_angle;
+    return final_world_get()->sun_angle;
   }
 
   float sun_shadow_max_resolution()
   {
-    return scene_world_get()->sun_shadow_maximum_resolution;
+    return final_world_get()->sun_shadow_maximum_resolution;
   }
 
   float sun_shadow_filter_radius()
   {
-    return scene_world_get()->sun_shadow_filter_radius;
+    return final_world_get()->sun_shadow_filter_radius;
   }
 
   float sun_shadow_jitter_overblur()
   {
-    return scene_world_get()->sun_shadow_jitter_overblur;
+    return final_world_get()->sun_shadow_jitter_overblur;
   }
 
   bool use_sun_shadow()
   {
-    return scene_world_get()->flag & WO_USE_SUN_SHADOW;
+    return final_world_get()->flag & WO_USE_SUN_SHADOW;
   }
 
   bool use_sun_shadow_jitter()
   {
-    return scene_world_get()->flag & WO_USE_SUN_SHADOW_JITTER;
+    return final_world_get()->flag & WO_USE_SUN_SHADOW_JITTER;
   }
 
  private:
@@ -149,6 +151,9 @@ class World {
 
   /* Returns either the scene world or the default world if scene has no world. */
   ::World *scene_world_get();
+
+  /* Returns world after overriding. */
+  ::World *final_world_get(const bool resync = false);
 };
 
 /** \} */
