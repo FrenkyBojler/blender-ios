@@ -233,7 +233,7 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
     /* Float image: need to split up the image into a planar format,
      * because `libswscale` does not support RGBA->YUV conversions from
      * packed float formats.
-     * Unpremultiply the image if the output format supports alpha, to
+     * Un-premultiply the image if the output format supports alpha, to
      * match the format of the byte image. */
     BLI_assert_msg(rgb_frame->linesize[1] == linesize_dst &&
                        rgb_frame->linesize[2] == linesize_dst &&
@@ -277,7 +277,7 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
       const uint8_t *src = pixels + linesize_src * y;
 
       /* NOTE: this is endianness-sensitive. */
-      /* The target buffer is always expected to conaint little-endian RGBA values. */
+      /* The target buffer is always expected to contain little-endian RGBA values. */
       memcpy(target, src, linesize_src);
     }
   }
@@ -1312,9 +1312,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-      filepath,
-      FILE_MAX,
-      BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(), rd));
+      filepath, FILE_MAX, BKE_build_template_variables_for_render_path(rd));
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     return false;
