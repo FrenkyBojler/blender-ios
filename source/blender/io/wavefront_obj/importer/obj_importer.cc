@@ -193,9 +193,6 @@ void importer_main(Main *bmain,
                    const OBJImportParams &import_params,
                    size_t read_buffer_size)
 {
-  if (import_params.clear_selection) {
-    BKE_view_layer_base_deselect_all(scene, view_layer);
-  }
 
   /* List of MTLMaterial instances to be parsed from MTL file. */
   Map<std::string, std::unique_ptr<MTLMaterial>> materials;
@@ -209,6 +206,10 @@ void importer_main(Main *bmain,
     for (StringRefNull mtl_library : result.mtl_libraries) {
       MTLParser mtl_parser{mtl_library, import_params.filepath};
       mtl_parser.parse_and_store(materials);
+    }
+
+    if (import_params.clear_selection) {
+      BKE_view_layer_base_deselect_all(scene, view_layer);
     }
 
     /* Create Blender objects from the parsed geometries */

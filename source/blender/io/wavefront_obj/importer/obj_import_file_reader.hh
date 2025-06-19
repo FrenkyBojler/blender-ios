@@ -53,8 +53,9 @@ class OBJParser {
   };
 
   /**
-   * Read the OBJ file line by line and create OBJ Geometry instances. Also store all the vertex
-   * and UV vertex coordinates in a struct accessible by all objects.
+   * Reads the OBJ file and parses line by line to form OBJ Geometry instances. Parsed data is
+   * returned in the content wrapper, which includes: generated geometries, material references,
+   * and coordinate data.
    */
   Content parse();
 };
