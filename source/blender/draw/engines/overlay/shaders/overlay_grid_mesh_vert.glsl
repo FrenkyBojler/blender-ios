@@ -68,6 +68,8 @@ void main()
   /* The largest grid level can overlap with the axes display.
    * Discard vertices that can overlap. */
   const bool is_over_axis = any(equal(grid_coord, origin_offset));
+  axis_tag = float(is_over_axis);
+
   if (is_over_axis) {
     /* Discard vertex. */
     // gl_Position = float4(NAN_FLT);
@@ -95,20 +97,11 @@ void main()
   /* Convert to screen position [0..sizeVp]. */
   float2 ss_P = drw_ndc_to_screen(drw_perspective_divide(hs_P)).xy * uniform_buf.size_viewport;
 
-  if (axis == 1) {
-    finalColor = uniform_buf.colors.grid_axis_x;
-  }
-  else if (axis == 2) {
-    finalColor = uniform_buf.colors.grid_axis_y;
-  }
-  else if (axis == 3) {
-    finalColor = uniform_buf.colors.grid_axis_z;
-  }
-  else {
+  {
     /* Area of the projected tile in pixels. */
     float size = approximate_grid_cell_screen_size(dist_to_cam, view_angle) /
                  uniform_buf.sizes.pixel;
-    float mix_fade = smoothstep(2.0, 25.0, size);
+    float mix_fade = smoothstep(8.0, 64.0, size);
     /* TODO(fclem): Adjust with relative density with level N-2. */
     float mix_highlight = smoothstep(20.0, 300.0, size);
     finalColor = mix(uniform_buf.colors.grid, uniform_buf.colors.grid_emphasis, mix_highlight);
@@ -117,17 +110,37 @@ void main()
   }
 
   /* Angle fading. */
-  // finalColor.a *= 1.0 - square(square(1.0 - abs(view_angle)));
+  finalColor.a *= 1.0 - square(square(1.0 - abs(view_angle)));
 
   /* Distance fading. */
-  // finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
+  finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
 
-  // if (origin_offset.x == x) {
-  //   finalColor.r = 1.0f;
-  // }
-  // if (origin_offset.y == y) {
-  //   finalColor.g = 1.0f;
-  // }
+  if (grid_coord.x == origin_offset.x) {
+    finalColorAxis = uniform_buf.colors.grid_axis_y;
+  }
+  else if (grid_coord.y == origin_offset.y) {
+    finalColorAxis = uniform_buf.colors.grid_axis_x;
+  }
+  else if (axis == 1) {
+    finalColorAxis = uniform_buf.colors.grid_axis_x;
+  }
+  else if (axis == 2) {
+    finalColorAxis = uniform_buf.colors.grid_axis_y;
+  }
+  else if (axis == 3) {
+    finalColorAxis = uniform_buf.colors.grid_axis_z;
+  }
+  else {
+    finalColorAxis = finalColor;
+  }
+
+  finalColorAxis.a = finalColor.a;
+
+  if (finalColor.a <= 0.0) {
+    /* Discard vertex. */
+    gl_Position = float4(NAN_FLT);
+    return;
+  }
 
   edgePos = edgeStart = ss_P;
 

@@ -393,11 +393,6 @@ class GridMesh : Overlay {
 
   gpu::Batch *generate_batch(int resolution, int next_subdivision)
   {
-    if (next_subdivision == 1) {
-      /* This only happens for the last level. In this case, do not skip any line. */
-      next_subdivision = INT_MAX;
-    }
-
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(resolution) * 2, 0xFFFFFFFEu);
     auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
@@ -406,10 +401,10 @@ class GridMesh : Overlay {
       for (int j : IndexRange(resolution)) {
         int x = i - resolution / 2;
         int y = j - resolution / 2;
-        if (i != resolution && (y % next_subdivision) != 0) {
+        if (i != resolution && ((next_subdivision == 1) || (y % next_subdivision) != 0)) {
           GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
         }
-        if (j != resolution && (x % next_subdivision) != 0) {
+        if (j != resolution && ((next_subdivision == 1) || (x % next_subdivision) != 0)) {
           GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
         }
       }
@@ -451,30 +446,30 @@ class GridMesh : Overlay {
       grid_ps_.push_constant("next_divider", int(1)); /* UNUSED. */
       grid_ps_.push_constant("origin_offset", int2(INT_MAX));
 
-      if (show_axis_x) {
-        grid_ps_.push_constant("axis", int(1));
-        grid_ps_.draw(axes_[0]);
-      }
-      else if (show_floor) {
-        /* Still show the line without color. */
-        grid_ps_.push_constant("axis", int(4));
-        grid_ps_.draw(axes_[0]);
-      }
+      // if (show_axis_x) {
+      //   grid_ps_.push_constant("axis", int(1));
+      //   grid_ps_.draw(axes_[0]);
+      // }
+      // else if (show_floor) {
+      //   /* Still show the line without color. */
+      //   grid_ps_.push_constant("axis", int(4));
+      //   grid_ps_.draw(axes_[0]);
+      // }
 
-      if (show_axis_y) {
-        grid_ps_.push_constant("axis", int(2));
-        grid_ps_.draw(axes_[1]);
-      }
-      else if (show_floor) {
-        /* Still show the line without color. */
-        grid_ps_.push_constant("axis", int(4));
-        grid_ps_.draw(axes_[1]);
-      }
+      // if (show_axis_y) {
+      //   grid_ps_.push_constant("axis", int(2));
+      //   grid_ps_.draw(axes_[1]);
+      // }
+      // else if (show_floor) {
+      //   /* Still show the line without color. */
+      //   grid_ps_.push_constant("axis", int(4));
+      //   grid_ps_.draw(axes_[1]);
+      // }
 
-      if (show_axis_z) {
-        grid_ps_.push_constant("axis", int(3));
-        grid_ps_.draw(axes_[0]);
-      }
+      // if (show_axis_z) {
+      //   grid_ps_.push_constant("axis", int(3));
+      //   grid_ps_.draw(axes_[0]);
+      // }
     }
 
     grid_steps_ = {0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
@@ -532,7 +527,9 @@ class GridMesh : Overlay {
 
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
       float snap_to = levels_[i].subdiv_level * grid_steps_[i];
-      levels_[i].origin_offset = -int2(floor(view.location().xy() / snap_to));
+      levels_[i].origin_offset = -int2(floor(view.location().xy() / snap_to)) *
+                                 levels_[i].subdiv_level;
+      std::cout << "levels_[i].origin_offset" << levels_[i].origin_offset << std::endl;
     }
 
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
