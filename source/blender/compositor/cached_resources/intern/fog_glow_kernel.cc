@@ -48,29 +48,29 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  */
 
 /* Given the x and y location in the range from 0 to kernel_size - 1, where kernel_size is odd,
- * compute the fog glow kernel value. The equations are arbitrary and were chosen using visual
- * judgment. The kernel is not normalized and need normalization. */
+ * compute the fog glow kernel value, the kernel value is calculated based on Equation (5) of
+ * the paper:
+ *
+ *   G. Spencer, P. Shirley, K. Zimmerman, and D. P. Greenberg, “Physically-based glare effects
+ * for digital images,” in Proc. 22nd Annu. Conf. Computer Graphics and Interactive Techniques
+ * (SIGGRAPH '95), 1995, pp. 325–334, doi: 10.1145/218380.218466. */
+
 [[maybe_unused]] static float compute_fog_glow_kernel_value(int x, int y, int kernel_size)
 {
   const int half_kernel_size = kernel_size / 2;
   const float v = ((y - half_kernel_size) / float(half_kernel_size));
   const float u = ((x - half_kernel_size) / float(half_kernel_size));
-  const double r = math::sqrt(math::square(u) + math::square(v));
+  const float r = math::sqrt(math::square(u) + math::square(v));
+  /* The scale is chosen to map Equation (5) in the domain of (0 - ~10). as 10 corresponds to
+   * a range value of ~0.1 on the actual function plot. */
+  const float scale = 0.1f;
+  const float theta_deg = math::atan(r * scale) * 180.0f / 3.1415926f;
+  const float f0 = 2.61f * 1e6 * math::exp(-math::square((theta_deg) / 0.02f));
+  const float f1 = 20.91f / math::pow((theta_deg) + 0.02, 3.0);
+  const float f2 = 72.37f / math::pow((theta_deg) + 0.02, 2.0);
+  const float kernel_value = (0.384f * f0 + 0.478f * f1 + 0.138f * f2);
 
-  const double x0 = 3.555281584; /* @ y = 0 */
-  const double y0 = 6.357282945; /* @ x = 0 */
-
-  const double f0 = 2.61 * math::pow(10, 6) * math::exp(-math::sqrt((r * x0) / 0.02));
-  const double f1 = 20.91 / math::pow((r * x0) + 0.02, 3.0);
-  const double f2 = 72.37 / math::pow((r * x0) + 0.02, 2.0);
-
-  const float kernel_value = log10f((0.384 * f0 + 0.478 * f1 + 0.138 * f2)) / y0;
-
-  const float window = (0.5f + 0.5f * math::cos(u * math::numbers::pi)) *
-                       (0.5f + 0.5f * math::cos(v * math::numbers::pi));
-  const float windowed_kernel_value = window * kernel_value;
-
-  return windowed_kernel_value;
+  return kernel_value;
 }
 
 FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size)
