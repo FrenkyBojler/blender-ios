@@ -1002,6 +1002,12 @@ static inline void sort_points(int2 &p1, int2 &p2)
   }
 }
 
+/* Clamps the point to the window bounds. */
+static inline int2 clamp_point_to_window(const int2 &point, const wmWindow *window)
+{
+  return {clamp_i(point.x, 0, window->sizex - 1), clamp_i(point.y, 0, window->sizey - 1)};
+}
+
 /* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
  * fully within the window bounds. The two points can be in any spacial relation to each other i.e.
  * if p1 was top left, it remains top left. */
@@ -1100,8 +1106,20 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   int2 p1, p2;
+  wmWindow *win = CTX_wm_window(C);
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
+
+  if (RNA_boolean_get(op->ptr, "force_square")) {
+    /* Squaring has to happen before sorting so the area is squared from the point where
+     * dragging started. */
+    square_points_clamped_to_window(p1, p2, win);
+  }
+  else {
+    /* Clamp points to window bounds, so the screenshot area is always valid. */
+    clamp_point_to_window(p1, win);
+    clamp_point_to_window(p2, win);
+  }
 
   sort_points(p1, p2);
 
@@ -1243,14 +1261,6 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   wmWindow *win = CTX_wm_window(C);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
-  auto clamp_to_window = [win](const int2 &pt) -> int2 {
-    return {clamp_i(pt.x, 0, win->sizex - 1), clamp_i(pt.y, 0, win->sizey - 1)};
-  };
-
-  auto is_within_window = [win](const int2 &pt) -> bool {
-    return pt.x >= 0 && pt.x < win->sizex && pt.y >= 0 && pt.y < win->sizey;
-  };
-
   const int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
       event->mval[1] + region->winrct.ymin,
@@ -1265,7 +1275,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
           break;
         case KM_RELEASE:
           data->is_mouse_down = false;
-          data->drag_end = clamp_to_window(screen_space_cursor);
+          data->drag_end = clamp_point_to_window(screen_space_cursor, win);
           screenshot_area_transfer_to_rna(op, data);
           screenshot_preview_exec(C, op);
           screenshot_preview_exit(C, op);
@@ -1326,6 +1336,10 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         const int2 new_p1 = data->p1 + delta;
         const int2 new_p2 = data->p2 + delta;
 
+        auto is_within_window = [win](const int2 &pt) -> bool {
+          return pt.x >= 0 && pt.x < win->sizex && pt.y >= 0 && pt.y < win->sizey;
+        };
+
         /* Apply movement only if the entire rectangle stays within window bounds. */
         if (is_within_window(new_p1) && is_within_window(new_p2)) {
           data->p1 = new_p1;
@@ -1333,7 +1347,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         }
       }
       else if (data->is_mouse_down) {
-        data->drag_end = clamp_to_window(screen_space_cursor);
+        data->drag_end = clamp_point_to_window(screen_space_cursor, win);
 
         if (!data->crossed_threshold) {
           const int2 delta = data->drag_end - data->drag_start;
