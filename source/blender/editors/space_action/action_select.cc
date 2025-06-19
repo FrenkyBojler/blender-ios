@@ -518,13 +518,8 @@ static void box_select_elem(
       }
 
       if (!ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-        const blender::float2 original_range{sel_data->ked.f1, sel_data->ked.f2};
-        sel_data->ked.f1 = ANIM_nla_tweakedit_remap(ale, original_range.x, NLATIME_CONVERT_UNMAP);
-        sel_data->ked.f2 = ANIM_nla_tweakedit_remap(ale, original_range.y, NLATIME_CONVERT_UNMAP);
         ANIM_animchannel_keyframes_loop(
             &sel_data->ked, ac->ads, ale, sel_data->ok_cb, sel_data->select_cb, nullptr);
-        sel_data->ked.f1 = original_range.x;
-        sel_data->ked.f2 = original_range.y;
       }
     }
   }
@@ -580,11 +575,17 @@ static void box_select_action(bAnimContext *ac,
 
     /* set horizontal range (if applicable) */
     if (ELEM(mode, ACTKEYS_BORDERSEL_FRAMERANGE, ACTKEYS_BORDERSEL_ALLKEYS)) {
-      /* Don't apply NLA correction here. This has to happen in box_select_elem to ensure this
-       * works with summary tracks. */
-      sel_data.ked.iterflags |= (KED_F1_NLA_UNMAP | KED_F2_NLA_UNMAP); /* for summary tracks */
-      sel_data.ked.f1 = rectf.xmin;
-      sel_data.ked.f2 = rectf.xmax;
+      /* if channel is mapped in NLA, apply correction */
+      if (ANIM_nla_mapping_allowed(ale)) {
+        sel_data.ked.iterflags &= ~(KED_F1_NLA_UNMAP | KED_F2_NLA_UNMAP);
+        sel_data.ked.f1 = ANIM_nla_tweakedit_remap(ale, rectf.xmin, NLATIME_CONVERT_UNMAP);
+        sel_data.ked.f2 = ANIM_nla_tweakedit_remap(ale, rectf.xmax, NLATIME_CONVERT_UNMAP);
+      }
+      else {
+        sel_data.ked.iterflags |= (KED_F1_NLA_UNMAP | KED_F2_NLA_UNMAP); /* for summary tracks */
+        sel_data.ked.f1 = rectf.xmin;
+        sel_data.ked.f2 = rectf.xmax;
+      }
     }
 
     /* perform vertical suitability check (if applicable) */
