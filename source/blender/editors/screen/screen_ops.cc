@@ -3978,6 +3978,10 @@ void static area_docking_apply(bContext *C, wmOperator *op)
         BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
     {
       jd->close_win = true;
+      /* Clear the active region in each screen, otherwise they are pointing
+       * at incorrect regions and will cause errors in uiTemplateInputStatus. */
+      WM_window_get_active_screen(jd->win1)->active_region = nullptr;
+      WM_window_get_active_screen(jd->win2)->active_region = nullptr;
     }
     else {
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
@@ -5407,6 +5411,12 @@ static bool match_region_with_redraws(const ScrArea *area,
        * don't need to be updated. */
       SpaceAction *saction = (SpaceAction *)area->spacedata.first;
       return saction->mode == SACTCONT_TIMELINE;
+    }
+  }
+  else if (regiontype == RGN_TYPE_FOOTER) {
+    /* The footer region in animation editors shows the current frame. */
+    if (ELEM(spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_SEQ, SPACE_NLA)) {
+      return true;
     }
   }
   else if (regiontype == RGN_TYPE_PREVIEW) {
