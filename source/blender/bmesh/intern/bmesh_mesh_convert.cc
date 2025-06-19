@@ -1459,6 +1459,17 @@ static void bm_to_mesh_update(BMesh *bm)
       select_poly.finish();
       bm->update_selection = false;
     }
+    if (bm->update_positions || true) {
+      BM_mesh_elem_table_ensure(bm, BM_VERT);
+      MutableSpan<float3> positions = mesh->vert_positions_for_write();
+      threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
+        for (const int vert_i : range) {
+          positions[vert_i] = bm->vtable[vert_i]->co;
+        }
+      });
+      mesh->tag_positions_changed();
+      bm->update_positions = false;
+    }
     return;
   }
 
@@ -1671,6 +1682,7 @@ static void bm_to_mesh_update(BMesh *bm)
 
   bm->update_all = false;
   bm->update_selection = false;
+  bm->update_positions = false;
 }
 
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)

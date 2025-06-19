@@ -411,6 +411,7 @@ struct BMesh {
    */
   Mesh *mesh;
   bool update_selection;
+  bool update_positions;
   bool update_all;
 };
 

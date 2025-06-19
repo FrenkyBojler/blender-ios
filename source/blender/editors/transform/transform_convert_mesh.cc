@@ -2009,6 +2009,8 @@ static void mesh_partial_update(TransInfo *t,
   /* Store the previous requested (not the previous used),
    * since the values used may have been promoted based on the previous types. */
   tcmd->partial_update_state_prev = *partial_state;
+
+  em->bm->update_positions = true;
 }
 
 /** \} */
