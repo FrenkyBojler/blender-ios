@@ -3975,54 +3975,6 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
   return OPERATOR_RUNNING_MODAL;
 }
 
-struct DockingAnimateOutData {
-  wmWindow *win;
-  bScreen *screen;
-  rctf rect;
-  double start_time;
-  double end_time;
-  void *draw_callback;
-};
-
-static void area_docking_out_cb(const wmWindow * /*win*/, void *userdata)
-{
-  const DockingAnimateOutData *data = static_cast<const DockingAnimateOutData *>(userdata);
-  double now = BLI_time_now_seconds();
-
-  if (now > data->end_time) {
-    WM_draw_cb_exit(data->win, data->draw_callback);
-    MEM_freeN(const_cast<DockingAnimateOutData *>(data));
-    data = nullptr;
-    return;
-  }
-
-  const float total = data->end_time - data->start_time;
-  const float progress = now - data->start_time;
-  const float factor = pow(progress / total, 2);
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * (1.0f - factor)};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.15f * (1.0f - factor)};
-
-  UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  UI_draw_roundbox_4fv_ex(&data->rect, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
-
-  data->screen->do_refresh = true;
-}
-
-void area_docking_animate(bContext *C, ScrArea *area, float duration)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-
-  int win_size[2];
-  DockingAnimateOutData *data = MEM_callocN<DockingAnimateOutData>("area_docking_animate");
-  data->win = win;
-  data->screen = CTX_wm_screen(C);
-  BLI_rctf_rcti_copy(&data->rect, &area->totrct);
-  data->start_time = BLI_time_now_seconds();
-  data->end_time = data->start_time + duration;
-  data->draw_callback = WM_draw_cb_activate(win, area_docking_out_cb, data);
-}
-
 /* Apply the docking of the area. */
 void static area_docking_apply(bContext *C, wmOperator *op)
 {
@@ -4075,8 +4027,6 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
     }
   }
-
-  area_docking_animate(C, jd->sa2, AREA_DOCK_FADEOUT);
 
   if (jd && jd->sa2 == CTX_wm_area(C)) {
     CTX_wm_area_set(C, nullptr);

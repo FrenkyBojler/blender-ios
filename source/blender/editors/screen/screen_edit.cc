@@ -589,61 +589,11 @@ int screen_area_join(bContext *C, ReportList *reports, bScreen *screen, ScrArea 
   return screen_area_join_ex(C, reports, screen, sa1, sa2, false);
 }
 
-struct AreaCloseData {
-  wmWindow *win;
-  bScreen *screen;
-  rctf rect;
-  double start_time;
-  double end_time;
-  void *draw_callback;
-};
-
-static void area_close_cb(const wmWindow * /*win*/, void *userdata)
-{
-  const AreaCloseData *data = static_cast<const AreaCloseData *>(userdata);
-  double now = BLI_time_now_seconds();
-
-  if (now > data->end_time) {
-    WM_draw_cb_exit(data->win, data->draw_callback);
-    MEM_freeN(const_cast<AreaCloseData *>(data));
-    data = nullptr;
-    return;
-  }
-
-  const float total = data->end_time - data->start_time;
-  const float progress = now - data->start_time;
-  const float factor = pow(progress / total, 2);
-  float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f * (1.0f - factor)};
-  UI_draw_roundbox_corner_set(UI_CNR_ALL);
-  UI_draw_roundbox_4fv_ex(&data->rect, inner, nullptr, 1.0f, nullptr, U.pixelsize, EDITORRADIUS);
-  data->screen->do_refresh = true;
-}
-
-static void screen_area_close_animate(bContext *C, ScrArea *area, float duration)
-{
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-
-  int win_size[2];
-  AreaCloseData *data = MEM_callocN<AreaCloseData>("screen_area_close_animate");
-  data->win = win;
-  data->screen = CTX_wm_screen(C);
-  data->rect.xmin = area->v1->vec.x;
-  data->rect.xmax = area->v3->vec.x;
-  data->rect.ymin = area->v1->vec.y;
-  data->rect.ymax = area->v3->vec.y;
-  data->start_time = BLI_time_now_seconds();
-  data->end_time = data->start_time + duration;
-  data->draw_callback = WM_draw_cb_activate(win, area_close_cb, data);
-}
-
 bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrArea *area)
 {
   if (area == nullptr) {
     return false;
   }
-
-  screen_area_close_animate(C, area, AREA_CLOSE_FADEOUT);
 
   ScrArea *sa2 = nullptr;
   float best_alignment = 0.0f;
