@@ -161,19 +161,9 @@ class VKDevice : public NonCopyable {
   uint32_t vk_queue_family_ = 0;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
   std::mutex *queue_mutex_ = nullptr;
+  
+  bool is_initialized_ = false;
 
-  /**
-   * Lifetime of the device.
-   *
-   * Used for de-initialization of the command builder thread.
-   */
-  enum Lifetime {
-    UNINITIALIZED,
-    RUNNING,
-    DEINITIALIZING,
-    DESTROYED,
-  };
-  Lifetime lifetime = Lifetime::UNINITIALIZED;
   /**
    * Task pool for render graph submission.
    *
@@ -369,7 +359,7 @@ class VKDevice : public NonCopyable {
     return samplers_;
   }
 
-  bool is_initialized() const;
+  bool is_initialized() const {return is_initialized_;}
   void init(void *ghost_context);
   void reinit();
   void deinit();
