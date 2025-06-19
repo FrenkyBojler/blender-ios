@@ -114,32 +114,32 @@ class World {
 
   float sun_angle()
   {
-    return final_world_get()->sun_angle;
+    return scene_world_get()->sun_angle;
   }
 
   float sun_shadow_max_resolution()
   {
-    return final_world_get()->sun_shadow_maximum_resolution;
+    return scene_world_get()->sun_shadow_maximum_resolution;
   }
 
   float sun_shadow_filter_radius()
   {
-    return final_world_get()->sun_shadow_filter_radius;
+    return scene_world_get()->sun_shadow_filter_radius;
   }
 
   float sun_shadow_jitter_overblur()
   {
-    return final_world_get()->sun_shadow_jitter_overblur;
+    return scene_world_get()->sun_shadow_jitter_overblur;
   }
 
   bool use_sun_shadow()
   {
-    return final_world_get()->flag & WO_USE_SUN_SHADOW;
+    return scene_world_get()->flag & WO_USE_SUN_SHADOW;
   }
 
   bool use_sun_shadow_jitter()
   {
-    return final_world_get()->flag & WO_USE_SUN_SHADOW_JITTER;
+    return scene_world_get()->flag & WO_USE_SUN_SHADOW_JITTER;
   }
 
  private:
@@ -149,11 +149,9 @@ class World {
    * any light coming from the world. */
   ::World *default_world_get();
 
-  /* Returns either the scene world or the default world if scene has no world. */
-  ::World *scene_world_get();
-
-  /* Returns world after overriding. */
-  ::World *final_world_get(const bool resync = false);
+  /* Returns either the scene world or the default world if scene has no world. If override world
+   * is set in the viewlayer, then prefers override world over scene world. */
+  ::World *scene_world_get(const bool resync = false);
 };
 
 /** \} */

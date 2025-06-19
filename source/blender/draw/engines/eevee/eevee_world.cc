@@ -75,16 +75,15 @@ World::~World()
   return default_world_;
 }
 
-::World *World::scene_world_get()
-{
-  return (inst_.scene->world != nullptr) ? inst_.scene->world : default_world_get();
-}
-
-::World *World::final_world_get(const bool resync)
+::World *World::scene_world_get(const bool resync)
 {
   if (use_world && (!resync)) {
     return use_world;
   }
+
+  ::World *scene_world = (inst_.scene->world != nullptr) ? inst_.scene->world :
+                                                           default_world_get();
+
   if (inst_.use_studio_light()) {
     use_world = lookdev_world_.world_get();
   }
@@ -95,7 +94,7 @@ World::~World()
     use_world = default_world_get();
   }
   else {
-    use_world = scene_world_get();
+    use_world = scene_world;
   }
 
   if (inst_.view_layer->world_override) {
@@ -140,7 +139,7 @@ void World::sync()
 
   bool wait_ready = true;  // TODO !inst_.is_image_render;
 
-  use_world = final_world_get(true);
+  use_world = scene_world_get(true);
 
   /* Sync volume first since its result can override the surface world. */
   sync_volume(wo_handle, wait_ready);
@@ -194,7 +193,7 @@ void World::sync()
 void World::sync_volume(const WorldHandle &world_handle, bool wait_ready)
 {
   /* Studio lights have no volume shader. */
-  ::World *world = inst_.use_studio_light() ? nullptr : final_world_get();
+  ::World *world = inst_.use_studio_light() ? nullptr : scene_world_get();
 
   GPUMaterial *gpumat = nullptr;
 
