@@ -3188,18 +3188,16 @@ static void ui_numedit_but_inc(uiBut *but, uiTextEdit &text_edit, const int incr
     ui_textedit_string_set(but, text_edit, str_edit.c_str());
   }
   else {
-    bool dot_found = false;
     int dot_pos = -1;
     int num_str_start = -1;
 
     for (int i = but->pos; i >= 0; i--) {
       char c = text_edit.edit_string[i];
       if (c == '.') {
-        if (dot_found) {
+        if (dot_pos != -1) {
           break;
         }
         dot_pos = but->pos - i;
-        dot_found = true;
         continue;
       }
       if (c == '-') {
@@ -4036,9 +4034,9 @@ static int ui_do_but_textedit(
       case WHEELDOWNMOUSE:
       case EVT_DOWNARROWKEY:
         if (event->modifier == KM_CTRL) {
+          UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
           ui_numedit_but_inc(but, text_edit, -1);
           changed = true;
-          update = true;
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
@@ -4061,9 +4059,9 @@ static int ui_do_but_textedit(
       case WHEELUPMOUSE:
       case EVT_UPARROWKEY:
         if (event->modifier == KM_CTRL) {
+          UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
           ui_numedit_but_inc(but, text_edit, 1);
           changed = true;
-          update = true;
           retval = WM_UI_HANDLER_BREAK;
           break;
         }
