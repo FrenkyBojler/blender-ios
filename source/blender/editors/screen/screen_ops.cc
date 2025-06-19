@@ -3869,7 +3869,6 @@ static bool area_join_apply(bContext *C, wmOperator *op)
   if (!screen_area_join(C, op->reports, screen, jd->sa1, jd->sa2)) {
     return false;
   }
-
   if (CTX_wm_area(C) == jd->sa2) {
     CTX_wm_area_set(C, nullptr);
     CTX_wm_region_set(C, nullptr);
@@ -4472,7 +4471,6 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
             /* We have to clear handlers or we get an error in wm_gizmomap_modal_get. */
             WM_event_modal_handler_region_replace(jd->win1, CTX_wm_region(C), nullptr);
             area_dupli_open(C, jd->sa1, blender::int2(event->xy[0], event->xy[1] - jd->sa1->winy));
-
             if (!screen_area_close(C, op->reports, WM_window_get_active_screen(jd->win1), jd->sa1))
             {
               if (BLI_listbase_is_single(&WM_window_get_active_screen(jd->win1)->areabase) &&
