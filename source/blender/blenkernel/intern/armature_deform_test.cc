@@ -39,34 +39,6 @@
 
 namespace blender::bke::tests {
 
-/**
- * TODO
- * - Interpolation:
- *    * Linear
- *    * Dual-Quaternion ("Preserve Volume", ARM_DEF_QUATERNION)
- * - Bone weighting:
- *    * disabled (no ARM_DEF_* flags)
- *    * envelopes (ARM_DEF_ENVELOPE)
- *    * vertex groups (ARM_DEF_VGROUP)
- *    * single vertex group (defgrp_name parameter)
- * - Outputs:
- *    * Position-only
- *    * "Full" (deform matrix, for crazyspace)
- * - Target object types:
- *    * mesh
- *    * edit-mesh (bmesh)
- *    * curves
- *    * unsupported ID type (should pass through)
- * - explicit me_target parameter (where/how is this case invoked?)
- * - inverted vertex group (ARM_DEF_INVERT_VGROUP)
- * - multi-modifier feature, roughly:
- *    1. Some deform modifier before
- *    2. Followed by 2 armature modifiers
- *    3. test that `vert_coords_prev` has original data
- *    4. mixed result based on vertex groups
- * - relative armature/target object transform (non-identity "premat"/"postmat" matrices)
- */
-
 /* Type of data that is being deformed.
  * This distinction is needed to handle some inconsistent behaviors. */
 enum class TargetDataType {
