@@ -51,6 +51,149 @@ static const std::string rotation_cache_attr = ".old_rotation";
 static const std::string cross_section_attr = ".cross_section";
 static const std::string area_moment_attr = ".area_moment";
 
+namespace fields {
+
+using namespace bke;
+
+/* Shift point indices along the curve.
+ * Indices at the start or end are clamped to the curve range. */
+class ShiftedIndexOnCurveInput final : public CurvesFieldInput {
+ private:
+  int offset_;
+
+ public:
+  ShiftedIndexOnCurveInput(const int offset)
+      : CurvesFieldInput(CPPType::get<int>(), "Shifted Index on Curve"), offset_(offset)
+  {
+  }
+
+  GVArray get_varray_for_context(const CurvesGeometry &curves,
+                                 AttrDomain domain,
+                                 const IndexMask &mask) const final
+  {
+    if (domain != AttrDomain::Point) {
+      return {};
+    }
+
+    Array<int> output(mask.min_array_size());
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
+      for (const int i : curves_range) {
+        const IndexRange points = points_by_curve[i];
+        const int start = std::max(-offset_, 0);
+        const int end = std::max(offset_, 0);
+
+        for (const int point_i : points.take_front(start)) {
+          output[point_i] = points.first();
+        }
+        for (const int point_i : points.take_back(end)) {
+          output[point_i] = points.last();
+        }
+        for (const int point_i : points.drop_front(start).drop_back(end)) {
+          output[point_i] = point_i + offset_;
+        }
+      }
+    });
+    return VArray<int>::ForContainer(std::move(output));
+  }
+
+  std::optional<AttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const final
+  {
+    return AttrDomain::Point;
+  }
+};
+
+static GField create_shifted_curve_input(const GField &value_field, const int offset)
+{
+  Field<int> index_field{std::make_shared<ShiftedIndexOnCurveInput>(offset)};
+  return GField{std::make_shared<EvaluateAtIndexInput>(
+      std::move(index_field), value_field, AttrDomain::Point)};
+}
+
+static Field<float> create_cross_section(const Field<float> radius_field)
+{
+  static const auto cross_section_fn = fn::multi_function::build::SI1_SO<float, float>(
+      "Rod Cross Section", [](const float radius) -> float { return M_PI * radius * radius; });
+  return Field<float>(fn::FieldOperation::Create(cross_section_fn, {radius_field}));
+}
+
+static Field<float3> create_area_moment(const Field<float> radius_field)
+{
+  static const auto area_moment_fn = fn::multi_function::build::SI1_SO<float, float3>(
+      "Second Moment of Area", [](const float radius) -> float3 {
+        const float radius_sq = radius * radius;
+        return radius_sq * radius_sq * M_PI * float3(0.25f, 0.25f, 0.5f);
+      });
+  return Field<float3>(fn::FieldOperation::Create(area_moment_fn, {radius_field}));
+}
+
+static Field<float> create_segment_length(const Field<float3> &position_field)
+{
+  static const auto segment_length_fn = fn::multi_function::build::SI2_SO<float3, float3, float>(
+      "Segment Length",
+      [](const float3 &p1, const float3 &p2) -> float { return math::distance(p1, p2); });
+  Field<float3> next_position_field = fields::create_shifted_curve_input(position_field, 1);
+  return Field<float>(fn::FieldOperation::Create(
+      segment_length_fn, {position_field, std::move(next_position_field)}));
+}
+
+/* Average segment length from both sides of a point to determine average volume. */
+static Field<float> create_average_segment_length(const Field<float> &segment_length_field)
+{
+  static const auto avg_segment_length_fn = fn::multi_function::build::SI2_SO<float, float, float>(
+      "Mean Segment Length", [](const float length1, const float length2) -> float {
+        return 0.5f * (length1 + length2);
+      });
+  Field<float> prev_segment_length_field = fields::create_shifted_curve_input(segment_length_field,
+                                                                              -1);
+  return Field<float>(fn::FieldOperation::Create(
+      avg_segment_length_fn, {segment_length_field, std::move(prev_segment_length_field)}));
+}
+
+static Field<float> create_point_mass_field(const Field<float> &segment_length_field,
+                                            const Field<float> &cross_section_field,
+                                            const Field<float> &density_field)
+{
+  static const auto point_mass_fn = fn::multi_function::build::SI3_SO<float, float, float, float>(
+      "Point Mass",
+      [](const float length, const float cross_section, const float density) -> float {
+        return length * cross_section * density;
+      });
+  return Field<float>(fn::FieldOperation::Create(
+      point_mass_fn, {segment_length_field, cross_section_field, density_field}));
+}
+
+static Field<float3> create_segment_inertia_field(const Field<float> &segment_length_field,
+                                                  const Field<float3> &area_moment_field,
+                                                  const Field<float> &density_field)
+{
+  static const auto segment_inertia_fn =
+      fn::multi_function::build::SI3_SO<float, float3, float, float3>(
+          "Segment Moment of Inertia",
+          [](const float length, const float3 &area_moment, const float density) -> float3 {
+            return length * area_moment * density;
+          });
+  return Field<float3>(fn::FieldOperation::Create(
+      segment_inertia_fn, {segment_length_field, area_moment_field, density_field}));
+}
+
+static Field<float> create_inverse_mass_field(const Field<float> &mass_field)
+{
+  static const auto inv_mass_fn = fn::multi_function::build::SI1_SO<float, float>(
+      "Inverse Mass", [](const float mass) -> float { return math::safe_rcp(mass); });
+  return Field<float>(fn::FieldOperation::Create(inv_mass_fn, {mass_field}));
+}
+
+static Field<float3> create_inverse_inertia_field(const Field<float3> &inertia_field)
+{
+  static const auto inv_inertia_fn = fn::multi_function::build::SI1_SO<float3, float3>(
+      "Inverse Moment of Inertia",
+      [](const float3 &inertia) -> float3 { return math::safe_rcp(inertia); });
+  return Field<float3>(fn::FieldOperation::Create(inv_inertia_fn, {inertia_field}));
+}
+
+}  // namespace fields
+
 enum class VectorSpace {
   /* Object space. */
   Object,
@@ -92,78 +235,14 @@ static bool store_hair_rest_shape(GeometryComponent &hair_component)
                                              {position_field, normal_field});
 }
 
-/* Shift point indices along the curve.
- * Indices at the start or end are clamped to the curve range. */
-class ShiftedIndexOnCurveInput final : public bke::CurvesFieldInput {
- private:
-  int offset_;
-
- public:
-  ShiftedIndexOnCurveInput(const int offset)
-      : bke::CurvesFieldInput(CPPType::get<int>(), "Shifted Index on Curve"), offset_(offset)
-  {
-  }
-
-  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
-                                 AttrDomain domain,
-                                 const IndexMask &mask) const final
-  {
-    if (domain != AttrDomain::Point) {
-      return {};
-    }
-
-    Array<int> output(mask.min_array_size());
-    const OffsetIndices points_by_curve = curves.points_by_curve();
-    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
-      for (const int i : curves_range) {
-        const IndexRange points = points_by_curve[i];
-        const int start = std::max(-offset_, 0);
-        const int end = std::max(offset_, 0);
-
-        for (const int point_i : points.take_front(start)) {
-          output[point_i] = points.first();
-        }
-        for (const int point_i : points.take_back(end)) {
-          output[point_i] = points.last();
-        }
-        for (const int point_i : points.drop_front(start).drop_back(end)) {
-          output[point_i] = point_i + offset_;
-        }
-      }
-    });
-    return VArray<int>::ForContainer(std::move(output));
-  }
-
-  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
-  {
-    return AttrDomain::Point;
-  }
-};
-
-static GField get_shifted_curve_input(const GField &value_field, const int offset)
-{
-  Field<int> index_field{std::make_shared<ShiftedIndexOnCurveInput>(offset)};
-  return GField{std::make_shared<bke::EvaluateAtIndexInput>(
-      std::move(index_field), value_field, AttrDomain::Point)};
-}
-
 /* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
 static bool init_hair_physics(GeometryComponent &component,
                               const Field<bool> &selection_field,
                               const Field<float> &density_field)
 {
-  static const auto cross_section_fn = fn::multi_function::build::SI1_SO<float, float>(
-      "Rod Cross Section", [](const float radius) -> float { return M_PI * radius * radius; });
-  static const auto area_moment_fn = fn::multi_function::build::SI1_SO<float, float3>(
-      "Second Moment of Area", [](const float radius) -> float3 {
-        const float radius_sq = radius * radius;
-        return radius_sq * radius_sq * M_PI * float3(0.25f, 0.25f, 0.5f);
-      });
-  const Field<float> radius_field{bke::AttributeFieldInput::Create<float>(radius_attr)};
-  const Field<float> cross_section_field = Field<float>(
-      fn::FieldOperation::Create(cross_section_fn, {radius_field}));
-  const Field<float3> area_moment_field = Field<float3>(
-      fn::FieldOperation::Create(area_moment_fn, {radius_field}));
+  const Field<float> radius_field = bke::AttributeFieldInput::Create<float>(radius_attr);
+  const Field<float> cross_section_field = fields::create_cross_section(radius_field);
+  const Field<float3> area_moment_field = fields::create_area_moment(radius_field);
   if (!bke::try_capture_fields_on_geometry(component,
                                            {cross_section_attr, area_moment_attr},
                                            bke::AttrDomain::Point,
@@ -173,13 +252,8 @@ static bool init_hair_physics(GeometryComponent &component,
     return false;
   }
 
-  static const auto segment_length_fn = fn::multi_function::build::SI2_SO<float3, float3, float>(
-      "Segment Length",
-      [](const float3 &p1, const float3 &p2) -> float { return math::distance(p1, p2); });
   const Field<float3> position_field{bke::AttributeFieldInput::Create<float3>(position_attr)};
-  const Field<float3> next_position_field = get_shifted_curve_input(position_field, 1);
-  const Field<float> segment_length_field = Field<float>(
-      fn::FieldOperation::Create(segment_length_fn, {position_field, next_position_field}));
+  const Field<float> segment_length_field = fields::create_segment_length(position_field);
   if (!bke::try_capture_field_on_geometry(component,
                                           segment_length_attr,
                                           bke::AttrDomain::Point,
@@ -189,47 +263,20 @@ static bool init_hair_physics(GeometryComponent &component,
     return false;
   }
 
-  /* Average segment length from both sides of a point to determine average volume. */
-  static const auto mean_segment_length_fn =
-      fn::multi_function::build::SI2_SO<float, float, float>(
-          "Mean Segment Length", [](const float length1, const float length2) -> float {
-            return 0.5f * (length1 + length2);
-          });
-  const Field<float> prev_segment_length_field = get_shifted_curve_input(segment_length_field, -1);
-  const Field<float> mean_segment_length_field = Field<float>(fn::FieldOperation::Create(
-      mean_segment_length_fn, {segment_length_field, prev_segment_length_field}));
+  const Field<float> avg_segment_length_field = fields::create_average_segment_length(
+      segment_length_field);
+  const Field<float> point_mass_field = fields::create_point_mass_field(
+      avg_segment_length_field,
+      AttributeFieldInput::Create<float>(cross_section_attr),
+      density_field);
+  const Field<float3> segment_inertia_field = fields::create_segment_inertia_field(
+      avg_segment_length_field,
+      AttributeFieldInput::Create<float3>(area_moment_attr),
+      density_field);
 
-  static const auto point_mass_fn = fn::multi_function::build::SI3_SO<float, float, float, float>(
-      "Point Mass",
-      [](const float length, const float cross_section, const float density) -> float {
-        return length * cross_section * density;
-      });
-  static const auto segment_inertia_fn =
-      fn::multi_function::build::SI3_SO<float, float3, float, float3>(
-          "Segment Moment of Inertia",
-          [](const float length, const float3 &area_moment, const float density) -> float3 {
-            return length * area_moment * density;
-          });
-  const Field<float> point_mass_field = Field<float>(
-      fn::FieldOperation::Create(point_mass_fn,
-                                 {mean_segment_length_field,
-                                  AttributeFieldInput::Create<float>(cross_section_attr),
-                                  density_field}));
-  const Field<float3> segment_inertia_field = Field<float3>(
-      fn::FieldOperation::Create(segment_inertia_fn,
-                                 {mean_segment_length_field,
-                                  AttributeFieldInput::Create<float3>(area_moment_attr),
-                                  density_field}));
-
-  static const auto inv_point_mass_fn = fn::multi_function::build::SI1_SO<float, float>(
-      "Inverse Point Mass", [](const float mass) -> float { return math::safe_rcp(mass); });
-  static const auto inv_segment_inertia_fn = fn::multi_function::build::SI1_SO<float3, float3>(
-      "Inverse Segment Moment of Inertia",
-      [](const float3 &inertia) -> float3 { return math::safe_rcp(inertia); });
-  const Field<float> inv_point_mass_field = Field<float>(
-      fn::FieldOperation::Create(inv_point_mass_fn, {point_mass_field}));
-  const Field<float3> inv_segment_inertia_field = Field<float3>(
-      fn::FieldOperation::Create(inv_segment_inertia_fn, {segment_inertia_field}));
+  const Field<float> inv_point_mass_field = fields::create_inverse_mass_field(point_mass_field);
+  const Field<float3> inv_segment_inertia_field = fields::create_inverse_inertia_field(
+      segment_inertia_field);
 
   if (!bke::try_capture_fields_on_geometry(
           component,
@@ -816,6 +863,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Remove temporary captured attributes. */
   hair_curves.attributes_for_write()->remove(position_cache_attr);
   hair_curves.attributes_for_write()->remove(rotation_cache_attr);
+  hair_curves.attributes_for_write()->remove(cross_section_attr);
+  hair_curves.attributes_for_write()->remove(area_moment_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
 }
