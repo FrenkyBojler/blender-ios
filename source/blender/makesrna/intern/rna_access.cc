@@ -930,6 +930,23 @@ uint RNA_struct_count_properties(StructRNA *srna)
   return counter;
 }
 
+std::optional<AncestorPointerRNA> RNA_struct_find_self_or_ancestor_that_is_a(PointerRNA *ptr,
+                                                                             const StructRNA *srna)
+{
+  if (RNA_struct_is_a(ptr->type, srna)) {
+    return {{ptr->type, ptr->data}};
+  }
+  else {
+    for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
+      if (RNA_struct_is_a(ancestor.type, &RNA_Node)) {
+        return ancestor;
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 const ListBase *RNA_struct_type_properties(StructRNA *srna)
 {
   return &srna->cont.properties;

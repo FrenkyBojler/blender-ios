@@ -20,6 +20,7 @@
 
 #include "BKE_report.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 struct bContext;
@@ -233,6 +234,9 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
  */
 blender::bke::path_templates::VariableMap BKE_build_template_variables_for_render_path(
     const ID *path_owner_id, const Scene *scene);
+
+void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
+                                         const bNode &bnode);
 
 /**
  * Check if a path contains any templating syntax at all.

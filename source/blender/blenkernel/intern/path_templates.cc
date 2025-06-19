@@ -220,7 +220,16 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      return BKE_build_template_variables_for_render_path(ptr->owner_id, scene);
+      VariableMap variables = BKE_build_template_variables_for_render_path(ptr->owner_id, scene);
+
+      if (std::optional<AncestorPointerRNA> node_rna_ptr =
+              RNA_struct_find_self_or_ancestor_that_is_a(ptr, &RNA_Node))
+      {
+        const bNode *bnode = reinterpret_cast<const bNode *>(node_rna_ptr->data);
+        BKE_add_template_variables_for_node(variables, *bnode);
+      }
+
+      return variables;
     }
   }
 
@@ -286,6 +295,12 @@ VariableMap BKE_build_template_variables_for_render_path(const ID *path_owner_id
   }
 
   return variables;
+}
+
+void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
+                                         const bNode &bnode)
+{
+  variables.add_string("node_name", bnode.name);
 }
 
 /* -------------------------------------------------------------------- */

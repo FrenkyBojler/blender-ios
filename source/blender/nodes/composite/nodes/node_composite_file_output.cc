@@ -870,9 +870,9 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&this->bnode().owner_tree().id,
-                                                     &context().get_scene());
+    path_templates::VariableMap template_variables = BKE_build_template_variables_for_render_path(
+        &this->bnode().owner_tree().id, &context().get_scene());
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
@@ -955,8 +955,9 @@ class FileOutputOperation : public NodeOperation {
     const RenderData &render_data = context().get_render_data();
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const path_templates::VariableMap template_variables =
-        BKE_build_template_variables_for_render_path(&this->bnode().owner_tree().id, scene);
+    path_templates::VariableMap template_variables = BKE_build_template_variables_for_render_path(
+        &this->bnode().owner_tree().id, scene);
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,

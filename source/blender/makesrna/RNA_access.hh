@@ -175,6 +175,22 @@ bool RNA_struct_contains_property(PointerRNA *ptr, PropertyRNA *prop_test);
 unsigned int RNA_struct_count_properties(StructRNA *srna);
 
 /**
+ * Return the first of the passed pointer or its ancestors that match the type
+ * of `srna`.
+ *
+ * The check starts from `ptr` itself, and the works its way up to the parent,
+ * then grandparent, etc. The first one that matches is returned as an
+ * `AncestorPointerRNA`.
+ *
+ * Base types are considered matching, so e.g. an RNA pointer of type
+ * `RNA_SpotLight` will also match `RNA_Light`.
+ *
+ * \return The matching pointer if any, or `nullopt` otherwise.
+ */
+std::optional<AncestorPointerRNA> RNA_struct_find_self_or_ancestor_that_is_a(
+    PointerRNA *ptr, const StructRNA *srna);
+
+/**
  * Low level direct access to type->properties,
  * note this ignores parent classes so should be used with care.
  */
