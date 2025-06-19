@@ -1,3 +1,4 @@
 Referenced by issue #135119, Ctrl + Tab on new timeline results in black channelbox
 Referenced by issue #135432, Problem with Shadow Catcher and World Importance Sampling
 Referenced by issue #138661, Invalid editor type after closing maximized area file browser
+Referenced by issue #138909, Ctrl+Tab in graph editor does not send you back to the timeline anymore, but always in the dope sheet.
