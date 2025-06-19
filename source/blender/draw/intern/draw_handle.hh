@@ -82,7 +82,7 @@ struct ResourceHandleRange : ResourceHandle {
 
   IndexRange index_range() const
   {
-    return {resource_index(), count};
+    return {raw, count};
   }
 };
 
