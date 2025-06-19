@@ -561,6 +561,7 @@ inline eGPUTextureFormatFlag to_format_flag(eGPUTextureFormat format)
     case GPU_R11F_G11F_B10F:
       return GPU_FORMAT_FLOAT;
     case GPU_DEPTH32F_STENCIL8:
+      return GPU_FORMAT_DEPTH_STENCIL;
     case GPU_SRGB8_A8:
       return GPU_FORMAT_NORMALIZED_INTEGER | GPU_FORMAT_SRGB;
 
