@@ -79,8 +79,12 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
 {
   BLI_assert(repeat > 0);
   BLI_assert(mult + repeat < order);
+  /**
+   * Cyclic curves can not insert knots greater or equal to `knots.last(order)`.
+   * Use equivalent `knots.last(order) % points_num`.
+   */
+  BLI_assert(knots.size() <= points_num + order || knot < knots.last(order - 1));
   const int degree = order - 1;
-  const int points_after_num = points_num + repeat;
   const int affected_by_num = order - mult;
   const IndexRange points_to_replace = IndexRange::from_begin_size(knot_span - degree + 1,
                                                                    affected_by_num - 2);
@@ -116,6 +120,7 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
     single_point_weights[i] = 1.0f;
   }
 
+  const int points_after_num = points_num + repeat;
   for (const int r : IndexRange::from_begin_size(1, repeat)) {
     const int leg = knot_span - degree + r;
     for (const int i : IndexRange(order - r - mult)) {
@@ -163,6 +168,9 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
   const int top = degree - mult + 1;
   const IndexRange points_to_replace = IndexRange::from_begin_size(
       last_knot_index - degree - repeat, top + 2 * repeat);
+  const int to_replace_looped = points_to_replace.one_after_last() > points_num ?
+                                    points_to_replace.one_after_last() - points_num :
+                                    0;
   const IndexRange new_points = IndexRange::from_begin_size(points_to_replace.start(),
                                                             degree - mult + repeat + 1);
 
@@ -171,10 +179,12 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
                points_to_replace.size() * new_points.size());
 
   /* Set 1.0f for copied points. */
-  for (const int i : IndexRange(points_to_replace.start())) {
+  for (const int i : IndexRange::from_begin_end(to_replace_looped, points_to_replace.start())) {
     tris.append(WeightTriplet(i, i, 1.0f));
   }
-  for (const int i : IndexRange::from_begin_end(points_to_replace.one_after_last(), points_num)) {
+  for (const int i : IndexRange::from_begin_end(
+           points_to_replace.one_after_last() - to_replace_looped, points_num))
+  {
     tris.append(WeightTriplet(i - repeat, i, 1.0f));
   }
 
@@ -219,14 +229,16 @@ WeightMatrix calc_knot_removal_weights(Span<float> knots,
     }
   }
 
+  const int points_after_num = points_num - repeat;
   for (const int i : new_points.index_range()) {
     for (const int term_point : points_to_replace.index_range()) {
-      tris.append(WeightTriplet(
-          new_points[i], points_to_replace[term_point], point_weights[i][term_point]));
+      tris.append(WeightTriplet(new_points[i] % points_after_num,
+                                points_to_replace[term_point] % points_num,
+                                point_weights[i][term_point]));
     }
   }
 
-  WeightMatrix m(points_num - repeat, points_num);
+  WeightMatrix m(points_after_num, points_num);
   m.setFromTriplets(tris.begin(), tris.end());
   m.makeCompressed();
   return m;

@@ -404,83 +404,37 @@ static void test_insert_remove_knots_matrix_identity(const bke::CurvesGeometry &
   }
 }
 
-TEST(curves_editors, InsertRemoveKnots2)
-{
-  const Vector<float3> positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {2.5, 0, 0}};
-  const int order = 2;
-  const bke::CurvesGeometry curves = create_curves(positions, order, {false});
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 1.5, 1);
-}
-
-TEST(curves_editors, InsertRemoveKnots3)
-{
-  const Vector<float3> positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {2.5, 0, 0}};
-  const int order = 3;
-  const bke::CurvesGeometry curves = create_curves(positions, order, {false});
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 2 /* knot */, 1 /* repeat */);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 2.5, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 2.5, 2);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 3, 1);
-}
-
-TEST(curves_editors, InsertRemoveKnots4)
-{
-  const Vector<float3> positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {2.5, 0, 0}};
-  const int order = 4;
-  const bke::CurvesGeometry curves = create_curves(positions, order, {false});
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 3 /* knot */, 1 /* repeat */);
-  test_insert_remove_knots_matrix_identity(curves, 0, 3, 2);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 3.5, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 3.5, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 3.5, 3);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 4, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4, 2);
-}
-
-TEST(curves_editors, InsertRemoveKnots5)
-{
-  const Vector<float3> positions = {{-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {2.5, 0, 0}};
-  const int order = 5;
-  const bke::CurvesGeometry curves = create_curves(positions, order, {false});
-  test_insert_remove_knots_matrix_identity(curves, 0, 4 /* knot */, 1 /* repeat */);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4, 3);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 4.5, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4.5, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4.5, 3);
-  test_insert_remove_knots_matrix_identity(curves, 0, 4.5, 4);
-
-  test_insert_remove_knots_matrix_identity(curves, 0, 5, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5, 3);
-}
-
-TEST(curves_editors, InsertRemoveKnots6)
+/**
+ * Calculates various knot insertion and removal matrices for various curves.
+ * Multiplication of corresponding removal and insertion matrices must be close to identity matrix.
+ */
+TEST(curves_editors, InsertRemoveKnots)
 {
   const Vector<float3> positions = {
       {-1.5, 0, 0}, {-1, 1, 0}, {1, 1, 0}, {1.5, 0, 0}, {2.5, 0, 0}, {3.5, 1, 0}};
-  const int order = 6;
-  const bke::CurvesGeometry curves = create_curves(positions, order, {false});
-  test_insert_remove_knots_matrix_identity(curves, 0, 5 /* knot */, 1 /* repeat */);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5, 3);
+  for (const int order : IndexRange::from_begin_end_inclusive(2, 6)) {
 
-  test_insert_remove_knots_matrix_identity(curves, 0, 5.5, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5.5, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5.5, 3);
-  test_insert_remove_knots_matrix_identity(curves, 0, 5.5, 4);
+    const std::array<bke::CurvesGeometry, 2> geom{create_curves(positions, order, {}),
+                                                  create_curves(positions, order, {0})};
 
-  test_insert_remove_knots_matrix_identity(curves, 0, 6, 1);
-  test_insert_remove_knots_matrix_identity(curves, 0, 6, 2);
-  test_insert_remove_knots_matrix_identity(curves, 0, 6, 3);
+    for (auto &curves : geom) {
+      const IndexRange curve_points = curves.points_by_curve()[0];
+      const bool cyclic = curves.cyclic()[0];
+      const float first_knot = order - 1;
+      const float last_knot = curve_points.size() + (cyclic ? order - 2 : 0);
+      for (const int repeat : IndexRange::from_begin_end_inclusive(1, order - 2)) {
+        test_insert_remove_knots_matrix_identity(curves, 0, first_knot, repeat);
+        test_insert_remove_knots_matrix_identity(curves, 0, last_knot, repeat);
+      }
+
+      const float some_knot = first_knot + 0.3f;
+      const float some_other = last_knot - 0.4f;
+      for (const int repeat : IndexRange::from_begin_end_inclusive(1, order - 1)) {
+        test_insert_remove_knots_matrix_identity(curves, 0, some_knot, repeat);
+        test_insert_remove_knots_matrix_identity(curves, 0, some_other, repeat);
+      }
+    }
+  }
 }
 
 }  // namespace blender::ed::curves::tests
