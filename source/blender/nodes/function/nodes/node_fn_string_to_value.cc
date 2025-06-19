@@ -47,10 +47,10 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
       return &str_to_float_fn;
     case SOCK_INT:
       return &str_to_int_fn;
+    default:
+      BLI_assert_unreachable();
+      return nullptr;
   }
-
-  BLI_assert_unreachable();
-  return nullptr;
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
