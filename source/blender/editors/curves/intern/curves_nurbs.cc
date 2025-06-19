@@ -145,6 +145,93 @@ WeightMatrix calc_knot_insertion_weights(const Span<float> knots,
   return m;
 }
 
+WeightMatrix calc_knot_removal_weights(Span<float> knots,
+                                       int points_num,
+                                       int8_t order,
+                                       float knot,
+                                       int last_knot_index,
+                                       int mult,
+                                       int repeat)
+{
+  BLI_assert(repeat <= mult);
+  if (repeat == 0) {
+    WeightMatrix m(points_num, points_num);
+    m.setIdentity();
+    return m;
+  }
+  const int degree = order - 1;
+  const int top = degree - mult + 1;
+  const IndexRange points_to_replace = IndexRange::from_begin_size(
+      last_knot_index - degree - repeat, top + 2 * repeat);
+  const IndexRange new_points = IndexRange::from_begin_size(points_to_replace.start(),
+                                                            degree - mult + repeat + 1);
+
+  Vector<WeightTriplet> tris;
+  tris.reserve(points_to_replace.start() + points_num - points_to_replace.one_after_last() +
+               points_to_replace.size() * new_points.size());
+
+  /* Set 1.0f for copied points. */
+  for (const int i : IndexRange(points_to_replace.start())) {
+    tris.append(WeightTriplet(i, i, 1.0f));
+  }
+  for (const int i : IndexRange::from_begin_end(points_to_replace.one_after_last(), points_num)) {
+    tris.append(WeightTriplet(i - repeat, i, 1.0f));
+  }
+
+  Array<WeightVector> point_weights(new_points.size());
+  const int src_size = points_to_replace.size();
+  const int midle = (new_points.size() + 1) / 2;
+  for (const int i : IndexRange::from_begin_size(0, midle)) {
+    WeightVector &single_point_weights = point_weights[i];
+    single_point_weights.resize(src_size);
+    single_point_weights[i] = 1.0f;
+  }
+  const int till_midle = new_points.size() / 2;
+  for (const int i : IndexRange::from_begin_size(0, till_midle)) {
+    WeightVector &single_point_weights = point_weights.last(i);
+    single_point_weights.resize(src_size);
+    single_point_weights[src_size - 1 - i] = 1.0f;
+  }
+
+  for (const int iter : IndexRange::from_begin_end(1, midle)) {
+    const IndexRange i_range = IndexRange::from_begin_size(iter, std::min(midle - iter, repeat));
+    for (const int i_reverse : i_range.index_range()) {
+      const int i = i_range.last(i_reverse);
+      const int t = repeat - i + iter;
+      const int knot_index = points_to_replace[i];
+      const float alpha = (knot - knots[knot_index]) /
+                          (knots[knot_index + degree + t] - knots[knot_index]);
+      point_weights[i] = (point_weights[i] - (1 - alpha) * point_weights[i - 1]) / alpha;
+    }
+  }
+
+  for (const int iter : IndexRange::from_begin_end(1, till_midle)) {
+    const IndexRange i_range = IndexRange::from_begin_size(iter,
+                                                           std::min(till_midle - iter, repeat));
+    for (const int i_reverse : i_range.index_range()) {
+      const int i = i_range.last(i_reverse);
+      const int t = repeat - i + iter;
+      const int knot_index = points_to_replace.last(i);
+      const float alpha = (knot - knots[knot_index - t + 1]) /
+                          (knots[knot_index + degree + 1] - knots[knot_index - t + 1]);
+      const int j = point_weights.index_range().last(i);
+      point_weights[j] = (point_weights[j] - alpha * point_weights[j + 1]) / (1 - alpha);
+    }
+  }
+
+  for (const int i : new_points.index_range()) {
+    for (const int term_point : points_to_replace.index_range()) {
+      tris.append(WeightTriplet(
+          new_points[i], points_to_replace[term_point], point_weights[i][term_point]));
+    }
+  }
+
+  WeightMatrix m(points_num - repeat, points_num);
+  m.setFromTriplets(tris.begin(), tris.end());
+  m.makeCompressed();
+  return m;
+}
+
 Span<float> prepare_curve_weights(const Span<float> all_weights,
                                   const IndexRange curve_points,
                                   Array<float> &weights_buffer)
@@ -272,12 +359,12 @@ static void apply_weights_to_curve(const bke::CurvesGeometry &src_curves,
   }
 }
 
-static void insert_knot_value(const int points_num,
-                              const Span<float> src_knots,
-                              const float knot,
-                              const int knot_span,
-                              const int repeat,
-                              MutableSpan<float> dst_knots)
+void insert_knot_value(const int points_num,
+                       const Span<float> src_knots,
+                       const float knot,
+                       const int knot_span,
+                       const int repeat,
+                       MutableSpan<float> dst_knots)
 {
   const bool loop_to_front = knot_span >= points_num;
   const int first_stable_knot = loop_to_front ? (knot_span % points_num) + 1 : 0;

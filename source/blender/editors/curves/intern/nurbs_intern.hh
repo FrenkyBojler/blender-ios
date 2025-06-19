@@ -28,6 +28,18 @@ WeightMatrix calc_knot_insertion_weights(Span<float> knots,
                                          int knot_span,
                                          int mult,
                                          int repeat);
+
+/**
+ * Calculates knot removal point weights later used to transform all point attributes to make
+ * actual remove.
+ */
+WeightMatrix calc_knot_removal_weights(Span<float> knots,
+                                       int points_num,
+                                       int8_t order,
+                                       float knot,
+                                       int knot_span,
+                                       int mult,
+                                       int repeat);
 /**
  * Prepares curve's knot weights. If `ATTR_NURBS_WEIGHT` is present returns `Span` representing
  * weights for given range. Otherwise fills buffer with 1.0f and returns it's `Span`.
@@ -45,6 +57,14 @@ void gather_modified_positions(const Span<float3> positions,
                                const WeightMatrix &point_weights,
                                const IndexMask selection,
                                MutableSpan<float3> r_positions);
+
+void insert_knot_value(const int points_num,
+                       const Span<float> src_knots,
+                       const float knot,
+                       const int knot_span,
+                       const int repeat,
+                       MutableSpan<float> dst_knots);
+
 /**
  * Inserts knot into given curve.
  * \param knot_span: Index of span (interval between two knots) to insert knot.
