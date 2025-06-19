@@ -5563,7 +5563,8 @@ void pie_menu_workspace_status(bContext *C, const uiBlock *block)
     status.item(IFACE_("Show previous/next page"), ICON_EVENT_LEFT_ARROW, ICON_EVENT_RIGHT_ARROW);
   }
 }
-void pie_menu_apply_paging_scroll(const uiBlock *block)
+
+void pie_menu_apply_page_scroll(const uiBlock *block)
 {
   for (int i : block->pie_data.pages.index_range()) {
     for (uiBut *but : block->pie_data.pages[i]) {
@@ -5612,9 +5613,8 @@ static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
     i++;
   }
   /* Remove empty pie menu pages. */
-  block->pie_data.pages.remove_if(
-      [](const blender::Vector<uiBut *> &page) { return page.is_empty(); });
-  blender::interface::internal::pie_menu_apply_paging_scroll(block);
+  block->pie_data.pages.remove_if([](const PieMenuPage &page) { return page.is_empty(); });
+  blender::interface::internal::pie_menu_apply_page_scroll(block);
 }
 }  // namespace blender::interface::internal
 

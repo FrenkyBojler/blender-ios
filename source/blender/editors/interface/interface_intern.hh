@@ -1713,7 +1713,7 @@ int paste_property_drivers(blender::Span<FCurve *> src_drivers,
                            bool is_array_prop,
                            PointerRNA *dst_ptr,
                            PropertyRNA *dst_prop);
-void pie_menu_apply_paging_scroll(const uiBlock *block);
+void pie_menu_apply_page_scroll(const uiBlock *block);
 
 void pie_menu_workspace_status(bContext *C, const uiBlock *block);
 

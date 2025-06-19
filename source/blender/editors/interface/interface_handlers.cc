@@ -11460,7 +11460,7 @@ static int ui_but_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandl
   return ui_but_pie_menu_apply(C, menu, but, false);
 }
 
-static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cycle)
+static bool ui_pie_menu_page_scroll_step_add(uiBlock *block, int direction, bool cycle)
 {
   const int pages = block->pie_data.pages.size();
   if (pages < 2) {
@@ -11476,10 +11476,10 @@ static bool ui_pie_menu_page_scroll_step(uiBlock *block, int direction, bool cyc
   return current_page != block->pie_data.active_page;
 };
 
-static void ui_pie_menu_page_scroll_apply(
+static void ui_pie_menu_page_scroll_step(
     bContext *C, uiBlock *block, const uiPopupBlockHandle *menu, int direction, bool cycle = false)
 {
-  if (ui_pie_menu_page_scroll_step(block, direction, cycle)) {
+  if (ui_pie_menu_page_scroll_step_add(block, direction, cycle)) {
     uiBut *but = ui_region_find_active_but(menu->region);
     if (but) {
       but->active->cancel = true;
@@ -11487,7 +11487,7 @@ static void ui_pie_menu_page_scroll_apply(
     }
     WM_event_add_mousemove(CTX_wm_window(C));
   }
-  blender::interface::internal::pie_menu_apply_paging_scroll(block);
+  blender::interface::internal::pie_menu_apply_page_scroll(block);
   blender::interface::internal::pie_menu_workspace_status(C, block);
   ED_region_tag_redraw(menu->region);
 };
@@ -11683,7 +11683,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
         case EVT_RIGHTARROWKEY: {
           if (event->val == KM_PRESS) {
             const int scroll_dir = ELEM(event->type, WHEELUPMOUSE, EVT_LEFTARROWKEY) ? -1 : 1;
-            ui_pie_menu_page_scroll_apply(C, block, menu, scroll_dir);
+            ui_pie_menu_page_scroll_step(C, block, menu, scroll_dir);
           }
           break;
         }
@@ -11691,7 +11691,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
           /* Tab menu pie page scroll, allows cycling between first and last page. */
           if (event->val == KM_PRESS) {
             const int scroll_dir = (event->modifier == KM_SHIFT) ? -1 : 1;
-            ui_pie_menu_page_scroll_apply(C, block, menu, scroll_dir, true);
+            ui_pie_menu_page_scroll_step(C, block, menu, scroll_dir, true);
           }
           break;
         }
